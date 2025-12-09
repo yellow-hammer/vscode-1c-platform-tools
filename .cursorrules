@@ -1,0 +1,41 @@
+# Правила для разработки расширения VS Code "1C Platform Tools"
+
+## Контекст проекта
+Расширение для Visual Studio Code на TypeScript, предоставляющее инструменты для работы с проектами экосистемы 1С. Проект в начальной стадии (v0.0.1), реализована базовая структура.
+
+## Архитектура VS Code Extension
+- Точка входа: `src/extension.ts` с `activate(context: vscode.ExtensionContext)`
+- Команды: `vscode.commands.registerCommand()` с префиксом `1c-platform-tools.{commandName}`
+- Подписки: все добавляются в `context.subscriptions` для очистки
+- TreeView: планируется через `vscode.window.createTreeView()` с `TreeDataProvider<T>`
+- Типы: всегда из `@types/vscode`, не использовать `any`
+
+## Стиль кода
+- TypeScript strict mode, ES2022, модуль Node16
+- Комментарии и сообщения на русском языке
+- Conventional Commits (https://www.conventionalcommits.org/ru/v1.0.0/)
+- ESLint: camelCase/PascalCase для импортов, обязательные фигурные скобки, строгое равенство
+
+## API VS Code
+- `vscode.Uri` для путей файлов
+- `vscode.workspace.workspaceFolders` для корня проекта (проверять наличие)
+- `vscode.window.showInformationMessage/WarningMessage/ErrorMessage` для уведомлений
+
+## Структура проекта
+- `src/extension.ts` - точка входа
+- `src/test/` - тесты
+- `resources/` - иконки (1c-icon.svg, 1c-icon-light.svg)
+- `out/` - скомпилированный код (генерируется)
+- `docs/` - документация
+
+## Сборка
+- `npm run compile` - компиляция TypeScript
+- `npm run watch` - режим наблюдения
+- `npm run lint` - проверка ESLint
+- `npm run test` - тесты (с `@vscode/test-electron`)
+
+## Важно
+- Активация при старте VS Code (`activationEvents: []`)
+- Команды регистрируются в `package.json` → `contributes.commands`
+- TreeView регистрируется в `package.json` → `contributes.views`
+- Всегда проверять `workspaceFolders` перед работой с файлами

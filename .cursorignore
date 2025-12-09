@@ -1,0 +1,13 @@
+# Сгенерированные файлы
+dist/
+out/
+node_modules/
+
+# Временные файлы
+*.log
+*.tmp
+.DS_Store
+
+# Тестовые артефакты
+*.test.js
+*.test.js.map
