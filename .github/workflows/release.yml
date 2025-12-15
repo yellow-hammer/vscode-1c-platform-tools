@@ -9,6 +9,9 @@ jobs:
   release:
     name: Build and Publish
     runs-on: ubuntu-latest
+    permissions:
+      contents: write # Необходимо для создания релизов
+      packages: write # Необходимо для публикации в VS Code Marketplace
     
     steps:
       - name: Checkout code
@@ -19,7 +22,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '18'
+          node-version: '20'
           cache: 'npm'
 
       - name: Install dependencies
@@ -80,8 +83,6 @@ jobs:
             - `Ctrl+Shift+P` → `Extensions: Install from VSIX...`
           draft: false
           prerelease: false
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Publish to VS Code Marketplace
         run: npx @vscode/vsce publish -p ${{ secrets.VSCE_PAT }}
