@@ -3,10 +3,14 @@
 
 
 [changelog]
+# changelog header
+header = """
+# Журнал изменений\n
+Все заметные изменения в этом проекте будут задокументированы в этом файле.
+"""
 # A Tera template to be rendered for each release in the changelog.
 # See https://keats.github.io/tera/docs/#introduction
 body = """
-# Changelog
 
 {% if version %}\
     ## [{{ version | trim_start_matches(pat="v") }}] - {{ timestamp | date(format="%Y-%m-%d") }}
