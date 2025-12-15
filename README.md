@@ -1,71 +1,94 @@
-# 1c-platform-tools README
+# 1C Platform Tools
 
-This is the README for your extension "1c-platform-tools". After writing up a brief description, we recommend including the following sections.
+Расширение для Visual Studio Code с инструментами разработки для экосистемы 1С. Предоставляет удобный интерфейс для работы с проектами 1С через панель команд и дерево задач.
 
-## Features
+## Возможности
 
-Describe specific features of your extension including screenshots of your extension in action. Image paths are relative to this README file.
+Откройте панель "1C Platform Tools" в боковой панели VS Code. Все команды организованы по категориям:
 
-For example if there is an image subfolder under your extension project workspace:
+![Панель команд 1C Platform Tools](resources/treeview-screenshot.png)
 
-\!\[feature X\]\(images/feature-x.png\)
+- **Информационные базы**: операции с ИБ
+- **Конфигурация**: работа с конфигурацией
+- **Расширения**: работа с расширениями
+- **Внешние файлы**: обработки и отчеты
+- **Зависимости**: управление зависимостями
+- **Запуск**: запуск приложений 1С
+- **Тестирование**: тесты и проверки
+- **Задачи (workspace)**: задачи и конфигурации запуска
 
-> Tip: Many popular extensions utilize animations. This is an excellent way to show off your extension! We recommend short, focused animations that are easy to follow.
+Также доступны команды через палитру команд (`Ctrl+Shift+P` → введите "1C").
 
-## Requirements
+## Требования
 
-If you have any requirements or dependencies, add a section describing those and how to install and configure them.
+- Visual Studio Code версии 1.106.1 или выше
+- Node.js версии 18.x или выше
+- OneScript (oscript) - для выполнения скриптов
+- vanessa-runner (vrunner) - для выполнения команд 1С
+- OPM (OneScript Package Manager) - для управления зависимостями
 
-## Extension Settings
+## Установка
 
-Include if your extension adds any VS Code settings through the `contributes.configuration` extension point.
+1. Откройте VS Code
+2. Перейдите в раздел Extensions (Ctrl+Shift+X)
+3. Найдите "1C Platform Tools"
+4. Нажмите "Install"
 
-For example:
+## Настройка
 
-This extension contributes the following settings:
+Расширение автоматически активируется при открытии проекта 1С (наличие файла `packagedef` в корне проекта).
 
-* `myExtension.enable`: Enable/disable this extension.
-* `myExtension.thing`: Set to `blah` to do something.
+Настройки доступны через `File > Preferences > Settings` (или `Ctrl+,`) и поиск "1C Platform Tools". Параметры подключения к информационной базе настраиваются в файле `env.json` в корне проекта:
 
-## Known Issues
+```json
+{
+  "default": {
+    "--ibconnection": "/F./build/ib"
+  }
+}
+```
 
-Calling out known issues can help limit users opening duplicate issues against your extension.
+## Структура проекта
 
-## Release Notes
+Расширение опирается на структуру каталогов проекта [vanessa-bootstrap](https://github.com/yellow-hammer/vanessa-bootstrap) — шаблона правильной разработки на платформе 1С:Предприятие 8.
 
-Users appreciate release notes as you update your extension.
+Рекомендуемая структура проекта:
 
-### 1.0.0
+```txt
+project/
+├── build/
+│   ├── ib/                 # Информационная база
+│   └── out/                # Собранные файлы
+├── src/
+│   ├── cf/                 # Исходники конфигурации
+│   ├── cfe/                # Исходники расширений
+│   ├── epf/                # Исходники внешних обработок
+│   └── erf/                # Исходники внешних отчетов
+├── oscript_modules/        # Зависимости (устанавливаются через OPM)
+├── env.json                # Настройки подключения к ИБ
+└── packagedef              # Файл для активации расширения
+```
 
-Initial release of ...
+## Важные нюансы
 
-### 1.0.1
+- Все команды выполняются в терминале VS Code для видимости вывода
+- Расширение автоматически ищет `vrunner.bat` в `oscript_modules/bin/` проекта
+- Параметр `--ibconnection` берется из `env.json` (секция `default['--ibconnection']`, по умолчанию `/F./build/ib`)
+- Все пути к файлам внутри workspace должны быть относительными
 
-Fixed issue #.
+## Для разработчиков
 
-### 1.1.0
+Если вы хотите внести вклад в проект или разработать собственные команды, ознакомьтесь с [документацией для разработчиков](docs/README.md).
 
-Added features X, Y, and Z.
+## Лицензия
 
----
+MIT License. Подробности см. в файле [LICENSE](LICENSE).
 
-## Following extension guidelines
+## Автор
 
-Ensure that you've read through the extensions guidelines and follow the best practices for creating your extension.
+Ivan Karlo (<i.karlo@outlook.com>)
 
-* [Extension Guidelines](https://code.visualstudio.com/api/references/extension-guidelines)
+При желании, отблагодарить автора можно по ссылке:
 
-## Working with Markdown
-
-You can author your README using Visual Studio Code. Here are some useful editor keyboard shortcuts:
-
-* Split the editor (`Cmd+\` on macOS or `Ctrl+\` on Windows and Linux).
-* Toggle preview (`Shift+Cmd+V` on macOS or `Shift+Ctrl+V` on Windows and Linux).
-* Press `Ctrl+Space` (Windows, Linux, macOS) to see a list of Markdown snippets.
-
-## For more information
-
-* [Visual Studio Code's Markdown Support](http://code.visualstudio.com/docs/languages/markdown)
-* [Markdown Syntax Reference](https://help.github.com/articles/markdown-basics/)
-
-**Enjoy!**
+- [Boosty](https://boosty.to/1carlo/donate)
+- [Сбор в Т-банк](https://www.tbank.ru/cf/4kILVyrLKwq)
