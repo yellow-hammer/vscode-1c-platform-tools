@@ -1,0 +1,10 @@
+{
+  "language": "ru",
+  "codeLens": {
+    "showNumberOfReferences": true
+  },
+  "diagnostics": {
+    "enable": true
+  }
+}
+
