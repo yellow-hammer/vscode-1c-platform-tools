@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: 💬 Обсуждения
+    url: https://github.com/yellow-hammer/1c-platform-tools/discussions
+    about: Задайте вопрос или поделитесь идеями в обсуждениях
+  - name: 📚 Документация
+    url: https://github.com/yellow-hammer/1c-platform-tools#readme
+    about: Прочитайте документацию проекта

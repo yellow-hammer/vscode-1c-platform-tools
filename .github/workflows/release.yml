@@ -1,0 +1,89 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*' # Запускается при создании тега, начинающегося с 'v'
+
+jobs:
+  release:
+    name: Build and Publish
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # Нужно для git-cliff
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run linter
+        run: npm run lint
+
+      - name: Compile TypeScript
+        run: npm run compile
+
+      - name: Get version from tag
+        id: tag_version
+        run: |
+          VERSION=${GITHUB_REF#refs/tags/v}
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Version: $VERSION"
+
+      - name: Update package.json version
+        run: |
+          npm version ${{ steps.tag_version.outputs.version }} --no-git-tag-version
+
+      - name: Generate changelog
+        id: changelog
+        run: |
+          # Устанавливаем git-cliff, если доступен
+          if command -v git-cliff &> /dev/null || cargo install git-cliff; then
+            git-cliff -o CHANGELOG.md
+            CHANGELOG=$(cat CHANGELOG.md)
+          else
+            echo "git-cliff не установлен, пропускаем генерацию changelog"
+            CHANGELOG="## Изменения\n\nСм. [историю коммитов](https://github.com/${{ github.repository }}/compare/${{ github.event.before }}...${{ github.ref }})"
+          fi
+          # Многострочный вывод в GitHub Actions
+          {
+            echo 'changelog<<EOF'
+            echo "$CHANGELOG"
+            echo EOF
+          } >> $GITHUB_OUTPUT
+        continue-on-error: true
+
+      - name: Package extension
+        run: npm run package
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: |
+            *.vsix
+          body: |
+            ## Версия ${{ steps.tag_version.outputs.version }}
+            
+            ${{ steps.changelog.outputs.changelog }}
+            
+            ### Установка
+            
+            Скачайте файл `.vsix` и установите через VS Code:
+            - `Ctrl+Shift+P` → `Extensions: Install from VSIX...`
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Publish to VS Code Marketplace
+        run: npx @vscode/vsce publish -p ${{ secrets.VSCE_PAT }}
+        env:
+          VSCE_PAT: ${{ secrets.VSCE_PAT }}
