@@ -1,41 +1,172 @@
 # Правила для разработки расширения VS Code "1C Platform Tools"
 
 ## Контекст проекта
-Расширение для Visual Studio Code на TypeScript, предоставляющее инструменты для работы с проектами экосистемы 1С. Проект в начальной стадии (v0.0.1), реализована базовая структура.
+Расширение для Visual Studio Code на TypeScript, предоставляющее инструменты для работы с проектами экосистемы 1С. Проект использует VS Code API для интеграции с редактором и vrunner (vanessa-runner) для выполнения команд 1С.
 
 ## Архитектура VS Code Extension
-- Точка входа: `src/extension.ts` с `activate(context: vscode.ExtensionContext)`
-- Команды: `vscode.commands.registerCommand()` с префиксом `1c-platform-tools.{commandName}`
-- Подписки: все добавляются в `context.subscriptions` для очистки
-- TreeView: планируется через `vscode.window.createTreeView()` с `TreeDataProvider<T>`
-- Типы: всегда из `@types/vscode`, не использовать `any`
+- **Точка входа**: `src/extension.ts` с `activate(context: vscode.ExtensionContext)`
+- **Команды**: `vscode.commands.registerCommand()` с префиксом `1c-platform-tools.{commandName}`
+- **Подписки**: все добавляются в `context.subscriptions` для автоматической очистки при деактивации
+- **TreeView**: реализован через `vscode.window.createTreeView()` с `PlatformTreeDataProvider`
+- **Типы**: всегда из `@types/vscode`, не использовать `any`
+- **BaseCommand**: базовый класс для всех команд, предоставляет общие методы
+- **VRunnerManager**: синглтон для работы с vrunner, управление путями и настройками
+- **Активация**: при наличии файла `packagedef` в корне проекта
+
+## Структура команд (разделение по доменам)
+Команды организованы по доменам в `src/commands/`:
+- `infobaseCommands.ts` - операции с информационными базами (создание, обновление, инициализация, выгрузка/загрузка dt)
+- `configurationCommands.ts` - все операции с конфигурацией (загрузка, выгрузка, сборка, разбор)
+- `extensionsCommands.ts` - все операции с расширениями (загрузка, выгрузка, сборка, разбор)
+- `externalFilesCommands.ts` - операции с внешними файлами (обработки и отчеты: сборка, разбор)
+- `dependenciesCommands.ts` - управление зависимостями через OPM
+- `runCommands.ts` - запуск Предприятия и Конфигуратора
+- `testCommands.ts` - тестирование (XUnit, Vanessa, синтаксический контроль, Allure)
+- `workspaceTasksCommands.ts` - управление задачами IDE и конфигурациями запуска
+
+## Соглашения по именованию методов
+- `compile()` - сборка из исходников в бинарный файл (не `build()`)
+- `decompile()` - разбор из бинарного файла в исходники
+- `loadFromSrc()` - загрузка из исходников в ИБ
+- `loadFromCf()` / `loadFromCfe()` - загрузка из файла в ИБ
+- `dumpToSrc()` - выгрузка из ИБ в исходники
+- `dumpToCf()` / `dumpToCfe()` - выгрузка из ИБ в файл
 
 ## Стиль кода
-- TypeScript strict mode, ES2022, модуль Node16
-- Комментарии и сообщения на русском языке
-- Conventional Commits (https://www.conventionalcommits.org/ru/v1.0.0/)
-- ESLint: camelCase/PascalCase для импортов, обязательные фигурные скобки, строгое равенство
+- **TypeScript**: strict mode, ES2022, модуль Node16
+- **Комментарии и сообщения**: на русском языке
+- **Коммиты**: Conventional Commits (https://www.conventionalcommits.org/ru/v1.0.0/)
+- **ESLint**: camelCase/PascalCase для импортов, обязательные фигурные скобки, строгое равенство
+- **Все классы команд**: наследуются от `BaseCommand` и используют `this.vrunner` для доступа к VRunnerManager
+- **Все методы команд**: используют `this.ensureWorkspace()` для проверки workspace (НЕ использовать прямые проверки `getWorkspaceRoot()`)
+- **Выполнение команд**: используют `this.vrunner.executeVRunnerInTerminal()` для выполнения в терминале
+- **Импорты**: используйте `node:` префикс для Node.js модулей (например, `node:path`, `node:fs/promises`)
+- **JSDoc**: все публичные методы должны иметь полную JSDoc документацию с `@param`, `@returns`, `@throws` где необходимо
+- **Отладка**: НЕ использовать `console.log`, `console.error` в продакшн коде (использовать `vscode.window.showErrorMessage()` или отображение в UI)
 
-## API VS Code
-- `vscode.Uri` для путей файлов
-- `vscode.workspace.workspaceFolders` для корня проекта (проверять наличие)
-- `vscode.window.showInformationMessage/WarningMessage/ErrorMessage` для уведомлений
+## API VS Code (основные паттерны)
+Подробная документация в `docs/vscode-api.md`
+
+### Работа с workspace
+- `vscode.workspace.workspaceFolders` - всегда проверять наличие перед работой с файлами
+- `vscode.Uri` - использовать для путей файлов (не строки напрямую)
+- `vscode.workspace.getConfiguration()` - получение настроек расширения
+
+### Уведомления пользователю
+- `vscode.window.showInformationMessage()` - информационные сообщения
+- `vscode.window.showWarningMessage()` - предупреждения
+- `vscode.window.showErrorMessage()` - ошибки
+- `vscode.window.showQuickPick()` - выбор из списка
+- `vscode.window.showInputBox()` - ввод текста
+
+### Команды и терминалы
+- `vscode.commands.registerCommand()` - регистрация команд
+- `vscode.commands.executeCommand()` - выполнение команд
+- `vscode.window.createTerminal()` - создание терминала для выполнения команд
+- `vscode.window.activeTerminal` - активный терминал
+
+### TreeView
+- `vscode.window.createTreeView()` - создание дерева команд
+- `vscode.TreeDataProvider` - провайдер данных для дерева
+
+### Контекст
+- `vscode.commands.executeCommand('setContext', 'key', value)` - установка контекста для условного отображения
 
 ## Структура проекта
-- `src/extension.ts` - точка входа
+- `src/extension.ts` - точка входа, регистрация команд и TreeView
+- `src/treeViewProvider.ts` - провайдер данных для дерева команд
+- `src/vrunnerManager.ts` - менеджер для работы с vrunner (синглтон)
+- `src/commandNames.ts` - утилиты для получения названий команд
+- `src/commands/baseCommand.ts` - базовый класс для всех команд
+- `src/commands/` - классы команд, разделенные по доменам (наследуются от BaseCommand)
+- `src/utils/commandUtils.ts` - утилиты для работы с командами (escapeCommandArgs, buildCommand, joinCommands)
+- `src/constants.ts` - константы для работы с vanessa-runner
 - `src/test/` - тесты
-- `resources/` - иконки (1c-icon.svg, 1c-icon-light.svg)
+- `resources/` - иконки (1c-icon.svg, 1c-icon.png)
 - `out/` - скомпилированный код (генерируется)
 - `docs/` - документация
 
-## Сборка
+## Сборка и разработка
 - `npm run compile` - компиляция TypeScript
 - `npm run watch` - режим наблюдения
 - `npm run lint` - проверка ESLint
 - `npm run test` - тесты (с `@vscode/test-electron`)
+- `npm run package` - упаковка расширения в .vsix
 
-## Важно
-- Активация при старте VS Code (`activationEvents: []`)
+## Важные правила
+
+### Пути и файлы
+- **Использовать относительные пути там, где это возможно**: пути к файлам внутри workspace должны быть относительными (например, `oscript_modules/bin/vrunner.bat` вместо абсолютного пути)
+- **Пути к vrunner**: использовать `this.vrunner.getVRunnerPath()` (возвращает относительный путь `oscript_modules/bin/vrunner.bat` если найден в workspace, иначе `vrunner`)
+- **Пути к исходникам**: использовать `this.vrunner.getSrcPath()` (по умолчанию `src/cf`)
+- **Параметры подключения к ИБ**: использовать `await this.vrunner.getIbConnectionParam()` для получения параметра `--ibconnection` из `env.json` (возвращает массив `['--ibconnection', '/F./build/ib']`, использовать с spread оператором: `...ibConnectionParam`)
+
+### Работа с терминалами и оболочками
+- **Определение типа оболочки**: автоматически определяется через `detectShellType()` из настроек VS Code и переменных окружения
+- **Поддерживаемые оболочки**: cmd, PowerShell, bash, sh, zsh (включая Git Bash на Windows)
+- **Формирование команд**: использовать `buildCommand()` с автоматическим определением типа оболочки
+- **Объединение команд**: использовать `joinCommands()` - в PowerShell используется `;`, в cmd и bash используется `&&`
+- **Кодировка**: в PowerShell используется `[Console]::OutputEncoding`, в cmd используется `chcp 65001`, в bash оболочках на Windows кодировка обычно уже настроена
+- **Экранирование аргументов**: автоматически адаптируется под тип оболочки (PowerShell использует одинарные кавычки, cmd/bash - двойные)
+- **Экранирование специальных символов**: в PowerShell автоматически экранируются аргументы, содержащие пробелы, `$`, обратные кавычки `` ` `` или точку с запятой `;` (точка с запятой - разделитель команд в PowerShell)
+- **Нормализация путей**: для bash оболочек на Windows (Git Bash, WSL) автоматически преобразуются обратные слэши `\` в прямые `/` в путях и аргументах команд
+- **Автоматическая обработка аргументов**: методы `executeVRunnerInTerminal()`, `executeOpmInTerminal()`, `executeAllureInTerminal()` автоматически обрабатывают аргументы через `processCommandArgs()` (преобразуют абсолютные пути в относительные и нормализуют для оболочки)
+- **Параметр shellType**: методы выполнения команд в терминале поддерживают опциональный параметр `shellType` для явного указания типа оболочки
+
+### Регистрация команд
 - Команды регистрируются в `package.json` → `contributes.commands`
 - TreeView регистрируется в `package.json` → `contributes.views`
-- Всегда проверять `workspaceFolders` перед работой с файлами
+- Все команды должны быть зарегистрированы в `context.subscriptions`
+
+### Организация кода
+- Команды должны быть организованы по доменам, а не по типам операций
+- Все классы команд должны наследоваться от `BaseCommand`
+- Для сборки использовать метод `compile()`, а не `build()`
+- Все классы команд должны быть экспортируемыми и иметь понятные имена
+- **ОБЯЗАТЕЛЬНО**: Использовать `this.ensureWorkspace()` вместо ручной проверки `this.vrunner.getWorkspaceRoot()` - это обеспечивает единообразную обработку ошибок
+- Использовать методы `BaseCommand` для работы с файловой системой (`checkDirectoryExists`, `getDirectories`, `getFilesByExtension`)
+- Использовать `this.vrunner.executeVRunnerInTerminal()` для выполнения команд в терминале
+- Использовать `this.vrunner.executeVRunner()` только для проверок и синхронных операций
+- Использовать `this.vrunner.executeOpmInTerminal()` и `this.vrunner.executeAllureInTerminal()` для выполнения соответствующих команд (они автоматически обрабатывают аргументы)
+- Все асинхронные методы должны возвращать `Promise<void>` или `Promise<T>` с соответствующим типом
+- JSDoc комментарии должны быть полными: описывать что делает метод, параметры, возвращаемое значение, возможные исключения
+- **Рефакторинг**: выносить общую логику в приватные методы классов команд (например, создание терминала, получение списка файлов)
+
+### Обработка ошибок
+- Всегда обрабатывать ошибки при работе с файловой системой
+- Использовать try-catch для асинхронных операций
+- Показывать понятные сообщения об ошибках пользователю через `vscode.window.showErrorMessage()`
+- НЕ использовать `console.error` для логирования ошибок - вместо этого показывать ошибки в UI или использовать механизмы VS Code для логирования
+- При ошибках в TreeView отображать информационные элементы с описанием ошибки вместо скрытия проблемы
+
+### Производительность
+- Избегать синхронных операций с файловой системой в основном потоке
+- Использовать асинхронные версии (`fs/promises`) вместо синхронных
+- Кэшировать результаты, где это возможно
+
+## Документация
+Подробная документация находится в папке `docs/`:
+- `README.md` - навигация по документации
+- `vscode-api.md` - паттерны использования VS Code API
+- `vrunner-patterns.md` - паттерны работы с vrunner
+- `CI_CD_SETUP.md` - настройка CI/CD
+
+## JSDoc стандарты
+- Все публичные методы классов должны иметь JSDoc комментарии
+- Формат: описание метода, `@param` для каждого параметра, `@returns` для возвращаемого значения, `@throws` для исключений
+- Для асинхронных методов указывать "Промис, который разрешается..."
+- Пример:
+  ```typescript
+  /**
+   * Загружает конфигурацию из исходников в информационную базу
+   * @param mode - Режим загрузки: 'init' для инициализации, 'update' для обновления
+   * @returns Промис, который разрешается после запуска команды
+   */
+  async loadFromSrc(mode: 'init' | 'update' = 'update'): Promise<void>
+  ```
+
+## Чистота кода
+- Удалять лишние комментарии, которые дублируют код
+- Удалять отладочную информацию (`console.log`, `console.error`) перед коммитом
+- Комментарии должны объяснять "почему", а не "что" (код сам объясняет "что")
+- Исключение: комментарии для разделения секций в больших файлах (например, в `commandNames.ts`)

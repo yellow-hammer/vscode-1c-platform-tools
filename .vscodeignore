@@ -1,11 +1,54 @@
+# Исходный код TypeScript (компилируется в out/)
+src/**
+**/*.ts
+**/*.tsx
+
+# Конфигурация разработки
 .vscode/**
 .vscode-test/**
-src/**
 .gitignore
 .yarnrc
 vsc-extension-quickstart.md
 **/tsconfig.json
 **/eslint.config.mjs
-**/*.map
-**/*.ts
 **/.vscode-test.*
+**/.secretlintrc.json
+**/.cursorignore
+**/.cursorrules
+
+# Тесты
+**/*.test.js
+**/*.test.js.map
+**/test/**
+**/fixtures/**
+
+# Source maps
+**/*.map
+
+# Сборка и зависимости
+**/node_modules/**
+build/**
+**/build/**
+
+# Временные файлы
+*.log
+*.tmp
+*.cache
+.DS_Store
+Thumbs.db
+
+# CI/CD
+.github/workflows/**
+.github/ISSUE_TEMPLATE/**
+.github/DISCUSSION_TEMPLATE/**
+.github/FUNDING.yml
+
+# Документация разработки
+docs/**
+CONTRIBUTING.md
+cliff.toml
+
+# Package manager
+package-lock.json.bak
+yarn.lock
+pnpm-lock.yaml

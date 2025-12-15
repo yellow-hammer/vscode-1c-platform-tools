@@ -1,5 +1,55 @@
-out
-dist
-node_modules
-.vscode-test/
+# Сгенерированные файлы
+build/
+out/
+dist/
+node_modules/
+
+# VS Code расширение
 *.vsix
+
+# Тесты
+.vscode-test/
+coverage/
+*.test.js
+*.test.js.map
+*.test.d.ts
+
+# Временные файлы
+*.log
+*.tmp
+*.cache
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+*~
+
+# IDE
+.idea/
+.vscode/settings.json
+*.code-workspace
+
+# Локальные конфигурации
+.env
+.env.local
+.env.*.local
+
+# Source maps
+*.map
+
+# Документация (генерируемая)
+CHANGELOG.md
+
+# Package manager
+package-lock.json.bak
+yarn.lock
+pnpm-lock.yaml
+
+# OS
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Desktop.ini

@@ -2,12 +2,41 @@
 dist/
 out/
 node_modules/
+*.vsix
 
 # Временные файлы
 *.log
 *.tmp
+*.cache
 .DS_Store
+Thumbs.db
 
 # Тестовые артефакты
 *.test.js
 *.test.js.map
+*.test.d.ts
+.vscode-test/
+coverage/
+
+# Сборка
+build/
+*.map
+
+# IDE
+.vscode/settings.json
+.idea/
+
+# Документация (генерируемая)
+CHANGELOG.md
+
+# Локальные конфигурации
+.env
+.env.local
+
+# Артефакты сборки расширения
+*.vsix
+*.vsix.sig
+
+# Локальные тестовые данные
+test-workspace/
+temp/
