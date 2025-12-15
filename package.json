@@ -2,7 +2,7 @@
   "name": "1c-platform-tools",
   "displayName": "1C Platform Tools",
   "description": "Расширение для Visual Studio Code с инструментами разработки для экосистемы 1С. Предоставляет удобный интерфейс для работы с проектами 1С, включая разбор обработок, отчетов и конфигураций.",
-  "version": "0.0.1",
+  "version": "0.1.1",
   "publisher": "yellow-hammer",
   "repository": {
     "type": "git",
