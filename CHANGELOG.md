@@ -12,6 +12,10 @@
 
 - **release:** Обновить конфигурацию GitHub Actions для публикации в Open VSX и Visual Studio Marketplace
 
+- **docs:** Обновить документацию по CI/CD для поддержки Open VSX Registry
+
+- **release:** Обновить шаг обновления версии в GitHub Actions
+
 
 ## [0.1.3] - 2025-12-16
 
