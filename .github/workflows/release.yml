@@ -55,8 +55,8 @@ jobs:
           fi
           echo "Switching to branch: $BRANCH"
           git checkout $BRANCH
-          # Обновляем версию в package.json
-          npm version ${{ steps.tag_version.outputs.version }} --no-git-tag-version
+          # Обновляем версию в package.json (игнорируем ошибку, если версия уже совпадает)
+          npm version ${{ steps.tag_version.outputs.version }} --no-git-tag-version || echo "Version already matches, skipping update"
           # Коммитим изменения версии, если они есть (формат не попадает в changelog)
           git add package.json
           if git diff --staged --quiet; then
