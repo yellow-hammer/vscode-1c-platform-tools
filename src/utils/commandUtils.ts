@@ -73,11 +73,22 @@ function detectShellFromProfile(profileName: string): ShellType | undefined {
  * Определяет тип оболочки из настроек VS Code для Windows
  * 
  * Проверяет настройки terminal.integrated.defaultProfile.windows и активный терминал.
+ * Также проверяет переменные окружения для более точного определения.
  * 
  * @returns Тип оболочки или undefined, если не удалось определить
  */
 function detectShellFromVSCodeWindows(): ShellType | undefined {
 	try {
+		// Сначала проверяем активный терминал (более точное определение)
+		const activeTerminal = vscode.window.activeTerminal;
+		if (activeTerminal) {
+			const shellType = detectShellFromProfile(activeTerminal.name);
+			if (shellType) {
+				return shellType;
+			}
+		}
+		
+		// Затем проверяем настройки VS Code
 		const config = vscode.workspace.getConfiguration('terminal.integrated');
 		const defaultProfile = config.get<string>('defaultProfile.windows');
 		
@@ -88,12 +99,10 @@ function detectShellFromVSCodeWindows(): ShellType | undefined {
 			}
 		}
 		
-		const activeTerminal = vscode.window.activeTerminal;
-		if (activeTerminal) {
-			const shellType = detectShellFromProfile(activeTerminal.name);
-			if (shellType) {
-				return shellType;
-			}
+		// Дополнительная проверка переменных окружения для PowerShell
+		// Это помогает определить тип оболочки, даже если имя терминала не содержит информацию
+		if (process.env.PSModulePath || process.env.PSExecutionPolicyPreference) {
+			return 'powershell';
 		}
 	} catch {
 		// Если не удалось определить через настройки
@@ -107,6 +116,8 @@ function detectShellFromVSCodeWindows(): ShellType | undefined {
  * Проверяет переменные окружения:
  * - SHELL - указывает на bash оболочки (Git Bash, WSL, Cygwin)
  * - COMSPEC - указывает на cmd.exe
+ * - PSModulePath, PSExecutionPolicyPreference - указывают на PowerShell
+ * - TERM_PROGRAM - может указывать на тип терминала
  * 
  * @returns Тип оболочки или undefined, если не удалось определить
  */
@@ -121,13 +132,25 @@ function detectShellFromEnvWindows(): ShellType | undefined {
 			return 'zsh';
 		}
 	}
+	
+	// Проверяем переменные окружения PowerShell
+	// PSModulePath обычно присутствует в PowerShell сессиях
+	if (process.env.PSModulePath || process.env.PSExecutionPolicyPreference) {
+		return 'powershell';
+	}
+	
 	// COMSPEC указывает на cmd.exe
 	if (process.env.COMSPEC) {
 		const comspec = process.env.COMSPEC.toLowerCase();
 		if (comspec.includes('cmd.exe')) {
 			return 'cmd';
 		}
+		// Если COMSPEC указывает на PowerShell
+		if (comspec.includes('powershell.exe') || comspec.includes('pwsh.exe')) {
+			return 'powershell';
+		}
 	}
+	
 	return undefined;
 }
 
