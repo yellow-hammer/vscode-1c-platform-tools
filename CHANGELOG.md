@@ -5,6 +5,14 @@
 Формат основан на [Keep a Changelog](https://keepachangelog.com/ru/1.0.0/),
 и этот проект придерживается [Semantic Versioning](https://semver.org/lang/ru/).
 
+## [0.1.4] - 2025-12-16
+
+
+### ⚙️ Miscellaneous Tasks
+
+- **release:** Обновить конфигурацию GitHub Actions для публикации в Open VSX и Visual Studio Marketplace
+
+
 ## [0.1.3] - 2025-12-16
 
 
