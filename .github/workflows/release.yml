@@ -66,17 +66,50 @@ jobs:
             git push origin $BRANCH
           fi
 
+      - name: Install git-cliff
+        uses: orhun/git-cliff-action@v2
+        id: git-cliff
+        with:
+          config: cliff.toml
+          args: --verbose
+
       - name: Generate changelog
         id: changelog
         run: |
-          # Устанавливаем git-cliff, если доступен
-          if command -v git-cliff &> /dev/null || cargo install git-cliff; then
-            git-cliff -o CHANGELOG.md
-            CHANGELOG=$(cat CHANGELOG.md)
+          # Генерируем полный changelog используя конфиг cliff.toml
+          echo "Generating changelog with git-cliff..."
+          git-cliff --config cliff.toml --output CHANGELOG.md
+          
+          if [ -f CHANGELOG.md ]; then
+            echo "CHANGELOG.md generated successfully"
+            echo "First 20 lines of CHANGELOG.md:"
+            head -n 20 CHANGELOG.md
+            
+            # Извлекаем только последний релиз (первый ## [version] в файле после заголовка)
+            # Пропускаем заголовок файла и берем первый релиз до следующего ## или конца файла
+            CHANGELOG=$(awk '
+              /^## \[/ {
+                if (found) exit
+                found = 1
+              }
+              found { print }
+            ' CHANGELOG.md)
+            
+            # Удаляем пустые строки в конце
+            CHANGELOG=$(echo "$CHANGELOG" | sed -e :a -e '/^\n*$/{$d;N;ba' -e '}')
+            
+            echo "Extracted changelog length: ${#CHANGELOG}"
+            
+            # Если changelog пустой или слишком короткий, используем fallback
+            if [ -z "$CHANGELOG" ] || [ ${#CHANGELOG} -lt 20 ]; then
+              echo "Changelog is empty or too short, using fallback"
+              CHANGELOG="## Изменения\n\nСм. [историю коммитов](https://github.com/${{ github.repository }}/compare/${{ github.event.before }}...${{ github.ref }})"
+            fi
           else
-            echo "git-cliff не установлен, пропускаем генерацию changelog"
+            echo "CHANGELOG.md not found, using fallback"
             CHANGELOG="## Изменения\n\nСм. [историю коммитов](https://github.com/${{ github.repository }}/compare/${{ github.event.before }}...${{ github.ref }})"
           fi
+          
           # Многострочный вывод в GitHub Actions
           {
             echo 'changelog<<EOF'
