@@ -90,4 +90,21 @@ export abstract class BaseCommand {
 			return [];
 		}
 	}
+
+	/**
+	 * Создает директорию, если она не существует
+	 * @param dirPath - Путь к директории
+	 * @param errorMessage - Сообщение об ошибке при создании
+	 * @returns Промис, который разрешается true, если директория существует или была создана, иначе false
+	 */
+	protected async ensureDirectoryExists(dirPath: string, errorMessage?: string): Promise<boolean> {
+		try {
+			await fs.mkdir(dirPath, { recursive: true });
+			return true;
+		} catch (error) {
+			const message = errorMessage || `Ошибка при создании папки ${dirPath}: ${(error as Error).message}`;
+			vscode.window.showErrorMessage(message);
+			return false;
+		}
+	}
 }

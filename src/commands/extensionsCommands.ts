@@ -203,6 +203,11 @@ export class ExtensionsCommands extends BaseCommand {
 		}
 
 		const buildPath = this.vrunner.getBuildPath();
+		const cfeBuildPath = path.join(workspaceRoot, buildPath, 'cfe');
+		if (!(await this.ensureDirectoryExists(cfeBuildPath, `Ошибка при создании папки ${buildPath}/cfe`))) {
+			return;
+		}
+
 		const ibConnectionParam = await this.vrunner.getIbConnectionParam();
 		const commandName = getDumpExtensionToCfeCommandName();
 		const vrunnerPath = this.vrunner.getVRunnerPath();
@@ -242,6 +247,11 @@ export class ExtensionsCommands extends BaseCommand {
 		}
 
 		const buildPath = this.vrunner.getBuildPath();
+		const cfeBuildPath = path.join(workspaceRoot, buildPath, 'cfe');
+		if (!(await this.ensureDirectoryExists(cfeBuildPath, `Ошибка при создании папки ${buildPath}/cfe`))) {
+			return;
+		}
+
 		const commandName = getBuildExtensionCommandName();
 		const vrunnerPath = this.vrunner.getVRunnerPath();
 		const shellType = detectShellType();
