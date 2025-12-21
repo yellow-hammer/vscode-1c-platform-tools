@@ -39,12 +39,18 @@ export class ExternalFilesCommands extends BaseCommand {
 
 		const ibConnectionParam = await this.vrunner.getIbConnectionParam();
 		const buildPath = this.vrunner.getBuildPath();
+		const outputFolder = fileType === 'processor' ? 'epf' : 'erf';
+		const outputFullPath = path.join(workspaceRoot, buildPath, outputFolder);
+		if (!(await this.ensureDirectoryExists(outputFullPath, `Ошибка при создании папки ${buildPath}/${outputFolder}`))) {
+			return;
+		}
+
 		const commandName = fileType === 'processor' 
 			? getBuildExternalProcessorCommandName()
 			: getBuildExternalReportCommandName();
 		const vrunnerCommand = 'compileepf';
 		const inputPath = srcFolder;
-		const outputPath = path.join(buildPath, fileType === 'processor' ? 'epf' : 'erf');
+		const outputPath = path.join(buildPath, outputFolder);
 		const args = [vrunnerCommand, inputPath, outputPath, ...ibConnectionParam];
 
 		this.vrunner.executeVRunnerInTerminal(args, {

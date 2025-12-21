@@ -101,6 +101,11 @@ export class ConfigurationCommands extends BaseCommand {
 		}
 
 		const buildPath = this.vrunner.getBuildPath();
+		const buildFullPath = path.join(workspaceRoot, buildPath);
+		if (!(await this.ensureDirectoryExists(buildFullPath, `Ошибка при создании папки ${buildPath}`))) {
+			return;
+		}
+
 		const outputPath = path.join(buildPath, '1Cv8.cf');
 		const ibConnectionParam = await this.vrunner.getIbConnectionParam();
 		const args = ['unload', outputPath, ...ibConnectionParam];
@@ -126,6 +131,11 @@ export class ConfigurationCommands extends BaseCommand {
 		}
 
 		const buildPath = this.vrunner.getBuildPath();
+		const buildFullPath = path.join(workspaceRoot, buildPath);
+		if (!(await this.ensureDirectoryExists(buildFullPath, `Ошибка при создании папки ${buildPath}`))) {
+			return;
+		}
+
 		const outputPath = path.join(buildPath, '1Cv8dist.cf');
 		const args = ['make-dist', outputPath];
 		const commandName = getDumpConfigurationToDistCommandName();
@@ -148,6 +158,11 @@ export class ConfigurationCommands extends BaseCommand {
 
 		const srcPath = this.vrunner.getSrcPath();
 		const buildPath = this.vrunner.getBuildPath();
+		const buildFullPath = path.join(workspaceRoot, buildPath);
+		if (!(await this.ensureDirectoryExists(buildFullPath, `Ошибка при создании папки ${buildPath}`))) {
+			return;
+		}
+
 		const outputPath = path.join(buildPath, '1Cv8.cf');
 		const args = ['compile', '--src', srcPath, '--out', outputPath];
 		if (this.vrunner.getUseIbcmd()) {
