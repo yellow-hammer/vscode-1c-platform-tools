@@ -5,6 +5,14 @@
 Формат основан на [Keep a Changelog](https://keepachangelog.com/ru/1.0.0/),
 и этот проект придерживается [Semantic Versioning](https://semver.org/lang/ru/).
 
+## [0.1.7] - 2025-12-21
+
+
+### ⚙️ Miscellaneous Tasks
+
+- **package:** Добавлены ключевые слова в package.json для улучшения поиска расширения
+
+
 ## [0.1.6] - 2025-12-21
 
 
