@@ -42,6 +42,53 @@ export class ExtensionsCommands extends BaseCommand {
 	}
 
 	/**
+	 * Выполняет команду vrunner для всех расширений с учетом Docker
+	 * 
+	 * Если Docker включен, выполняет команды последовательно через executeVRunnerInTerminal.
+	 * Если Docker выключен, объединяет команды в одну строку для выполнения в одном терминале.
+	 * 
+	 * @param buildArgs - Функция, которая строит аргументы команды для одного расширения
+	 * @param commandName - Название команды для отображения в терминале
+	 * @returns Промис, который разрешается после запуска всех команд
+	 */
+	private async executeForAllExtensions(
+		buildArgs: (extensionFolder: string) => string[],
+		commandName: string
+	): Promise<void> {
+		const workspaceRoot = this.ensureWorkspace();
+		if (!workspaceRoot) {
+			return;
+		}
+
+		const extensionFolders = await this.getExtensionFoldersFromSrc(workspaceRoot);
+		if (!extensionFolders) {
+			return;
+		}
+
+		const useDocker = await this.vrunner.shouldUseDocker();
+		
+		if (useDocker) {
+			// В Docker выполняем команды последовательно
+			for (const extensionFolder of extensionFolders) {
+				const args = this.addIbcmdIfNeeded(buildArgs(extensionFolder));
+				await this.vrunner.executeVRunnerInTerminal(args, {
+					cwd: workspaceRoot,
+					name: commandName
+				});
+			}
+		} else {
+			// Локальное выполнение - объединяем команды
+			const vrunnerPath = this.vrunner.getVRunnerPath();
+			const shellType = detectShellType();
+			const commands = extensionFolders.map(extensionFolder => {
+				const args = this.addIbcmdIfNeeded(buildArgs(extensionFolder));
+				return buildCommand(vrunnerPath, args, shellType);
+			});
+			this.executeCommandsInTerminal(commands, commandName, workspaceRoot, shellType);
+		}
+	}
+
+	/**
 	 * Получает список папок расширений из исходников
 	 * @param workspaceRoot - Корневая директория workspace
 	 * @returns Промис, который разрешается массивом имен папок расширений или undefined при ошибке
@@ -84,21 +131,15 @@ export class ExtensionsCommands extends BaseCommand {
 
 		const ibConnectionParam = await this.vrunner.getIbConnectionParam();
 		const commandName = getLoadExtensionFromSrcCommandName();
-		const vrunnerPath = this.vrunner.getVRunnerPath();
-		const shellType = detectShellType();
 		const cfePath = this.vrunner.getCfePath();
 
-		const commands: string[] = [];
-		for (const extensionFolder of extensionFolders) {
-			const inputPath = path.join(cfePath, extensionFolder);
-			const args = ['compileext', inputPath, extensionFolder, ...ibConnectionParam];
-			if (this.vrunner.getUseIbcmd()) {
-				args.push('--ibcmd');
-			}
-			commands.push(buildCommand(vrunnerPath, args, shellType));
-		}
-
-		this.executeCommandsInTerminal(commands, commandName.title, workspaceRoot, shellType);
+		await this.executeForAllExtensions(
+			(extensionFolder) => {
+				const inputPath = path.join(cfePath, extensionFolder);
+				return ['compileext', inputPath, extensionFolder, ...ibConnectionParam];
+			},
+			commandName.title
+		);
 	}
 
 	/**
@@ -115,7 +156,7 @@ export class ExtensionsCommands extends BaseCommand {
 			return;
 		}
 
-		const buildPath = this.vrunner.getBuildPath();
+		const buildPath = this.vrunner.getOutPath();
 		const cfePath = path.join(workspaceRoot, buildPath, 'cfe');
 
 		if (!(await this.checkDirectoryExists(cfePath, `Папка ${buildPath}/cfe не является директорией`))) {
@@ -166,21 +207,15 @@ export class ExtensionsCommands extends BaseCommand {
 
 		const ibConnectionParam = await this.vrunner.getIbConnectionParam();
 		const commandName = getDumpExtensionToSrcCommandName();
-		const vrunnerPath = this.vrunner.getVRunnerPath();
-		const shellType = detectShellType();
 		const cfePath = this.vrunner.getCfePath();
 
-		const commands: string[] = [];
-		for (const extensionFolder of extensionFolders) {
-			const outputPath = path.join(cfePath, extensionFolder);
-			const args = ['decompileext', extensionFolder, outputPath, ...ibConnectionParam];
-			if (this.vrunner.getUseIbcmd()) {
-				args.push('--ibcmd');
-			}
-			commands.push(buildCommand(vrunnerPath, args, shellType));
-		}
-
-		this.executeCommandsInTerminal(commands, commandName.title, workspaceRoot, shellType);
+		await this.executeForAllExtensions(
+			(extensionFolder) => {
+				const outputPath = path.join(cfePath, extensionFolder);
+				return ['decompileext', extensionFolder, outputPath, ...ibConnectionParam];
+			},
+			commandName.title
+		);
 	}
 
 	/**
@@ -202,7 +237,7 @@ export class ExtensionsCommands extends BaseCommand {
 			return;
 		}
 
-		const buildPath = this.vrunner.getBuildPath();
+		const buildPath = this.vrunner.getOutPath();
 		const cfeBuildPath = path.join(workspaceRoot, buildPath, 'cfe');
 		if (!(await this.ensureDirectoryExists(cfeBuildPath, `Ошибка при создании папки ${buildPath}/cfe`))) {
 			return;
@@ -210,21 +245,15 @@ export class ExtensionsCommands extends BaseCommand {
 
 		const ibConnectionParam = await this.vrunner.getIbConnectionParam();
 		const commandName = getDumpExtensionToCfeCommandName();
-		const vrunnerPath = this.vrunner.getVRunnerPath();
-		const shellType = detectShellType();
 
-		const commands: string[] = [];
-		for (const extensionFolder of extensionFolders) {
-			const extensionFileName = `${extensionFolder}.cfe`;
-			const cfepath = path.join(buildPath, 'cfe', extensionFileName);
-			const args = ['unloadext', cfepath, extensionFolder, ...ibConnectionParam];
-			if (this.vrunner.getUseIbcmd()) {
-				args.push('--ibcmd');
-			}
-			commands.push(buildCommand(vrunnerPath, args, shellType));
-		}
-
-		this.executeCommandsInTerminal(commands, commandName.title, workspaceRoot, shellType);
+		await this.executeForAllExtensions(
+			(extensionFolder) => {
+				const extensionFileName = `${extensionFolder}.cfe`;
+				const cfepath = path.join(buildPath, 'cfe', extensionFileName);
+				return ['unloadext', cfepath, extensionFolder, ...ibConnectionParam];
+			},
+			commandName.title
+		);
 	}
 
 	/**
@@ -246,30 +275,24 @@ export class ExtensionsCommands extends BaseCommand {
 			return;
 		}
 
-		const buildPath = this.vrunner.getBuildPath();
+		const buildPath = this.vrunner.getOutPath();
 		const cfeBuildPath = path.join(workspaceRoot, buildPath, 'cfe');
 		if (!(await this.ensureDirectoryExists(cfeBuildPath, `Ошибка при создании папки ${buildPath}/cfe`))) {
 			return;
 		}
 
 		const commandName = getBuildExtensionCommandName();
-		const vrunnerPath = this.vrunner.getVRunnerPath();
-		const shellType = detectShellType();
 		const cfePath = this.vrunner.getCfePath();
-
-		const commands: string[] = [];
-		for (const extensionFolder of extensionFolders) {
-			const extensionFileName = `${extensionFolder}.cfe`;
-			const srcPath = path.join(cfePath, extensionFolder);
-			const outPath = path.join(buildPath, 'cfe', extensionFileName);
-			const args = ['compileexttocfe', '--src', srcPath, '--out', outPath];
-			if (this.vrunner.getUseIbcmd()) {
-				args.push('--ibcmd');
-			}
-			commands.push(buildCommand(vrunnerPath, args, shellType));
-		}
-
-		this.executeCommandsInTerminal(commands, commandName.title, workspaceRoot, shellType);
+		
+		await this.executeForAllExtensions(
+			(extensionFolder) => {
+				const extensionFileName = `${extensionFolder}.cfe`;
+				const srcPath = path.join(cfePath, extensionFolder);
+				const outPath = path.join(buildPath, 'cfe', extensionFileName);
+				return ['compileexttocfe', '--src', srcPath, '--out', outPath];
+			},
+			commandName.title
+		);
 	}
 
 	/**
@@ -286,7 +309,7 @@ export class ExtensionsCommands extends BaseCommand {
 			return;
 		}
 
-		const buildPath = this.vrunner.getBuildPath();
+		const buildPath = this.vrunner.getOutPath();
 		const cfeBuildPath = path.join(workspaceRoot, buildPath, 'cfe');
 
 		if (!(await this.checkDirectoryExists(cfeBuildPath, `Папка ${buildPath}/cfe не является директорией`))) {
@@ -301,21 +324,30 @@ export class ExtensionsCommands extends BaseCommand {
 
 		const ibConnectionParam = await this.vrunner.getIbConnectionParam();
 		const commandName = getDecompileExtensionCommandName();
-		const vrunnerPath = this.vrunner.getVRunnerPath();
+		const useDocker = await this.vrunner.shouldUseDocker();
 		const cfePath = this.vrunner.getCfePath();
-		const shellType = detectShellType();
 
-		const commands: string[] = [];
-		for (const cfeFile of cfeFiles) {
-			const extensionName = cfeFile.replace(/\.cfe$/i, '');
-			const outputPath = path.join(cfePath, extensionName);
-			const args = ['decompileext', extensionName, outputPath, ...ibConnectionParam];
-			if (this.vrunner.getUseIbcmd()) {
-				args.push('--ibcmd');
+		if (useDocker) {
+			for (const cfeFile of cfeFiles) {
+				const extensionName = cfeFile.replace(/\.cfe$/i, '');
+				const outputPath = path.join(cfePath, extensionName);
+				const args = this.addIbcmdIfNeeded(['decompileext', extensionName, outputPath, ...ibConnectionParam]);
+				await this.vrunner.executeVRunnerInTerminal(args, {
+					cwd: workspaceRoot,
+					name: commandName.title
+				});
 			}
-			commands.push(buildCommand(vrunnerPath, args, shellType));
+		} else {
+			const vrunnerPath = this.vrunner.getVRunnerPath();
+			const shellType = detectShellType();
+			const commands: string[] = [];
+			for (const cfeFile of cfeFiles) {
+				const extensionName = cfeFile.replace(/\.cfe$/i, '');
+				const outputPath = path.join(cfePath, extensionName);
+				const args = this.addIbcmdIfNeeded(['decompileext', extensionName, outputPath, ...ibConnectionParam]);
+				commands.push(buildCommand(vrunnerPath, args, shellType));
+			}
+			this.executeCommandsInTerminal(commands, commandName.title, workspaceRoot, shellType);
 		}
-
-		this.executeCommandsInTerminal(commands, commandName.title, workspaceRoot, shellType);
 	}
 }

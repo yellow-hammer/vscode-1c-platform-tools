@@ -21,6 +21,10 @@ export class ExternalFilesCommands extends BaseCommand {
 
 	/**
 	 * Собирает внешний файл (обработку или отчет) из исходников
+	 * 
+	 * Выполняет команду vrunner compileepf для сборки внешнего файла из исходников
+	 * в бинарный формат (.epf для обработок, .erf для отчетов).
+	 * 
 	 * @param fileType - Тип файла: 'processor' для обработок, 'report' для отчетов
 	 * @returns Промис, который разрешается после запуска команды
 	 */
@@ -38,7 +42,7 @@ export class ExternalFilesCommands extends BaseCommand {
 		}
 
 		const ibConnectionParam = await this.vrunner.getIbConnectionParam();
-		const buildPath = this.vrunner.getBuildPath();
+		const buildPath = this.vrunner.getOutPath();
 		const outputFolder = fileType === 'processor' ? 'epf' : 'erf';
 		const outputFullPath = path.join(workspaceRoot, buildPath, outputFolder);
 		if (!(await this.ensureDirectoryExists(outputFullPath, `Ошибка при создании папки ${buildPath}/${outputFolder}`))) {
@@ -61,6 +65,10 @@ export class ExternalFilesCommands extends BaseCommand {
 
 	/**
 	 * Разбирает внешний файл (обработку или отчет) из .epf/.erf в исходники
+	 * 
+	 * Выполняет команду vrunner decompileepf для разбора бинарного файла
+	 * (.epf для обработок, .erf для отчетов) в исходники.
+	 * 
 	 * @param fileType - Тип файла: 'processor' для обработок, 'report' для отчетов
 	 * @returns Промис, который разрешается после запуска команды
 	 */
@@ -70,7 +78,7 @@ export class ExternalFilesCommands extends BaseCommand {
 			return;
 		}
 
-		const buildPath = this.vrunner.getBuildPath();
+		const buildPath = this.vrunner.getOutPath();
 		const buildFolder = fileType === 'processor' ? 'epf' : 'erf';
 		const inputPath = path.join(buildPath, buildFolder);
 		const inputFullPath = path.join(workspaceRoot, inputPath);
@@ -95,6 +103,10 @@ export class ExternalFilesCommands extends BaseCommand {
 
 	/**
 	 * Очищает кэш, удаляя файл build/cache.json
+	 * 
+	 * Удаляет файл кэша из директории build. Если файл не существует,
+	 * показывает информационное сообщение.
+	 * 
 	 * @returns Промис, который разрешается после удаления файла кэша
 	 */
 	async clearCache(): Promise<void> {
@@ -103,7 +115,7 @@ export class ExternalFilesCommands extends BaseCommand {
 			return;
 		}
 
-		const buildPath = this.vrunner.getBuildPath();
+		const buildPath = this.vrunner.getOutPath();
 		const buildDir = path.dirname(buildPath);
 		const cacheFilePath = path.join(workspaceRoot, buildDir, 'cache.json');
 

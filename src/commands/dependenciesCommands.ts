@@ -11,7 +11,10 @@ export class DependenciesCommands extends BaseCommand {
 
 	/**
 	 * Устанавливает зависимости проекта
-	 * Выполняет команду opm install -l в терминале
+	 * 
+	 * Выполняет команду opm install -l в терминале для установки всех зависимостей,
+	 * указанных в packagedef файле проекта.
+	 * 
 	 * @returns Промис, который разрешается после запуска команды
 	 */
 	async installDependencies(): Promise<void> {
@@ -29,7 +32,10 @@ export class DependenciesCommands extends BaseCommand {
 
 	/**
 	 * Удаляет зависимости проекта
-	 * Удаляет каталог oscript_modules из workspace
+	 * 
+	 * Удаляет каталог oscript_modules из workspace, что приводит к удалению
+	 * всех установленных зависимостей проекта.
+	 * 
 	 * @returns Промис, который разрешается после удаления каталога
 	 */
 	async removeDependencies(): Promise<void> {
@@ -59,8 +65,13 @@ export class DependenciesCommands extends BaseCommand {
 
 	/**
 	 * Инициализирует файл packagedef с шаблоном
-	 * Создает файл packagedef в корне проекта с базовым содержимым из шаблона
+	 * 
+	 * Создает файл packagedef в корне проекта с базовым содержимым из шаблона.
+	 * Если файл уже существует, запрашивает подтверждение на перезапись.
+	 * После создания открывает файл в редакторе VS Code.
+	 * 
 	 * @returns Промис, который разрешается после создания файла
+	 * @throws {Error} Если не удалось прочитать шаблон или создать файл
 	 */
 	async initializePackagedef(): Promise<void> {
 		const workspaceRoot = this.ensureWorkspace();

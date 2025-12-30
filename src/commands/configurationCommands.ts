@@ -27,12 +27,9 @@ export class ConfigurationCommands extends BaseCommand {
 		}
 
 		const command = mode === 'init' ? 'init-dev' : 'update-dev';
-		const srcPath = this.vrunner.getSrcPath();
+		const srcPath = this.vrunner.getCfPath();
 		const ibConnectionParam = await this.vrunner.getIbConnectionParam();
-		const args = [command, '--src', srcPath, ...ibConnectionParam];
-		if (this.vrunner.getUseIbcmd()) {
-			args.push('--ibcmd');
-		}
+		const args = this.addIbcmdIfNeeded([command, '--src', srcPath, ...ibConnectionParam]);
 		const commandName = getLoadConfigurationFromSrcCommandName(mode);
 
 		this.vrunner.executeVRunnerInTerminal(args, {
@@ -51,13 +48,10 @@ export class ConfigurationCommands extends BaseCommand {
 			return;
 		}
 
-		const buildPath = this.vrunner.getBuildPath();
+		const buildPath = this.vrunner.getOutPath();
 		const cfFilePath = path.join(buildPath, '1Cv8.cf');
 		const ibConnectionParam = await this.vrunner.getIbConnectionParam();
-		const args = ['load', '--src', cfFilePath, ...ibConnectionParam];
-		if (this.vrunner.getUseIbcmd()) {
-			args.push('--ibcmd');
-		}
+		const args = this.addIbcmdIfNeeded(['load', '--src', cfFilePath, ...ibConnectionParam]);
 		const commandName = getLoadConfigurationFromCfCommandName();
 
 		this.vrunner.executeVRunnerInTerminal(args, {
@@ -76,12 +70,9 @@ export class ConfigurationCommands extends BaseCommand {
 			return;
 		}
 
-		const srcPath = this.vrunner.getSrcPath();
+		const srcPath = this.vrunner.getCfPath();
 		const ibConnectionParam = await this.vrunner.getIbConnectionParam();
-		const args = ['decompile', '--current', '--out', srcPath, ...ibConnectionParam];
-		if (this.vrunner.getUseIbcmd()) {
-			args.push('--ibcmd');
-		}
+		const args = this.addIbcmdIfNeeded(['decompile', '--current', '--out', srcPath, ...ibConnectionParam]);
 		const commandName = getDumpConfigurationToSrcCommandName();
 
 		this.vrunner.executeVRunnerInTerminal(args, {
@@ -100,7 +91,7 @@ export class ConfigurationCommands extends BaseCommand {
 			return;
 		}
 
-		const buildPath = this.vrunner.getBuildPath();
+		const buildPath = this.vrunner.getOutPath();
 		const buildFullPath = path.join(workspaceRoot, buildPath);
 		if (!(await this.ensureDirectoryExists(buildFullPath, `Ошибка при создании папки ${buildPath}`))) {
 			return;
@@ -108,10 +99,7 @@ export class ConfigurationCommands extends BaseCommand {
 
 		const outputPath = path.join(buildPath, '1Cv8.cf');
 		const ibConnectionParam = await this.vrunner.getIbConnectionParam();
-		const args = ['unload', outputPath, ...ibConnectionParam];
-		if (this.vrunner.getUseIbcmd()) {
-			args.push('--ibcmd');
-		}
+		const args = this.addIbcmdIfNeeded(['unload', outputPath, ...ibConnectionParam]);
 		const commandName = getDumpConfigurationToCfCommandName();
 
 		this.vrunner.executeVRunnerInTerminal(args, {
@@ -130,14 +118,15 @@ export class ConfigurationCommands extends BaseCommand {
 			return;
 		}
 
-		const buildPath = this.vrunner.getBuildPath();
+		const buildPath = this.vrunner.getOutPath();
 		const buildFullPath = path.join(workspaceRoot, buildPath);
 		if (!(await this.ensureDirectoryExists(buildFullPath, `Ошибка при создании папки ${buildPath}`))) {
 			return;
 		}
 
 		const outputPath = path.join(buildPath, '1Cv8dist.cf');
-		const args = ['make-dist', outputPath];
+		const ibConnectionParam = await this.vrunner.getIbConnectionParam();
+		const args = ['make-dist', outputPath, ...ibConnectionParam];
 		const commandName = getDumpConfigurationToDistCommandName();
 
 		this.vrunner.executeVRunnerInTerminal(args, {
@@ -156,18 +145,15 @@ export class ConfigurationCommands extends BaseCommand {
 			return;
 		}
 
-		const srcPath = this.vrunner.getSrcPath();
-		const buildPath = this.vrunner.getBuildPath();
+		const srcPath = this.vrunner.getCfPath();
+		const buildPath = this.vrunner.getOutPath();
 		const buildFullPath = path.join(workspaceRoot, buildPath);
 		if (!(await this.ensureDirectoryExists(buildFullPath, `Ошибка при создании папки ${buildPath}`))) {
 			return;
 		}
 
 		const outputPath = path.join(buildPath, '1Cv8.cf');
-		const args = ['compile', '--src', srcPath, '--out', outputPath];
-		if (this.vrunner.getUseIbcmd()) {
-			args.push('--ibcmd');
-		}
+		const args = this.addIbcmdIfNeeded(['compile', '--src', srcPath, '--out', outputPath]);
 		const commandName = getBuildConfigurationCommandName();
 
 		this.vrunner.executeVRunnerInTerminal(args, {
@@ -186,13 +172,10 @@ export class ConfigurationCommands extends BaseCommand {
 			return;
 		}
 
-		const buildPath = this.vrunner.getBuildPath();
+		const buildPath = this.vrunner.getOutPath();
 		const inputPath = path.join(buildPath, '1Cv8.cf');
-		const srcPath = this.vrunner.getSrcPath();
-		const args = ['decompile', '--in', inputPath, '--out', srcPath];
-		if (this.vrunner.getUseIbcmd()) {
-			args.push('--ibcmd');
-		}
+		const srcPath = this.vrunner.getCfPath();
+		const args = this.addIbcmdIfNeeded(['decompile', '--in', inputPath, '--out', srcPath]);
 		const commandName = getDecompileConfigurationCommandName();
 
 		this.vrunner.executeVRunnerInTerminal(args, {

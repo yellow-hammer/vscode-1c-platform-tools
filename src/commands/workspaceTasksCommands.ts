@@ -34,7 +34,12 @@ export class WorkspaceTasksCommands extends BaseCommand {
 
 	/**
 	 * Получает задачи из tasks.json
-	 * @returns Промис, который разрешается массивом задач workspace
+	 * 
+	 * Загружает все задачи workspace из VS Code API и фильтрует их,
+	 * оставляя только задачи workspace (исключая глобальные задачи).
+	 * 
+	 * @returns Промис, который разрешается массивом задач workspace.
+	 *          Возвращает пустой массив, если workspace не открыт или произошла ошибка
 	 */
 	async getTasks(): Promise<Task[]> {
 		if (!this.workspaceRoot) {
@@ -64,7 +69,13 @@ export class WorkspaceTasksCommands extends BaseCommand {
 
 	/**
 	 * Получает конфигурации запуска из launch.json
-	 * @returns Промис, который разрешается массивом конфигураций запуска
+	 * 
+	 * Читает файл `.vscode/launch.json` и возвращает массив конфигураций запуска.
+	 * Если файл не существует или содержит невалидный JSON, возвращает пустой массив.
+	 * 
+	 * @returns Промис, который разрешается массивом конфигураций запуска.
+	 *          Возвращает пустой массив, если workspace не открыт, файл не существует
+	 *          или произошла ошибка при чтении/парсинге файла
 	 */
 	async getLaunchConfigurations(): Promise<LaunchConfiguration[]> {
 		if (!this.workspaceRoot) {
@@ -83,9 +94,13 @@ export class WorkspaceTasksCommands extends BaseCommand {
 
 	/**
 	 * Запускает задачу
-	 * Если задача не найдена, пытается запустить конфигурацию с таким же именем
+	 * 
+	 * Ищет задачу с указанным именем в workspace и запускает её.
+	 * Если задача не найдена, пытается запустить конфигурацию отладки с таким же именем.
+	 * 
 	 * @param taskLabel - Имя задачи для запуска
 	 * @returns Промис, который разрешается после запуска задачи
+	 * @throws {Error} Если произошла ошибка при запуске задачи или конфигурации
 	 */
 	async runTask(taskLabel: string): Promise<void> {
 		if (!this.workspaceRoot) {
@@ -111,8 +126,13 @@ export class WorkspaceTasksCommands extends BaseCommand {
 
 	/**
 	 * Запускает конфигурацию отладки
+	 * 
+	 * Ищет конфигурацию отладки с указанным именем в launch.json и запускает её.
+	 * Если конфигурация не найдена, показывает сообщение об ошибке.
+	 * 
 	 * @param name - Имя конфигурации для запуска
 	 * @returns Промис, который разрешается после запуска конфигурации
+	 * @throws {Error} Если произошла ошибка при запуске конфигурации отладки
 	 */
 	async runLaunchConfiguration(name: string): Promise<void> {
 		if (!this.workspaceRoot) {
@@ -137,8 +157,12 @@ export class WorkspaceTasksCommands extends BaseCommand {
 
 	/**
 	 * Открывает tasks.json для редактирования
-	 * Создает файл с базовой структурой, если он не существует
+	 * 
+	 * Открывает файл `.vscode/tasks.json` в редакторе VS Code.
+	 * Если файл не существует, создает его с базовой структурой (version: '2.0.0', tasks: []).
+	 * 
 	 * @returns Промис, который разрешается после открытия файла
+	 * @throws {Error} Если не удалось создать директорию .vscode или записать файл
 	 */
 	async editTasks(): Promise<void> {
 		if (!this.workspaceRoot) {
@@ -174,8 +198,12 @@ export class WorkspaceTasksCommands extends BaseCommand {
 
 	/**
 	 * Открывает launch.json для редактирования
-	 * Создает файл с базовой структурой, если он не существует
+	 * 
+	 * Открывает файл `.vscode/launch.json` в редакторе VS Code.
+	 * Если файл не существует, создает его с базовой структурой (version: '0.2.0', configurations: []).
+	 * 
 	 * @returns Промис, который разрешается после открытия файла
+	 * @throws {Error} Если не удалось создать директорию .vscode или записать файл
 	 */
 	async editLaunchConfigurations(): Promise<void> {
 		if (!this.workspaceRoot) {
@@ -211,6 +239,11 @@ export class WorkspaceTasksCommands extends BaseCommand {
 
 	/**
 	 * Добавляет задачу в tasks.json
+	 * 
+	 * **Примечание**: Метод в настоящее время не реализован и является заглушкой.
+	 * В будущих версиях будет добавлена функциональность для автоматического
+	 * добавления задач в tasks.json.
+	 * 
 	 * @param task - Задача для добавления
 	 * @returns Промис, который разрешается после добавления задачи
 	 */

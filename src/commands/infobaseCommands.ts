@@ -11,6 +11,7 @@ import {
 	getLoadInfobaseFromDtCommandName
 } from '../commandNames';
 import { VANESSA_RUNNER_ROOT, VANESSA_RUNNER_EPF, EPF_NAMES, EPF_COMMANDS } from '../constants';
+import { formatDateForDtFileName } from '../utils/dateUtils';
 
 /**
  * Команды для работы с информационными базами
@@ -29,10 +30,7 @@ export class InfobaseCommands extends BaseCommand {
 		}
 
 		const ibConnectionParam = await this.vrunner.getIbConnectionParam();
-		const args = ['init-dev', ...ibConnectionParam];
-		if (this.vrunner.getUseIbcmd()) {
-			args.push('--ibcmd');
-		}
+		const args = this.addIbcmdIfNeeded(['init-dev', ...ibConnectionParam]);
 		const commandName = getCreateEmptyInfobaseCommandName();
 
 		this.vrunner.executeVRunnerInTerminal(args, {
@@ -140,7 +138,7 @@ export class InfobaseCommands extends BaseCommand {
 			return;
 		}
 
-		const buildPath = this.vrunner.getBuildPath();
+		const buildPath = this.vrunner.getOutPath();
 		const dtFolder = path.join(buildPath, 'dt');
 		const dtFolderFullPath = path.join(workspaceRoot, dtFolder);
 
@@ -151,24 +149,11 @@ export class InfobaseCommands extends BaseCommand {
 			return;
 		}
 
-		const now = new Date();
-		const year = now.getFullYear();
-		const month = String(now.getMonth() + 1).padStart(2, '0');
-		const day = String(now.getDate()).padStart(2, '0');
-		const hours = String(now.getHours()).padStart(2, '0');
-		const minutes = String(now.getMinutes()).padStart(2, '0');
-		const seconds = String(now.getSeconds()).padStart(2, '0');
-		const dateStr = `${year}${month}${day}`;
-		const timeStr = `${hours}${minutes}${seconds}`;
-
-		const fileName = `1Cv8_${dateStr}_${timeStr}.dt`;
+		const fileName = `1Cv8_${formatDateForDtFileName()}.dt`;
 		const dtPath = path.join(dtFolder, fileName);
 		const ibConnectionParam = await this.vrunner.getIbConnectionParam();
 		const commandName = getDumpInfobaseToDtCommandName();
-		const args = ['dump', dtPath, ...ibConnectionParam];
-		if (this.vrunner.getUseIbcmd()) {
-			args.push('--ibcmd');
-		}
+		const args = this.addIbcmdIfNeeded(['dump', dtPath, ...ibConnectionParam]);
 
 		this.vrunner.executeVRunnerInTerminal(args, {
 			cwd: workspaceRoot,
@@ -187,7 +172,7 @@ export class InfobaseCommands extends BaseCommand {
 			return;
 		}
 
-		const buildPath = this.vrunner.getBuildPath();
+		const buildPath = this.vrunner.getOutPath();
 		const dtFolder = path.join(workspaceRoot, buildPath, 'dt');
 
 		const fileUri = await vscode.window.showOpenDialog({
@@ -209,10 +194,7 @@ export class InfobaseCommands extends BaseCommand {
 		const relativePath = path.relative(workspaceRoot, selectedFilePath);
 		const ibConnectionParam = await this.vrunner.getIbConnectionParam();
 		const commandName = getLoadInfobaseFromDtCommandName();
-		const args = ['restore', relativePath, ...ibConnectionParam];
-		if (this.vrunner.getUseIbcmd()) {
-			args.push('--ibcmd');
-		}
+		const args = this.addIbcmdIfNeeded(['restore', relativePath, ...ibConnectionParam]);
 
 		this.vrunner.executeVRunnerInTerminal(args, {
 			cwd: workspaceRoot,

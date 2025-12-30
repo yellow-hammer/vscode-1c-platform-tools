@@ -107,4 +107,19 @@ export abstract class BaseCommand {
 			return false;
 		}
 	}
+
+	/**
+	 * Добавляет параметр --ibcmd к аргументам команды, если это необходимо
+	 * 
+	 * Проверяет, нужно ли использовать ibcmd и поддерживает ли команда этот параметр.
+	 * 
+	 * @param args - Массив аргументов команды
+	 * @returns Массив аргументов с добавленным --ibcmd (если нужно)
+	 */
+	protected addIbcmdIfNeeded(args: string[]): string[] {
+		if (this.vrunner.getUseIbcmd() && this.vrunner.supportsIbcmd(args)) {
+			args.push('--ibcmd');
+		}
+		return args;
+	}
 }
