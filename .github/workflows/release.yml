@@ -4,6 +4,27 @@ on:
   push:
     tags:
       - 'v*' # Запускается при создании тега, начинающегося с 'v'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Версия релиза (например, 0.1.0, 0.1.0-alpha.1, 0.1.0-beta.2, 0.1.0-rc.1)'
+        required: true
+        type: string
+      skip_publish:
+        description: 'Пропустить публикацию в маркетплейсы (VS Code Marketplace и Open VSX Registry)'
+        required: false
+        type: boolean
+        default: false
+      draft:
+        description: 'Создать draft (черновик) релиз. Draft релизы не публикуются публично, но доступны для просмотра и тестирования. Полезно для предварительного просмотра перед публикацией.'
+        required: false
+        type: boolean
+        default: false
+      prerelease:
+        description: 'Создать prerelease (предварительный релиз). Prerelease помечается как нестабильная версия (alpha, beta, rc). Примеры версий: 0.1.0-alpha.1, 0.1.0-beta.2, 0.1.0-rc.1, 1.0.0-alpha, 1.0.0-beta.3'
+        required: false
+        type: boolean
+        default: false
 
 jobs:
   release:
@@ -34,10 +55,16 @@ jobs:
       - name: Compile TypeScript
         run: npm run compile
 
-      - name: Get version from tag
+      - name: Get version from tag or input
         id: tag_version
         run: |
-          VERSION=${GITHUB_REF#refs/tags/v}
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            VERSION="${{ github.event.inputs.version }}"
+            # Убираем префикс 'v', если он есть
+            VERSION=${VERSION#v}
+          else
+            VERSION=${GITHUB_REF#refs/tags/v}
+          fi
           echo "version=$VERSION" >> $GITHUB_OUTPUT
           echo "Version: $VERSION"
 
@@ -64,6 +91,20 @@ jobs:
           else
             git commit -m "chore(release): prepare for v${{ steps.tag_version.outputs.version }}"
             git push origin $BRANCH
+          fi
+      
+      - name: Create tag if not exists (workflow_dispatch)
+        if: github.event_name == 'workflow_dispatch'
+        run: |
+          TAG="v${{ steps.tag_version.outputs.version }}"
+          if git rev-parse "$TAG" >/dev/null 2>&1; then
+            echo "Tag $TAG already exists, skipping creation"
+          else
+            echo "Creating tag $TAG"
+            git config --local user.email "action@github.com"
+            git config --local user.name "GitHub Action"
+            git tag -a "$TAG" -m "Release $TAG"
+            git push origin "$TAG"
           fi
 
       - name: Install Rust toolchain
@@ -170,6 +211,7 @@ jobs:
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v1
         with:
+          tag_name: v${{ steps.tag_version.outputs.version }}
           files: |
             *.vsix
           body: |
@@ -181,10 +223,11 @@ jobs:
             
             Скачайте файл `.vsix` и установите через VS Code:
             - `Ctrl+Shift+P` → `Extensions: Install from VSIX...`
-          draft: false
-          prerelease: false
+          draft: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.draft == 'true' || false }}
+          prerelease: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.prerelease == 'true' || false }}
 
       - name: Publish to Open VSX Registry
+        if: github.event_name != 'workflow_dispatch' || github.event.inputs.skip_publish != 'true'
         uses: HaaLeo/publish-vscode-extension@v1
         id: publishToOpenVSX
         with:
@@ -192,6 +235,7 @@ jobs:
           skipDuplicate: true
 
       - name: Publish to Visual Studio Marketplace
+        if: github.event_name != 'workflow_dispatch' || github.event.inputs.skip_publish != 'true'
         uses: HaaLeo/publish-vscode-extension@v1
         with:
           pat: ${{ secrets.VSCE_PAT }}
