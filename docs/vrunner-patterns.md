@@ -42,6 +42,8 @@ export class ConfigurationCommands extends BaseCommand {
 - `checkDirectoryExists(dirPath, errorMessage?)` - проверяет существование директории
 - `getDirectories(dirPath, errorMessage?)` - получает список директорий в указанной папке
 - `getFilesByExtension(dirPath, extension, errorMessage?)` - получает список файлов с указанным расширением
+- `ensureDirectoryExists(dirPath, errorMessage?)` - создает директорию, если она не существует
+- `addIbcmdIfNeeded(args)` - добавляет параметр `--ibcmd` к аргументам команды, если это необходимо
 - `vrunner` - доступ к экземпляру VRunnerManager через `this.vrunner`
 
 ### Пример использования
@@ -68,7 +70,7 @@ export class MyCommands extends BaseCommand {
         const cfFiles = await this.getFilesByExtension(dirPath, '.xml');
 
         // Использование vrunner
-        const srcPath = this.vrunner.getSrcPath();
+        const srcPath = this.vrunner.getCfPath();
     }
 }
 ```
@@ -90,8 +92,8 @@ const vrunnerManager = VRunnerManager.getInstance(context);
 ### Основные методы
 
 - `getVRunnerPath()` - получить путь к vrunner
-- `getSrcPath()` - получить путь к исходникам конфигурации
-- `getBuildPath()` - получить путь к папке сборки
+- `getCfPath()` - получить путь к исходникам конфигурации
+- `getOutPath()` - получить путь к папке результатов сборки (ранее `getBuildPath()`)
 - `getEpfPath()` - получить путь к исходникам внешних обработок
 - `getErfPath()` - получить путь к исходникам внешних отчетов
 - `getCfePath()` - получить путь к исходникам расширений
@@ -120,7 +122,7 @@ export class ConfigurationCommands extends BaseCommand {
             return;
         }
 
-        const srcPath = this.vrunner.getSrcPath();
+        const srcPath = this.vrunner.getCfPath();
         const ibConnectionParam = await this.vrunner.getIbConnectionParam();
         const args = ['update-dev', '--src', srcPath, ...ibConnectionParam];
 
@@ -205,16 +207,16 @@ const vrunnerPath = vrunnerManager.getVRunnerPath();
 ### Путь к исходникам
 
 ```typescript
-const srcPath = vrunnerManager.getSrcPath();
+const srcPath = vrunnerManager.getCfPath();
 // По умолчанию: 'src/cf'
 // Можно изменить в настройках расширения
 ```
 
-### Путь к сборке
+### Путь к результатам сборки
 
 ```typescript
-const buildPath = vrunnerManager.getBuildPath();
-// По умолчанию: 'build/out'
+const outPath = vrunnerManager.getOutPath();
+// По умолчанию: 'out' (ранее 'build/out')
 ```
 
 ### Путь к внешним файлам
@@ -254,7 +256,7 @@ const args = ['update-dev', '--src', srcPath, ...ibConnectionParam];
 const ibConnectionParam = await this.vrunner.getIbConnectionParam();
 const args = [
     'update-dev',
-    '--src', this.vrunner.getSrcPath(),
+    '--src', this.vrunner.getCfPath(),
     ...ibConnectionParam
 ];
 
@@ -464,7 +466,7 @@ export class ConfigurationCommands extends BaseCommand {
         }
 
         const command = mode === 'init' ? 'init-dev' : 'update-dev';
-        const srcPath = this.vrunner.getSrcPath();
+        const srcPath = this.vrunner.getCfPath();
         const ibConnectionParam = await this.vrunner.getIbConnectionParam();
         const args = [command, '--src', srcPath, ...ibConnectionParam];
 
@@ -485,9 +487,9 @@ public async compile(): Promise<void> {
         return;
     }
 
-    const srcPath = this.vrunner.getSrcPath();
-    const buildPath = this.vrunner.getBuildPath();
-    const outputPath = path.join(buildPath, '1Cv8.cf');
+    const srcPath = this.vrunner.getCfPath();
+    const outPath = this.vrunner.getOutPath();
+    const outputPath = path.join(outPath, '1Cv8.cf');
     const args = ['compile', '--src', srcPath, '--out', outputPath];
 
     this.vrunner.executeVRunnerInTerminal(args, {
@@ -506,9 +508,9 @@ public async decompile(): Promise<void> {
         return;
     }
 
-    const buildPath = this.vrunner.getBuildPath();
-    const inputPath = path.join(buildPath, '1Cv8.cf');
-    const srcPath = this.vrunner.getSrcPath();
+    const outPath = this.vrunner.getOutPath();
+    const inputPath = path.join(outPath, '1Cv8.cf');
+    const srcPath = this.vrunner.getCfPath();
 
     // Проверка существования файла
     if (!(await this.checkDirectoryExists(path.dirname(inputPath)))) {
@@ -574,7 +576,7 @@ export class ExtensionsCommands extends BaseCommand {
             return;
         }
 
-        const buildPath = this.vrunner.getBuildPath();
+        const outPath = this.vrunner.getOutPath();
         const vrunnerPath = this.vrunner.getVRunnerPath();
         const shellType = detectShellType();
         const cfePath = this.vrunner.getCfePath();
@@ -583,8 +585,8 @@ export class ExtensionsCommands extends BaseCommand {
         for (const extensionFolder of extensionFolders) {
             const extensionFileName = `${extensionFolder}.cfe`;
             const srcPath = path.join(cfePath, extensionFolder);
-            const outPath = path.join(buildPath, 'cfe', extensionFileName);
-            const args = ['compileexttocfe', '--src', srcPath, '--out', outPath];
+            const outputPath = path.join(outPath, 'cfe', extensionFileName);
+            const args = ['compileexttocfe', '--src', srcPath, '--out', outputPath];
             commands.push(buildCommand(vrunnerPath, args, shellType));
         }
 
@@ -593,22 +595,46 @@ export class ExtensionsCommands extends BaseCommand {
 }
 ```
 
+## Использование addIbcmdIfNeeded
+
+Метод `addIbcmdIfNeeded()` из `BaseCommand` автоматически добавляет параметр `--ibcmd` к аргументам команды, если это необходимо:
+
+```typescript
+const args = ['load', '--src', cfFilePath, ...ibConnectionParam];
+const argsWithIbcmd = this.addIbcmdIfNeeded(args);
+// Если ibcmd включен и команда поддерживает его, добавится '--ibcmd'
+```
+
+Это заменяет ручную проверку:
+```typescript
+// ❌ Старый способ (не использовать)
+if (this.vrunner.getUseIbcmd() && this.vrunner.supportsIbcmd(args)) {
+    args.push('--ibcmd');
+}
+
+// ✅ Новый способ
+const args = this.addIbcmdIfNeeded(['load', '--src', cfFilePath, ...ibConnectionParam]);
+```
+
 ## Лучшие практики
 
 1. **Наследуйтесь от BaseCommand** для всех классов команд
 2. **Используйте `this.ensureWorkspace()`** вместо ручной проверки workspace
 3. **Используйте `this.vrunner`** вместо `VRunnerManager.getInstance()`
-4. **Используйте `executeVRunnerInTerminal()`** для команд, которые должны выполняться в терминале
-5. **Используйте `executeVRunner()`** только для проверок и синхронных операций
-6. **Используйте методы BaseCommand** для работы с файловой системой (`checkDirectoryExists`, `getDirectories`, `getFilesByExtension`)
-7. **Обрабатывайте ошибки** - методы BaseCommand автоматически показывают ошибки пользователю
-8. **Используйте относительные пути** для файлов внутри workspace (методы выполнения команд автоматически преобразуют абсолютные пути в относительные)
-9. **Не беспокойтесь о нормализации путей** - методы `executeVRunnerInTerminal()`, `executeOpmInTerminal()`, `executeAllureInTerminal()` автоматически нормализуют пути для указанной оболочки
-10. **Не беспокойтесь об экранировании аргументов** - утилиты `buildCommand()` и `escapeCommandArgs()` автоматически экранируют аргументы с учетом типа оболочки (включая точку с запятой в PowerShell)
-11. **Логируйте ошибки** для отладки
-12. **Используйте правильные параметры** для команд vrunner (см. документацию vrunner)
-13. **Используйте spread оператор** для параметров подключения: `...ibConnectionParam`
-14. **Выносите общую логику** в приватные методы классов команд (например, создание терминала, получение списка файлов)
+4. **Используйте `this.addIbcmdIfNeeded()`** для добавления параметра `--ibcmd` вместо ручной проверки
+5. **Используйте `getOutPath()`** вместо устаревшего `getBuildPath()` для получения пути к результатам сборки
+6. **Избегайте множественных `push()`** - используйте массивы и один вызов `push()` со spread оператором
+7. **Используйте `executeVRunnerInTerminal()`** для команд, которые должны выполняться в терминале
+8. **Используйте `executeVRunner()`** только для проверок и синхронных операций
+9. **Используйте методы BaseCommand** для работы с файловой системой (`checkDirectoryExists`, `getDirectories`, `getFilesByExtension`)
+10. **Обрабатывайте ошибки** - методы BaseCommand автоматически показывают ошибки пользователю
+11. **Используйте относительные пути** для файлов внутри workspace (методы выполнения команд автоматически преобразуют абсолютные пути в относительные)
+12. **Не беспокойтесь о нормализации путей** - методы `executeVRunnerInTerminal()`, `executeOpmInTerminal()`, `executeAllureInTerminal()` автоматически нормализуют пути для указанной оболочки
+13. **Не беспокойтесь об экранировании аргументов** - утилиты `buildCommand()` и `escapeCommandArgs()` автоматически экранируют аргументы с учетом типа оболочки (включая точку с запятой в PowerShell)
+14. **Логируйте ошибки** для отладки
+15. **Используйте правильные параметры** для команд vrunner (см. документацию vrunner)
+16. **Используйте spread оператор** для параметров подключения: `...ibConnectionParam`
+17. **Выносите общую логику** в приватные методы классов команд (например, создание терминала, получение списка файлов)
 
 ## Дополнительные ресурсы
 

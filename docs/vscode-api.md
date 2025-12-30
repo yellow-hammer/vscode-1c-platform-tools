@@ -348,7 +348,7 @@ export class MyCommands extends BaseCommand {
         }
 
         // Доступ к VRunnerManager
-        const srcPath = this.vrunner.getSrcPath();
+        const srcPath = this.vrunner.getCfPath();
     }
 }
 ```
