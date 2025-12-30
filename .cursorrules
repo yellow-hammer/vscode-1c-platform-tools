@@ -77,11 +77,13 @@
 - `src/treeViewProvider.ts` - провайдер данных для дерева команд
 - `src/vrunnerManager.ts` - менеджер для работы с vrunner (синглтон)
 - `src/commandNames.ts` - утилиты для получения названий команд
+- `src/commands/commandRegistry.ts` - централизованная регистрация всех команд расширения
 - `src/commands/baseCommand.ts` - базовый класс для всех команд
 - `src/commands/` - классы команд, разделенные по доменам (наследуются от BaseCommand)
-- `src/utils/commandUtils.ts` - утилиты для работы с командами (escapeCommandArgs, buildCommand, joinCommands)
+- `src/utils/commandUtils.ts` - утилиты для работы с командами (escapeCommandArgs, buildCommand, joinCommands, buildDockerCommand, normalizeIbPathForDocker)
+- `src/utils/dateUtils.ts` - утилиты для работы с датами (formatDateForDtFileName)
 - `src/constants.ts` - константы для работы с vanessa-runner
-- `src/test/` - тесты
+- `src/test/` - тесты (unit-тесты для утилит и BaseCommand)
 - `resources/` - иконки (1c-icon.svg, 1c-icon.png)
 - `out/` - скомпилированный код (генерируется)
 - `docs/` - документация
@@ -98,15 +100,36 @@
 ### Пути и файлы
 - **Использовать относительные пути там, где это возможно**: пути к файлам внутри workspace должны быть относительными (например, `oscript_modules/bin/vrunner.bat` вместо абсолютного пути)
 - **Пути к vrunner**: использовать `this.vrunner.getVRunnerPath()` (возвращает относительный путь `oscript_modules/bin/vrunner.bat` если найден в workspace, иначе `vrunner`)
-- **Пути к исходникам**: использовать `this.vrunner.getSrcPath()` (по умолчанию `src/cf`)
+- **Пути к исходникам**: использовать `this.vrunner.getCfPath()` (по умолчанию `src/cf`)
+- **Путь к результатам сборки**: использовать `this.vrunner.getOutPath()` (по умолчанию `out`, ранее `build/out`)
 - **Параметры подключения к ИБ**: использовать `await this.vrunner.getIbConnectionParam()` для получения параметра `--ibconnection` из `env.json` (возвращает массив `['--ibconnection', '/F./build/ib']`, использовать с spread оператором: `...ibConnectionParam`)
 
 ### Использование ibcmd
 - **ibcmd**: утилита командной строки платформы 1С:Предприятие для ускорения операций с конфигурацией без запуска графического интерфейса Конфигуратора
 - **Требование**: для работы ibcmd необходимо, чтобы платформа 1С:Предприятие была установлена с флагом **"Сервер 1С: Предприятия 8"**
-- **Проверка настройки**: использовать `this.vrunner.getUseIbcmd()` для проверки, включена ли настройка использования ibcmd (настройка `1c-platform-tools.useIbcmd`, по умолчанию `false`)
-- **Добавление параметра**: при выполнении команд с информационной базой проверять настройку и добавлять параметр `--ibcmd` в массив аргументов: `if (this.vrunner.getUseIbcmd()) { args.push('--ibcmd'); }`
+- **Проверка настройки**: использовать `this.vrunner.getUseIbcmd()` для проверки, включена ли настройка использования ibcmd
+- **Логика определения**: `getUseIbcmd()` возвращает `true` если:
+  - Настройка `1c-platform-tools.useIbcmd = true` (явное включение)
+  - ИЛИ настройка `1c-platform-tools.docker.enabled = true` (автоматически в Docker, так как нет GUI)
+- **Добавление параметра**: использовать метод `this.addIbcmdIfNeeded(args)` из `BaseCommand` для добавления параметра `--ibcmd` при необходимости (вместо ручной проверки)
 - **Команды, поддерживающие ibcmd**: операции с конфигурацией (загрузка, выгрузка, сборка, разбор), операции с расширениями, операции с информационными базами
+
+### Работа с Docker
+- **Поддержка Docker**: расширение поддерживает выполнение команд vrunner через Docker-контейнеры
+- **Настройки**: `1c-platform-tools.docker.enabled` (boolean, default: false) и `1c-platform-tools.docker.image` (string, default: "")
+- **Проверка использования Docker**: использовать `await this.vrunner.shouldUseDocker()` для проверки, нужно ли использовать Docker
+- **Автоматическое использование ibcmd**: при работе в Docker (`docker.enabled = true`) параметр `--ibcmd` используется автоматически через `getUseIbcmd()`
+- **Проверка поддержки ibcmd**: использовать `this.vrunner.supportsIbcmd(args)` для проверки, поддерживает ли команда `--ibcmd`
+- **Ограничение**: в Docker можно выполнять только команды, которые поддерживают `--ibcmd` (операции с ИБ: init-dev, update-dev, dump, restore, dump-dt, load-dt; конфигурацией: load, dump, dumpcf, compile, decompile; расширениями: compileext, decompileext, unloadext, compileexttocfe; внешними файлами: compileepf, decompileepf). Команды запуска (run, designer) и тестирования (xunit, syntax-check, vanessa) не поддерживаются в Docker
+- **Предупреждение**: при попытке выполнить команду без поддержки `--ibcmd` в Docker показывается предупреждение с возможностью отмены
+- **Нормализация путей для Docker**: использовать `this.vrunner.processCommandArgsForDocker()` (публичный метод) для нормализации аргументов команды (преобразует пути в формат `/workspace/...`)
+- **Получение Docker-образа**: использовать `this.vrunner.getDockerImage()` (публичный метод) для получения Docker-образа из настроек
+- **Формирование Docker-команд**: использовать `buildDockerCommand()` из `src/utils/commandUtils.ts` для формирования команды `docker run`
+- **Обработка путей ИБ**: пути в формате `/F./path` автоматически преобразуются в `/F./workspace/path` через `normalizeIbPathForDocker()`
+- **ENTRYPOINT образов**: большинство образов vrunner имеют `ENTRYPOINT ["vrunner"]`, поэтому в команде не нужно указывать `vrunner` - только аргументы
+- **Требования к образу**: Docker-образ должен содержать установленную платформу 1С:Предприятие и vanessa-runner
+- **Выполнение команд**: `executeVRunnerInTerminal()` и `executeVRunner()` автоматически проверяют `shouldUseDocker()` и используют Docker при необходимости
+- **Множественные команды**: при выполнении нескольких команд (например, для всех расширений) нужно проверять `shouldUseDocker()` и использовать `executeVRunnerInTerminal()` для каждой команды отдельно, если Docker включен. Если Docker выключен, можно использовать `executeCommandsInTerminal()` для последовательного выполнения в одном терминале
 
 ### Работа с терминалами и оболочками
 - **Определение типа оболочки**: автоматически определяется через `detectShellType()` из настроек VS Code и переменных окружения
@@ -124,6 +147,8 @@
 - Команды регистрируются в `package.json` → `contributes.commands`
 - TreeView регистрируется в `package.json` → `contributes.views`
 - Все команды должны быть зарегистрированы в `context.subscriptions`
+- **Централизованная регистрация**: все команды регистрируются через `registerCommands()` в `src/commands/commandRegistry.ts`
+- **Избегать множественных push()**: при регистрации команд использовать массивы и один вызов `push()` со spread оператором
 
 ### Организация кода
 - Команды должны быть организованы по доменам, а не по типам операций
@@ -132,12 +157,14 @@
 - Все классы команд должны быть экспортируемыми и иметь понятные имена
 - **ОБЯЗАТЕЛЬНО**: Использовать `this.ensureWorkspace()` вместо ручной проверки `this.vrunner.getWorkspaceRoot()` - это обеспечивает единообразную обработку ошибок
 - Использовать методы `BaseCommand` для работы с файловой системой (`checkDirectoryExists`, `getDirectories`, `getFilesByExtension`)
+- Использовать `this.addIbcmdIfNeeded(args)` для добавления параметра `--ibcmd` при необходимости
 - Использовать `this.vrunner.executeVRunnerInTerminal()` для выполнения команд в терминале
 - Использовать `this.vrunner.executeVRunner()` только для проверок и синхронных операций
 - Использовать `this.vrunner.executeOpmInTerminal()` и `this.vrunner.executeAllureInTerminal()` для выполнения соответствующих команд (они автоматически обрабатывают аргументы)
 - Все асинхронные методы должны возвращать `Promise<void>` или `Promise<T>` с соответствующим типом
 - JSDoc комментарии должны быть полными: описывать что делает метод, параметры, возвращаемое значение, возможные исключения
 - **Рефакторинг**: выносить общую логику в приватные методы классов команд (например, создание терминала, получение списка файлов)
+- **Избегать множественных push()**: при работе с массивами использовать один вызов `push()` со spread оператором или `concat()`
 
 ### Обработка ошибок
 - Всегда обрабатывать ошибки при работе с файловой системой
@@ -158,10 +185,13 @@
 - `vrunner-patterns.md` - паттерны работы с vrunner
 - `CI_CD_SETUP.md` - настройка CI/CD
 
+Информация о Docker интегрирована в основной `README.md` проекта.
+
 ## JSDoc стандарты
 - Все публичные методы классов должны иметь JSDoc комментарии
 - Формат: описание метода, `@param` для каждого параметра, `@returns` для возвращаемого значения, `@throws` для исключений
 - Для асинхронных методов указывать "Промис, который разрешается..."
+- **ЗАПРЕЩЕНО использовать `@example` в JSDoc комментариях** - примеры использования не должны включаться в документацию
 - Пример:
   ```typescript
   /**
@@ -177,3 +207,9 @@
 - Удалять отладочную информацию (`console.log`, `console.error`) перед коммитом
 - Комментарии должны объяснять "почему", а не "что" (код сам объясняет "что")
 - Исключение: комментарии для разделения секций в больших файлах (например, в `commandNames.ts`)
+
+## Тестирование
+- Unit-тесты для утилит находятся в `src/test/utils/`
+- Тесты для BaseCommand находятся в `src/test/commands/baseCommand.test.ts`
+- Использовать фикстуры из `src/test/fixtures/` для создания тестовых workspace
+- Все тесты должны использовать `createTestContext()` для создания временных workspace
