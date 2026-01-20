@@ -9,6 +9,7 @@ import { RunCommands } from './commands/runCommands';
 import { TestCommands } from './commands/testCommands';
 import { WorkspaceTasksCommands } from './commands/workspaceTasksCommands';
 import { registerCommands } from './commands/commandRegistry';
+import { VRunnerManager } from './vrunnerManager';
 
 /**
  * Проверяет, является ли открытая рабочая область проектом 1С
@@ -49,6 +50,9 @@ export async function activate(context: vscode.ExtensionContext) {
 	}
 
 	await vscode.commands.executeCommand('setContext', '1c-platform-tools.is1CProject', true);
+
+	// Инициализируем VRunnerManager с контекстом расширения для доступа к extensionPath
+	VRunnerManager.getInstance(context);
 
 	const commands = {
 		infobase: new InfobaseCommands(),
