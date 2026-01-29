@@ -11,6 +11,7 @@ import {
 	getRemoveDependenciesCommandName,
 	getInitializePackagedefCommandName,
 	getLoadConfigurationFromSrcCommandName,
+	getLoadConfigurationIncrementFromSrcCommandName,
 	getLoadConfigurationFromCfCommandName,
 	getDumpConfigurationToSrcCommandName,
 	getDumpConfigurationToCfCommandName,
@@ -276,6 +277,15 @@ export class PlatformTreeDataProvider implements vscode.TreeDataProvider<Platfor
 						{
 							command: '1c-platform-tools.configuration.loadFromSrc',
 							title: getLoadConfigurationFromSrcCommandName().title,
+						}
+					),
+					this.createTreeItem(
+						'📥 Загрузить изменения (git diff)',
+						TreeItemType.Task,
+						vscode.TreeItemCollapsibleState.None,
+						{
+							command: '1c-platform-tools.configuration.loadIncrementFromSrc',
+							title: getLoadConfigurationIncrementFromSrcCommandName().title,
 						}
 					),
 					this.createTreeItem(

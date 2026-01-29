@@ -116,6 +116,11 @@
         "category": "1C"
       },
       {
+        "command": "1c-platform-tools.configuration.loadIncrementFromSrc",
+        "title": "Загрузить изменения (git diff)",
+        "category": "1C"
+      },
+      {
         "command": "1c-platform-tools.configuration.loadFromCf",
         "title": "Загрузить конфигурацию из 1Cv8.cf",
         "category": "1C"

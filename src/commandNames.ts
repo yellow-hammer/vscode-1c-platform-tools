@@ -324,6 +324,16 @@ export function getDumpConfigurationToDistCommandName(): CommandNameAndTitle {
 	};
 }
 
+/**
+ * Получить название и заголовок для команды инкрементальной загрузки конфигурации из src/cf (git diff)
+ */
+export function getLoadConfigurationIncrementFromSrcCommandName(): CommandNameAndTitle {
+	return {
+		name: 'Загрузить изменения (git diff)',
+		title: 'Загрузить изменения (git diff)'
+	};
+}
+
 // ============================================================================
 // Команды для работы с расширениями
 // ============================================================================

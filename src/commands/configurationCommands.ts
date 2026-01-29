@@ -1,4 +1,6 @@
 import * as path from 'node:path';
+import * as fs from 'node:fs/promises';
+import * as vscode from 'vscode';
 import { BaseCommand } from './baseCommand';
 import {
 	getLoadConfigurationFromSrcCommandName,
@@ -7,7 +9,8 @@ import {
 	getDumpConfigurationToCfCommandName,
 	getDumpConfigurationToDistCommandName,
 	getBuildConfigurationCommandName,
-	getDecompileConfigurationCommandName
+	getDecompileConfigurationCommandName,
+	getLoadConfigurationIncrementFromSrcCommandName
 } from '../commandNames';
 
 /**
@@ -177,6 +180,69 @@ export class ConfigurationCommands extends BaseCommand {
 		const srcPath = this.vrunner.getCfPath();
 		const args = this.addIbcmdIfNeeded(['decompile', '--in', inputPath, '--out', srcPath]);
 		const commandName = getDecompileConfigurationCommandName();
+
+		this.vrunner.executeVRunnerInTerminal(args, {
+			cwd: workspaceRoot,
+			name: commandName.title
+		});
+	}
+
+	/**
+	 * Загружает конфигурацию инкрементально из исходников с использованием git diff
+	 * Перед выполнением запрашивает SHA коммита для записи в lastUploadedCommit.txt
+	 * @returns Промис, который разрешается после запуска команды
+	 */
+	async loadIncrementFromSrc(): Promise<void> {
+		const workspaceRoot = this.ensureWorkspace();
+		if (!workspaceRoot) {
+			return;
+		}
+
+		const srcPath = this.vrunner.getCfPath();
+		const lastUploadedCommitPath = path.join(workspaceRoot, srcPath, 'lastUploadedCommit.txt');
+
+		let currentSha = '';
+		try {
+			const content = await fs.readFile(lastUploadedCommitPath, 'utf-8');
+			currentSha = content.trim();
+		} catch {
+			// Файл не существует, это нормально - будет полная загрузка
+		}
+
+		const shaInput = await vscode.window.showInputBox({
+			prompt: 'Введите SHA коммита для инкрементальной загрузки',
+			placeHolder: 'Оставьте пустым для полной загрузки',
+			value: currentSha,
+			ignoreFocusOut: true
+		});
+
+		if (shaInput === undefined) {
+			return;
+		}
+
+		try {
+			const srcFullPath = path.join(workspaceRoot, srcPath);
+			if (!(await this.ensureDirectoryExists(srcFullPath, `Ошибка при создании папки ${srcPath}`))) {
+				return;
+			}
+
+			await fs.writeFile(lastUploadedCommitPath, shaInput.trim(), 'utf-8');
+		} catch (error) {
+			vscode.window.showErrorMessage(
+				`Не удалось записать SHA в файл ${lastUploadedCommitPath}: ${(error as Error).message}`
+			);
+			return;
+		}
+
+		const ibConnectionParam = await this.vrunner.getIbConnectionParam();
+		const args = this.addIbcmdIfNeeded([
+			'update-dev',
+			'--src',
+			srcPath,
+			'--git-increment',
+			...ibConnectionParam
+		]);
+		const commandName = getLoadConfigurationIncrementFromSrcCommandName();
 
 		this.vrunner.executeVRunnerInTerminal(args, {
 			cwd: workspaceRoot,
