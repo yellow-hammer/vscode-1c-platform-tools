@@ -12,6 +12,7 @@ import {
 	getInitializePackagedefCommandName,
 	getLoadConfigurationFromSrcCommandName,
 	getLoadConfigurationIncrementFromSrcCommandName,
+	getLoadConfigurationFromFilesByListCommandName,
 	getLoadConfigurationFromCfCommandName,
 	getDumpConfigurationToSrcCommandName,
 	getDumpConfigurationToCfCommandName,
@@ -286,6 +287,15 @@ export class PlatformTreeDataProvider implements vscode.TreeDataProvider<Platfor
 						{
 							command: '1c-platform-tools.configuration.loadIncrementFromSrc',
 							title: getLoadConfigurationIncrementFromSrcCommandName().title,
+						}
+					),
+					this.createTreeItem(
+						'📥 Загрузить из objlist.txt',
+						TreeItemType.Task,
+						vscode.TreeItemCollapsibleState.None,
+						{
+							command: '1c-platform-tools.configuration.loadFromFilesByList',
+							title: getLoadConfigurationFromFilesByListCommandName().title,
 						}
 					),
 					this.createTreeItem(

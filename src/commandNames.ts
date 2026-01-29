@@ -334,6 +334,16 @@ export function getLoadConfigurationIncrementFromSrcCommandName(): CommandNameAn
 	};
 }
 
+/**
+ * Получить название и заголовок для команды загрузки объектов конфигурации из файлов по списку в objlist.txt
+ */
+export function getLoadConfigurationFromFilesByListCommandName(): CommandNameAndTitle {
+	return {
+		name: 'Загрузить из objlist.txt',
+		title: 'Загрузить из objlist.txt'
+	};
+}
+
 // ============================================================================
 // Команды для работы с расширениями
 // ============================================================================

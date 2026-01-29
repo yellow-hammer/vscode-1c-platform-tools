@@ -10,7 +10,8 @@ import {
 	getDumpConfigurationToDistCommandName,
 	getBuildConfigurationCommandName,
 	getDecompileConfigurationCommandName,
-	getLoadConfigurationIncrementFromSrcCommandName
+	getLoadConfigurationIncrementFromSrcCommandName,
+	getLoadConfigurationFromFilesByListCommandName
 } from '../commandNames';
 
 /**
@@ -243,6 +244,40 @@ export class ConfigurationCommands extends BaseCommand {
 			...ibConnectionParam
 		]);
 		const commandName = getLoadConfigurationIncrementFromSrcCommandName();
+
+		this.vrunner.executeVRunnerInTerminal(args, {
+			cwd: workspaceRoot,
+			name: commandName.title
+		});
+	}
+
+	/**
+	 * Загружает объекты конфигурации из файлов по списку объектов в objlist.txt
+	 * Использует пакетный режим конфигуратора для загрузки объектов из исходников
+	 * @returns Промис, который разрешается после запуска команды
+	 */
+	async loadFromFilesByList(): Promise<void> {
+		const workspaceRoot = this.ensureWorkspace();
+		if (!workspaceRoot) {
+			return;
+		}
+
+		const objlistPath = path.join(workspaceRoot, 'objlist.txt');
+		
+		try {
+			await fs.access(objlistPath);
+		} catch {
+			vscode.window.showErrorMessage(
+				'Файл objlist.txt не найден в корне проекта. Создайте файл со списком полных путей к объектам для загрузки.'
+			);
+			return;
+		}
+
+		const srcPath = this.vrunner.getCfPath();
+		const ibConnectionParam = await this.vrunner.getIbConnectionParam();
+		const additionalParam = `/LoadConfigFromFiles ${srcPath} -listFile objlist.txt`;
+		const args = ['designer', '--additional', additionalParam, ...ibConnectionParam];
+		const commandName = getLoadConfigurationFromFilesByListCommandName();
 
 		this.vrunner.executeVRunnerInTerminal(args, {
 			cwd: workspaceRoot,
