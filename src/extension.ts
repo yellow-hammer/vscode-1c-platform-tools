@@ -8,6 +8,7 @@ import { DependenciesCommands } from './commands/dependenciesCommands';
 import { RunCommands } from './commands/runCommands';
 import { TestCommands } from './commands/testCommands';
 import { WorkspaceTasksCommands } from './commands/workspaceTasksCommands';
+import { OscriptTasksCommands } from './commands/oscriptTasksCommands';
 import { registerCommands } from './commands/commandRegistry';
 import { VRunnerManager } from './vrunnerManager';
 
@@ -62,7 +63,8 @@ export async function activate(context: vscode.ExtensionContext) {
 		dependencies: new DependenciesCommands(),
 		run: new RunCommands(),
 		test: new TestCommands(),
-		workspaceTasks: new WorkspaceTasksCommands()
+		oscriptTasks: new OscriptTasksCommands(),
+		workspaceTasks: new WorkspaceTasksCommands(),
 	};
 
 	const commandDisposables = registerCommands(context, commands);
@@ -91,6 +93,15 @@ export async function activate(context: vscode.ExtensionContext) {
 		await commands.workspaceTasks.runTask(taskLabel);
 	});
 
+	const oscriptRunCommand = vscode.commands.registerCommand('1c-platform-tools.oscript.run', async (taskName: string) => {
+		await commands.oscriptTasks.runOscriptTask(taskName);
+	});
+
+	const oscriptAddTaskCommand = vscode.commands.registerCommand('1c-platform-tools.oscript.addTask', async () => {
+		await commands.oscriptTasks.addOscriptTask();
+		treeDataProvider.refresh();
+	});
+
 	const launchEditCommand = vscode.commands.registerCommand('1c-platform-tools.launch.edit', () => {
 		commands.workspaceTasks.editTasks();
 	});
@@ -105,15 +116,29 @@ export async function activate(context: vscode.ExtensionContext) {
 		commands.workspaceTasks.editLaunchConfigurations();
 	});
 
+	const onWorkspaceTasksSave = vscode.workspace.onDidSaveTextDocument((document) => {
+		const workspaceFolders = vscode.workspace.workspaceFolders;
+		if (!workspaceFolders || workspaceFolders.length === 0) {
+			return;
+		}
+		const relativePath = vscode.workspace.asRelativePath(document.uri);
+		if (relativePath === '.vscode/tasks.json' || relativePath === '.vscode/launch.json') {
+			treeDataProvider.refresh();
+		}
+	});
+
 	context.subscriptions.push(
 		treeView,
 		refreshCommand,
 		settingsCommand,
 		launchViewCommand,
 		launchRunCommand,
+		oscriptRunCommand,
+		oscriptAddTaskCommand,
 		launchEditCommand,
 		fileOpenCommand,
 		launchEditConfigurationsCommand,
+		onWorkspaceTasksSave,
 		...commandDisposables
 	);
 

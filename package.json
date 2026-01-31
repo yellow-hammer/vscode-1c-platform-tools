@@ -313,6 +313,16 @@
         "category": "1C"
       },
       {
+        "command": "1c-platform-tools.oscript.run",
+        "title": "Запустить задачу oscript (opm run)",
+        "category": "1C"
+      },
+      {
+        "command": "1c-platform-tools.oscript.addTask",
+        "title": "Добавить задачу oscript",
+        "category": "1C"
+      },
+      {
         "command": "1c-platform-tools.launch.edit",
         "title": "Редактировать задачи",
         "category": "1C"

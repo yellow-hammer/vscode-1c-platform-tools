@@ -34,10 +34,10 @@ export class WorkspaceTasksCommands extends BaseCommand {
 
 	/**
 	 * Получает задачи из tasks.json
-	 * 
+	 *
 	 * Загружает все задачи workspace из VS Code API и фильтрует их,
 	 * оставляя только задачи workspace (исключая глобальные задачи).
-	 * 
+	 *
 	 * @returns Промис, который разрешается массивом задач workspace.
 	 *          Возвращает пустой массив, если workspace не открыт или произошла ошибка
 	 */
@@ -51,7 +51,7 @@ export class WorkspaceTasksCommands extends BaseCommand {
 			const tasks: Task[] = [];
 			for (const vscodeTask of vscodeTasks) {
 				const isWorkspaceTask = vscodeTask.scope !== vscode.TaskScope.Global;
-				
+
 				if (isWorkspaceTask) {
 					const definition = vscodeTask.definition;
 					tasks.push({
@@ -60,7 +60,7 @@ export class WorkspaceTasksCommands extends BaseCommand {
 					});
 				}
 			}
-			
+
 			return tasks;
 		} catch {
 			return [];

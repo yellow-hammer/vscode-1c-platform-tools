@@ -1,5 +1,6 @@
 import * as vscode from 'vscode';
 import { WorkspaceTasksCommands } from './commands/workspaceTasksCommands';
+import { OscriptTasksCommands } from './commands/oscriptTasksCommands';
 import {
 	getCreateEmptyInfobaseCommandName,
 	getUpdateDatabaseCommandName,
@@ -54,6 +55,7 @@ export enum TreeItemType {
 	Run = 'run',
 	Test = 'test',
 	Launch = 'launch',
+	OscriptTasks = 'oscriptTasks',
 	Subsystem = 'subsystem',
 	Configuration = 'configuration',
 	Extension = 'extension',
@@ -106,6 +108,7 @@ export class PlatformTreeItem extends vscode.TreeItem {
 			case TreeItemType.Test:
 				return new vscode.ThemeIcon('beaker');
 			case TreeItemType.Launch:
+			case TreeItemType.OscriptTasks:
 				return new vscode.ThemeIcon('rocket');
 			case TreeItemType.Subsystem:
 				if (this.extensionUri) {
@@ -139,10 +142,12 @@ export class PlatformTreeDataProvider implements vscode.TreeDataProvider<Platfor
 		this._onDidChangeTreeData.event;
 
 	private readonly workspaceTasksCommands: WorkspaceTasksCommands;
+	private readonly oscriptTasksCommands: OscriptTasksCommands;
 	private readonly extensionUri: vscode.Uri | undefined;
 
 	constructor(extensionUri?: vscode.Uri) {
 		this.workspaceTasksCommands = new WorkspaceTasksCommands();
+		this.oscriptTasksCommands = new OscriptTasksCommands();
 		this.extensionUri = extensionUri;
 	}
 
@@ -193,6 +198,10 @@ export class PlatformTreeDataProvider implements vscode.TreeDataProvider<Platfor
 
 		if (element.type === TreeItemType.Launch) {
 			return this.getWorkspaceTasks();
+		}
+
+		if (element.type === TreeItemType.OscriptTasks) {
+			return this.getOscriptTasks();
 		}
 
 		return Promise.resolve(element.children || []);
@@ -585,6 +594,13 @@ export class PlatformTreeDataProvider implements vscode.TreeDataProvider<Platfor
 				]
 			),
 			this.createTreeItem(
+				'Задачи (oscript)',
+				TreeItemType.OscriptTasks,
+				vscode.TreeItemCollapsibleState.Collapsed,
+				undefined,
+				[]
+			),
+			this.createTreeItem(
 				'Задачи (workspace)',
 				TreeItemType.Launch,
 				vscode.TreeItemCollapsibleState.Collapsed,
@@ -674,6 +690,63 @@ export class PlatformTreeDataProvider implements vscode.TreeDataProvider<Platfor
 				items.push(
 					this.createTreeItem(
 						'Нет задач',
+						TreeItemType.Info,
+						vscode.TreeItemCollapsibleState.None
+					)
+				);
+			}
+		} catch (error) {
+			const errorMessage = error instanceof Error ? error.message : String(error);
+			items.push(
+				this.createTreeItem(
+					`Ошибка загрузки задач: ${errorMessage}`,
+					TreeItemType.Info,
+					vscode.TreeItemCollapsibleState.None
+				)
+			);
+		}
+
+		return items;
+	}
+
+	/**
+	 * Получает задачи oscript из каталога tasks (файлы *.os)
+	 * @returns Промис, который разрешается массивом элементов дерева с задачами
+	 */
+	private async getOscriptTasks(): Promise<PlatformTreeItem[]> {
+		const items: PlatformTreeItem[] = [
+			this.createTreeItem(
+				'➕ Добавить задачу',
+				TreeItemType.Task,
+				vscode.TreeItemCollapsibleState.None,
+				{
+					command: '1c-platform-tools.oscript.addTask',
+					title: 'Добавить задачу',
+				}
+			),
+		];
+
+		try {
+			const tasks = await this.oscriptTasksCommands.getOscriptTasks();
+			for (const task of tasks) {
+				items.push(
+					this.createTreeItem(
+						`▶️ ${task.name}`,
+						TreeItemType.Launch,
+						vscode.TreeItemCollapsibleState.None,
+						{
+							command: '1c-platform-tools.oscript.run',
+							title: 'Запустить задачу oscript',
+							arguments: [task.name],
+						}
+					)
+				);
+			}
+
+			if (items.length === 1) {
+				items.push(
+					this.createTreeItem(
+						'Нет файлов *.os в каталоге tasks',
 						TreeItemType.Info,
 						vscode.TreeItemCollapsibleState.None
 					)
