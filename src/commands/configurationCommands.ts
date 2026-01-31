@@ -1,14 +1,23 @@
 import * as path from 'node:path';
+import * as fs from 'node:fs/promises';
+import * as vscode from 'vscode';
 import { BaseCommand } from './baseCommand';
 import {
 	getLoadConfigurationFromSrcCommandName,
 	getLoadConfigurationFromCfCommandName,
 	getDumpConfigurationToSrcCommandName,
+	getDumpConfigurationIncrementToSrcCommandName,
 	getDumpConfigurationToCfCommandName,
 	getDumpConfigurationToDistCommandName,
 	getBuildConfigurationCommandName,
-	getDecompileConfigurationCommandName
+	getDecompileConfigurationCommandName,
+	getLoadConfigurationIncrementFromSrcCommandName,
+	getLoadConfigurationFromFilesByListCommandName
 } from '../commandNames';
+import {
+	checkVersionFileExists,
+	handleMissingVersionFile
+} from '../utils/configVersionUtils';
 
 /**
  * Команды для работы с конфигурацией
@@ -76,6 +85,45 @@ export class ConfigurationCommands extends BaseCommand {
 		const commandName = getDumpConfigurationToSrcCommandName();
 
 		this.vrunner.executeVRunnerInTerminal(args, {
+			cwd: workspaceRoot,
+			name: commandName.title
+		});
+	}
+
+	/**
+	 * Выгружает только изменения конфигурации из информационной базы в исходники
+	 * Использует файл ConfigDumpInfo.xml для определения измененных объектов
+	 * Если файл версии отсутствует, выполняется полная выгрузка
+	 * @returns Промис, который разрешается после запуска команды
+	 */
+	async dumpIncrementToSrc(): Promise<void> {
+		const workspaceRoot = this.ensureWorkspace();
+		if (!workspaceRoot) {
+			return;
+		}
+
+		const srcPath = this.vrunner.getCfPath();
+		const srcFullPath = path.join(workspaceRoot, srcPath);
+		const configDumpInfoPath = path.join(srcFullPath, 'ConfigDumpInfo.xml');
+		
+		const versionFileExists = await checkVersionFileExists(configDumpInfoPath);
+		
+		if (!versionFileExists && !(await handleMissingVersionFile(srcFullPath, srcPath))) {
+			return;
+		}
+
+		const ibConnectionParam = await this.vrunner.getIbConnectionParam();
+		const args: string[] = ['decompile', '--current', '--out', srcPath, ...ibConnectionParam];
+		
+		if (versionFileExists) {
+			const versionFileRelativePath = path.join(srcPath, 'ConfigDumpInfo.xml');
+			args.push('--versions', versionFileRelativePath);
+		}
+
+		const finalArgs = this.addIbcmdIfNeeded(args);
+		const commandName = getDumpConfigurationIncrementToSrcCommandName();
+
+		this.vrunner.executeVRunnerInTerminal(finalArgs, {
 			cwd: workspaceRoot,
 			name: commandName.title
 		});
@@ -177,6 +225,104 @@ export class ConfigurationCommands extends BaseCommand {
 		const srcPath = this.vrunner.getCfPath();
 		const args = this.addIbcmdIfNeeded(['decompile', '--in', inputPath, '--out', srcPath]);
 		const commandName = getDecompileConfigurationCommandName();
+
+		this.vrunner.executeVRunnerInTerminal(args, {
+			cwd: workspaceRoot,
+			name: commandName.title
+		});
+	}
+
+	/**
+	 * Загружает конфигурацию инкрементально из исходников с использованием git diff
+	 * Перед выполнением запрашивает SHA коммита для записи в lastUploadedCommit.txt
+	 * @returns Промис, который разрешается после запуска команды
+	 */
+	async loadIncrementFromSrc(): Promise<void> {
+		const workspaceRoot = this.ensureWorkspace();
+		if (!workspaceRoot) {
+			return;
+		}
+
+		const srcPath = this.vrunner.getCfPath();
+		const lastUploadedCommitPath = path.join(workspaceRoot, srcPath, 'lastUploadedCommit.txt');
+
+		let currentSha = '';
+		try {
+			const content = await fs.readFile(lastUploadedCommitPath, 'utf-8');
+			currentSha = content.trim();
+		} catch {
+			// Файл не существует, будет полная загрузка
+		}
+
+		const shaInput = await vscode.window.showInputBox({
+			prompt: 'Введите SHA коммита для инкрементальной загрузки',
+			placeHolder: 'Оставьте пустым для полной загрузки',
+			value: currentSha,
+			ignoreFocusOut: true
+		});
+
+		if (shaInput === undefined) {
+			return;
+		}
+
+		try {
+			const srcFullPath = path.join(workspaceRoot, srcPath);
+			if (!(await this.ensureDirectoryExists(srcFullPath, `Ошибка при создании папки ${srcPath}`))) {
+				return;
+			}
+
+			await fs.writeFile(lastUploadedCommitPath, shaInput.trim(), 'utf-8');
+		} catch (error) {
+			vscode.window.showErrorMessage(
+				`Не удалось записать SHA в файл ${lastUploadedCommitPath}: ${(error as Error).message}`
+			);
+			return;
+		}
+
+		const ibConnectionParam = await this.vrunner.getIbConnectionParam();
+		const args = this.addIbcmdIfNeeded([
+			'update-dev',
+			'--src',
+			srcPath,
+			'--git-increment',
+			...ibConnectionParam
+		]);
+		const commandName = getLoadConfigurationIncrementFromSrcCommandName();
+
+		this.vrunner.executeVRunnerInTerminal(args, {
+			cwd: workspaceRoot,
+			name: commandName.title
+		});
+	}
+
+	/**
+	 * Загружает объекты конфигурации из файлов по списку объектов в objlist.txt
+	 * Использует пакетный режим конфигуратора для загрузки объектов из исходников
+	 * @returns Промис, который разрешается после запуска команды
+	 * @throws Показывает ошибку, если файл objlist.txt не найден
+	 */
+	async loadFromFilesByList(): Promise<void> {
+		const workspaceRoot = this.ensureWorkspace();
+		if (!workspaceRoot) {
+			return;
+		}
+
+		const objlistPath = path.join(workspaceRoot, 'objlist.txt');
+		
+		try {
+			await fs.access(objlistPath);
+		} catch {
+			vscode.window.showErrorMessage(
+				'Файл objlist.txt не найден в корне проекта. Создайте файл со списком полных путей к объектам для загрузки.'
+			);
+			return;
+		}
+
+		const srcPath = this.vrunner.getCfPath();
+		const ibConnectionParam = await this.vrunner.getIbConnectionParam();
+		const additionalParam = `/LoadConfigFromFiles ${srcPath} -listFile objlist.txt`;
+		const args = ['designer', '--additional', additionalParam, ...ibConnectionParam];
+		const commandName = getLoadConfigurationFromFilesByListCommandName();
 
 		this.vrunner.executeVRunnerInTerminal(args, {
 			cwd: workspaceRoot,

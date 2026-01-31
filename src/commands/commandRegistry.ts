@@ -64,11 +64,20 @@ export function registerCommands(context: vscode.ExtensionContext, commands: Com
 		vscode.commands.registerCommand('1c-platform-tools.configuration.loadFromSrc.init', () => {
 			commands.configuration.loadFromSrc('init');
 		}),
+		vscode.commands.registerCommand('1c-platform-tools.configuration.loadIncrementFromSrc', () => {
+			commands.configuration.loadIncrementFromSrc();
+		}),
+		vscode.commands.registerCommand('1c-platform-tools.configuration.loadFromFilesByList', () => {
+			commands.configuration.loadFromFilesByList();
+		}),
 		vscode.commands.registerCommand('1c-platform-tools.configuration.loadFromCf', () => {
 			commands.configuration.loadFromCf();
 		}),
 		vscode.commands.registerCommand('1c-platform-tools.configuration.dumpToSrc', () => {
 			commands.configuration.dumpToSrc();
+		}),
+		vscode.commands.registerCommand('1c-platform-tools.configuration.dumpIncrementToSrc', () => {
+			commands.configuration.dumpIncrementToSrc();
 		}),
 		vscode.commands.registerCommand('1c-platform-tools.configuration.dumpToCf', () => {
 			commands.configuration.dumpToCf();

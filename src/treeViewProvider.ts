@@ -11,8 +11,11 @@ import {
 	getRemoveDependenciesCommandName,
 	getInitializePackagedefCommandName,
 	getLoadConfigurationFromSrcCommandName,
+	getLoadConfigurationIncrementFromSrcCommandName,
+	getLoadConfigurationFromFilesByListCommandName,
 	getLoadConfigurationFromCfCommandName,
 	getDumpConfigurationToSrcCommandName,
+	getDumpConfigurationIncrementToSrcCommandName,
 	getDumpConfigurationToCfCommandName,
 	getDumpConfigurationToDistCommandName,
 	getBuildConfigurationCommandName,
@@ -279,6 +282,24 @@ export class PlatformTreeDataProvider implements vscode.TreeDataProvider<Platfor
 						}
 					),
 					this.createTreeItem(
+						'📥 Загрузить изменения (git diff)',
+						TreeItemType.Task,
+						vscode.TreeItemCollapsibleState.None,
+						{
+							command: '1c-platform-tools.configuration.loadIncrementFromSrc',
+							title: getLoadConfigurationIncrementFromSrcCommandName().title,
+						}
+					),
+					this.createTreeItem(
+						'📥 Загрузить из objlist.txt',
+						TreeItemType.Task,
+						vscode.TreeItemCollapsibleState.None,
+						{
+							command: '1c-platform-tools.configuration.loadFromFilesByList',
+							title: getLoadConfigurationFromFilesByListCommandName().title,
+						}
+					),
+					this.createTreeItem(
 						'📥 Загрузить из 1Cv8.cf',
 						TreeItemType.Task,
 						vscode.TreeItemCollapsibleState.None,
@@ -294,6 +315,15 @@ export class PlatformTreeDataProvider implements vscode.TreeDataProvider<Platfor
 						{
 							command: '1c-platform-tools.configuration.dumpToSrc',
 							title: getDumpConfigurationToSrcCommandName().title,
+						}
+					),
+					this.createTreeItem(
+						'📤 Выгрузить изменения в src/cf',
+						TreeItemType.Task,
+						vscode.TreeItemCollapsibleState.None,
+						{
+							command: '1c-platform-tools.configuration.dumpIncrementToSrc',
+							title: getDumpConfigurationIncrementToSrcCommandName().title,
 						}
 					),
 					this.createTreeItem(

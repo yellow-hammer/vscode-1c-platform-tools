@@ -116,6 +116,16 @@
         "category": "1C"
       },
       {
+        "command": "1c-platform-tools.configuration.loadIncrementFromSrc",
+        "title": "Загрузить изменения (git diff)",
+        "category": "1C"
+      },
+      {
+        "command": "1c-platform-tools.configuration.loadFromFilesByList",
+        "title": "Загрузить из objlist.txt",
+        "category": "1C"
+      },
+      {
         "command": "1c-platform-tools.configuration.loadFromCf",
         "title": "Загрузить конфигурацию из 1Cv8.cf",
         "category": "1C"
@@ -123,6 +133,11 @@
       {
         "command": "1c-platform-tools.configuration.dumpToSrc",
         "title": "Выгрузить конфигурацию в src/cf",
+        "category": "1C"
+      },
+      {
+        "command": "1c-platform-tools.configuration.dumpIncrementToSrc",
+        "title": "Выгрузить изменения в src/cf",
         "category": "1C"
       },
       {

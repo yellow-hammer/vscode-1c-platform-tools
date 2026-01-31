@@ -305,6 +305,16 @@ export function getDumpConfigurationToSrcCommandName(): CommandNameAndTitle {
 }
 
 /**
+ * Получить название и заголовок для команды инкрементальной выгрузки конфигурации в src/cf (только изменения)
+ */
+export function getDumpConfigurationIncrementToSrcCommandName(): CommandNameAndTitle {
+	return {
+		name: 'Выгрузить изменения в src/cf',
+		title: 'Выгрузить изменения в src/cf'
+	};
+}
+
+/**
  * Получить название и заголовок для команды выгрузки конфигурации в 1Cv8.cf
  */
 export function getDumpConfigurationToCfCommandName(): CommandNameAndTitle {
@@ -321,6 +331,26 @@ export function getDumpConfigurationToDistCommandName(): CommandNameAndTitle {
 	return {
 		name: 'Выгрузить файл поставки в 1Cv8dist.cf',
 		title: 'Выгрузить файл поставки в 1Cv8dist.cf'
+	};
+}
+
+/**
+ * Получить название и заголовок для команды инкрементальной загрузки конфигурации из src/cf (git diff)
+ */
+export function getLoadConfigurationIncrementFromSrcCommandName(): CommandNameAndTitle {
+	return {
+		name: 'Загрузить изменения (git diff)',
+		title: 'Загрузить изменения (git diff)'
+	};
+}
+
+/**
+ * Получить название и заголовок для команды загрузки объектов конфигурации из файлов по списку в objlist.txt
+ */
+export function getLoadConfigurationFromFilesByListCommandName(): CommandNameAndTitle {
+	return {
+		name: 'Загрузить из objlist.txt',
+		title: 'Загрузить из objlist.txt'
 	};
 }
 
