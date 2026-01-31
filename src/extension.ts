@@ -7,6 +7,7 @@ import { ExternalFilesCommands } from './commands/externalFilesCommands';
 import { DependenciesCommands } from './commands/dependenciesCommands';
 import { RunCommands } from './commands/runCommands';
 import { TestCommands } from './commands/testCommands';
+import { SetVersionCommands } from './commands/setVersionCommands';
 import { WorkspaceTasksCommands } from './commands/workspaceTasksCommands';
 import { OscriptTasksCommands } from './commands/oscriptTasksCommands';
 import { registerCommands } from './commands/commandRegistry';
@@ -63,13 +64,14 @@ export async function activate(context: vscode.ExtensionContext) {
 		dependencies: new DependenciesCommands(),
 		run: new RunCommands(),
 		test: new TestCommands(),
+		setVersion: new SetVersionCommands(),
 		oscriptTasks: new OscriptTasksCommands(),
 		workspaceTasks: new WorkspaceTasksCommands(),
 	};
 
 	const commandDisposables = registerCommands(context, commands);
 
-	const treeDataProvider = new PlatformTreeDataProvider(context.extensionUri);
+	const treeDataProvider = new PlatformTreeDataProvider(context.extensionUri, commands.setVersion);
 
 	const treeView = vscode.window.createTreeView('1c-platform-tools', {
 		treeDataProvider: treeDataProvider,

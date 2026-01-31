@@ -68,278 +68,306 @@
       {
         "command": "1c-platform-tools.refresh",
         "title": "Обновить",
-        "icon": "$(refresh)"
+        "icon": "$(refresh)",
+        "category": "1C: Дерево"
       },
       {
         "command": "1c-platform-tools.settings",
         "title": "Настройки",
-        "icon": "$(gear)"
+        "icon": "$(gear)",
+        "category": "1C: Дерево"
       },
       {
         "command": "1c-platform-tools.infobase.createEmpty",
         "title": "Создать пустую ИБ",
-        "category": "1C"
+        "category": "1C: Информационная база"
       },
       {
         "command": "1c-platform-tools.infobase.updateDatabase",
         "title": "Постобработка обновления",
-        "category": "1C"
+        "category": "1C: Информационная база"
       },
       {
         "command": "1c-platform-tools.infobase.blockExternalResources",
         "title": "Запретить работу с внешними ресурсами",
-        "category": "1C"
+        "category": "1C: Информационная база"
       },
       {
         "command": "1c-platform-tools.infobase.initialize",
         "title": "Инициализировать данные",
-        "category": "1C"
+        "category": "1C: Информационная база"
       },
       {
         "command": "1c-platform-tools.infobase.dumpToDt",
         "title": "Выгрузить в dt",
-        "category": "1C"
+        "category": "1C: Информационная база"
       },
       {
         "command": "1c-platform-tools.infobase.loadFromDt",
         "title": "Загрузить из dt",
-        "category": "1C"
+        "category": "1C: Информационная база"
       },
       {
         "command": "1c-platform-tools.configuration.loadFromSrc",
         "title": "Загрузить конфигурацию из src/cf",
-        "category": "1C"
+        "category": "1C: Конфигурация"
       },
       {
         "command": "1c-platform-tools.configuration.loadFromSrc.init",
         "title": "Инициализировать конфигурацию из src/cf",
-        "category": "1C"
+        "category": "1C: Конфигурация"
       },
       {
         "command": "1c-platform-tools.configuration.loadIncrementFromSrc",
         "title": "Загрузить изменения (git diff)",
-        "category": "1C"
+        "category": "1C: Конфигурация"
       },
       {
         "command": "1c-platform-tools.configuration.loadFromFilesByList",
         "title": "Загрузить из objlist.txt",
-        "category": "1C"
+        "category": "1C: Конфигурация"
       },
       {
         "command": "1c-platform-tools.configuration.loadFromCf",
         "title": "Загрузить конфигурацию из 1Cv8.cf",
-        "category": "1C"
+        "category": "1C: Конфигурация"
       },
       {
         "command": "1c-platform-tools.configuration.dumpToSrc",
         "title": "Выгрузить конфигурацию в src/cf",
-        "category": "1C"
+        "category": "1C: Конфигурация"
       },
       {
         "command": "1c-platform-tools.configuration.dumpIncrementToSrc",
         "title": "Выгрузить изменения в src/cf",
-        "category": "1C"
+        "category": "1C: Конфигурация"
       },
       {
         "command": "1c-platform-tools.configuration.dumpToCf",
         "title": "Выгрузить конфигурацию в 1Cv8.cf",
-        "category": "1C"
+        "category": "1C: Конфигурация"
       },
       {
         "command": "1c-platform-tools.configuration.dumpToDist",
         "title": "Выгрузить файл поставки в 1Cv8dist.cf",
-        "category": "1C"
+        "category": "1C: Конфигурация"
       },
       {
         "command": "1c-platform-tools.configuration.build",
         "title": "Собрать 1Cv8.cf из src/cf",
-        "category": "1C"
+        "category": "1C: Конфигурация"
       },
       {
         "command": "1c-platform-tools.configuration.decompile",
         "title": "Разобрать 1Cv8.cf в src/cf",
-        "category": "1C"
+        "category": "1C: Конфигурация"
       },
       {
         "command": "1c-platform-tools.extensions.loadFromSrc",
         "title": "Загрузить расширения из src/cfe",
-        "category": "1C"
+        "category": "1C: Расширения"
       },
       {
         "command": "1c-platform-tools.extensions.loadFromCfe",
         "title": "Загрузить расширение из *.cfe",
-        "category": "1C"
+        "category": "1C: Расширения"
       },
       {
         "command": "1c-platform-tools.extensions.dumpToSrc",
         "title": "Выгрузить расширения в src/cfe",
-        "category": "1C"
+        "category": "1C: Расширения"
       },
       {
         "command": "1c-platform-tools.extensions.dumpToCfe",
         "title": "Выгрузить расширение в *.cfe",
-        "category": "1C"
+        "category": "1C: Расширения"
       },
       {
         "command": "1c-platform-tools.extensions.build",
         "title": "Собрать *.cfe из src/cfe",
-        "category": "1C"
+        "category": "1C: Расширения"
       },
       {
         "command": "1c-platform-tools.extensions.decompile",
         "title": "Разобрать *.cfe в src/cfe",
-        "category": "1C"
+        "category": "1C: Расширения"
       },
       {
         "command": "1c-platform-tools.externalProcessors.build",
         "title": "Собрать внешнюю обработку",
-        "category": "1C"
+        "category": "1C: Внешние файлы"
       },
       {
         "command": "1c-platform-tools.externalProcessors.decompile",
         "title": "Разобрать внешнюю обработку",
-        "category": "1C"
+        "category": "1C: Внешние файлы"
       },
       {
         "command": "1c-platform-tools.externalReports.build",
         "title": "Собрать внешний отчет",
-        "category": "1C"
+        "category": "1C: Внешние файлы"
       },
       {
         "command": "1c-platform-tools.externalReports.decompile",
         "title": "Разобрать внешний отчет",
-        "category": "1C"
+        "category": "1C: Внешние файлы"
       },
       {
         "command": "1c-platform-tools.externalFiles.clearCache",
         "title": "Очистить кэш",
-        "category": "1C"
+        "category": "1C: Внешние файлы"
       },
       {
         "command": "1c-platform-tools.dependencies.initializePackagedef",
         "title": "Инициализировать packagedef",
-        "category": "1C"
+        "category": "1C: Зависимости"
       },
       {
         "command": "1c-platform-tools.dependencies.install",
         "title": "Установить зависимости",
-        "category": "1C"
+        "category": "1C: Зависимости"
       },
       {
         "command": "1c-platform-tools.dependencies.remove",
         "title": "Удалить зависимости",
-        "category": "1C"
+        "category": "1C: Зависимости"
       },
       {
         "command": "1c-platform-tools.build.configuration",
         "title": "Собрать конфигурацию",
-        "category": "1C"
+        "category": "1C: Конфигурация"
       },
       {
         "command": "1c-platform-tools.build.extensions",
         "title": "Собрать расширения",
-        "category": "1C"
+        "category": "1C: Расширения"
       },
       {
         "command": "1c-platform-tools.build.externalProcessor",
         "title": "Собрать внешнюю обработку",
-        "category": "1C"
+        "category": "1C: Внешние файлы"
       },
       {
         "command": "1c-platform-tools.build.externalReport",
         "title": "Собрать внешний отчет",
-        "category": "1C"
+        "category": "1C: Внешние файлы"
       },
       {
         "command": "1c-platform-tools.decompile.configuration",
         "title": "Разобрать конфигурацию",
-        "category": "1C"
+        "category": "1C: Конфигурация"
       },
       {
         "command": "1c-platform-tools.decompile.externalProcessor",
         "title": "Разобрать внешнюю обработку",
-        "category": "1C"
+        "category": "1C: Внешние файлы"
       },
       {
         "command": "1c-platform-tools.decompile.externalReport",
         "title": "Разобрать внешний отчет",
-        "category": "1C"
+        "category": "1C: Внешние файлы"
       },
       {
         "command": "1c-platform-tools.decompile.extension",
         "title": "Разобрать расширение",
-        "category": "1C"
+        "category": "1C: Расширения"
       },
       {
         "command": "1c-platform-tools.run.enterprise",
         "title": "Запустить Предприятие",
-        "category": "1C",
+        "category": "1C: Запуск",
         "icon": "$(play)"
       },
       {
         "command": "1c-platform-tools.run.designer",
         "title": "Запустить Конфигуратор",
-        "category": "1C",
+        "category": "1C: Запуск",
         "icon": "$(tools)"
       },
       {
         "command": "1c-platform-tools.test.xunit",
         "title": "XUnit тесты",
-        "category": "1C"
+        "category": "1C: Тестирование"
       },
       {
         "command": "1c-platform-tools.test.syntaxCheck",
         "title": "Синтаксический контроль",
-        "category": "1C"
+        "category": "1C: Тестирование"
       },
       {
         "command": "1c-platform-tools.test.vanessa",
         "title": "Vanessa тесты",
-        "category": "1C"
+        "category": "1C: Тестирование"
       },
       {
         "command": "1c-platform-tools.test.allure",
         "title": "Allure отчет",
-        "category": "1C"
+        "category": "1C: Тестирование"
+      },
+      {
+        "command": "1c-platform-tools.setVersion.configuration",
+        "title": "Конфигурации",
+        "category": "1C: Установить версию"
+      },
+      {
+        "command": "1c-platform-tools.setVersion.allExtensions",
+        "title": "Все",
+        "category": "1C: Установить версию"
+      },
+      {
+        "command": "1c-platform-tools.setVersion.extension",
+        "title": "Расширения",
+        "category": "1C: Установить версию"
+      },
+      {
+        "command": "1c-platform-tools.setVersion.report",
+        "title": "Внешнего отчёта",
+        "category": "1C: Установить версию"
+      },
+      {
+        "command": "1c-platform-tools.setVersion.processor",
+        "title": "Внешней обработки",
+        "category": "1C: Установить версию"
       },
       {
         "command": "1c-platform-tools.launch.view",
         "title": "Просмотр задач (workspace)",
-        "category": "1C"
+        "category": "1C: Задачи"
       },
       {
         "command": "1c-platform-tools.launch.run",
         "title": "Запустить задачу",
-        "category": "1C"
+        "category": "1C: Задачи"
       },
       {
         "command": "1c-platform-tools.oscript.run",
         "title": "Запустить задачу oscript (opm run)",
-        "category": "1C"
+        "category": "1C: Задачи"
       },
       {
         "command": "1c-platform-tools.oscript.addTask",
         "title": "Добавить задачу oscript",
-        "category": "1C"
+        "category": "1C: Задачи"
       },
       {
         "command": "1c-platform-tools.launch.edit",
         "title": "Редактировать задачи",
-        "category": "1C"
+        "category": "1C: Задачи"
       },
       {
         "command": "1c-platform-tools.launch.editConfigurations",
         "title": "Редактировать конфигурации запуска",
-        "category": "1C"
+        "category": "1C: Конфигурации запуска"
       },
       {
         "command": "1c-platform-tools.file.open",
-        "title": "Открыть файл"
+        "title": "Открыть файл",
+        "category": "1C: Задачи"
       },
       {
         "command": "1c-platform-tools.config.env.edit",
         "title": "Редактировать env.json",
-        "category": "1C"
+        "category": "1C: Конфигурации запуска"
       }
     ],
     "menus": {

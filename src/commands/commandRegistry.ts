@@ -7,6 +7,7 @@ import { ExternalFilesCommands } from './externalFilesCommands';
 import { DependenciesCommands } from './dependenciesCommands';
 import { RunCommands } from './runCommands';
 import { TestCommands } from './testCommands';
+import { SetVersionCommands } from './setVersionCommands';
 import { WorkspaceTasksCommands } from './workspaceTasksCommands';
 import { VRunnerManager } from '../vrunnerManager';
 
@@ -21,6 +22,7 @@ interface Commands {
 	dependencies: DependenciesCommands;
 	run: RunCommands;
 	test: TestCommands;
+	setVersion: SetVersionCommands;
 	workspaceTasks: WorkspaceTasksCommands;
 }
 
@@ -173,6 +175,25 @@ export function registerCommands(context: vscode.ExtensionContext, commands: Com
 		})
 	];
 
+	// Команды установки версий
+	const setVersionCommands = [
+		vscode.commands.registerCommand('1c-platform-tools.setVersion.configuration', () => {
+			commands.setVersion.setVersionConfiguration();
+		}),
+		vscode.commands.registerCommand('1c-platform-tools.setVersion.allExtensions', () => {
+			commands.setVersion.setVersionAllExtensions();
+		}),
+		vscode.commands.registerCommand('1c-platform-tools.setVersion.extension', (extensionName: string) => {
+			commands.setVersion.setVersionExtension(extensionName);
+		}),
+		vscode.commands.registerCommand('1c-platform-tools.setVersion.report', (reportName: string) => {
+			commands.setVersion.setVersionReport(reportName);
+		}),
+		vscode.commands.registerCommand('1c-platform-tools.setVersion.processor', (processorName: string) => {
+			commands.setVersion.setVersionProcessor(processorName);
+		})
+	];
+
 	// Команды сборки и разбора (алиасы)
 	const buildDecompileCommands = [
 		vscode.commands.registerCommand('1c-platform-tools.build.configuration', () => {
@@ -222,6 +243,7 @@ export function registerCommands(context: vscode.ExtensionContext, commands: Com
 		...dependenciesCommands,
 		...runCommands,
 		...testCommands,
+		...setVersionCommands,
 		...buildDecompileCommands,
 		envEditCommand
 	);

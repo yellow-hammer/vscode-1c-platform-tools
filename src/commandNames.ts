@@ -407,3 +407,60 @@ export function getBuildExtensionCommandName(): CommandNameAndTitle {
 		title: 'Собрать расширение'
 	};
 }
+
+// ============================================================================
+// Команды релиза (установка версий)
+// ============================================================================
+
+/**
+ * Получить название и заголовок для команды установки версии конфигурации
+ */
+export function getSetVersionConfigurationCommandName(): CommandNameAndTitle {
+	return {
+		name: 'Конфигурации',
+		title: 'Конфигурации'
+	};
+}
+
+/**
+ * Получить название и заголовок для команды установки версии всем расширениям
+ */
+export function getSetVersionAllExtensionsCommandName(): CommandNameAndTitle {
+	return {
+		name: 'Все',
+		title: 'Все'
+	};
+}
+
+/**
+ * Получить название и заголовок для команды установки версии расширению
+ * @param extensionName - Имя расширения для отображения
+ */
+export function getSetVersionExtensionCommandName(extensionName: string): CommandNameAndTitle {
+	return {
+		name: extensionName,
+		title: extensionName
+	};
+}
+
+/**
+ * Получить название и заголовок для команды установки версии внешнему отчёту
+ * @param reportName - Имя отчёта для отображения
+ */
+export function getSetVersionReportCommandName(reportName: string): CommandNameAndTitle {
+	return {
+		name: reportName,
+		title: reportName
+	};
+}
+
+/**
+ * Получить название и заголовок для команды установки версии внешней обработке
+ * @param processorName - Имя обработки для отображения
+ */
+export function getSetVersionProcessorCommandName(processorName: string): CommandNameAndTitle {
+	return {
+		name: processorName,
+		title: processorName
+	};
+}
