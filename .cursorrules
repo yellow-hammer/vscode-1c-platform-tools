@@ -22,7 +22,9 @@
 - `dependenciesCommands.ts` - управление зависимостями через OPM
 - `runCommands.ts` - запуск Предприятия и Конфигуратора
 - `testCommands.ts` - тестирование (XUnit, Vanessa, синтаксический контроль, Allure)
+- `setVersionCommands.ts` - установка версии (конфигурация, расширения, отчёты, обработки)
 - `workspaceTasksCommands.ts` - управление задачами IDE и конфигурациями запуска
+- `oscriptTasksCommands.ts` - задачи oscript (каталог `tasks/`, запуск .os файлов, добавление задачи)
 
 ## Соглашения по именованию методов
 - `compile()` - сборка из исходников в бинарный файл (не `build()`)
@@ -73,14 +75,17 @@
 - `vscode.commands.executeCommand('setContext', 'key', value)` - установка контекста для условного отображения
 
 ## Структура проекта
-- `src/extension.ts` - точка входа, регистрация команд и TreeView
-- `src/treeViewProvider.ts` - провайдер данных для дерева команд
+- `src/extension.ts` - точка входа, регистрация команд, TreeView и настройка избранного
+- `src/treeViewProvider.ts` - провайдер данных для дерева команд (включая динамические узлы: избранное, установка версии, задачи oscript)
+- `src/treeStructure.ts` - единый источник данных для дерева и избранного (TREE_GROUPS, TreeCommandEntry, TreeGroup)
+- `src/favorites.ts` - избранные команды (getPickableCommandsByGroup, FavoriteEntry, хранение в globalState)
 - `src/vrunnerManager.ts` - менеджер для работы с vrunner (синглтон)
 - `src/commandNames.ts` - утилиты для получения названий команд
 - `src/commands/commandRegistry.ts` - централизованная регистрация всех команд расширения
 - `src/commands/baseCommand.ts` - базовый класс для всех команд
 - `src/commands/` - классы команд, разделенные по доменам (наследуются от BaseCommand)
 - `src/utils/commandUtils.ts` - утилиты для работы с командами (escapeCommandArgs, buildCommand, joinCommands, buildDockerCommand, normalizeIbPathForDocker)
+- `src/utils/configVersionUtils.ts` - утилиты для работы с версией конфигурации (установка версии)
 - `src/utils/dateUtils.ts` - утилиты для работы с датами (formatDateForDtFileName)
 - `src/constants.ts` - константы для работы с vanessa-runner
 - `src/test/` - тесты (unit-тесты для утилит и BaseCommand)
@@ -142,6 +147,12 @@
 - **Нормализация путей**: для bash оболочек на Windows (Git Bash, WSL) автоматически преобразуются обратные слэши `\` в прямые `/` в путях и аргументах команд
 - **Автоматическая обработка аргументов**: методы `executeVRunnerInTerminal()`, `executeOpmInTerminal()`, `executeAllureInTerminal()` автоматически обрабатывают аргументы через `processCommandArgs()` (преобразуют абсолютные пути в относительные и нормализуют для оболочки)
 - **Параметр shellType**: методы выполнения команд в терминале поддерживают опциональный параметр `shellType` для явного указания типа оболочки
+
+### TreeView и избранное
+- **Единый источник данных**: дерево команд и список команд для настройки избранного задаются в `src/treeStructure.ts` (TREE_GROUPS, TreeCommandEntry, TreeGroup). Добавление новой команды в дерево: добавить запись в соответствующую группу в `treeStructure.ts`.
+- **Названия команд**: использовать функции из `src/commandNames.ts` (get*CommandName()) для полей `title` и `treeLabel` в TREE_GROUPS.
+- **Избранное**: хранится в `vscode.Memento` (globalState), ключ задаётся в `src/favorites.ts`. Окно настройки избранного использует `getPickableCommandsByGroup()` из `favorites.ts` (данные из TREE_GROUPS).
+- **Динамические узлы дерева**: провайдер дерева (`treeViewProvider.ts`) поддерживает узлы, заполняемые динамически — избранное (команды из globalState), «Установить версию» (расширения, отчёты, обработки из файловой системы), «Задачи (oscript)» (файлы из каталога `tasks/`). Регистрация обработчиков динамических узлов — в `extension.ts`.
 
 ### Регистрация команд
 - Команды регистрируются в `package.json` → `contributes.commands`
