@@ -1,5 +1,9 @@
 import * as vscode from 'vscode';
-import { PlatformTreeDataProvider } from './treeViewProvider';
+import {
+	PlatformTreeDataProvider,
+	PlatformTreeItem,
+	TREE_GROUP_EXPANDED_STATE_KEY,
+} from './treeViewProvider';
 import { InfobaseCommands } from './commands/infobaseCommands';
 import { ConfigurationCommands } from './commands/configurationCommands';
 import { ExtensionsCommands } from './commands/extensionsCommands';
@@ -200,6 +204,20 @@ export async function activate(context: vscode.ExtensionContext) {
 		treeDataProvider: treeDataProvider,
 		showCollapseAll: true,
 	});
+
+	// Сохранение состояния раскрытия групп (кроме «Избранное») в globalState
+	const saveGroupExpandedState = (element: unknown, expanded: boolean): void => {
+		if (!(element instanceof PlatformTreeItem) || !element.groupId) {
+			return;
+		}
+		const state = context.globalState.get<Record<string, boolean>>(TREE_GROUP_EXPANDED_STATE_KEY) ?? {};
+		state[element.groupId] = expanded;
+		void context.globalState.update(TREE_GROUP_EXPANDED_STATE_KEY, state);
+	};
+	context.subscriptions.push(
+		treeView.onDidExpandElement((e) => saveGroupExpandedState(e.element, true)),
+		treeView.onDidCollapseElement((e) => saveGroupExpandedState(e.element, false))
+	);
 
 	const refreshCommand = vscode.commands.registerCommand('1c-platform-tools.refresh', () => {
 		treeDataProvider.refresh();

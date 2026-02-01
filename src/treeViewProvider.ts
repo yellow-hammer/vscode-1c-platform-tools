@@ -11,6 +11,9 @@ import type { SetVersionCommands } from './commands/setVersionCommands';
 import { getFavorites, type FavoriteEntry } from './favorites';
 import { TREE_GROUPS } from './treeStructure';
 
+/** Ключ в globalState для сохранения состояния раскрытия групп дерева (кроме «Избранное») */
+export const TREE_GROUP_EXPANDED_STATE_KEY = '1c-platform-tools.treeGroupExpanded';
+
 /**
  * Типы элементов дерева команд в панели 1C Platform Tools
  */
@@ -46,6 +49,12 @@ export class PlatformTreeItem extends vscode.TreeItem {
 	/** Тип для отображения иконки (если задан — используется вместо type) */
 	private readonly preferredIconType?: TreeItemType;
 
+	/**
+	 * Стабильный идентификатор группы (sectionType) для сохранения состояния раскрытия.
+	 * Заполняется только у корневых групп, у «Избранное» не задаётся.
+	 */
+	public readonly groupId?: string;
+
 	constructor(
 		public readonly label: string,
 		public readonly type: TreeItemType,
@@ -53,10 +62,12 @@ export class PlatformTreeItem extends vscode.TreeItem {
 		public readonly command?: vscode.Command,
 		public readonly children?: PlatformTreeItem[],
 		public readonly extensionUri?: vscode.Uri,
-		preferredIconType?: TreeItemType
+		preferredIconType?: TreeItemType,
+		groupId?: string
 	) {
 		super(label, collapsibleState);
 		this.preferredIconType = preferredIconType;
+		this.groupId = groupId;
 		this.iconPath = this.getIconPath(this.preferredIconType ?? type);
 		this.contextValue = type;
 	}
@@ -173,6 +184,7 @@ export class PlatformTreeDataProvider implements vscode.TreeDataProvider<Platfor
 	 * @param command - Команда для выполнения
 	 * @param children - Дочерние элементы
 	 * @param iconType - Тип для иконки (если задан — используется вместо type)
+	 * @param groupId - Идентификатор группы для сохранения состояния (только для корневых групп)
 	 * @returns Созданный элемент дерева
 	 */
 	private createTreeItem(
@@ -181,9 +193,19 @@ export class PlatformTreeDataProvider implements vscode.TreeDataProvider<Platfor
 		collapsibleState: vscode.TreeItemCollapsibleState,
 		command?: vscode.Command,
 		children?: PlatformTreeItem[],
-		iconType?: TreeItemType
+		iconType?: TreeItemType,
+		groupId?: string
 	): PlatformTreeItem {
-		return new PlatformTreeItem(label, type, collapsibleState, command, children, this.extensionUri, iconType);
+		return new PlatformTreeItem(
+			label,
+			type,
+			collapsibleState,
+			command,
+			children,
+			this.extensionUri,
+			iconType,
+			groupId
+		);
 	}
 
 	/**
@@ -288,6 +310,37 @@ export class PlatformTreeDataProvider implements vscode.TreeDataProvider<Platfor
 	}
 
 	/**
+	 * Возвращает сохранённое состояние раскрытия групп из globalState (кроме «Избранное»).
+	 * @returns Объект sectionType -> true (раскрыта) / false (свёрнута)
+	 */
+	private getGroupExpandedState(): Record<string, boolean> {
+		if (!this.extensionContext) {
+			return {};
+		}
+		const raw = this.extensionContext.globalState.get<Record<string, boolean>>(TREE_GROUP_EXPANDED_STATE_KEY);
+		return typeof raw === 'object' && raw !== null ? raw : {};
+	}
+
+	/**
+	 * Определяет collapsibleState группы: сохранённое значение или значение по умолчанию
+	 * @param groupId - Идентификатор группы (sectionType)
+	 * @param defaultExpanded - Значение по умолчанию из TREE_GROUPS
+	 * @returns Состояние для TreeItem
+	 */
+	private resolveGroupCollapsibleState(
+		groupId: string,
+		defaultExpanded: boolean
+	): vscode.TreeItemCollapsibleState {
+		const saved = this.getGroupExpandedState()[groupId];
+		if (typeof saved === 'boolean') {
+			return saved ? vscode.TreeItemCollapsibleState.Expanded : vscode.TreeItemCollapsibleState.Collapsed;
+		}
+		return defaultExpanded
+			? vscode.TreeItemCollapsibleState.Expanded
+			: vscode.TreeItemCollapsibleState.Collapsed;
+	}
+
+	/**
 	 * Получает корневые элементы дерева из единой структуры TREE_GROUPS и динамических узлов
 	 * @returns Массив корневых элементов
 	 */
@@ -299,10 +352,8 @@ export class PlatformTreeDataProvider implements vscode.TreeDataProvider<Platfor
 				continue;
 			}
 			const groupType = this.sectionTypeToRootType(group.sectionType);
-			const collapsibleState =
-				group.defaultCollapsibleState === 'expanded'
-					? vscode.TreeItemCollapsibleState.Expanded
-					: vscode.TreeItemCollapsibleState.Collapsed;
+			const defaultExpanded = group.defaultCollapsibleState === 'expanded';
+			const collapsibleState = this.resolveGroupCollapsibleState(group.sectionType, defaultExpanded);
 
 			const children: PlatformTreeItem[] = group.commands.map((cmd) =>
 				this.createTreeItem(
@@ -342,34 +393,46 @@ export class PlatformTreeDataProvider implements vscode.TreeDataProvider<Platfor
 			}
 
 			allSections.push(
-				this.createTreeItem(group.groupLabel, groupType, collapsibleState, undefined, children)
+				this.createTreeItem(
+					group.groupLabel,
+					groupType,
+					collapsibleState,
+					undefined,
+					children,
+					undefined,
+					group.sectionType
+				)
 			);
 		}
 
+		const oscriptExpanded = this.resolveGroupCollapsibleState('oscriptTasks', false) === vscode.TreeItemCollapsibleState.Expanded;
+		const launchExpanded = this.resolveGroupCollapsibleState('launch', false) === vscode.TreeItemCollapsibleState.Expanded;
 		allSections.push(
 			this.createTreeItem(
 				'Задачи (oscript)',
 				TreeItemType.OscriptTasks,
-				vscode.TreeItemCollapsibleState.Collapsed,
+				oscriptExpanded ? vscode.TreeItemCollapsibleState.Expanded : vscode.TreeItemCollapsibleState.Collapsed,
 				undefined,
-				[]
+				[],
+				undefined,
+				'oscriptTasks'
 			),
 			this.createTreeItem(
 				'Задачи (workspace)',
 				TreeItemType.Launch,
-				vscode.TreeItemCollapsibleState.Collapsed,
+				launchExpanded ? vscode.TreeItemCollapsibleState.Expanded : vscode.TreeItemCollapsibleState.Collapsed,
 				undefined,
-				[]
+				[],
+				undefined,
+				'launch'
 			)
 		);
 
 		const configGroup = TREE_GROUPS.find((g) => g.sectionType === 'config');
 		if (configGroup) {
 			const groupType = this.sectionTypeToRootType(configGroup.sectionType);
-			const collapsibleState =
-				configGroup.defaultCollapsibleState === 'expanded'
-					? vscode.TreeItemCollapsibleState.Expanded
-					: vscode.TreeItemCollapsibleState.Collapsed;
+			const configDefaultExpanded = configGroup.defaultCollapsibleState === 'expanded';
+			const collapsibleState = this.resolveGroupCollapsibleState('config', configDefaultExpanded);
 			const children: PlatformTreeItem[] = configGroup.commands.map((cmd) =>
 				this.createTreeItem(
 					cmd.treeLabel,
@@ -386,7 +449,9 @@ export class PlatformTreeDataProvider implements vscode.TreeDataProvider<Platfor
 					groupType,
 					collapsibleState,
 					undefined,
-					children
+					children,
+					undefined,
+					'config'
 				)
 			);
 		}
