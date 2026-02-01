@@ -78,6 +78,12 @@
         "category": "1C: Дерево"
       },
       {
+        "command": "1c-platform-tools.favorites.configure",
+        "title": "Настроить избранное",
+        "icon": "$(star-full)",
+        "category": "1C: Дерево"
+      },
+      {
         "command": "1c-platform-tools.infobase.createEmpty",
         "title": "Создать пустую ИБ",
         "category": "1C: Информационная база"
@@ -379,6 +385,11 @@
       "view/title": [
         {
           "command": "1c-platform-tools.refresh",
+          "when": "view == 1c-platform-tools",
+          "group": "navigation"
+        },
+        {
+          "command": "1c-platform-tools.favorites.configure",
           "when": "view == 1c-platform-tools",
           "group": "navigation"
         },

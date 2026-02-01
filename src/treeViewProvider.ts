@@ -2,50 +2,14 @@ import * as vscode from 'vscode';
 import { WorkspaceTasksCommands } from './commands/workspaceTasksCommands';
 import { OscriptTasksCommands } from './commands/oscriptTasksCommands';
 import {
-	getCreateEmptyInfobaseCommandName,
-	getUpdateDatabaseCommandName,
-	getBlockExternalResourcesCommandName,
-	getInitializeCommandName,
-	getDumpInfobaseToDtCommandName,
-	getLoadInfobaseFromDtCommandName,
-	getInstallDependenciesCommandName,
-	getRemoveDependenciesCommandName,
-	getInitializePackagedefCommandName,
-	getUpdateOpmCommandName,
-	getLoadConfigurationFromSrcCommandName,
-	getLoadConfigurationIncrementFromSrcCommandName,
-	getLoadConfigurationFromFilesByListCommandName,
-	getLoadConfigurationFromCfCommandName,
-	getDumpConfigurationToSrcCommandName,
-	getDumpConfigurationIncrementToSrcCommandName,
-	getDumpConfigurationToCfCommandName,
-	getDumpConfigurationToDistCommandName,
-	getBuildConfigurationCommandName,
-	getDecompileConfigurationCommandName,
-	getLoadExtensionFromSrcCommandName,
-	getLoadExtensionFromCfeCommandName,
-	getDumpExtensionToSrcCommandName,
-	getDumpExtensionToCfeCommandName,
-	getBuildExtensionCommandName,
-	getDecompileExtensionCommandName,
-	getBuildExternalProcessorCommandName,
-	getDecompileExternalProcessorCommandName,
-	getBuildExternalReportCommandName,
-	getDecompileExternalReportCommandName,
-	getClearCacheCommandName,
-	getRunEnterpriseCommandName,
-	getRunDesignerCommandName,
-	getXUnitTestsCommandName,
-	getSyntaxCheckCommandName,
-	getVanessaTestsCommandName,
-	getAllureReportCommandName,
-	getSetVersionConfigurationCommandName,
 	getSetVersionAllExtensionsCommandName,
 	getSetVersionExtensionCommandName,
 	getSetVersionReportCommandName,
 	getSetVersionProcessorCommandName
 } from './commandNames';
 import type { SetVersionCommands } from './commands/setVersionCommands';
+import { getFavorites, type FavoriteEntry } from './favorites';
+import { TREE_GROUPS } from './treeStructure';
 
 /**
  * Типы элементов дерева команд в панели 1C Platform Tools
@@ -71,23 +35,29 @@ export enum TreeItemType {
 	SetVersionExtensionsFolder = 'setVersionExtensionsFolder',
 	SetVersionReportsFolder = 'setVersionReportsFolder',
 	SetVersionProcessorsFolder = 'setVersionProcessorsFolder',
+	Favorites = 'favorites',
+	FavoritesConfigure = 'favoritesConfigure',
 }
 
 /**
  * Элемент дерева для 1C Platform Tools
  */
 export class PlatformTreeItem extends vscode.TreeItem {
+	/** Тип для отображения иконки (если задан — используется вместо type) */
+	private readonly preferredIconType?: TreeItemType;
+
 	constructor(
 		public readonly label: string,
 		public readonly type: TreeItemType,
 		public readonly collapsibleState: vscode.TreeItemCollapsibleState,
 		public readonly command?: vscode.Command,
 		public readonly children?: PlatformTreeItem[],
-		public readonly extensionUri?: vscode.Uri
+		public readonly extensionUri?: vscode.Uri,
+		preferredIconType?: TreeItemType
 	) {
 		super(label, collapsibleState);
-
-		this.iconPath = this.getIconPath(type);
+		this.preferredIconType = preferredIconType;
+		this.iconPath = this.getIconPath(this.preferredIconType ?? type);
 		this.contextValue = type;
 	}
 
@@ -137,6 +107,10 @@ export class PlatformTreeItem extends vscode.TreeItem {
 			case TreeItemType.SetVersionReportsFolder:
 			case TreeItemType.SetVersionProcessorsFolder:
 				return new vscode.ThemeIcon('tag');
+			case TreeItemType.Favorites:
+				return new vscode.ThemeIcon('star-full');
+			case TreeItemType.FavoritesConfigure:
+				return new vscode.ThemeIcon('gear');
 			default:
 				return new vscode.ThemeIcon('circle-outline');
 		}
@@ -161,12 +135,18 @@ export class PlatformTreeDataProvider implements vscode.TreeDataProvider<Platfor
 	private readonly oscriptTasksCommands: OscriptTasksCommands;
 	private readonly setVersionCommands?: SetVersionCommands;
 	private readonly extensionUri: vscode.Uri | undefined;
+	private readonly extensionContext: vscode.ExtensionContext | undefined;
 
-	constructor(extensionUri?: vscode.Uri, setVersionCommands?: SetVersionCommands) {
+	constructor(
+		extensionUri?: vscode.Uri,
+		setVersionCommands?: SetVersionCommands,
+		extensionContext?: vscode.ExtensionContext
+	) {
 		this.workspaceTasksCommands = new WorkspaceTasksCommands();
 		this.oscriptTasksCommands = new OscriptTasksCommands();
 		this.setVersionCommands = setVersionCommands;
 		this.extensionUri = extensionUri;
+		this.extensionContext = extensionContext;
 	}
 
 	/**
@@ -192,6 +172,7 @@ export class PlatformTreeDataProvider implements vscode.TreeDataProvider<Platfor
 	 * @param collapsibleState - Состояние сворачивания
 	 * @param command - Команда для выполнения
 	 * @param children - Дочерние элементы
+	 * @param iconType - Тип для иконки (если задан — используется вместо type)
 	 * @returns Созданный элемент дерева
 	 */
 	private createTreeItem(
@@ -199,9 +180,34 @@ export class PlatformTreeDataProvider implements vscode.TreeDataProvider<Platfor
 		type: TreeItemType,
 		collapsibleState: vscode.TreeItemCollapsibleState,
 		command?: vscode.Command,
-		children?: PlatformTreeItem[]
+		children?: PlatformTreeItem[],
+		iconType?: TreeItemType
 	): PlatformTreeItem {
-		return new PlatformTreeItem(label, type, collapsibleState, command, children, this.extensionUri);
+		return new PlatformTreeItem(label, type, collapsibleState, command, children, this.extensionUri, iconType);
+	}
+
+	/**
+	 * Преобразует строковый тип секции (из FavoriteEntry) в TreeItemType для иконки
+	 * @param sectionType - Строковый идентификатор группы
+	 * @returns TreeItemType для отображения иконки группы
+	 */
+	private sectionTypeToIconType(sectionType: string | undefined): TreeItemType | undefined {
+		if (!sectionType) {
+			return undefined;
+		}
+		const map: Record<string, TreeItemType> = {
+			infobase: TreeItemType.Infobase,
+			configuration: TreeItemType.Configuration,
+			extension: TreeItemType.Extension,
+			externalFile: TreeItemType.ExternalFile,
+			dependency: TreeItemType.Dependency,
+			run: TreeItemType.Run,
+			test: TreeItemType.Test,
+			setVersion: TreeItemType.SetVersion,
+			config: TreeItemType.Config,
+			oscriptTasks: TreeItemType.OscriptTasks,
+		};
+		return map[sectionType];
 	}
 
 	/**
@@ -238,415 +244,79 @@ export class PlatformTreeDataProvider implements vscode.TreeDataProvider<Platfor
 	}
 
 	/**
-	 * Получает корневые элементы дерева
+	 * Создаёт группу «Избранное» со списком избранных команд (иконки и префикс группы как в оригинале)
+	 * @param favorites - Список избранных записей
+	 * @returns Элемент дерева «Избранное» или undefined, если избранных нет
+	 */
+	private createFavoritesRootItem(favorites: FavoriteEntry[]): PlatformTreeItem | undefined {
+		if (favorites.length === 0) {
+			return undefined;
+		}
+		const favoriteItems = favorites.map((entry) => {
+			const label = entry.groupLabel ? `${entry.groupLabel} › ${entry.title}` : entry.title;
+			const iconType = this.sectionTypeToIconType(entry.sectionType);
+			return this.createTreeItem(
+				label,
+				TreeItemType.Task,
+				vscode.TreeItemCollapsibleState.None,
+				{
+					command: entry.command,
+					title: entry.title,
+					arguments: entry.arguments,
+				},
+				undefined,
+				iconType
+			);
+		});
+		return this.createTreeItem(
+			'Избранное',
+			TreeItemType.Favorites,
+			vscode.TreeItemCollapsibleState.Expanded,
+			undefined,
+			favoriteItems
+		);
+	}
+
+	/**
+	 * Преобразует строковый тип секции в TreeItemType для корневого узла группы
+	 * @param sectionType - Строковый идентификатор группы
+	 * @returns TreeItemType для корневого элемента
+	 */
+	private sectionTypeToRootType(sectionType: string): TreeItemType {
+		const type = this.sectionTypeToIconType(sectionType);
+		return type ?? TreeItemType.Subsystem;
+	}
+
+	/**
+	 * Получает корневые элементы дерева из единой структуры TREE_GROUPS и динамических узлов
 	 * @returns Массив корневых элементов
 	 */
 	private getRootItems(): PlatformTreeItem[] {
-		return [
-			this.createTreeItem(
-				'Информационные базы',
-				TreeItemType.Infobase,
-				vscode.TreeItemCollapsibleState.Collapsed,
-				undefined,
-				[
-					this.createTreeItem(
-						'➕ Создать пустую ИБ',
-						TreeItemType.Task,
-						vscode.TreeItemCollapsibleState.None,
-						{
-							command: '1c-platform-tools.infobase.createEmpty',
-							title: getCreateEmptyInfobaseCommandName().title,
-						}
-					),
-					this.createTreeItem(
-						'🔄 Постобработка обновления',
-						TreeItemType.Task,
-						vscode.TreeItemCollapsibleState.None,
-						{
-							command: '1c-platform-tools.infobase.updateDatabase',
-							title: getUpdateDatabaseCommandName().title,
-						}
-					),
-					this.createTreeItem(
-						'🚫 Запретить работу с внешними ресурсами',
-						TreeItemType.Task,
-						vscode.TreeItemCollapsibleState.None,
-						{
-							command: '1c-platform-tools.infobase.blockExternalResources',
-							title: getBlockExternalResourcesCommandName().title,
-						}
-					),
-					this.createTreeItem(
-						'🚀 Инициализировать данные',
-						TreeItemType.Task,
-						vscode.TreeItemCollapsibleState.None,
-						{
-							command: '1c-platform-tools.infobase.initialize',
-							title: getInitializeCommandName().title,
-						}
-					),
-					this.createTreeItem(
-						'📤 Выгрузить в dt',
-						TreeItemType.Task,
-						vscode.TreeItemCollapsibleState.None,
-						{
-							command: '1c-platform-tools.infobase.dumpToDt',
-							title: getDumpInfobaseToDtCommandName().title,
-						}
-					),
-					this.createTreeItem(
-						'📥 Загрузить из dt',
-						TreeItemType.Task,
-						vscode.TreeItemCollapsibleState.None,
-						{
-							command: '1c-platform-tools.infobase.loadFromDt',
-							title: getLoadInfobaseFromDtCommandName().title,
-						}
-					),
-				]
-			),
-			this.createTreeItem(
-				'Конфигурация',
-				TreeItemType.Configuration,
-				vscode.TreeItemCollapsibleState.Expanded,
-				undefined,
-				[
-					this.createTreeItem(
-						'📥 Загрузить из src/cf',
-						TreeItemType.Task,
-						vscode.TreeItemCollapsibleState.None,
-						{
-							command: '1c-platform-tools.configuration.loadFromSrc',
-							title: getLoadConfigurationFromSrcCommandName().title,
-						}
-					),
-					this.createTreeItem(
-						'📥 Загрузить изменения (git diff)',
-						TreeItemType.Task,
-						vscode.TreeItemCollapsibleState.None,
-						{
-							command: '1c-platform-tools.configuration.loadIncrementFromSrc',
-							title: getLoadConfigurationIncrementFromSrcCommandName().title,
-						}
-					),
-					this.createTreeItem(
-						'📥 Загрузить из objlist.txt',
-						TreeItemType.Task,
-						vscode.TreeItemCollapsibleState.None,
-						{
-							command: '1c-platform-tools.configuration.loadFromFilesByList',
-							title: getLoadConfigurationFromFilesByListCommandName().title,
-						}
-					),
-					this.createTreeItem(
-						'📥 Загрузить из 1Cv8.cf',
-						TreeItemType.Task,
-						vscode.TreeItemCollapsibleState.None,
-						{
-							command: '1c-platform-tools.configuration.loadFromCf',
-							title: getLoadConfigurationFromCfCommandName().title,
-						}
-					),
-					this.createTreeItem(
-						'📤 Выгрузить в src/cf',
-						TreeItemType.Task,
-						vscode.TreeItemCollapsibleState.None,
-						{
-							command: '1c-platform-tools.configuration.dumpToSrc',
-							title: getDumpConfigurationToSrcCommandName().title,
-						}
-					),
-					this.createTreeItem(
-						'📤 Выгрузить изменения в src/cf',
-						TreeItemType.Task,
-						vscode.TreeItemCollapsibleState.None,
-						{
-							command: '1c-platform-tools.configuration.dumpIncrementToSrc',
-							title: getDumpConfigurationIncrementToSrcCommandName().title,
-						}
-					),
-					this.createTreeItem(
-						'📤 Выгрузить в 1Cv8.cf',
-						TreeItemType.Task,
-						vscode.TreeItemCollapsibleState.None,
-						{
-							command: '1c-platform-tools.configuration.dumpToCf',
-							title: getDumpConfigurationToCfCommandName().title,
-						}
-					),
-					this.createTreeItem(
-						'📦 Выгрузить файл поставки в 1Cv8dist.cf',
-						TreeItemType.Task,
-						vscode.TreeItemCollapsibleState.None,
-						{
-							command: '1c-platform-tools.configuration.dumpToDist',
-							title: getDumpConfigurationToDistCommandName().title,
-						}
-					),
-					this.createTreeItem(
-						'🔨 Собрать 1Cv8.cf из src/cf',
-						TreeItemType.Task,
-						vscode.TreeItemCollapsibleState.None,
-						{
-							command: '1c-platform-tools.configuration.build',
-							title: getBuildConfigurationCommandName().title,
-						}
-					),
-					this.createTreeItem(
-						'🔓 Разобрать 1Cv8.cf в src/cf',
-						TreeItemType.Task,
-						vscode.TreeItemCollapsibleState.None,
-						{
-							command: '1c-platform-tools.configuration.decompile',
-							title: getDecompileConfigurationCommandName().title,
-						}
-					),
-				]
-			),
-			this.createTreeItem(
-				'Расширения',
-				TreeItemType.Extension,
-				vscode.TreeItemCollapsibleState.Expanded,
-				undefined,
-				[
-					this.createTreeItem(
-						'📥 Загрузить из src/cfe',
-						TreeItemType.Task,
-						vscode.TreeItemCollapsibleState.None,
-						{
-							command: '1c-platform-tools.extensions.loadFromSrc',
-							title: getLoadExtensionFromSrcCommandName().title,
-						}
-					),
-					this.createTreeItem(
-						'📥 Загрузить из *.cfe',
-						TreeItemType.Task,
-						vscode.TreeItemCollapsibleState.None,
-						{
-							command: '1c-platform-tools.extensions.loadFromCfe',
-							title: getLoadExtensionFromCfeCommandName().title,
-						}
-					),
-					this.createTreeItem(
-						'📤 Выгрузить в src/cfe',
-						TreeItemType.Task,
-						vscode.TreeItemCollapsibleState.None,
-						{
-							command: '1c-platform-tools.extensions.dumpToSrc',
-							title: getDumpExtensionToSrcCommandName().title,
-						}
-					),
-					this.createTreeItem(
-						'📤 Выгрузить в *.cfe',
-						TreeItemType.Task,
-						vscode.TreeItemCollapsibleState.None,
-						{
-							command: '1c-platform-tools.extensions.dumpToCfe',
-							title: getDumpExtensionToCfeCommandName().title,
-						}
-					),
-					this.createTreeItem(
-						'🔨 Собрать *.cfe из src/cfe',
-						TreeItemType.Task,
-						vscode.TreeItemCollapsibleState.None,
-						{
-							command: '1c-platform-tools.extensions.build',
-							title: getBuildExtensionCommandName().title,
-						}
-					),
-					this.createTreeItem(
-						'🔓 Разобрать *.cfe в src/cfe',
-						TreeItemType.Task,
-						vscode.TreeItemCollapsibleState.None,
-						{
-							command: '1c-platform-tools.extensions.decompile',
-							title: getDecompileExtensionCommandName().title,
-						}
-					),
-				]
-			),
-			this.createTreeItem(
-				'Внешние файлы',
-				TreeItemType.ExternalFile,
-				vscode.TreeItemCollapsibleState.Collapsed,
-				undefined,
-				[
-					this.createTreeItem(
-						'🔨 Собрать внешнюю обработку',
-						TreeItemType.Task,
-						vscode.TreeItemCollapsibleState.None,
-						{
-							command: '1c-platform-tools.externalProcessors.build',
-							title: getBuildExternalProcessorCommandName().title,
-						}
-					),
-					this.createTreeItem(
-						'🔨 Собрать внешний отчет',
-						TreeItemType.Task,
-						vscode.TreeItemCollapsibleState.None,
-						{
-							command: '1c-platform-tools.externalReports.build',
-							title: getBuildExternalReportCommandName().title,
-						}
-					),
-					this.createTreeItem(
-						'🔓 Разобрать внешнюю обработку',
-						TreeItemType.Task,
-						vscode.TreeItemCollapsibleState.None,
-						{
-							command: '1c-platform-tools.externalProcessors.decompile',
-							title: getDecompileExternalProcessorCommandName().title,
-						}
-					),
-					this.createTreeItem(
-						'🔓 Разобрать внешний отчет',
-						TreeItemType.Task,
-						vscode.TreeItemCollapsibleState.None,
-						{
-							command: '1c-platform-tools.externalReports.decompile',
-							title: getDecompileExternalReportCommandName().title,
-						}
-					),
-					this.createTreeItem(
-						'🗑️ Очистить кэш',
-						TreeItemType.Task,
-						vscode.TreeItemCollapsibleState.None,
-						{
-							command: '1c-platform-tools.externalFiles.clearCache',
-							title: getClearCacheCommandName().title,
-						}
-					),
-				]
-			),
-			this.createTreeItem(
-				'Зависимости',
-				TreeItemType.Dependency,
-				vscode.TreeItemCollapsibleState.Collapsed,
-				undefined,
-				[
-					this.createTreeItem(
-						'📝 Инициализировать packagedef',
-						TreeItemType.Task,
-						vscode.TreeItemCollapsibleState.None,
-						{
-							command: '1c-platform-tools.dependencies.initializePackagedef',
-							title: getInitializePackagedefCommandName().title,
-						}
-					),
-					this.createTreeItem(
-						'📦 Обновить OPM',
-						TreeItemType.Task,
-						vscode.TreeItemCollapsibleState.None,
-						{
-							command: '1c-platform-tools.dependencies.updateOpm',
-							title: getUpdateOpmCommandName().title,
-						}
-					),
-					this.createTreeItem(
-						'📦 Установить зависимости',
-						TreeItemType.Task,
-						vscode.TreeItemCollapsibleState.None,
-						{
-							command: '1c-platform-tools.dependencies.install',
-							title: getInstallDependenciesCommandName().title,
-						}
-					),
-					this.createTreeItem(
-						'🗑️ Удалить зависимости',
-						TreeItemType.Task,
-						vscode.TreeItemCollapsibleState.None,
-						{
-							command: '1c-platform-tools.dependencies.remove',
-							title: getRemoveDependenciesCommandName().title,
-						}
-					),
-				]
-			),
-			this.createTreeItem(
-				'Запуск',
-				TreeItemType.Run,
-				vscode.TreeItemCollapsibleState.Expanded,
-				undefined,
-				[
-					this.createTreeItem(
-						'▶️ Запустить Предприятие',
-						TreeItemType.Task,
-						vscode.TreeItemCollapsibleState.None,
-						{
-							command: '1c-platform-tools.run.enterprise',
-							title: getRunEnterpriseCommandName().title,
-						}
-					),
-					this.createTreeItem(
-						'▶️ Запустить Конфигуратор',
-						TreeItemType.Task,
-						vscode.TreeItemCollapsibleState.None,
-						{
-							command: '1c-platform-tools.run.designer',
-							title: getRunDesignerCommandName().title,
-						}
-					),
-				]
-			),
-			this.createTreeItem(
-				'Тестирование',
-				TreeItemType.Test,
-				vscode.TreeItemCollapsibleState.Collapsed,
-				undefined,
-				[
-					this.createTreeItem(
-						'🧪 XUnit тесты',
-						TreeItemType.Task,
-						vscode.TreeItemCollapsibleState.None,
-						{
-							command: '1c-platform-tools.test.xunit',
-							title: getXUnitTestsCommandName().title,
-						}
-					),
-					this.createTreeItem(
-						'🧪 Синтаксический контроль',
-						TreeItemType.Task,
-						vscode.TreeItemCollapsibleState.None,
-						{
-							command: '1c-platform-tools.test.syntaxCheck',
-							title: getSyntaxCheckCommandName().title,
-						}
-					),
-					this.createTreeItem(
-						'🧪 Vanessa тесты',
-						TreeItemType.Task,
-						vscode.TreeItemCollapsibleState.None,
-						{
-							command: '1c-platform-tools.test.vanessa',
-							title: getVanessaTestsCommandName('normal').title,
-						}
-					),
-					this.createTreeItem(
-						'📊 Allure отчет',
-						TreeItemType.Task,
-						vscode.TreeItemCollapsibleState.None,
-						{
-							command: '1c-platform-tools.test.allure',
-							title: getAllureReportCommandName().title,
-						}
-					),
-				]
-			),
-			this.createTreeItem(
-				'Установить версию',
-				TreeItemType.SetVersion,
-				vscode.TreeItemCollapsibleState.Collapsed,
-				undefined,
-				[
-					this.createTreeItem(
-						'🏷️ Конфигурации',
-						TreeItemType.Task,
-						vscode.TreeItemCollapsibleState.None,
-						{
-							command: '1c-platform-tools.setVersion.configuration',
-							title: getSetVersionConfigurationCommandName().title,
-						}
-					),
+		const allSections: PlatformTreeItem[] = [];
+
+		for (const group of TREE_GROUPS) {
+			if (group.sectionType === 'config') {
+				continue;
+			}
+			const groupType = this.sectionTypeToRootType(group.sectionType);
+			const collapsibleState =
+				group.defaultCollapsibleState === 'expanded'
+					? vscode.TreeItemCollapsibleState.Expanded
+					: vscode.TreeItemCollapsibleState.Collapsed;
+
+			const children: PlatformTreeItem[] = group.commands.map((cmd) =>
+				this.createTreeItem(
+					cmd.treeLabel,
+					TreeItemType.Task,
+					vscode.TreeItemCollapsibleState.None,
+					{ command: cmd.command, title: cmd.title },
+					undefined,
+					this.sectionTypeToIconType(group.sectionType)
+				)
+			);
+
+			if (group.sectionType === 'setVersion') {
+				children.push(
 					this.createTreeItem(
 						'🏷️ Расширения',
 						TreeItemType.SetVersionExtensionsFolder,
@@ -667,9 +337,16 @@ export class PlatformTreeDataProvider implements vscode.TreeDataProvider<Platfor
 						vscode.TreeItemCollapsibleState.Collapsed,
 						undefined,
 						[]
-					),
-				]
-			),
+					)
+				);
+			}
+
+			allSections.push(
+				this.createTreeItem(group.groupLabel, groupType, collapsibleState, undefined, children)
+			);
+		}
+
+		allSections.push(
 			this.createTreeItem(
 				'Задачи (oscript)',
 				TreeItemType.OscriptTasks,
@@ -683,34 +360,40 @@ export class PlatformTreeDataProvider implements vscode.TreeDataProvider<Platfor
 				vscode.TreeItemCollapsibleState.Collapsed,
 				undefined,
 				[]
-			),
-			this.createTreeItem(
-				'Конфигурации запуска',
-				TreeItemType.Config,
-				vscode.TreeItemCollapsibleState.Collapsed,
-				undefined,
-				[
-					this.createTreeItem(
-						'📄 env.json',
-						TreeItemType.File,
-						vscode.TreeItemCollapsibleState.None,
-						{
-							command: '1c-platform-tools.config.env.edit',
-							title: 'Открыть env.json',
-						}
-					),
-					this.createTreeItem(
-						'📄 launch.json',
-						TreeItemType.File,
-						vscode.TreeItemCollapsibleState.None,
-						{
-							command: '1c-platform-tools.launch.editConfigurations',
-							title: 'Открыть launch.json',
-						}
-					),
-				]
-			),
-		];
+			)
+		);
+
+		const configGroup = TREE_GROUPS.find((g) => g.sectionType === 'config');
+		if (configGroup) {
+			const groupType = this.sectionTypeToRootType(configGroup.sectionType);
+			const collapsibleState =
+				configGroup.defaultCollapsibleState === 'expanded'
+					? vscode.TreeItemCollapsibleState.Expanded
+					: vscode.TreeItemCollapsibleState.Collapsed;
+			const children: PlatformTreeItem[] = configGroup.commands.map((cmd) =>
+				this.createTreeItem(
+					cmd.treeLabel,
+					TreeItemType.Task,
+					vscode.TreeItemCollapsibleState.None,
+					{ command: cmd.command, title: cmd.title },
+					undefined,
+					this.sectionTypeToIconType(configGroup.sectionType)
+				)
+			);
+			allSections.push(
+				this.createTreeItem(
+					configGroup.groupLabel,
+					groupType,
+					collapsibleState,
+					undefined,
+					children
+				)
+			);
+		}
+
+		const favorites = this.extensionContext ? getFavorites(this.extensionContext) : [];
+		const favoritesRoot = this.createFavoritesRootItem(favorites);
+		return favoritesRoot ? [favoritesRoot, ...allSections] : allSections;
 	}
 
 	/**

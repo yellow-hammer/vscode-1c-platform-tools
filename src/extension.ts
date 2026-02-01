@@ -12,6 +12,125 @@ import { WorkspaceTasksCommands } from './commands/workspaceTasksCommands';
 import { OscriptTasksCommands } from './commands/oscriptTasksCommands';
 import { registerCommands } from './commands/commandRegistry';
 import { VRunnerManager } from './vrunnerManager';
+import {
+	getPickableCommandsByGroup,
+	getFavorites,
+	setFavorites,
+	type FavoriteEntry,
+	type PickableCommandGroup,
+} from './favorites';
+
+/** Элемент QuickPick для настройки избранного (с полями команды и группы) */
+type FavoritesSelectableItem = vscode.QuickPickItem & {
+	command: string;
+	title: string;
+	groupLabel: string;
+	sectionType: string;
+	arguments?: unknown[];
+};
+
+/**
+ * Добавляет в массив элементы «Установить версию»: расширения, отчёты, обработки (динамические)
+ */
+async function pushSetVersionDynamicItems(
+	items: vscode.QuickPickItem[],
+	group: PickableCommandGroup,
+	favoriteKeys: Set<string>,
+	setVersionCommands: SetVersionCommands
+): Promise<void> {
+	items.push({ label: '🏷️ Расширения', kind: vscode.QuickPickItemKind.Separator });
+	items.push({
+		label: '🏷️ Все',
+		description: '1c-platform-tools.setVersion.allExtensions',
+		picked: favoriteKeys.has('1c-platform-tools.setVersion.allExtensions|[]'),
+		command: '1c-platform-tools.setVersion.allExtensions',
+		title: 'Все',
+		groupLabel: group.groupLabel,
+		sectionType: group.sectionType,
+	} as FavoritesSelectableItem);
+	const extensions = await setVersionCommands.getExtensionFoldersForTree();
+	for (const name of extensions) {
+		const command = '1c-platform-tools.setVersion.extension';
+		const args = [name];
+		items.push({
+			label: `🏷️ ${name}`,
+			description: command,
+			picked: favoriteKeys.has(`${command}|${JSON.stringify(args)}`),
+			command,
+			title: name,
+			groupLabel: group.groupLabel,
+			sectionType: group.sectionType,
+			arguments: args,
+		} as FavoritesSelectableItem);
+	}
+	items.push({ label: '🏷️ Внешнего отчёта', kind: vscode.QuickPickItemKind.Separator });
+	const reports = await setVersionCommands.getReportFoldersForTree();
+	for (const name of reports) {
+		const command = '1c-platform-tools.setVersion.report';
+		const args = [name];
+		items.push({
+			label: `🏷️ Отчёт: ${name}`,
+			description: command,
+			picked: favoriteKeys.has(`${command}|${JSON.stringify(args)}`),
+			command,
+			title: name,
+			groupLabel: group.groupLabel,
+			sectionType: group.sectionType,
+			arguments: args,
+		} as FavoritesSelectableItem);
+	}
+	items.push({ label: '🏷️ Внешней обработки', kind: vscode.QuickPickItemKind.Separator });
+	const processors = await setVersionCommands.getProcessorFoldersForTree();
+	for (const name of processors) {
+		const command = '1c-platform-tools.setVersion.processor';
+		const args = [name];
+		items.push({
+			label: `🏷️ Обработка: ${name}`,
+			description: command,
+			picked: favoriteKeys.has(`${command}|${JSON.stringify(args)}`),
+			command,
+			title: name,
+			groupLabel: group.groupLabel,
+			sectionType: group.sectionType,
+			arguments: args,
+		} as FavoritesSelectableItem);
+	}
+}
+
+/**
+ * Добавляет в массив группу «Задачи (oscript)» — динамический список из каталога tasks
+ */
+async function pushOscriptTasksItems(
+	items: vscode.QuickPickItem[],
+	favoriteKeys: Set<string>,
+	oscriptTasksCommands: OscriptTasksCommands
+): Promise<void> {
+	items.push({ label: 'Задачи (oscript)', kind: vscode.QuickPickItemKind.Separator });
+	items.push({
+		label: '➕ Добавить задачу',
+		description: '1c-platform-tools.oscript.addTask',
+		picked: favoriteKeys.has('1c-platform-tools.oscript.addTask|[]'),
+		command: '1c-platform-tools.oscript.addTask',
+		title: 'Добавить задачу',
+		groupLabel: 'Задачи (oscript)',
+		sectionType: 'oscriptTasks',
+	} as FavoritesSelectableItem);
+	const tasks = await oscriptTasksCommands.getOscriptTasks();
+	for (const task of tasks) {
+		const command = '1c-platform-tools.oscript.run';
+		const args = [task.name];
+		items.push({
+			label: `▶️ ${task.name}`,
+			description: command,
+			picked: favoriteKeys.has(`${command}|${JSON.stringify(args)}`),
+			command,
+			title: task.name,
+			groupLabel: 'Задачи (oscript)',
+			sectionType: 'oscriptTasks',
+			arguments: args,
+		} as FavoritesSelectableItem);
+	}
+}
 
 /**
  * Проверяет, является ли открытая рабочая область проектом 1С
@@ -71,7 +190,11 @@ export async function activate(context: vscode.ExtensionContext) {
 
 	const commandDisposables = registerCommands(context, commands);
 
-	const treeDataProvider = new PlatformTreeDataProvider(context.extensionUri, commands.setVersion);
+	const treeDataProvider = new PlatformTreeDataProvider(
+		context.extensionUri,
+		commands.setVersion,
+		context
+	);
 
 	const treeView = vscode.window.createTreeView('1c-platform-tools', {
 		treeDataProvider: treeDataProvider,
@@ -129,10 +252,105 @@ export async function activate(context: vscode.ExtensionContext) {
 		}
 	});
 
+	const favoritesConfigureCommand = vscode.commands.registerCommand(
+		'1c-platform-tools.favorites.configure',
+		async () => {
+			const groups = getPickableCommandsByGroup();
+			const currentFavorites = getFavorites(context);
+			const favoriteKeys = new Set(
+				currentFavorites.map((f) => `${f.command}|${JSON.stringify(f.arguments ?? [])}`)
+			);
+
+			const items: vscode.QuickPickItem[] = [];
+
+			for (const group of groups) {
+				if (group.sectionType === 'config') {
+					continue;
+				}
+				items.push({
+					label: group.groupLabel,
+					kind: vscode.QuickPickItemKind.Separator,
+				});
+
+				if (group.sectionType === 'setVersion') {
+					for (const cmd of group.commands) {
+						items.push({
+							label: cmd.treeLabel,
+							description: cmd.command,
+							picked: favoriteKeys.has(`${cmd.command}|[]`),
+							command: cmd.command,
+							title: cmd.title,
+							groupLabel: group.groupLabel,
+							sectionType: group.sectionType,
+						} as FavoritesSelectableItem);
+					}
+					await pushSetVersionDynamicItems(items, group, favoriteKeys, commands.setVersion);
+				} else {
+					for (const cmd of group.commands) {
+						items.push({
+							label: cmd.treeLabel,
+							description: cmd.command,
+							picked: favoriteKeys.has(`${cmd.command}|[]`),
+							command: cmd.command,
+							title: cmd.title,
+							groupLabel: group.groupLabel,
+							sectionType: group.sectionType,
+						} as FavoritesSelectableItem);
+					}
+				}
+			}
+
+			await pushOscriptTasksItems(items, favoriteKeys, commands.oscriptTasks);
+
+			const configGroup = groups.find((g) => g.sectionType === 'config');
+			if (configGroup) {
+				items.push({
+					label: configGroup.groupLabel,
+					kind: vscode.QuickPickItemKind.Separator,
+				});
+				for (const cmd of configGroup.commands) {
+					items.push({
+						label: cmd.treeLabel,
+						description: cmd.command,
+						picked: favoriteKeys.has(`${cmd.command}|[]`),
+						command: cmd.command,
+						title: cmd.title,
+						groupLabel: configGroup.groupLabel,
+						sectionType: configGroup.sectionType,
+					} as FavoritesSelectableItem);
+				}
+			}
+
+			const selected = await vscode.window.showQuickPick(items, {
+				canPickMany: true,
+				placeHolder: 'Выберите команды для избранного (отмечены — в избранном)',
+				matchOnDescription: true,
+			});
+			if (selected === undefined) {
+				return;
+			}
+			const newFavorites: FavoriteEntry[] = (selected as FavoritesSelectableItem[])
+				.filter((item) => item.command !== undefined)
+				.map((item) => ({
+					command: item.command,
+					title: item.title,
+					groupLabel: item.groupLabel,
+					sectionType: item.sectionType,
+					arguments: item.arguments,
+				}));
+			await setFavorites(context, newFavorites);
+			treeDataProvider.refresh();
+			vscode.window.showInformationMessage(
+				`Избранное обновлено: ${newFavorites.length} команд`
+			);
+		}
+	);
+
 	context.subscriptions.push(
 		treeView,
 		refreshCommand,
 		settingsCommand,
+		favoritesConfigureCommand,
 		launchViewCommand,
 		launchRunCommand,
 		oscriptRunCommand,
