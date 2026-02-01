@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: 'Версия релиза (например, 0.1.0, 0.1.0-alpha.1, 0.1.0-beta.2, 0.1.0-rc.1)'
+        description: 'Версия релиза (например, v0.1.0, v0.1.0-alpha.1, v0.1.0-beta.2, v0.1.0-rc.1)'
         required: true
         type: string
       skip_publish:
