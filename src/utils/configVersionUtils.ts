@@ -8,6 +8,7 @@
 import * as path from 'node:path';
 import * as fs from 'node:fs/promises';
 import * as vscode from 'vscode';
+import { logger } from '../logger';
 
 /**
  * Проверяет существование файла версии ConfigDumpInfo.xml
@@ -39,6 +40,7 @@ export async function handleMissingVersionFile(srcFullPath: string, srcPath: str
 			return true;
 		}
 
+		logger.info(`Файл ConfigDumpInfo.xml не найден в каталоге ${srcPath}, запрос пользователя`);
 		const action = await vscode.window.showWarningMessage(
 			`Файл ConfigDumpInfo.xml не найден в каталоге ${srcPath}. Для инкрементальной выгрузки необходим файл версии. Выполните сначала полную выгрузку через "Выгрузить конфигурацию в src/cf".`,
 			'Выполнить полную выгрузку (очистить каталог)',
@@ -46,10 +48,12 @@ export async function handleMissingVersionFile(srcFullPath: string, srcPath: str
 		);
 
 		if (action === 'Отмена' || action === undefined) {
+			logger.debug('Пользователь отменил операцию (ConfigDumpInfo.xml отсутствует)');
 			return false;
 		}
 
 		if (action === 'Выполнить полную выгрузку (очистить каталог)') {
+			logger.info(`Очистка каталога ${srcFullPath} перед полной выгрузкой`);
 			await clearDirectory(srcFullPath, entries);
 			return true;
 		}

@@ -12,6 +12,7 @@ import {
 } from '../commandNames';
 import { VANESSA_RUNNER_ROOT, VANESSA_RUNNER_EPF, EPF_NAMES, EPF_COMMANDS } from '../constants';
 import { formatDateForDtFileName } from '../utils/dateUtils';
+import { logger } from '../logger';
 
 /**
  * Команды для работы с информационными базами
@@ -145,7 +146,9 @@ export class InfobaseCommands extends BaseCommand {
 		try {
 			await fs.mkdir(dtFolderFullPath, { recursive: true });
 		} catch (error) {
-			vscode.window.showErrorMessage(`Ошибка при создании папки ${dtFolder}: ${(error as Error).message}`);
+			const errMsg = (error as Error).message;
+			logger.error(`Ошибка при создании папки ${dtFolder}: ${errMsg}. Путь: ${dtFolderFullPath}`);
+			vscode.window.showErrorMessage(`Ошибка при создании папки ${dtFolder}: ${errMsg}`);
 			return;
 		}
 

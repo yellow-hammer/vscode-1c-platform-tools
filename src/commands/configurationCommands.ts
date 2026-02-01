@@ -18,6 +18,7 @@ import {
 	checkVersionFileExists,
 	handleMissingVersionFile
 } from '../utils/configVersionUtils';
+import { logger } from '../logger';
 
 /**
  * Команды для работы с конфигурацией
@@ -273,8 +274,10 @@ export class ConfigurationCommands extends BaseCommand {
 
 			await fs.writeFile(lastUploadedCommitPath, shaInput.trim(), 'utf-8');
 		} catch (error) {
+			const errMsg = (error as Error).message;
+			logger.error(`Не удалось записать SHA в файл ${lastUploadedCommitPath}: ${errMsg}`);
 			vscode.window.showErrorMessage(
-				`Не удалось записать SHA в файл ${lastUploadedCommitPath}: ${(error as Error).message}`
+				`Не удалось записать SHA в файл ${lastUploadedCommitPath}: ${errMsg}`
 			);
 			return;
 		}
@@ -312,6 +315,7 @@ export class ConfigurationCommands extends BaseCommand {
 		try {
 			await fs.access(objlistPath);
 		} catch {
+			logger.warn(`Файл objlist.txt не найден: ${objlistPath}`);
 			vscode.window.showErrorMessage(
 				'Файл objlist.txt не найден в корне проекта. Создайте файл со списком полных путей к объектам для загрузки.'
 			);

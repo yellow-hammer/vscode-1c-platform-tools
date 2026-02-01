@@ -16,6 +16,8 @@ import { WorkspaceTasksCommands } from './commands/workspaceTasksCommands';
 import { OscriptTasksCommands } from './commands/oscriptTasksCommands';
 import { registerCommands } from './commands/commandRegistry';
 import { VRunnerManager } from './vrunnerManager';
+import { logger } from './logger';
+import { setOnProjectCreated } from './projectContext';
 import {
 	getPickableCommandsByGroup,
 	getFavorites,
@@ -161,20 +163,23 @@ async function is1CProject(): Promise<boolean> {
 	}
 }
 
+/** Сообщение, когда команда вызвана вне проекта 1С (без packagedef) */
+const NOT_1C_PROJECT_MESSAGE =
+	'Откройте папку проекта 1С (в корне должен быть файл packagedef). ' +
+	'Чтобы создать новый проект, выполните команду «1C: Зависимости: Инициализировать packagedef» из палитры команд.';
+
 /**
  * Активирует расширение
  * @param context - Контекст расширения VS Code
  */
 export async function activate(context: vscode.ExtensionContext) {
 	await vscode.commands.executeCommand('setContext', '1c-platform-tools.is1CProject', false);
-	
-	const isProject = await is1CProject();
-	
-	if (!isProject) {
-		return;
-	}
 
-	await vscode.commands.executeCommand('setContext', '1c-platform-tools.is1CProject', true);
+	const isProject = await is1CProject();
+
+	if (isProject) {
+		await vscode.commands.executeCommand('setContext', '1c-platform-tools.is1CProject', true);
+	}
 
 	// Инициализируем VRunnerManager с контекстом расширения для доступа к extensionPath
 	VRunnerManager.getInstance(context);
@@ -194,6 +199,15 @@ export async function activate(context: vscode.ExtensionContext) {
 
 	const commandDisposables = registerCommands(context, commands);
 
+	// Изменяемая ссылка: после создания packagedef из палитры станет true, команды будут работать без перезагрузки
+	const isProjectRef = { current: isProject };
+
+	const showNot1CProjectMessage = (): void => {
+		logger.info(NOT_1C_PROJECT_MESSAGE);
+		vscode.window.showInformationMessage(NOT_1C_PROJECT_MESSAGE);
+	};
+
+	// Дерево создаём всегда: при отсутствии проекта панель скрыта (when), после создания packagedef — показывается
 	const treeDataProvider = new PlatformTreeDataProvider(
 		context.extensionUri,
 		commands.setVersion,
@@ -219,8 +233,20 @@ export async function activate(context: vscode.ExtensionContext) {
 		treeView.onDidCollapseElement((e) => saveGroupExpandedState(e.element, false))
 	);
 
-	const refreshCommand = vscode.commands.registerCommand('1c-platform-tools.refresh', () => {
+	// После создания packagedef из палитры — полная активация: контекст и обновление дерева
+	setOnProjectCreated(() => {
+		isProjectRef.current = true;
+		void vscode.commands.executeCommand('setContext', '1c-platform-tools.is1CProject', true);
 		treeDataProvider.refresh();
+	});
+
+	const refreshCommand = vscode.commands.registerCommand('1c-platform-tools.refresh', () => {
+		if (!isProjectRef.current) {
+			showNot1CProjectMessage();
+			return;
+		}
+		treeDataProvider.refresh();
+		logger.debug('Дерево обновлено');
 		vscode.window.showInformationMessage('Дерево обновлено');
 	});
 
@@ -229,37 +255,68 @@ export async function activate(context: vscode.ExtensionContext) {
 	});
 
 	const launchViewCommand = vscode.commands.registerCommand('1c-platform-tools.launch.view', () => {
+		if (!isProjectRef.current) {
+			showNot1CProjectMessage();
+			return;
+		}
 		treeDataProvider.refresh();
 	});
 
 	const launchRunCommand = vscode.commands.registerCommand('1c-platform-tools.launch.run', async (taskLabel: string) => {
+		if (!isProjectRef.current) {
+			showNot1CProjectMessage();
+			return;
+		}
 		await commands.workspaceTasks.runTask(taskLabel);
 	});
 
 	const oscriptRunCommand = vscode.commands.registerCommand('1c-platform-tools.oscript.run', async (taskName: string) => {
+		if (!isProjectRef.current) {
+			showNot1CProjectMessage();
+			return;
+		}
 		await commands.oscriptTasks.runOscriptTask(taskName);
 	});
 
 	const oscriptAddTaskCommand = vscode.commands.registerCommand('1c-platform-tools.oscript.addTask', async () => {
+		if (!isProjectRef.current) {
+			showNot1CProjectMessage();
+			return;
+		}
 		await commands.oscriptTasks.addOscriptTask();
 		treeDataProvider.refresh();
 	});
 
 	const launchEditCommand = vscode.commands.registerCommand('1c-platform-tools.launch.edit', () => {
+		if (!isProjectRef.current) {
+			showNot1CProjectMessage();
+			return;
+		}
 		commands.workspaceTasks.editTasks();
 	});
 
 	const fileOpenCommand = vscode.commands.registerCommand('1c-platform-tools.file.open', async (filePath: string) => {
+		if (!isProjectRef.current) {
+			showNot1CProjectMessage();
+			return;
+		}
 		const uri = vscode.Uri.file(filePath);
 		const doc = await vscode.workspace.openTextDocument(uri);
 		await vscode.window.showTextDocument(doc);
 	});
 
 	const launchEditConfigurationsCommand = vscode.commands.registerCommand('1c-platform-tools.launch.editConfigurations', () => {
+		if (!isProjectRef.current) {
+			showNot1CProjectMessage();
+			return;
+		}
 		commands.workspaceTasks.editLaunchConfigurations();
 	});
 
 	const onWorkspaceTasksSave = vscode.workspace.onDidSaveTextDocument((document) => {
+		if (!isProjectRef.current) {
+			return;
+		}
 		const workspaceFolders = vscode.workspace.workspaceFolders;
 		if (!workspaceFolders || workspaceFolders.length === 0) {
 			return;
@@ -273,6 +330,10 @@ export async function activate(context: vscode.ExtensionContext) {
 	const favoritesConfigureCommand = vscode.commands.registerCommand(
 		'1c-platform-tools.favorites.configure',
 		async () => {
+			if (!isProjectRef.current) {
+				showNot1CProjectMessage();
+				return;
+			}
 			const groups = getPickableCommandsByGroup();
 			const currentFavorites = getFavorites(context);
 			const favoriteKeys = new Set(
@@ -358,6 +419,7 @@ export async function activate(context: vscode.ExtensionContext) {
 				}));
 			await setFavorites(context, newFavorites);
 			treeDataProvider.refresh();
+			logger.info(`Избранное обновлено: ${newFavorites.length} команд`);
 			vscode.window.showInformationMessage(
 				`Избранное обновлено: ${newFavorites.length} команд`
 			);
@@ -379,7 +441,6 @@ export async function activate(context: vscode.ExtensionContext) {
 		onWorkspaceTasksSave,
 		...commandDisposables
 	);
-
 }
 
 /**
@@ -388,5 +449,5 @@ export async function activate(context: vscode.ExtensionContext) {
  * через context.subscriptions при деактивации расширения
  */
 export function deactivate() {
-	// Очистка не требуется
+	logger.dispose();
 }

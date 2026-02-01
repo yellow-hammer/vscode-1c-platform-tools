@@ -8,6 +8,7 @@ import {
 	getDecompileExternalProcessorCommandName,
 	getDecompileExternalReportCommandName
 } from '../commandNames';
+import { logger } from '../logger';
 
 /**
  * Тип внешнего файла
@@ -121,12 +122,15 @@ export class ExternalFilesCommands extends BaseCommand {
 
 		try {
 			await fs.unlink(cacheFilePath);
+			logger.info(`Кэш успешно очищен: ${cacheFilePath}`);
 			vscode.window.showInformationMessage('Кэш успешно очищен');
 		} catch (error) {
 			const err = error as NodeJS.ErrnoException;
 			if (err.code === 'ENOENT') {
+				logger.info(`Файл кэша не найден: ${cacheFilePath}`);
 				vscode.window.showInformationMessage('Файл кэша не найден');
 			} else {
+				logger.error(`Ошибка при удалении кэша: ${err.message}. Путь: ${cacheFilePath}`);
 				vscode.window.showErrorMessage(`Ошибка при удалении кэша: ${err.message}`);
 			}
 		}

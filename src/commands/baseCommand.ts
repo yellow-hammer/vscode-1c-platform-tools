@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 import * as fs from 'node:fs/promises';
 import { VRunnerManager } from '../vrunnerManager';
+import { logger } from '../logger';
 
 /**
  * Базовый класс для всех команд
@@ -20,6 +21,7 @@ export abstract class BaseCommand {
 	protected ensureWorkspace(): string | undefined {
 		const workspaceRoot = this.vrunner.getWorkspaceRoot();
 		if (!workspaceRoot) {
+			logger.warn('Команда вызвана без открытой рабочей области (workspaceFolders пуст или отсутствует)');
 			vscode.window.showErrorMessage('Откройте рабочую область для работы с проектом');
 		}
 		return workspaceRoot;
@@ -36,6 +38,7 @@ export abstract class BaseCommand {
 			const stats = await fs.stat(dirPath);
 			if (!stats.isDirectory()) {
 				const message = errorMessage || `Папка ${dirPath} не является директорией`;
+				logger.error(message);
 				vscode.window.showErrorMessage(message);
 				return false;
 			}
@@ -43,10 +46,12 @@ export abstract class BaseCommand {
 		} catch (error) {
 			if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
 				const message = errorMessage || `Папка ${dirPath} не найдена`;
+				logger.warn(message);
 				vscode.window.showErrorMessage(message);
 				return false;
 			}
 			const message = errorMessage || `Ошибка при проверке папки ${dirPath}: ${(error as Error).message}`;
+			logger.error(message);
 			vscode.window.showErrorMessage(message);
 			return false;
 		}
@@ -66,6 +71,7 @@ export abstract class BaseCommand {
 				.map(entry => entry.name);
 		} catch (error) {
 			const message = errorMessage || `Ошибка при чтении папки ${dirPath}: ${(error as Error).message}`;
+			logger.error(message);
 			vscode.window.showErrorMessage(message);
 			return [];
 		}
@@ -86,6 +92,7 @@ export abstract class BaseCommand {
 				.map(entry => entry.name);
 		} catch (error) {
 			const message = errorMessage || `Ошибка при чтении папки ${dirPath}: ${(error as Error).message}`;
+			logger.error(message);
 			vscode.window.showErrorMessage(message);
 			return [];
 		}
@@ -103,6 +110,7 @@ export abstract class BaseCommand {
 			return true;
 		} catch (error) {
 			const message = errorMessage || `Ошибка при создании папки ${dirPath}: ${(error as Error).message}`;
+			logger.error(message);
 			vscode.window.showErrorMessage(message);
 			return false;
 		}

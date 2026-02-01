@@ -41,7 +41,8 @@
     "Testing"
   ],
   "activationEvents": [
-    "workspaceContains:packagedef"
+    "workspaceContains:packagedef",
+    "onCommand:1c-platform-tools.dependencies.initializePackagedef"
   ],
   "main": "./out/extension.js",
   "contributes": {
@@ -468,6 +469,17 @@
           "type": "string",
           "default": "",
           "description": "Docker-образ для выполнения команд vrunner. Образ должен содержать установленную платформу 1С:Предприятие и vanessa-runner. Пример: 'myregistry/onec-image:8.3.25' или 'localhost/onec-image:latest'. Если не указан, будет показана ошибка с инструкцией."
+        },
+        "1c-platform-tools.logLevel": {
+          "type": "string",
+          "enum": [
+            "error",
+            "warnings",
+            "info",
+            "debug"
+          ],
+          "default": "info",
+          "description": "Уровень логирования в панель Output: error — только ошибки, warnings — ошибки и предупреждения, info — плюс информационные сообщения, debug — полный вывод для диагностики."
         }
       }
     }

@@ -3,6 +3,8 @@ import * as path from 'node:path';
 import * as fs from 'node:fs/promises';
 import { BaseCommand } from './baseCommand';
 import { getInstallDependenciesCommandName, getUpdateOpmCommandName } from '../commandNames';
+import { logger } from '../logger';
+import { notifyProjectCreated } from '../projectContext';
 
 /**
  * Команды для управления зависимостями проекта
@@ -50,15 +52,20 @@ export class DependenciesCommands extends BaseCommand {
 			const stats = await fs.stat(oscriptModulesPath);
 			if (stats.isDirectory()) {
 				await fs.rm(oscriptModulesPath, { recursive: true, force: true });
+				logger.info(`Каталог oscript_modules успешно удалён: ${oscriptModulesPath}`);
 				vscode.window.showInformationMessage('Каталог oscript_modules успешно удален');
 			} else {
+				logger.warn(`oscript_modules не является каталогом: ${oscriptModulesPath}`);
 				vscode.window.showWarningMessage('oscript_modules не является каталогом');
 			}
 		} catch (error) {
 			if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
+				logger.info('Каталог oscript_modules не найден');
 				vscode.window.showInformationMessage('Каталог oscript_modules не найден');
 			} else {
-				vscode.window.showErrorMessage(`Не удалось удалить каталог oscript_modules: ${(error as Error).message}`);
+				const errMsg = (error as Error).message;
+				logger.error(`Не удалось удалить каталог oscript_modules: ${errMsg}. Путь: ${oscriptModulesPath}`);
+				vscode.window.showErrorMessage(`Не удалось удалить каталог oscript_modules: ${errMsg}`);
 			}
 		}
 	}
@@ -121,33 +128,49 @@ export class DependenciesCommands extends BaseCommand {
 		// Получаем путь к шаблону
 		const extensionPath = this.vrunner.getExtensionPath();
 		if (!extensionPath) {
-			vscode.window.showErrorMessage('Не удалось определить путь к расширению');
+			const msg = 'Не удалось определить путь к расширению';
+			logger.error(
+				`${msg}. Возможные причины: расширение не передало ExtensionContext в VRunnerManager при активации; workspaceRoot=${workspaceRoot ?? 'не определён'}. Проверьте панель Output (1C Platform Tools) для диагностики.`
+			);
+			logger.show();
+			vscode.window.showErrorMessage(msg);
 			return;
 		}
 
 		const templatePath = path.join(extensionPath, 'resources', 'templates', 'packagedef.template');
+		logger.debug(`Инициализация packagedef: workspaceRoot=${workspaceRoot}, extensionPath=${extensionPath}, templatePath=${templatePath}`);
 
 		// Читаем шаблон из файла
 		let packagedefContent: string;
 		try {
 			packagedefContent = await fs.readFile(templatePath, 'utf-8');
 		} catch (error) {
+			const errMsg = (error as Error).message;
+			logger.error(`Не удалось прочитать шаблон packagedef: ${errMsg}. Путь: ${templatePath}`);
+			logger.show();
 			vscode.window.showErrorMessage(
-				`Не удалось прочитать шаблон packagedef: ${(error as Error).message}`
+				`Не удалось прочитать шаблон packagedef: ${errMsg}`
 			);
 			return;
 		}
 
 		try {
 			await fs.writeFile(packagedefPath, packagedefContent, 'utf-8');
+			logger.info(`Файл packagedef успешно создан: ${packagedefPath}`);
 			vscode.window.showInformationMessage('Файл packagedef успешно создан');
-			
+
+			// Полная активация расширения: панель 1C Platform Tools и дерево появятся без перезагрузки окна
+			notifyProjectCreated();
+
 			// Открываем файл в редакторе
 			const uri = vscode.Uri.file(packagedefPath);
 			const doc = await vscode.workspace.openTextDocument(uri);
 			await vscode.window.showTextDocument(doc);
 		} catch (error) {
-			vscode.window.showErrorMessage(`Не удалось создать файл packagedef: ${(error as Error).message}`);
+			const errMsg = (error as Error).message;
+			logger.error(`Не удалось создать файл packagedef: ${errMsg}. Путь: ${packagedefPath}`);
+			logger.show();
+			vscode.window.showErrorMessage(`Не удалось создать файл packagedef: ${errMsg}`);
 		}
 	}
 }

@@ -2,6 +2,7 @@ import * as vscode from 'vscode';
 import * as path from 'node:path';
 import * as fs from 'node:fs/promises';
 import { BaseCommand } from './baseCommand';
+import { logger } from '../logger';
 
 /**
  * Результат получения списка задач oscript из каталога tasks
@@ -75,6 +76,7 @@ export class OscriptTasksCommands extends BaseCommand {
 		if (nameToRun === undefined) {
 			const tasks = await this.getOscriptTasks();
 			if (tasks.length === 0) {
+				logger.warn('Нет задач oscript в каталоге tasks');
 				vscode.window.showWarningMessage('Нет задач oscript в каталоге tasks');
 				return;
 			}
@@ -148,10 +150,13 @@ export class OscriptTasksCommands extends BaseCommand {
 			const doc = await vscode.workspace.openTextDocument(uri);
 			await vscode.window.showTextDocument(doc);
 
+			logger.info(`Создана задача oscript: ${nameWithExt}, путь: ${filePath}`);
 			vscode.window.showInformationMessage(`Создана задача oscript: ${nameWithExt}`);
 		} catch (error) {
+			const errMsg = (error as Error).message;
+			logger.error(`Ошибка при создании задачи oscript: ${errMsg}. Путь: ${filePath}`);
 			vscode.window.showErrorMessage(
-				`Ошибка при создании задачи: ${(error as Error).message}`
+				`Ошибка при создании задачи: ${errMsg}`
 			);
 		}
 	}

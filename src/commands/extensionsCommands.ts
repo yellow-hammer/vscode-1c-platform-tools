@@ -11,6 +11,7 @@ import {
 	getDecompileExtensionCommandName
 } from '../commandNames';
 import { VANESSA_RUNNER_ROOT, VANESSA_RUNNER_EPF, EPF_NAMES, EPF_COMMANDS } from '../constants';
+import { logger } from '../logger';
 
 /**
  * Команды для работы с расширениями конфигурации
@@ -103,6 +104,7 @@ export class ExtensionsCommands extends BaseCommand {
 
 		const extensionFolders = await this.getDirectories(extensionsSrcPath, `Ошибка при чтении папки ${cfePath}`);
 		if (extensionFolders.length === 0) {
+			logger.info(`В папке ${cfePath} не найдено расширений`);
 			vscode.window.showInformationMessage(`В папке ${cfePath} не найдено расширений`);
 			return undefined;
 		}
@@ -165,6 +167,7 @@ export class ExtensionsCommands extends BaseCommand {
 
 		const cfeFiles = await this.getFilesByExtension(cfePath, '.cfe', `Ошибка при чтении папки ${buildPath}/cfe`);
 		if (cfeFiles.length === 0) {
+			logger.info(`В папке ${buildPath}/cfe не найдено файлов .cfe`);
 			vscode.window.showInformationMessage(`В папке ${buildPath}/cfe не найдено файлов .cfe`);
 			return;
 		}
@@ -318,6 +321,7 @@ export class ExtensionsCommands extends BaseCommand {
 
 		const cfeFiles = await this.getFilesByExtension(cfeBuildPath, '.cfe', `Ошибка при чтении папки ${buildPath}/cfe`);
 		if (cfeFiles.length === 0) {
+			logger.info(`В папке ${buildPath}/cfe не найдено файлов .cfe`);
 			vscode.window.showInformationMessage(`В папке ${buildPath}/cfe не найдено файлов .cfe`);
 			return;
 		}

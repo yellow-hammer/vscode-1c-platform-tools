@@ -1,5 +1,6 @@
 import * as vscode from 'vscode';
 import * as path from 'node:path';
+import { logger } from '../logger';
 import { InfobaseCommands } from './infobaseCommands';
 import { ConfigurationCommands } from './configurationCommands';
 import { ExtensionsCommands } from './extensionsCommands';
@@ -230,6 +231,7 @@ export function registerCommands(context: vscode.ExtensionContext, commands: Com
 	const envEditCommand = vscode.commands.registerCommand('1c-platform-tools.config.env.edit', async () => {
 		const workspaceRoot = vrunnerManager.getWorkspaceRoot();
 		if (!workspaceRoot) {
+			logger.warn('Команда env.edit вызвана без открытой рабочей области');
 			vscode.window.showErrorMessage('Откройте рабочую область для работы с проектом');
 			return;
 		}
