@@ -1,11 +1,150 @@
 import * as vscode from 'vscode';
 import * as path from 'node:path';
+import * as os from 'node:os';
 import * as fs from 'node:fs/promises';
+import * as fsSync from 'node:fs';
+import { spawnSync } from 'node:child_process';
 import { BaseCommand } from './baseCommand';
-import { getInstallDependenciesCommandName, getUpdateOpmCommandName } from '../commandNames';
+import {
+	getInstallDependenciesCommandName,
+	getInstallOneScriptCommandName,
+	getUpdateOpmCommandName
+} from '../commandNames';
 import { logger } from '../logger';
 import { notifyProjectCreated } from '../projectContext';
 import { PROJECT_STRUCTURE } from '../projectStructure';
+
+/** URL для скачивания OVM (OneScript Version Manager) */
+const OVM_DOWNLOAD_URL = 'https://github.com/oscript-library/ovm/releases/latest/download/ovm.exe';
+
+/** Регулярное выражение для извлечения ВерсияСреды из packagedef (например .ВерсияСреды("1.9.0")) */
+const PACKAGEDEF_VERSIYA_SREDY = /\.ВерсияСреды\s*\(\s*["']([^"']+)["']\s*\)/;
+
+/** Интервал опроса появления OVM после установки (мс) */
+const OVM_POLL_INTERVAL_MS = 3000;
+/** Максимальное время ожидания завершения установки (мс) */
+const OVM_POLL_TIMEOUT_MS = 5 * 60 * 1000;
+
+/**
+ * Читает версию OneScript из packagedef (ВерсияСреды). При отсутствии или ошибке возвращает 'stable'.
+ *
+ * @param workspaceRoot - Корень workspace
+ * @returns Версия для ovm install (например '1.9.0' или 'stable')
+ */
+async function getOscriptVersionFromPackagedef(workspaceRoot: string): Promise<string> {
+	try {
+		const content = await fs.readFile(path.join(workspaceRoot, 'packagedef'), 'utf-8');
+		const match = PACKAGEDEF_VERSIYA_SREDY.exec(content);
+		const version = match?.[1]?.trim();
+		if (version) {
+			return version;
+		}
+	} catch {
+		// Файл отсутствует или не прочитался — используем stable
+	}
+	return 'stable';
+}
+
+/**
+ * Возвращает путь к oscript в каталоге OVM и его текущее время модификации (или 0, если файла нет).
+ */
+function getOvmOscriptPathAndMtime(): { path: string; mtimeMs: number } {
+	const oscriptPath =
+		process.platform === 'win32'
+			? path.join(process.env.LOCALAPPDATA || '', 'ovm', 'current', 'bin', 'oscript.exe')
+			: path.join(os.homedir(), '.local', 'share', 'ovm', 'current', 'bin', 'oscript');
+	let mtimeMs = 0;
+	try {
+		const stat = fsSync.statSync(oscriptPath);
+		if (stat.isFile()) {
+			mtimeMs = stat.mtimeMs;
+		}
+	} catch {
+		// файла нет
+	}
+	return { path: oscriptPath, mtimeMs };
+}
+
+/**
+ * Ожидает завершения установки OVM: файл oscript появился или обновился (mtime вырос).
+ * Перед первым опросом ждёт OVM_POLL_INTERVAL_MS, чтобы не сработать на старый файл.
+ *
+ * @param initialMtimeMs - Время модификации oscript до запуска установки (0, если файла не было)
+ * @returns true, если установка зафиксирована (файл создан/обновлён); false при таймауте
+ */
+async function waitForOvmInstallComplete(initialMtimeMs: number): Promise<boolean> {
+	const { path: oscriptPath } = getOvmOscriptPathAndMtime();
+	await new Promise((r) => setTimeout(r, OVM_POLL_INTERVAL_MS));
+
+	const deadline = Date.now() + OVM_POLL_TIMEOUT_MS;
+	while (Date.now() < deadline) {
+		try {
+			const stat = fsSync.statSync(oscriptPath);
+			if (stat.isFile() && stat.mtimeMs > initialMtimeMs) {
+				return true;
+			}
+		} catch {
+			// файла ещё нет — продолжаем ждать
+		}
+		await new Promise((r) => setTimeout(r, OVM_POLL_INTERVAL_MS));
+	}
+	return false;
+}
+
+/**
+ * Запускает настройки Git с правами администратора (Windows): core.longpaths true, LC_ALL C.UTF-8.
+ * Создаёт временный .cmd, запускает его через Start-Process -Verb RunAs, удаляет файл.
+ *
+ * @returns true при успешном запуске (или после попытки), false при ошибке создания скрипта
+ */
+async function runGitAdminElevated(): Promise<boolean> {
+	const adminScript = [
+		'@chcp 65001 >nul',
+		'git config --system core.longpaths true',
+		'setx LC_ALL C.UTF-8 /M'
+	].join('\r\n');
+
+	let tempFile: string;
+	try {
+		tempFile = path.join(os.tmpdir(), `1c-platform-tools-git-admin-${Date.now()}.cmd`);
+		await fs.writeFile(tempFile, adminScript, 'utf-8');
+	} catch (error) {
+		const errMsg = (error as Error).message;
+		logger.error(`Не удалось создать скрипт для админ-настроек: ${errMsg}`);
+		vscode.window.showErrorMessage(`Не удалось создать временный скрипт: ${errMsg}`);
+		return false;
+	}
+
+	try {
+		const psRun = spawnSync(
+			'powershell.exe',
+			[
+				'-NoProfile',
+				'-ExecutionPolicy',
+				'Bypass',
+				'-Command',
+				`Start-Process -FilePath "cmd.exe" -ArgumentList '/c','${tempFile.replaceAll("'", "''")}' -Verb RunAs -Wait`
+			],
+			{ encoding: 'utf8', shell: false }
+		);
+		if (psRun.status !== 0) {
+			logger.warn(`Запуск с правами администратора завершился с кодом ${psRun.status}`);
+		}
+	} catch (error) {
+		const errMsg = (error as Error).message;
+		logger.error(`Ошибка запуска с правами администратора: ${errMsg}`);
+		vscode.window.showWarningMessage(
+			'Не удалось запустить настройки с правами администратора. Выполните вручную от имени администратора: git config --system core.longpaths true и setx LC_ALL C.UTF-8 /M'
+		);
+	} finally {
+		try {
+			await fs.unlink(tempFile);
+		} catch {
+			// игнорируем ошибку удаления временного файла
+		}
+	}
+	return true;
+}
 
 /**
  * Команды для управления зависимостями проекта
@@ -23,6 +162,9 @@ export class DependenciesCommands extends BaseCommand {
 	async installDependencies(): Promise<void> {
 		const workspaceRoot = this.ensureWorkspace();
 		if (!workspaceRoot) {
+			return;
+		}
+		if (!(await this.ensureOscriptAvailable())) {
 			return;
 		}
 
@@ -72,7 +214,130 @@ export class DependenciesCommands extends BaseCommand {
 	}
 
 	/**
-	 * Обновляет OPM (OneScript Package Manager)
+	 * Настраивает Git: user.name, user.email, алиасы и общие параметры.
+	 * Запросы (имя, email, проект/глобально) показываются в верхней части окна VS Code.
+	 * Опционально запускает настройки с правами администратора (core.longpaths true, LC_ALL C.UTF-8).
+	 *
+	 * @returns Промис, который разрешается по завершении
+	 */
+	async setupGit(): Promise<void> {
+		const workspaceRoot = this.ensureWorkspace();
+		if (!workspaceRoot) {
+			return;
+		}
+
+		const userName = await vscode.window.showInputBox({
+			title: 'Настройка Git',
+			prompt: 'Введите имя пользователя для Git',
+			placeHolder: 'Иван Иванов',
+			ignoreFocusOut: true
+		});
+		if (userName === undefined) {
+			return;
+		}
+		if (!userName.trim()) {
+			vscode.window.showWarningMessage('Имя пользователя не задано.');
+			return;
+		}
+
+		const userEmail = await vscode.window.showInputBox({
+			title: 'Настройка Git',
+			prompt: 'Введите email для Git',
+			placeHolder: 'user@example.com',
+			ignoreFocusOut: true
+		});
+		if (userEmail === undefined) {
+			return;
+		}
+		if (!userEmail.trim()) {
+			vscode.window.showWarningMessage('Email не задан.');
+			return;
+		}
+
+		const scopeChoice = await vscode.window.showQuickPick(
+			[
+				{ label: 'Текущий проект', value: 'project' as const },
+				{ label: 'Глобально', value: 'global' as const }
+			],
+			{
+				title: 'Настройка Git',
+				placeHolder: 'Установить настройки для текущего проекта или глобально?',
+				ignoreFocusOut: true
+			}
+		);
+		if (!scopeChoice) {
+			return;
+		}
+
+		const isGlobal = scopeChoice.value === 'global';
+		const globalFlag = isGlobal ? ['--global'] : [];
+		const cwd = isGlobal ? undefined : workspaceRoot;
+
+		const runGitConfig = (args: string[]): { ok: boolean; stderr: string } => {
+			const result = spawnSync('git', args, {
+				cwd: cwd ?? undefined,
+				encoding: 'utf8',
+				shell: false
+			});
+			return {
+				ok: result.status === 0,
+				stderr: (result.stderr ?? result.error?.message ?? '').trim()
+			};
+		};
+
+		const configs: [string, string][] = [
+			['user.name', userName.trim()],
+			['user.email', userEmail.trim()],
+			['core.quotePath', 'false'],
+			['alias.co', 'checkout'],
+			['alias.br', 'branch'],
+			['alias.ci', 'commit'],
+			['alias.st', 'status'],
+			['alias.unstage', 'reset HEAD --'],
+			['alias.last', 'log -1 HEAD'],
+			['core.autocrlf', 'true'],
+			['core.safecrlf', 'false'],
+			['http.postBuffer', '1048576000']
+		];
+
+		for (const [key, value] of configs) {
+			const { ok, stderr } = runGitConfig([...globalFlag, 'config', key, value]);
+			if (!ok) {
+				logger.error(`Git config ${key}=${value}: ${stderr}`);
+				vscode.window.showErrorMessage(`Ошибка настройки Git (${key}): ${stderr || 'неизвестная ошибка'}`);
+				return;
+			}
+		}
+
+		logger.info(`Настройки Git применены (${isGlobal ? 'глобально' : 'для текущего проекта'})`);
+		vscode.window.showInformationMessage(
+			`Настройки Git успешно применены (${isGlobal ? 'глобально' : 'для текущего проекта'}).`
+		);
+
+		const doAdmin = await vscode.window.showInformationMessage(
+			'Выполнить настройки с правами администратора? (core.longpaths true, LC_ALL C.UTF-8 для системы)',
+			'Да',
+			'Нет'
+		);
+		if (doAdmin !== 'Да') {
+			return;
+		}
+
+		if (process.platform !== 'win32') {
+			vscode.window.showInformationMessage(
+				'Настройки с правами администратора поддерживаются только в Windows. На Linux/macOS при необходимости выполните вручную: git config --system core.longpaths true и установите LC_ALL=C.UTF-8.'
+			);
+			return;
+		}
+
+		await runGitAdminElevated();
+		vscode.window.showInformationMessage(
+			'Команда с правами администратора выполнена. При запросе UAC было открыто отдельное окно.'
+		);
+	}
+
+	/**
+	 * Устанавливает OPM (OneScript Package Manager)
 	 *
 	 * Выполняет команду opm install opm в терминале для установки или обновления
 	 * менеджера пакетов OPM в проекте.
@@ -82,6 +347,9 @@ export class DependenciesCommands extends BaseCommand {
 	async updateOpm(): Promise<void> {
 		const workspaceRoot = this.ensureWorkspace();
 		if (!workspaceRoot) {
+			return;
+		}
+		if (!(await this.ensureOscriptAvailable())) {
 			return;
 		}
 
@@ -221,6 +489,104 @@ export class DependenciesCommands extends BaseCommand {
 			logger.error(`Не удалось создать структуру проекта: ${errMsg}. Workspace: ${workspaceRoot}`);
 			logger.show();
 			vscode.window.showErrorMessage(`Не удалось создать структуру проекта: ${errMsg}`);
+		}
+	}
+
+	/**
+	 * Устанавливает OneScript (oscript) через OVM при отсутствии в системе.
+	 *
+	 * Проверяет наличие oscript. Если доступен — сообщает и предлагает перезапуск при повторном запуске.
+	 * Если нет — запускает в терминале установку через OVM: на Windows — PowerShell (ovm.exe),
+	 * на Linux/macOS — загрузка ovm.exe и запуск через Mono (`mono ovm.exe install` и `use`).
+	 * Ожидание завершения — по появлению/обновлению файла oscript в каталоге OVM.
+	 *
+	 * @returns Промис, который разрешается по завершении
+	 */
+	async installOscript(): Promise<void> {
+		const workspaceRoot = this.ensureWorkspace();
+		if (!workspaceRoot) {
+			return;
+		}
+
+		const oscriptOk = await this.vrunner.checkOscriptAvailable();
+		const alreadyInstalled = oscriptOk;
+
+		const confirmMessage = alreadyInstalled
+			? 'OneScript уже установлен. Всё равно запустить установку/обновление через OVM?'
+			: 'OneScript не найден. Установить через OVM (OneScript Version Manager)? Требуется интернет.';
+		const confirm = await vscode.window.showWarningMessage(
+			confirmMessage,
+			'Установить',
+			'Отмена'
+		);
+		if (confirm !== 'Установить') {
+			return;
+		}
+
+		const ovmVersion = await getOscriptVersionFromPackagedef(workspaceRoot);
+		const commandName = getInstallOneScriptCommandName();
+		const { mtimeMs: ovmOscriptMtimeBefore } = getOvmOscriptPathAndMtime();
+
+		if (process.platform === 'win32') {
+			const tempOvm = String.raw`$env:TEMP\ovm.exe`;
+			const ovmBinHint = String.raw`$env:LOCALAPPDATA\ovm\current\bin`;
+			const psScript = [
+				'$ErrorActionPreference = "Stop"',
+				`Write-Host "Загрузка OVM из ${OVM_DOWNLOAD_URL}..."`,
+				`Invoke-WebRequest -Uri '${OVM_DOWNLOAD_URL}' -OutFile ${tempOvm} -UseBasicParsing`,
+				`Write-Host "Установка OneScript (${ovmVersion})..."`,
+				`& ${tempOvm} install ${ovmVersion}`,
+				`& ${tempOvm} use ${ovmVersion}`,
+				`Write-Host "Готово. Путь OVM: ${ovmBinHint}" -ForegroundColor Green`
+			].join('; ');
+
+			const terminal = vscode.window.createTerminal({
+				name: commandName.title,
+				shellPath: 'powershell.exe',
+				shellArgs: ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-Command', psScript],
+				cwd: workspaceRoot
+			});
+			terminal.show();
+		} else {
+			const tmpOvm = path.join(os.tmpdir(), 'ovm.exe');
+			const shScript = [
+				`echo "Загрузка OVM из ${OVM_DOWNLOAD_URL}..."`,
+				`curl -L -o ${JSON.stringify(tmpOvm)} ${JSON.stringify(OVM_DOWNLOAD_URL)}`,
+				`echo "Установка OneScript (${ovmVersion})..."`,
+				`mono ${JSON.stringify(tmpOvm)} install ${ovmVersion}`,
+				`mono ${JSON.stringify(tmpOvm)} use ${ovmVersion}`,
+				`echo "Готово. Путь OVM: $HOME/.local/share/ovm/current/bin"`
+			].join(' && ');
+
+			const terminal = vscode.window.createTerminal({
+				name: commandName.title,
+				cwd: workspaceRoot
+			});
+			terminal.sendText(shScript);
+			terminal.show();
+		}
+
+		logger.info(`Установка OneScript запущена в терминале: ${commandName.title}, версия: ${ovmVersion}`);
+
+		vscode.window.setStatusBarMessage('Ожидание завершения установки OneScript в терминале…', OVM_POLL_TIMEOUT_MS);
+		const installed = await waitForOvmInstallComplete(ovmOscriptMtimeBefore);
+		vscode.window.setStatusBarMessage('', 0);
+
+		if (!installed) {
+			logger.info('Таймаут ожидания установки OVM');
+			vscode.window.showInformationMessage(
+				'Установка занимает больше времени или завершилась с ошибкой. Если в терминале установка прошла успешно, перезапустите окно VS Code вручную (Developer: Reload Window).'
+			);
+			return;
+		}
+
+		const reload = await vscode.window.showInformationMessage(
+			'Установка OneScript завершена. Чтобы изменения (PATH) вступили в силу, перезапустите окно VS Code. Перезапустить сейчас?',
+			'Перезапустить',
+			'Позже'
+		);
+		if (reload === 'Перезапустить') {
+			await vscode.commands.executeCommand('workbench.action.reloadWindow');
 		}
 	}
 }

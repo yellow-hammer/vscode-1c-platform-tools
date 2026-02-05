@@ -71,6 +71,9 @@ export class OscriptTasksCommands extends BaseCommand {
 		if (!this.ensureWorkspace()) {
 			return;
 		}
+		if (!(await this.ensureOscriptAvailable())) {
+			return;
+		}
 
 		let nameToRun = taskName;
 		if (nameToRun === undefined) {

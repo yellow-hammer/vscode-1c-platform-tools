@@ -231,12 +231,22 @@
       },
       {
         "command": "1c-platform-tools.dependencies.initializePackagedef",
-        "title": "Инициализировать packagedef",
+        "title": "Инициализировать проект",
+        "category": "1C: Зависимости"
+      },
+      {
+        "command": "1c-platform-tools.dependencies.setupGit",
+        "title": "Настроить Git",
+        "category": "1C: Зависимости"
+      },
+      {
+        "command": "1c-platform-tools.dependencies.installOscript",
+        "title": "Установить OneScript",
         "category": "1C: Зависимости"
       },
       {
         "command": "1c-platform-tools.dependencies.updateOpm",
-        "title": "Обновить OPM",
+        "title": "Установить OPM",
         "category": "1C: Зависимости"
       },
       {
@@ -410,16 +420,6 @@
     "configuration": {
       "title": "1C Platform Tools",
       "properties": {
-        "1c-platform-tools.onescriptPath": {
-          "type": "string",
-          "default": "oscript",
-          "description": "Путь к исполняемому файлу OneScript"
-        },
-        "1c-platform-tools.opm.path": {
-          "type": "string",
-          "default": "opm",
-          "description": "Путь к opm (OneScript Package Manager)"
-        },
         "1c-platform-tools.vrunner.path": {
           "type": "string",
           "default": "vrunner",

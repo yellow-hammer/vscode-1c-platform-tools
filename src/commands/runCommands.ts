@@ -19,6 +19,9 @@ export class RunCommands extends BaseCommand {
 		if (!workspaceRoot) {
 			return;
 		}
+		if (!(await this.ensureOscriptAvailable())) {
+			return;
+		}
 
 		const ibConnectionParam = await this.vrunner.getIbConnectionParam();
 		const commandName = getRunEnterpriseCommandName();
@@ -41,6 +44,9 @@ export class RunCommands extends BaseCommand {
 	async runDesigner(): Promise<void> {
 		const workspaceRoot = this.ensureWorkspace();
 		if (!workspaceRoot) {
+			return;
+		}
+		if (!(await this.ensureOscriptAvailable())) {
 			return;
 		}
 

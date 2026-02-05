@@ -29,6 +29,9 @@ export class TestCommands extends BaseCommand {
 		if (!workspaceRoot) {
 			return;
 		}
+		if (!(await this.ensureOscriptAvailable())) {
+			return;
+		}
 
 		const commandName = getXUnitTestsCommandName();
 		const args = ['xunit'];
@@ -49,6 +52,9 @@ export class TestCommands extends BaseCommand {
 	async runSyntaxCheck(): Promise<void> {
 		const workspaceRoot = this.ensureWorkspace();
 		if (!workspaceRoot) {
+			return;
+		}
+		if (!(await this.ensureOscriptAvailable())) {
 			return;
 		}
 
@@ -73,6 +79,9 @@ export class TestCommands extends BaseCommand {
 	async runVanessa(mode: 'normal' = 'normal'): Promise<void> {
 		const workspaceRoot = this.ensureWorkspace();
 		if (!workspaceRoot) {
+			return;
+		}
+		if (!(await this.ensureOscriptAvailable())) {
 			return;
 		}
 

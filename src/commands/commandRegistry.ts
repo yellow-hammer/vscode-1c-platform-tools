@@ -142,17 +142,23 @@ export function registerCommands(context: vscode.ExtensionContext, commands: Com
 		vscode.commands.registerCommand('1c-platform-tools.dependencies.initializeProjectStructure', () => {
 			commands.dependencies.initializeProjectStructure();
 		}),
+		vscode.commands.registerCommand('1c-platform-tools.dependencies.initializePackagedef', () => {
+			commands.dependencies.initializePackagedef();
+		}),
+		vscode.commands.registerCommand('1c-platform-tools.dependencies.setupGit', () => {
+			commands.dependencies.setupGit();
+		}),
+		vscode.commands.registerCommand('1c-platform-tools.dependencies.installOscript', () => {
+			commands.dependencies.installOscript();
+		}),
+		vscode.commands.registerCommand('1c-platform-tools.dependencies.updateOpm', () => {
+			commands.dependencies.updateOpm();
+		}),
 		vscode.commands.registerCommand('1c-platform-tools.dependencies.install', () => {
 			commands.dependencies.installDependencies();
 		}),
 		vscode.commands.registerCommand('1c-platform-tools.dependencies.remove', () => {
 			commands.dependencies.removeDependencies();
-		}),
-		vscode.commands.registerCommand('1c-platform-tools.dependencies.initializePackagedef', () => {
-			commands.dependencies.initializePackagedef();
-		}),
-		vscode.commands.registerCommand('1c-platform-tools.dependencies.updateOpm', () => {
-			commands.dependencies.updateOpm();
 		})
 	];
 

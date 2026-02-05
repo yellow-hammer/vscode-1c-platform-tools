@@ -35,6 +35,9 @@ export class ConfigurationCommands extends BaseCommand {
 		if (!workspaceRoot) {
 			return;
 		}
+		if (!(await this.ensureOscriptAvailable())) {
+			return;
+		}
 
 		const command = mode === 'init' ? 'init-dev' : 'update-dev';
 		const srcPath = this.vrunner.getCfPath();
@@ -55,6 +58,9 @@ export class ConfigurationCommands extends BaseCommand {
 	async loadFromCf(): Promise<void> {
 		const workspaceRoot = this.ensureWorkspace();
 		if (!workspaceRoot) {
+			return;
+		}
+		if (!(await this.ensureOscriptAvailable())) {
 			return;
 		}
 
@@ -79,6 +85,9 @@ export class ConfigurationCommands extends BaseCommand {
 		if (!workspaceRoot) {
 			return;
 		}
+		if (!(await this.ensureOscriptAvailable())) {
+			return;
+		}
 
 		const srcPath = this.vrunner.getCfPath();
 		const ibConnectionParam = await this.vrunner.getIbConnectionParam();
@@ -100,6 +109,9 @@ export class ConfigurationCommands extends BaseCommand {
 	async dumpIncrementToSrc(): Promise<void> {
 		const workspaceRoot = this.ensureWorkspace();
 		if (!workspaceRoot) {
+			return;
+		}
+		if (!(await this.ensureOscriptAvailable())) {
 			return;
 		}
 
@@ -139,6 +151,9 @@ export class ConfigurationCommands extends BaseCommand {
 		if (!workspaceRoot) {
 			return;
 		}
+		if (!(await this.ensureOscriptAvailable())) {
+			return;
+		}
 
 		const buildPath = this.vrunner.getOutPath();
 		const buildFullPath = path.join(workspaceRoot, buildPath);
@@ -164,6 +179,9 @@ export class ConfigurationCommands extends BaseCommand {
 	async dumpToDist(): Promise<void> {
 		const workspaceRoot = this.ensureWorkspace();
 		if (!workspaceRoot) {
+			return;
+		}
+		if (!(await this.ensureOscriptAvailable())) {
 			return;
 		}
 
@@ -193,6 +211,9 @@ export class ConfigurationCommands extends BaseCommand {
 		if (!workspaceRoot) {
 			return;
 		}
+		if (!(await this.ensureOscriptAvailable())) {
+			return;
+		}
 
 		const srcPath = this.vrunner.getCfPath();
 		const buildPath = this.vrunner.getOutPath();
@@ -220,6 +241,9 @@ export class ConfigurationCommands extends BaseCommand {
 		if (!workspaceRoot) {
 			return;
 		}
+		if (!(await this.ensureOscriptAvailable())) {
+			return;
+		}
 
 		const buildPath = this.vrunner.getOutPath();
 		const inputPath = path.join(buildPath, '1Cv8.cf');
@@ -241,6 +265,9 @@ export class ConfigurationCommands extends BaseCommand {
 	async loadIncrementFromSrc(): Promise<void> {
 		const workspaceRoot = this.ensureWorkspace();
 		if (!workspaceRoot) {
+			return;
+		}
+		if (!(await this.ensureOscriptAvailable())) {
 			return;
 		}
 
@@ -307,6 +334,9 @@ export class ConfigurationCommands extends BaseCommand {
 	async loadFromFilesByList(): Promise<void> {
 		const workspaceRoot = this.ensureWorkspace();
 		if (!workspaceRoot) {
+			return;
+		}
+		if (!(await this.ensureOscriptAvailable())) {
 			return;
 		}
 

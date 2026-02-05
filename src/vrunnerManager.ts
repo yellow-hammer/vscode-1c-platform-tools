@@ -110,15 +110,11 @@ export class VRunnerManager {
 
 	/**
 	 * Получает путь к opm (OneScript Package Manager)
-	 * 
-	 * Путь берется из настроек VS Code (1c-platform-tools.opm.path).
-	 * По умолчанию: 'opm'
-	 * 
-	 * @returns Путь к opm (для поиска в PATH или абсолютный путь)
+	 *
+	 * @returns Имя команды для поиска в PATH
 	 */
 	private getOpmPath(): string {
-		const config = vscode.workspace.getConfiguration('1c-platform-tools');
-		return config.get<string>('opm.path', 'opm');
+		return 'opm';
 	}
 
 	/**
@@ -229,6 +225,41 @@ export class VRunnerManager {
 		}
 		
 		return false;
+	}
+
+	/**
+	 * Проверяет, доступны ли oscript и opm (по настройкам путей или PATH).
+	 *
+	 * @returns Промис, который разрешается true, если обе утилиты доступны, иначе false
+	 */
+	public async checkOscriptAvailable(): Promise<boolean> {
+		return this.runCommandForCheck(this.getOnescriptPath(), ['-version']);
+	}
+
+	/**
+	 * Проверяет, доступен ли opm (по настройкам путей или PATH).
+	 *
+	 * @returns Промис, который разрешается true, если opm доступен, иначе false
+	 */
+	public async checkOpmAvailable(): Promise<boolean> {
+		return this.runCommandForCheck(this.getOpmPath(), ['--version']);
+	}
+
+	/**
+	 * Выполняет команду для проверки доступности (exit code 0 = успех).
+	 *
+	 * @param commandPath - Путь к исполняемому файлу (или имя для поиска в PATH)
+	 * @param args - Аргументы команды
+	 * @returns Промис, который разрешается true при exit code 0
+	 */
+	private runCommandForCheck(commandPath: string, args: string[]): Promise<boolean> {
+		return new Promise((resolve) => {
+			const quotedPath = commandPath.includes(' ') ? `"${commandPath}"` : commandPath;
+			const command = `${quotedPath} ${escapeCommandArgs(args)}`;
+			exec(command, { maxBuffer: 1024 * 1024, timeout: 10000 }, (error) => {
+				resolve(!error);
+			});
+		});
 	}
 
 	/**
@@ -464,15 +495,11 @@ export class VRunnerManager {
 
 	/**
 	 * Получает путь к OneScript
-	 * 
-	 * Путь берется из настроек VS Code (1c-platform-tools.onescriptPath).
-	 * По умолчанию: 'oscript'
-	 * 
-	 * @returns Путь к OneScript (для поиска в PATH или абсолютный путь)
+	 *
+	 * @returns Имя команды для поиска в PATH
 	 */
 	private getOnescriptPath(): string {
-		const config = vscode.workspace.getConfiguration('1c-platform-tools');
-		return config.get<string>('onescriptPath', 'oscript');
+		return 'oscript';
 	}
 
 	/**

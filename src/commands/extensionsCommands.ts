@@ -60,6 +60,9 @@ export class ExtensionsCommands extends BaseCommand {
 		if (!workspaceRoot) {
 			return;
 		}
+		if (!(await this.ensureOscriptAvailable())) {
+			return;
+		}
 
 		const extensionFolders = await this.getExtensionFoldersFromSrc(workspaceRoot);
 		if (!extensionFolders) {
@@ -125,6 +128,9 @@ export class ExtensionsCommands extends BaseCommand {
 		if (!workspaceRoot) {
 			return;
 		}
+		if (!(await this.ensureOscriptAvailable())) {
+			return;
+		}
 
 		const extensionFolders = await this.getExtensionFoldersFromSrc(workspaceRoot);
 		if (!extensionFolders) {
@@ -155,6 +161,9 @@ export class ExtensionsCommands extends BaseCommand {
 	async loadFromCfe(): Promise<void> {
 		const workspaceRoot = this.ensureWorkspace();
 		if (!workspaceRoot) {
+			return;
+		}
+		if (!(await this.ensureOscriptAvailable())) {
 			return;
 		}
 
@@ -202,6 +211,9 @@ export class ExtensionsCommands extends BaseCommand {
 		if (!workspaceRoot) {
 			return;
 		}
+		if (!(await this.ensureOscriptAvailable())) {
+			return;
+		}
 
 		const extensionFolders = await this.getExtensionFoldersFromSrc(workspaceRoot);
 		if (!extensionFolders) {
@@ -232,6 +244,9 @@ export class ExtensionsCommands extends BaseCommand {
 	async dumpToCfe(): Promise<void> {
 		const workspaceRoot = this.ensureWorkspace();
 		if (!workspaceRoot) {
+			return;
+		}
+		if (!(await this.ensureOscriptAvailable())) {
 			return;
 		}
 
@@ -272,6 +287,9 @@ export class ExtensionsCommands extends BaseCommand {
 		if (!workspaceRoot) {
 			return;
 		}
+		if (!(await this.ensureOscriptAvailable())) {
+			return;
+		}
 
 		const extensionFolders = await this.getExtensionFoldersFromSrc(workspaceRoot);
 		if (!extensionFolders) {
@@ -309,6 +327,9 @@ export class ExtensionsCommands extends BaseCommand {
 	async decompile(): Promise<void> {
 		const workspaceRoot = this.ensureWorkspace();
 		if (!workspaceRoot) {
+			return;
+		}
+		if (!(await this.ensureOscriptAvailable())) {
 			return;
 		}
 

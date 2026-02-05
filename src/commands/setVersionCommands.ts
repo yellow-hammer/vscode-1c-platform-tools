@@ -47,6 +47,9 @@ export class SetVersionCommands extends BaseCommand {
 		if (!workspaceRoot) {
 			return;
 		}
+		if (!(await this.ensureOscriptAvailable())) {
+			return;
+		}
 
 		const version = await this.askNewVersion('1.0.0');
 		if (!version) {
@@ -71,6 +74,9 @@ export class SetVersionCommands extends BaseCommand {
 	async setVersionAllExtensions(): Promise<void> {
 		const workspaceRoot = this.ensureWorkspace();
 		if (!workspaceRoot) {
+			return;
+		}
+		if (!(await this.ensureOscriptAvailable())) {
 			return;
 		}
 
@@ -99,6 +105,9 @@ export class SetVersionCommands extends BaseCommand {
 	async setVersionExtension(extensionName?: string): Promise<void> {
 		const workspaceRoot = this.ensureWorkspace();
 		if (!workspaceRoot) {
+			return;
+		}
+		if (!(await this.ensureOscriptAvailable())) {
 			return;
 		}
 
@@ -148,6 +157,9 @@ export class SetVersionCommands extends BaseCommand {
 		if (!workspaceRoot) {
 			return;
 		}
+		if (!(await this.ensureOscriptAvailable())) {
+			return;
+		}
 
 		let selected = reportName;
 		if (selected === undefined) {
@@ -193,6 +205,9 @@ export class SetVersionCommands extends BaseCommand {
 	async setVersionProcessor(processorName?: string): Promise<void> {
 		const workspaceRoot = this.ensureWorkspace();
 		if (!workspaceRoot) {
+			return;
+		}
+		if (!(await this.ensureOscriptAvailable())) {
 			return;
 		}
 

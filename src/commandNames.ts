@@ -109,12 +109,12 @@ export function getRemoveDependenciesCommandName(): CommandNameAndTitle {
 }
 
 /**
- * Получить название и заголовок для команды инициализации packagedef
+ * Получить название и заголовок для команды инициализации проекта (packagedef)
  */
 export function getInitializePackagedefCommandName(): CommandNameAndTitle {
 	return {
-		name: 'Инициализировать packagedef',
-		title: 'Инициализировать packagedef'
+		name: 'Инициализировать проект',
+		title: 'Инициализировать проект'
 	};
 }
 
@@ -129,12 +129,32 @@ export function getInitializeProjectStructureCommandName(): CommandNameAndTitle 
 }
 
 /**
- * Получить название и заголовок для команды обновления OPM
+ * Получить название и заголовок для команды установки OPM
  */
 export function getUpdateOpmCommandName(): CommandNameAndTitle {
 	return {
-		name: 'Обновить OPM',
-		title: 'Обновить OPM'
+		name: 'Установить OPM',
+		title: 'Установить OPM'
+	};
+}
+
+/**
+ * Получить название и заголовок для команды установки OneScript
+ */
+export function getInstallOneScriptCommandName(): CommandNameAndTitle {
+	return {
+		name: 'Установить OneScript',
+		title: 'Установить OneScript'
+	};
+}
+
+/**
+ * Получить название и заголовок для команды настройки Git
+ */
+export function getSetupGitCommandName(): CommandNameAndTitle {
+	return {
+		name: 'Настроить Git',
+		title: 'Настроить Git'
 	};
 }
 

@@ -28,6 +28,28 @@ export abstract class BaseCommand {
 	}
 
 	/**
+	 * Проверяет наличие OneScript (oscript и opm). При отсутствии предлагает установить через OVM.
+	 *
+	 * @returns Промис, который разрешается true, если oscript и opm доступны или пользователь запустил установку; false при отмене
+	 */
+	protected async ensureOscriptAvailable(): Promise<boolean> {
+		const oscriptOk = await this.vrunner.checkOscriptAvailable();
+		const opmOk = await this.vrunner.checkOpmAvailable();
+		if (oscriptOk && opmOk) {
+			return true;
+		}
+		const action = await vscode.window.showWarningMessage(
+			'OneScript не найден. Установить через OVM?',
+			'Установить OneScript',
+			'Отмена'
+		);
+		if (action === 'Установить OneScript') {
+			await vscode.commands.executeCommand('1c-platform-tools.dependencies.installOscript');
+		}
+		return false;
+	}
+
+	/**
 	 * Проверяет существование директории
 	 * @param dirPath - Путь к директории
 	 * @param errorMessage - Сообщение об ошибке, если директория не существует

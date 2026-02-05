@@ -34,6 +34,9 @@ export class ExternalFilesCommands extends BaseCommand {
 		if (!workspaceRoot) {
 			return;
 		}
+		if (!(await this.ensureOscriptAvailable())) {
+			return;
+		}
 
 		const srcFolder = fileType === 'processor' ? this.vrunner.getEpfPath() : this.vrunner.getErfPath();
 		const srcPath = path.join(workspaceRoot, srcFolder);
@@ -76,6 +79,9 @@ export class ExternalFilesCommands extends BaseCommand {
 	async decompile(fileType: ExternalFileType = 'processor'): Promise<void> {
 		const workspaceRoot = this.ensureWorkspace();
 		if (!workspaceRoot) {
+			return;
+		}
+		if (!(await this.ensureOscriptAvailable())) {
 			return;
 		}
 

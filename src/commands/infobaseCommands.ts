@@ -29,6 +29,9 @@ export class InfobaseCommands extends BaseCommand {
 		if (!workspaceRoot) {
 			return;
 		}
+		if (!(await this.ensureOscriptAvailable())) {
+			return;
+		}
 
 		const ibConnectionParam = await this.vrunner.getIbConnectionParam();
 		const args = this.addIbcmdIfNeeded(['init-dev', ...ibConnectionParam]);
@@ -48,6 +51,9 @@ export class InfobaseCommands extends BaseCommand {
 	async updateDatabase(): Promise<void> {
 		const workspaceRoot = this.ensureWorkspace();
 		if (!workspaceRoot) {
+			return;
+		}
+		if (!(await this.ensureOscriptAvailable())) {
 			return;
 		}
 
@@ -80,6 +86,9 @@ export class InfobaseCommands extends BaseCommand {
 		if (!workspaceRoot) {
 			return;
 		}
+		if (!(await this.ensureOscriptAvailable())) {
+			return;
+		}
 
 		const ibConnectionParam = await this.vrunner.getIbConnectionParam();
 		const commandName = getBlockExternalResourcesCommandName();
@@ -110,6 +119,9 @@ export class InfobaseCommands extends BaseCommand {
 		if (!workspaceRoot) {
 			return;
 		}
+		if (!(await this.ensureOscriptAvailable())) {
+			return;
+		}
 
 		const ibConnectionParam = await this.vrunner.getIbConnectionParam();
 		const commandName = getInitializeCommandName();
@@ -136,6 +148,9 @@ export class InfobaseCommands extends BaseCommand {
 	async dumpToDt(): Promise<void> {
 		const workspaceRoot = this.ensureWorkspace();
 		if (!workspaceRoot) {
+			return;
+		}
+		if (!(await this.ensureOscriptAvailable())) {
 			return;
 		}
 
@@ -172,6 +187,9 @@ export class InfobaseCommands extends BaseCommand {
 	async loadFromDt(): Promise<void> {
 		const workspaceRoot = this.ensureWorkspace();
 		if (!workspaceRoot) {
+			return;
+		}
+		if (!(await this.ensureOscriptAvailable())) {
 			return;
 		}
 
