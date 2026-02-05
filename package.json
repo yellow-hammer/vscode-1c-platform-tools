@@ -225,6 +225,11 @@
         "category": "1C: Внешние файлы"
       },
       {
+        "command": "1c-platform-tools.dependencies.initializeProjectStructure",
+        "title": "Инициализировать структуру проекта",
+        "category": "1C: Зависимости"
+      },
+      {
         "command": "1c-platform-tools.dependencies.initializePackagedef",
         "title": "Инициализировать packagedef",
         "category": "1C: Зависимости"

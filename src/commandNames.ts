@@ -119,6 +119,16 @@ export function getInitializePackagedefCommandName(): CommandNameAndTitle {
 }
 
 /**
+ * Получить название и заголовок для команды инициализации структуры проекта
+ */
+export function getInitializeProjectStructureCommandName(): CommandNameAndTitle {
+	return {
+		name: 'Инициализировать структуру проекта',
+		title: 'Инициализировать структуру проекта'
+	};
+}
+
+/**
  * Получить название и заголовок для команды обновления OPM
  */
 export function getUpdateOpmCommandName(): CommandNameAndTitle {

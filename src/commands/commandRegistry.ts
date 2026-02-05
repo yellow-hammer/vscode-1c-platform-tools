@@ -139,6 +139,9 @@ export function registerCommands(context: vscode.ExtensionContext, commands: Com
 
 	// Команды зависимостей
 	const dependenciesCommands = [
+		vscode.commands.registerCommand('1c-platform-tools.dependencies.initializeProjectStructure', () => {
+			commands.dependencies.initializeProjectStructure();
+		}),
 		vscode.commands.registerCommand('1c-platform-tools.dependencies.install', () => {
 			commands.dependencies.installDependencies();
 		}),

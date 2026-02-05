@@ -13,6 +13,7 @@ import {
 	getInstallDependenciesCommandName,
 	getRemoveDependenciesCommandName,
 	getInitializePackagedefCommandName,
+	getInitializeProjectStructureCommandName,
 	getUpdateOpmCommandName,
 	getLoadConfigurationFromSrcCommandName,
 	getLoadConfigurationIncrementFromSrcCommandName,
@@ -129,6 +130,7 @@ export const TREE_GROUPS: TreeGroup[] = [
 		sectionType: 'dependency',
 		defaultCollapsibleState: 'collapsed',
 		commands: [
+			{ command: '1c-platform-tools.dependencies.initializeProjectStructure', title: getInitializeProjectStructureCommandName().title, treeLabel: '📁 Инициализировать структуру проекта' },
 			{ command: '1c-platform-tools.dependencies.initializePackagedef', title: getInitializePackagedefCommandName().title, treeLabel: '📝 Инициализировать packagedef' },
 			{ command: '1c-platform-tools.dependencies.updateOpm', title: getUpdateOpmCommandName().title, treeLabel: '📦 Обновить OPM' },
 			{ command: '1c-platform-tools.dependencies.install', title: getInstallDependenciesCommandName().title, treeLabel: '📦 Установить зависимости' },

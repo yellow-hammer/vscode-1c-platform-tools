@@ -5,6 +5,7 @@ import { BaseCommand } from './baseCommand';
 import { getInstallDependenciesCommandName, getUpdateOpmCommandName } from '../commandNames';
 import { logger } from '../logger';
 import { notifyProjectCreated } from '../projectContext';
+import { PROJECT_STRUCTURE } from '../projectStructure';
 
 /**
  * Команды для управления зависимостями проекта
@@ -171,6 +172,55 @@ export class DependenciesCommands extends BaseCommand {
 			logger.error(`Не удалось создать файл packagedef: ${errMsg}. Путь: ${packagedefPath}`);
 			logger.show();
 			vscode.window.showErrorMessage(`Не удалось создать файл packagedef: ${errMsg}`);
+		}
+	}
+
+	/**
+	 * Инициализирует структуру каталогов проекта по шаблону vanessa-bootstrap.
+	 *
+	 * Создаёт каталоги и помещает в каждый README.md с кратким описанием.
+	 * Существующие каталоги и файлы README не перезаписываются.
+	 *
+	 * @returns Промис, который разрешается после создания структуры
+	 */
+	async initializeProjectStructure(): Promise<void> {
+		const workspaceRoot = this.ensureWorkspace();
+		if (!workspaceRoot) {
+			return;
+		}
+
+		let createdDirs = 0;
+		let createdReadmes = 0;
+
+		try {
+			for (const item of PROJECT_STRUCTURE) {
+				const dirPath = path.join(workspaceRoot, item.path);
+				const readmePath = path.join(dirPath, 'README.md');
+
+				await fs.mkdir(dirPath, { recursive: true });
+				createdDirs += 1;
+
+				try {
+					await fs.access(readmePath);
+					// README уже есть — не перезаписываем
+				} catch {
+					await fs.writeFile(readmePath, item.readmeContent, 'utf-8');
+					createdReadmes += 1;
+				}
+			}
+
+			logger.info(
+				`Структура проекта создана: каталогов=${createdDirs}, новых README=${createdReadmes}. Workspace: ${workspaceRoot}`
+			);
+			vscode.window.showInformationMessage(
+				`Структура проекта создана: ${createdDirs} каталогов, ${createdReadmes} файлов README`
+			);
+			notifyProjectCreated();
+		} catch (error) {
+			const errMsg = (error as Error).message;
+			logger.error(`Не удалось создать структуру проекта: ${errMsg}. Workspace: ${workspaceRoot}`);
+			logger.show();
+			vscode.window.showErrorMessage(`Не удалось создать структуру проекта: ${errMsg}`);
 		}
 	}
 }
