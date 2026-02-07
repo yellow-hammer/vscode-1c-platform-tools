@@ -4,6 +4,7 @@ import * as fs from 'node:fs/promises';
 import { BaseCommand } from './baseCommand';
 import {
 	getCreateEmptyInfobaseCommandName,
+	getUpdateInfobaseCommandName,
 	getUpdateDatabaseCommandName,
 	getBlockExternalResourcesCommandName,
 	getInitializeCommandName,
@@ -36,6 +37,26 @@ export class InfobaseCommands extends BaseCommand {
 		const ibConnectionParam = await this.vrunner.getIbConnectionParam();
 		const args = this.addIbcmdIfNeeded(['init-dev', ...ibConnectionParam]);
 		const commandName = getCreateEmptyInfobaseCommandName();
+
+		this.vrunner.executeVRunnerInTerminal(args, {
+			cwd: workspaceRoot,
+			name: commandName.title
+		});
+	}
+
+	/**
+	 * Обновляет информационную базу (vrunner updatedb).
+	 * @returns Промис, который разрешается после запуска команды
+	 */
+	async updateInfobase(): Promise<void> {
+		const workspaceRoot = this.ensureWorkspace();
+		if (!workspaceRoot) {
+			return;
+		}
+
+		const ibConnectionParam = await this.vrunner.getIbConnectionParam();
+		const args = this.addIbcmdIfNeeded(['updatedb', ...ibConnectionParam]);
+		const commandName = getUpdateInfobaseCommandName();
 
 		this.vrunner.executeVRunnerInTerminal(args, {
 			cwd: workspaceRoot,

@@ -5,6 +5,7 @@
 
 import {
 	getCreateEmptyInfobaseCommandName,
+	getUpdateInfobaseCommandName,
 	getUpdateDatabaseCommandName,
 	getBlockExternalResourcesCommandName,
 	getInitializeCommandName,
@@ -44,7 +45,13 @@ import {
 	getSyntaxCheckCommandName,
 	getVanessaTestsCommandName,
 	getAllureReportCommandName,
-	getSetVersionConfigurationCommandName
+	getSetVersionConfigurationCommandName,
+	getUpdateCfgSupportCommandName,
+	getDisableCfgSupportCommandName,
+	getCreateTemplateListFileCommandName,
+	getCreateDeliveryDescriptionFileCommandName,
+	getCreateDistributivePackageCommandName,
+	getCreateDistributionFilesCommandName
 } from './commandNames';
 
 /** Элемент команды в группе (одна строка в дереве и в списке избранного) */
@@ -78,6 +85,7 @@ export const TREE_GROUPS: TreeGroup[] = [
 		defaultCollapsibleState: 'collapsed',
 		commands: [
 			{ command: '1c-platform-tools.infobase.createEmpty', title: getCreateEmptyInfobaseCommandName().title, treeLabel: '➕ Создать пустую ИБ' },
+			{ command: '1c-platform-tools.infobase.updateInfobase', title: getUpdateInfobaseCommandName().title, treeLabel: '🔄 Обновить ИБ' },
 			{ command: '1c-platform-tools.infobase.updateDatabase', title: getUpdateDatabaseCommandName().title, treeLabel: '🔄 Постобработка обновления' },
 			{ command: '1c-platform-tools.infobase.blockExternalResources', title: getBlockExternalResourcesCommandName().title, treeLabel: '🚫 Запретить работу с внешними ресурсами' },
 			{ command: '1c-platform-tools.infobase.initialize', title: getInitializeCommandName().title, treeLabel: '🚀 Инициализировать данные' },
@@ -97,7 +105,6 @@ export const TREE_GROUPS: TreeGroup[] = [
 			{ command: '1c-platform-tools.configuration.dumpToSrc', title: getDumpConfigurationToSrcCommandName().title, treeLabel: '📤 Выгрузить в src/cf' },
 			{ command: '1c-platform-tools.configuration.dumpIncrementToSrc', title: getDumpConfigurationIncrementToSrcCommandName().title, treeLabel: '📤 Выгрузить изменения в src/cf' },
 			{ command: '1c-platform-tools.configuration.dumpToCf', title: getDumpConfigurationToCfCommandName().title, treeLabel: '📤 Выгрузить в 1Cv8.cf' },
-			{ command: '1c-platform-tools.configuration.dumpToDist', title: getDumpConfigurationToDistCommandName().title, treeLabel: '📦 Выгрузить файл поставки в 1Cv8dist.cf' },
 			{ command: '1c-platform-tools.configuration.build', title: getBuildConfigurationCommandName().title, treeLabel: '🔨 Собрать 1Cv8.cf из src/cf' },
 			{ command: '1c-platform-tools.configuration.decompile', title: getDecompileConfigurationCommandName().title, treeLabel: '🔓 Разобрать 1Cv8.cf в src/cf' },
 		],
@@ -124,7 +131,28 @@ export const TREE_GROUPS: TreeGroup[] = [
 			{ command: '1c-platform-tools.externalReports.build', title: getBuildExternalReportCommandName().title, treeLabel: '🔨 Собрать внешний отчет' },
 			{ command: '1c-platform-tools.externalProcessors.decompile', title: getDecompileExternalProcessorCommandName().title, treeLabel: '🔓 Разобрать внешнюю обработку' },
 			{ command: '1c-platform-tools.externalReports.decompile', title: getDecompileExternalReportCommandName().title, treeLabel: '🔓 Разобрать внешний отчет' },
-			{ command: '1c-platform-tools.externalFiles.clearCache', title: getClearCacheCommandName().title, treeLabel: '🗑️ Очистить кэш' },
+			{ command: '1c-platform-tools.externalFiles.clearCache', title: getClearCacheCommandName().title, treeLabel: '🗑️ Удалить кэш' },
+		],
+	},
+	{
+		groupLabel: 'Поддержка',
+		sectionType: 'support',
+		defaultCollapsibleState: 'collapsed',
+		commands: [
+			{ command: '1c-platform-tools.configuration.dumpToDist', title: getDumpConfigurationToDistCommandName().title, treeLabel: '📤 Выгрузить в 1Cv8dist.cf' },
+			{ command: '1c-platform-tools.support.updateCfg', title: getUpdateCfgSupportCommandName().title, treeLabel: '📥 Загрузить из cf/cfu' },
+			{ command: '1c-platform-tools.support.disableCfgSupport', title: getDisableCfgSupportCommandName().title, treeLabel: '🗑️ Удалить' },
+		],
+	},
+	{
+		groupLabel: 'Поставка',
+		sectionType: 'delivery',
+		defaultCollapsibleState: 'collapsed',
+		commands: [
+			{ command: '1c-platform-tools.support.createDeliveryDescriptionFile', title: getCreateDeliveryDescriptionFileCommandName().title, treeLabel: '📄 Создать файл описания шаблона поставки' },
+			{ command: '1c-platform-tools.support.createDistributionFiles', title: getCreateDistributionFilesCommandName().title, treeLabel: '📦 Создать файлы поставки и обновления (cf/cfu)' },
+			{ command: '1c-platform-tools.support.createDistributivePackage', title: getCreateDistributivePackageCommandName().title, treeLabel: '📦 Создать комплект' },
+			{ command: '1c-platform-tools.support.createTemplateListFile', title: getCreateTemplateListFileCommandName().title, treeLabel: '📄 Создать файл списка шаблонов' },
 		],
 	},
 	{

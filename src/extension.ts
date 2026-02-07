@@ -8,6 +8,7 @@ import { InfobaseCommands } from './commands/infobaseCommands';
 import { ConfigurationCommands } from './commands/configurationCommands';
 import { ExtensionsCommands } from './commands/extensionsCommands';
 import { ExternalFilesCommands } from './commands/externalFilesCommands';
+import { SupportCommands } from './commands/supportCommands';
 import { DependenciesCommands } from './commands/dependenciesCommands';
 import { RunCommands } from './commands/runCommands';
 import { TestCommands } from './commands/testCommands';
@@ -189,6 +190,7 @@ export async function activate(context: vscode.ExtensionContext) {
 		configuration: new ConfigurationCommands(),
 		extensions: new ExtensionsCommands(),
 		externalFiles: new ExternalFilesCommands(),
+		support: new SupportCommands(),
 		dependencies: new DependenciesCommands(),
 		run: new RunCommands(),
 		test: new TestCommands(),

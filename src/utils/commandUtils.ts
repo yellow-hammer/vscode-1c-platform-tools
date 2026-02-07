@@ -458,6 +458,47 @@ export function buildDockerCommand(
 }
 
 /**
+ * Экранирует строку для передачи как один аргумент в двойных кавычках на хосте.
+ * Нужно для формирования -c "..." в docker run --entrypoint /bin/sh.
+ */
+function escapeForHostDoubleQuoted(inner: string, shellType: ShellType): string {
+	if (shellType === 'powershell') {
+		return inner.replaceAll('`', '``').replaceAll('"', '`"');
+	}
+	// cmd, bash, sh, zsh: внутри "..." экранируем \ и "
+	const backslash = '\\';
+	return inner.replaceAll(backslash, backslash + backslash).replaceAll('"', backslash + '"');
+}
+
+/**
+ * Формирует команду Docker для последовательного выполнения нескольких команд vrunner в контейнере.
+ * Запускает sh -c "vrunner args1 && vrunner args2 && ..." в одном контейнере.
+ *
+ * @param dockerImage - Docker-образ с ENTRYPOINT vrunner
+ * @param vrunnerArgsArray - Массив наборов аргументов (каждый набор — одна команда vrunner)
+ * @param workspaceRoot - Корневая директория workspace
+ * @param shellType - Тип оболочки терминала хоста
+ */
+export function buildDockerCommandSequence(
+	dockerImage: string,
+	vrunnerArgsArray: string[][],
+	workspaceRoot: string,
+	shellType?: ShellType
+): string {
+	const shell = shellType || detectShellType();
+	const normalizedWorkspace = normalizePathForShell(workspaceRoot, shell);
+	const volumeMount = `-v "${normalizedWorkspace}:/workspace"`;
+	const workDir = `-w /workspace`;
+	const innerParts = vrunnerArgsArray.map((args) => {
+		const normalizedArgs = args.map((arg) => normalizeArgForShell(arg, shell));
+		return 'vrunner ' + escapeCommandArgs(normalizedArgs, 'bash');
+	});
+	const innerCommand = innerParts.join(' && ');
+	const escapedInner = escapeForHostDoubleQuoted(innerCommand, shell);
+	return `docker run --rm ${volumeMount} ${workDir} --entrypoint /bin/sh ${dockerImage} -c "${escapedInner}"`;
+}
+
+/**
  * Нормализует путь к информационной базе для работы в Docker-контейнере
  * 
  * Преобразует пути в формат, понятный внутри контейнера:

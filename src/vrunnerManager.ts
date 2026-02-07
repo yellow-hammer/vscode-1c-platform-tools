@@ -4,7 +4,7 @@ import * as path from 'node:path';
 import * as fs from 'node:fs/promises';
 import * as fsSync from 'node:fs';
 import * as os from 'node:os';
-import { escapeCommandArgs, buildCommand, detectShellType, ShellType, normalizeArgForShell, buildDockerCommand, normalizeIbPathForDocker } from './utils/commandUtils';
+import { escapeCommandArgs, buildCommand, joinCommands, detectShellType, ShellType, normalizeArgForShell, buildDockerCommand, buildDockerCommandSequence, normalizeIbPathForDocker } from './utils/commandUtils';
 import { logger } from './logger';
 
 /**
@@ -154,6 +154,19 @@ export class VRunnerManager {
 	public getOutPath(): string {
 		const config = vscode.workspace.getConfiguration('1c-platform-tools');
 		return config.get<string>('paths.out', 'build/out');
+	}
+
+	/**
+	 * Получает путь к каталогу хранения шаблонов (cf, cfu, настройки объединения и т.д.)
+	 *
+	 * Путь берётся из настроек VS Code (1c-platform-tools.paths.dist).
+	 * По умолчанию: 'build/dist'
+	 *
+	 * @returns Путь к каталогу шаблонов (относительно workspace)
+	 */
+	public getDistPath(): string {
+		const config = vscode.workspace.getConfiguration('1c-platform-tools');
+		return config.get<string>('paths.dist', 'build/dist');
 	}
 
 	/**
@@ -312,7 +325,7 @@ export class VRunnerManager {
 	 * Проверяет, поддерживает ли команда vrunner параметр --ibcmd
 	 * 
 	 * Команды, которые поддерживают --ibcmd:
-	 * - Операции с информационными базами: init-dev, update-dev, dump, restore, dump-dt, load-dt
+	 * - Операции с информационными базами: init-dev, update-dev, updatedb, dump, restore, dump-dt, load-dt
 	 * - Операции с конфигурацией: load, dump, dumpcf, compile, decompile
 	 * - Операции с расширениями: compileext, decompileext, unloadext, compileexttocfe
 	 * - Операции с внешними файлами: compileepf, decompileepf
@@ -334,10 +347,11 @@ export class VRunnerManager {
 		// Команды, которые поддерживают --ibcmd
 		const ibcmdSupportedCommands = [
 			// Информационные базы
-			'init-dev', 
+			'init-dev',
 			'update-dev',
-			'dump',       
-			'restore',    
+			'updatedb',
+			'dump',
+			'restore',
 
 			// Конфигурация
 			'load',       
@@ -581,6 +595,87 @@ export class VRunnerManager {
 		});
 
 		terminal.sendText(command);
+		terminal.show();
+	}
+
+	/**
+	 * Выполняет несколько команд vrunner последовательно в одном терминале (без Docker)
+	 * или в отдельных терминалах (при использовании Docker).
+	 * Используется, когда после основной операции нужно выполнить updatedb и т.п.
+	 *
+	 * @param argsArray - Массив наборов аргументов (каждый набор — одна команда vrunner)
+	 * @param options - Опции выполнения (cwd, name, shellType)
+	 */
+	public async executeVRunnerCommandsInSequence(
+		argsArray: string[][],
+		options?: { cwd?: string; env?: NodeJS.ProcessEnv; name?: string; shellType?: ShellType }
+	): Promise<void> {
+		if (argsArray.length === 0) {
+			return;
+		}
+		if (argsArray.length === 1) {
+			await this.executeVRunnerInTerminal(argsArray[0], options);
+			return;
+		}
+
+		const cwd = options?.cwd || this.workspaceRoot || os.homedir();
+		const shellType = options?.shellType || detectShellType();
+		const useDocker = await this.shouldUseDocker();
+		let command: string;
+
+		if (useDocker) {
+			if (!this.workspaceRoot) {
+				logger.error('Для использования Docker необходимо открыть рабочую область');
+				vscode.window.showErrorMessage('Для использования Docker необходимо открыть рабочую область');
+				return;
+			}
+			if (!this.supportsIbcmd(argsArray[0])) {
+				const commandName = argsArray[0][0] || 'команда';
+				logger.warn(`Команда "${commandName}" не поддерживает --ibcmd, необходимый для Docker`);
+				const action = await vscode.window.showWarningMessage(
+					`Команда "${commandName}" не поддерживает параметр --ibcmd, который необходим для работы в Docker. ` +
+					'Продолжить выполнение?',
+					'Да',
+					'Нет'
+				);
+				if (action !== 'Да') {
+					return;
+				}
+			}
+			try {
+				const dockerImage = this.getDockerImage();
+				const processedArgsArray = argsArray.map((args) => this.processCommandArgsForDocker(args));
+				command = buildDockerCommandSequence(dockerImage, processedArgsArray, this.workspaceRoot, shellType);
+				logger.debug(`VRunner в Docker (последовательно): образ=${dockerImage}, команд=${processedArgsArray.length}`);
+			} catch (error) {
+				const errMsg = (error as Error).message;
+				logger.error(`Ошибка при подготовке команды Docker: ${errMsg}`);
+				vscode.window.showErrorMessage(errMsg);
+				return;
+			}
+			const terminal = vscode.window.createTerminal({
+				name: options?.name || '1C Platform Tools',
+				cwd: cwd,
+				env: options?.env ? { ...process.env, ...options.env } : undefined
+			});
+			terminal.sendText(command);
+			terminal.show();
+			return;
+		}
+
+		const vrunnerPath = this.getVRunnerPath();
+		const commands = argsArray.map((args) => {
+			const processedArgs = this.processCommandArgs(args, cwd, shellType);
+			return buildCommand(vrunnerPath, processedArgs, shellType);
+		});
+		const fullCommand = joinCommands(commands, shellType);
+
+		const terminal = vscode.window.createTerminal({
+			name: options?.name || '1C Platform Tools',
+			cwd: cwd,
+			env: options?.env ? { ...process.env, ...options.env } : undefined
+		});
+		terminal.sendText(fullCommand);
 		terminal.show();
 	}
 
