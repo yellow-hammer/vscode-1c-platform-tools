@@ -19,6 +19,16 @@ export function getCreateEmptyInfobaseCommandName(): CommandNameAndTitle {
 }
 
 /**
+ * Получить название и заголовок для команды обновления информационной базы (vrunner updatedb)
+ */
+export function getUpdateInfobaseCommandName(): CommandNameAndTitle {
+	return {
+		name: 'Обновить ИБ',
+		title: 'Обновить ИБ'
+	};
+}
+
+/**
  * Получить название и заголовок для команды загрузки конфигурации из *.cf
  */
 export function getLoadConfigurationFromCfCommandName(): CommandNameAndTitle {
@@ -233,8 +243,8 @@ export function getDecompileExternalReportCommandName(): CommandNameAndTitle {
  */
 export function getClearCacheCommandName(): CommandNameAndTitle {
 	return {
-		name: 'Очистить кэш',
-		title: 'Очистить кэш'
+		name: 'Удалить кэш',
+		title: 'Удалить кэш'
 	};
 }
 
@@ -369,8 +379,8 @@ export function getDumpConfigurationToCfCommandName(): CommandNameAndTitle {
  */
 export function getDumpConfigurationToDistCommandName(): CommandNameAndTitle {
 	return {
-		name: 'Выгрузить файл поставки в 1Cv8dist.cf',
-		title: 'Выгрузить файл поставки в 1Cv8dist.cf'
+		name: 'Выгрузить в 1Cv8dist.cf',
+		title: 'Выгрузить в 1Cv8dist.cf'
 	};
 }
 
@@ -502,5 +512,69 @@ export function getSetVersionProcessorCommandName(processorName: string): Comman
 	return {
 		name: processorName,
 		title: processorName
+	};
+}
+
+// ============================================================================
+// Команды поддержки конфигурации (designer --additional)
+// ============================================================================
+
+/**
+ * Получить название и заголовок для команды обновления конфигурации на поддержке (UpdateCfg)
+ */
+export function getUpdateCfgSupportCommandName(): CommandNameAndTitle {
+	return {
+		name: 'Загрузить из cf/cfu',
+		title: 'Загрузить из cf/cfu'
+	};
+}
+
+/**
+ * Получить название и заголовок для команды снятия конфигурации с поддержки
+ */
+export function getDisableCfgSupportCommandName(): CommandNameAndTitle {
+	return {
+		name: 'Удалить',
+		title: 'Удалить'
+	};
+}
+
+/**
+ * Получить название и заголовок для команды создания файла списка шаблонов конфигураций
+ */
+export function getCreateTemplateListFileCommandName(): CommandNameAndTitle {
+	return {
+		name: 'Создать файл списка шаблонов',
+		title: 'Создать файл списка шаблонов'
+	};
+}
+
+/**
+ * Получить название и заголовок для команды создания файла описания комплекта поставки (edf) по шаблону
+ */
+export function getCreateDeliveryDescriptionFileCommandName(): CommandNameAndTitle {
+	return {
+		name: 'Создать файл описания шаблона поставки',
+		title: 'Создать файл описания шаблона поставки'
+	};
+}
+
+/**
+ * Получить название и заголовок для команды создания комплекта поставки (/CreateDistributivePackage)
+ */
+export function getCreateDistributivePackageCommandName(): CommandNameAndTitle {
+	return {
+		name: 'Создать комплект',
+		title: 'Создать комплект'
+	};
+}
+
+/**
+ * Получить название и заголовок для команды создания файлов поставки и обновления (cf/cfu)
+ */
+export function getCreateDistributionFilesCommandName(): CommandNameAndTitle {
+	return {
+		name: 'Создать файлы поставки и обновления (cf/cfu)',
+		title: 'Создать файлы поставки и обновления (cf/cfu)'
 	};
 }

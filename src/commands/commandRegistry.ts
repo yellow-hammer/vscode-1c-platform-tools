@@ -5,6 +5,7 @@ import { InfobaseCommands } from './infobaseCommands';
 import { ConfigurationCommands } from './configurationCommands';
 import { ExtensionsCommands } from './extensionsCommands';
 import { ExternalFilesCommands } from './externalFilesCommands';
+import { SupportCommands } from './supportCommands';
 import { DependenciesCommands } from './dependenciesCommands';
 import { RunCommands } from './runCommands';
 import { TestCommands } from './testCommands';
@@ -20,6 +21,7 @@ interface Commands {
 	configuration: ConfigurationCommands;
 	extensions: ExtensionsCommands;
 	externalFiles: ExternalFilesCommands;
+	support: SupportCommands;
 	dependencies: DependenciesCommands;
 	run: RunCommands;
 	test: TestCommands;
@@ -41,6 +43,9 @@ export function registerCommands(context: vscode.ExtensionContext, commands: Com
 	const infobaseCommands = [
 		vscode.commands.registerCommand('1c-platform-tools.infobase.createEmpty', () => {
 			commands.infobase.createEmptyInfobase();
+		}),
+		vscode.commands.registerCommand('1c-platform-tools.infobase.updateInfobase', () => {
+			commands.infobase.updateInfobase();
 		}),
 		vscode.commands.registerCommand('1c-platform-tools.infobase.updateDatabase', () => {
 			commands.infobase.updateDatabase();
@@ -134,6 +139,28 @@ export function registerCommands(context: vscode.ExtensionContext, commands: Com
 		}),
 		vscode.commands.registerCommand('1c-platform-tools.externalFiles.clearCache', () => {
 			commands.externalFiles.clearCache();
+		})
+	];
+
+	// Команды поддержки и поставки
+	const supportCommands = [
+		vscode.commands.registerCommand('1c-platform-tools.support.updateCfg', () => {
+			commands.support.updateCfg();
+		}),
+		vscode.commands.registerCommand('1c-platform-tools.support.disableCfgSupport', () => {
+			commands.support.disableCfgSupport();
+		}),
+		vscode.commands.registerCommand('1c-platform-tools.support.createDeliveryDescriptionFile', () => {
+			commands.support.createDeliveryDescriptionFile();
+		}),
+		vscode.commands.registerCommand('1c-platform-tools.support.createTemplateListFile', () => {
+			commands.support.createTemplateListFile();
+		}),
+		vscode.commands.registerCommand('1c-platform-tools.support.createDistributivePackage', () => {
+			commands.support.createDistributivePackage();
+		}),
+		vscode.commands.registerCommand('1c-platform-tools.support.createDistributionFiles', () => {
+			commands.support.createDistributionFiles();
 		})
 	];
 
@@ -254,6 +281,7 @@ export function registerCommands(context: vscode.ExtensionContext, commands: Com
 		...configurationCommands,
 		...extensionsCommands,
 		...externalFilesCommands,
+		...supportCommands,
 		...dependenciesCommands,
 		...runCommands,
 		...testCommands,

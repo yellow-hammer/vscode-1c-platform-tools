@@ -90,6 +90,11 @@
         "category": "1C: Информационная база"
       },
       {
+        "command": "1c-platform-tools.infobase.updateInfobase",
+        "title": "Обновить ИБ",
+        "category": "1C: Информационная база"
+      },
+      {
         "command": "1c-platform-tools.infobase.updateDatabase",
         "title": "Постобработка обновления",
         "category": "1C: Информационная база"
@@ -156,8 +161,8 @@
       },
       {
         "command": "1c-platform-tools.configuration.dumpToDist",
-        "title": "Выгрузить файл поставки в 1Cv8dist.cf",
-        "category": "1C: Конфигурация"
+        "title": "Выгрузить в 1Cv8dist.cf",
+        "category": "1C: Поддержка"
       },
       {
         "command": "1c-platform-tools.configuration.build",
@@ -221,8 +226,38 @@
       },
       {
         "command": "1c-platform-tools.externalFiles.clearCache",
-        "title": "Очистить кэш",
+        "title": "Удалить кэш",
         "category": "1C: Внешние файлы"
+      },
+      {
+        "command": "1c-platform-tools.support.updateCfg",
+        "title": "Загрузить из cf/cfu",
+        "category": "1C: Поддержка"
+      },
+      {
+        "command": "1c-platform-tools.support.disableCfgSupport",
+        "title": "Удалить",
+        "category": "1C: Поддержка"
+      },
+      {
+        "command": "1c-platform-tools.support.createDeliveryDescriptionFile",
+        "title": "Создать файл описания шаблона поставки",
+        "category": "1C: Поставка"
+      },
+      {
+        "command": "1c-platform-tools.support.createDistributivePackage",
+        "title": "Создать комплект",
+        "category": "1C: Поставка"
+      },
+      {
+        "command": "1c-platform-tools.support.createTemplateListFile",
+        "title": "Создать файл списка шаблонов",
+        "category": "1C: Поставка"
+      },
+      {
+        "command": "1c-platform-tools.support.createDistributionFiles",
+        "title": "Создать файлы поставки и обновления (cf/cfu)",
+        "category": "1C: Поставка"
       },
       {
         "command": "1c-platform-tools.dependencies.initializeProjectStructure",
@@ -400,17 +435,17 @@
     "menus": {
       "view/title": [
         {
-          "command": "1c-platform-tools.refresh",
-          "when": "view == 1c-platform-tools",
-          "group": "navigation"
-        },
-        {
           "command": "1c-platform-tools.favorites.configure",
           "when": "view == 1c-platform-tools",
           "group": "navigation"
         },
         {
           "command": "1c-platform-tools.settings",
+          "when": "view == 1c-platform-tools",
+          "group": "navigation"
+        },
+        {
+          "command": "1c-platform-tools.refresh",
           "when": "view == 1c-platform-tools",
           "group": "navigation"
         }
@@ -439,6 +474,11 @@
           "type": "string",
           "default": "build/out",
           "description": "Путь к результатам сборки"
+        },
+        "1c-platform-tools.paths.dist": {
+          "type": "string",
+          "default": "build/dist",
+          "description": "Каталог хранения шаблонов (cf, cfu, файлы настроек объединения). Используется в группе «Поддержка» при выборе файлов."
         },
         "1c-platform-tools.paths.cf": {
           "type": "string",
