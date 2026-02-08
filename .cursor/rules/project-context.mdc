@@ -12,11 +12,12 @@ alwaysApply: true
 - **Точка входа**: `src/extension.ts`, активация при наличии `packagedef` в корне workspace
 - **Команды**: префикс `1c-platform-tools.{domain}.{action}`, регистрация в `src/commands/commandRegistry.ts` (интерфейс Commands — без oscriptTasks; OscriptTasksCommands создаётся в extension.ts для динамических узлов дерева)
 - **TreeView**: `PlatformTreeDataProvider` в `src/treeViewProvider.ts`, структура дерева и избранного — `src/treeStructure.ts` (TREE_GROUPS). Динамические узлы: избранное, «Установить версию», «Задачи (oscript)», «Конфигурации запуска» — заполняются в treeViewProvider и extension.ts
+- **Панель «Список дел»**: нижняя панель (view container), провайдер `TodoPanelTreeDataProvider` в `src/todoPanelView.ts`, сканирование — `src/todoScanner.ts`. Фильтры по тегу и области, группировка по файлу; не использует vrunner
 - **Базовый класс команд**: `BaseCommand` в `src/commands/baseCommand.ts`
 - **vrunner**: синглтон `VRunnerManager` в `src/vrunnerManager.ts`
 - **Структура проекта 1С**: `src/projectStructure.ts` (PROJECT_STRUCTURE для команды «Инициализировать структуру проекта», шаблон vanessa-bootstrap)
 - **Контекст после создания проекта**: `src/projectContext.ts` (setOnProjectCreated, notifyProjectCreated — полная активация после инициализации packagedef)
-- **Остальные модули**: `favorites.ts`, `commandNames.ts`, `constants.ts`, `logger.ts`, `src/utils/` (commandUtils, configVersionUtils, dateUtils)
+- **Остальные модули**: `favorites.ts`, `commandNames.ts`, `constants.ts`, `logger.ts`, `todoPanelView.ts`, `todoScanner.ts`, `src/utils/` (commandUtils, configVersionUtils, dateUtils)
 
 ## Документация
 
