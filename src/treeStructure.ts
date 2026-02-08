@@ -29,6 +29,7 @@ import {
 	getBuildConfigurationCommandName,
 	getDecompileConfigurationCommandName,
 	getLoadExtensionFromSrcCommandName,
+	getLoadExtensionFromFilesByListCommandName,
 	getLoadExtensionFromCfeCommandName,
 	getDumpExtensionToSrcCommandName,
 	getDumpExtensionToCfeCommandName,
@@ -115,6 +116,7 @@ export const TREE_GROUPS: TreeGroup[] = [
 		defaultCollapsibleState: 'expanded',
 		commands: [
 			{ command: '1c-platform-tools.extensions.loadFromSrc', title: getLoadExtensionFromSrcCommandName().title, treeLabel: '📥 Загрузить из src/cfe' },
+			{ command: '1c-platform-tools.extensions.loadFromFilesByList', title: getLoadExtensionFromFilesByListCommandName().title, treeLabel: '📥 Загрузить из objlist.txt' },
 			{ command: '1c-platform-tools.extensions.loadFromCfe', title: getLoadExtensionFromCfeCommandName().title, treeLabel: '📥 Загрузить из *.cfe' },
 			{ command: '1c-platform-tools.extensions.dumpToSrc', title: getDumpExtensionToSrcCommandName().title, treeLabel: '📤 Выгрузить в src/cfe' },
 			{ command: '1c-platform-tools.extensions.dumpToCfe', title: getDumpExtensionToCfeCommandName().title, treeLabel: '📤 Выгрузить в *.cfe' },

@@ -195,6 +195,11 @@
         "category": "1C: Расширения"
       },
       {
+        "command": "1c-platform-tools.extensions.loadFromFilesByList",
+        "title": "Загрузить из objlist.txt",
+        "category": "1C: Расширения"
+      },
+      {
         "command": "1c-platform-tools.extensions.loadFromCfe",
         "title": "Загрузить расширение из *.cfe",
         "category": "1C: Расширения"

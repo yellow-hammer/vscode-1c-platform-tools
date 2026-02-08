@@ -1,10 +1,12 @@
 import * as vscode from 'vscode';
 import * as path from 'node:path';
+import * as fs from 'node:fs/promises';
 import { BaseCommand } from './baseCommand';
 import { buildCommand, joinCommands, detectShellType } from '../utils/commandUtils';
 import {
 	getLoadExtensionFromSrcCommandName,
 	getLoadExtensionFromCfeCommandName,
+	getLoadExtensionFromFilesByListCommandName,
 	getDumpExtensionToSrcCommandName,
 	getDumpExtensionToCfeCommandName,
 	getBuildExtensionCommandName,
@@ -113,6 +115,116 @@ export class ExtensionsCommands extends BaseCommand {
 		}
 
 		return extensionFolders;
+	}
+
+	/** Группирует пути из objlist по расширениям (src/cfe/<имя>). Пути — полные или относительно workspace. */
+	private async getPathsByExtensionFromObjlist(
+		workspaceRoot: string,
+		extensionFolders: string[]
+	): Promise<Map<string, string[]>> {
+		let content: string;
+		try {
+			content = await fs.readFile(path.join(workspaceRoot, 'objlist.txt'), 'utf-8');
+		} catch {
+			return new Map();
+		}
+		const lines = this.parseObjlistLines(content);
+		const cfePath = this.vrunner.getCfePath();
+		const byExtension = new Map<string, string[]>();
+		for (const line of lines) {
+			const fullPath = this.resolveObjlistLine(workspaceRoot, line);
+			for (const extName of extensionFolders) {
+				const extFullPath = path.resolve(workspaceRoot, cfePath, extName);
+				if (this.pathUnderBase(extFullPath, fullPath)) {
+					const rel = this.relativePathSlash(extFullPath, fullPath);
+					const list = byExtension.get(extName) ?? [];
+					if (!list.includes(rel)) {
+						list.push(rel);
+						byExtension.set(extName, list);
+					}
+					break;
+				}
+			}
+		}
+		return byExtension;
+	}
+
+	/** Удаляет в build временные списки extension-partial-load-*.txt от предыдущего запуска. */
+	private async cleanupExtensionPartialLoadLists(buildDir: string): Promise<void> {
+		try {
+			const entries = await fs.readdir(buildDir, { withFileTypes: true });
+			for (const entry of entries) {
+				if (entry.isFile() && entry.name.startsWith('extension-partial-load-') && entry.name.endsWith('.txt')) {
+					await fs.unlink(path.join(buildDir, entry.name));
+					logger.debug(`Удалён временный список: ${entry.name}`);
+				}
+			}
+		} catch {
+			// каталог может отсутствовать
+		}
+	}
+
+	/**
+	 * Частичная загрузка расширений из objlist.txt: только пути из src/cfe/<имя>. Списки в build, удаляются при следующем запуске.
+	 */
+	async loadFromFilesByList(): Promise<void> {
+		const workspaceRoot = this.ensureWorkspace();
+		if (!workspaceRoot || !(await this.ensureOscriptAvailable())) {
+			return;
+		}
+
+		const buildPath = this.vrunner.getOutPath();
+		const buildFullPath = path.join(workspaceRoot, buildPath);
+		await this.cleanupExtensionPartialLoadLists(buildFullPath);
+
+		const objlistPath = path.join(workspaceRoot, 'objlist.txt');
+		try {
+			await fs.access(objlistPath);
+		} catch {
+			logger.warn(`Файл objlist.txt не найден: ${objlistPath}`);
+			vscode.window.showErrorMessage(
+				'Файл objlist.txt не найден в корне проекта. Создайте файл со списком путей к объектам для загрузки.'
+			);
+			return;
+		}
+
+		const extensionFolders = await this.getExtensionFoldersFromSrc(workspaceRoot);
+		if (!extensionFolders) {
+			return;
+		}
+
+		const pathsByExtension = await this.getPathsByExtensionFromObjlist(workspaceRoot, extensionFolders);
+		if (pathsByExtension.size === 0) {
+			logger.info('В objlist.txt нет путей в каталогах расширений (src/cfe/...)');
+			vscode.window.showInformationMessage(
+				'В objlist.txt нет путей из каталогов расширений (src/cfe/<имя>).'
+			);
+			return;
+		}
+
+		if (!(await this.ensureDirectoryExists(buildFullPath, `Ошибка при создании каталога ${buildPath}`))) {
+			return;
+		}
+
+		const cfePath = this.vrunner.getCfePath();
+		const ibConnectionParam = await this.vrunner.getIbConnectionParam();
+		const commandName = getLoadExtensionFromFilesByListCommandName();
+		const listFilePrefix = this.pathForCmd(buildPath) + '/';
+
+		for (const [extensionName, relativePaths] of pathsByExtension) {
+			const listFileName = `extension-partial-load-${extensionName}.txt`;
+			const listFilePath = path.join(buildFullPath, listFileName);
+			if (!(await this.writeListFile(listFilePath, relativePaths, `Список расширения ${extensionName}`))) {
+				continue;
+			}
+			const extensionRelativePath = path.join(cfePath, extensionName);
+			const additionalParam = `/LoadConfigFromFiles ${this.pathForCmd(extensionRelativePath)} -Extension ${extensionName} -listFile ${listFilePrefix}${listFileName} -Format Hierarchical -partial`;
+			const args = this.addIbcmdIfNeeded(['designer', '--additional', additionalParam, ...ibConnectionParam]);
+			this.vrunner.executeVRunnerInTerminal(args, {
+				cwd: workspaceRoot,
+				name: commandName.title
+			});
+		}
 	}
 
 	/**
