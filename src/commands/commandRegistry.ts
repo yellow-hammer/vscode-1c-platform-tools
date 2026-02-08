@@ -106,6 +106,9 @@ export function registerCommands(context: vscode.ExtensionContext, commands: Com
 		vscode.commands.registerCommand('1c-platform-tools.extensions.loadFromSrc', () => {
 			commands.extensions.loadFromSrc();
 		}),
+		vscode.commands.registerCommand('1c-platform-tools.extensions.loadFromFilesByList', () => {
+			commands.extensions.loadFromFilesByList();
+		}),
 		vscode.commands.registerCommand('1c-platform-tools.extensions.loadFromCfe', () => {
 			commands.extensions.loadFromCfe();
 		}),

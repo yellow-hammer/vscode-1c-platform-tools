@@ -326,41 +326,69 @@ export class ConfigurationCommands extends BaseCommand {
 	}
 
 	/**
-	 * Загружает объекты конфигурации из файлов по списку объектов в objlist.txt
-	 * Использует пакетный режим конфигуратора для загрузки объектов из исходников
-	 * @returns Промис, который разрешается после запуска команды
-	 * @throws Показывает ошибку, если файл objlist.txt не найден
+	 * Загружает объекты конфигурации из objlist.txt (только пути из src/cf; пути расширений отфильтровываются).
+	 * Список записывается в build/objlist-config.txt и передаётся в Конфигуратор.
 	 */
 	async loadFromFilesByList(): Promise<void> {
 		const workspaceRoot = this.ensureWorkspace();
-		if (!workspaceRoot) {
-			return;
-		}
-		if (!(await this.ensureOscriptAvailable())) {
+		if (!workspaceRoot || !(await this.ensureOscriptAvailable())) {
 			return;
 		}
 
 		const objlistPath = path.join(workspaceRoot, 'objlist.txt');
-		
 		try {
 			await fs.access(objlistPath);
 		} catch {
 			logger.warn(`Файл objlist.txt не найден: ${objlistPath}`);
 			vscode.window.showErrorMessage(
-				'Файл objlist.txt не найден в корне проекта. Создайте файл со списком полных путей к объектам для загрузки.'
+				'Файл objlist.txt не найден в корне проекта. Создайте файл со списком путей к объектам для загрузки.'
 			);
 			return;
 		}
 
 		const srcPath = this.vrunner.getCfPath();
+		const configFullPath = path.resolve(workspaceRoot, srcPath);
+		const content = await fs.readFile(objlistPath, 'utf-8');
+		const lines = this.parseObjlistLines(content);
+		const configRelativePaths: string[] = [];
+		for (const line of lines) {
+			const fullPath = this.resolveObjlistLine(workspaceRoot, line);
+			if (this.pathUnderBase(configFullPath, fullPath)) {
+				const rel = this.relativePathSlash(configFullPath, fullPath);
+				if (!configRelativePaths.includes(rel)) {
+					configRelativePaths.push(rel);
+				}
+			}
+		}
+
+		if (configRelativePaths.length === 0) {
+			logger.info('В objlist.txt нет путей в каталоге конфигурации (src/cf)');
+			vscode.window.showInformationMessage(
+				'В objlist.txt нет путей из каталога конфигурации (src/cf). Для расширений используйте команду «Загрузить из objlist.txt» в разделе «Расширения».'
+			);
+			return;
+		}
+
+		const buildPath = this.vrunner.getOutPath();
+		const buildFullPath = path.join(workspaceRoot, buildPath);
+		if (!(await this.ensureDirectoryExists(buildFullPath, `Ошибка при создании каталога ${buildPath}`))) {
+			return;
+		}
+
+		const listFileName = 'objlist-config.txt';
+		const listFilePath = path.join(buildFullPath, listFileName);
+		if (!(await this.writeListFile(listFilePath, configRelativePaths, `Список конфигурации ${listFilePath}`))) {
+			return;
+		}
+
+		const listFileForCmd = this.pathForCmd(buildPath) + '/' + listFileName;
 		const ibConnectionParam = await this.vrunner.getIbConnectionParam();
-		const additionalParam = `/LoadConfigFromFiles ${srcPath} -listFile objlist.txt`;
-		const args = ['designer', '--additional', additionalParam, ...ibConnectionParam];
-		const commandName = getLoadConfigurationFromFilesByListCommandName();
+		const additionalParam = `/LoadConfigFromFiles ${this.pathForCmd(srcPath)} -listFile ${listFileForCmd}`;
+		const args = this.addIbcmdIfNeeded(['designer', '--additional', additionalParam, ...ibConnectionParam]);
 
 		this.vrunner.executeVRunnerInTerminal(args, {
 			cwd: workspaceRoot,
-			name: commandName.title
+			name: getLoadConfigurationFromFilesByListCommandName().title
 		});
 	}
 }

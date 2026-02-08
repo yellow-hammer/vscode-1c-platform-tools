@@ -419,6 +419,16 @@ export function getLoadExtensionFromSrcCommandName(): CommandNameAndTitle {
 }
 
 /**
+ * Получить название и заголовок для команды частичной загрузки расширения из списка в objlist.txt
+ */
+export function getLoadExtensionFromFilesByListCommandName(): CommandNameAndTitle {
+	return {
+		name: 'Загрузить из objlist.txt',
+		title: 'Загрузить из objlist.txt'
+	};
+}
+
+/**
  * Получить название и заголовок для команды загрузки расширения из *.cfe
  */
 export function getLoadExtensionFromCfeCommandName(): CommandNameAndTitle {

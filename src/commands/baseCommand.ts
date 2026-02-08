@@ -1,3 +1,4 @@
+import * as path from 'node:path';
 import * as vscode from 'vscode';
 import * as fs from 'node:fs/promises';
 import { VRunnerManager } from '../vrunnerManager';
@@ -134,6 +135,57 @@ export abstract class BaseCommand {
 			const message = errorMessage || `Ошибка при создании папки ${dirPath}: ${(error as Error).message}`;
 			logger.error(message);
 			vscode.window.showErrorMessage(message);
+			return false;
+		}
+	}
+
+	/**
+	 * Проверяет, что fullPath лежит в basePath (или совпадает с ним). На Windows — без учёта регистра.
+	 */
+	protected pathUnderBase(basePath: string, fullPath: string): boolean {
+		const base = path.resolve(basePath);
+		const full = path.resolve(fullPath);
+		if (process.platform === 'win32') {
+			const baseLower = base.toLowerCase();
+			const fullLower = full.toLowerCase();
+			return fullLower === baseLower || fullLower.startsWith(baseLower + path.sep);
+		}
+		return full === base || full.startsWith(base + path.sep);
+	}
+
+	/** Строки objlist (без пустых). */
+	protected parseObjlistLines(content: string): string[] {
+		return content.split(/\r?\n/).map(line => line.trim()).filter(line => line.length > 0);
+	}
+
+	/** Полный путь: line — абсолютный или относительно workspaceRoot. */
+	protected resolveObjlistLine(workspaceRoot: string, line: string): string {
+		return path.isAbsolute(line) ? path.resolve(line) : path.resolve(workspaceRoot, line);
+	}
+
+	/** Относительный путь basePath → fullPath с прямыми слэшами. */
+	protected relativePathSlash(basePath: string, fullPath: string): string {
+		return path.relative(path.resolve(basePath), path.resolve(fullPath)).split(path.sep).join('/');
+	}
+
+	/** Путь для параметра команды 1С (прямые слэши). */
+	protected pathForCmd(p: string): string {
+		return p.replaceAll('\\', '/');
+	}
+
+	/** Записывает файл списка (строки через \n), UTF-8. При ошибке — лог и сообщение пользователю. Возвращает false при ошибке. */
+	protected async writeListFile(
+		filePath: string,
+		lines: string[],
+		errorContext?: string
+	): Promise<boolean> {
+		try {
+			await fs.writeFile(filePath, lines.join('\n'), 'utf-8');
+			return true;
+		} catch (error) {
+			const errMsg = (error as Error).message;
+			logger.error(`${errorContext ?? 'Запись списка'}: ${errMsg}`);
+			vscode.window.showErrorMessage(`Не удалось записать список файлов: ${errMsg}`);
 			return false;
 		}
 	}
