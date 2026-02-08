@@ -26,6 +26,7 @@ import {
 	type FavoriteEntry,
 	type PickableCommandGroup,
 } from './favorites';
+import { TodoPanelTreeDataProvider, type FilterScope } from './todoPanelView';
 
 /** Элемент QuickPick для настройки избранного (с полями команды и группы) */
 type FavoritesSelectableItem = vscode.QuickPickItem & {
@@ -174,6 +175,17 @@ const NOT_1C_PROJECT_MESSAGE =
  * @param context - Контекст расширения VS Code
  */
 export async function activate(context: vscode.ExtensionContext) {
+	// Панель «Список дел» — TreeView с TreeDataProvider, фильтр через команду
+	const todoPanelProvider = new TodoPanelTreeDataProvider(context);
+	const todoTreeView = vscode.window.createTreeView('1c-platform-tools-todo-list', {
+		treeDataProvider: todoPanelProvider,
+		showCollapseAll: true,
+	});
+	todoPanelProvider.setTreeView(todoTreeView);
+	context.subscriptions.push(todoTreeView);
+
+	// Сканирование TODO — ленивый старт при первом открытии панели или по кнопке «Обновить» (без запуска при activate)
+
 	await vscode.commands.executeCommand('setContext', '1c-platform-tools.is1CProject', false);
 
 	const isProject = await is1CProject();
@@ -307,6 +319,94 @@ export async function activate(context: vscode.ExtensionContext) {
 		await vscode.window.showTextDocument(doc);
 	});
 
+	const todoOpenLocationCommand = vscode.commands.registerCommand(
+		'1c-platform-tools.todo.openLocation',
+		async (uriArg: string | vscode.Uri, line: number) => {
+			const uri = typeof uriArg === 'string' ? vscode.Uri.parse(uriArg) : uriArg;
+			const doc = await vscode.workspace.openTextDocument(uri);
+			const lineIndex = Math.max(0, (line ?? 1) - 1);
+			const range = new vscode.Range(lineIndex, 0, lineIndex, 0);
+			await vscode.window.showTextDocument(doc, { selection: range, preview: false });
+		}
+	);
+
+	const todoShowPanelCommand = vscode.commands.registerCommand('1c-platform-tools.todo.showPanel', async () => {
+		await vscode.commands.executeCommand('workbench.view.extension.1c-platform-tools-todo');
+		await todoPanelProvider.refresh();
+	});
+
+	const todoRefreshCommand = vscode.commands.registerCommand('1c-platform-tools.todo.refresh', async () => {
+		await todoPanelProvider.refresh();
+	});
+
+	const todoToggleGroupByCommand = vscode.commands.registerCommand(
+		'1c-platform-tools.todo.toggleGroupBy',
+		async () => {
+			const next = !todoPanelProvider.getGroupByFile();
+			await todoPanelProvider.setGroupByFile(next);
+		}
+	);
+
+	const todoClearFilterCommand = vscode.commands.registerCommand(
+		'1c-platform-tools.todo.clearFilter',
+		async () => {
+			await todoPanelProvider.clearAllFilters();
+		}
+	);
+
+	type ScopeQuickPickItem = vscode.QuickPickItem & { scope: FilterScope };
+	type TagQuickPickItem = vscode.QuickPickItem & { tag: string };
+	const scopeItems: ScopeQuickPickItem[] = [
+		{ label: '$(folder-opened)  Весь проект', description: 'Все файлы по маске сканирования', scope: 'all' },
+		{ label: '$(file-text)  Текущий открытый файл', description: 'Только дела в активном редакторе', scope: 'currentFile' },
+		{ label: '$(markdown)  Markdown', description: 'Файлы .md', scope: 'md' },
+		{ label: '$(code)  BSL', description: 'Модули .bsl', scope: 'bsl' },
+		{ label: '$(file-code)  OScript', description: 'Файлы .os', scope: 'os' },
+		{ label: '$(beaker)  Feature', description: 'Сценарии Gherkin .feature', scope: 'feature' },
+	];
+	const todoFilterByScopeCommand = vscode.commands.registerCommand(
+		'1c-platform-tools.todo.filterByScope',
+		async () => {
+			const config = vscode.workspace.getConfiguration('1c-platform-tools');
+			const tags = config.get<string[]>('todo.tags') ?? ['TODO', 'FIXME', 'XXX', 'HACK', 'BUG'];
+			const scopeSet = new Set(scopeItems.map((i) => i.scope));
+			const tagItems: TagQuickPickItem[] = tags.map((tag) => ({
+				label: `$(tag)  ${tag}`,
+				description: '',
+				tag,
+			}));
+			const items: (ScopeQuickPickItem | TagQuickPickItem | vscode.QuickPickItem)[] = [
+				{ label: 'Область', kind: vscode.QuickPickItemKind.Separator },
+				scopeItems[0],
+				scopeItems[1],
+				{ label: 'По типу файла', kind: vscode.QuickPickItemKind.Separator },
+				...scopeItems.slice(2),
+				{ label: 'Теги', kind: vscode.QuickPickItemKind.Separator },
+				...tagItems,
+			];
+			const chosen = await vscode.window.showQuickPick(items, {
+				title: 'Список дел: область или тег',
+				placeHolder: 'Выберите одну область, тип файла или один тег',
+				matchOnDescription: true,
+			});
+			if (chosen === undefined) return;
+			if ('scope' in chosen && scopeSet.has(chosen.scope)) {
+				await todoPanelProvider.setFilterScope(chosen.scope);
+				await todoPanelProvider.setFilterTags(null);
+			} else if ('tag' in chosen) {
+				await todoPanelProvider.setFilterScope('all');
+				await todoPanelProvider.setFilterTags([chosen.tag]);
+			}
+		}
+	);
+
+	const todoFilterByTagCommand = vscode.commands.registerCommand(
+		'1c-platform-tools.todo.filterByTag',
+		async () => {
+			await vscode.commands.executeCommand('1c-platform-tools.todo.filterByScope');
+		}
+	);
+
 	const launchEditConfigurationsCommand = vscode.commands.registerCommand('1c-platform-tools.launch.editConfigurations', () => {
 		if (!isProjectRef.current) {
 			showNot1CProjectMessage();
@@ -327,6 +427,25 @@ export async function activate(context: vscode.ExtensionContext) {
 		if (relativePath === '.vscode/tasks.json' || relativePath === '.vscode/launch.json') {
 			treeDataProvider.refresh();
 		}
+	});
+
+	// При фильтре «текущий файл» обновлять список при смене активного редактора
+	const onTodoActiveEditorChange = vscode.window.onDidChangeActiveTextEditor(() => {
+		if (todoPanelProvider.getFilterScope() === 'currentFile') {
+			todoPanelProvider.refreshView();
+		}
+	});
+
+	// Обновление списка TODO при сохранении релевантного файла (дебаунс 1.5 с)
+	const todoSaveDebounce = { timer: undefined as ReturnType<typeof setTimeout> | undefined };
+	const onTodoRelevantSave = vscode.workspace.onDidSaveTextDocument((doc) => {
+		if (!isProjectRef.current) return;
+		if (!/\.(bsl|os|md|feature)$/i.test(doc.uri.fsPath)) return;
+		if (todoSaveDebounce.timer) clearTimeout(todoSaveDebounce.timer);
+		todoSaveDebounce.timer = setTimeout(() => {
+			todoSaveDebounce.timer = undefined;
+			void todoPanelProvider.refresh();
+		}, 1500);
 	});
 
 	const favoritesConfigureCommand = vscode.commands.registerCommand(
@@ -439,8 +558,22 @@ export async function activate(context: vscode.ExtensionContext) {
 		oscriptAddTaskCommand,
 		launchEditCommand,
 		fileOpenCommand,
+		todoOpenLocationCommand,
+		todoShowPanelCommand,
+		todoRefreshCommand,
+		todoToggleGroupByCommand,
+		todoFilterByTagCommand,
+		todoFilterByScopeCommand,
+		todoClearFilterCommand,
 		launchEditConfigurationsCommand,
 		onWorkspaceTasksSave,
+		onTodoActiveEditorChange,
+		onTodoRelevantSave,
+		{
+			dispose: () => {
+				if (todoSaveDebounce.timer) clearTimeout(todoSaveDebounce.timer);
+			},
+		},
 		...commandDisposables
 	);
 }

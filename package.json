@@ -54,6 +54,14 @@
           "icon": "resources/1c-icon.svg",
           "when": "1c-platform-tools.is1CProject == true"
         }
+      ],
+      "panel": [
+        {
+          "id": "1c-platform-tools-todo",
+          "title": "Список дел",
+          "icon": "resources/1c-icon.svg",
+          "when": "1c-platform-tools.is1CProject == true"
+        }
       ]
     },
     "views": {
@@ -61,6 +69,13 @@
         {
           "id": "1c-platform-tools",
           "name": "1C Platform Tools",
+          "when": "1c-platform-tools.is1CProject == true"
+        }
+      ],
+      "1c-platform-tools-todo": [
+        {
+          "id": "1c-platform-tools-todo-list",
+          "name": "Список дел",
           "when": "1c-platform-tools.is1CProject == true"
         }
       ]
@@ -427,6 +442,42 @@
         "category": "1C: Задачи"
       },
       {
+        "command": "1c-platform-tools.todo.showPanel",
+        "title": "Список дел (TODO)",
+        "category": "1C: Список дел",
+        "icon": "$(checklist)"
+      },
+      {
+        "command": "1c-platform-tools.todo.refresh",
+        "title": "Обновить список",
+        "category": "1C: Список дел",
+        "icon": "$(refresh)"
+      },
+      {
+        "command": "1c-platform-tools.todo.toggleGroupBy",
+        "title": "Группировать по иерархии (файлам)",
+        "category": "1C: Список дел",
+        "icon": "$(list-tree)"
+      },
+      {
+        "command": "1c-platform-tools.todo.filterByTag",
+        "title": "Фильтр по тегу",
+        "category": "1C: Список дел",
+        "icon": "$(filter)"
+      },
+      {
+        "command": "1c-platform-tools.todo.filterByScope",
+        "title": "Область поиска",
+        "category": "1C: Список дел",
+        "icon": "$(folder-opened)"
+      },
+      {
+        "command": "1c-platform-tools.todo.clearFilter",
+        "title": "Сбросить фильтры",
+        "category": "1C: Список дел",
+        "icon": "$(clear-all)"
+      },
+      {
         "command": "1c-platform-tools.config.env.edit",
         "title": "Редактировать env.json",
         "category": "1C: Конфигурации запуска"
@@ -437,17 +488,42 @@
         {
           "command": "1c-platform-tools.favorites.configure",
           "when": "view == 1c-platform-tools",
-          "group": "navigation"
+          "group": "navigation@1"
         },
         {
           "command": "1c-platform-tools.settings",
           "when": "view == 1c-platform-tools",
-          "group": "navigation"
+          "group": "navigation@2"
+        },
+        {
+          "command": "1c-platform-tools.todo.showPanel",
+          "when": "view == 1c-platform-tools",
+          "group": "navigation@3"
         },
         {
           "command": "1c-platform-tools.refresh",
           "when": "view == 1c-platform-tools",
-          "group": "navigation"
+          "group": "navigation@4"
+        },
+        {
+          "command": "1c-platform-tools.todo.filterByScope",
+          "when": "view == 1c-platform-tools-todo-list",
+          "group": "navigation@1"
+        },
+        {
+          "command": "1c-platform-tools.todo.clearFilter",
+          "when": "view == 1c-platform-tools-todo-list",
+          "group": "navigation@2"
+        },
+        {
+          "command": "1c-platform-tools.todo.toggleGroupBy",
+          "when": "view == 1c-platform-tools-todo-list",
+          "group": "navigation@3"
+        },
+        {
+          "command": "1c-platform-tools.todo.refresh",
+          "when": "view == 1c-platform-tools-todo-list",
+          "group": "navigation@4"
         }
       ],
       "editor/context": []
@@ -525,6 +601,22 @@
           ],
           "default": "info",
           "description": "Уровень логирования в панель Output: error — только ошибки, warnings — ошибки и предупреждения, info — плюс информационные сообщения, debug — полный вывод для диагностики."
+        },
+        "1c-platform-tools.todo.include": {
+          "type": "string",
+          "default": "**/*.{bsl,os,md,feature}",
+          "description": "Glob-паттерн для поиска файлов при сканировании списка TODO."
+        },
+        "1c-platform-tools.todo.exclude": {
+          "type": "string",
+          "default": "**/oscript_modules/**,**/out/**,**/.git/**,**/vendor/**,**/build/**",
+          "description": "Glob-паттерн исключений при сканировании списка TODO."
+        },
+        "1c-platform-tools.todo.tags": {
+          "type": "array",
+          "items": { "type": "string" },
+          "default": ["TODO", "FIXME", "XXX", "HACK", "BUG"],
+          "description": "Теги для поиска в комментариях (регистр не учитывается)."
         }
       }
     }
