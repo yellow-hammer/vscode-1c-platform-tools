@@ -1,6 +1,6 @@
 # Паттерны работы с vrunner
 
-Документация по использованию vrunner (vanessa-runner) в расширении 1C Platform Tools.
+Документация по использованию vrunner (vanessa-runner) в расширении 1C: Platform tools.
 
 ## Содержание
 

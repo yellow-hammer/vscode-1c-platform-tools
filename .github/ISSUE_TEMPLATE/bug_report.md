@@ -59,7 +59,7 @@ assignees: ''
 
 Если применимо, добавьте логи из:
 
-- **Output панель VS Code** (выберите "1C Platform Tools" в выпадающем списке)
+- **Output панель VS Code** (выберите "1C: Platform tools" в выпадающем списке)
 - **Developer Tools** (Help → Toggle Developer Tools → Console)
 
 ```txt

@@ -1,6 +1,6 @@
 # VS Code API - Паттерны использования
 
-Документация по использованию VS Code API в расширении 1C Platform Tools.
+Документация по использованию VS Code API в расширении 1C: Platform tools.
 
 ## Содержание
 
@@ -156,7 +156,7 @@ vscode.commands.registerCommand('1c-platform-tools.command', (uri?: vscode.Uri) 
 
 ```typescript
 const terminal = vscode.window.createTerminal({
-    name: '1C Platform Tools',
+    name: '1C: Platform tools',
     cwd: workspaceRoot
 });
 
