@@ -36,6 +36,8 @@ const TAG_ICON_COLORS: Record<string, string> = {
 
 const PLACEHOLDER_LOADING = 'Загрузка';
 const PLACEHOLDER_EMPTY = 'Нет дел';
+const PLACEHOLDER_EMPTY_FILTERED = 'Нет дел (сбросьте отборы)';
+const PLACEHOLDER_NO_WORKSPACE = 'Откройте папку проекта';
 
 function getIconForTag(tag: string): vscode.ThemeIcon {
 	const colorId = TAG_ICON_COLORS[tag] ?? 'editorInfo.foreground';
@@ -81,6 +83,7 @@ export class TodoPanelTreeDataProvider implements vscode.TreeDataProvider<TodoNo
 	private _isScanning = false;
 	private _lastFilteredCount = 0;
 	private _treeView: vscode.TreeView<TodoNode> | undefined;
+	private _refreshPromise: Promise<void> | null = null;
 
 	constructor(private readonly _context: vscode.ExtensionContext) {}
 
@@ -99,7 +102,29 @@ export class TodoPanelTreeDataProvider implements vscode.TreeDataProvider<TodoNo
 		}
 	}
 
+	private _hasActiveFilters(): boolean {
+		const tags = this._context.globalState.get<string[]>(STATE_KEYS.filterTags);
+		const scope = this._context.globalState.get<FilterScope>(STATE_KEYS.filterScope);
+		return (tags?.length ?? 0) > 0 || (scope !== undefined && scope !== 'all');
+	}
+
+	/**
+	 * Пересканировать workspace и обновить дерево.
+	 * Повторные вызовы во время сканирования ожидают завершения текущего.
+	 */
 	async refresh(): Promise<void> {
+		if (this._refreshPromise) {
+			return this._refreshPromise;
+		}
+		this._refreshPromise = this._doRefresh();
+		try {
+			await this._refreshPromise;
+		} finally {
+			this._refreshPromise = null;
+		}
+	}
+
+	private async _doRefresh(): Promise<void> {
 		this._isScanning = true;
 		if (this._entries.length === 0) {
 			this._fireChange();
@@ -127,21 +152,28 @@ export class TodoPanelTreeDataProvider implements vscode.TreeDataProvider<TodoNo
 
 	private _getRootChildren(): TodoNode[] {
 		this._updateViewTitle();
-		if (this._isScanning && this._entries.length === 0) {
-			return [{ kind: 'placeholder', message: PLACEHOLDER_LOADING }];
+
+		const hasWorkspace = (vscode.workspace.workspaceFolders?.length ?? 0) > 0;
+		if (!hasWorkspace) {
+			return [{ kind: 'placeholder', message: PLACEHOLDER_NO_WORKSPACE }];
 		}
-		const filtered = this._filterEntries();
-		if (this._isScanning && this._entries.length > 0 && filtered.length === 0) {
-			return [{ kind: 'placeholder', message: PLACEHOLDER_EMPTY }];
-		}
+
 		if (!this._didInitialLoad) {
 			this._didInitialLoad = true;
 			void this.refresh();
 			return [{ kind: 'placeholder', message: PLACEHOLDER_LOADING }];
 		}
-		if (this._entries.length === 0 || filtered.length === 0) {
-			return [{ kind: 'placeholder', message: PLACEHOLDER_EMPTY }];
+
+		if (this._isScanning && this._entries.length === 0) {
+			return [{ kind: 'placeholder', message: PLACEHOLDER_LOADING }];
 		}
+
+		const filtered = this._filterEntries();
+		if (this._entries.length === 0 || filtered.length === 0) {
+			const emptyMessage = this._hasActiveFilters() ? PLACEHOLDER_EMPTY_FILTERED : PLACEHOLDER_EMPTY;
+			return [{ kind: 'placeholder', message: emptyMessage }];
+		}
+
 		this._lastFilteredCount = filtered.length;
 		return this._buildNodesFromEntries(filtered);
 	}
@@ -154,7 +186,7 @@ export class TodoPanelTreeDataProvider implements vscode.TreeDataProvider<TodoNo
 		const byPath = new Map<string, TodoEntry[]>();
 		for (const e of entries) {
 			const p = this._relPath(e.uri);
-			if (!byPath.has(p)) byPath.set(p, []);
+			if (!byPath.has(p)) {byPath.set(p, []);}
 			byPath.get(p)!.push(e);
 		}
 		return Array.from(byPath.entries())
@@ -170,7 +202,7 @@ export class TodoPanelTreeDataProvider implements vscode.TreeDataProvider<TodoNo
 			list = list.filter((e) => set.has(e.tag));
 		}
 		const scope = this._context.globalState.get<FilterScope>(STATE_KEYS.filterScope) ?? 'all';
-		if (scope === 'all') return list;
+		if (scope === 'all') {return list;}
 		if (scope === 'currentFile') {
 			const activeUri = vscode.window.activeTextEditor?.document.uri.toString();
 			return activeUri ? list.filter((e) => e.uri.toString() === activeUri) : [];
@@ -199,14 +231,16 @@ export class TodoPanelTreeDataProvider implements vscode.TreeDataProvider<TodoNo
 	}
 
 	getTreeItem(node: TodoNode): vscode.TreeItem {
-		if (node.kind === 'root') return new vscode.TreeItem('', vscode.TreeItemCollapsibleState.None);
+		if (node.kind === 'root') {return new vscode.TreeItem('', vscode.TreeItemCollapsibleState.None);}
 		if (node.kind === 'placeholder') {
 			const item = new vscode.TreeItem(node.message, vscode.TreeItemCollapsibleState.None);
 			item.contextValue = 'todoPlaceholder';
 			item.iconPath = new vscode.ThemeIcon(
 				node.message === PLACEHOLDER_LOADING ? 'loading~spin' : 'check-all'
 			);
-			if (node.message !== PLACEHOLDER_LOADING) {
+			if (node.message === PLACEHOLDER_EMPTY_FILTERED) {
+				item.command = { command: '1c-platform-tools.todo.clearFilter', title: 'Сбросить отборы' };
+			} else if (node.message !== PLACEHOLDER_LOADING && node.message !== PLACEHOLDER_NO_WORKSPACE) {
 				item.command = { command: '1c-platform-tools.todo.refresh', title: 'Обновить' };
 			}
 			return item;
@@ -224,7 +258,7 @@ export class TodoPanelTreeDataProvider implements vscode.TreeDataProvider<TodoNo
 		}
 		const e = node.entry;
 		const pathStr = this._relPath(e.uri);
-		const lineContent = e.lineContent ?? e.message ?? '';
+		const lineContent = (e.lineContent ?? e.message ?? '').trimStart();
 		const msgCol = lineContent.length > MAX_LINE_PREVIEW_LEN
 			? `${lineContent.slice(0, MAX_LINE_PREVIEW_LEN)}…`
 			: lineContent;

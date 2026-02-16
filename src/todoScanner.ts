@@ -18,23 +18,8 @@ export interface TodoEntry {
 }
 
 const DEFAULT_TAGS = ['TODO', 'FIXME', 'XXX', 'HACK', 'BUG'];
-const DEFAULT_INCLUDE = '**/*.{bsl,os,md,feature}';
-const DEFAULT_EXCLUDE_SEGMENTS = [
-	'oscript_modules',
-	'out',
-	'.git',
-	'vendor',
-	'build',
-];
-const MAX_FILES_TO_SCAN = 5000;
-
-function parseExcludeSegments(excludeStr: string): string[] {
-	if (!excludeStr.trim()) return DEFAULT_EXCLUDE_SEGMENTS;
-	return excludeStr
-		.split(',')
-		.map((s) => s.trim().replace(/^\*\*\//, '').replace(/\/\*\*$/, ''))
-		.filter(Boolean);
-}
+const DEFAULT_INCLUDE = ['**/*.bsl', '**/*.os', '**/*.md', '**/*.feature'];
+const DEFAULT_EXCLUDE = ['oscript_modules', 'out', '.git', 'vendor', 'build'];
 
 function isUriExcluded(uri: vscode.Uri, excludeSegments: string[]): boolean {
 	const pathNorm = uri.fsPath.replaceAll('\\', '/');
@@ -45,7 +30,7 @@ function isUriExcluded(uri: vscode.Uri, excludeSegments: string[]): boolean {
 
 function buildTagRegex(tags: string[]): RegExp {
 	const escaped = tags.map((t) => t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|');
-	return new RegExp(String.raw`\b(${escaped})\s*:?\s*(.*)`, 'i');
+	return new RegExp(String.raw`\b(${escaped})\b\s*:?\s*(.*)`, 'i');
 }
 
 /**
@@ -54,9 +39,9 @@ function buildTagRegex(tags: string[]): RegExp {
  */
 function isCommentLine(uri: vscode.Uri, line: string, tagMatchIndex: number): boolean {
 	const ext = (uri.fsPath.split('.').pop() ?? '').toLowerCase();
-	if (ext === 'md') return true;
+	if (ext === 'md') {return true;}
 	if (ext === 'feature') {
-		if (!line.trimStart().startsWith('#')) return false;
+		if (!line.trimStart().startsWith('#')) {return false;}
 		const before = line.slice(0, tagMatchIndex).trim();
 		return before === '' || before === '#' || before.startsWith('# ');
 	}
@@ -89,15 +74,30 @@ function scanFile(uri: vscode.Uri, content: string, regex: RegExp): TodoEntry[] 
  */
 export async function scanWorkspaceForTodos(): Promise<TodoEntry[]> {
 	const config = vscode.workspace.getConfiguration('1c-platform-tools');
-	const include = config.get<string>('todo.include') ?? DEFAULT_INCLUDE;
-	const excludeStr = config.get<string>('todo.exclude');
-	const excludeSegments = excludeStr === undefined
-		? DEFAULT_EXCLUDE_SEGMENTS
-		: parseExcludeSegments(excludeStr);
+	const includePatterns = config.get<string[]>('todo.include') ?? DEFAULT_INCLUDE;
+	const excludeSegments = config.get<string[]>('todo.exclude') ?? DEFAULT_EXCLUDE;
 	const tags = config.get<string[]>('todo.tags') ?? DEFAULT_TAGS;
 
 	const regex = buildTagRegex(tags);
-	const files = await vscode.workspace.findFiles(include, null, MAX_FILES_TO_SCAN);
+	// Объединяем расширения в один glob при возможности; без лимита на число файлов
+	const extFromPattern = (p: string): string | null => {
+		const m = p.match(/^\*\*\/\*\.(\w+)$/);
+		return m ? m[1].toLowerCase() : null;
+	};
+	const exts = includePatterns.map(extFromPattern).filter((e): e is string => e !== null);
+	const singleGlob = exts.length === includePatterns.length && exts.length > 0
+		? `**/*.{${exts.join(',')}}`
+		: null;
+	const files = singleGlob !== null
+		? await vscode.workspace.findFiles(singleGlob)
+		: await (async () => {
+			const seen = new Set<string>();
+			for (const p of includePatterns) {
+				const found = await vscode.workspace.findFiles(p);
+				for (const u of found) { seen.add(u.fsPath); }
+			}
+			return Array.from(seen).map((fp) => vscode.Uri.file(fp));
+		})();
 	const filteredFiles = files.filter((uri) => !isUriExcluded(uri, excludeSegments));
 
 	const allEntries: TodoEntry[] = [];
