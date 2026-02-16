@@ -14,9 +14,7 @@ import { TREE_GROUPS } from './treeStructure';
 /** Ключ в globalState для сохранения состояния раскрытия групп дерева (кроме «Избранное») */
 export const TREE_GROUP_EXPANDED_STATE_KEY = '1c-platform-tools.treeGroupExpanded';
 
-/**
- * Типы элементов дерева команд в панели 1C Platform Tools
- */
+/** Типы элементов дерева команд */
 export enum TreeItemType {
 	Task = 'task',
 	Dependency = 'dependency',
@@ -40,11 +38,10 @@ export enum TreeItemType {
 	SetVersionProcessorsFolder = 'setVersionProcessorsFolder',
 	Favorites = 'favorites',
 	FavoritesConfigure = 'favoritesConfigure',
+	Lightbulb = 'lightbulb',
 }
 
-/**
- * Элемент дерева для 1C Platform Tools
- */
+/** Элемент дерева команд */
 export class PlatformTreeItem extends vscode.TreeItem {
 	/** Тип для отображения иконки (если задан — используется вместо type) */
 	private readonly preferredIconType?: TreeItemType;
@@ -63,12 +60,15 @@ export class PlatformTreeItem extends vscode.TreeItem {
 		public readonly children?: PlatformTreeItem[],
 		public readonly extensionUri?: vscode.Uri,
 		preferredIconType?: TreeItemType,
-		groupId?: string
+		groupId?: string,
+		iconCodicon?: string
 	) {
 		super(label, collapsibleState);
 		this.preferredIconType = preferredIconType;
 		this.groupId = groupId;
-		this.iconPath = this.getIconPath(this.preferredIconType ?? type);
+		this.iconPath = iconCodicon
+			? new vscode.ThemeIcon(iconCodicon)
+			: this.getIconPath(this.preferredIconType ?? type);
 		this.contextValue = type;
 	}
 
@@ -122,6 +122,8 @@ export class PlatformTreeItem extends vscode.TreeItem {
 				return new vscode.ThemeIcon('star-full');
 			case TreeItemType.FavoritesConfigure:
 				return new vscode.ThemeIcon('gear');
+			case TreeItemType.Lightbulb:
+				return new vscode.ThemeIcon('lightbulb');
 			default:
 				return new vscode.ThemeIcon('circle-outline');
 		}
@@ -133,9 +135,7 @@ export class PlatformTreeItem extends vscode.TreeItem {
  */
 type TreeDataChangeEvent = PlatformTreeItem | undefined | null | void;
 
-/**
- * Провайдер данных для дерева 1C Platform Tools
- */
+/** Провайдер данных дерева команд */
 export class PlatformTreeDataProvider implements vscode.TreeDataProvider<PlatformTreeItem> {
 	private readonly _onDidChangeTreeData: vscode.EventEmitter<TreeDataChangeEvent> =
 		new vscode.EventEmitter<TreeDataChangeEvent>();
@@ -194,7 +194,8 @@ export class PlatformTreeDataProvider implements vscode.TreeDataProvider<Platfor
 		command?: vscode.Command,
 		children?: PlatformTreeItem[],
 		iconType?: TreeItemType,
-		groupId?: string
+		groupId?: string,
+		iconCodicon?: string
 	): PlatformTreeItem {
 		return new PlatformTreeItem(
 			label,
@@ -204,7 +205,8 @@ export class PlatformTreeDataProvider implements vscode.TreeDataProvider<Platfor
 			children,
 			this.extensionUri,
 			iconType,
-			groupId
+			groupId,
+			iconCodicon
 		);
 	}
 
@@ -229,6 +231,7 @@ export class PlatformTreeDataProvider implements vscode.TreeDataProvider<Platfor
 			test: TreeItemType.Test,
 			setVersion: TreeItemType.SetVersion,
 			config: TreeItemType.Config,
+			helpAndSupport: TreeItemType.Lightbulb,
 			oscriptTasks: TreeItemType.OscriptTasks,
 		};
 		return map[sectionType];
@@ -350,7 +353,7 @@ export class PlatformTreeDataProvider implements vscode.TreeDataProvider<Platfor
 		const allSections: PlatformTreeItem[] = [];
 
 		for (const group of TREE_GROUPS) {
-			if (group.sectionType === 'config') {
+			if (group.sectionType === 'config' || group.sectionType === 'helpAndSupport') {
 				continue;
 			}
 			const groupType = this.sectionTypeToRootType(group.sectionType);
@@ -364,7 +367,9 @@ export class PlatformTreeDataProvider implements vscode.TreeDataProvider<Platfor
 					vscode.TreeItemCollapsibleState.None,
 					{ command: cmd.command, title: cmd.title },
 					undefined,
-					this.sectionTypeToIconType(group.sectionType)
+					this.sectionTypeToIconType(group.sectionType),
+					undefined,
+					cmd.icon
 				)
 			);
 
@@ -442,7 +447,9 @@ export class PlatformTreeDataProvider implements vscode.TreeDataProvider<Platfor
 					vscode.TreeItemCollapsibleState.None,
 					{ command: cmd.command, title: cmd.title },
 					undefined,
-					this.sectionTypeToIconType(configGroup.sectionType)
+					this.sectionTypeToIconType(configGroup.sectionType),
+					undefined,
+					cmd.icon
 				)
 			);
 			allSections.push(
@@ -454,6 +461,36 @@ export class PlatformTreeDataProvider implements vscode.TreeDataProvider<Platfor
 					children,
 					undefined,
 					'config'
+				)
+			);
+		}
+
+		const helpAndSupportGroup = TREE_GROUPS.find((g) => g.sectionType === 'helpAndSupport');
+		if (helpAndSupportGroup) {
+			const groupType = this.sectionTypeToRootType(helpAndSupportGroup.sectionType);
+			const defaultExpanded = helpAndSupportGroup.defaultCollapsibleState === 'expanded';
+			const collapsibleState = this.resolveGroupCollapsibleState('helpAndSupport', defaultExpanded);
+			const children: PlatformTreeItem[] = helpAndSupportGroup.commands.map((cmd) =>
+				this.createTreeItem(
+					cmd.treeLabel,
+					TreeItemType.Task,
+					vscode.TreeItemCollapsibleState.None,
+					{ command: cmd.command, title: cmd.title },
+					undefined,
+					this.sectionTypeToIconType(helpAndSupportGroup.sectionType),
+					undefined,
+					cmd.icon
+				)
+			);
+			allSections.push(
+				this.createTreeItem(
+					helpAndSupportGroup.groupLabel,
+					groupType,
+					collapsibleState,
+					undefined,
+					children,
+					undefined,
+					'helpAndSupport'
 				)
 			);
 		}

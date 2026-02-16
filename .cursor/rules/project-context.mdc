@@ -1,5 +1,5 @@
 ---
-description: Контекст проекта 1C Platform Tools и архитектура расширения
+description: Контекст проекта 1C: Platform tools и архитектура расширения
 alwaysApply: true
 ---
 
@@ -12,12 +12,46 @@ alwaysApply: true
 - **Точка входа**: `src/extension.ts`, активация при наличии `packagedef` в корне workspace
 - **Команды**: префикс `1c-platform-tools.{domain}.{action}`, регистрация в `src/commands/commandRegistry.ts` (интерфейс Commands — без oscriptTasks; OscriptTasksCommands создаётся в extension.ts для динамических узлов дерева)
 - **TreeView**: `PlatformTreeDataProvider` в `src/treeViewProvider.ts`, структура дерева и избранного — `src/treeStructure.ts` (TREE_GROUPS). Динамические узлы: избранное, «Установить версию», «Задачи (oscript)», «Конфигурации запуска» — заполняются в treeViewProvider и extension.ts
+- **Панель «Проекты 1С»**: контейнер в activitybar, создаётся при старте (раньше остального) во избежание сообщения «Отсутствует поставщик данных». `src/projects/`: StorageProvider (Избранное), AutodetectProvider (Все проекты), HelpAndSupportProvider (Помощь и поддержка), OneCLocator (сканирование baseFolders), ProjectStorage (projects.json)
 - **Панель «Список дел»**: нижняя панель (view container), провайдер `TodoPanelTreeDataProvider` в `src/todoPanelView.ts`, сканирование — `src/todoScanner.ts`. Фильтры по тегу и области, группировка по файлу; не использует vrunner
 - **Базовый класс команд**: `BaseCommand` в `src/commands/baseCommand.ts`
 - **vrunner**: синглтон `VRunnerManager` в `src/vrunnerManager.ts`
 - **Структура проекта 1С**: `src/projectStructure.ts` (PROJECT_STRUCTURE для команды «Инициализировать структуру проекта», шаблон vanessa-bootstrap)
 - **Контекст после создания проекта**: `src/projectContext.ts` (setOnProjectCreated, notifyProjectCreated — полная активация после инициализации packagedef)
 - **Остальные модули**: `favorites.ts`, `commandNames.ts`, `constants.ts`, `logger.ts`, `todoPanelView.ts`, `todoScanner.ts`, `src/utils/` (commandUtils, configVersionUtils, dateUtils)
+
+## Настройки проектов (1c-platform-tools.projects)
+
+- `maxDepthRecursion`: 0 = без ограничения глубины, положительное число = ограничить (для глубоких деревьев)
+- QuickPick выбора проекта: всегда Избранное → разделитель → Все проекты
+
+## Контекстное открытие настроек
+
+Настройки разбиты на подпункты по смыслу:
+
+| Раздел      | Контекст вызова                                  | Фильтр                                                                                      | Команда                                   |
+|-------------|--------------------------------------------------|---------------------------------------------------------------------------------------------|-------------------------------------------|
+| Инструменты | дерево, кнопка «Настройки» в панели инструментов | `@ext:yellow-hammer.1c-platform-tools` (все настройки) | `1c-platform-tools.settings.openTools`    |
+| Проекты     | панель «Проекты 1С», walkthrough                 | `@ext:yellow-hammer.1c-platform-tools 1c-platform-tools.projects`                           | `1c-platform-tools.projects.openSettings` |
+| Список дел  | панель «Список дел»                              | `@ext:yellow-hammer.1c-platform-tools 1c-platform-tools.todo`                               | `1c-platform-tools.settings.openTodo`     |
+| Общее       | —                                                | `@ext:yellow-hammer.1c-platform-tools`                                                      | `1c-platform-tools.settings.openGeneral`  |
+
+Правила для новых панелей и настроек:
+
+1. **Кнопка «Настройки»** — открывает настройки, релевантные контексту: из панели «Инструменты 1С» → `settings.openTools` (все общие настройки расширения); из панели «Проекты 1С» → `projects.openSettings` (группа «Проекты»); из панели «Список дел» → `settings.openTodo` (группа «Список дел»). Команда `settings` показывает QuickPick: Проекты | Инструменты | Список дел | Общее.
+2. **Главная команда `1c-platform-tools.settings`** — показывает QuickPick с выбором раздела: Проекты | Инструменты | Общее.
+3. Всегда добавлять фильтр по расширению `@ext:yellow-hammer.1c-platform-tools` при открытии настроек, чтобы отображались только параметры нашего расширения.
+
+## Панели «Помощь и поддержка»
+
+Единый набор команд для помощи и обратной связи: **Источник — `TREE_GROUPS` в `src/treeStructure.ts` (sectionType `helpAndSupport`)**. Текущие пункты: «С чего начать?», «Сообщить о проблемах», «Написать отзыв», «Стать спонсором».
+
+Правила:
+
+1. **Одинаковый набор во всех контейнерах** — все представления «Помощь и поддержка» берут данные из `TREE_GROUPS` (группа `helpAndSupport`). Для TreeView использовать `HelpAndSupportProvider` из `src/projects/helpAndSupportProvider.ts`.
+2. **Новые контейнеры** — при добавлении нового view container (activitybar или panel) всегда добавлять в `package.json` представление «Помощь и поддержка» с `id` по шаблону `{containerId}-help` и регистрировать провайдер в `extension.ts`.
+
+Сейчас представление «Помощь и поддержка» есть в контейнере «Проекты 1С»; группа с тем же набором — в дереве «Инструменты 1С».
 
 ## Документация
 

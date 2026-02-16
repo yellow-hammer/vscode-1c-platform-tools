@@ -7,7 +7,7 @@ let onProjectCreatedCallback: (() => void) | undefined;
 
 /**
  * Регистрирует callback, вызываемый при создании файла packagedef в workspace
- * (после успешного выполнения «Инициализировать packagedef»).
+ * (после успешного выполнения «Инициализировать проект»).
  */
 export function setOnProjectCreated(callback: () => void): void {
 	onProjectCreatedCallback = callback;

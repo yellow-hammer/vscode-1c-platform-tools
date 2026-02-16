@@ -10,7 +10,7 @@ const LOG_LEVELS = {
 
 export type LogLevelName = keyof typeof LOG_LEVELS;
 
-const OUTPUT_CHANNEL_NAME = '1C Platform Tools';
+const OUTPUT_CHANNEL_NAME = '1C: Platform tools';
 
 let outputChannel: vscode.OutputChannel | undefined;
 
@@ -54,7 +54,6 @@ function log(level: LogLevelName, message: string): void {
 }
 
 /**
- * Логгер расширения 1C Platform Tools.
  * Выводит сообщения в панель Output в соответствии с настройкой logLevel.
  */
 export const logger = {

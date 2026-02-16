@@ -474,7 +474,7 @@ export class VRunnerManager {
 	 * @param options - Опции выполнения
 	 * @param options.cwd - Рабочая директория (по умолчанию workspace root)
 	 * @param options.env - Дополнительные переменные окружения
-	 * @param options.name - Имя терминала (по умолчанию '1C Platform Tools')
+	 * @param options.name - Имя терминала (по умолчанию '1C: Platform tools')
 	 * @param options.shellType - Тип оболочки (опционально, определяется автоматически)
 	 * @throws {Error} Если путь к расширению не установлен (расширение не активировано)
 	 */
@@ -498,7 +498,7 @@ export class VRunnerManager {
 		const command = buildCommand(onescriptPath, fullArgs, shellType);
 
 		const terminal = vscode.window.createTerminal({
-			name: options?.name || '1C Platform Tools',
+			name: options?.name || '1C: Platform tools',
 			cwd: cwd,
 			env: options?.env ? { ...process.env, ...options.env } : undefined
 		});
@@ -533,7 +533,7 @@ export class VRunnerManager {
 	 * @param options - Опции выполнения
 	 * @param options.cwd - Рабочая директория (по умолчанию workspace root)
 	 * @param options.env - Дополнительные переменные окружения
-	 * @param options.name - Имя терминала (по умолчанию '1C Platform Tools')
+	 * @param options.name - Имя терминала (по умолчанию '1C: Platform tools')
 	 * @param options.shellType - Тип оболочки (опционально, определяется автоматически)
 	 */
 	public async executeVRunnerInTerminal(
@@ -589,7 +589,7 @@ export class VRunnerManager {
 		}
 
 		const terminal = vscode.window.createTerminal({
-			name: options?.name || '1C Platform Tools',
+			name: options?.name || '1C: Platform tools',
 			cwd: cwd,
 			env: options?.env ? { ...process.env, ...options.env } : undefined
 		});
@@ -654,7 +654,7 @@ export class VRunnerManager {
 				return;
 			}
 			const terminal = vscode.window.createTerminal({
-				name: options?.name || '1C Platform Tools',
+				name: options?.name || '1C: Platform tools',
 				cwd: cwd,
 				env: options?.env ? { ...process.env, ...options.env } : undefined
 			});
@@ -671,7 +671,7 @@ export class VRunnerManager {
 		const fullCommand = joinCommands(commands, shellType);
 
 		const terminal = vscode.window.createTerminal({
-			name: options?.name || '1C Platform Tools',
+			name: options?.name || '1C: Platform tools',
 			cwd: cwd,
 			env: options?.env ? { ...process.env, ...options.env } : undefined
 		});
@@ -765,7 +765,7 @@ export class VRunnerManager {
 	 * @param args - Аргументы команды opm (например, ['install', '-l'])
 	 * @param options - Опции выполнения
 	 * @param options.cwd - Рабочая директория (по умолчанию workspace root)
-	 * @param options.name - Имя терминала (по умолчанию '1C Platform Tools')
+	 * @param options.name - Имя терминала (по умолчанию '1C: Platform tools')
 	 * @param options.shellType - Тип оболочки (опционально, определяется автоматически)
 	 */
 	public executeOpmInTerminal(
@@ -779,7 +779,7 @@ export class VRunnerManager {
 		const command = buildCommand(opmPath, processedArgs, shellType);
 
 		const terminal = vscode.window.createTerminal({
-			name: options?.name || '1C Platform Tools',
+			name: options?.name || '1C: Platform tools',
 			cwd: cwd
 		});
 
@@ -836,7 +836,7 @@ export class VRunnerManager {
 	 * @param args - Аргументы команды allure (например, ['generate', '-c', '-o', 'build/allure-report'])
 	 * @param options - Опции выполнения
 	 * @param options.cwd - Рабочая директория (по умолчанию workspace root)
-	 * @param options.name - Имя терминала (по умолчанию '1C Platform Tools')
+	 * @param options.name - Имя терминала (по умолчанию '1C: Platform tools')
 	 * @param options.shellType - Тип оболочки (опционально, определяется автоматически)
 	 */
 	public executeAllureInTerminal(
@@ -850,7 +850,7 @@ export class VRunnerManager {
 		const cwd = options?.cwd || this.workspaceRoot || os.homedir();
 
 		const terminal = vscode.window.createTerminal({
-			name: options?.name || '1C Platform Tools',
+			name: options?.name || '1C: Platform tools',
 			cwd: cwd
 		});
 

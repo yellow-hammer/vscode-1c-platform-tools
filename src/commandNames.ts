@@ -143,8 +143,8 @@ export function getInitializeProjectStructureCommandName(): CommandNameAndTitle 
  */
 export function getUpdateOpmCommandName(): CommandNameAndTitle {
 	return {
-		name: 'Установить OPM',
-		title: 'Установить OPM'
+		name: 'Установить пакетный менеджер OneScript',
+		title: 'Установить пакетный менеджер OneScript'
 	};
 }
 

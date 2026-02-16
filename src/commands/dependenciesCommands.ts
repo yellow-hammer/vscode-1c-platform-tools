@@ -399,7 +399,7 @@ export class DependenciesCommands extends BaseCommand {
 		if (!extensionPath) {
 			const msg = 'Не удалось определить путь к расширению';
 			logger.error(
-				`${msg}. Возможные причины: расширение не передало ExtensionContext в VRunnerManager при активации; workspaceRoot=${workspaceRoot ?? 'не определён'}. Проверьте панель Output (1C Platform Tools) для диагностики.`
+				`${msg}. Возможные причины: расширение не передало ExtensionContext в VRunnerManager при активации; workspaceRoot=${workspaceRoot ?? 'не определён'}. Проверьте панель Output (1C: Platform tools) для диагностики.`
 			);
 			logger.show();
 			vscode.window.showErrorMessage(msg);
@@ -428,13 +428,193 @@ export class DependenciesCommands extends BaseCommand {
 			logger.info(`Файл packagedef успешно создан: ${packagedefPath}`);
 			vscode.window.showInformationMessage('Файл packagedef успешно создан');
 
-			// Полная активация расширения: панель 1C Platform Tools и дерево появятся без перезагрузки окна
+			// Полная активация расширения: панель «Инструменты 1С» и дерево появятся без перезагрузки окна
 			notifyProjectCreated();
 
 			// Открываем файл в редакторе
 			const uri = vscode.Uri.file(packagedefPath);
 			const doc = await vscode.workspace.openTextDocument(uri);
 			await vscode.window.showTextDocument(doc);
+		} catch (error) {
+			const errMsg = (error as Error).message;
+			logger.error(`Не удалось создать файл packagedef: ${errMsg}. Путь: ${packagedefPath}`);
+			logger.show();
+			vscode.window.showErrorMessage(`Не удалось создать файл packagedef: ${errMsg}`);
+		}
+	}
+
+	/** Вариант создания проекта в приветственном экране */
+	private static readonly CREATE_PROJECT_KIND_WITH_STRUCTURE = 'withStructure';
+	private static readonly CREATE_PROJECT_KIND_PACKAGEDEF_ONLY = 'packagedefOnly';
+
+	/**
+	 * Создаёт структуру каталогов по шаблону vanessa-bootstrap в указанной папке.
+	 * @param targetRoot — корень проекта (полный путь)
+	 * @returns количество созданных каталогов и новых README
+	 */
+	private async createProjectStructureInFolder(targetRoot: string): Promise<{ createdDirs: number; createdReadmes: number }> {
+		let createdDirs = 0;
+		let createdReadmes = 0;
+		for (const item of PROJECT_STRUCTURE) {
+			const dirPath = path.join(targetRoot, item.path);
+			const readmePath = path.join(dirPath, 'README.md');
+			await fs.mkdir(dirPath, { recursive: true });
+			createdDirs += 1;
+			try {
+				await fs.access(readmePath);
+			} catch {
+				await fs.writeFile(readmePath, item.readmeContent, 'utf-8');
+				createdReadmes += 1;
+			}
+		}
+		return { createdDirs, createdReadmes };
+	}
+
+	/** Ключ globalState: путь к папке, в которой после открытия нужно запустить установку зависимостей */
+	static readonly INSTALL_DEPS_AFTER_CREATE_KEY = '1c-platform-tools.installDepsAfterCreate';
+
+	/**
+	 * Создаёт новый проект 1С из приветственного экрана проводника (без открытой папки).
+	 * Спрашивает тип проекта, установку зависимостей, затем папку; создаёт packagedef и при выборе — структуру каталогов; при выборе — откладывает установку зависимостей до открытия папки.
+	 */
+	async createProjectFromWelcome(context?: vscode.ExtensionContext): Promise<void> {
+		const kindChoice = await vscode.window.showQuickPick(
+			[
+				{
+					label: '$(folder-opened) С каталогами (vanessa-bootstrap)',
+					description: 'Каталоги doc, src/cf, features, tests и др. с README',
+					detail: 'Рекомендуется для новых проектов',
+					picked: true,
+					kindChoice: DependenciesCommands.CREATE_PROJECT_KIND_WITH_STRUCTURE
+				},
+				{
+					label: '$(file) Только packagedef',
+					description: 'Без создания каталогов',
+					detail: 'Минимальный проект',
+					kindChoice: DependenciesCommands.CREATE_PROJECT_KIND_PACKAGEDEF_ONLY
+				}
+			] as (vscode.QuickPickItem & { kindChoice: string })[],
+			{
+				title: 'Тип нового проекта 1С',
+				placeHolder: 'Выберите, как создать проект',
+				ignoreFocusOut: true
+			}
+		);
+		if (!kindChoice?.kindChoice) {
+			return;
+		}
+		const withStructure = kindChoice.kindChoice === DependenciesCommands.CREATE_PROJECT_KIND_WITH_STRUCTURE;
+
+		const installDepsChoice = await vscode.window.showQuickPick(
+			[
+				{
+					label: '$(check) Да, установить зависимости',
+					description: 'opm install -l по списку из packagedef',
+					detail: 'Требуется OneScript (oscript, opm)',
+					picked: true,
+					installDeps: true
+				},
+				{
+					label: '$(close) Нет, только создать проект',
+					description: 'Зависимости можно установить позже командой «Установить зависимости»',
+					installDeps: false
+				}
+			] as (vscode.QuickPickItem & { installDeps: boolean })[],
+			{
+				title: 'Установить зависимости',
+				placeHolder: 'Установить зависимости из packagedef после создания проекта?',
+				ignoreFocusOut: true
+			}
+		);
+		if (installDepsChoice === undefined) {
+			return;
+		}
+		const installDependencies = installDepsChoice.installDeps;
+
+		const selected = await vscode.window.showOpenDialog({
+			canSelectFolders: true,
+			canSelectMany: false,
+			title: 'Выберите папку для нового проекта 1С',
+			openLabel: 'Выбрать папку'
+		});
+		if (!selected?.length) {
+			return;
+		}
+		const targetDir = selected[0].fsPath;
+
+		const extensionPath = this.vrunner.getExtensionPath();
+		if (!extensionPath) {
+			const msg = 'Не удалось определить путь к расширению';
+			logger.error(msg);
+			logger.show();
+			vscode.window.showErrorMessage(msg);
+			return;
+		}
+
+		const templatePath = path.join(extensionPath, 'resources', 'templates', 'packagedef.template');
+		const packagedefPath = path.join(targetDir, 'packagedef');
+
+		try {
+			await fs.access(packagedefPath);
+			const action = await vscode.window.showWarningMessage(
+				'В выбранной папке уже есть файл packagedef. Перезаписать и открыть папку?',
+				'Да',
+				'Нет'
+			);
+			if (action !== 'Да') {
+				return;
+			}
+		} catch {
+			// Файл не существует — создаём каталог при необходимости
+			await fs.mkdir(targetDir, { recursive: true });
+		}
+
+		let packagedefContent: string;
+		try {
+			packagedefContent = await fs.readFile(templatePath, 'utf-8');
+		} catch (error) {
+			const errMsg = (error as Error).message;
+			logger.error(`Не удалось прочитать шаблон packagedef: ${errMsg}. Путь: ${templatePath}`);
+			logger.show();
+			vscode.window.showErrorMessage(`Не удалось прочитать шаблон packagedef: ${errMsg}`);
+			return;
+		}
+
+		try {
+			await fs.writeFile(packagedefPath, packagedefContent, 'utf-8');
+			logger.info(`Файл packagedef создан: ${packagedefPath}`);
+
+			if (withStructure) {
+				try {
+					const { createdDirs, createdReadmes } = await this.createProjectStructureInFolder(targetDir);
+					logger.info(
+						`Структура проекта создана: каталогов=${createdDirs}, новых README=${createdReadmes}. Путь: ${targetDir}`
+					);
+					vscode.window.showInformationMessage(
+						`Проект 1С создан: packagedef и структура (${createdDirs} каталогов, ${createdReadmes} README). Открываю папку…`
+					);
+				} catch (error) {
+					const errMsg = (error as Error).message;
+					logger.error(`Не удалось создать структуру проекта: ${errMsg}. Путь: ${targetDir}`);
+					logger.show();
+					vscode.window.showWarningMessage(
+						`packagedef создан, но не удалось создать каталоги: ${errMsg}. Открываю папку.`
+					);
+				}
+			} else {
+				vscode.window.showInformationMessage('Проект 1С создан. Открываю папку…');
+			}
+			if (installDependencies && context) {
+				await context.globalState.update(DependenciesCommands.INSTALL_DEPS_AFTER_CREATE_KEY, targetDir);
+				vscode.window.showInformationMessage(
+					'После открытия папки будет предложена установка зависимостей (opm install -l).'
+				);
+			}
+			// Показать панель «Начало работы» после открытия только что созданного проекта
+			if (context) {
+				await context.globalState.update('1c-platform-tools.showGetStartedForPath', targetDir);
+			}
+			await vscode.commands.executeCommand('vscode.openFolder', selected[0]);
 		} catch (error) {
 			const errMsg = (error as Error).message;
 			logger.error(`Не удалось создать файл packagedef: ${errMsg}. Путь: ${packagedefPath}`);

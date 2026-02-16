@@ -36,7 +36,10 @@ interface Commands {
  * @param commands - Объекты команд
  * @returns Массив Disposable для подписки в context.subscriptions
  */
-export function registerCommands(context: vscode.ExtensionContext, commands: Commands): vscode.Disposable[] {
+export function registerCommands(
+	context: vscode.ExtensionContext,
+	commands: Commands
+): vscode.Disposable[] {
 	const disposables: vscode.Disposable[] = [];
 
 	// Команды информационных баз
@@ -174,6 +177,9 @@ export function registerCommands(context: vscode.ExtensionContext, commands: Com
 		}),
 		vscode.commands.registerCommand('1c-platform-tools.dependencies.initializePackagedef', () => {
 			commands.dependencies.initializePackagedef();
+		}),
+		vscode.commands.registerCommand('1c-platform-tools.project.createFromWelcome', () => {
+			commands.dependencies.createProjectFromWelcome(context);
 		}),
 		vscode.commands.registerCommand('1c-platform-tools.dependencies.setupGit', () => {
 			commands.dependencies.setupGit();

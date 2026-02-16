@@ -61,6 +61,8 @@ export interface TreeCommandEntry {
 	title: string;
 	/** Подпись в дереве (с эмодзи) */
 	treeLabel: string;
+	/** Иконка для дерева (codicon, например 'comment-discussion') — опционально */
+	icon?: string;
 }
 
 /** Состояние сворачивания группы по умолчанию */
@@ -76,7 +78,7 @@ export interface TreeGroup {
 }
 
 /**
- * Единый список групп и команд для дерева 1C Platform Tools и окна настройки избранного.
+ * Единый список групп и команд для дерева команд и окна настройки избранного.
  * Добавление новой команды: добавить объект в commands нужной группы.
  */
 export const TREE_GROUPS: TreeGroup[] = [
@@ -166,7 +168,7 @@ export const TREE_GROUPS: TreeGroup[] = [
 			{ command: '1c-platform-tools.dependencies.initializeProjectStructure', title: getInitializeProjectStructureCommandName().title, treeLabel: '📁 Инициализировать структуру проекта' },
 			{ command: '1c-platform-tools.dependencies.setupGit', title: getSetupGitCommandName().title, treeLabel: '🔧 Настроить Git' },
 			{ command: '1c-platform-tools.dependencies.installOscript', title: getInstallOneScriptCommandName().title, treeLabel: '📦 Установить OneScript' },
-			{ command: '1c-platform-tools.dependencies.updateOpm', title: getUpdateOpmCommandName().title, treeLabel: '📦 Установить OPM' },
+			{ command: '1c-platform-tools.dependencies.updateOpm', title: getUpdateOpmCommandName().title, treeLabel: '📦 Установить пакетный менеджер OneScript' },
 			{ command: '1c-platform-tools.dependencies.install', title: getInstallDependenciesCommandName().title, treeLabel: '📦 Установить зависимости' },
 			{ command: '1c-platform-tools.dependencies.remove', title: getRemoveDependenciesCommandName().title, treeLabel: '🗑️ Удалить зависимости' },
 		],
@@ -206,6 +208,17 @@ export const TREE_GROUPS: TreeGroup[] = [
 		commands: [
 			{ command: '1c-platform-tools.config.env.edit', title: 'Открыть env.json', treeLabel: '📄 env.json' },
 			{ command: '1c-platform-tools.launch.editConfigurations', title: 'Открыть launch.json', treeLabel: '📄 launch.json' },
+		],
+	},
+	{
+		groupLabel: 'Помощь и поддержка',
+		sectionType: 'helpAndSupport',
+		defaultCollapsibleState: 'collapsed',
+		commands: [
+			{ command: '1c-platform-tools.getStarted.open', title: 'С чего начать?', treeLabel: 'С чего начать?' },
+			{ command: '1c-platform-tools.help.openCreateIssue', title: 'Сообщить о проблемах', treeLabel: 'Сообщить о проблемах', icon: 'comment-discussion' },
+			{ command: '1c-platform-tools.help.openWriteReview', title: 'Написать отзыв', treeLabel: 'Написать отзыв', icon: 'feedback' },
+			{ command: '1c-platform-tools.help.openSponsor', title: 'Стать спонсором', treeLabel: 'Стать спонсором', icon: 'heart' },
 		],
 	},
 ];

@@ -9,6 +9,7 @@ node_modules/
 
 # Тесты
 .vscode-test/
+.vscode-ext-dev/
 coverage/
 *.test.js
 *.test.js.map
