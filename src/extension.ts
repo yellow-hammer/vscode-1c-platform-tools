@@ -302,7 +302,7 @@ export async function activate(context: vscode.ExtensionContext) {
 
 	const openCreateIssueCommand = vscode.commands.registerCommand('1c-platform-tools.help.openCreateIssue', () => {
 		void vscode.env.openExternal(
-			vscode.Uri.parse('https://github.com/yellow-hammer/1c-platform-tools/issues/new?template=bug_report.md')
+			vscode.Uri.parse('https://github.com/yellow-hammer/vscode-1c-platform-tools/issues/new?template=bug_report.md')
 		);
 	});
 	const openWriteReviewCommand = vscode.commands.registerCommand('1c-platform-tools.help.openWriteReview', () => {
@@ -312,7 +312,7 @@ export async function activate(context: vscode.ExtensionContext) {
 	});
 	const openSponsorCommand = vscode.commands.registerCommand('1c-platform-tools.help.openSponsor', () => {
 		void vscode.env.openExternal(
-			vscode.Uri.parse('https://github.com/yellow-hammer/1c-platform-tools?tab=readme-ov-file#%D0%B0%D0%B2%D1%82%D0%BE%D1%80')
+			vscode.Uri.parse('https://github.com/yellow-hammer/vscode-1c-platform-tools?tab=readme-ov-file#%D0%B0%D0%B2%D1%82%D0%BE%D1%80')
 		);
 	});
 

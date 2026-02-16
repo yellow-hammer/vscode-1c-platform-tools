@@ -14,7 +14,7 @@
   "publisher": "yellow-hammer",
   "repository": {
     "type": "git",
-    "url": "https://github.com/yellow-hammer/1c-platform-tools"
+    "url": "https://github.com/yellow-hammer/vscode-1c-platform-tools"
   },
   "license": "MIT",
   "author": {
