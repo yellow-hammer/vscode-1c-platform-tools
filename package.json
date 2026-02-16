@@ -10,7 +10,7 @@
     "1с предприятие",
     "bsl"
   ],
-  "version": "0.4.1",
+  "version": "0.5.1",
   "publisher": "yellow-hammer",
   "repository": {
     "type": "git",
@@ -968,37 +968,49 @@
             "id": "step1-create-open",
             "title": "Создайте или откройте проект",
             "description": "Выберите сценарий: откройте существующий проект, создайте новый или инициализируйте packagedef и структуру в текущей папке.\n\n[Открыть проект](command:vscode.openFolder)\n[Создать проект](command:1c-platform-tools.project.createFromWelcome)\n[Инициализировать текущий](command:1c-platform-tools.dependencies.initializePackagedef)\n[Инициализировать структуру](command:1c-platform-tools.dependencies.initializeProjectStructure)",
-            "media": { "markdown": "walkthrough/step1-create-open.md" }
+            "media": {
+              "markdown": "walkthrough/step1-create-open.md"
+            }
           },
           {
             "id": "step2-dependencies",
             "title": "Установите зависимости",
             "description": "Git, OneScript, OPM и пакеты из packagedef нужны для скриптов, vrunner и тестов. Выполните команды по порядку.\n\n[Настроить Git](command:1c-platform-tools.dependencies.setupGit)\n[Установить OneScript](command:1c-platform-tools.dependencies.installOscript)\n[Установить пакетный менеджер OneScript](command:1c-platform-tools.dependencies.updateOpm)\n[Установить зависимости](command:1c-platform-tools.dependencies.install)",
-            "media": { "markdown": "walkthrough/step2-dependencies.md" }
+            "media": {
+              "markdown": "walkthrough/step2-dependencies.md"
+            }
           },
           {
             "id": "step3-commands-panel",
             "title": "Панель с командами",
             "description": "Дерево команд, избранное и палитра — всё для работы с проектом. Закрепите нужные команды в избранном.\n\n[Открыть панель «Инструменты 1С»](command:workbench.view.extension.1c-platform-tools)\n[Настроить избранное](command:1c-platform-tools.favorites.configure)",
-            "media": { "markdown": "walkthrough/step3-commands-panel.md" }
+            "media": {
+              "markdown": "walkthrough/step3-commands-panel.md"
+            }
           },
           {
             "id": "step4-service-files",
             "title": "Служебные файлы",
             "description": "env.json, launch.json и др. — параметры ИБ, отладка, Git. Единый интерфейс настройки разрабатывается.\n\n[Открыть env.json](command:1c-platform-tools.config.env.edit)\n[Открыть launch.json](command:1c-platform-tools.launch.editConfigurations)",
-            "media": { "markdown": "walkthrough/step4-service-files.md" }
+            "media": {
+              "markdown": "walkthrough/step4-service-files.md"
+            }
           },
           {
             "id": "step5-projects",
             "title": "Панель проектов",
             "description": "Укажите папки поиска — расширение найдёт все проекты 1С. Избранное и теги помогут быстро переключаться.\n\n[Открыть панель «Проекты 1С»](command:workbench.view.extension.1c-platform-tools-projects)\n[Настройка проектов](command:1c-platform-tools.projects.openSettings)\n[Открыть список проектов](command:1c-platform-tools.projects.listOpen)",
-            "media": { "markdown": "walkthrough/step5-projects.md" }
+            "media": {
+              "markdown": "walkthrough/step5-projects.md"
+            }
           },
           {
             "id": "step6-todo-list",
             "title": "Список дел",
             "description": "Панель собирает TODO и FIXME по проекту. Фильтры и группировка помогают найти нужные пометки.\n\n[Открыть список дел](command:1c-platform-tools.todo.showPanel)\n[Настройки списка дел](command:1c-platform-tools.settings.openTodo)",
-            "media": { "markdown": "walkthrough/step6-todo-list.md" }
+            "media": {
+              "markdown": "walkthrough/step6-todo-list.md"
+            }
           }
         ]
       }
@@ -1089,14 +1101,29 @@
         "properties": {
           "1c-platform-tools.todo.include": {
             "type": "array",
-            "items": { "type": "string" },
-            "default": ["**/*.bsl", "**/*.os", "**/*.md", "**/*.feature"],
+            "items": {
+              "type": "string"
+            },
+            "default": [
+              "**/*.bsl",
+              "**/*.os",
+              "**/*.md",
+              "**/*.feature"
+            ],
             "description": "Glob-паттерны для поиска файлов при сканировании списка TODO."
           },
           "1c-platform-tools.todo.exclude": {
             "type": "array",
-            "items": { "type": "string" },
-            "default": ["oscript_modules", "out", ".git", "vendor", "build"],
+            "items": {
+              "type": "string"
+            },
+            "default": [
+              "oscript_modules",
+              "out",
+              ".git",
+              "vendor",
+              "build"
+            ],
             "description": "Сегменты пути для исключения при сканировании (например: oscript_modules, node_modules)."
           },
           "1c-platform-tools.todo.tags": {
@@ -1122,14 +1149,24 @@
         "properties": {
           "1c-platform-tools.projects.baseFolders": {
             "type": "array",
-            "items": { "type": "string" },
+            "items": {
+              "type": "string"
+            },
             "default": [],
             "description": "Папки для поиска проектов 1С (каталоги с файлом packagedef). Абсолютные пути или пути относительно домашней папки."
           },
           "1c-platform-tools.projects.ignorePatterns": {
             "type": "array",
-            "items": { "type": "string" },
-            "default": [".git", "out", "oscript_modules", "build", "src"],
+            "items": {
+              "type": "string"
+            },
+            "default": [
+              ".git",
+              "out",
+              "oscript_modules",
+              "build",
+              "src"
+            ],
             "description": "Имена каталогов или фрагменты пути для исключения из сканирования (например: node_modules, .git)."
           },
           "1c-platform-tools.projects.cacheBetweenSessions": {
@@ -1150,7 +1187,10 @@
           },
           "1c-platform-tools.projects.sortList": {
             "type": "string",
-            "enum": ["Name", "Path"],
+            "enum": [
+              "Name",
+              "Path"
+            ],
             "default": "Name",
             "description": "Сортировка списка проектов."
           },
@@ -1176,25 +1216,45 @@
           },
           "1c-platform-tools.projects.openInCurrentWindowIfEmpty": {
             "type": "string",
-            "enum": ["always", "onlyUsingCommandPalette", "onlyUsingSideBar", "never"],
+            "enum": [
+              "always",
+              "onlyUsingCommandPalette",
+              "onlyUsingSideBar",
+              "never"
+            ],
             "default": "always",
             "description": "Открывать в текущем окне, если оно пустое."
           },
           "1c-platform-tools.projects.confirmSwitchOnActiveWindow": {
             "type": "string",
-            "enum": ["never", "onlyUsingCommandPalette", "onlyUsingSideBar", "always"],
+            "enum": [
+              "never",
+              "onlyUsingCommandPalette",
+              "onlyUsingSideBar",
+              "always"
+            ],
             "default": "never",
             "description": "Подтверждение при переключении проекта в активном окне."
           },
           "1c-platform-tools.projects.tags": {
             "type": "array",
-            "items": { "type": "string" },
-            "default": ["Личное", "Работа"],
+            "items": {
+              "type": "string"
+            },
+            "default": [
+              "Личное",
+              "Работа"
+            ],
             "description": "Список тегов для организации проектов."
           },
           "1c-platform-tools.projects.tags.collapseItems": {
             "type": "string",
-            "enum": ["alwaysExpanded", "alwaysCollapsed", "startExpanded", "startCollapsed"],
+            "enum": [
+              "alwaysExpanded",
+              "alwaysCollapsed",
+              "startExpanded",
+              "startCollapsed"
+            ],
             "default": "startExpanded",
             "description": "Поведение групп тегов при отображении списком по тегам."
           }
