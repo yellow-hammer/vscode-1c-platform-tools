@@ -606,6 +606,7 @@ const argsWithIbcmd = this.addIbcmdIfNeeded(args);
 ```
 
 Это заменяет ручную проверку:
+
 ```typescript
 // ❌ Старый способ (не использовать)
 if (this.vrunner.getUseIbcmd() && this.vrunner.supportsIbcmd(args)) {

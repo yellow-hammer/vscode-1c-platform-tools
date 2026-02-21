@@ -29,12 +29,12 @@ alwaysApply: true
 
 Настройки разбиты на подпункты по смыслу:
 
-| Раздел      | Контекст вызова                                  | Фильтр                                                                                      | Команда                                   |
-|-------------|--------------------------------------------------|---------------------------------------------------------------------------------------------|-------------------------------------------|
-| Инструменты | дерево, кнопка «Настройки» в панели инструментов | `@ext:yellow-hammer.1c-platform-tools` (все настройки) | `1c-platform-tools.settings.openTools`    |
-| Проекты     | панель «Проекты 1С», walkthrough                 | `@ext:yellow-hammer.1c-platform-tools 1c-platform-tools.projects`                           | `1c-platform-tools.projects.openSettings` |
-| Список дел  | панель «Список дел»                              | `@ext:yellow-hammer.1c-platform-tools 1c-platform-tools.todo`                               | `1c-platform-tools.settings.openTodo`     |
-| Общее       | —                                                | `@ext:yellow-hammer.1c-platform-tools`                                                      | `1c-platform-tools.settings.openGeneral`  |
+| Раздел      | Контекст вызова                                  | Фильтр                                                            | Команда                                   |
+|-------------|--------------------------------------------------|-------------------------------------------------------------------|-------------------------------------------|
+| Инструменты | дерево, кнопка «Настройки» в панели инструментов | `@ext:yellow-hammer.1c-platform-tools` (все настройки)            | `1c-platform-tools.settings.openTools`    |
+| Проекты     | панель «Проекты 1С», walkthrough                 | `@ext:yellow-hammer.1c-platform-tools 1c-platform-tools.projects` | `1c-platform-tools.projects.openSettings` |
+| Список дел  | панель «Список дел»                              | `@ext:yellow-hammer.1c-platform-tools 1c-platform-tools.todo`     | `1c-platform-tools.settings.openTodo`     |
+| Общее       | —                                                | `@ext:yellow-hammer.1c-platform-tools`                            | `1c-platform-tools.settings.openGeneral`  |
 
 Правила для новых панелей и настроек:
 

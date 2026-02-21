@@ -1,0 +1,53 @@
+---
+description: Дизайн панелей и контейнеров (Проекты 1С, Артефакты 1С, Список дел 1С, Инструменты 1С)
+globs: package.json, **/extension.ts
+alwaysApply: false
+---
+
+# Дизайн панелей и контейнеров
+
+Единый подход для контейнеров: **Проекты 1С**, **Артефакты 1С**, **Список дел 1С**, **Инструменты 1С** (в разработке).
+
+## Меню view/title (панель инструментов)
+
+### Порядок элементов
+
+1. **Submenu «Просмотр и сортировка»** (group `1_<container>`) — только режимы просмотра и сортировки
+2. **Настройки** (group `2_<container>`) — отдельная кнопка, **не внутри** submenu
+3. Динамический переключатель режима (если есть)
+4. Обновить — самая правая (максимальный group)
+
+### Важно
+
+- **Настройки не в submenu** — команда открытия настроек (`settings.open*`) — отдельный пункт меню на том же уровне, что и submenu
+- Submenu содержит только: переключение вида (список/иерархия/теги), сортировку (если применимо)
+- Референс: контейнер «Проекты 1С» — submenu и «Настройки» как соседние пункты
+
+### Пример (package.json)
+
+```json
+{
+  "submenu": "1c-platform-tools.artifacts.viewAndSortMenu",
+  "when": "view == 1c-platform-tools-artifacts-tree",
+  "group": "1_artifacts"
+},
+{
+  "command": "1c-platform-tools.settings.openArtifacts",
+  "when": "view == 1c-platform-tools-artifacts-tree",
+  "group": "2_artifacts"
+}
+```
+
+### Submenu содержимое
+
+- Только команды вида/сортировки: `_viewAsList`, `_viewByFolder`, `_sortByName`, `_sortByPath` и т.п.
+- Без `settings.open*`
+
+## Контейнеры
+
+| Контейнер      | Submenu                           | Настройки              |
+|----------------|-----------------------------------|------------------------|
+| Проекты 1С     | viewAndSortMenu (вид, сортировка) | projects.openSettings  |
+| Артефакты 1С   | viewAndSortMenu (вид)             | settings.openArtifacts |
+| Список дел 1С  | —                                 | settings.openTodo      |
+| Инструменты 1С | (будет переделан по образцу)      | settings.openTools     |
