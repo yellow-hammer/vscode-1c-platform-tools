@@ -6,7 +6,7 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import * as vscode from 'vscode';
-import minimatch from 'minimatch';
+import { minimatch } from 'minimatch';
 
 import { expandHomePath, expandWithGlobPatterns, updateWithPathSeparator } from './projectsPathUtils';
 
