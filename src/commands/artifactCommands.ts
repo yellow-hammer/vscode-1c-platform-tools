@@ -19,9 +19,6 @@ function getRelativePath(uri: vscode.Uri): string {
  * Команды для артефактов (точечная сборка/разборка, запуск тестов)
  */
 export class ArtifactCommands extends BaseCommand {
-	constructor(private readonly _context: vscode.ExtensionContext) {
-		super();
-	}
 
 	private async pickOutputPath(
 		defaultPath: string,
@@ -153,7 +150,7 @@ export class ArtifactCommands extends BaseCommand {
 		const srcRel = getRelativePath(artifactUri);
 		const name = path.basename(artifactUri.fsPath);
 		const outFile = path.join(outPath, `${name}.cfe`);
-		const args = ['compileexttocfe', '--src', srcRel, '--out', outFile];
+		const args = this.addIbcmdIfNeeded(['compileexttocfe', '--src', srcRel, '--out', outFile]);
 		this.vrunner.executeVRunnerInTerminal(args, {
 			cwd: workspaceRoot,
 			name: `Собрать расширение: ${name}`,
@@ -171,9 +168,9 @@ export class ArtifactCommands extends BaseCommand {
 		if (!outDir) {
 			return;
 		}
-		const inRel = getRelativePath(artifactUri);
+		const extensionName = path.basename(artifactUri.fsPath).replace(/\.cfe$/i, '');
 		const ibConnectionParam = await this.vrunner.getIbConnectionParam();
-		const args = this.addIbcmdIfNeeded(['decompileext', inRel, outDir, ...ibConnectionParam]);
+		const args = this.addIbcmdIfNeeded(['decompileext', extensionName, outDir, ...ibConnectionParam]);
 		this.vrunner.executeVRunnerInTerminal(args, {
 			cwd: workspaceRoot,
 			name: `Разобрать расширение: ${path.basename(artifactUri.fsPath)}`,

@@ -222,12 +222,17 @@ const XML_HEAD_SIZE = 4096;
  * Проверяет, является ли XML-файл корневым описанием внешней обработки (корневой элемент ExternalDataProcessor)
  */
 async function xmlIsExternalDataProcessor(filePath: string): Promise<boolean> {
+	let fh: fs.FileHandle | undefined;
 	try {
-		const buf = await fs.readFile(filePath, { flag: 'r' });
-		const content = buf.subarray(0, XML_HEAD_SIZE).toString('utf-8');
+		fh = await fs.open(filePath, 'r');
+		const buf = Buffer.alloc(XML_HEAD_SIZE);
+		const { bytesRead } = await fh.read(buf, 0, XML_HEAD_SIZE, 0);
+		const content = buf.subarray(0, bytesRead).toString('utf-8');
 		return /<ExternalDataProcessor[\s>]/.test(content);
 	} catch {
 		return false;
+	} finally {
+		await fh?.close();
 	}
 }
 
@@ -280,12 +285,17 @@ async function scanReportBinaries(): Promise<ReportArtifact[]> {
  * Проверяет, является ли XML-файл корневым описанием внешнего отчёта (корневой элемент ExternalReport)
  */
 async function xmlIsExternalReport(filePath: string): Promise<boolean> {
+	let fh: fs.FileHandle | undefined;
 	try {
-		const buf = await fs.readFile(filePath, { flag: 'r' });
-		const content = buf.subarray(0, XML_HEAD_SIZE).toString('utf-8');
+		fh = await fs.open(filePath, 'r');
+		const buf = Buffer.alloc(XML_HEAD_SIZE);
+		const { bytesRead } = await fh.read(buf, 0, XML_HEAD_SIZE, 0);
+		const content = buf.subarray(0, bytesRead).toString('utf-8');
 		return /<ExternalReport[\s>]/.test(content);
 	} catch {
 		return false;
+	} finally {
+		await fh?.close();
 	}
 }
 

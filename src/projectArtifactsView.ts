@@ -49,6 +49,14 @@ function parentDirName(relativePath: string): string | undefined {
 	return path.basename(dir);
 }
 
+function getTreeLabel(item: vscode.TreeItem): string {
+	const l = item.label;
+	if (l === undefined) {
+		return '';
+	}
+	return typeof l === 'string' ? l : l.label;
+}
+
 export class ProjectArtifactsTreeDataProvider
 	implements vscode.TreeDataProvider<ArtifactTreeItem>
 {
@@ -296,7 +304,8 @@ export class ProjectArtifactsTreeDataProvider
 		function toFolderGroup(
 			pathPrefix: string,
 			name: string,
-			node: DirNode
+			node: DirNode,
+			hasParentInTree: boolean = false
 		): FolderGroupItem {
 			const fullPath = pathPrefix ? `${pathPrefix}/${name}` : name;
 
@@ -305,29 +314,30 @@ export class ProjectArtifactsTreeDataProvider
 				node.children.size === 1
 			) {
 				const [childName, childNode] = [...node.children][0];
-				return toFolderGroup(fullPath, childName, childNode);
+				return toFolderGroup(fullPath, childName, childNode, false);
 			}
 
 			const children: ArtifactTreeItem[] = node.items.map(toItem);
 			for (const [childName, childNode] of node.children) {
-				children.push(toFolderGroup(fullPath, childName, childNode));
+				children.push(toFolderGroup(fullPath, childName, childNode, true));
 			}
 			children.sort((a, b) => {
 				const aIsFolder = a.contextValue === 'artifactsFolderGroup';
 				const bIsFolder = b.contextValue === 'artifactsFolderGroup';
 				if (aIsFolder !== bIsFolder) {
-					return aIsFolder ? 1 : -1;
+					return aIsFolder ? -1 : 1;
 				}
-				const aLabel = String((a as vscode.TreeItem).label ?? '');
-				const bLabel = String((b as vscode.TreeItem).label ?? '');
+				const aLabel = getTreeLabel(a);
+				const bLabel = getTreeLabel(b);
 				return aLabel.localeCompare(bLabel, undefined, {
 					sensitivity: 'base',
 				});
 			});
 
-			const label = pathPrefix
-				? `${pathPrefix.replace(/\//g, ' › ')} › ${name}`
-				: name;
+			const label =
+				pathPrefix && !hasParentInTree
+					? `${pathPrefix.replaceAll('/', ' › ')} › ${name}`
+					: name;
 			return new FolderGroupItem(fullPath, label, children, workspaceRoot);
 		}
 

@@ -251,7 +251,7 @@ export async function activate(context: vscode.ExtensionContext) {
 		infobase: new InfobaseCommands(),
 		configuration: new ConfigurationCommands(),
 		extensions: new ExtensionsCommands(),
-		artifact: new ArtifactCommands(context),
+		artifact: new ArtifactCommands(),
 		externalFiles: new ExternalFilesCommands(),
 		support: new SupportCommands(),
 		dependencies: new DependenciesCommands(),
@@ -712,7 +712,7 @@ export async function activate(context: vscode.ExtensionContext) {
 		}
 	});
 
-	// Обновление списка TODO при сохранении релевантного файла (дебаунс 1.5 с)
+	// Обновление списка дел при сохранении релевантного файла (дебаунс 1.5 с)
 	const todoSaveDebounce = { timer: undefined as ReturnType<typeof setTimeout> | undefined };
 	const onTodoRelevantSave = vscode.workspace.onDidSaveTextDocument((doc) => {
 		if (!isProjectRef.current) {
