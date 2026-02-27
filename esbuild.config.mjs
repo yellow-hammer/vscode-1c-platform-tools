@@ -3,9 +3,9 @@
  * node_modules не нужен в VSIX.
  */
 import * as esbuild from 'esbuild';
+import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { globSync } from 'glob';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const watch = process.argv.includes('--watch');
@@ -29,10 +29,6 @@ const extensionOptions = {
 	// Предпочтение CJS-сборок зависимостей для корректного бандлинга в format: 'cjs'
 	mainFields: ['main', 'module'],
 };
-
-const testEntryPoints = globSync('src/test/**/*.test.ts', { cwd: __dirname }).map((f) =>
-	path.join(__dirname, f)
-);
 
 const testOptions = {
 	entryPoints: testEntryPoints,

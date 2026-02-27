@@ -1832,13 +1832,12 @@
     "package": "node scripts/run-vsce-package.cjs package"
   },
   "overrides": {
-    "diff": "^8.0.3",
-    "minimatch": "^10.2.1"
+    "diff": "^8.0.3"
   },
   "dependencies": {
     "@vscode/debugadapter": "^1.67.0",
     "glob": "^10.5.0",
-    "minimatch": "^10.2.1"
+    "minimatch": "^9.0.5"
   },
   "devDependencies": {
     "@types/minimatch": "^3.0.5",
@@ -1848,7 +1847,7 @@
     "@vscode/test-electron": "^2.5.2",
     "@vscode/vsce": "^3.7.1",
     "esbuild": "^0.27.3",
-    "eslint": "^9.39.1",
+    "eslint": "^10.0.1",
     "typescript": "^5.9.3",
     "typescript-eslint": "^8.48.1"
   }

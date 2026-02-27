@@ -17,7 +17,7 @@ import { PROJECT_STRUCTURE } from '../projectStructure';
 /** URL для скачивания OVM (OneScript Version Manager) */
 const OVM_DOWNLOAD_URL = 'https://github.com/oscript-library/ovm/releases/latest/download/ovm.exe';
 
-/** Регулярное выражение для извлечения ВерсияСреды из packagedef (например .ВерсияСреды("1.9.0")) */
+/** Регулярное выражение для извлечения ВерсияСреды из packagedef (например .ВерсияСреды("2.0.0")) */
 const PACKAGEDEF_VERSIYA_SREDY = /\.ВерсияСреды\s*\(\s*["']([^"']+)["']\s*\)/;
 
 /** Интервал опроса появления OVM после установки (мс) */
@@ -25,24 +25,97 @@ const OVM_POLL_INTERVAL_MS = 3000;
 /** Максимальное время ожидания завершения установки (мс) */
 const OVM_POLL_TIMEOUT_MS = 5 * 60 * 1000;
 
+/** Теги OVM для выбора версии OneScript */
+const OVM_TAGS = ['lts', 'stable', 'dev', 'preview', 'lts-dev'] as const;
+
+type OvmVersionItem = vscode.QuickPickItem & { version?: string };
+
 /**
- * Читает версию OneScript из packagedef (ВерсияСреды). При отсутствии или ошибке возвращает 'stable'.
+ * QuickPick версии OneScript: версия из packagedef (если есть), теги. Можно ввести версию (2.0.0) в поле.
+ */
+async function pickOvmVersion(packagedefVersion: OscriptVersionFromPackagedef): Promise<string | undefined> {
+	const items: OvmVersionItem[] = [
+		...(packagedefVersion.fromPackagedef
+			? [
+					{ label: 'из packagedef', kind: vscode.QuickPickItemKind.Separator, version: undefined },
+					{ label: packagedefVersion.version, version: packagedefVersion.version } as OvmVersionItem
+				]
+			: []),
+		{ label: 'теги', kind: vscode.QuickPickItemKind.Separator, version: undefined },
+		...OVM_TAGS.map((tag) => ({ label: tag, version: tag }))
+	];
+
+	const defaultVersion = packagedefVersion.fromPackagedef ? packagedefVersion.version : 'stable';
+	const stableItem = items.find((i) => i.version === 'stable');
+
+	let resolved = false;
+	const chosen = await new Promise<OvmVersionItem | { typedVersion: string } | undefined>((resolve) => {
+		const doResolve = (value: OvmVersionItem | { typedVersion: string } | undefined) => {
+			if (!resolved) {
+				resolved = true;
+				resolve(value);
+			}
+		};
+		const picker = vscode.window.createQuickPick<OvmVersionItem>();
+		picker.title = 'Версия OneScript';
+		picker.placeholder = 'Версия или тег (2.0.0, stable…)';
+		picker.items = items;
+		picker.activeItems = stableItem ? [stableItem] : [];
+		picker.ignoreFocusOut = true;
+
+		picker.onDidAccept(() => {
+			const selected = picker.selectedItems[0];
+			const typed = picker.value?.trim();
+			if (typed && (!selected || selected.kind === vscode.QuickPickItemKind.Separator || selected.version !== typed)) {
+				picker.hide();
+				doResolve({ typedVersion: typed });
+			} else if (selected && selected.kind !== vscode.QuickPickItemKind.Separator) {
+				picker.hide();
+				doResolve(selected);
+			}
+		});
+		picker.onDidHide(() => {
+			doResolve(undefined);
+			picker.dispose();
+		});
+		picker.show();
+	});
+
+	if (!chosen) {
+		return undefined;
+	}
+	if ('typedVersion' in chosen) {
+		return chosen.typedVersion;
+	}
+	return chosen.version ?? defaultVersion;
+}
+
+/** Результат чтения версии OneScript из packagedef */
+interface OscriptVersionFromPackagedef {
+	/** Версия для ovm install (например '2.0.0' или 'stable') */
+	version: string;
+	/** true, если версия прочитана из файла packagedef */
+	fromPackagedef: boolean;
+}
+
+/**
+ * Читает версию OneScript из packagedef (ВерсияСреды). При отсутствии или ошибке возвращает stable.
  *
  * @param workspaceRoot - Корень workspace
- * @returns Версия для ovm install (например '1.9.0' или 'stable')
+ * @returns Версия и признак «из packagedef»
  */
-async function getOscriptVersionFromPackagedef(workspaceRoot: string): Promise<string> {
+async function getOscriptVersionFromPackagedef(workspaceRoot: string): Promise<OscriptVersionFromPackagedef> {
 	try {
 		const content = await fs.readFile(path.join(workspaceRoot, 'packagedef'), 'utf-8');
 		const match = PACKAGEDEF_VERSIYA_SREDY.exec(content);
 		const version = match?.[1]?.trim();
 		if (version) {
-			return version;
+			return { version, fromPackagedef: true };
 		}
 	} catch {
 		// Файл отсутствует или не прочитался — используем stable
 	}
-	return 'stable';
+	return { version: 'stable', fromPackagedef: false };
 }
 
 /**
@@ -691,9 +764,13 @@ export class DependenciesCommands extends BaseCommand {
 		const oscriptOk = await this.vrunner.checkOscriptAvailable();
 		const alreadyInstalled = oscriptOk;
 
+		const packagedefVersion = await getOscriptVersionFromPackagedef(workspaceRoot);
+		const versionHint = packagedefVersion.fromPackagedef
+			? ` packagedef: ${packagedefVersion.version}.`
+			: ' В packagedef не указана.';
 		const confirmMessage = alreadyInstalled
-			? 'OneScript уже установлен. Всё равно запустить установку/обновление через OVM?'
-			: 'OneScript не найден. Установить через OVM (OneScript Version Manager)? Требуется интернет.';
+			? `OneScript установлен. Всё равно установить/обновить через OVM?${versionHint}`
+			: `OneScript не найден. Установить через OVM? Нужен интернет.${versionHint}`;
 		const confirm = await vscode.window.showWarningMessage(
 			confirmMessage,
 			'Установить',
@@ -703,7 +780,11 @@ export class DependenciesCommands extends BaseCommand {
 			return;
 		}
 
-		const ovmVersion = await getOscriptVersionFromPackagedef(workspaceRoot);
+		const ovmVersion = await pickOvmVersion(packagedefVersion);
+		if (!ovmVersion) {
+			return;
+		}
+
 		const commandName = getInstallOneScriptCommandName();
 		const { mtimeMs: ovmOscriptMtimeBefore } = getOvmOscriptPathAndMtime();
 
@@ -748,20 +829,20 @@ export class DependenciesCommands extends BaseCommand {
 
 		logger.info(`Установка OneScript запущена в терминале: ${commandName.title}, версия: ${ovmVersion}`);
 
-		vscode.window.setStatusBarMessage('Ожидание завершения установки OneScript в терминале…', OVM_POLL_TIMEOUT_MS);
+		vscode.window.setStatusBarMessage('Ожидание установки OneScript…', OVM_POLL_TIMEOUT_MS);
 		const installed = await waitForOvmInstallComplete(ovmOscriptMtimeBefore);
 		vscode.window.setStatusBarMessage('', 0);
 
 		if (!installed) {
 			logger.info('Таймаут ожидания установки OVM');
 			vscode.window.showInformationMessage(
-				'Установка занимает больше времени или завершилась с ошибкой. Если в терминале установка прошла успешно, перезапустите окно VS Code вручную (Developer: Reload Window).'
+				'Установка идёт дольше или с ошибкой. Если в терминале успешно — перезапустите окно (Reload Window).'
 			);
 			return;
 		}
 
 		const reload = await vscode.window.showInformationMessage(
-			'Установка OneScript завершена. Чтобы изменения (PATH) вступили в силу, перезапустите окно VS Code. Перезапустить сейчас?',
+			'OneScript установлен. Перезапустить окно (PATH обновится)?',
 			'Перезапустить',
 			'Позже'
 		);
