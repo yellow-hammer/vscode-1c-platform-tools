@@ -35,12 +35,15 @@
     "node": ">=20.0.0"
   },
   "categories": [
+    "Debuggers",
     "Other",
     "Programming Languages",
     "Snippets",
     "Testing"
   ],
   "activationEvents": [
+    "onDebug",
+    "onLanguage:bsl",
     "onStartupFinished",
     "workspaceContains:packagedef",
     "onCommand:1c-platform-tools.dependencies.initializePackagedef",
@@ -116,14 +119,115 @@
           "contextualTitle": "Артефакты проекта",
           "when": "1c-platform-tools.is1CProject == true"
         }
+      ],
+      "debug": [
+        {
+          "id": "debug.debugTargets",
+          "name": "Debug targets",
+          "when": "debugState != inactive"
+        }
       ]
     },
+    "breakpoints": [
+      {
+        "language": "bsl"
+      }
+    ],
+    "debuggers": [
+      {
+        "type": "1c-platform-tools",
+        "label": "1Cpt: Enterprise Debugger",
+        "program": "./bin/onec-debug-adapter/OnecDebugAdapter.dll",
+        "runtime": "dotnet",
+        "languages": ["bsl"],
+        "configurationAttributes": {
+          "launch": {
+            "required": ["rootProject", "platformPath"],
+            "properties": {
+              "rootProject": {
+                "type": "string",
+                "description": "Каталог отлаживаемой конфигурации"
+              },
+              "platformPath": {
+                "type": "string",
+                "description": "Каталог с версиями платформ 1С"
+              },
+              "platformVersion": {
+                "type": "string",
+                "description": "Версия используемой платформы"
+              },
+              "debugServerHost": {
+                "type": "string",
+                "description": "Адрес сервера отладки"
+              },
+              "debugServerPort": {
+                "type": "number",
+                "description": "Порт сервера отладки",
+                "default": 1550
+              },
+              "extensions": {
+                "type": "array",
+                "description": "Каталоги расширений конфигурации"
+              },
+              "autoAttachTypes": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "enum": ["Client", "ManagedClient", "WebClient", "ComConnector", "Server", "ServerEmulation", "WebService", "HttpService", "OData", "Job", "JobFileMode", "MobileClient", "MobileServer", "MobileJobFileMode", "MobileManagedClient", "MobileManagedServer"]
+                }
+              }
+            }
+          },
+          "attach": {
+            "required": ["rootProject", "platformPath"],
+            "properties": {
+              "rootProject": {
+                "type": "string",
+                "description": "Каталог отлаживаемой конфигурации"
+              },
+              "platformPath": {
+                "type": "string",
+                "description": "Каталог с версиями платформ 1С"
+              },
+              "platformVersion": {
+                "type": "string",
+                "description": "Версия используемой платформы"
+              },
+              "debugServerHost": {
+                "type": "string",
+                "description": "Адрес сервера отладки"
+              },
+              "debugServerPort": {
+                "type": "number",
+                "description": "Порт сервера отладки",
+                "default": 1550
+              },
+              "extensions": {
+                "type": "array",
+                "description": "Каталоги расширений конфигурации"
+              },
+              "autoAttachTypes": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "enum": ["Client", "ManagedClient", "WebClient", "ComConnector", "Server", "ServerEmulation", "WebService", "HttpService", "OData", "Job", "JobFileMode", "MobileClient", "MobileServer", "MobileJobFileMode", "MobileManagedClient", "MobileManagedServer"]
+                }
+              }
+            }
+          }
+        }
+      }
+    ],
     "commands": [
       {
         "command": "1c-platform-tools.refresh",
         "title": "Обновить",
         "icon": "$(refresh)",
         "category": "1C: Дерево"
+      },
+      {
+        "command": "debug.debugTargets.connect",
+        "title": "Connect"
       },
       {
         "command": "1c-platform-tools.artifacts.refresh",
@@ -857,6 +961,11 @@
     ],
     "menus": {
       "view/title": [
+        {
+          "command": "debug.debugTargets.connect",
+          "when": "view == debug.debugTargets",
+          "group": "navigation"
+        },
         {
           "command": "1c-platform-tools.favorites.configure",
           "when": "view == 1c-platform-tools",
@@ -1697,32 +1806,37 @@
         }
       }
     ],
-    "colors": [
-      {
-        "id": "1cplatformtools.projects.currentProjectHighlightForeground",
-        "description": "Цвет подсветки текущего проекта в панели «Проекты 1С».",
-        "defaults": {
-          "light": "#2fb15b",
-          "dark": "#2fb15b",
-          "highContrast": "#2fb15b"
-        }
+  "colors": [
+    {
+      "id": "1cplatformtools.projects.currentProjectHighlightForeground",
+      "description": "Цвет подсветки текущего проекта в панели «Проекты 1С».",
+      "defaults": {
+        "light": "#2fb15b",
+        "dark": "#2fb15b",
+        "highContrast": "#2fb15b"
       }
-    ]
+    }
+  ]
+  },
+  "onecDebugAdapter": {
+    "version": "v0.1.0"
   },
   "scripts": {
-    "vscode:prepublish": "npm run compile",
+    "vscode:prepublish": "npm run compile && npm run build:onec-adapter",
     "compile": "node esbuild.config.mjs",
     "watch": "node esbuild.config.mjs --watch",
+    "build:onec-adapter": "node scripts/build-onec-adapter.mjs",
     "pretest": "npm run compile && npm run lint",
     "lint": "eslint src",
     "test": "vscode-test",
-    "package": "vsce package"
+    "package": "node scripts/run-vsce-package.cjs package"
   },
   "overrides": {
     "diff": "^8.0.3",
     "minimatch": "^10.2.1"
   },
   "dependencies": {
+    "@vscode/debugadapter": "^1.67.0",
     "glob": "^10.5.0",
     "minimatch": "^10.2.1"
   },

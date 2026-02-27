@@ -46,6 +46,11 @@ import {
 import { HelpAndSupportProvider } from './projects/helpAndSupportProvider';
 import { registerProjectsDecoration } from './projects/decoration';
 import { registerProjectsCommands } from './projects/commands';
+import * as onecDebugTargets from './debug/debugTargets';
+import {
+	OnecDebugConfigurationProvoider,
+	watchTargetTypesChanged,
+} from './debug/debugConfigurations';
 
 /** Элемент QuickPick для настройки избранного (с полями команды и группы) */
 type FavoritesSelectableItem = vscode.QuickPickItem & {
@@ -237,6 +242,26 @@ export async function activate(context: vscode.ExtensionContext) {
 	context.subscriptions.push(artifactsTreeView);
 
 	await vscode.commands.executeCommand('setContext', '1c-platform-tools.is1CProject', false);
+
+	// Регистрация DAP 1С (onec-debug-adapter) и представлений отладки
+	vscode.debug.registerDebugConfigurationProvider(
+		'1c-platform-tools',
+		new OnecDebugConfigurationProvoider()
+	);
+	watchTargetTypesChanged(context);
+	context.subscriptions.push(
+		vscode.debug.onDidStartDebugSession((session) => {
+			onecDebugTargets.updateDebugTargets(session);
+		})
+	);
+	context.subscriptions.push(
+		vscode.debug.onDidReceiveDebugSessionCustomEvent((ev) => {
+			if (ev.event === 'DebugTargetsUpdated') {
+				onecDebugTargets.updateDebugTargets(ev.session);
+			}
+		})
+	);
+	onecDebugTargets.init(context);
 
 	const isProject = await is1CProject();
 

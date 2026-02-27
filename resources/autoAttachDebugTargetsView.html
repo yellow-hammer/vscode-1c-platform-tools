@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html>
+    <link rel="stylesheet" type="text/css" href="{{resetcss}}">
+    <body>
+        <ul id="items" style="list-style-type: none;"></ul>
+    </body>
+    <script>
+        let vscode = acquireVsCodeApi();
+
+        let targetTypes = [
+            { id: "Client", label: "Толстый клиент" },
+            { id: "ManagedClient", label: "Тонкий клиент" },
+            { id: "WebClient", label: "Веб-клиент" },
+            { id: "ComConnector", label: "COM-соединение" },
+            { id: "Server", label: "Сервер" },
+            { id: "ServerEmulation", label: "Сервер (файловый вариант)" },
+            { id: "WebService", label: "Веб-сервис" },
+            { id: "HttpService", label: "Http-сервис" },
+            { id: "OData", label: "Стандартный интерфейс OData" },
+            { id: "Job", label: "Фоновое задание" },
+            { id: "JobFileMode", label: "Фоновое задание (файловый вариант)" },
+            { id: "MobileClient", label: "Клиент (мобильное приложение)" },
+            { id: "MobileServer", label: "Сервер (мобильное приложение)" },
+            { id: "MobileJobFileMode", label: "Фоновое задание (мобильное приложение)" },
+            { id: "MobileManagedClient", label: "Мобильный клиент" },
+            { id: "MobileManagedServer", label: "Автономный сервер (мобильный клиент с автономным режимом)" }
+        ]
+
+        function getSelectedTargets() {
+            const selectedTargets = [];
+            document.querySelectorAll("input[type=checkbox]:checked").forEach(input => {
+                selectedTargets.push(input.id);
+            });
+            return selectedTargets;
+        }
+
+        function sendUpdate() {
+            let selectedTargets = getSelectedTargets();
+
+            vscode.postMessage({
+                command: "updated",
+                targets: selectedTargets
+            });
+        }
+
+        window.addEventListener('message', event => {
+            sendUpdate();
+        });
+
+        let items = document.getElementById("items");
+
+        let oldState = vscode.getState() || { items: [] };
+
+        targetTypes.forEach(function (item) {
+            let li = document.createElement("li")
+
+            let input = document.createElement("input");
+            input.type = "checkbox";
+            input.id = item.id;
+            li.appendChild(input);
+
+            if (oldState.items.indexOf(item.id) !== -1) {
+                input.checked = true;
+            }
+
+            input.onchange = () => {
+                vscode.setState({ items: getSelectedTargets() });
+                sendUpdate();
+            }
+
+            let label = document.createElement("label");
+            label.textContent = item.label;
+            label.style.marginLeft = "5px";
+            li.appendChild(label);
+
+            items.appendChild(li);
+        })
+    </script>
+</html>
