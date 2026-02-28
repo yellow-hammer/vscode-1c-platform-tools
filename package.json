@@ -1612,33 +1612,9 @@
     ],
     "configuration": [
       {
-        "title": "Сервер IPC",
-        "id": "1c-platform-tools.ipc",
-        "order": 0,
-        "properties": {
-          "1c-platform-tools.ipc.enabled": {
-            "type": "boolean",
-            "default": false,
-            "description": "Включить IPC-сервер для взаимодействия с внешним MCP-сервером (mcp-1c-platform-tools). При включении расширение поднимает локальный TCP-сервер на указанном порту."
-          },
-          "1c-platform-tools.ipc.port": {
-            "type": "number",
-            "default": 40241,
-            "minimum": 1,
-            "maximum": 65535,
-            "description": "Порт TCP для IPC-сервера (localhost). MCP-сервер mcp-1c-platform-tools должен использовать тот же порт (переменная окружения ONEC_IPC_PORT)."
-          },
-          "1c-platform-tools.ipc.token": {
-            "type": "string",
-            "default": "",
-            "description": "Секретный токен для аутентификации клиентов IPC. Рекомендуется задать непустое значение и указать его в переменной окружения ONEC_IPC_TOKEN для MCP-сервера. При пустом значении соединения принимаются без проверки токена (режим разработки)."
-          }
-        }
-      },
-      {
         "title": "Инструменты",
         "id": "1c-platform-tools.tools",
-        "order": 1,
+        "order": 0,
         "properties": {
           "1c-platform-tools.vrunner.path": {
             "type": "string",
@@ -1716,7 +1692,7 @@
       {
         "title": "Список дел",
         "id": "1c-platform-tools.todo",
-        "order": 2,
+        "order": 1,
         "properties": {
           "1c-platform-tools.todo.include": {
             "type": "array",
@@ -1764,7 +1740,7 @@
       {
         "title": "Артефакты",
         "id": "1c-platform-tools.artifacts",
-        "order": 3,
+        "order": 2,
         "properties": {
           "1c-platform-tools.artifacts.exclude": {
             "type": "array",
@@ -1782,7 +1758,7 @@
       {
         "title": "Проекты",
         "id": "1c-platform-tools.projects",
-        "order": 4,
+        "order": 3,
         "properties": {
           "1c-platform-tools.projects.baseFolders": {
             "type": "array",
@@ -1894,6 +1870,30 @@
             ],
             "default": "startExpanded",
             "description": "Поведение групп тегов при отображении списком по тегам."
+          }
+        }
+      },
+      {
+        "title": "Сервер IPC",
+        "id": "1c-platform-tools.ipc",
+        "order": 4,
+        "properties": {
+          "1c-platform-tools.ipc.enabled": {
+            "type": "boolean",
+            "default": false,
+            "description": "Включить IPC-сервер для взаимодействия с внешним MCP-сервером (mcp-1c-platform-tools). При включении расширение поднимает локальный TCP-сервер на указанном порту."
+          },
+          "1c-platform-tools.ipc.port": {
+            "type": "number",
+            "default": 40241,
+            "minimum": 1,
+            "maximum": 65535,
+            "description": "Порт TCP для IPC-сервера (localhost). MCP-сервер mcp-1c-platform-tools должен использовать тот же порт (переменная окружения ONEC_IPC_PORT)."
+          },
+          "1c-platform-tools.ipc.token": {
+            "type": "string",
+            "default": "",
+            "description": "Секретный токен для аутентификации клиентов IPC. Рекомендуется задать непустое значение и указать его в переменной окружения ONEC_IPC_TOKEN для MCP-сервера. При пустом значении соединения принимаются без проверки токена (режим разработки)."
           }
         }
       }

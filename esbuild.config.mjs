@@ -17,12 +17,6 @@ const testEntryPoints = fs.existsSync(srcTestDir)
 		.map((f) => path.join(srcTestDir, f))
 	: [];
 
-// Шим для minimatch: CJS-сборка экспортирует .minimatch, а код из glob ожидает .default.
-// Патчим через Module.prototype.require, чтобы сработало при любой загрузке.
-const minimatchShimBanner = `
-(function(){var r=require('module').prototype.require;require('module').prototype.require=function(id){var m=r.apply(this,arguments);if(id==='minimatch'&&m&&typeof m.minimatch==='function')m.default=m.minimatch;return m;};})();
-`;
-
 const extensionOptions = {
 	entryPoints: [path.join(__dirname, 'src', 'extension.ts')],
 	bundle: true,
@@ -30,9 +24,8 @@ const extensionOptions = {
 	platform: 'node',
 	format: 'cjs',
 	target: 'node20',
-	external: ['vscode', 'minimatch'],
+	external: ['vscode'],
 	sourcemap: true,
-	banner: { js: minimatchShimBanner },
 	// Предпочтение CJS-сборок зависимостей для корректного бандлинга в format: 'cjs'
 	mainFields: ['main', 'module'],
 };
