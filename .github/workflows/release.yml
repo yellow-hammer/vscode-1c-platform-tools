@@ -30,10 +30,13 @@ jobs:
   release:
     name: Build and Publish
     runs-on: ubuntu-latest
+    env:
+      OVSX_TOKEN: ${{ secrets.OVSX_TOKEN }}
+      VSCE_PAT: ${{ secrets.VSCE_PAT }}
     permissions:
       contents: write # Необходимо для создания релизов
       packages: write # Необходимо для публикации в VS Code Marketplace
-    
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -231,14 +234,14 @@ jobs:
         uses: HaaLeo/publish-vscode-extension@v1
         id: publishToOpenVSX
         with:
-          pat: ${{ secrets.OVSX_TOKEN }}
+          pat: ${{ env.OVSX_TOKEN }}
           skipDuplicate: true
 
       - name: Publish to Visual Studio Marketplace
         if: github.event_name != 'workflow_dispatch' || github.event.inputs.skip_publish != 'true'
         uses: HaaLeo/publish-vscode-extension@v1
         with:
-          pat: ${{ secrets.VSCE_PAT }}
+          pat: ${{ env.VSCE_PAT }}
           registryUrl: https://marketplace.visualstudio.com
           extensionFile: ${{ steps.publishToOpenVSX.outputs.vsixPath }}
           skipDuplicate: true

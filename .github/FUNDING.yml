@@ -1,28 +1,2 @@
-# These are supported funding model platforms
-
-# GitHub Sponsors - раскомментируйте и укажите ваш username, если настроен GitHub Sponsors
 github: yellow-hammer
-
-# Patreon - раскомментируйте и укажите ваш username
-# patreon: 
-
-# Open Collective - раскомментируйте и укажите ваш username
-# open_collective: 
-
-# Ko-fi - раскомментируйте и укажите ваш username
-# ko_fi: 
-
-# Buy Me a Coffee - раскомментируйте и укажите ваш username
-# buy_me_a_coffee: 
-
-# Custom URLs - ссылки на ваши страницы для поддержки
 custom: ['https://pay.cloudtips.ru/p/d752cb43', 'https://boosty.to/1carlo/donate']
-
-# Другие платформы (раскомментируйте при необходимости):
-# tidelift: # platform-name/package-name e.g., npm/babel
-# community_bridge: # project-name e.g., cloud-foundry
-# liberapay: # username
-# issuehunt: # username
-# lfx_crowdfunding: # project-name e.g., cloud-foundry
-# polar: # username
-# thanks_dev: # username
