@@ -18,6 +18,7 @@ import { SetVersionCommands } from './commands/setVersionCommands';
 import { WorkspaceTasksCommands } from './commands/workspaceTasksCommands';
 import { ArtifactCommands } from './commands/artifactCommands';
 import { OscriptTasksCommands } from './commands/oscriptTasksCommands';
+import { SkillsCommands } from './commands/skillsCommands';
 import { registerCommands } from './commands/commandRegistry';
 import { VRunnerManager } from './vrunnerManager';
 import { logger } from './logger';
@@ -51,6 +52,8 @@ import {
 	OnecDebugConfigurationProvoider,
 	watchTargetTypesChanged,
 } from './debug/debugConfigurations';
+import { registerRunCommandFileWatcher } from './runCommandFromFileWatcher';
+import { startIpcServer } from './ipcServer';
 
 /** Элемент QuickPick для настройки избранного (с полями команды и группы) */
 type FavoritesSelectableItem = vscode.QuickPickItem & {
@@ -189,15 +192,10 @@ async function is1CProject(): Promise<boolean> {
 	}
 }
 
-/** Сообщение, когда команда вызвана вне проекта 1С (без packagedef) */
 const NOT_1C_PROJECT_MESSAGE =
 	'Откройте папку проекта 1С (в корне должен быть файл packagedef). ' +
 	'Чтобы создать новый проект, выполните команду «1C: Зависимости: Инициализировать проект» из палитры команд.';
 
-/**
- * Активирует расширение
- * @param context - Контекст расширения VS Code
- */
 export async function activate(context: vscode.ExtensionContext) {
 	// Панель «Проекты 1С» — сразу создаём TreeViews, чтобы избежать «Отсутствует поставщик данных»
 	const oneCLocator = new OneCLocator(context);
@@ -285,6 +283,7 @@ export async function activate(context: vscode.ExtensionContext) {
 		setVersion: new SetVersionCommands(),
 		oscriptTasks: new OscriptTasksCommands(),
 		workspaceTasks: new WorkspaceTasksCommands(),
+		skills: new SkillsCommands(),
 	};
 
 	const commandDisposables = registerCommands(context, commands);
@@ -367,19 +366,20 @@ export async function activate(context: vscode.ExtensionContext) {
 		showCollapseAll: false,
 	});
 	context.subscriptions.push(helpAndSupportTreeView);
-	const projectsCommandDisposables = registerProjectsCommands(
-		context,
-		projectStorage,
-		oneCLocator,
-		providers,
-		stack
-	);
 	registerProjectsDecoration(context);
 	showStatusBar(projectStorage, oneCLocator);
 	context.subscriptions.push(
 		vscode.workspace.onDidChangeWorkspaceFolders(() => {
 			showStatusBar(projectStorage, oneCLocator);
 		})
+	);
+	registerRunCommandFileWatcher(context);
+	const projectsCommandDisposables = registerProjectsCommands(
+		context,
+		projectStorage,
+		oneCLocator,
+		providers,
+		stack
 	);
 
 	// Панель «Проекты 1С»: загрузка данных (локация проектов). Не даём сбою здесь прервать активацию.
@@ -512,6 +512,7 @@ export async function activate(context: vscode.ExtensionContext) {
 	const settingsCommand = vscode.commands.registerCommand('1c-platform-tools.settings', async () => {
 		const choice = await vscode.window.showQuickPick(
 			[
+				{ label: '$(plug) Сервер IPC', detail: 'MCP, порт, токен', filter: '1c-platform-tools.ipc' },
 				{ label: '$(tools) Инструменты', detail: 'vrunner, пути, docker, allure', filter: '1c-platform-tools' },
 				{ label: '$(folder-opened) Проекты', detail: 'baseFolders, исключения, избранное', filter: '1c-platform-tools.projects' },
 				{ label: '$(package) Артефакты', detail: 'исключения при сканировании', filter: '1c-platform-tools.artifacts' },
@@ -539,6 +540,9 @@ export async function activate(context: vscode.ExtensionContext) {
 	);
 	vscode.commands.registerCommand('1c-platform-tools.settings.openArtifacts', () =>
 		vscode.commands.executeCommand('workbench.action.openSettings', `${SETTINGS_EXT} 1c-platform-tools.artifacts`)
+	);
+	vscode.commands.registerCommand('1c-platform-tools.settings.openIpc', () =>
+		vscode.commands.executeCommand('workbench.action.openSettings', `${SETTINGS_EXT} 1c-platform-tools.ipc`)
 	);
 	vscode.commands.registerCommand('1c-platform-tools.settings.openGeneral', () =>
 		vscode.commands.executeCommand('workbench.action.openSettings', SETTINGS_EXT)
@@ -896,13 +900,10 @@ export async function activate(context: vscode.ExtensionContext) {
 		},
 		...commandDisposables
 	);
+
+	startIpcServer(context);
 }
 
-/**
- * Деактивирует расширение
- * Очистка не требуется: все ресурсы автоматически освобождаются
- * через context.subscriptions при деактивации расширения
- */
 export function deactivate() {
 	logger.dispose();
 }

@@ -39,3 +39,18 @@ alwaysApply: false
 ## Добавление новых команд
 
 Новую команду: добавить запись в соответствующую группу в `src/treeStructure.ts` (TREE_GROUPS), зарегистрировать в `package.json` → `contributes.commands` и в `src/commands/commandRegistry.ts` через `registerCommands()`. Названия — функции из `src/commandNames.ts` (get*CommandName()); для узлов «Конфигурации запуска» (env.json, launch.json) допускаются фиксированные title/treeLabel. Команды для динамических узлов (задачи oscript, конфигурации запуска) регистрируются в extension.ts.
+
+## Навыки для AI (skills)
+
+В дереве «Инструменты 1С» группа **«Навыки для AI»** содержит две кнопки:
+
+1. **«Добавить навыки разработки 1С (cc-1c-skills)»** (`1c-platform-tools.skills.addDevSkills`) — скачивает репозиторий [cc-1c-skills](https://github.com/Nikolay-Shirokov/cc-1c-skills) с GitHub (при каждом вызове, в репо расширения не хранятся), распаковывает архив и копирует **содержимое** `.claude/skills/` в выбранную папку (Для Cursor → `.cursor/skills/`, Для Claude Code → `.claude/skills/`, Указать папку). Навыки: XML, формы, роли, СКД, метаданные, EPF/ERF и т.д. Реализация: `src/commands/skillsCommands.ts` → `addDevSkills()`.
+
+2. **«Добавить навыки расширения (команды и MCP)»** (`1c-platform-tools.skills.add1cpt`) — копирует **все** наши навыки (полный + доменные) **одним действием, без выбора** «какой навык». Пользователь выбирает только «Куда установить» (Cursor / Copilot / Claude / своя папка). Копируются папки из `resources/skills/`: `1c-platform-tools`, `1c-platform-tools-configuration`, `1c-platform-tools-extensions`, `1c-platform-tools-infobase`, `1c-platform-tools-external`, `1c-platform-tools-run`, `1c-platform-tools-test`, `1c-platform-tools-dependencies`, `1c-platform-tools-support`, `1c-platform-tools-setversion`, `1c-platform-tools-config`, `1c-platform-tools-mcp`. Реализация: `add1cptSkills()` в skillsCommands.ts.
+
+**При добавлении новой команды в код** (TREE_GROUPS и commandRegistry) обязательно обновить навыки:
+
+- Добавить строку в таблицу «Задача | Command ID» в **полном** навыке `resources/skills/1c-platform-tools/SKILL.md` в соответствующую секцию (Информационные базы, Конфигурация, Расширения и т.д.).
+- Если команда относится к одному из доменов, добавить или обновить запись в доменном навыке `resources/skills/1c-platform-tools-<domain>/SKILL.md`: configuration, extensions, infobase, external, run, **test**, **dependencies**, **support**, **setversion**, **config**, mcp. Идентификатор команды: `1c-platform-tools.<domain>.<action>`.
+
+Так агенты (и MCP, который получает список команд динамически) смогут предлагать вызов новой команды. Правило: новая команда в дереве → обновить полный SKILL.md и при необходимости доменный SKILL.md.

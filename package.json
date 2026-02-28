@@ -601,6 +601,16 @@
         "category": "1C: Зависимости"
       },
       {
+        "command": "1c-platform-tools.skills.addDevSkills",
+        "title": "Добавить навыки разработки 1С (cc-1c-skills)",
+        "category": "1C: Навыки для AI"
+      },
+      {
+        "command": "1c-platform-tools.skills.add1cpt",
+        "title": "Добавить навыки расширения (команды и MCP)",
+        "category": "1C: Навыки для AI"
+      },
+      {
         "command": "1c-platform-tools.build.configuration",
         "title": "Собрать конфигурацию",
         "category": "1C: Конфигурация"
@@ -1480,7 +1490,7 @@
       {
         "id": "1c-platform-tools.getStarted",
         "title": "Начало работы с 1C: Platform tools",
-        "description": "Семь шагов: проект, зависимости, панель команд, артефакты, служебные файлы, панель проектов, список дел.",
+        "description": "Девять шагов: проект, зависимости, панель команд, артефакты, служебные файлы, панель проектов, список дел, отладка 1С, интеграция с AI и MCP.",
         "icon": "resources/1c-icon.png",
         "steps": [
           {
@@ -1535,18 +1545,52 @@
             "id": "step7-todo-list",
             "title": "Список дел",
             "description": "Панель собирает TODO и FIXME по проекту. Фильтры и группировка помогают найти нужные пометки.\n\n[Открыть список дел](command:1c-platform-tools.todo.showPanel)\n[Настройки списка дел](command:1c-platform-tools.settings.openTodo)",
-            "media": {
-              "markdown": "walkthrough/step7-todo-list.md"
-            }
+            "media": { "markdown": "walkthrough/step7-todo-list.md" }
+          },
+          {
+            "id": "step8-debug",
+            "title": "Отладка 1С",
+            "description": "Отладка через onec-debug-adapter (DAP). ИБ из env.json, конфигурация 1Cpt:Enterprise в launch.json.\n\n[Открыть launch.json](command:1c-platform-tools.launch.editConfigurations)",
+            "media": { "markdown": "walkthrough/step8-debug.md" }
+          },
+          {
+            "id": "step9-ai-mcp",
+            "title": "Интеграция с AI и MCP",
+            "description": "Навыки для агента: разработка 1С (cc-1c-skills), команды и MCP расширения.\n\n[Добавить навыки разработки 1С (cc-1c-skills)](command:1c-platform-tools.skills.addDevSkills) · [Добавить навыки расширения (команды и MCP)](command:1c-platform-tools.skills.add1cpt) · [Настройки сервера IPC](command:1c-platform-tools.settings.openIpc)",
+            "media": { "markdown": "walkthrough/step9-ai-mcp.md" }
           }
         ]
       }
     ],
     "configuration": [
       {
+        "title": "Сервер IPC",
+        "id": "1c-platform-tools.ipc",
+        "order": 0,
+        "properties": {
+          "1c-platform-tools.ipc.enabled": {
+            "type": "boolean",
+            "default": false,
+            "description": "Включить IPC-сервер для взаимодействия с внешним MCP-сервером (mcp-1c-platform-tools). При включении расширение поднимает локальный TCP-сервер на указанном порту."
+          },
+          "1c-platform-tools.ipc.port": {
+            "type": "number",
+            "default": 40241,
+            "minimum": 1,
+            "maximum": 65535,
+            "description": "Порт TCP для IPC-сервера (localhost). MCP-сервер mcp-1c-platform-tools должен использовать тот же порт (переменная окружения ONEC_IPC_PORT)."
+          },
+          "1c-platform-tools.ipc.token": {
+            "type": "string",
+            "default": "",
+            "description": "Секретный токен для аутентификации клиентов IPC. Рекомендуется задать непустое значение и указать его в переменной окружения ONEC_IPC_TOKEN для MCP-сервера. При пустом значении соединения принимаются без проверки токена (режим разработки)."
+          }
+        }
+      },
+      {
         "title": "Инструменты",
         "id": "1c-platform-tools.tools",
-        "order": 0,
+        "order": 1,
         "properties": {
           "1c-platform-tools.vrunner.path": {
             "type": "string",
@@ -1624,7 +1668,7 @@
       {
         "title": "Список дел",
         "id": "1c-platform-tools.todo",
-        "order": 1,
+        "order": 2,
         "properties": {
           "1c-platform-tools.todo.include": {
             "type": "array",
@@ -1672,7 +1716,7 @@
       {
         "title": "Артефакты",
         "id": "1c-platform-tools.artifacts",
-        "order": 2,
+        "order": 3,
         "properties": {
           "1c-platform-tools.artifacts.exclude": {
             "type": "array",
@@ -1690,7 +1734,7 @@
       {
         "title": "Проекты",
         "id": "1c-platform-tools.projects",
-        "order": 3,
+        "order": 4,
         "properties": {
           "1c-platform-tools.projects.baseFolders": {
             "type": "array",
@@ -1829,7 +1873,9 @@
     "pretest": "npm run compile && npm run lint",
     "lint": "eslint src",
     "test": "vscode-test",
-    "package": "node scripts/run-vsce-package.cjs package"
+    "package": "vsce package",
+    "changelog": "git-cliff --config cliff.toml --output CHANGELOG.md",
+    "ping-ipc": "node ../mcp-1c-platform-tools/scripts/ping-ipc.mjs"
   },
   "overrides": {
     "diff": "^8.0.3"

@@ -64,6 +64,17 @@
 				"clear": true
 			},
 			"group": "test"
+		},
+		{
+			"label": "Сгенерировать CHANGELOG",
+			"type": "npm",
+			"script": "changelog",
+			"problemMatcher": [],
+			"presentation": {
+				"reveal": "always",
+				"panel": "shared"
+			},
+			"group": "build"
 		}
 	]
 }

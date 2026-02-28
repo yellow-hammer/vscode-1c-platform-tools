@@ -12,6 +12,7 @@ import { TestCommands } from './testCommands';
 import { SetVersionCommands } from './setVersionCommands';
 import { WorkspaceTasksCommands } from './workspaceTasksCommands';
 import { ArtifactCommands } from './artifactCommands';
+import { SkillsCommands } from './skillsCommands';
 import { VRunnerManager } from '../vrunnerManager';
 
 /**
@@ -29,6 +30,7 @@ interface Commands {
 	setVersion: SetVersionCommands;
 	workspaceTasks: WorkspaceTasksCommands;
 	artifact: ArtifactCommands;
+	skills: SkillsCommands;
 }
 
 function getActiveEditorResourceUri(): vscode.Uri | undefined {
@@ -62,6 +64,17 @@ export function registerCommands(
 	commands: Commands
 ): vscode.Disposable[] {
 	const disposables: vscode.Disposable[] = [];
+
+	// Команды навыков для AI
+	const skillsCommands = [
+		vscode.commands.registerCommand('1c-platform-tools.skills.addDevSkills', () => {
+			void commands.skills.addDevSkills(context);
+		}),
+		vscode.commands.registerCommand('1c-platform-tools.skills.add1cpt', () => {
+			void commands.skills.add1cptSkills(context);
+		}),
+	];
+	disposables.push(...skillsCommands);
 
 	// Команды информационных баз
 	const infobaseCommands = [

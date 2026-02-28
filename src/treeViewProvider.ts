@@ -39,6 +39,7 @@ export enum TreeItemType {
 	Favorites = 'favorites',
 	FavoritesConfigure = 'favoritesConfigure',
 	Lightbulb = 'lightbulb',
+	Skills = 'skills',
 }
 
 /** Элемент дерева команд */
@@ -124,6 +125,8 @@ export class PlatformTreeItem extends vscode.TreeItem {
 				return new vscode.ThemeIcon('gear');
 			case TreeItemType.Lightbulb:
 				return new vscode.ThemeIcon('lightbulb');
+			case TreeItemType.Skills:
+				return new vscode.ThemeIcon('sparkle');
 			default:
 				return new vscode.ThemeIcon('circle-outline');
 		}
@@ -233,6 +236,7 @@ export class PlatformTreeDataProvider implements vscode.TreeDataProvider<Platfor
 			config: TreeItemType.Config,
 			helpAndSupport: TreeItemType.Lightbulb,
 			oscriptTasks: TreeItemType.OscriptTasks,
+			skills: TreeItemType.Skills,
 		};
 		return map[sectionType];
 	}

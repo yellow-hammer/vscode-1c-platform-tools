@@ -139,6 +139,26 @@ export function getInitializeProjectStructureCommandName(): CommandNameAndTitle 
 }
 
 /**
+ * Получить название и заголовок для команды добавления навыков разработки 1С (cc-1c-skills)
+ */
+export function getAddDevSkillsCommandName(): CommandNameAndTitle {
+	return {
+		name: 'Добавить навыки разработки 1С (cc-1c-skills)',
+		title: 'Добавить навыки разработки 1С (cc-1c-skills)'
+	};
+}
+
+/**
+ * Получить название и заголовок для команды добавления навыков расширения (команды и MCP)
+ */
+export function getAdd1cptSkillsCommandName(): CommandNameAndTitle {
+	return {
+		name: 'Добавить навыки расширения (команды и MCP)',
+		title: 'Добавить навыки расширения (команды и MCP)'
+	};
+}
+
+/**
  * Получить название и заголовок для команды установки OPM
  */
 export function getUpdateOpmCommandName(): CommandNameAndTitle {

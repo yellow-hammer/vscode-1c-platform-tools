@@ -1,5 +1,6 @@
 // Конфигурации отладки расширения
 // https://go.microsoft.com/fwlink/?linkid=830387
+// Составная «Расширение + MCP» работает при открытом workspace с обоими репо (vscode-1c-platform-tools и mcp-1c-platform-tools).
 {
 	"version": "0.2.0",
 	"configurations": [
@@ -28,6 +29,13 @@
 				"${workspaceFolder}/out/**/*.js"
 			],
 			"preLaunchTask": "Скомпилировать TypeScript"
+		}
+	],
+	"compounds": [
+		{
+			"name": "Расширение + MCP (одновременно)",
+			"configurations": ["Run Extension", "MCP: запуск с отладкой"],
+			"stopAll": true
 		}
 	]
 }
