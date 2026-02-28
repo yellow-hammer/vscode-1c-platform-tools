@@ -10,7 +10,7 @@
     "1с предприятие",
     "bsl"
   ],
-  "version": "0.5.2",
+  "version": "0.6.0",
   "publisher": "yellow-hammer",
   "repository": {
     "type": "git",
@@ -139,10 +139,15 @@
         "label": "1Cpt: Enterprise Debugger",
         "program": "./bin/onec-debug-adapter/OnecDebugAdapter.dll",
         "runtime": "dotnet",
-        "languages": ["bsl"],
+        "languages": [
+          "bsl"
+        ],
         "configurationAttributes": {
           "launch": {
-            "required": ["rootProject", "platformPath"],
+            "required": [
+              "rootProject",
+              "platformPath"
+            ],
             "properties": {
               "rootProject": {
                 "type": "string",
@@ -173,13 +178,33 @@
                 "type": "array",
                 "items": {
                   "type": "string",
-                  "enum": ["Client", "ManagedClient", "WebClient", "ComConnector", "Server", "ServerEmulation", "WebService", "HttpService", "OData", "Job", "JobFileMode", "MobileClient", "MobileServer", "MobileJobFileMode", "MobileManagedClient", "MobileManagedServer"]
+                  "enum": [
+                    "Client",
+                    "ManagedClient",
+                    "WebClient",
+                    "ComConnector",
+                    "Server",
+                    "ServerEmulation",
+                    "WebService",
+                    "HttpService",
+                    "OData",
+                    "Job",
+                    "JobFileMode",
+                    "MobileClient",
+                    "MobileServer",
+                    "MobileJobFileMode",
+                    "MobileManagedClient",
+                    "MobileManagedServer"
+                  ]
                 }
               }
             }
           },
           "attach": {
-            "required": ["rootProject", "platformPath"],
+            "required": [
+              "rootProject",
+              "platformPath"
+            ],
             "properties": {
               "rootProject": {
                 "type": "string",
@@ -210,7 +235,24 @@
                 "type": "array",
                 "items": {
                   "type": "string",
-                  "enum": ["Client", "ManagedClient", "WebClient", "ComConnector", "Server", "ServerEmulation", "WebService", "HttpService", "OData", "Job", "JobFileMode", "MobileClient", "MobileServer", "MobileJobFileMode", "MobileManagedClient", "MobileManagedServer"]
+                  "enum": [
+                    "Client",
+                    "ManagedClient",
+                    "WebClient",
+                    "ComConnector",
+                    "Server",
+                    "ServerEmulation",
+                    "WebService",
+                    "HttpService",
+                    "OData",
+                    "Job",
+                    "JobFileMode",
+                    "MobileClient",
+                    "MobileServer",
+                    "MobileJobFileMode",
+                    "MobileManagedClient",
+                    "MobileManagedServer"
+                  ]
                 }
               }
             }
@@ -1545,19 +1587,25 @@
             "id": "step7-todo-list",
             "title": "Список дел",
             "description": "Панель собирает TODO и FIXME по проекту. Фильтры и группировка помогают найти нужные пометки.\n\n[Открыть список дел](command:1c-platform-tools.todo.showPanel)\n[Настройки списка дел](command:1c-platform-tools.settings.openTodo)",
-            "media": { "markdown": "walkthrough/step7-todo-list.md" }
+            "media": {
+              "markdown": "walkthrough/step7-todo-list.md"
+            }
           },
           {
             "id": "step8-debug",
             "title": "Отладка 1С",
             "description": "Отладка через onec-debug-adapter (DAP). ИБ из env.json, конфигурация 1Cpt:Enterprise в launch.json.\n\n[Открыть launch.json](command:1c-platform-tools.launch.editConfigurations)",
-            "media": { "markdown": "walkthrough/step8-debug.md" }
+            "media": {
+              "markdown": "walkthrough/step8-debug.md"
+            }
           },
           {
             "id": "step9-ai-mcp",
             "title": "Интеграция с AI и MCP",
             "description": "Навыки для агента: разработка 1С (cc-1c-skills), команды и MCP расширения.\n\n[Добавить навыки разработки 1С (cc-1c-skills)](command:1c-platform-tools.skills.addDevSkills) · [Добавить навыки расширения (команды и MCP)](command:1c-platform-tools.skills.add1cpt) · [Настройки сервера IPC](command:1c-platform-tools.settings.openIpc)",
-            "media": { "markdown": "walkthrough/step9-ai-mcp.md" }
+            "media": {
+              "markdown": "walkthrough/step9-ai-mcp.md"
+            }
           }
         ]
       }
@@ -1850,17 +1898,17 @@
         }
       }
     ],
-  "colors": [
-    {
-      "id": "1cplatformtools.projects.currentProjectHighlightForeground",
-      "description": "Цвет подсветки текущего проекта в панели «Проекты 1С».",
-      "defaults": {
-        "light": "#2fb15b",
-        "dark": "#2fb15b",
-        "highContrast": "#2fb15b"
+    "colors": [
+      {
+        "id": "1cplatformtools.projects.currentProjectHighlightForeground",
+        "description": "Цвет подсветки текущего проекта в панели «Проекты 1С».",
+        "defaults": {
+          "light": "#2fb15b",
+          "dark": "#2fb15b",
+          "highContrast": "#2fb15b"
+        }
       }
-    }
-  ]
+    ]
   },
   "onecDebugAdapter": {
     "version": "v0.1.0"
