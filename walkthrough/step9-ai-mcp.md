@@ -8,4 +8,4 @@
 
 **Запуск по файлу.** Если агент умеет создавать файлы, он может записать в `.cursor/1c-platform-tools-run-command` одну строку — идентификатор команды (например `1c-platform-tools.run.designer`). Расширение выполнит команду и удалит файл.
 
-**MCP.** Для вызова команд через Model Context Protocol установите и настройте [mcp-1c-platform-tools](https://github.com/yellow-hammer/mcp-1c-platform-tools). Включите в настройках расширения опцию `1c-platform-tools.ipc.enabled`. Подробности — в основном README расширения, раздел «Интеграция с AI и MCP».
+**MCP.** Для вызова команд через Model Context Protocol установите и настройте [mcp-1c-platform-tools](https://github.com/yellow-hammer/mcp-1c-platform-tools). Включите в настройках расширения опцию `1c-platform-tools.ipc.enabled`. [Открыть настройки сервера IPC](command:1c-platform-tools.settings.openIpc) — порт и токен задаются там же. Подробности — в основном README расширения, раздел «Интеграция с AI и MCP».

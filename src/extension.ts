@@ -512,6 +512,7 @@ export async function activate(context: vscode.ExtensionContext) {
 	const settingsCommand = vscode.commands.registerCommand('1c-platform-tools.settings', async () => {
 		const choice = await vscode.window.showQuickPick(
 			[
+				{ label: '$(plug) Сервер IPC', detail: 'MCP, порт, токен', filter: '1c-platform-tools.ipc' },
 				{ label: '$(tools) Инструменты', detail: 'vrunner, пути, docker, allure', filter: '1c-platform-tools' },
 				{ label: '$(folder-opened) Проекты', detail: 'baseFolders, исключения, избранное', filter: '1c-platform-tools.projects' },
 				{ label: '$(package) Артефакты', detail: 'исключения при сканировании', filter: '1c-platform-tools.artifacts' },
@@ -539,6 +540,9 @@ export async function activate(context: vscode.ExtensionContext) {
 	);
 	vscode.commands.registerCommand('1c-platform-tools.settings.openArtifacts', () =>
 		vscode.commands.executeCommand('workbench.action.openSettings', `${SETTINGS_EXT} 1c-platform-tools.artifacts`)
+	);
+	vscode.commands.registerCommand('1c-platform-tools.settings.openIpc', () =>
+		vscode.commands.executeCommand('workbench.action.openSettings', `${SETTINGS_EXT} 1c-platform-tools.ipc`)
 	);
 	vscode.commands.registerCommand('1c-platform-tools.settings.openGeneral', () =>
 		vscode.commands.executeCommand('workbench.action.openSettings', SETTINGS_EXT)

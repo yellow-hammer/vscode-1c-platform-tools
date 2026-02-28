@@ -33,17 +33,18 @@ alwaysApply: true
 
 Настройки разбиты на подпункты по смыслу:
 
-| Раздел      | Контекст вызова                                  | Фильтр                                                            | Команда                                   |
-|-------------|--------------------------------------------------|-------------------------------------------------------------------|-------------------------------------------|
-| Инструменты | дерево, кнопка «Настройки» в панели инструментов | `@ext:yellow-hammer.1c-platform-tools` (все настройки)            | `1c-platform-tools.settings.openTools`    |
-| Проекты     | панель «Проекты 1С», walkthrough                 | `@ext:yellow-hammer.1c-platform-tools 1c-platform-tools.projects` | `1c-platform-tools.projects.openSettings` |
-| Список дел  | панель «Список дел»                              | `@ext:yellow-hammer.1c-platform-tools 1c-platform-tools.todo`     | `1c-platform-tools.settings.openTodo`     |
-| Общее       | —                                                | `@ext:yellow-hammer.1c-platform-tools`                            | `1c-platform-tools.settings.openGeneral`  |
+| Раздел       | Контекст вызова                                  | Фильтр                                                            | Команда                                   |
+|--------------|--------------------------------------------------|-------------------------------------------------------------------|-------------------------------------------|
+| Сервер IPC   | walkthrough «Интеграция с AI и MCP»              | `@ext:yellow-hammer.1c-platform-tools 1c-platform-tools.ipc`      | `1c-platform-tools.settings.openIpc`     |
+| Инструменты  | дерево, кнопка «Настройки» в панели инструментов | `@ext:yellow-hammer.1c-platform-tools` (все настройки)            | `1c-platform-tools.settings.openTools`    |
+| Проекты      | панель «Проекты 1С», walkthrough                 | `@ext:yellow-hammer.1c-platform-tools 1c-platform-tools.projects` | `1c-platform-tools.projects.openSettings` |
+| Список дел   | панель «Список дел»                              | `@ext:yellow-hammer.1c-platform-tools 1c-platform-tools.todo`     | `1c-platform-tools.settings.openTodo`     |
+| Общее        | —                                                | `@ext:yellow-hammer.1c-platform-tools`                            | `1c-platform-tools.settings.openGeneral`  |
 
 Правила для новых панелей и настроек:
 
-1. **Кнопка «Настройки»** — открывает настройки, релевантные контексту: из панели «Инструменты 1С» → `settings.openTools` (все общие настройки расширения); из панели «Проекты 1С» → `projects.openSettings` (группа «Проекты»); из панели «Список дел» → `settings.openTodo` (группа «Список дел»). Команда `settings` показывает QuickPick: Проекты | Инструменты | Список дел | Общее.
-2. **Главная команда `1c-platform-tools.settings`** — показывает QuickPick с выбором раздела: Проекты | Инструменты | Общее.
+1. **Кнопка «Настройки»** — открывает настройки, релевантные контексту: из панели «Инструменты 1С» → `settings.openTools` (все общие настройки расширения); из панели «Проекты 1С» → `projects.openSettings` (группа «Проекты»); из панели «Список дел» → `settings.openTodo` (группа «Список дел»). Команда `settings` показывает QuickPick: Сервер IPC | Проекты | Инструменты | Список дел | Общее.
+2. **Главная команда `1c-platform-tools.settings`** — показывает QuickPick с выбором раздела: Сервер IPC | Проекты | Инструменты | Артефакты | Список дел | Общее.
 3. Всегда добавлять фильтр по расширению `@ext:yellow-hammer.1c-platform-tools` при открытии настроек, чтобы отображались только параметры нашего расширения.
 
 ## Панели «Помощь и поддержка»

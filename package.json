@@ -1556,7 +1556,7 @@
           {
             "id": "step9-ai-mcp",
             "title": "Интеграция с AI и MCP",
-            "description": "Навыки для агента: разработка 1С (cc-1c-skills), команды и MCP расширения.\n\n[Добавить навыки разработки 1С (cc-1c-skills)](command:1c-platform-tools.skills.addDevSkills) · [Добавить навыки расширения (команды и MCP)](command:1c-platform-tools.skills.add1cpt)",
+            "description": "Навыки для агента: разработка 1С (cc-1c-skills), команды и MCP расширения.\n\n[Добавить навыки разработки 1С (cc-1c-skills)](command:1c-platform-tools.skills.addDevSkills) · [Добавить навыки расширения (команды и MCP)](command:1c-platform-tools.skills.add1cpt) · [Настройки сервера IPC](command:1c-platform-tools.settings.openIpc)",
             "media": { "markdown": "walkthrough/step9-ai-mcp.md" }
           }
         ]
@@ -1564,8 +1564,8 @@
     ],
     "configuration": [
       {
-        "title": "Инструменты",
-        "id": "1c-platform-tools.tools",
+        "title": "Сервер IPC",
+        "id": "1c-platform-tools.ipc",
         "order": 0,
         "properties": {
           "1c-platform-tools.ipc.enabled": {
@@ -1584,7 +1584,14 @@
             "type": "string",
             "default": "",
             "description": "Секретный токен для аутентификации клиентов IPC. Рекомендуется задать непустое значение и указать его в переменной окружения ONEC_IPC_TOKEN для MCP-сервера. При пустом значении соединения принимаются без проверки токена (режим разработки)."
-          },
+          }
+        }
+      },
+      {
+        "title": "Инструменты",
+        "id": "1c-platform-tools.tools",
+        "order": 1,
+        "properties": {
           "1c-platform-tools.vrunner.path": {
             "type": "string",
             "default": "vrunner",
@@ -1661,7 +1668,7 @@
       {
         "title": "Список дел",
         "id": "1c-platform-tools.todo",
-        "order": 1,
+        "order": 2,
         "properties": {
           "1c-platform-tools.todo.include": {
             "type": "array",
@@ -1709,7 +1716,7 @@
       {
         "title": "Артефакты",
         "id": "1c-platform-tools.artifacts",
-        "order": 2,
+        "order": 3,
         "properties": {
           "1c-platform-tools.artifacts.exclude": {
             "type": "array",
@@ -1727,7 +1734,7 @@
       {
         "title": "Проекты",
         "id": "1c-platform-tools.projects",
-        "order": 3,
+        "order": 4,
         "properties": {
           "1c-platform-tools.projects.baseFolders": {
             "type": "array",
