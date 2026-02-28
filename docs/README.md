@@ -15,6 +15,8 @@
 - **[Настройка CI/CD](CI_CD_SETUP.md)**  
   Пошаговая инструкция по настройке автоматической сборки и публикации расширения в VS Code Marketplace через GitHub Actions.
 
+- **[mcp-1c-platform-tools](https://github.com/yellow-hammer/mcp-1c-platform-tools)** — MCP-сервер для вызова команд расширения через агентов; разработка и конфигурация в репозитории MCP.
+
 ### Для пользователей
 
 - **[README проекта](../README.md)**  
@@ -34,8 +36,8 @@
 
 ```txt
 docs/
-├── README.md              # Этот файл - навигация по документации
-├── vscode-api.md          # Паттерны использования VS Code API
-├── vrunner-patterns.md    # Паттерны работы с vrunner
-└── CI_CD_SETUP.md        # Настройка CI/CD
+├── README.md                 # Этот файл - навигация по документации
+├── vscode-api.md             # Паттерны использования VS Code API
+├── vrunner-patterns.md       # Паттерны работы с vrunner
+└── CI_CD_SETUP.md            # Настройка CI/CD
 ```
