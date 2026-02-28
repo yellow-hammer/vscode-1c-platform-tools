@@ -10,6 +10,13 @@ import { fileURLToPath } from 'node:url';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const watch = process.argv.includes('--watch');
 
+const srcTestDir = path.join(__dirname, 'src', 'test');
+const testEntryPoints = fs.existsSync(srcTestDir)
+	? fs.readdirSync(srcTestDir, { recursive: true })
+		.filter((f) => typeof f === 'string' && f.endsWith('.test.ts'))
+		.map((f) => path.join(srcTestDir, f))
+	: [];
+
 // Шим для minimatch: CJS-сборка экспортирует .minimatch, а код из glob ожидает .default.
 // Патчим через Module.prototype.require, чтобы сработало при любой загрузке.
 const minimatchShimBanner = `
@@ -45,11 +52,15 @@ const testOptions = {
 
 if (watch) {
 	const extCtx = await esbuild.context(extensionOptions);
-	const testCtx = await esbuild.context(testOptions);
 	await extCtx.watch();
-	await testCtx.watch();
+	if (testEntryPoints.length > 0) {
+		const testCtx = await esbuild.context(testOptions);
+		await testCtx.watch();
+	}
 	console.log('watching...');
 } else {
 	await esbuild.build(extensionOptions);
-	await esbuild.build(testOptions);
+	if (testEntryPoints.length > 0) {
+		await esbuild.build(testOptions);
+	}
 }
