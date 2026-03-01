@@ -1,6 +1,6 @@
 {
   "name": "1c-platform-tools",
-  "displayName": "1C: Platform tools",
+  "displayName": "1C: Platform Tools",
   "description": "Расширение для Visual Studio Code с инструментами разработки для экосистемы 1C. Предоставляет удобный интерфейс для работы с проектами 1C, включая разбор обработок, отчетов и конфигураций.",
   "keywords": [
     "1c",
@@ -1531,7 +1531,7 @@
     "walkthroughs": [
       {
         "id": "1c-platform-tools.getStarted",
-        "title": "Начало работы с 1C: Platform tools",
+        "title": "Начало работы с 1C: Platform Tools",
         "description": "Девять шагов: проект, зависимости, панель команд, артефакты, служебные файлы, панель проектов, список дел, отладка 1С, интеграция с AI и MCP.",
         "icon": "resources/1c-icon.png",
         "steps": [

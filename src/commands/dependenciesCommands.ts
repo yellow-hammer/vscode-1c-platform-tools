@@ -472,7 +472,7 @@ export class DependenciesCommands extends BaseCommand {
 		if (!extensionPath) {
 			const msg = 'Не удалось определить путь к расширению';
 			logger.error(
-				`${msg}. Возможные причины: расширение не передало ExtensionContext в VRunnerManager при активации; workspaceRoot=${workspaceRoot ?? 'не определён'}. Проверьте панель Output (1C: Platform tools) для диагностики.`
+				`${msg}. Возможные причины: расширение не передало ExtensionContext в VRunnerManager при активации; workspaceRoot=${workspaceRoot ?? 'не определён'}. Проверьте панель Output (1C: Platform Tools) для диагностики.`
 			);
 			logger.show();
 			vscode.window.showErrorMessage(msg);

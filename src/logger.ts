@@ -10,7 +10,7 @@ const LOG_LEVELS = {
 
 export type LogLevelName = keyof typeof LOG_LEVELS;
 
-const OUTPUT_CHANNEL_NAME = '1C: Platform tools';
+const OUTPUT_CHANNEL_NAME = '1C: Platform Tools';
 
 let outputChannel: vscode.OutputChannel | undefined;
 
