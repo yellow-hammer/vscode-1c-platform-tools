@@ -1,6 +1,11 @@
 ---
 name: 1c-platform-tools-support
-description: Поддержка конфигурации и поставка. Используй, когда пользователь просит выгрузить в dist, обновить поддержку из cf/cfu, создать комплект поставки, файлы cf/cfu, шаблон поставки.
+description: >
+  Управление поддержкой конфигурации и создание комплектов поставки через
+  команды расширения и MCP — выгрузка в dist, обновление из cf/cfu, генерация
+  файлов поставки. Используй, когда пользователь просит выгрузить в dist,
+  обновить поддержку из cf/cfu, создать комплект поставки, файлы cf/cfu,
+  шаблон поставки, или удалить поддержку конфигурации.
 ---
 
 # Поддержка и поставка: команды и MCP
@@ -34,7 +39,22 @@ description: Поддержка конфигурации и поставка. И
 
 Обязательный. Корень проекта 1С (каталог с `packagedef`). Если пользователь указал путь — используй его; иначе корень workspace.
 
-## Примеры
+## Примеры MCP-вызовов
 
-- Вызови `configuration_dumpToDist` или команду `1c-platform-tools.configuration.dumpToDist` с projectPath корня проекта.
-- Для создания комплекта поставки — `support_createDistributivePackage` (MCP) или `1c-platform-tools.support.createDistributivePackage` (команда).
+Выгрузить конфигурацию в dist:
+```json
+{"tool": "configuration_dumpToDist", "arguments": {"projectPath": "/path/to/project"}}
+```
+
+Создать файлы поставки (cf/cfu):
+```json
+{"tool": "support_createDistributionFiles", "arguments": {"projectPath": "/path/to/project"}}
+```
+
+## Порядок создания полного комплекта поставки
+
+1. `configuration_dumpToDist` — выгрузить конфигурацию
+2. `support_createDeliveryDescriptionFile` — создать описание шаблона
+3. `support_createDistributionFiles` — создать cf/cfu
+4. `support_createDistributivePackage` — собрать комплект
+5. Проверить: убедиться, что файлы cf/cfu созданы в каталоге dist
