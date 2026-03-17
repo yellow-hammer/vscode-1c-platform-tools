@@ -5,6 +5,31 @@
 Формат основан на [Keep a Changelog](https://keepachangelog.com/ru/1.0.0/),
 и этот проект придерживается [Semantic Versioning](https://semver.org/lang/ru/).
 
+## [0.6.2] - 2026-03-17
+
+
+### 🐛 Bug Fixes
+
+- Исправлено название проекта на "1C: Platform Tools" во всех файлах
+
+
+### 💼 Other
+
+- **deps:** Bump minimatch
+
+
+### 📚 Documentation
+
+- Добавлены ссылки на Telegram-чат и Devin в README.md
+
+- Обновление README.md с заменой значков на новые изображения для Telegram и DeepWiki
+
+
+### ⚙️ Miscellaneous Tasks
+
+- Обновлена версия среды до "2.0.0" в шаблоне packagedef
+
+
 ## [0.6.1] - 2026-02-28
 
 
