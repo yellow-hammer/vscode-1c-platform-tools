@@ -1,10 +1,13 @@
 /**
- * «Начало работы» — открывает встроенное пошаговое руководство (Welcome: Open Walkthrough).
- * В Cursor использует fallback — Webview, т.к. workbench.action.openWalkthrough
- * ссылается на walkThrough://vscode_getting_started_page, который отсутствует в Cursor.
- * Данные берутся динамически из package.json и walkthrough/*.md — без дублирования.
+ * @file Пошаговое руководство «Начало работы»: встроенный walkthrough VS Code либо Webview.
  *
- * @see .cursor/rules/get-started-cursor-fallback.mdc — правила fallback для Cursor
+ * @remarks
+ * - **Cursor** — Webview (встроенная страница Welcome/walkthrough недоступна).
+ * - **VS Code** — `workbench.action.openWalkthrough`; при гонке с регистрацией категории —
+ *   отложенный вызов и при ошибке команды тот же сценарий во Webview.
+ * Контент шагов читается из `contributes.walkthroughs` и `walkthrough/*.md`.
+ *
+ * @see {@link https://github.com/yellow-hammer/vscode-1c-platform-tools/blob/main/.cursor/rules/get-started-cursor-fallback.mdc}
  */
 
 import * as fs from 'node:fs/promises';
@@ -14,9 +17,24 @@ import { logger } from './logger';
 
 const WELCOMED_KEY = '1c-platform-tools.getStarted.welcomed';
 
-const WALKTHROUGH_ID = 'yellow-hammer.1c-platform-tools#1c-platform-tools.getStarted';
+/** Локальный id первого walkthrough в `package.json` (`contributes.walkthroughs`). */
+const GET_STARTED_WALKTHROUGH_LOCAL_ID = '1c-platform-tools.getStarted';
 
-/** Шаг для Webview (собран из package.json + walkthrough/*.md) */
+function sleep(ms: number): Promise<void> {
+	return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+/** Полный идентификатор категории для `workbench.action.openWalkthrough`. */
+function getGetStartedWalkthroughCategoryId(context: vscode.ExtensionContext): string {
+	return `${context.extension.id}#${GET_STARTED_WALKTHROUGH_LOCAL_ID}`;
+}
+
+/** Опции открытия встроенного walkthrough во вкладке Welcome. */
+export type OpenGetStartedOptions = {
+	/** Пауза перед вызовом команды (мс); снижает гонку с реестром Getting Started. */
+	scheduleDelayMs?: number;
+};
+
 interface WalkthroughStep {
 	title: string;
 	shortDescription: string;
@@ -27,7 +45,7 @@ interface WalkthroughStep {
 
 const CMD_PREFIX = '](command:';
 
-/** Парсит [Label](command:cmdId) из строки description. Линейный парсер без regex — защита от ReDoS. */
+/** Линейный разбор ссылок `[подпись](command:id)` в описании шага (без тяжёлого regex). */
 function parseCommandsFromDescription(description: string): Array<[string, string]> {
 	const commands: Array<[string, string]> = [];
 	let i = 0;
@@ -59,33 +77,28 @@ function parseCommandsFromDescription(description: string): Array<[string, strin
 	return commands;
 }
 
-/** Извлекает короткое описание (до первых ссылок) */
 function extractShortDescription(description: string): string {
 	const idx = description.indexOf('\n\n[');
 	return idx >= 0 ? description.slice(0, idx).trim() : description.trim();
 }
 
-/** Извлекает путь к изображению из первой строки markdown: # ![Alt](images/xxx.svg) */
 function extractImageFromMarkdown(md: string): string {
 	const m = /!\[.*?\]\((?:images\/)?([^)]+)\)/.exec(md);
 	return m ? m[1] : 'placeholder.svg';
 }
 
-/** Извлекает расширенный контент из markdown (без первой строки с изображением) */
 function extractExtendedContentFromMarkdown(md: string): string {
 	const lines = md.split('\n');
 	const skipFirst = lines[0].startsWith('# ![') ? 1 : 0;
 	return lines.slice(skipFirst).join('\n').trim();
 }
 
-/** Результат загрузки walkthrough */
 interface WalkthroughData {
 	title: string;
 	description: string;
 	steps: WalkthroughStep[];
 }
 
-/** Тип walkthrough из package.json (contributes.walkthroughs) */
 interface PackageWalkthrough {
 	title?: string;
 	description?: string;
@@ -94,15 +107,11 @@ interface PackageWalkthrough {
 
 type PackageWithContributes = { contributes?: { walkthroughs?: PackageWalkthrough[] } };
 
-/** Извлекает walkthroughs из package.json (contributes.walkthroughs) */
 function getWalkthroughs(pkg: PackageWithContributes | undefined): PackageWalkthrough[] | undefined {
 	return pkg?.contributes?.walkthroughs;
 }
 
-/**
- * Загружает шаги walkthrough из package.json (API или файл) и walkthrough/*.md.
- * walkthroughs находятся в contributes.walkthroughs.
- */
+/** Собирает данные первого walkthrough из `package.json` и связанных `.md`. */
 async function loadWalkthroughData(context: vscode.ExtensionContext): Promise<WalkthroughData> {
 	let pkg = context.extension?.packageJSON as PackageWithContributes | undefined;
 
@@ -145,7 +154,7 @@ async function loadWalkthroughData(context: vscode.ExtensionContext): Promise<Wa
 				image = extractImageFromMarkdown(mdContent);
 				extendedContent = extractExtendedContentFromMarkdown(mdContent);
 			} catch {
-				// файл не найден — оставляем пустой контент
+				/* нет файла md */
 			}
 		}
 
@@ -177,7 +186,6 @@ function escapeHtml(s: string): string {
 		.replaceAll('"', '&quot;');
 }
 
-/** Преобразует псевдо-Markdown в простой HTML (жирный, код) */
 function simpleMarkdownToHtml(s: string): string {
 	return escapeHtml(s)
 		.replaceAll(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
@@ -313,7 +321,36 @@ function buildWalkthroughWebviewContent(
 </html>`;
 }
 
-/** Открывает walkthrough в Webview (fallback для Cursor) */
+/**
+ * VS Code: `workbench.action.openWalkthrough`, при неудаче — повтор через 400 мс, затем Webview.
+ *
+ * @param scheduleDelayMs - ожидание перед первой попыткой (мс)
+ */
+async function openBuiltinWalkthroughWithFallback(
+	context: vscode.ExtensionContext,
+	scheduleDelayMs: number
+): Promise<void> {
+	if (scheduleDelayMs > 0) {
+		await sleep(scheduleDelayMs);
+	}
+	const categoryId = getGetStartedWalkthroughCategoryId(context);
+	const tryOpen = (): Thenable<unknown> =>
+		vscode.commands.executeCommand('workbench.action.openWalkthrough', categoryId, false);
+	try {
+		await tryOpen();
+	} catch (error) {
+		logger.warn(`openWalkthrough: ${String(error)} — повтор через 400 мс`);
+		await sleep(400);
+		try {
+			await tryOpen();
+		} catch (retryError) {
+			logger.warn(`openWalkthrough: ${String(retryError)} — открываем Webview`);
+			await openWalkthroughWebview(context);
+		}
+	}
+}
+
+/** Webview с тем же сценарием, что и встроенный walkthrough (Cursor и запасной путь в VS Code). */
 async function openWalkthroughWebview(context: vscode.ExtensionContext): Promise<void> {
 	const { steps, title: walkthroughTitle, description: walkthroughDescription } =
 		await loadWalkthroughData(context);
@@ -354,15 +391,25 @@ async function openWalkthroughWebview(context: vscode.ExtensionContext): Promise
 	);
 }
 
-/** Открывает пошаговое руководство «Начало работы» в панели приветствия */
-export function openGetStartedWalkthrough(context: vscode.ExtensionContext): void {
+/**
+ * Открывает руководство «Начало работы».
+ *
+ * @param context - контекст расширения
+ * @param options - при автопоказе укажите `scheduleDelayMs` (см. {@link OpenGetStartedOptions})
+ */
+export function openGetStartedWalkthrough(
+	context: vscode.ExtensionContext,
+	options?: OpenGetStartedOptions
+): void {
 	if (isCursor()) {
 		void openWalkthroughWebview(context);
 		return;
 	}
-	void vscode.commands.executeCommand('workbench.action.openWalkthrough', WALKTHROUGH_ID);
+	const scheduleDelayMs = options?.scheduleDelayMs ?? 0;
+	void openBuiltinWalkthroughWithFallback(context, scheduleDelayMs);
 }
 
+/** Регистрирует команду `1c-platform-tools.getStarted.open`. */
 export function registerGetStarted(context: vscode.ExtensionContext): void {
 	context.subscriptions.push(
 		vscode.commands.registerCommand('1c-platform-tools.getStarted.open', () => {
@@ -371,11 +418,15 @@ export function registerGetStarted(context: vscode.ExtensionContext): void {
 	);
 }
 
-/** Открыть «Начало работы» (walkthrough) при первом запуске после установки расширения */
+/**
+ * Однократный автопоказ после установки (флаг в `globalState`).
+ *
+ * @param context - контекст расширения
+ */
 export function showGetStartedOnFirstRun(context: vscode.ExtensionContext): void {
 	if (context.globalState.get(WELCOMED_KEY)) {
 		return;
 	}
 	void context.globalState.update(WELCOMED_KEY, true);
-	setImmediate(() => openGetStartedWalkthrough(context));
+	openGetStartedWalkthrough(context, { scheduleDelayMs: 750 });
 }
