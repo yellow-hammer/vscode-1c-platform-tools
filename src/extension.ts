@@ -424,7 +424,7 @@ export async function activate(context: vscode.ExtensionContext) {
 		artifactsRefreshDebounce.timer = setTimeout(() => {
 			artifactsRefreshDebounce.timer = undefined;
 			void artifactsProvider.refresh();
-		}, 300);
+		}, 1000);
 	};
 	const artifactPatterns = [
 		'**/*.feature',
@@ -433,7 +433,6 @@ export async function activate(context: vscode.ExtensionContext) {
 		'**/*.epf',
 		'**/*.erf',
 		'**/Configuration.xml',
-		'**/*.xml',
 	];
 	const artifactWatchers = artifactPatterns.flatMap((pattern) => {
 		const w = vscode.workspace.createFileSystemWatcher(pattern);

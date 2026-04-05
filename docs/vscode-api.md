@@ -227,6 +227,11 @@ export class PlatformTreeDataProvider implements vscode.TreeDataProvider<TreeIte
 }
 ```
 
+### Панель «Артефакты 1С»
+
+- Сканирование: [`src/artifactsScanner.ts`](../src/artifactsScanner.ts) (`scanArtifacts`), отмена через `CancellationToken` при повторном `refresh` в [`ProjectArtifactsTreeDataProvider`](../src/projectArtifactsView.ts).
+- У элементов дерева `TreeItem.resourceUri` — каталог или бинарный файл для команд vrunner; открытие в редакторе — отдельный URI корневого файла (`openTargetUri` на `ArtifactItem`), чтобы не вызывать `vscode.open` для каталога.
+
 ## Конфигурация
 
 ### Получение настроек

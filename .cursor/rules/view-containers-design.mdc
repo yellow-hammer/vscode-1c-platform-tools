@@ -51,3 +51,5 @@ alwaysApply: false
 | Артефакты 1С   | viewAndSortMenu (вид)             | settings.openArtifacts |
 | Список дел 1С  | —                                 | settings.openTodo      |
 | Инструменты 1С | (будет переделан по образцу)      | settings.openTools     |
+
+Для дерева **Артефакты 1С**: `resourceUri` у элементов — каталог/файл для сборки и разборки; открытие в редакторе — через корневой XML (`openTargetUri` в `ArtifactItem`, см. `projectArtifactsView.ts`).

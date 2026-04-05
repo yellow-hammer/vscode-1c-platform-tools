@@ -1,12 +1,20 @@
 /**
- * Сканирование workspace на артефакты 1С: feature-файлы, конфигурации,
- * расширения, внешние обработки и отчёты (исходники и бинарные файлы).
+ * Поиск артефактов 1С в workspace через {@link vscode.workspace.findFiles}.
+ *
+ * Порядок: один проход по `Configuration.xml` (конфигурации, расширения, префиксы для прунинга);
+ * пул из пяти лёгких сканов (feature, cf, cfe, epf, erf) с ограниченным параллелизмом;
+ * один проход по `*.xml` с пропуском файлов внутри деревьев исходников конфигурации/расширения
+ * и одним чтением заголовка на оставшийся кандидат.
+ *
  * @module artifactsScanner
  */
 
 import * as path from 'node:path';
 import * as vscode from 'vscode';
 import * as fs from 'node:fs/promises';
+
+const XML_HEAD_SIZE = 4096;
+const CANCEL_CHECK_INTERVAL = 512;
 
 function getExcludeSegments(): string[] {
 	const config = vscode.workspace.getConfiguration('1c-platform-tools');
@@ -28,8 +36,78 @@ function isUriExcluded(uri: vscode.Uri, excludeSegments: string[]): boolean {
 	);
 }
 
+function throwIfCancelled(token: vscode.CancellationToken | undefined): void {
+	if (token?.isCancellationRequested) {
+		throw new vscode.CancellationError();
+	}
+}
 
-/** Найденный feature-файл */
+/**
+ * Нормализованный префикс каталога (нижний регистр, с завершающим path.sep) для сравнения путей под Windows.
+ */
+function directoryAsRootPrefix(dir: string): string {
+	const n = path.normalize(dir);
+	const withSep = n.endsWith(path.sep) ? n : n + path.sep;
+	return withSep.toLowerCase();
+}
+
+/**
+ * true, если файл лежит внутри или в корне одного из деревьев исходников конфигурации/расширения
+ * (родительский каталог Configuration.xml и всё ниже).
+ */
+function isUnderConfigOrExtensionTree(filePath: string, rootPrefixes: string[]): boolean {
+	if (rootPrefixes.length === 0) {
+		return false;
+	}
+	const fp = path.normalize(filePath).toLowerCase();
+	return rootPrefixes.some((root) => fp.startsWith(root));
+}
+
+type PoolFnTuple = readonly (() => Promise<unknown>)[];
+
+/**
+ * Тип кортежа сканеров: без него TypeScript сводит возвращаемые типы к объединению.
+ * @internal
+ */
+type BinaryScansPool = readonly [
+	() => Promise<FeatureArtifact[]>,
+	() => Promise<ConfigurationArtifact[]>,
+	() => Promise<ExtensionArtifact[]>,
+	() => Promise<ProcessorArtifact[]>,
+	() => Promise<ReportArtifact[]>,
+];
+
+/**
+ * Выполняет независимые async-задачи с ограничением числа одновременно выполняющихся.
+ */
+async function runPoolTuple<T extends PoolFnTuple>(
+	fns: T,
+	concurrency: number,
+	token: vscode.CancellationToken | undefined
+): Promise<{ [I in keyof T]: Awaited<ReturnType<T[I]>> }> {
+	if (fns.length === 0) {
+		return [] as { [I in keyof T]: Awaited<ReturnType<T[I]>> };
+	}
+	const results: unknown[] = new Array(fns.length);
+	let next = 0;
+	const nWorkers = Math.min(Math.max(1, concurrency), fns.length);
+
+	async function worker(): Promise<void> {
+		while (true) {
+			throwIfCancelled(token);
+			const i = next++;
+			if (i >= fns.length) {
+				return;
+			}
+			results[i] = await fns[i]();
+		}
+	}
+
+	await Promise.all(Array.from({ length: nWorkers }, () => worker()));
+	return results as { [I in keyof T]: Awaited<ReturnType<T[I]>> };
+}
+
+/** Feature-файл (Vanessa Automation). */
 export interface FeatureArtifact {
 	type: 'feature';
 	uri: vscode.Uri;
@@ -37,40 +115,48 @@ export interface FeatureArtifact {
 	relativePath: string;
 }
 
-/** Найденная конфигурация (исходники или .cf) */
+/** Конфигурация: каталог исходников или файл `.cf`. */
 export interface ConfigurationArtifact {
 	type: 'configuration';
 	uri: vscode.Uri;
 	name: string;
 	relativePath: string;
 	kind: 'source' | 'binary';
+	/** Для `kind: 'source'` — `Configuration.xml` (открытие в редакторе). */
+	sourceEntryUri?: vscode.Uri;
 }
 
-/** Найденное расширение (исходники или .cfe) */
+/** Расширение: каталог исходников или файл `.cfe`. */
 export interface ExtensionArtifact {
 	type: 'extension';
 	uri: vscode.Uri;
 	name: string;
 	relativePath: string;
 	kind: 'source' | 'binary';
+	/** Для `kind: 'source'` — `Configuration.xml`. */
+	sourceEntryUri?: vscode.Uri;
 }
 
-/** Найденная внешняя обработка (исходники или .epf) */
+/** Внешняя обработка: каталог исходников или `.epf`. */
 export interface ProcessorArtifact {
 	type: 'processor';
 	uri: vscode.Uri;
 	name: string;
 	relativePath: string;
 	kind: 'source' | 'binary';
+	/** Для `kind: 'source'` — корневой XML (`ExternalDataProcessor`). */
+	sourceEntryUri?: vscode.Uri;
 }
 
-/** Найденный внешний отчёт (исходники или .erf) */
+/** Внешний отчёт: каталог исходников или `.erf`. */
 export interface ReportArtifact {
 	type: 'report';
 	uri: vscode.Uri;
 	name: string;
 	relativePath: string;
 	kind: 'source' | 'binary';
+	/** Для `kind: 'source'` — корневой XML (`ExternalReport`). */
+	sourceEntryUri?: vscode.Uri;
 }
 
 export type Artifact =
@@ -80,6 +166,7 @@ export type Artifact =
 	| ProcessorArtifact
 	| ReportArtifact;
 
+/** Результат {@link scanArtifacts}. */
 export interface ArtifactsScanResult {
 	features: FeatureArtifact[];
 	configurations: ConfigurationArtifact[];
@@ -98,37 +185,20 @@ function getWorkspaceRelativePath(uri: vscode.Uri): string {
 }
 
 /**
- * Сканирует workspace на feature-файлы (*.feature)
+ * Классификация по началу файла: корень внешней обработки или отчёта.
+ * Ожидается фрагмент в начале файла (например первые 4 КБ).
  */
-async function scanFeatures(): Promise<FeatureArtifact[]> {
-	const files = await vscode.workspace.findFiles('**/*.feature');
-	const exclude = getExcludeSegments();
-	const filtered = files.filter((uri) => !isUriExcluded(uri, exclude));
-	return filtered.map((uri) => {
-		const rel = getWorkspaceRelativePath(uri);
-		const name = path.basename(uri.fsPath);
-		return { type: 'feature' as const, uri, name, relativePath: rel };
-	});
+export function classifyXmlArtifactHead(content: string): 'processor' | 'report' | null {
+	if (/<ExternalDataProcessor[\s>]/.test(content)) {
+		return 'processor';
+	}
+	if (/<ExternalReport[\s>]/.test(content)) {
+		return 'report';
+	}
+	return null;
 }
 
-/**
- * Сканирует workspace на бинарные конфигурации (*.cf)
- */
-async function scanConfigurationBinaries(): Promise<ConfigurationArtifact[]> {
-	const files = await vscode.workspace.findFiles('**/*.cf');
-	const exclude = getExcludeSegments();
-	return files
-		.filter((uri) => uri.fsPath.toLowerCase().endsWith('.cf') && !isUriExcluded(uri, exclude))
-		.map((uri) => {
-			const rel = getWorkspaceRelativePath(uri);
-			const name = path.basename(uri.fsPath);
-			return { type: 'configuration' as const, uri, name, relativePath: rel, kind: 'binary' as const };
-		});
-}
-
-/**
- * Проверяет, содержит ли Configuration.xml поле ObjectBelonging (признак расширения)
- */
+/** Признак расширения: наличие `ObjectBelonging` в `Configuration.xml`. */
 async function configurationXmlHasObjectBelonging(filePath: string): Promise<boolean> {
 	try {
 		const content = await fs.readFile(filePath, { encoding: 'utf-8', flag: 'r' });
@@ -138,36 +208,111 @@ async function configurationXmlHasObjectBelonging(filePath: string): Promise<boo
 	}
 }
 
-/**
- * Сканирует workspace на папки с Configuration.xml (исходники конфигурации, без ObjectBelonging)
- */
-async function scanConfigurationSources(): Promise<ConfigurationArtifact[]> {
-	const files = await vscode.workspace.findFiles('**/Configuration.xml');
-	const exclude = getExcludeSegments();
-	const result: ConfigurationArtifact[] = [];
+async function readXmlHeadForClassification(filePath: string): Promise<string> {
+	let fh: fs.FileHandle | undefined;
+	try {
+		fh = await fs.open(filePath, 'r');
+		const buf = Buffer.alloc(XML_HEAD_SIZE);
+		const { bytesRead } = await fh.read(buf, 0, XML_HEAD_SIZE, 0);
+		return buf.subarray(0, bytesRead).toString('utf-8');
+	} catch {
+		return '';
+	} finally {
+		await fh?.close();
+	}
+}
+
+interface ConfigExtensionSplit {
+	configSources: ConfigurationArtifact[];
+	extSources: ExtensionArtifact[];
+	/** Нормализованные префиксы каталогов с `Configuration.xml` (пропуск вложенных XML при поиске epf/erf). */
+	configTreeRootPrefixes: string[];
+}
+
+/** Один вызов {@link vscode.workspace.findFiles} по `Configuration.xml`. */
+async function scanConfigurationAndExtensionSources(
+	exclude: string[],
+	token: vscode.CancellationToken | undefined
+): Promise<ConfigExtensionSplit> {
+	const files = await vscode.workspace.findFiles('**/Configuration.xml', undefined, undefined, token);
+	const configSources: ConfigurationArtifact[] = [];
+	const extSources: ExtensionArtifact[] = [];
+	const configTreeRootPrefixes: string[] = [];
+
+	let i = 0;
 	for (const uri of files) {
+		if (i++ % CANCEL_CHECK_INTERVAL === 0) {
+			throwIfCancelled(token);
+		}
 		if (isUriExcluded(uri, exclude)) {
 			continue;
 		}
 		const hasObjectBelonging = await configurationXmlHasObjectBelonging(uri.fsPath);
-		if (hasObjectBelonging) {
-			continue;
-		}
 		const dir = path.dirname(uri.fsPath);
+		configTreeRootPrefixes.push(directoryAsRootPrefix(dir));
+
 		const dirUri = vscode.Uri.file(dir);
 		const rel = getWorkspaceRelativePath(dirUri);
 		const name = path.basename(dir);
-		result.push({ type: 'configuration', uri: dirUri, name, relativePath: rel, kind: 'source' });
+		if (hasObjectBelonging) {
+			extSources.push({
+				type: 'extension',
+				uri: dirUri,
+				name,
+				relativePath: rel,
+				kind: 'source',
+				sourceEntryUri: uri,
+			});
+		} else {
+			configSources.push({
+				type: 'configuration',
+				uri: dirUri,
+				name,
+				relativePath: rel,
+				kind: 'source',
+				sourceEntryUri: uri,
+			});
+		}
 	}
-	return result;
+
+	return { configSources, extSources, configTreeRootPrefixes };
 }
 
-/**
- * Сканирует workspace на бинарные расширения (*.cfe)
- */
-async function scanExtensionBinaries(): Promise<ExtensionArtifact[]> {
-	const files = await vscode.workspace.findFiles('**/*.cfe');
-	const exclude = getExcludeSegments();
+async function scanFeatures(
+	exclude: string[],
+	token: vscode.CancellationToken | undefined
+): Promise<FeatureArtifact[]> {
+	const files = await vscode.workspace.findFiles('**/*.feature', undefined, undefined, token);
+	const filtered = files.filter((uri) => !isUriExcluded(uri, exclude));
+	return filtered.map((uri) => {
+		const rel = getWorkspaceRelativePath(uri);
+		const name = path.basename(uri.fsPath);
+		return { type: 'feature' as const, uri, name, relativePath: rel };
+	});
+}
+
+async function scanConfigurationBinaries(
+	exclude: string[],
+	token: vscode.CancellationToken | undefined
+): Promise<ConfigurationArtifact[]> {
+	const files = await vscode.workspace.findFiles('**/*.cf', undefined, undefined, token);
+	return files
+		.filter(
+			(uri) =>
+				uri.fsPath.toLowerCase().endsWith('.cf') && !isUriExcluded(uri, exclude)
+		)
+		.map((uri) => {
+			const rel = getWorkspaceRelativePath(uri);
+			const name = path.basename(uri.fsPath);
+			return { type: 'configuration' as const, uri, name, relativePath: rel, kind: 'binary' as const };
+		});
+}
+
+async function scanExtensionBinaries(
+	exclude: string[],
+	token: vscode.CancellationToken | undefined
+): Promise<ExtensionArtifact[]> {
+	const files = await vscode.workspace.findFiles('**/*.cfe', undefined, undefined, token);
 	return files
 		.filter((uri) => !isUriExcluded(uri, exclude))
 		.map((uri) => {
@@ -177,36 +322,11 @@ async function scanExtensionBinaries(): Promise<ExtensionArtifact[]> {
 		});
 }
 
-/**
- * Сканирует workspace на папки с Configuration.xml, содержащим ObjectBelonging (исходники расширений)
- */
-async function scanExtensionSources(): Promise<ExtensionArtifact[]> {
-	const files = await vscode.workspace.findFiles('**/Configuration.xml');
-	const exclude = getExcludeSegments();
-	const result: ExtensionArtifact[] = [];
-	for (const uri of files) {
-		if (isUriExcluded(uri, exclude)) {
-			continue;
-		}
-		const hasObjectBelonging = await configurationXmlHasObjectBelonging(uri.fsPath);
-		if (!hasObjectBelonging) {
-			continue;
-		}
-		const dir = path.dirname(uri.fsPath);
-		const dirUri = vscode.Uri.file(dir);
-		const rel = getWorkspaceRelativePath(dirUri);
-		const name = path.basename(dir);
-		result.push({ type: 'extension', uri: dirUri, name, relativePath: rel, kind: 'source' });
-	}
-	return result;
-}
-
-/**
- * Сканирует workspace на бинарные внешние обработки (*.epf)
- */
-async function scanProcessorBinaries(): Promise<ProcessorArtifact[]> {
-	const files = await vscode.workspace.findFiles('**/*.epf');
-	const exclude = getExcludeSegments();
+async function scanProcessorBinaries(
+	exclude: string[],
+	token: vscode.CancellationToken | undefined
+): Promise<ProcessorArtifact[]> {
+	const files = await vscode.workspace.findFiles('**/*.epf', undefined, undefined, token);
 	return files
 		.filter((uri) => !isUriExcluded(uri, exclude))
 		.map((uri) => {
@@ -216,62 +336,11 @@ async function scanProcessorBinaries(): Promise<ProcessorArtifact[]> {
 		});
 }
 
-const XML_HEAD_SIZE = 4096;
-
-/**
- * Проверяет, является ли XML-файл корневым описанием внешней обработки (корневой элемент ExternalDataProcessor)
- */
-async function xmlIsExternalDataProcessor(filePath: string): Promise<boolean> {
-	let fh: fs.FileHandle | undefined;
-	try {
-		fh = await fs.open(filePath, 'r');
-		const buf = Buffer.alloc(XML_HEAD_SIZE);
-		const { bytesRead } = await fh.read(buf, 0, XML_HEAD_SIZE, 0);
-		const content = buf.subarray(0, bytesRead).toString('utf-8');
-		return /<ExternalDataProcessor[\s>]/.test(content);
-	} catch {
-		return false;
-	} finally {
-		await fh?.close();
-	}
-}
-
-/**
- * Сканирует workspace на папки с корневым XML обработки (содержит ExternalDataProcessor)
- */
-async function scanProcessorSources(): Promise<ProcessorArtifact[]> {
-	const files = await vscode.workspace.findFiles('**/*.xml');
-	const exclude = getExcludeSegments();
-	const result: ProcessorArtifact[] = [];
-	const seen = new Set<string>();
-
-	for (const uri of files) {
-		if (isUriExcluded(uri, exclude)) {
-			continue;
-		}
-		if (!(await xmlIsExternalDataProcessor(uri.fsPath))) {
-			continue;
-		}
-		const dir = path.dirname(uri.fsPath);
-		const normalized = path.normalize(dir).toLowerCase();
-		if (seen.has(normalized)) {
-			continue;
-		}
-		seen.add(normalized);
-		const dirUri = vscode.Uri.file(dir);
-		const rel = getWorkspaceRelativePath(dirUri);
-		const name = path.basename(dir);
-		result.push({ type: 'processor', uri: dirUri, name, relativePath: rel, kind: 'source' });
-	}
-	return result;
-}
-
-/**
- * Сканирует workspace на бинарные внешние отчёты (*.erf)
- */
-async function scanReportBinaries(): Promise<ReportArtifact[]> {
-	const files = await vscode.workspace.findFiles('**/*.erf');
-	const exclude = getExcludeSegments();
+async function scanReportBinaries(
+	exclude: string[],
+	token: vscode.CancellationToken | undefined
+): Promise<ReportArtifact[]> {
+	const files = await vscode.workspace.findFiles('**/*.erf', undefined, undefined, token);
 	return files
 		.filter((uri) => !isUriExcluded(uri, exclude))
 		.map((uri) => {
@@ -281,79 +350,126 @@ async function scanReportBinaries(): Promise<ReportArtifact[]> {
 		});
 }
 
-/**
- * Проверяет, является ли XML-файл корневым описанием внешнего отчёта (корневой элемент ExternalReport)
- */
-async function xmlIsExternalReport(filePath: string): Promise<boolean> {
-	let fh: fs.FileHandle | undefined;
-	try {
-		fh = await fs.open(filePath, 'r');
-		const buf = Buffer.alloc(XML_HEAD_SIZE);
-		const { bytesRead } = await fh.read(buf, 0, XML_HEAD_SIZE, 0);
-		const content = buf.subarray(0, bytesRead).toString('utf-8');
-		return /<ExternalReport[\s>]/.test(content);
-	} catch {
-		return false;
-	} finally {
-		await fh?.close();
+interface ProcessorReportSources {
+	procSources: ProcessorArtifact[];
+	reportSources: ReportArtifact[];
+}
+
+/** Добавляет артефакт-источник по одному корневому XML (на каталог — один раз). */
+function addProcessorOrReportSource(
+	kind: 'processor' | 'report',
+	xmlUri: vscode.Uri,
+	seenProc: Set<string>,
+	seenRep: Set<string>,
+	procSources: ProcessorArtifact[],
+	reportSources: ReportArtifact[]
+): void {
+	const dir = path.dirname(xmlUri.fsPath);
+	const normalized = path.normalize(dir).toLowerCase();
+	const dirUri = vscode.Uri.file(dir);
+	const rel = getWorkspaceRelativePath(dirUri);
+	const name = path.basename(dir);
+	if (kind === 'processor') {
+		if (seenProc.has(normalized)) {
+			return;
+		}
+		seenProc.add(normalized);
+		procSources.push({
+			type: 'processor',
+			uri: dirUri,
+			name,
+			relativePath: rel,
+			kind: 'source',
+			sourceEntryUri: xmlUri,
+		});
+		return;
 	}
+	if (seenRep.has(normalized)) {
+		return;
+	}
+	seenRep.add(normalized);
+	reportSources.push({
+		type: 'report',
+		uri: dirUri,
+		name,
+		relativePath: rel,
+		kind: 'source',
+		sourceEntryUri: xmlUri,
+	});
 }
 
 /**
- * Сканирует workspace на папки с корневым XML отчёта (содержит ExternalReport)
+ * Источники внешних обработок и отчётов: один поиск `*.xml`, без чтения XML внутри деревьев конфигурации/расширения.
  */
-async function scanReportSources(): Promise<ReportArtifact[]> {
-	const files = await vscode.workspace.findFiles('**/*.xml');
-	const exclude = getExcludeSegments();
-	const result: ReportArtifact[] = [];
-	const seen = new Set<string>();
+async function scanProcessorAndReportSources(
+	exclude: string[],
+	configTreeRootPrefixes: string[],
+	token: vscode.CancellationToken | undefined
+): Promise<ProcessorReportSources> {
+	const files = await vscode.workspace.findFiles('**/*.xml', undefined, undefined, token);
+	const procSources: ProcessorArtifact[] = [];
+	const reportSources: ReportArtifact[] = [];
+	const seenProc = new Set<string>();
+	const seenRep = new Set<string>();
 
+	let i = 0;
 	for (const uri of files) {
+		if (i++ % CANCEL_CHECK_INTERVAL === 0) {
+			throwIfCancelled(token);
+		}
 		if (isUriExcluded(uri, exclude)) {
 			continue;
 		}
-		if (!(await xmlIsExternalReport(uri.fsPath))) {
+		if (isUnderConfigOrExtensionTree(uri.fsPath, configTreeRootPrefixes)) {
 			continue;
 		}
-		const dir = path.dirname(uri.fsPath);
-		const normalized = path.normalize(dir).toLowerCase();
-		if (seen.has(normalized)) {
+
+		const head = await readXmlHeadForClassification(uri.fsPath);
+		const kind = classifyXmlArtifactHead(head);
+		if (kind === null) {
 			continue;
 		}
-		seen.add(normalized);
-		const dirUri = vscode.Uri.file(dir);
-		const rel = getWorkspaceRelativePath(dirUri);
-		const name = path.basename(dir);
-		result.push({ type: 'report', uri: dirUri, name, relativePath: rel, kind: 'source' });
+		addProcessorOrReportSource(kind, uri, seenProc, seenRep, procSources, reportSources);
 	}
-	return result;
+
+	return { procSources, reportSources };
 }
 
 /**
- * Сканирует workspace на все артефакты 1С
+ * Полный скан артефактов workspace.
+ *
+ * @param token — отмена при повторном `refresh` (передаётся в {@link vscode.workspace.findFiles}).
  */
-export async function scanArtifacts(): Promise<ArtifactsScanResult> {
-	const [
-		features,
-		configBinaries,
-		configSources,
-		extBinaries,
-		extSources,
-		procBinaries,
-		procSources,
-		reportBinaries,
-		reportSources,
-	] = await Promise.all([
-		scanFeatures(),
-		scanConfigurationBinaries(),
-		scanConfigurationSources(),
-		scanExtensionBinaries(),
-		scanExtensionSources(),
-		scanProcessorBinaries(),
-		scanProcessorSources(),
-		scanReportBinaries(),
-		scanReportSources(),
-	]);
+export async function scanArtifacts(
+	token?: vscode.CancellationToken
+): Promise<ArtifactsScanResult> {
+	throwIfCancelled(token);
+	const exclude = getExcludeSegments();
+
+	const { configSources, extSources, configTreeRootPrefixes } =
+		await scanConfigurationAndExtensionSources(exclude, token);
+
+	throwIfCancelled(token);
+
+	const [features, configBinaries, extBinaries, procBinaries, reportBinaries] = await runPoolTuple(
+		[
+			() => scanFeatures(exclude, token),
+			() => scanConfigurationBinaries(exclude, token),
+			() => scanExtensionBinaries(exclude, token),
+			() => scanProcessorBinaries(exclude, token),
+			() => scanReportBinaries(exclude, token),
+		] as BinaryScansPool,
+		3,
+		token
+	);
+
+	throwIfCancelled(token);
+
+	const { procSources, reportSources } = await scanProcessorAndReportSources(
+		exclude,
+		configTreeRootPrefixes,
+		token
+	);
 
 	return {
 		features,

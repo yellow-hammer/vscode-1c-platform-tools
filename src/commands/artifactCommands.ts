@@ -257,7 +257,9 @@ export class ArtifactCommands extends BaseCommand {
 		});
 	}
 
-	/** Открыть артефакт в редакторе или проводнике. */
+	/**
+	 * Открыть в редакторе. URI уже разрешён: для исходников артефактов — корневой XML, не каталог.
+	 */
 	async open(artifactUri: vscode.Uri): Promise<void> {
 		await vscode.commands.executeCommand('vscode.open', artifactUri);
 	}
