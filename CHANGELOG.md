@@ -5,6 +5,31 @@
 Формат основан на [Keep a Changelog](https://keepachangelog.com/ru/1.0.0/),
 и этот проект придерживается [Semantic Versioning](https://semver.org/lang/ru/).
 
+## [0.6.3] - 2026-04-05
+
+
+### 🐛 Bug Fixes
+
+- **artifacts:** Отмена скана, открытие entry-файла, вотчеры
+
+- **get-started:** Стабильное открытие walkthrough
+
+
+### 📚 Documentation
+
+- **artifacts:** Панель, сканирование, openTargetUri
+
+
+### ⚡ Performance
+
+- **artifacts:** Оптимизировать scanArtifacts и прунинг XML
+
+
+### 🧪 Testing
+
+- **artifacts:** ClassifyXmlArtifactHead
+
+
 ## [0.6.2] - 2026-03-17
 
 
