@@ -1414,7 +1414,7 @@ export async function activate(context: vscode.ExtensionContext) {
 					const selected = item ?? metadataTreeView.selection[0];
 					let leaf: MetadataLeafTreeItem | undefined;
 					let args: string[] | undefined;
-					let okText = 'Узел добавлен.';
+					let okText: string | undefined;
 					if (selected instanceof MetadataObjectNodeTreeItem && selected.nodeKind === 'tabularSection') {
 						leaf = selected.owner;
 						const name = await vscode.window.showInputBox({
@@ -1501,7 +1501,7 @@ export async function activate(context: vscode.ExtensionContext) {
 						return;
 					}
 
-					if (!leaf.resourceUri || !leaf.configurationXmlAbs || !leaf.metadataRootAbs || !args) {
+					if (!leaf.resourceUri || !leaf.configurationXmlAbs || !leaf.metadataRootAbs) {
 						void vscode.window.showInformationMessage('Недостаточно данных для операции.');
 						return;
 					}
