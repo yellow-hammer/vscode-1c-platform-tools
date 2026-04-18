@@ -2109,7 +2109,6 @@ export async function activate(context: vscode.ExtensionContext) {
 		setImmediate(() => void commands.dependencies.installDependencies());
 	}
 
-	// Панель «Начало работы» — открывается в редакторе по команде; при первом запуске после установки — показываем автоматически
 	registerGetStarted(context);
 	showGetStartedOnFirstRun(context);
 
@@ -2199,7 +2198,7 @@ export async function activate(context: vscode.ExtensionContext) {
 		artifactsRefreshDebounce.timer = setTimeout(() => {
 			artifactsRefreshDebounce.timer = undefined;
 			void artifactsProvider.refresh();
-		}, 300);
+		}, 1000);
 	};
 	const artifactPatterns = [
 		'**/*.feature',
@@ -2208,7 +2207,6 @@ export async function activate(context: vscode.ExtensionContext) {
 		'**/*.epf',
 		'**/*.erf',
 		'**/Configuration.xml',
-		'**/*.xml',
 	];
 	const artifactWatchers = artifactPatterns.flatMap((pattern) => {
 		const w = vscode.workspace.createFileSystemWatcher(pattern);
@@ -2229,11 +2227,10 @@ export async function activate(context: vscode.ExtensionContext) {
 		}
 	);
 
-	// Открыть «Начало работы» в редакторе при первом открытии только что созданного проекта
 	const showGetStartedForPath = context.globalState.get<string>('1c-platform-tools.showGetStartedForPath');
 	if (showGetStartedForPath && wsRoot && path.normalize(showGetStartedForPath) === path.normalize(wsRoot)) {
 		void context.globalState.update('1c-platform-tools.showGetStartedForPath', undefined);
-		setImmediate(() => openGetStartedWalkthrough(context));
+		openGetStartedWalkthrough(context, { scheduleDelayMs: 500 });
 	}
 
 	const refreshCommand = vscode.commands.registerCommand('1c-platform-tools.refresh', () => {

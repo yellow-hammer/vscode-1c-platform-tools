@@ -1,6 +1,10 @@
 /**
- * Дерево артефактов проекта: feature-файлы, конфигурации, расширения,
- * внешние обработки и отчёты. Сканирование без привязки к фиксированным путям.
+ * Дерево «Артефакты 1С»: данные из {@link scanArtifacts}.
+ *
+ * - `refresh` отменяет предыдущий скан и передаёт {@link vscode.CancellationToken} в сканер.
+ * - У элементов артефактов `resourceUri` — каталог/файл для команд сборки и vrunner; открытие в редакторе
+ *   выполняется по корневому файлу (`ArtifactItem.openTargetUri`).
+ *
  * @module projectArtifactsView
  */
 
@@ -68,14 +72,34 @@ export class ProjectArtifactsTreeDataProvider
 
 	private _scanResult: ArtifactsScanResult | null = null;
 	private readonly _context: vscode.ExtensionContext;
+	private _scanCts: vscode.CancellationTokenSource | undefined;
 
 	constructor(context: vscode.ExtensionContext) {
 		this._context = context;
 	}
 
+	/** Полное пересканирование; параллельный вызов отменяет устаревший скан. */
 	async refresh(): Promise<void> {
-		this._scanResult = await scanArtifacts();
-		this._onDidChangeTreeData.fire(undefined);
+		this._scanCts?.cancel();
+		this._scanCts = new vscode.CancellationTokenSource();
+		const cts = this._scanCts;
+		const token = cts.token;
+		try {
+			this._scanResult = await scanArtifacts(token);
+			if (!token.isCancellationRequested) {
+				this._onDidChangeTreeData.fire(undefined);
+			}
+		} catch (err) {
+			if (err instanceof vscode.CancellationError || token.isCancellationRequested) {
+				return;
+			}
+			throw err;
+		} finally {
+			if (this._scanCts === cts) {
+				this._scanCts = undefined;
+			}
+			cts.dispose();
+		}
 	}
 
 	getFeaturesViewMode(): FeaturesViewMode {
@@ -358,6 +382,7 @@ export class ProjectArtifactsTreeDataProvider
 		const label = a.name;
 		const icon = a.kind === 'source' ? 'folder' : 'file';
 		const isBinary = a.kind === 'binary';
+		const openTargetUri = a.sourceEntryUri ?? a.uri;
 		return new ArtifactItem(
 			a.type,
 			a.uri,
@@ -365,6 +390,7 @@ export class ProjectArtifactsTreeDataProvider
 			a.relativePath,
 			icon,
 			isBinary,
+			openTargetUri,
 			parentDirDescription
 		);
 	}
@@ -441,7 +467,12 @@ class FeatureItem extends vscode.TreeItem {
 	}
 }
 
+/**
+ * Элемент артефакта в дереве. Сборка/разборка — `resourceUri`; открытие в редакторе — `openTargetUri`.
+ */
 class ArtifactItem extends vscode.TreeItem {
+	readonly openTargetUri: vscode.Uri;
+
 	constructor(
 		public readonly artifactType: string,
 		public readonly uri: vscode.Uri,
@@ -449,9 +480,11 @@ class ArtifactItem extends vscode.TreeItem {
 		relativePath: string,
 		icon: string,
 		_isBinary: boolean,
+		openTargetUri: vscode.Uri,
 		parentDirDescription?: string
 	) {
 		super(label, vscode.TreeItemCollapsibleState.None);
+		this.openTargetUri = openTargetUri;
 		this.iconPath = new vscode.ThemeIcon(icon);
 		this.resourceUri = uri;
 		const tooltipMd = new vscode.MarkdownString(undefined, true);
@@ -465,7 +498,7 @@ class ArtifactItem extends vscode.TreeItem {
 		this.command = {
 			command: 'vscode.open',
 			title: 'Открыть',
-			arguments: [uri],
+			arguments: [openTargetUri],
 		};
 	}
 }

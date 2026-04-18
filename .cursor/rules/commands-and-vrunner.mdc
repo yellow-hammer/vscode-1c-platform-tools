@@ -8,7 +8,7 @@ alwaysApply: false
 
 ## Структура команд
 
-Команды по доменам в `src/commands/`: `infobaseCommands`, `configurationCommands`, `extensionsCommands`, `artifactCommands`, `externalFilesCommands`, `dependenciesCommands`, `runCommands`, `testCommands`, `setVersionCommands`, `workspaceTasksCommands`, `oscriptTasksCommands`. Все классы наследуют **BaseCommand** и используют `this.vrunner`. `ArtifactCommands` — точечная сборка/разборка из дерева «Артефакты 1С» и из editor/title.
+Команды по доменам в `src/commands/`: `infobaseCommands`, `configurationCommands`, `extensionsCommands`, `artifactCommands`, `externalFilesCommands`, `dependenciesCommands`, `runCommands`, `testCommands`, `setVersionCommands`, `workspaceTasksCommands`, `oscriptTasksCommands`. Все классы наследуют **BaseCommand** и используют `this.vrunner`. `ArtifactCommands` — точечная сборка/разборка из дерева «Артефакты 1С» и из editor/title. Команда открытия получает URI корневого файла (не каталог исходников); путь к каталогу/бинарнику — из `resourceUri` дерева.
 
 ## Обязательные паттерны
 
