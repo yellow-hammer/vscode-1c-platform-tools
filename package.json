@@ -2243,7 +2243,8 @@
     "ping-ipc": "node ../mcp-1c-platform-tools/scripts/ping-ipc.mjs"
   },
   "overrides": {
-    "diff": "^8.0.3"
+    "diff": "^8.0.3",
+    "serialize-javascript": "^7.0.5"
   },
   "dependencies": {
     "@vscode/debugadapter": "^1.67.0",
@@ -2255,9 +2256,9 @@
     "@types/minimatch": "^3.0.5",
     "@types/node": "22.x",
     "@types/vscode": "^1.103.0",
-    "@vscode/test-cli": "^0.0.11",
+    "@vscode/test-cli": "^0.0.12",
     "@vscode/test-electron": "^2.5.2",
-    "@vscode/vsce": "^3.7.1",
+    "@vscode/vsce": "^3.9.1",
     "esbuild": "^0.27.3",
     "eslint": "^10.0.1",
     "typescript": "^5.9.3",
