@@ -1,0 +1,39 @@
+body {
+	font-family: var(--vscode-font-family);
+	font-size: var(--vscode-font-size);
+	color: var(--vscode-foreground);
+	padding: 12px;
+}
+
+.root {
+	max-width: 760px;
+	margin: 0 auto;
+}
+
+.field {
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+	margin-bottom: 12px;
+}
+
+.field label {
+	font-weight: 600;
+}
+
+input, textarea {
+	background: var(--vscode-input-background);
+	color: var(--vscode-input-foreground);
+	border: 1px solid var(--vscode-input-border);
+	padding: 6px;
+}
+
+.actions {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+}
+
+#status {
+	color: var(--vscode-descriptionForeground);
+}

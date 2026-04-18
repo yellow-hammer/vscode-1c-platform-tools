@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="ru">
+<head>
+	<meta charset="UTF-8">
+	<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src {{CSP_SOURCE}}; script-src 'nonce-{{NONCE}}';">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>Свойства</title>
+	<link rel="stylesheet" href="{{CSS_URI}}">
+</head>
+<body>
+	<div class="root">
+		<h1 id="title">Свойства</h1>
+		<div class="field">
+			<label for="name">Имя</label>
+			<input id="name" type="text">
+		</div>
+		<div class="field">
+			<label for="synonymRu">Синоним</label>
+			<input id="synonymRu" type="text">
+		</div>
+		<div class="field">
+			<label for="comment">Комментарий</label>
+			<textarea id="comment" rows="4"></textarea>
+		</div>
+		<div class="actions">
+			<button id="saveBtn" type="button">Сохранить</button>
+			<span id="status"></span>
+		</div>
+	</div>
+	<script nonce="{{NONCE}}">
+		window.__INITIAL_DATA__ = {{INITIAL_JSON}};
+	</script>
+	<script nonce="{{NONCE}}" src="{{JS_URI}}"></script>
+</body>
+</html>

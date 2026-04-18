@@ -1,0 +1,81 @@
+body {
+	font-family: var(--vscode-font-family);
+	font-size: var(--vscode-font-size);
+	color: var(--vscode-foreground);
+	padding: 12px;
+}
+
+#root {
+	max-width: 980px;
+	margin: 0 auto;
+}
+
+h1 {
+	margin-bottom: 4px;
+}
+
+.source-kind {
+	color: var(--vscode-descriptionForeground);
+	margin-bottom: 12px;
+}
+
+.section {
+	border: 1px solid var(--vscode-panel-border);
+	margin-bottom: 10px;
+}
+
+.section h2 {
+	margin: 0;
+	padding: 8px 10px;
+	background: var(--vscode-settings-focusedRowBackground);
+	font-size: 14px;
+}
+
+.field {
+	padding: 8px 10px;
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+}
+
+.field label {
+	font-weight: 600;
+}
+
+input, textarea, select {
+	background: var(--vscode-input-background);
+	color: var(--vscode-input-foreground);
+	border: 1px solid var(--vscode-input-border);
+	padding: 6px;
+}
+
+.modules-row {
+	padding: 10px;
+	display: flex;
+	gap: 12px;
+	flex-wrap: wrap;
+}
+
+.hidden {
+	display: none;
+}
+
+.link-btn {
+	background: transparent;
+	color: var(--vscode-textLink-foreground);
+	border: none;
+	padding: 0;
+	cursor: pointer;
+	text-decoration: underline;
+}
+
+.footer {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	padding: 8px 0;
+}
+
+#status {
+	color: var(--vscode-descriptionForeground);
+}
