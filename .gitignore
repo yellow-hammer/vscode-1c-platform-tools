@@ -30,6 +30,7 @@ Thumbs.db
 
 # IDE
 .idea/
+.cursor/plans/
 .vscode/settings.json
 *.code-workspace
 
