@@ -1,5 +1,5 @@
 import * as assert from 'node:assert';
-import { classifyXmlArtifactHead } from '../artifactsScanner';
+import { classifyXmlArtifactHead } from '../features/artifacts/artifactsScanner';
 
 suite('artifactsScanner.classifyXmlArtifactHead', () => {
 	test('определяет корень внешней обработки', () => {

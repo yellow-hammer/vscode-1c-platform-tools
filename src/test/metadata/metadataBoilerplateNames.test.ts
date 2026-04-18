@@ -1,5 +1,5 @@
 import * as assert from 'node:assert';
-import { parseMdBoilerplateKindFromCommandArgs } from '../../metadataBoilerplateNames';
+import { parseMdBoilerplateKindFromCommandArgs } from '../../features/metadata/metadataBoilerplateNames';
 
 suite('metadataBoilerplateNames', () => {
 	test('читает kind напрямую из аргументов', () => {

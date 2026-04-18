@@ -2,7 +2,7 @@ import * as vscode from 'vscode';
 import * as path from 'node:path';
 import * as fs from 'node:fs/promises';
 import { BaseCommand } from './baseCommand';
-import { logger } from '../logger';
+import { logger } from '../shared/logger';
 
 /**
  * Результат получения списка задач oscript из каталога tasks

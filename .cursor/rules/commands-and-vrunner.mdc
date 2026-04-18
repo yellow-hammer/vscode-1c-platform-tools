@@ -1,6 +1,6 @@
 ---
 description: Правила для команд и работы с vrunner
-globs: src/commands/**/*.ts
+globs: src/commands/**/*.ts,src/features/tools/**/*.ts,src/app/registerCoreCommands.ts
 alwaysApply: false
 ---
 
@@ -8,7 +8,7 @@ alwaysApply: false
 
 ## Структура команд
 
-Команды по доменам в `src/commands/`: `infobaseCommands`, `configurationCommands`, `extensionsCommands`, `artifactCommands`, `externalFilesCommands`, `dependenciesCommands`, `runCommands`, `testCommands`, `setVersionCommands`, `workspaceTasksCommands`, `oscriptTasksCommands`. Все классы наследуют **BaseCommand** и используют `this.vrunner`. `ArtifactCommands` — точечная сборка/разборка из дерева «Артефакты 1С» и из editor/title. Команда открытия получает URI корневого файла (не каталог исходников); путь к каталогу/бинарнику — из `resourceUri` дерева.
+Команды по доменам в `src/commands/`: `infobaseCommands`, `configurationCommands`, `extensionsCommands`, `artifactCommands`, `externalFilesCommands`, `dependenciesCommands`, `runCommands`, `testCommands`, `setVersionCommands`, `workspaceTasksCommands`, `oscriptTasksCommands`, `skillsCommands`. Классы, которые запускают `vrunner`, наследуют **BaseCommand** и используют `this.vrunner`; служебные команды (например skills) могут быть без наследования от `BaseCommand`. `ArtifactCommands` — точечная сборка/разборка из дерева «Артефакты 1С» и из editor/title. Команда открытия получает URI корневого файла (не каталог исходников); путь к каталогу/бинарнику — из `resourceUri` дерева.
 
 ## Обязательные паттерны
 
@@ -38,7 +38,7 @@ alwaysApply: false
 
 ## Добавление новых команд
 
-Новую команду: добавить запись в соответствующую группу в `src/treeStructure.ts` (TREE_GROUPS), зарегистрировать в `package.json` → `contributes.commands` и в `src/commands/commandRegistry.ts` через `registerCommands()`. Названия — функции из `src/commandNames.ts` (get*CommandName()); для узлов «Конфигурации запуска» (env.json, launch.json) допускаются фиксированные title/treeLabel. Команды для динамических узлов (задачи oscript, конфигурации запуска) регистрируются в extension.ts.
+Новую команду: добавить запись в соответствующую группу в `src/features/tools/treeStructure.ts` (`TREE_GROUPS`), зарегистрировать в `package.json` -> `contributes.commands` и в `src/commands/commandRegistry.ts` через `registerCommands()` (для доменных/базовых команд) или в `src/features/tools/registerMainTreeCommands.ts` (для runtime-команд дерева: oscript, launch/tasks, избранное). Названия — функции из `src/features/tools/commandNames.ts` (`get*CommandName()`); для узлов «Конфигурации запуска» (`env.json`, `launch.json`) допускаются фиксированные title/treeLabel.
 
 ## Навыки для AI (skills)
 

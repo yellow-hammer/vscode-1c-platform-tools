@@ -3,7 +3,7 @@
  */
 
 import * as vscode from 'vscode';
-import type { OneCLocator } from '../oneCLocator';
+import type { OneCLocator } from './oneCLocator';
 import { ProjectStorage } from './storage';
 import { StorageProvider } from './storageProvider';
 import { AutodetectProvider } from './autodetectProvider';

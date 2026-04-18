@@ -1,6 +1,6 @@
 import * as vscode from 'vscode';
 import * as path from 'node:path';
-import { logger } from '../logger';
+import { logger } from '../shared/logger';
 import { InfobaseCommands } from './infobaseCommands';
 import { ConfigurationCommands } from './configurationCommands';
 import { ExtensionsCommands } from './extensionsCommands';
@@ -13,7 +13,7 @@ import { SetVersionCommands } from './setVersionCommands';
 import { WorkspaceTasksCommands } from './workspaceTasksCommands';
 import { ArtifactCommands } from './artifactCommands';
 import { SkillsCommands } from './skillsCommands';
-import { VRunnerManager } from '../vrunnerManager';
+import { VRunnerManager } from '../shared/vrunnerManager';
 
 /**
  * Объект со всеми командами расширения

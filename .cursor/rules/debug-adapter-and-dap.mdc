@@ -1,6 +1,6 @@
 ---
 description: Правила для работы с DAP и onec-debug-adapter
-globs: src/debug/**/*.ts
+globs: src/features/debug/**/*.ts,package.json,scripts/build-onec-adapter.mjs
 alwaysApply: false
 ---
 
@@ -23,7 +23,7 @@ alwaysApply: false
 ## Использование DAP в расширении
 
 - Тип дебаггера в `package.json` — `1c-platform-tools`, программа: `./bin/onec-debug-adapter/OnecDebugAdapter.dll`, runtime: `dotnet`.
-- В `src/debug/debugConfigurations.ts`:
+- В debug feature (`src/features/debug/*`):
   - базовый `platformPath` определяется как:
     - Windows: `${env:PROGRAMFILES}/1cv8`
     - Linux: `/opt/1C/v8.3/x86_64`;

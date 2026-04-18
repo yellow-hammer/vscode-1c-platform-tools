@@ -1,6 +1,6 @@
 ---
 description: Визуальный эталон дерева метаданных
-globs: src/metadataTreeView.ts,resources/metadata-tree-icons/**/*.svg,resources/1c-icon.svg,package.json
+globs: src/features/metadata/metadataTreeView.ts,resources/metadata-tree-icons/**/*.svg,resources/1c-icon.svg,package.json
 alwaysApply: false
 ---
 

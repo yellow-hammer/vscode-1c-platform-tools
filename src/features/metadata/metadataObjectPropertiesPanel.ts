@@ -6,7 +6,7 @@
 import * as path from 'node:path';
 import * as vscode from 'vscode';
 import { ensureMdSparrowRuntime } from './mdSparrowBootstrap';
-import { logger } from './logger';
+import { logger } from '../../shared/logger';
 import { mdSparrowSchemaFlagFromConfigurationXml } from './mdSparrowSchemaVersion';
 import { runMdSparrow } from './mdSparrowRunner';
 import {

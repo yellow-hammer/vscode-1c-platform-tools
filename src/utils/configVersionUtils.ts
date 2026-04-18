@@ -20,7 +20,7 @@ const COMPATIBILITY_MODE_REGEX = /<CompatibilityMode>Version(\d+)_(\d+)/;
 const SYNONYM_RU_REGEX = /<Synonym>[\s\S]*?<v8:lang>ru<\/v8:lang>\s*<v8:content>([^<]*)<\/v8:content>/;
 
 import * as vscode from 'vscode';
-import { logger } from '../logger';
+import { logger } from '../shared/logger';
 
 /**
  * Читает версию конфигурации из файла Configuration.xml (свойство Configuration/Properties/Version).

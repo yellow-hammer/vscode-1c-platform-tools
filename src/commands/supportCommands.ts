@@ -10,9 +10,9 @@ import {
 	getCreateTemplateListFileCommandName,
 	getCreateDistributivePackageCommandName,
 	getCreateDistributionFilesCommandName
-} from '../commandNames';
+} from '../features/tools/commandNames';
 import { readConfigurationVersion, readConfigurationDeliveryProperties } from '../utils/configVersionUtils';
-import { logger } from '../logger';
+import { logger } from '../shared/logger';
 
 /** Имя файла поставки (канонический регистр для путей в команде) */
 const DISTRIBUTION_CF_FILENAME = '1Cv8.cf';

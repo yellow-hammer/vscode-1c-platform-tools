@@ -6,7 +6,7 @@
 import * as path from 'node:path';
 import * as vscode from 'vscode';
 import { clearMdSparrowDownloadCache, ensureMdSparrowRuntime } from './mdSparrowBootstrap';
-import { logger } from './logger';
+import { logger } from '../../shared/logger';
 import { runMdSparrow } from './mdSparrowRunner';
 
 /** Контракт с md-sparrow {@link io.github.yellowhammer.designerxml.cf.ProjectMetadataTreeDto}. */

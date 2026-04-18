@@ -7,7 +7,7 @@ import {
 	getSyntaxCheckCommandName,
 	getVanessaTestsCommandName,
 	getAllureReportCommandName
-} from '../commandNames';
+} from '../features/tools/commandNames';
 
 /**
  * Команды для тестирования

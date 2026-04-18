@@ -5,7 +5,7 @@
  */
 
 import * as vscode from 'vscode';
-import { logger } from './logger';
+import { logger } from '../../shared/logger';
 
 /** Одна найденная метка в коде (тег, строка, URI, текст). */
 export interface TodoEntry {

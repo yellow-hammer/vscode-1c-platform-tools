@@ -5,7 +5,7 @@ import {
 	MetadataObjectNodeTreeItem,
 	MetadataSourceTreeItem,
 	MetadataTreeDataProvider,
-} from '../../metadataTreeView';
+} from '../../features/metadata/metadataTreeView';
 import { createMockExtensionContext } from '../fixtures/mocks/vscodeMocks';
 
 suite('metadataTreeView subsystem filter', () => {
@@ -51,6 +51,7 @@ suite('metadataTreeView subsystem filter', () => {
 			'Номенклатура',
 			undefined,
 			'C:/ws',
+			context.extensionUri,
 			'C:/ws/src/cf/Configuration.xml',
 			'C:/ws/src/cf'
 		);
@@ -62,6 +63,7 @@ suite('metadataTreeView subsystem filter', () => {
 			'Контрагенты',
 			undefined,
 			'C:/ws',
+			context.extensionUri,
 			'C:/ws/src/cf/Configuration.xml',
 			'C:/ws/src/cf'
 		);
@@ -73,6 +75,7 @@ suite('metadataTreeView subsystem filter', () => {
 			'Продажи',
 			undefined,
 			'C:/ws',
+			context.extensionUri,
 			'C:/ws/src/cf/Configuration.xml',
 			'C:/ws/src/cf'
 		);
@@ -122,6 +125,7 @@ suite('metadataTreeView subsystem filter', () => {
 
 suite('metadataTreeView nested nodes', () => {
 	test('лист объекта метаданных раскрываемый для структуры', () => {
+		const context = createMockExtensionContext();
 		const leaf = new MetadataLeafTreeItem(
 			'main',
 			'catalogs',
@@ -130,6 +134,7 @@ suite('metadataTreeView nested nodes', () => {
 			'Номенклатура',
 			'src/cf/Catalogs/Номенклатура.xml',
 			'C:/ws',
+			context.extensionUri,
 			'C:/ws/src/cf/Configuration.xml',
 			'C:/ws/src/cf'
 		);
@@ -137,6 +142,7 @@ suite('metadataTreeView nested nodes', () => {
 	});
 
 	test('контекстные значения вложенных узлов для CRUD', () => {
+		const context = createMockExtensionContext();
 		const owner = new MetadataLeafTreeItem(
 			'main',
 			'catalogs',
@@ -145,12 +151,39 @@ suite('metadataTreeView nested nodes', () => {
 			'Номенклатура',
 			'src/cf/Catalogs/Номенклатура.xml',
 			'C:/ws',
+			context.extensionUri,
 			'C:/ws/src/cf/Configuration.xml',
 			'C:/ws/src/cf'
 		);
-		const attr = new MetadataObjectNodeTreeItem('k1', 'attribute', 'Код', 'Код', false, owner);
-		const ts = new MetadataObjectNodeTreeItem('k2', 'tabularSection', 'Товары', 'Товары', true, owner, 'Товары');
-		const tsAttr = new MetadataObjectNodeTreeItem('k3', 'tabularAttribute', 'Количество', 'Количество', false, owner, 'Товары');
+		const attr = new MetadataObjectNodeTreeItem(
+			'k1',
+			'attribute',
+			'Код',
+			'Код',
+			false,
+			context.extensionUri,
+			owner
+		);
+		const ts = new MetadataObjectNodeTreeItem(
+			'k2',
+			'tabularSection',
+			'Товары',
+			'Товары',
+			true,
+			context.extensionUri,
+			owner,
+			'Товары'
+		);
+		const tsAttr = new MetadataObjectNodeTreeItem(
+			'k3',
+			'tabularAttribute',
+			'Количество',
+			'Количество',
+			false,
+			context.extensionUri,
+			owner,
+			'Товары'
+		);
 		assert.strictEqual(attr.contextValue, 'metadataAttribute');
 		assert.strictEqual(ts.contextValue, 'metadataTabularSection');
 		assert.strictEqual(tsAttr.contextValue, 'metadataTabularAttribute');

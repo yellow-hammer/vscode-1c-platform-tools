@@ -5,7 +5,7 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import * as vscode from 'vscode';
-import type { OneCLocator } from '../oneCLocator';
+import type { OneCLocator } from './oneCLocator';
 import type { ProjectStorage } from './storage';
 import { sortProjects } from './sorter';
 import type { ProjectsStack } from './stack';

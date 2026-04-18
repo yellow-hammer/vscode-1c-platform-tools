@@ -9,10 +9,10 @@ import {
 	getInstallDependenciesCommandName,
 	getInstallOneScriptCommandName,
 	getUpdateOpmCommandName
-} from '../commandNames';
-import { logger } from '../logger';
-import { notifyProjectCreated } from '../projectContext';
-import { PROJECT_STRUCTURE } from '../projectStructure';
+} from '../features/tools/commandNames';
+import { logger } from '../shared/logger';
+import { notifyProjectCreated } from '../shared/projectContext';
+import { PROJECT_STRUCTURE } from '../shared/projectStructure';
 
 /** URL для скачивания OVM (OneScript Version Manager) */
 const OVM_DOWNLOAD_URL = 'https://github.com/oscript-library/ovm/releases/latest/download/ovm.exe';
@@ -223,6 +223,20 @@ async function runGitAdminElevated(): Promise<boolean> {
  * Команды для управления зависимостями проекта
  */
 export class DependenciesCommands extends BaseCommand {
+	/**
+	 * Предлагает перезапустить окно после инициализации проекта, чтобы гарантированно
+	 * обновились контейнеры и команды, зависящие от контекста проекта.
+	 */
+	private async offerReloadAfterProjectInitialization(): Promise<void> {
+		const action = await vscode.window.showInformationMessage(
+			'Проект инициализирован. Перезапустить окно сейчас?',
+			'Перезапустить окно',
+			'Позже'
+		);
+		if (action === 'Перезапустить окно') {
+			await vscode.commands.executeCommand('workbench.action.reloadWindow');
+		}
+	}
 
 	/**
 	 * Устанавливает зависимости проекта
@@ -508,6 +522,8 @@ export class DependenciesCommands extends BaseCommand {
 			const uri = vscode.Uri.file(packagedefPath);
 			const doc = await vscode.workspace.openTextDocument(uri);
 			await vscode.window.showTextDocument(doc);
+
+			await this.offerReloadAfterProjectInitialization();
 		} catch (error) {
 			const errMsg = (error as Error).message;
 			logger.error(`Не удалось создать файл packagedef: ${errMsg}. Путь: ${packagedefPath}`);

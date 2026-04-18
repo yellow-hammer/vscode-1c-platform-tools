@@ -13,7 +13,7 @@
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 import * as vscode from 'vscode';
-import { logger } from './logger';
+import { logger } from '../../shared/logger';
 
 const WELCOMED_KEY = '1c-platform-tools.getStarted.welcomed';
 

@@ -7,8 +7,8 @@ import {
 	getBuildExternalReportCommandName,
 	getDecompileExternalProcessorCommandName,
 	getDecompileExternalReportCommandName
-} from '../commandNames';
-import { logger } from '../logger';
+} from '../features/tools/commandNames';
+import { logger } from '../shared/logger';
 
 /**
  * Тип внешнего файла

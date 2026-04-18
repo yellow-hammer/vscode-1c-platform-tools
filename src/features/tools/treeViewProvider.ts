@@ -1,13 +1,13 @@
 import * as vscode from 'vscode';
-import { WorkspaceTasksCommands } from './commands/workspaceTasksCommands';
-import { OscriptTasksCommands } from './commands/oscriptTasksCommands';
+import { WorkspaceTasksCommands } from '../../commands/workspaceTasksCommands';
+import { OscriptTasksCommands } from '../../commands/oscriptTasksCommands';
 import {
 	getSetVersionAllExtensionsCommandName,
 	getSetVersionExtensionCommandName,
 	getSetVersionReportCommandName,
 	getSetVersionProcessorCommandName
 } from './commandNames';
-import type { SetVersionCommands } from './commands/setVersionCommands';
+import type { SetVersionCommands } from '../../commands/setVersionCommands';
 import { getFavorites, type FavoriteEntry } from './favorites';
 import { TREE_GROUPS } from './treeStructure';
 

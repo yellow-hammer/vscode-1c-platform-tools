@@ -11,9 +11,9 @@ import {
 	getDumpExtensionToCfeCommandName,
 	getBuildExtensionCommandName,
 	getDecompileExtensionCommandName
-} from '../commandNames';
-import { VANESSA_RUNNER_ROOT, VANESSA_RUNNER_EPF, EPF_NAMES, EPF_COMMANDS } from '../constants';
-import { logger } from '../logger';
+} from '../features/tools/commandNames';
+import { VANESSA_RUNNER_ROOT, VANESSA_RUNNER_EPF, EPF_NAMES, EPF_COMMANDS } from '../shared/constants';
+import { logger } from '../shared/logger';
 
 /**
  * Команды для работы с расширениями конфигурации

@@ -1,8 +1,8 @@
 import * as path from 'node:path';
 import * as vscode from 'vscode';
 import * as fs from 'node:fs/promises';
-import { VRunnerManager } from '../vrunnerManager';
-import { logger } from '../logger';
+import { VRunnerManager } from '../shared/vrunnerManager';
+import { logger } from '../shared/logger';
 
 /**
  * Базовый класс для всех команд

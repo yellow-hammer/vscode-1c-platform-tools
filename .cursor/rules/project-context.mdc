@@ -9,21 +9,22 @@ alwaysApply: true
 
 ## Архитектура
 
-- **Точка входа**: `src/extension.ts`, активация при наличии `packagedef` в корне workspace
-- **Команды**: префикс `1c-platform-tools.{domain}.{action}`, регистрация в `src/commands/commandRegistry.ts` (интерфейс Commands — без oscriptTasks; OscriptTasksCommands создаётся в extension.ts для динамических узлов дерева)
-- **TreeView**: `PlatformTreeDataProvider` в `src/treeViewProvider.ts`, структура дерева и избранного — `src/treeStructure.ts` (TREE_GROUPS). Динамические узлы: избранное, «Установить версию», «Задачи (oscript)», «Конфигурации запуска» — заполняются в treeViewProvider и extension.ts
-- **Панель «Проекты 1С»**: контейнер в activitybar, создаётся при старте (раньше остального) во избежание сообщения «Отсутствует поставщик данных». `src/projects/`: StorageProvider (Избранное), AutodetectProvider (Все проекты), HelpAndSupportProvider (Помощь и поддержка), OneCLocator (сканирование baseFolders), ProjectStorage (projects.json)
-- **Панель «Метаданные 1С»**: отдельный контейнер в activitybar (`1c-platform-tools-metadata`), виды «Дерево метаданных» (`metadataTreeView.ts`, `metadataTreeService.ts`, md-sparrow CLI `project-metadata-tree`) и «Помощь и поддержка» (тот же `HelpAndSupportProvider`, что и в проектах). Редактирование свойств объекта метаданных — webview `metadataObjectPropertiesPanel.ts`; запись через `cf-md-object-set` (и узкий `cf-catalog-form-set` для старого сценария), без парсинга/правки XML в TypeScript. Создание справочника выполняется через **`add-md-object --type CATALOG`**; генерация в md-sparrow **не** копирует структуру с других `Catalogs/*.xml` в выгрузке — новый справочник собирается в JAR по XSD (см. репозиторий `md-sparrow`, правило `cf-metadata-jaxb-only.mdc`); в документации не описывать «образцы» из каталога выгрузки. Эталон **пустой** выгрузки CF — **`.cursor/rules/empty-configuration-reference.mdc`** (не путать с `fixtures/ssl31`)
-- **Панель «Список дел»**: нижняя панель (view container), провайдер `TodoPanelTreeDataProvider` в `src/todoPanelView.ts`, сканирование — `src/todoScanner.ts`. Фильтры по тегу и области, группировка по файлу; не использует vrunner
+- **Точка входа**: `src/extension.ts` (re-export) -> `src/app/activate.ts` -> `bootstrapApp()` в `src/app/bootstrapApp.ts`; активация по `workspaceContains:packagedef`
+- **App-слой orchestration**: `src/app/register*Flow.ts` и `src/app/projectLifecycle.ts` собирают фичи, инфраструктуру, post-open сценарии и контекст `is1CProject`
+- **Команды**: префикс `1c-platform-tools.{domain}.{action}`; базовая регистрация — `src/commands/commandRegistry.ts` через `registerCoreCommands()`, runtime-команды дерева — `src/features/tools/registerMainTreeCommands.ts`
+- **TreeView «Инструменты 1С»**: `PlatformTreeDataProvider` в `src/features/tools/treeViewProvider.ts`, единый источник групп/избранного — `src/features/tools/treeStructure.ts` (`TREE_GROUPS`), регистрация view — `src/features/tools/registerMainTreeView.ts`
+- **Панель «Проекты 1С»**: split на bootstrap/runtime (`src/features/projects/registerProjectsBootstrap.ts`, `src/features/projects/registerProjectsRuntime.ts`) и flow-обёртку `src/app/registerProjectsFlow.ts`; провайдеры и storage берутся из `src/features/projects/`
+- **Панель «Метаданные 1С»**: flow `src/app/registerMetadataFlow.ts`, view/команды в `src/features/metadata/*`; XML-операции только через md-sparrow CLI (без ручного парсинга/правки XML в TypeScript)
+- **Панель «Артефакты 1С»**: flow `src/app/registerArtifactsFlow.ts`, view/команды в `src/features/artifacts/*`
+- **Панель «Список дел»**: flow `src/app/registerTodoFlow.ts`, view/сканер в `src/features/todo/*`
 - **Базовый класс команд**: `BaseCommand` в `src/commands/baseCommand.ts`
-- **vrunner**: синглтон `VRunnerManager` в `src/vrunnerManager.ts`
-- **DAP и отладка 1С**: интеграция с внешним адаптером `onec-debug-adapter` (DAP для HTTP‑сервера отладки 1С), см. правила в `.cursor/rules/debug-adapter-and-dap.mdc`
-- **Структура проекта 1С**: `src/projectStructure.ts` (PROJECT_STRUCTURE для команды «Инициализировать структуру проекта», шаблон vanessa-bootstrap)
-- **Контекст после создания проекта**: `src/projectContext.ts` (setOnProjectCreated, notifyProjectCreated — полная активация после инициализации packagedef)
-- **IPC-сервер**: `src/ipcServer.ts` — TCP-сервер (JSON-RPC over newline-delimited JSON) для взаимодействия с MCP-расширением `mcp-1c-platform-tools`; настройки `ipc.enabled`, `ipc.port`, `ipc.token`; при смене настроек перезапускается автоматически
-- **Файловый триггер**: `src/runCommandFromFileWatcher.ts` — наблюдатель за `.cursor/1c-platform-tools-run-command`; при появлении файла выполняет указанную в нём команду расширения
-- **Навыки для AI**: `src/commands/skillsCommands.ts` — команды установки SKILL.md (инструкции для AI-агентов) из cc-1c-skills и resources/skills
-- **Остальные модули**: `favorites.ts`, `commandNames.ts`, `constants.ts`, `logger.ts`, `todoPanelView.ts`, `todoScanner.ts`, `src/utils/` (commandUtils, configVersionUtils, dateUtils)
+- **VRunner**: синглтон `VRunnerManager` в `src/shared/vrunnerManager.ts`
+- **DAP и отладка 1С**: интеграция с внешним `onec-debug-adapter`, регистрация через `src/features/debug/registerDebugFeature.ts`, детали — `.cursor/rules/debug-adapter-and-dap.mdc`
+- **Структура проекта 1С**: `src/shared/projectStructure.ts` (`PROJECT_STRUCTURE`, шаблон vanessa-bootstrap)
+- **Контекст после создания проекта**: `src/shared/projectContext.ts` (`setOnProjectCreated`, `notifyProjectCreated`)
+- **IPC и file-watcher**: `src/shared/ipcServer.ts` и `src/shared/runCommandFromFileWatcher.ts`, подключаются через `src/app/registerInfrastructure.ts`
+- **Навыки для AI**: `src/commands/skillsCommands.ts` (установка SKILL.md из cc-1c-skills и `resources/skills`)
+- **Логирование**: `src/shared/logger.ts`
 
 ## Настройки проектов (1c-platform-tools.projects)
 
@@ -34,14 +35,12 @@ alwaysApply: true
 
 Настройки разбиты на подпункты по смыслу:
 
-| Раздел          | Контекст вызова                                  | Фильтр                                                            | Команда                                   |
-|-----------------|--------------------------------------------------|-------------------------------------------------------------------|-------------------------------------------|
-| Сервер IPC      | walkthrough «Интеграция с AI и MCP»              | `@ext:yellow-hammer.1c-platform-tools 1c-platform-tools.ipc`      | `1c-platform-tools.settings.openIpc`     |
-| Инструменты     | дерево, кнопка «Настройки» в панели инструментов | `@ext:yellow-hammer.1c-platform-tools` (все настройки)            | `1c-platform-tools.settings.openTools`    |
-| Проекты         | панель «Проекты 1С», walkthrough                 | `@ext:yellow-hammer.1c-platform-tools 1c-platform-tools.projects` | `1c-platform-tools.projects.openSettings` |
-| Список дел      | панель «Список дел»                              | `@ext:yellow-hammer.1c-platform-tools 1c-platform-tools.todo`     | `1c-platform-tools.settings.openTodo`     |
-| Метаданные 1С   | панель «Метаданные 1С»                           | `@ext:yellow-hammer.1c-platform-tools 1c-platform-tools.metadata` | `1c-platform-tools.settings.openMetadata` |
-| Общее           | —                                                | `@ext:yellow-hammer.1c-platform-tools`                            | `1c-platform-tools.settings.openGeneral`  |
+- **Сервер IPC**: контекст — walkthrough «Интеграция с AI и MCP»; фильтр — `@ext:yellow-hammer.1c-platform-tools 1c-platform-tools.ipc`; команда — `1c-platform-tools.settings.openIpc`
+- **Инструменты**: контекст — дерево, кнопка «Настройки» в панели инструментов; фильтр — `@ext:yellow-hammer.1c-platform-tools` (все настройки); команда — `1c-platform-tools.settings.openTools`
+- **Проекты**: контекст — панель «Проекты 1С», walkthrough; фильтр — `@ext:yellow-hammer.1c-platform-tools 1c-platform-tools.projects`; команда — `1c-platform-tools.projects.openSettings`
+- **Список дел**: контекст — панель «Список дел»; фильтр — `@ext:yellow-hammer.1c-platform-tools 1c-platform-tools.todo`; команда — `1c-platform-tools.settings.openTodo`
+- **Метаданные 1С**: контекст — панель «Метаданные 1С»; фильтр — `@ext:yellow-hammer.1c-platform-tools 1c-platform-tools.metadata`; команда — `1c-platform-tools.settings.openMetadata`
+- **Общее**: контекст — универсальный; фильтр — `@ext:yellow-hammer.1c-platform-tools`; команда — `1c-platform-tools.settings.openGeneral`
 
 Правила для новых панелей и настроек:
 
@@ -51,12 +50,12 @@ alwaysApply: true
 
 ## Панели «Помощь и поддержка»
 
-Единый набор команд для помощи и обратной связи: **Источник — `TREE_GROUPS` в `src/treeStructure.ts` (sectionType `helpAndSupport`)**. Текущие пункты: «С чего начать?», «Сообщить о проблемах», «Написать отзыв», «Стать спонсором».
+Единый набор команд для помощи и обратной связи: **Источник — `TREE_GROUPS` в `src/features/tools/treeStructure.ts` (sectionType `helpAndSupport`)**. Текущие пункты: «С чего начать?», «Сообщить о проблемах», «Написать отзыв», «Стать спонсором».
 
 Правила:
 
 1. **Одинаковый набор во всех контейнерах** — все представления «Помощь и поддержка» берут данные из `TREE_GROUPS` (группа `helpAndSupport`). Для TreeView использовать `HelpAndSupportProvider` из `src/projects/helpAndSupportProvider.ts`.
-2. **Новые контейнеры** — при добавлении нового view container (activitybar или panel) всегда добавлять в `package.json` представление «Помощь и поддержка» с `id` по шаблону `{containerId}-help` и регистрировать провайдер в `extension.ts`.
+2. **Новые контейнеры** — при добавлении нового view container (activitybar или panel) добавлять в `package.json` представление «Помощь и поддержка» с `id` по шаблону `{containerId}-help`; провайдер регистрировать в runtime-слое фичи (и подключать flow в `bootstrapApp`), не в `extension.ts`.
 
 Сейчас представление «Помощь и поддержка» есть в контейнерах «Проекты 1С» и «Метаданные 1С»; группа с тем же набором — в дереве «Инструменты 1С».
 
@@ -80,6 +79,6 @@ alwaysApply: true
 - Коммиты: [Conventional Commits](https://www.conventionalcommits.org/ru/v1.0.0/), сообщения на русском
 - Комментарии и сообщения пользователю: на русском
 - Типы: из `@types/vscode`, избегать `any`
-- Логирование: модуль `src/logger.ts` (`logger.info`, `logger.warn`, `logger.error`, `logger.debug`), не использовать `console.log`/`console.error` в продакшн-коде
+- Логирование: модуль `src/shared/logger.ts` (`logger.info`, `logger.warn`, `logger.error`, `logger.debug`), не использовать `console.log`/`console.error` в продакшн-коде
 - **Эволюция без самодельной совместимости**: не добавлять fallback на старые ключи настроек, дублирующие пути чтения конфигурации, legacy-команды и т.п. без **явного** запроса пользователя. Пока фича в разработке — меняем контракт и документацию прямо. Подробнее: `.cursor/rules/evolution-no-legacy.mdc`.
 - **Тексты в UI расширения** (`package.json`: `description` у настроек и команд, `title` там, где видит пользователь; а также `showErrorMessage` / тексты ошибок, которые видны в панелях и деревьях): писать **только** то, что помогает пользователю исправить ситуацию или понять эффект. **Не** вставлять внутренние пометки («переменные не раскрываются», «расширение не …»). Такие детали — в `docs/` или в лог (`logger`), не в сообщениях пользователю. Краткие человеческие формулировки вопросов и кнопок — **`.cursor/rules/ui-messages.mdc`**.

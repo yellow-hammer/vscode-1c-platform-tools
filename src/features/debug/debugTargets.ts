@@ -59,10 +59,9 @@ export function init(context: vscode.ExtensionContext): void {
 }
 
 export function updateDebugTargets(session: vscode.DebugSession): void {
-	session
+	void session
 		.customRequest('DebugTargetsRequest')
 		.then((targets: DebugTargetsResponse) => {
 			debugTargetsProvider.updateItems(targets.Items ?? []);
-		})
-		.catch(() => {});
+		}, () => {});
 }

@@ -14,7 +14,7 @@ import { pipeline } from 'node:stream/promises';
 import { Readable } from 'node:stream';
 import extract from 'extract-zip';
 import { globSync } from 'glob';
-import { logger } from './logger';
+import { logger } from '../../shared/logger';
 import {
 	MD_SPARROW_DEFAULT_REPO,
 	MD_SPARROW_JAR_REGEX,

@@ -1,6 +1,6 @@
 ---
 description: Fallback «С чего начать» для Cursor — Webview вместо walkthrough
-globs: src/getStartedView.ts
+globs: src/features/tools/getStartedView.ts
 alwaysApply: false
 ---
 
@@ -10,7 +10,7 @@ alwaysApply: false
 
 ## Решение
 
-**Источник:** `src/getStartedView.ts`
+**Источник:** `src/features/tools/getStartedView.ts`
 
 - **Определение Cursor:** `vscode.env.appName.toLowerCase().includes('cursor')`
 - **Fallback:** Webview с двухколоночным layout — слева контент и кнопки, справа скриншот/медиа (не теряется при прокрутке)

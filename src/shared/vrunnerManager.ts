@@ -4,7 +4,17 @@ import * as path from 'node:path';
 import * as fs from 'node:fs/promises';
 import * as fsSync from 'node:fs';
 import * as os from 'node:os';
-import { escapeCommandArgs, buildCommand, joinCommands, detectShellType, ShellType, normalizeArgForShell, buildDockerCommand, buildDockerCommandSequence, normalizeIbPathForDocker } from './utils/commandUtils';
+import {
+	escapeCommandArgs,
+	buildCommand,
+	joinCommands,
+	detectShellType,
+	ShellType,
+	normalizeArgForShell,
+	buildDockerCommand,
+	buildDockerCommandSequence,
+	normalizeIbPathForDocker,
+} from '../utils/commandUtils';
 import { logger } from './logger';
 
 /**

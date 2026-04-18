@@ -10,10 +10,10 @@ import {
 	getInitializeCommandName,
 	getDumpInfobaseToDtCommandName,
 	getLoadInfobaseFromDtCommandName
-} from '../commandNames';
-import { VANESSA_RUNNER_ROOT, VANESSA_RUNNER_EPF, EPF_NAMES, EPF_COMMANDS } from '../constants';
+} from '../features/tools/commandNames';
+import { VANESSA_RUNNER_ROOT, VANESSA_RUNNER_EPF, EPF_NAMES, EPF_COMMANDS } from '../shared/constants';
 import { formatDateForDtFileName } from '../utils/dateUtils';
-import { logger } from '../logger';
+import { logger } from '../shared/logger';
 
 /**
  * Команды для работы с информационными базами

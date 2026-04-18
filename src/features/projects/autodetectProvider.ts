@@ -4,7 +4,7 @@
 
 import * as path from 'node:path';
 import * as vscode from 'vscode';
-import type { OneCLocator } from '../oneCLocator';
+import type { OneCLocator } from './oneCLocator';
 import type { ProjectsStack } from './stack';
 import { sortProjects } from './sorter';
 import { ProjectNode } from './nodes';

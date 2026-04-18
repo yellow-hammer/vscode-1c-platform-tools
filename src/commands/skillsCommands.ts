@@ -3,7 +3,7 @@ import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import * as vscode from 'vscode';
-import { logger } from '../logger';
+import { logger } from '../shared/logger';
 
 const CC_1C_SKILLS_ZIP_URL =
 	'https://github.com/Nikolay-Shirokov/cc-1c-skills/archive/refs/heads/main.zip';

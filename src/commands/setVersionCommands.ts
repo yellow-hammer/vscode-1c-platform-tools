@@ -8,8 +8,8 @@ import {
 	getSetVersionExtensionCommandName,
 	getSetVersionReportCommandName,
 	getSetVersionProcessorCommandName
-} from '../commandNames';
-import { logger } from '../logger';
+} from '../features/tools/commandNames';
+import { logger } from '../shared/logger';
 
 /**
  * Команды для установки версий исходного кода конфигурации, расширений и внешних файлов

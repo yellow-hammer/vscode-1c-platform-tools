@@ -5,7 +5,7 @@
 
 import { spawn } from 'node:child_process';
 import * as vscode from 'vscode';
-import { logger } from './logger';
+import { logger } from '../../shared/logger';
 import type { MdSparrowRuntime } from './mdSparrowBootstrap';
 
 export interface MdSparrowRunResult {

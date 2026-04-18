@@ -1,6 +1,6 @@
 ---
 description: Дизайн панелей и контейнеров (Проекты 1С, Артефакты 1С, Список дел 1С, Инструменты 1С, Метаданные 1С)
-globs: package.json, **/extension.ts
+globs: package.json,src/app/**/*.ts,src/features/**/*.ts
 alwaysApply: false
 ---
 

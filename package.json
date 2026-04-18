@@ -42,8 +42,6 @@
     "Testing"
   ],
   "activationEvents": [
-    "onDebug",
-    "onLanguage:bsl",
     "workspaceContains:packagedef",
     "onCommand:1c-platform-tools.dependencies.initializePackagedef",
     "onCommand:1c-platform-tools.project.createFromWelcome",
@@ -99,7 +97,8 @@
         {
           "id": "1c-platform-tools-projects-help",
           "name": "Помощь и поддержка",
-          "contextualTitle": "Помощь и поддержка"
+          "contextualTitle": "Помощь и поддержка",
+          "visibility": "collapsed"
         }
       ],
       "1c-platform-tools": [
@@ -113,12 +112,15 @@
         {
           "id": "1c-platform-tools-metadata-tree",
           "name": "Дерево метаданных",
-          "contextualTitle": "Метаданные выгрузки"
+          "contextualTitle": "Метаданные выгрузки",
+          "when": "1c-platform-tools.is1CProject == true"
         },
         {
           "id": "1c-platform-tools-metadata-help",
           "name": "Помощь и поддержка",
-          "contextualTitle": "Помощь"
+          "contextualTitle": "Помощь",
+          "when": "1c-platform-tools.is1CProject == true",
+          "visibility": "collapsed"
         }
       ],
       "1c-platform-tools-todo": [

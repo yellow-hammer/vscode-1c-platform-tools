@@ -5,7 +5,7 @@
 import * as path from 'node:path';
 import * as vscode from 'vscode';
 import type { ProjectStorage } from './storage';
-import type { OneCLocator } from '../oneCLocator';
+import type { OneCLocator } from './oneCLocator';
 import { setCurrentProjectPath } from './decoration';
 
 let statusItem: vscode.StatusBarItem | undefined;

@@ -6,8 +6,8 @@
 import * as path from 'node:path';
 import * as fs from 'node:fs';
 import * as vscode from 'vscode';
-import { VRunnerManager } from './vrunnerManager';
-import { logger } from './logger';
+import { VRunnerManager } from '../../shared/vrunnerManager';
+import { logger } from '../../shared/logger';
 import { loadProjectMetadataTree, type ProjectMetadataTreeDto } from './metadataTreeService';
 import { ensureMdSparrowRuntime } from './mdSparrowBootstrap';
 import { runMdSparrow } from './mdSparrowRunner';

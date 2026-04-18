@@ -1,5 +1,5 @@
 import { BaseCommand } from './baseCommand';
-import { getRunEnterpriseCommandName, getRunDesignerCommandName } from '../commandNames';
+import { getRunEnterpriseCommandName, getRunDesignerCommandName } from '../features/tools/commandNames';
 
 /**
  * Команды для запуска 1С:Предприятие и Конфигуратора

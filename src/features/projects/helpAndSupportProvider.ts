@@ -4,7 +4,7 @@
  */
 
 import * as vscode from 'vscode';
-import { TREE_GROUPS } from '../treeStructure';
+import { TREE_GROUPS } from '../tools/treeStructure';
 
 export class HelpAndSupportProvider implements vscode.TreeDataProvider<vscode.TreeItem> {
 	getChildren(): vscode.TreeItem[] {

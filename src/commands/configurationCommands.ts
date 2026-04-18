@@ -13,12 +13,12 @@ import {
 	getDecompileConfigurationCommandName,
 	getLoadConfigurationIncrementFromSrcCommandName,
 	getLoadConfigurationFromFilesByListCommandName
-} from '../commandNames';
+} from '../features/tools/commandNames';
 import {
 	checkVersionFileExists,
 	handleMissingVersionFile
 } from '../utils/configVersionUtils';
-import { logger } from '../logger';
+import { logger } from '../shared/logger';
 
 /**
  * Команды для работы с конфигурацией
