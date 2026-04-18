@@ -307,8 +307,11 @@ export function registerCommands(
 
 	const artifactCommands = [
 		vscode.commands.registerCommand('1c-platform-tools.artifacts.open', (element: vscode.TreeItem) => {
-			if (element.resourceUri) {
-				void commands.artifact.open(element.resourceUri);
+			const openUri =
+				(element as vscode.TreeItem & { openTargetUri?: vscode.Uri }).openTargetUri ??
+				element.resourceUri;
+			if (openUri) {
+				void commands.artifact.open(openUri);
 			}
 		}),
 		vscode.commands.registerCommand('1c-platform-tools.artifacts.buildConfiguration', (element: vscode.TreeItem) => {

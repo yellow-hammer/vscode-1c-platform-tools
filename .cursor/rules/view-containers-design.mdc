@@ -45,12 +45,12 @@ alwaysApply: false
 
 ## Контейнеры
 
-| Контейнер      | Submenu                           | Настройки                                                                                             |
-|----------------|-----------------------------------|-------------------------------------------------------------------------------------------------------|
-| Проекты 1С     | viewAndSortMenu (вид, сортировка) | projects.openSettings                                                                                 |
-| Артефакты 1С   | viewAndSortMenu (вид)             | settings.openArtifacts                                                                                |
-| Список дел 1С  | —                                 | settings.openTodo                                                                                     |
-| Инструменты 1С | (будет переделан по образцу)      | settings.openTools                                                                                    |
-| Метаданные 1С  | —                                 | settings.openMetadata + **Сбросить кэш md-sparrow** в той же группе заголовка (`2_metadata@1` / `@2`) |
+| Контейнер      | Submenu                           | Настройки              |
+|----------------|-----------------------------------|------------------------|
+| Проекты 1С     | viewAndSortMenu (вид, сортировка) | projects.openSettings  |
+| Артефакты 1С   | viewAndSortMenu (вид)             | settings.openArtifacts |
+| Список дел 1С  | —                                 | settings.openTodo      |
+| Инструменты 1С | (будет переделан по образцу)      | settings.openTools     |
+| Метаданные 1С  | —                                 | settings.openMetadata  |
 
 **Совместимость:** см. `.cursor/rules/evolution-no-legacy.mdc` — без самодельных fallback и дублей контракта.
