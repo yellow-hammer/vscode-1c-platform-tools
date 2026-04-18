@@ -1,0 +1,10 @@
+---
+description: Эталон пустой выгрузки CF; не путать с ssl31; XSD vs formatVersion на Configuration
+alwaysApply: true
+---
+
+# Пустая выгрузка конфигурации (метаданные 1С)
+
+- **Эталон пустой выгрузки** — **[yellow-hammer/1c-platform-samples](https://github.com/yellow-hammer/1c-platform-samples)**, каталог **`src/cf`** (корень `Configuration.xml`). Им пользоваться при сверке «Пустая конфигурация» / `init-empty-cf` с реальностью.
+- **Submodule `fixtures/ssl31` в md-sparrow** — типовая большая выгрузка, **не** пустая ИБ; не называть её пустой фикстурой.
+- **`Configuration/@formatVersion`**: в XSD атрибут обязателен, в живой пустой выгрузке на `<Configuration>` его **может не быть** — расхождение схемы и платформы. Подробности и правила для кода — в **`md-sparrow/.cursor/rules/empty-configuration-reference.mdc`** и **`md-sparrow/docs/cf-layout.md`**.

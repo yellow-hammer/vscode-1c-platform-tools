@@ -13,6 +13,7 @@ alwaysApply: true
 - **Команды**: префикс `1c-platform-tools.{domain}.{action}`, регистрация в `src/commands/commandRegistry.ts` (интерфейс Commands — без oscriptTasks; OscriptTasksCommands создаётся в extension.ts для динамических узлов дерева)
 - **TreeView**: `PlatformTreeDataProvider` в `src/treeViewProvider.ts`, структура дерева и избранного — `src/treeStructure.ts` (TREE_GROUPS). Динамические узлы: избранное, «Установить версию», «Задачи (oscript)», «Конфигурации запуска» — заполняются в treeViewProvider и extension.ts
 - **Панель «Проекты 1С»**: контейнер в activitybar, создаётся при старте (раньше остального) во избежание сообщения «Отсутствует поставщик данных». `src/projects/`: StorageProvider (Избранное), AutodetectProvider (Все проекты), HelpAndSupportProvider (Помощь и поддержка), OneCLocator (сканирование baseFolders), ProjectStorage (projects.json)
+- **Панель «Метаданные 1С»**: отдельный контейнер в activitybar (`1c-platform-tools-metadata`), виды «Дерево метаданных» (`metadataTreeView.ts`, `metadataTreeService.ts`, md-sparrow CLI `project-metadata-tree`) и «Помощь и поддержка» (тот же `HelpAndSupportProvider`, что и в проектах). Редактирование свойств объекта метаданных — webview `metadataObjectPropertiesPanel.ts`; запись через `cf-md-object-set` (и узкий `cf-catalog-form-set` для старого сценария), без парсинга/правки XML в TypeScript. Создание справочника выполняется через **`add-md-object --type CATALOG`**; генерация в md-sparrow **не** копирует структуру с других `Catalogs/*.xml` в выгрузке — новый справочник собирается в JAR по XSD (см. репозиторий `md-sparrow`, правило `cf-metadata-jaxb-only.mdc`); в документации не описывать «образцы» из каталога выгрузки. Эталон **пустой** выгрузки CF — **`.cursor/rules/empty-configuration-reference.mdc`** (не путать с `fixtures/ssl31`)
 - **Панель «Список дел»**: нижняя панель (view container), провайдер `TodoPanelTreeDataProvider` в `src/todoPanelView.ts`, сканирование — `src/todoScanner.ts`. Фильтры по тегу и области, группировка по файлу; не использует vrunner
 - **Базовый класс команд**: `BaseCommand` в `src/commands/baseCommand.ts`
 - **vrunner**: синглтон `VRunnerManager` в `src/vrunnerManager.ts`
@@ -33,18 +34,19 @@ alwaysApply: true
 
 Настройки разбиты на подпункты по смыслу:
 
-| Раздел       | Контекст вызова                                  | Фильтр                                                            | Команда                                   |
-|--------------|--------------------------------------------------|-------------------------------------------------------------------|-------------------------------------------|
-| Сервер IPC   | walkthrough «Интеграция с AI и MCP»              | `@ext:yellow-hammer.1c-platform-tools 1c-platform-tools.ipc`      | `1c-platform-tools.settings.openIpc`     |
-| Инструменты  | дерево, кнопка «Настройки» в панели инструментов | `@ext:yellow-hammer.1c-platform-tools` (все настройки)            | `1c-platform-tools.settings.openTools`    |
-| Проекты      | панель «Проекты 1С», walkthrough                 | `@ext:yellow-hammer.1c-platform-tools 1c-platform-tools.projects` | `1c-platform-tools.projects.openSettings` |
-| Список дел   | панель «Список дел»                              | `@ext:yellow-hammer.1c-platform-tools 1c-platform-tools.todo`     | `1c-platform-tools.settings.openTodo`     |
-| Общее        | —                                                | `@ext:yellow-hammer.1c-platform-tools`                            | `1c-platform-tools.settings.openGeneral`  |
+| Раздел          | Контекст вызова                                  | Фильтр                                                            | Команда                                   |
+|-----------------|--------------------------------------------------|-------------------------------------------------------------------|-------------------------------------------|
+| Сервер IPC      | walkthrough «Интеграция с AI и MCP»              | `@ext:yellow-hammer.1c-platform-tools 1c-platform-tools.ipc`      | `1c-platform-tools.settings.openIpc`     |
+| Инструменты     | дерево, кнопка «Настройки» в панели инструментов | `@ext:yellow-hammer.1c-platform-tools` (все настройки)            | `1c-platform-tools.settings.openTools`    |
+| Проекты         | панель «Проекты 1С», walkthrough                 | `@ext:yellow-hammer.1c-platform-tools 1c-platform-tools.projects` | `1c-platform-tools.projects.openSettings` |
+| Список дел      | панель «Список дел»                              | `@ext:yellow-hammer.1c-platform-tools 1c-platform-tools.todo`     | `1c-platform-tools.settings.openTodo`     |
+| Метаданные 1С   | панель «Метаданные 1С»                           | `@ext:yellow-hammer.1c-platform-tools 1c-platform-tools.metadata` | `1c-platform-tools.settings.openMetadata` |
+| Общее           | —                                                | `@ext:yellow-hammer.1c-platform-tools`                            | `1c-platform-tools.settings.openGeneral`  |
 
 Правила для новых панелей и настроек:
 
-1. **Кнопка «Настройки»** — открывает настройки, релевантные контексту: из панели «Инструменты 1С» → `settings.openTools` (все общие настройки расширения); из панели «Проекты 1С» → `projects.openSettings` (группа «Проекты»); из панели «Список дел» → `settings.openTodo` (группа «Список дел»). Команда `settings` показывает QuickPick: Сервер IPC | Проекты | Инструменты | Список дел | Общее.
-2. **Главная команда `1c-platform-tools.settings`** — показывает QuickPick с выбором раздела: Сервер IPC | Проекты | Инструменты | Артефакты | Список дел | Общее.
+1. **Кнопка «Настройки»** — открывает настройки, релевантные контексту: из панели «Инструменты 1С» → `settings.openTools` (все общие настройки расширения); из панели «Проекты 1С» → `projects.openSettings` (группа «Проекты»); из панели «Список дел» → `settings.openTodo` (группа «Список дел»); из панели «Метаданные 1С» → `settings.openMetadata` (группа «Метаданные 1С», md-sparrow). Команда `settings` показывает QuickPick с разделами, включая метаданные.
+2. **Главная команда `1c-platform-tools.settings`** — показывает QuickPick с выбором раздела: Сервер IPC | Проекты | Инструменты | Артефакты | Список дел | Метаданные 1С | Общее.
 3. Всегда добавлять фильтр по расширению `@ext:yellow-hammer.1c-platform-tools` при открытии настроек, чтобы отображались только параметры нашего расширения.
 
 ## Панели «Помощь и поддержка»
@@ -56,7 +58,7 @@ alwaysApply: true
 1. **Одинаковый набор во всех контейнерах** — все представления «Помощь и поддержка» берут данные из `TREE_GROUPS` (группа `helpAndSupport`). Для TreeView использовать `HelpAndSupportProvider` из `src/projects/helpAndSupportProvider.ts`.
 2. **Новые контейнеры** — при добавлении нового view container (activitybar или panel) всегда добавлять в `package.json` представление «Помощь и поддержка» с `id` по шаблону `{containerId}-help` и регистрировать провайдер в `extension.ts`.
 
-Сейчас представление «Помощь и поддержка» есть в контейнере «Проекты 1С»; группа с тем же набором — в дереве «Инструменты 1С».
+Сейчас представление «Помощь и поддержка» есть в контейнерах «Проекты 1С» и «Метаданные 1С»; группа с тем же набором — в дереве «Инструменты 1С».
 
 ## Документация
 
@@ -79,3 +81,5 @@ alwaysApply: true
 - Комментарии и сообщения пользователю: на русском
 - Типы: из `@types/vscode`, избегать `any`
 - Логирование: модуль `src/logger.ts` (`logger.info`, `logger.warn`, `logger.error`, `logger.debug`), не использовать `console.log`/`console.error` в продакшн-коде
+- **Эволюция без самодельной совместимости**: не добавлять fallback на старые ключи настроек, дублирующие пути чтения конфигурации, legacy-команды и т.п. без **явного** запроса пользователя. Пока фича в разработке — меняем контракт и документацию прямо. Подробнее: `.cursor/rules/evolution-no-legacy.mdc`.
+- **Тексты в UI расширения** (`package.json`: `description` у настроек и команд, `title` там, где видит пользователь; а также `showErrorMessage` / тексты ошибок, которые видны в панелях и деревьях): писать **только** то, что помогает пользователю исправить ситуацию или понять эффект. **Не** вставлять внутренние пометки («переменные не раскрываются», «расширение не …»). Такие детали — в `docs/` или в лог (`logger`), не в сообщениях пользователю. Краткие человеческие формулировки вопросов и кнопок — **`.cursor/rules/ui-messages.mdc`**.

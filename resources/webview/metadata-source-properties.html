@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="ru">
+<head>
+	<meta charset="UTF-8">
+	<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src {{CSP_SOURCE}}; script-src 'nonce-{{NONCE}}';">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>Свойства конфигурации</title>
+	<link rel="stylesheet" href="{{CSS_URI}}">
+</head>
+<body>
+	<div id="root">
+		<h1>Свойства</h1>
+		<div class="source-kind">{{SOURCE_KIND_LABEL}}</div>
+
+		<section class="section">
+			<h2>Модули</h2>
+			<div id="modulesSection" class="modules-row">
+				<button id="openExternalConnectionModule" class="link-btn" type="button">Модуль внешнего соединения</button>
+				<button id="openApplicationModule" class="link-btn" type="button">Модуль приложения</button>
+				<button id="openSessionModule" class="link-btn" type="button">Модуль сеанса</button>
+			</div>
+		</section>
+
+		<section class="section">
+			<h2>Основные</h2>
+			<div class="field"><label for="name">Имя</label><input id="name" type="text"></div>
+			<div class="field"><label for="synonymRu">Синоним</label><input id="synonymRu" type="text"></div>
+			<div class="field"><label for="comment">Комментарий</label><textarea id="comment" rows="2"></textarea></div>
+			<div class="field"><label for="defaultRunMode">Основной режим запуска</label><select id="defaultRunMode"></select></div>
+			<div class="field"><label for="usePurposes">Назначение использования (через запятую)</label><input id="usePurposes" type="text"></div>
+			<div class="field"><label for="scriptVariant">Вариант встроенного языка</label><select id="scriptVariant"></select></div>
+			<div class="field"><label for="defaultRoles">Основные роли (через запятую)</label><textarea id="defaultRoles" rows="2"></textarea></div>
+		</section>
+
+		<section class="section">
+			<h2>Представление</h2>
+			<div class="field"><label for="briefInformationRu">Краткая информация</label><textarea id="briefInformationRu" rows="2"></textarea></div>
+			<div class="field"><label for="detailedInformationRu">Подробная информация</label><textarea id="detailedInformationRu" rows="3"></textarea></div>
+			<div class="field"><label for="copyrightRu">Авторские права</label><textarea id="copyrightRu" rows="2"></textarea></div>
+			<div class="field"><label for="vendorInformationAddressRu">Адрес информации о поставщике</label><input id="vendorInformationAddressRu" type="text"></div>
+			<div class="field"><label for="configurationInformationAddressRu">Адрес информации о конфигурации</label><input id="configurationInformationAddressRu" type="text"></div>
+		</section>
+
+		<section class="section">
+			<h2>Разработка</h2>
+			<div class="field"><label for="vendor">Поставщик</label><input id="vendor" type="text"></div>
+			<div class="field"><label for="version">Версия</label><input id="version" type="text"></div>
+			<div class="field"><label for="updateCatalogAddress">Адрес каталога обновлений</label><input id="updateCatalogAddress" type="text"></div>
+		</section>
+
+		<section class="section">
+			<h2>Совместимость</h2>
+			<div class="field"><label for="dataLockControlMode">Режим управления блокировкой данных</label><select id="dataLockControlMode"></select></div>
+			<div class="field"><label for="objectAutonumerationMode">Режим автонумерации объектов</label><select id="objectAutonumerationMode"></select></div>
+			<div class="field"><label for="modalityUseMode">Режим использования модальности</label><select id="modalityUseMode"></select></div>
+			<div class="field"><label for="synchronousPlatformExtensionAndAddInCallUseMode">Режим использования синхронных вызовов расширений</label><select id="synchronousPlatformExtensionAndAddInCallUseMode"></select></div>
+			<div class="field"><label for="interfaceCompatibilityMode">Режим совместимости интерфейса</label><select id="interfaceCompatibilityMode"></select></div>
+			<div class="field"><label for="compatibilityMode">Режим совместимости</label><select id="compatibilityMode"></select></div>
+		</section>
+
+		<div class="footer">
+			<button id="saveBtn" type="button">Сохранить</button>
+			<span id="status"></span>
+		</div>
+	</div>
+	<script nonce="{{NONCE}}">
+		window.__INITIAL_DATA__ = {{INITIAL_JSON}};
+		window.__SOURCE_KIND__ = "{{SOURCE_KIND}}";
+	</script>
+	<script nonce="{{NONCE}}" src="{{JS_URI}}"></script>
+</body>
+</html>

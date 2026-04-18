@@ -44,14 +44,12 @@
   "activationEvents": [
     "onDebug",
     "onLanguage:bsl",
-    "onStartupFinished",
     "workspaceContains:packagedef",
     "onCommand:1c-platform-tools.dependencies.initializePackagedef",
     "onCommand:1c-platform-tools.project.createFromWelcome",
     "onView:1c-platform-tools-projects-favorites",
     "onView:1c-platform-tools-projects-all",
     "onView:1c-platform-tools-projects-help",
-    "onView:1c-platform-tools-artifacts-tree",
     "onCommand:1c-platform-tools.projects.listOpen",
     "onCommand:1c-platform-tools.projects.openSettings"
   ],
@@ -67,6 +65,12 @@
         {
           "id": "1c-platform-tools",
           "title": "Инструменты 1С",
+          "icon": "resources/1c-icon.svg",
+          "when": "1c-platform-tools.is1CProject == true"
+        },
+        {
+          "id": "1c-platform-tools-metadata",
+          "title": "Метаданные 1С",
           "icon": "resources/1c-icon.svg",
           "when": "1c-platform-tools.is1CProject == true"
         }
@@ -103,6 +107,18 @@
           "id": "1c-platform-tools",
           "name": "Команды",
           "when": "1c-platform-tools.is1CProject == true"
+        }
+      ],
+      "1c-platform-tools-metadata": [
+        {
+          "id": "1c-platform-tools-metadata-tree",
+          "name": "Дерево метаданных",
+          "contextualTitle": "Метаданные выгрузки"
+        },
+        {
+          "id": "1c-platform-tools-metadata-help",
+          "name": "Помощь и поддержка",
+          "contextualTitle": "Помощь"
         }
       ],
       "1c-platform-tools-todo": [
@@ -266,6 +282,145 @@
         "title": "Обновить",
         "icon": "$(refresh)",
         "category": "1C: Дерево"
+      },
+      {
+        "command": "1c-platform-tools.metadata.refresh",
+        "title": "Обновить",
+        "icon": "$(refresh)",
+        "category": "1C: Метаданные"
+      },
+      {
+        "command": "1c-platform-tools.metadata.addDocument",
+        "title": "Добавить документ",
+        "category": "1C: Метаданные"
+      },
+      {
+        "command": "1c-platform-tools.metadata.addMdObject",
+        "title": "Добавить объект метаданных",
+        "icon": "$(add)",
+        "category": "1C: Метаданные"
+      },
+      {
+        "command": "1c-platform-tools.metadata.initEmptyCf",
+        "title": "Создать пустую конфигурацию",
+        "icon": "$(add)",
+        "category": "1C: Метаданные"
+      },
+      {
+        "command": "1c-platform-tools.metadata.openObjectProperties",
+        "title": "Свойства объекта",
+        "category": "1C: Метаданные"
+      },
+      {
+        "command": "1c-platform-tools.metadata.openExternalConnectionModule",
+        "title": "Открыть модуль внешнего соединения",
+        "category": "1C: Метаданные"
+      },
+      {
+        "command": "1c-platform-tools.metadata.openApplicationModule",
+        "title": "Открыть модуль приложения",
+        "category": "1C: Метаданные"
+      },
+      {
+        "command": "1c-platform-tools.metadata.openSessionModule",
+        "title": "Открыть модуль сеанса",
+        "category": "1C: Метаданные"
+      },
+      {
+        "command": "1c-platform-tools.metadata.openSourceProperties",
+        "title": "Свойства",
+        "category": "1C: Метаданные"
+      },
+      {
+        "command": "1c-platform-tools.metadata.openSourceXml",
+        "title": "Открыть XML",
+        "category": "1C: Метаданные"
+      },
+      {
+        "command": "1c-platform-tools.metadata.createObject",
+        "title": "Добавить объект",
+        "icon": "$(add)",
+        "category": "1C: Метаданные"
+      },
+      {
+        "command": "1c-platform-tools.metadata.renameObject",
+        "title": "Переименовать",
+        "icon": "$(edit)",
+        "category": "1C: Метаданные"
+      },
+      {
+        "command": "1c-platform-tools.metadata.deleteObject",
+        "title": "Удалить",
+        "icon": "$(trash)",
+        "category": "1C: Метаданные"
+      },
+      {
+        "command": "1c-platform-tools.metadata.duplicateObject",
+        "title": "Дублировать",
+        "icon": "$(copy)",
+        "category": "1C: Метаданные"
+      },
+      {
+        "command": "1c-platform-tools.metadata.addChildNode",
+        "title": "Добавить",
+        "icon": "$(add)",
+        "category": "1C: Метаданные"
+      },
+      {
+        "command": "1c-platform-tools.metadata.renameChildNode",
+        "title": "Переименовать",
+        "icon": "$(edit)",
+        "category": "1C: Метаданные"
+      },
+      {
+        "command": "1c-platform-tools.metadata.deleteChildNode",
+        "title": "Удалить",
+        "icon": "$(trash)",
+        "category": "1C: Метаданные"
+      },
+      {
+        "command": "1c-platform-tools.metadata.duplicateChildNode",
+        "title": "Дублировать",
+        "icon": "$(copy)",
+        "category": "1C: Метаданные"
+      },
+      {
+        "command": "1c-platform-tools.metadata.filterBySubsystem",
+        "title": "Фильтр по подсистеме",
+        "icon": "$(filter)",
+        "category": "1C: Метаданные"
+      },
+      {
+        "command": "1c-platform-tools.metadata.clearSubsystemFilter",
+        "title": "Сбросить фильтр подсистемы",
+        "icon": "$(clear-all)",
+        "category": "1C: Метаданные"
+      },
+      {
+        "command": "1c-platform-tools.metadata.copyObjectName",
+        "title": "Копировать имя",
+        "category": "1C: Метаданные"
+      },
+      {
+        "command": "1c-platform-tools.metadata.copyObjectPath",
+        "title": "Копировать путь",
+        "category": "1C: Метаданные"
+      },
+      {
+        "command": "1c-platform-tools.metadata.getProjectTree",
+        "title": "Получить дерево метаданных проекта (JSON)",
+        "category": "1C: Метаданные"
+      },
+      {
+        "command": "1c-platform-tools.metadata.updateMdSparrow",
+        "title": "Сбросить кэш",
+        "category": "1C: Метаданные"
+      },
+      {
+        "command": "1c-platform-tools.settings.openMetadata",
+        "title": "Настройки метаданных",
+        "icon": "$(gear)",
+        "category": "1C: Метаданные"
       },
       {
         "command": "debug.debugTargets.connect",
@@ -1142,6 +1297,26 @@
           "command": "1c-platform-tools.projects.refresh",
           "when": "view == 1c-platform-tools-projects-all",
           "group": "navigation@11"
+        },
+        {
+          "command": "1c-platform-tools.metadata.refresh",
+          "when": "view == 1c-platform-tools-metadata-tree",
+          "group": "navigation@1"
+        },
+        {
+          "command": "1c-platform-tools.metadata.initEmptyCf",
+          "when": "view == 1c-platform-tools-metadata-tree",
+          "group": "navigation@2"
+        },
+        {
+          "command": "1c-platform-tools.metadata.clearSubsystemFilter",
+          "when": "view == 1c-platform-tools-metadata-tree && 1c-platform-tools.metadata.subsystemFilterActive",
+          "group": "navigation@3"
+        },
+        {
+          "submenu": "1c-platform-tools.metadata.overflowMenu",
+          "when": "view == 1c-platform-tools-metadata-tree",
+          "group": "navigation@4"
         }
       ],
       "view/item/context": [
@@ -1424,6 +1599,106 @@
           "command": "1c-platform-tools.artifacts.delete",
           "when": "view == 1c-platform-tools-artifacts-tree",
           "group": "9_cutcopypaste"
+        },
+        {
+          "command": "1c-platform-tools.metadata.addMdObject",
+          "when": "view == 1c-platform-tools-metadata-tree && (viewItem == metadataGroup_catalogs || viewItem == metadataGroupExt_catalogs || viewItem == metadataGroup_constants || viewItem == metadataGroupExt_constants || viewItem == metadataGroup_enums || viewItem == metadataGroupExt_enums || viewItem == metadataGroup_documents || viewItem == metadataGroupExt_documents || viewItem == metadataGroup_reports || viewItem == metadataGroupExt_reports || viewItem == metadataGroup_externalReports || viewItem == metadataGroupExt_externalReports || viewItem == metadataGroup_dataProcessors || viewItem == metadataGroupExt_dataProcessors || viewItem == metadataGroup_externalDataProcessors || viewItem == metadataGroupExt_externalDataProcessors || viewItem == metadataGroup_tasks || viewItem == metadataGroupExt_tasks || viewItem == metadataGroup_chartOfCharacteristicTypes || viewItem == metadataGroupExt_chartOfCharacteristicTypes || viewItem == metadataGroup_chartOfAccounts || viewItem == metadataGroupExt_chartOfAccounts || viewItem == metadataGroup_chartOfCalculationTypes || viewItem == metadataGroupExt_chartOfCalculationTypes || viewItem == metadataGroup_externalDataSources || viewItem == metadataGroupExt_externalDataSources || viewItem == metadataSubgroup_common_common_subsystem || viewItem == metadataSubgroupExt_common_common_subsystem || viewItem == metadataSubgroup_common_common_commonmodule || viewItem == metadataSubgroupExt_common_common_commonmodule || viewItem == metadataSubgroup_common_common_sessionparam || viewItem == metadataSubgroupExt_common_common_sessionparam || viewItem == metadataSubgroup_common_common_role || viewItem == metadataSubgroupExt_common_common_role || viewItem == metadataSubgroup_common_common_commonattribute || viewItem == metadataSubgroupExt_common_common_commonattribute || viewItem == metadataSubgroup_common_common_exchangeplan || viewItem == metadataSubgroupExt_common_common_exchangeplan || viewItem == metadataSubgroup_common_common_commonpicture || viewItem == metadataSubgroupExt_common_common_commonpicture || viewItem == metadataSubgroup_documents_documentNumerators || viewItem == metadataSubgroupExt_documents_documentNumerators)",
+          "group": "inline"
+        },
+        {
+          "command": "1c-platform-tools.metadata.createObject",
+          "when": "view == 1c-platform-tools-metadata-tree && viewItem == metadataSourceExternalArtifact",
+          "group": "inline"
+        },
+        {
+          "command": "1c-platform-tools.metadata.openObjectProperties",
+          "when": "view == 1c-platform-tools-metadata-tree && (viewItem == metadataObjectProperties || viewItem == metadataObjectPropertiesSubsystem || viewItem == metadataLeaf || viewItem == metadataLeafFile)",
+          "group": "1_md_open"
+        },
+        {
+          "command": "1c-platform-tools.metadata.openExternalConnectionModule",
+          "when": "view == 1c-platform-tools-metadata-tree && viewItem == metadataSourceConfigLike",
+          "group": "1_modules@1"
+        },
+        {
+          "command": "1c-platform-tools.metadata.openApplicationModule",
+          "when": "view == 1c-platform-tools-metadata-tree && viewItem == metadataSourceConfigLike",
+          "group": "1_modules@2"
+        },
+        {
+          "command": "1c-platform-tools.metadata.openSessionModule",
+          "when": "view == 1c-platform-tools-metadata-tree && viewItem == metadataSourceConfigLike",
+          "group": "1_modules@3"
+        },
+        {
+          "command": "1c-platform-tools.metadata.openSourceProperties",
+          "when": "view == 1c-platform-tools-metadata-tree && (viewItem == metadataSourceConfigLike || viewItem == metadataLeafFile)",
+          "group": "2_properties@1"
+        },
+        {
+          "command": "1c-platform-tools.metadata.openSourceXml",
+          "when": "view == 1c-platform-tools-metadata-tree && (viewItem == metadataSourceConfigLike || viewItem == metadataLeafFile)",
+          "group": "3_xml@1"
+        },
+        {
+          "command": "1c-platform-tools.metadata.createObject",
+          "when": "view == 1c-platform-tools-metadata-tree && (viewItem == metadataGroup_catalogs || viewItem == metadataGroupExt_catalogs || viewItem == metadataGroup_constants || viewItem == metadataGroupExt_constants || viewItem == metadataGroup_enums || viewItem == metadataGroupExt_enums || viewItem == metadataGroup_documents || viewItem == metadataGroupExt_documents || viewItem == metadataGroup_reports || viewItem == metadataGroupExt_reports || viewItem == metadataGroup_externalReports || viewItem == metadataGroupExt_externalReports || viewItem == metadataGroup_dataProcessors || viewItem == metadataGroupExt_dataProcessors || viewItem == metadataGroup_externalDataProcessors || viewItem == metadataGroupExt_externalDataProcessors || viewItem == metadataGroup_tasks || viewItem == metadataGroupExt_tasks || viewItem == metadataGroup_chartOfCharacteristicTypes || viewItem == metadataGroupExt_chartOfCharacteristicTypes || viewItem == metadataGroup_chartOfAccounts || viewItem == metadataGroupExt_chartOfAccounts || viewItem == metadataGroup_chartOfCalculationTypes || viewItem == metadataGroupExt_chartOfCalculationTypes || viewItem == metadataGroup_externalDataSources || viewItem == metadataGroupExt_externalDataSources || viewItem == metadataSubgroup_common_common_subsystem || viewItem == metadataSubgroupExt_common_common_subsystem || viewItem == metadataSubgroup_common_common_commonmodule || viewItem == metadataSubgroupExt_common_common_commonmodule || viewItem == metadataSubgroup_common_common_sessionparam || viewItem == metadataSubgroupExt_common_common_sessionparam || viewItem == metadataSubgroup_common_common_role || viewItem == metadataSubgroupExt_common_common_role || viewItem == metadataSubgroup_common_common_commonattribute || viewItem == metadataSubgroupExt_common_common_commonattribute || viewItem == metadataSubgroup_common_common_exchangeplan || viewItem == metadataSubgroupExt_common_common_exchangeplan || viewItem == metadataSubgroup_common_common_commonpicture || viewItem == metadataSubgroupExt_common_common_commonpicture || viewItem == metadataSubgroup_documents_documentNumerators || viewItem == metadataSubgroupExt_documents_documentNumerators || viewItem == metadataSourceExternalArtifact)",
+          "group": "2_md_create"
+        },
+        {
+          "command": "1c-platform-tools.metadata.addChildNode",
+          "when": "view == 1c-platform-tools-metadata-tree && (viewItem == metadataObjectProperties || viewItem == metadataAttributesSection || viewItem == metadataTabularSectionsSection || viewItem == metadataTabularSection)",
+          "group": "3_md_mutate"
+        },
+        {
+          "command": "1c-platform-tools.metadata.renameChildNode",
+          "when": "view == 1c-platform-tools-metadata-tree && (viewItem == metadataAttribute || viewItem == metadataTabularSection || viewItem == metadataTabularAttribute)",
+          "group": "3_md_mutate"
+        },
+        {
+          "command": "1c-platform-tools.metadata.duplicateChildNode",
+          "when": "view == 1c-platform-tools-metadata-tree && (viewItem == metadataAttribute || viewItem == metadataTabularSection || viewItem == metadataTabularAttribute)",
+          "group": "3_md_mutate"
+        },
+        {
+          "command": "1c-platform-tools.metadata.deleteChildNode",
+          "when": "view == 1c-platform-tools-metadata-tree && (viewItem == metadataAttribute || viewItem == metadataTabularSection || viewItem == metadataTabularAttribute)",
+          "group": "3_md_mutate"
+        },
+        {
+          "command": "1c-platform-tools.metadata.renameObject",
+          "when": "view == 1c-platform-tools-metadata-tree && (viewItem == metadataObjectProperties || viewItem == metadataObjectPropertiesSubsystem || viewItem == metadataLeafFile)",
+          "group": "3_md_mutate"
+        },
+        {
+          "command": "1c-platform-tools.metadata.duplicateObject",
+          "when": "view == 1c-platform-tools-metadata-tree && (viewItem == metadataObjectProperties || viewItem == metadataObjectPropertiesSubsystem || viewItem == metadataLeafFile)",
+          "group": "3_md_mutate"
+        },
+        {
+          "command": "1c-platform-tools.metadata.deleteObject",
+          "when": "view == 1c-platform-tools-metadata-tree && (viewItem == metadataObjectProperties || viewItem == metadataObjectPropertiesSubsystem || viewItem == metadataLeafFile)",
+          "group": "3_md_mutate"
+        },
+        {
+          "command": "1c-platform-tools.metadata.filterBySubsystem",
+          "when": "view == 1c-platform-tools-metadata-tree && viewItem == metadataObjectPropertiesSubsystem",
+          "group": "4_md_filter"
+        },
+        {
+          "command": "1c-platform-tools.metadata.clearSubsystemFilter",
+          "when": "view == 1c-platform-tools-metadata-tree && 1c-platform-tools.metadata.subsystemFilterActive",
+          "group": "4_md_filter"
+        },
+        {
+          "command": "1c-platform-tools.metadata.copyObjectName",
+          "when": "view == 1c-platform-tools-metadata-tree && (viewItem == metadataObjectProperties || viewItem == metadataObjectPropertiesSubsystem || viewItem == metadataLeafFile)",
+          "group": "5_md_copy"
+        },
+        {
+          "command": "1c-platform-tools.metadata.copyObjectPath",
+          "when": "view == 1c-platform-tools-metadata-tree && (viewItem == metadataObjectProperties || viewItem == metadataObjectPropertiesSubsystem || viewItem == metadataLeafFile)",
+          "group": "5_md_copy"
         }
       ],
       "editor/title": [
@@ -1507,6 +1782,16 @@
           "command": "1c-platform-tools.artifacts._viewByFolder",
           "group": "1_view@2"
         }
+      ],
+      "1c-platform-tools.metadata.overflowMenu": [
+        {
+          "command": "1c-platform-tools.settings.openMetadata",
+          "group": "1_md_overflow@1"
+        },
+        {
+          "command": "1c-platform-tools.metadata.updateMdSparrow",
+          "group": "1_md_overflow@2"
+        }
       ]
     },
     "submenus": [
@@ -1519,6 +1804,11 @@
         "id": "1c-platform-tools.artifacts.viewAndSortMenu",
         "label": "Просмотр и сортировка",
         "icon": "$(list-flat)"
+      },
+      {
+        "id": "1c-platform-tools.metadata.overflowMenu",
+        "label": "Ещё",
+        "icon": "$(ellipsis)"
       }
     ],
     "keybindings": [
@@ -1874,9 +2164,36 @@
         }
       },
       {
+        "title": "Метаданные",
+        "id": "1c-platform-tools.metadata",
+        "order": 4,
+        "properties": {
+          "1c-platform-tools.metadata.autoloadJar": {
+            "type": "boolean",
+            "default": true,
+            "description": "Автоматически загружать JAR инструмента дерева метаданных с GitHub, если путь к JAR не задан."
+          },
+          "1c-platform-tools.metadata.autoloadJre": {
+            "type": "boolean",
+            "default": true,
+            "description": "Скачивать portable JRE, если путь к Java не задан."
+          },
+          "1c-platform-tools.metadata.jarFile": {
+            "type": "string",
+            "default": "",
+            "description": "Полный путь к JAR со всеми зависимостями (shadowJar). Пусто — загрузка с GitHub или кэш."
+          },
+          "1c-platform-tools.metadata.javaExecutable": {
+            "type": "string",
+            "default": "",
+            "description": "Полный путь к java или javaw. Пусто: при включённой автозагрузке JRE — кэш/скачивание; при выключенной — команда java из PATH (укажите путь, если java не в PATH)."
+          }
+        }
+      },
+      {
         "title": "Сервер IPC",
         "id": "1c-platform-tools.ipc",
-        "order": 4,
+        "order": 5,
         "properties": {
           "1c-platform-tools.ipc.enabled": {
             "type": "boolean",
@@ -1930,6 +2247,7 @@
   },
   "dependencies": {
     "@vscode/debugadapter": "^1.67.0",
+    "extract-zip": "^2.0.1",
     "glob": "^10.5.0",
     "minimatch": "^9.0.9"
   },

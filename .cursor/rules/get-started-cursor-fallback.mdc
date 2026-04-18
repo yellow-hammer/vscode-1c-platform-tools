@@ -32,3 +32,5 @@ alwaysApply: false
 - **walkthrough/*.md** — расширенный контент и путь к скриншоту (`![Alt](images/xxx.svg)`)
 
 При добавлении шага достаточно обновить package.json и создать walkthrough/stepN-*.md. Cursor fallback подхватит данные автоматически.
+
+**Эволюция:** `.cursor/rules/evolution-no-legacy.mdc` — не плодить legacy без явного запроса.

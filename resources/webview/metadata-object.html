@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+	<meta charset="UTF-8" />
+	<meta
+		http-equiv="Content-Security-Policy"
+		content="default-src 'none'; style-src {{CSP_SOURCE}}; script-src {{CSP_SOURCE}};"
+	/>
+	<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+	<title>Свойства объекта</title>
+	<link rel="stylesheet" href="{{CSS_URI}}" />
+</head>
+<body>
+	<div class="page">
+		<header class="page-header">
+			<div class="header-main">
+				<div class="kind-badge">{{KIND_LABEL}}</div>
+				<h1 class="title">{{OBJECT_NAME}}</h1>
+			</div>
+			<button id="toggleTechnical" class="ghost-btn" type="button">Технические данные</button>
+		</header>
+
+		<section id="warnings" class="warnings hidden"></section>
+
+		<nav id="tabs" class="tabs"></nav>
+		<section id="content" class="content"></section>
+
+		<section id="technical" class="technical hidden">
+			<pre id="technicalJson" class="code"></pre>
+		</section>
+	</div>
+
+	<script type="application/json" id="metadata-object-initial">{{INITIAL_JSON}}</script>
+	<script src="{{JS_URI}}"></script>
+</body>
+</html>

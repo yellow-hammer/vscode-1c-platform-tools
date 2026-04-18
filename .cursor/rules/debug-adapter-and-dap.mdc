@@ -39,3 +39,4 @@ alwaysApply: false
   - VRunner (`VRunnerManager`) использует их для сборки и выгрузки конфигурации/расширений;
   - DAP ожидает, что `rootProject` и `extensions` указывают на те же выгрузки, которые использует VRunner.
 
+**Эволюция:** `.cursor/rules/evolution-no-legacy.mdc` — не плодить legacy без явного запроса.
