@@ -17,7 +17,8 @@ alwaysApply: false
 
 - Использовать **logger** из `src/logger.ts`: `logger.info()`, `logger.warn()`, `logger.error()`, `logger.debug()`
 - Не использовать `console.log` / `console.error` в продакшн-коде
-- Сообщения пользователю: `vscode.window.showErrorMessage()`, `showWarningMessage()`, `showInformationMessage()`
+- **Все тексты для пользователя** (диалоги, webview, подписи) — **`.cursor/rules/ui-messages.mdc`** (`alwaysApply: true`)
+- **Webview (HTML/CSS/JS)** — **`.cursor/rules/webview-resources.mdc`** (файлы в `resources/webview/`, не строки в коде)
 
 ## JSDoc
 
@@ -38,3 +39,5 @@ alwaysApply: false
 - Исключение: короткие комментарии-разделители секций в больших файлах
 - Перед коммитом удалять отладочный вывод и лишние комментарии
 - **Не дублировать название проекта** в JSDoc и комментариях (`расширения 1C: Platform Tools`, `для 1C: Platform Tools` и т.п.). Контекст уже понятен по расположению файла в репозитории.
+
+**Эволюция:** не вводить обратную совместимость без явного запроса — `.cursor/rules/evolution-no-legacy.mdc`.

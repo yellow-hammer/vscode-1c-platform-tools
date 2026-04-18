@@ -33,3 +33,5 @@ alwaysApply: false
 ## Ссылка на cc-1c-skills
 
 В основном навыке 1c-platform-tools упоминается cc-1c-skills как дополнение для редактирования XML и объектов метаданных (epf-build, cf-edit и др.). Навыки расширения отвечают за «что запустить» (load/dump/run); cc-1c-skills — за «как править и генерировать».
+
+**Эволюция:** `.cursor/rules/evolution-no-legacy.mdc` — не плодить legacy без явного запроса.

@@ -1,0 +1,13 @@
+---
+description: Webview — HTML/CSS/JS в resources/webview, не строки в TypeScript
+globs: "**/metadataObjectPropertiesPanel.ts,**/resources/webview/**"
+alwaysApply: false
+---
+
+# Webview и статические ресурсы
+
+- Разметка, стили и клиентский скрипт webview — **отдельные файлы** под `resources/webview/` (например `metadata-object.html`, `.css`, `.js`), пакуются в VSIX вместе с расширением.
+- В **TypeScript** остаётся: чтение шаблона (`vscode.workspace.fs.readFile`), подстановка плейсхолдеров (`{{CSP_SOURCE}}`, `{{NONCE}}`, URI через `webview.asWebviewUri`, `{{INITIAL_JSON}}` и т.д.), присвоение `panel.webview.html`.
+- **Не** встраивать многострочный HTML/CSS/JS в шаблонные строки в `.ts` — это мешает правке вёрстки, подсветке и обзору диффов.
+- **CSP**: `webview.cspSource`, при необходимости `nonce` для inline-фрагментов; `localResourceRoots` для каталога с ресурсами webview.
+- См. также **`.cursor/rules/ui-messages.mdc`** для текстов в HTML.

@@ -54,3 +54,5 @@ alwaysApply: false
 - Если команда относится к одному из доменов, добавить или обновить запись в доменном навыке `resources/skills/1c-platform-tools-<domain>/SKILL.md`: configuration, extensions, infobase, external, run, **test**, **dependencies**, **support**, **setversion**, **config**, mcp. Идентификатор команды: `1c-platform-tools.<domain>.<action>`.
 
 Так агенты (и MCP, который получает список команд динамически) смогут предлагать вызов новой команды. Правило: новая команда в дереве → обновить полный SKILL.md и при необходимости доменный SKILL.md.
+
+**Эволюция:** `.cursor/rules/evolution-no-legacy.mdc` — не плодить legacy без явного запроса.

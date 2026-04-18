@@ -37,3 +37,5 @@ alwaysApply: false
 
 - **package.json** — `walkthroughs[0].steps[]`: `id`, `title`, `description` (1–2 предложения), `media.markdown`
 - **walkthrough/stepN-*.md** — `![Alt](images/stepN.svg)`, развёрнутый текст с «вы»
+
+**Эволюция:** `.cursor/rules/evolution-no-legacy.mdc` — не плодить legacy без явного запроса.
