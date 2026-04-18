@@ -1822,7 +1822,7 @@
       {
         "id": "1c-platform-tools.getStarted",
         "title": "Начало работы с 1C: Platform Tools",
-        "description": "Девять шагов: проект, зависимости, панель команд, артефакты, служебные файлы, панель проектов, список дел, отладка 1С, интеграция с AI и MCP.",
+        "description": "Десять шагов: проект, зависимости, панель команд, артефакты, служебные файлы, панель проектов, список дел, отладка 1С, интеграция с AI и MCP, дерево метаданных.",
         "icon": "resources/1c-icon.png",
         "steps": [
           {
@@ -1895,6 +1895,14 @@
             "description": "Навыки для агента: разработка 1С (cc-1c-skills), команды и MCP расширения.\n\n[Добавить навыки разработки 1С (cc-1c-skills)](command:1c-platform-tools.skills.addDevSkills) · [Добавить навыки расширения (команды и MCP)](command:1c-platform-tools.skills.add1cpt) · [Настройки сервера IPC](command:1c-platform-tools.settings.openIpc)",
             "media": {
               "markdown": "walkthrough/step9-ai-mcp.md"
+            }
+          },
+          {
+            "id": "step10-metadata-tree",
+            "title": "Дерево метаданных",
+            "description": "Панель метаданных показывает структуру конфигурации и даёт быстрый доступ к операциям с объектами прямо из IDE.\n\n[Открыть панель «Метаданные 1С»](command:workbench.view.extension.1c-platform-tools-metadata)\n[Обновить дерево](command:1c-platform-tools.metadata.refresh)\n[Настройки метаданных](command:1c-platform-tools.settings.openMetadata)",
+            "media": {
+              "markdown": "walkthrough/step10-metadata-tree.md"
             }
           }
         ]
