@@ -5,7 +5,7 @@
 
 import * as path from 'node:path';
 import * as vscode from 'vscode';
-import { ensureMdSparrowRuntime } from './mdSparrowBootstrap';
+import { clearMdSparrowDownloadCache, ensureMdSparrowRuntime } from './mdSparrowBootstrap';
 import { logger } from './logger';
 import { runMdSparrow } from './mdSparrowRunner';
 
@@ -56,9 +56,17 @@ export async function loadProjectMetadataTree(
 ): Promise<ProjectMetadataTreeDto> {
 	const abs = path.normalize(path.resolve(projectRoot));
 	const runtime = await ensureMdSparrowRuntime(context);
-	const res = await runMdSparrow(runtime, ['project-metadata-tree', abs], {
+	let res = await runMdSparrow(runtime, ['project-metadata-tree', abs], {
 		cwd: abs,
 	});
+	if (res.exitCode !== 0 && shouldRepairJarAndRetry(res.stderr, res.stdout)) {
+		logger.warn('md-sparrow: ошибка загрузки классов, очищаем кэш JAR и повторяем запуск.');
+		await clearMdSparrowDownloadCache(context, false);
+		const repairedRuntime = await ensureMdSparrowRuntime(context);
+		res = await runMdSparrow(repairedRuntime, ['project-metadata-tree', abs], {
+			cwd: abs,
+		});
+	}
 	if (res.exitCode !== 0) {
 		const errText = res.stderr.trim() || res.stdout.trim() || `код ${res.exitCode}`;
 		throw new Error(errText);
@@ -75,6 +83,11 @@ export async function loadProjectMetadataTree(
 		throw new Error('Не удалось разобрать ответ md-sparrow.');
 	}
 	return parsed;
+}
+
+function shouldRepairJarAndRetry(stderr: string, stdout: string): boolean {
+	const text = `${stderr}\n${stdout}`;
+	return /NoClassDefFoundError|ClassNotFoundException/i.test(text);
 }
 
 function isProjectMetadataTreeDto(v: unknown): v is ProjectMetadataTreeDto {

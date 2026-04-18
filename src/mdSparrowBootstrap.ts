@@ -66,6 +66,10 @@ function rethrowNetworkError(url: string, err: unknown): never {
 	throw new Error(`Сеть: запрос не выполнен (${url}): ${msg}. ${hint}`);
 }
 
+function showMdSparrowStatus(message: string): vscode.Disposable {
+	return vscode.window.setStatusBarMessage(`$(sync~spin) ${message}`);
+}
+
 async function fetchJson(url: string, headers: Record<string, string>): Promise<unknown> {
 	let res: Response;
 	try {
@@ -198,29 +202,34 @@ async function ensurePortableJre(
 	}
 
 	logger.info('Загрузка portable JRE 21 (Eclipse Temurin) для md-sparrow…');
-	await fs.rm(jreRoot, { recursive: true, force: true }).catch(() => undefined);
-	await fs.mkdir(jreRoot, { recursive: true });
+	const status = showMdSparrowStatus('md-sparrow: загружаем JRE 21...');
+	try {
+		await fs.rm(jreRoot, { recursive: true, force: true }).catch(() => undefined);
+		await fs.mkdir(jreRoot, { recursive: true });
 
-	const dlDir = path.join(jreRoot, '_dl');
-	await fs.mkdir(dlDir, { recursive: true });
-	const ext = process.platform === 'win32' ? '.zip' : '.tar.gz';
-	const archivePath = path.join(dlDir, `temurin-jre-21${ext}`);
+		const dlDir = path.join(jreRoot, '_dl');
+		await fs.mkdir(dlDir, { recursive: true });
+		const ext = process.platform === 'win32' ? '.zip' : '.tar.gz';
+		const archivePath = path.join(dlDir, `temurin-jre-21${ext}`);
 
-	const url = adoptiumBinaryUrl();
-	await streamDownload(url, archivePath, { 'User-Agent': 'vscode-1c-platform-tools' });
+		const url = adoptiumBinaryUrl();
+		await streamDownload(url, archivePath, { 'User-Agent': 'vscode-1c-platform-tools' });
 
-	const unpackDir = path.join(jreRoot, 'unpack');
-	await fs.mkdir(unpackDir, { recursive: true });
-	await extractArchive(archivePath, unpackDir);
-	await fs.rm(archivePath, { force: true }).catch(() => undefined);
+		const unpackDir = path.join(jreRoot, 'unpack');
+		await fs.mkdir(unpackDir, { recursive: true });
+		await extractArchive(archivePath, unpackDir);
+		await fs.rm(archivePath, { force: true }).catch(() => undefined);
 
-	const javaExe = findJavaUnder(unpackDir);
-	if (!javaExe) {
-		throw new Error('После распаковки JRE не найден bin/java');
+		const javaExe = findJavaUnder(unpackDir);
+		if (!javaExe) {
+			throw new Error('После распаковки JRE не найден bin/java');
+		}
+		await fs.writeFile(stamp, javaExe, 'utf8');
+		logger.info(`md-sparrow JRE готова: ${javaExe}`);
+		return javaExe;
+	} finally {
+		status.dispose();
 	}
-	await fs.writeFile(stamp, javaExe, 'utf8');
-	logger.info(`md-sparrow JRE готова: ${javaExe}`);
-	return javaExe;
 }
 
 async function ensureJar(
@@ -262,23 +271,28 @@ async function ensureJar(
 	}
 
 	logger.info(`Загрузка md-sparrow с GitHub (${owner}/${repo})…`);
-	const rel = await fetchLatestStableRelease(owner, repo, headers);
-	const asset = pickJarAsset(rel);
-	const destDir = path.join(jarDir, rel.tag_name.replace(/[^\w.-]+/g, '_'));
-	await fs.mkdir(destDir, { recursive: true });
-	const jarPath = path.join(destDir, asset.name);
-	await streamDownload(asset.browser_download_url, jarPath, {
-		...headers,
-		Accept: 'application/octet-stream',
-	});
+	const status = showMdSparrowStatus('md-sparrow: загружаем JAR...');
+	try {
+		const rel = await fetchLatestStableRelease(owner, repo, headers);
+		const asset = pickJarAsset(rel);
+		const destDir = path.join(jarDir, rel.tag_name.replace(/[^\w.-]+/g, '_'));
+		await fs.mkdir(destDir, { recursive: true });
+		const jarPath = path.join(destDir, asset.name);
+		await streamDownload(asset.browser_download_url, jarPath, {
+			...headers,
+			Accept: 'application/octet-stream',
+		});
 
-	await fs.writeFile(
-		stampPath,
-		JSON.stringify({ tag: rel.tag_name, jarPath }, undefined, 0),
-		'utf8'
-	);
-	logger.info(`md-sparrow JAR: ${jarPath} (${rel.tag_name})`);
-	return { jarPath, tag: rel.tag_name };
+		await fs.writeFile(
+			stampPath,
+			JSON.stringify({ tag: rel.tag_name, jarPath }, undefined, 0),
+			'utf8'
+		);
+		logger.info(`md-sparrow JAR: ${jarPath} (${rel.tag_name})`);
+		return { jarPath, tag: rel.tag_name };
+	} finally {
+		status.dispose();
+	}
 }
 
 /**
