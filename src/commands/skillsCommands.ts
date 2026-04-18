@@ -113,6 +113,63 @@ async function copyContents(sourceDir: string, targetDir: string): Promise<void>
 	}
 }
 
+function inferAgentFolderPrefix(targetDir: string): string | null {
+	const normalizedTargetDir = targetDir.replaceAll('\\', '/').toLowerCase();
+	if (/\/\.cursor\/skills(?:\/|$)/.test(normalizedTargetDir)) {
+		return '.cursor';
+	}
+	if (/\/\.github\/copilot\/skills(?:\/|$)/.test(normalizedTargetDir)) {
+		return '.github/copilot';
+	}
+	if (/\/\.claude\/skills(?:\/|$)/.test(normalizedTargetDir)) {
+		return '.claude';
+	}
+	return null;
+}
+
+async function collectSkillMarkdownFiles(sourceDir: string): Promise<string[]> {
+	const skillFiles: string[] = [];
+	const entries = await fs.readdir(sourceDir, { withFileTypes: true });
+	for (const entry of entries) {
+		const entryPath = path.join(sourceDir, entry.name);
+		if (entry.isDirectory()) {
+			const nestedSkillFiles = await collectSkillMarkdownFiles(entryPath);
+			skillFiles.push(...nestedSkillFiles);
+			continue;
+		}
+		if (entry.isFile() && entry.name.toLowerCase() === 'skill.md') {
+			skillFiles.push(entryPath);
+		}
+	}
+	return skillFiles;
+}
+
+function replaceClaudeFolderPrefix(content: string, targetPrefix: string): string {
+	const contentWithForwardSlashes = content.replaceAll('.claude/', `${targetPrefix}/`);
+	return contentWithForwardSlashes.replaceAll('.claude\\', `${targetPrefix}\\`);
+}
+
+async function rewriteSkillPathPrefixes(targetDir: string): Promise<number> {
+	const targetPrefix = inferAgentFolderPrefix(targetDir);
+	if (!targetPrefix || targetPrefix === '.claude') {
+		return 0;
+	}
+
+	const skillFiles = await collectSkillMarkdownFiles(targetDir);
+	let rewrittenFiles = 0;
+	for (const skillFile of skillFiles) {
+		const skillContent = await fs.readFile(skillFile, 'utf8');
+		const rewrittenContent = replaceClaudeFolderPrefix(skillContent, targetPrefix);
+		if (rewrittenContent === skillContent) {
+			continue;
+		}
+		await fs.writeFile(skillFile, rewrittenContent, 'utf8');
+		rewrittenFiles++;
+	}
+
+	return rewrittenFiles;
+}
+
 export class SkillsCommands {
 	/**
 	 * Добавляет навыки разработки 1С (cc-1c-skills) из GitHub: XML, формы, роли, СКД, метаданные, EPF/ERF и т.д.
@@ -149,6 +206,12 @@ export class SkillsCommands {
 						);
 					}
 					await copyContents(sourceSkillsPath, targetDir);
+					const rewrittenFiles = await rewriteSkillPathPrefixes(targetDir);
+					if (rewrittenFiles > 0) {
+						logger.info(
+							`В навыках разработки 1С обновлены префиксы путей для агента: ${rewrittenFiles}`
+						);
+					}
 					logger.info(`Навыки разработки 1С (cc-1c-skills) установлены в ${targetDir}`);
 					vscode.window.showInformationMessage(
 						'Навыки разработки 1С (cc-1c-skills) установлены (источник: GitHub, MIT). Агент сможет использовать инструкции по XML, формам, ролям, СКД, метаданным и др.'
@@ -205,6 +268,10 @@ export class SkillsCommands {
 			}
 		}
 		if (copied > 0) {
+			const rewrittenFiles = await rewriteSkillPathPrefixes(targetBaseDir);
+			if (rewrittenFiles > 0) {
+				logger.info(`В навыках расширения обновлены префиксы путей для агента: ${rewrittenFiles}`);
+			}
 			logger.info(`Установлено навыков расширения (команды и MCP): ${copied} в ${targetBaseDir}`);
 			vscode.window.showInformationMessage(
 				`Установлено навыков расширения (команды и MCP): ${copied}. Агент будет использовать команды расширения и MCP.`
