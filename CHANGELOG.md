@@ -5,6 +5,14 @@
 Формат основан на [Keep a Changelog](https://keepachangelog.com/ru/1.0.0/),
 и этот проект придерживается [Semantic Versioning](https://semver.org/lang/ru/).
 
+## [0.6.6] - 2026-04-21
+
+
+### 🚀 Features
+
+- **metadata:** Улучшена совместимость mdSparrowRunner за счет добавления дополнительных параметров кодирования.
+
+
 ## [0.6.5] - 2026-04-18
 
 
