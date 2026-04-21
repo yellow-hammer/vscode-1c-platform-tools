@@ -26,7 +26,16 @@ export function runMdSparrow(
 	}
 ): Promise<MdSparrowRunResult> {
 	const { java, jarPath } = runtime;
-	const fullArgs = ['-jar', jarPath, ...args];
+	const fullArgs = [
+		'-Dfile.encoding=UTF-8',
+		'-Dstdout.encoding=UTF-8',
+		'-Dstderr.encoding=UTF-8',
+		'-Dsun.stdout.encoding=UTF-8',
+		'-Dsun.stderr.encoding=UTF-8',
+		'-jar',
+		jarPath,
+		...args,
+	];
 	const cmdLine = `${java} ${fullArgs.map((a) => (/\s/.test(a) ? `"${a}"` : a)).join(' ')}`;
 	logger.debug(`md-sparrow: ${cmdLine}${options?.cwd ? ` (cwd=${options.cwd})` : ''}`);
 
