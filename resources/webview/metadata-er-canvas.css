@@ -1,0 +1,688 @@
+/* ── Сброс и базис ──────────────────────────────────────────────────────── */
+
+/* Гарантируем что hidden-атрибут всегда скрывает элемент, даже если у него display: flex/grid */
+[hidden] { display: none !important; }
+
+html,
+body {
+	height: 100%;
+	margin: 0;
+	padding: 0;
+	background: var(--vscode-editor-background);
+	color: var(--vscode-foreground);
+	font-family: var(--vscode-font-family);
+	font-size: var(--vscode-font-size);
+}
+
+#app {
+	display: flex;
+	flex-direction: column;
+	height: 100vh;
+	box-sizing: border-box;
+}
+
+/* ── Шапка ──────────────────────────────────────────────────────────────── */
+.er-header {
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+	padding: 6px 12px 6px;
+	border-bottom: 1px solid var(--vscode-panel-border);
+}
+
+/* Строка заголовка */
+.er-title-row {
+	display: flex;
+	align-items: baseline;
+	gap: 10px;
+	min-height: 22px;
+}
+
+.er-title-text {
+	font-size: 13px;
+	font-weight: 600;
+}
+
+.er-scope-label {
+	font-size: 12px;
+	color: var(--vscode-descriptionForeground);
+}
+
+.er-loading-indicator {
+	font-size: 11px;
+	color: var(--vscode-progressBar-background, #0e70c0);
+	animation: er-blink 1.2s linear infinite;
+}
+
+@keyframes er-blink {
+	0%, 100% { opacity: 1; }
+	50% { opacity: 0.35; }
+}
+
+/* ── Тулбар: основная строка ─────────────────────────────────────────────── */
+.er-toolbar {
+	display: flex;
+	align-items: center;
+	flex-wrap: wrap;
+	gap: 0;
+	min-height: 28px;
+}
+
+/* Логическая зона */
+.er-zone {
+	display: flex;
+	align-items: center;
+	gap: 5px;
+	padding: 2px 8px 2px 0;
+}
+
+.er-zone:first-child {
+	padding-left: 0;
+}
+
+/* Вертикальный разделитель между зонами */
+.er-sep {
+	display: inline-block;
+	width: 1px;
+	height: 18px;
+	background: var(--vscode-panel-border);
+	margin: 0 6px;
+	flex-shrink: 0;
+}
+
+/* Спейсер-разделитель (прижимает правую зону к краю) */
+.er-sep--push {
+	flex: 1 1 0;
+	background: transparent;
+	width: auto;
+}
+
+/* ── Зона поиска (комбобокс) ─────────────────────────────────────────────── */
+.er-zone-search {
+	position: relative;
+	flex: 1 1 220px;
+	min-width: 180px;
+	max-width: 400px;
+	padding-right: 0;
+}
+
+.er-combo-input {
+	flex: 1 1 auto;
+	min-width: 0;
+	width: 100%;
+	box-sizing: border-box;
+}
+
+.er-combo-dropdown {
+	position: absolute;
+	top: calc(100% + 2px);
+	left: 0;
+	right: 0;
+	max-height: 320px;
+	overflow-y: auto;
+	background: var(--vscode-dropdown-background, var(--vscode-editor-background));
+	color: var(--vscode-dropdown-foreground, var(--vscode-foreground));
+	border: 1px solid var(--vscode-dropdown-border, var(--vscode-panel-border));
+	box-shadow: 0 4px 14px rgba(0, 0, 0, 0.3);
+	z-index: 50;
+}
+
+.er-combo-dropdown[hidden] {
+	display: none;
+}
+
+.er-combo-item {
+	display: flex;
+	flex-direction: column;
+	padding: 5px 10px;
+	cursor: pointer;
+	border-bottom: 1px solid var(--vscode-panel-border);
+}
+
+.er-combo-item:last-child {
+	border-bottom: 0;
+}
+
+.er-combo-item.is-active,
+.er-combo-item:hover {
+	background: var(--vscode-list-activeSelectionBackground);
+	color: var(--vscode-list-activeSelectionForeground, inherit);
+}
+
+.er-combo-item.is-disabled {
+	opacity: 0.45;
+	cursor: default;
+}
+
+.er-combo-item-key {
+	font-size: 12px;
+}
+
+.er-combo-item-syn {
+	font-size: 11px;
+	color: var(--vscode-descriptionForeground);
+}
+
+.er-combo-match {
+	color: var(--vscode-list-highlightForeground, var(--vscode-focusBorder));
+	font-weight: 600;
+}
+
+.er-combo-empty {
+	padding: 8px 10px;
+	font-size: 12px;
+	color: var(--vscode-descriptionForeground);
+}
+
+/* ── Зона глубины ────────────────────────────────────────────────────────── */
+.er-depth-label {
+	font-size: 12px;
+	color: var(--vscode-descriptionForeground);
+	white-space: nowrap;
+}
+
+.er-hops-btn--active {
+	background: var(--vscode-button-background) !important;
+	color: var(--vscode-button-foreground) !important;
+	border-color: var(--vscode-button-background) !important;
+}
+
+.er-hops-input {
+	width: 46px;
+	background: var(--vscode-input-background);
+	color: var(--vscode-input-foreground);
+	border: 1px solid var(--vscode-input-border, transparent);
+	padding: 2px 4px;
+	font-family: inherit;
+	font-size: inherit;
+	text-align: center;
+}
+
+/* ── Общие элементы тулбара ──────────────────────────────────────────────── */
+.er-input {
+	background: var(--vscode-input-background);
+	color: var(--vscode-input-foreground);
+	border: 1px solid var(--vscode-input-border, transparent);
+	padding: 2px 6px;
+	font-family: inherit;
+	font-size: inherit;
+}
+
+.er-input-compact {
+	min-width: 80px;
+	max-width: 140px;
+}
+
+.er-btn {
+	background: var(--vscode-button-secondaryBackground, var(--vscode-button-background));
+	color: var(--vscode-button-secondaryForeground, var(--vscode-button-foreground));
+	border: 1px solid var(--vscode-button-border, transparent);
+	padding: 3px 9px;
+	cursor: pointer;
+	font-family: inherit;
+	font-size: inherit;
+	min-height: 24px;
+	white-space: nowrap;
+}
+
+.er-btn:hover {
+	background: var(--vscode-button-secondaryHoverBackground, var(--vscode-button-hoverBackground));
+}
+
+.er-btn-primary {
+	background: var(--vscode-button-background);
+	color: var(--vscode-button-foreground);
+	border-color: transparent;
+}
+
+.er-btn-primary:hover {
+	background: var(--vscode-button-hoverBackground);
+}
+
+.er-btn-icon {
+	padding: 3px 7px;
+	min-width: 26px;
+}
+
+.er-layout-label {
+	display: inline-flex;
+	align-items: center;
+}
+
+.er-check-label {
+	display: inline-flex;
+	align-items: center;
+	gap: 4px;
+	font-size: 12px;
+	cursor: pointer;
+	white-space: nowrap;
+	color: var(--vscode-foreground);
+	user-select: none;
+}
+
+.er-check-label input[type='checkbox'] {
+	cursor: pointer;
+	margin: 0;
+	accent-color: var(--vscode-focusBorder);
+}
+
+.er-label-picker {
+	position: relative;
+}
+
+.er-label-picker-panel {
+	position: absolute;
+	top: calc(100% + 4px);
+	left: 0;
+	z-index: 30;
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+	padding: 8px 10px;
+	min-width: 110px;
+	background: var(--vscode-dropdown-background);
+	border: 1px solid var(--vscode-widget-border, var(--vscode-panel-border));
+	border-radius: 3px;
+	box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.er-label-picker-panel[hidden] {
+	display: none;
+}
+
+/* ── Чипсы выбранных объектов ────────────────────────────────────────────── */
+.er-chips-row {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	flex-wrap: wrap;
+	padding: 2px 0;
+}
+
+.er-chips-label {
+	font-size: 11px;
+	color: var(--vscode-descriptionForeground);
+	white-space: nowrap;
+}
+
+.er-chips {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 4px;
+	flex: 1 1 auto;
+	min-width: 0;
+}
+
+.er-chip {
+	display: inline-flex;
+	align-items: center;
+	gap: 5px;
+	padding: 1px 4px 1px 8px;
+	background: var(--vscode-badge-background, var(--vscode-button-secondaryBackground));
+	color: var(--vscode-badge-foreground, var(--vscode-button-secondaryForeground));
+	border-radius: 10px;
+	font-size: 11px;
+	max-width: 280px;
+}
+
+.er-chip-text {
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.er-chip-remove {
+	background: transparent;
+	border: 0;
+	color: inherit;
+	font-size: 14px;
+	line-height: 1;
+	padding: 0 3px;
+	cursor: pointer;
+	border-radius: 50%;
+	flex-shrink: 0;
+}
+
+.er-chip-remove:hover {
+	background: rgba(255, 255, 255, 0.18);
+}
+
+.er-link-btn {
+	background: transparent;
+	border: 0;
+	color: var(--vscode-textLink-foreground);
+	cursor: pointer;
+	font-size: 11px;
+	padding: 0;
+	text-decoration: underline;
+	font-family: inherit;
+	white-space: nowrap;
+}
+
+/* ── Тело: рабочая область (позиционный контекст для оверлеев) ───────────── */
+.er-body {
+	display: flex;
+	flex: 1;
+	min-height: 0;
+	position: relative;
+	overflow: hidden;
+}
+
+/* ── Левый сайдбар фильтров (overlay, как правая панель) ─────────────────── */
+.er-filter-sidebar {
+	position: absolute;
+	left: 0;
+	top: 0;
+	bottom: 0;
+	width: 185px;
+	z-index: 10;
+	display: flex;
+	flex-direction: column;
+	border-right: 1px solid var(--vscode-panel-border);
+	box-shadow: 3px 0 8px rgba(0, 0, 0, 0.18);
+	background: var(--vscode-sideBar-background, var(--vscode-editor-background));
+	font-size: 12px;
+}
+
+.er-filter-sidebar[hidden] {
+	display: none;
+}
+
+.er-filter-sidebar-head {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 6px;
+	padding: 5px 6px 5px 10px;
+	border-bottom: 1px solid var(--vscode-panel-border);
+	flex-shrink: 0;
+}
+
+.er-filter-sidebar-label {
+	font-size: 10px;
+	font-weight: 600;
+	text-transform: uppercase;
+	letter-spacing: 0.4px;
+	color: var(--vscode-descriptionForeground);
+	display: flex;
+	align-items: baseline;
+	gap: 5px;
+}
+
+.er-sidebar-close-btn {
+	background: transparent;
+	border: 0;
+	color: inherit;
+	font-size: 16px;
+	line-height: 1;
+	cursor: pointer;
+	padding: 0 3px;
+	border-radius: 2px;
+	flex-shrink: 0;
+	opacity: 0.6;
+}
+
+.er-sidebar-close-btn:hover {
+	opacity: 1;
+	background: var(--vscode-list-hoverBackground);
+}
+
+.er-filter-hint {
+	color: var(--vscode-descriptionForeground);
+	font-size: 10px;
+	font-style: italic;
+	font-weight: 400;
+	text-transform: none;
+	letter-spacing: 0;
+}
+
+.er-filter-checkboxes {
+	display: flex;
+	flex-direction: column;
+	gap: 1px;
+	flex: 1;
+	overflow-y: auto;
+	padding: 4px 8px 8px;
+}
+
+.er-filter-group-header {
+	font-size: 9px;
+	font-weight: 700;
+	text-transform: uppercase;
+	letter-spacing: 0.5px;
+	color: var(--vscode-descriptionForeground);
+	margin-top: 8px;
+	padding: 2px 4px 1px;
+	border-bottom: 1px solid var(--vscode-panel-border);
+}
+
+.er-filter-group-header:first-child {
+	margin-top: 0;
+}
+
+.er-filter-item {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	cursor: pointer;
+	font-size: 12px;
+	padding: 2px 4px;
+	border-radius: 2px;
+}
+
+.er-filter-item:hover {
+	background: var(--vscode-list-hoverBackground);
+}
+
+.er-filter-item input[type="checkbox"] {
+	margin: 0;
+	cursor: pointer;
+	flex-shrink: 0;
+}
+
+.er-filter-item-text {
+	flex: 1;
+	min-width: 0;
+}
+
+.er-filter-count {
+	font-size: 10px;
+	color: var(--vscode-descriptionForeground);
+	flex-shrink: 0;
+	min-width: 1.5em;
+	text-align: right;
+}
+
+.er-filter-actions {
+	display: flex;
+	gap: 8px;
+	padding: 4px 10px;
+	border-bottom: 1px solid var(--vscode-panel-border);
+	flex-shrink: 0;
+}
+
+/* ── Рабочая область ─────────────────────────────────────────────────────── */
+.er-main {
+	flex: 1;
+	display: flex;
+	min-height: 0;
+	min-width: 0;
+	position: relative;
+}
+
+.er-canvas {
+	flex: 1;
+	min-height: 0;
+	min-width: 0;
+	background: var(--vscode-editor-background);
+}
+
+.er-empty {
+	position: absolute;
+	inset: 0;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	text-align: center;
+	padding: 24px;
+	color: var(--vscode-descriptionForeground);
+	font-size: 13px;
+	pointer-events: none;
+	white-space: pre-wrap;
+}
+
+/* ── Боковая панель (правая, overlay) ────────────────────────────────────── */
+.er-side {
+	position: absolute;
+	right: 0;
+	top: 0;
+	bottom: 0;
+	width: 300px;
+	z-index: 10;
+	border-left: 1px solid var(--vscode-panel-border);
+	display: flex;
+	flex-direction: column;
+	min-height: 0;
+	background: var(--vscode-sideBar-background, var(--vscode-editor-background));
+}
+
+.er-side[hidden] {
+	display: none;
+}
+
+.er-side-header {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 8px;
+	padding: 6px 10px;
+	border-bottom: 1px solid var(--vscode-panel-border);
+}
+
+.er-side-title {
+	font-weight: 600;
+	font-size: 12px;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+#er-side-close {
+	background: transparent;
+	color: inherit;
+	border: 0;
+	font-size: 16px;
+	cursor: pointer;
+	padding: 0 4px;
+	flex-shrink: 0;
+	border-radius: 2px;
+}
+
+#er-side-close:hover {
+	background: var(--vscode-list-hoverBackground);
+}
+
+.er-side-body {
+	overflow: auto;
+	padding: 8px 10px;
+	display: flex;
+	flex-direction: column;
+	gap: 5px;
+	font-size: 12px;
+}
+
+.er-side-row {
+	display: flex;
+	gap: 6px;
+}
+
+.er-side-row--path {
+	flex-direction: column;
+	gap: 1px;
+}
+
+.er-side-row--path .er-side-key {
+	min-width: unset;
+}
+
+.er-side-row--path #er-side-path {
+	font-size: 11px;
+	color: var(--vscode-descriptionForeground);
+	word-break: break-all;
+}
+
+.er-side-key {
+	color: var(--vscode-descriptionForeground);
+	min-width: 64px;
+	flex-shrink: 0;
+}
+
+.er-side-actions {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 4px;
+	margin: 4px 0;
+}
+
+.er-side-actions button {
+	background: var(--vscode-button-secondaryBackground, var(--vscode-button-background));
+	color: var(--vscode-button-secondaryForeground, var(--vscode-button-foreground));
+	border: 1px solid var(--vscode-button-border, transparent);
+	padding: 2px 7px;
+	cursor: pointer;
+	font-size: 11px;
+	font-family: inherit;
+}
+
+.er-side-edges {
+	border-top: 1px solid var(--vscode-panel-border);
+	padding-top: 4px;
+}
+
+.er-side-list {
+	list-style: none;
+	margin: 3px 0 0;
+	padding: 0;
+	display: flex;
+	flex-direction: column;
+	gap: 3px;
+}
+
+.er-side-list li {
+	display: flex;
+	flex-direction: column;
+	padding: 3px 6px;
+	background: var(--vscode-list-hoverBackground, transparent);
+	border-radius: 2px;
+	cursor: pointer;
+	font-size: 11px;
+}
+
+.er-side-list li:hover {
+	background: var(--vscode-list-activeSelectionBackground);
+	color: var(--vscode-list-activeSelectionForeground, inherit);
+}
+
+.er-edge-kind {
+	color: var(--vscode-descriptionForeground);
+	font-size: 10px;
+}
+
+/* ── Футер ───────────────────────────────────────────────────────────────── */
+.er-footer {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 8px;
+	padding: 3px 12px;
+	border-top: 1px solid var(--vscode-panel-border);
+	font-size: 11px;
+	color: var(--vscode-descriptionForeground);
+}
+
+.er-status {
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	max-width: 65%;
+}

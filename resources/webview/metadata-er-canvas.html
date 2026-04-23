@@ -1,0 +1,165 @@
+<!doctype html>
+<html lang="ru">
+<head>
+	<meta charset="UTF-8">
+	<meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src {{CSP_SOURCE}} data:; style-src {{CSP_SOURCE}} 'unsafe-inline'; script-src 'nonce-{{NONCE}}';">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>{{TITLE}}</title>
+	<link rel="stylesheet" href="{{CSS_URI}}">
+</head>
+<body>
+	<div id="app">
+		<header class="er-header">
+
+			<!-- Строка заголовка -->
+			<div class="er-title-row">
+				<span class="er-title-text">{{TITLE}}</span>
+				<span id="er-scope-label" class="er-scope-label"></span>
+				<span id="er-loading" class="er-loading-indicator" hidden>⟳ загрузка…</span>
+			</div>
+
+			<!-- Основной тулбар: логические зоны -->
+			<div class="er-toolbar">
+
+				<!-- Зона А: добавление объектов (конструктор) -->
+				<div class="er-zone er-zone-search" id="er-add-combo">
+					<input id="er-add-input" class="er-input er-combo-input"
+						type="search" autocomplete="off"
+						placeholder="Добавить объект: введите имя…"
+						aria-label="Добавить объект метаданных">
+					<div id="er-add-dropdown" class="er-combo-dropdown" hidden></div>
+					<button id="er-add-object" type="button" class="er-btn er-btn-icon"
+						title="Открыть полный список объектов">…</button>
+				</div>
+
+				<!-- Зона Б: глубина -->
+				<div class="er-zone er-zone-depth" id="er-zone-depth">
+					<span class="er-depth-label">Связи:</span>
+					<button id="er-hops-0" type="button" class="er-btn er-hops-btn" data-hops="0"
+						title="Показать только выбранные объекты, без соседей">Выбранные</button>
+					<button id="er-hops-1" type="button" class="er-btn er-hops-btn er-hops-btn--active" data-hops="1"
+						title="Показать выбранные объекты и все их прямые связи">Прямые</button>
+				</div>
+
+				<span class="er-sep" id="er-sep-depth"></span>
+
+				<!-- Зона В: вид -->
+				<div class="er-zone er-zone-view">
+					<button id="er-filter-toggle" type="button" class="er-btn er-btn-icon"
+						title="Фильтры связей" aria-expanded="false">☰</button>
+					<div class="er-label-picker" id="er-label-picker">
+						<button type="button" class="er-btn" id="er-label-picker-btn"
+							aria-haspopup="true" aria-expanded="false"
+							title="Что показывать на узлах схемы">Имя ▾</button>
+						<div class="er-label-picker-panel" id="er-label-picker-panel" hidden>
+							<label class="er-check-label">
+								<input type="checkbox" id="er-show-type"> Тип
+							</label>
+							<label class="er-check-label">
+								<input type="checkbox" id="er-show-name" checked> Имя
+							</label>
+							<label class="er-check-label">
+								<input type="checkbox" id="er-show-synonym"> Синоним
+							</label>
+						</div>
+					</div>
+					<button id="er-fit" type="button" class="er-btn" title="Вписать всю схему в экран">Вписать</button>
+					<label class="er-layout-label" title="Алгоритм расстановки узлов">
+						<select id="er-layout" class="er-input er-input-compact">
+							<option value="elk" selected>ELK (иерархия)</option>
+							<option value="cose">cose (быстрый)</option>
+							<option value="breadthfirst">BFS (дерево)</option>
+						</select>
+					</label>
+					<button id="er-relayout" type="button" class="er-btn er-btn-icon" title="Пересчитать расстановку">↺</button>
+				</div>
+
+				<!-- Разделитель-спейсер: прижимает экспорт вправо -->
+				<span class="er-sep er-sep--push"></span>
+
+				<!-- Зона Г: экспорт -->
+				<div class="er-zone er-zone-export">
+					<select id="er-format" class="er-input er-input-compact" title="Формат экспорта"></select>
+					<button id="er-export" type="button" class="er-btn er-btn-primary">Экспорт</button>
+				</div>
+			</div>
+
+			<!-- Чипсы выбранных объектов (конструктор, есть объекты) -->
+			<div class="er-chips-row" id="er-chips-row" hidden>
+				<span class="er-chips-label">На схеме:</span>
+				<div id="er-chips" class="er-chips"></div>
+				<button id="er-clear-selection" type="button" class="er-link-btn"
+					title="Убрать все объекты со схемы">очистить всё</button>
+			</div>
+
+		</header>
+
+		<!-- Тело: рабочая область (канвас + оба оверлейных сайдбара) -->
+		<div class="er-body">
+
+			<!-- Левый сайдбар: фильтры видов связей (overlay) -->
+			<aside class="er-filter-sidebar" id="er-filter-sidebar" hidden>
+				<div class="er-filter-sidebar-head">
+					<span class="er-filter-sidebar-label">
+						Связи
+						<span id="er-filter-hint" class="er-filter-hint"></span>
+					</span>
+					<button id="er-filter-close" type="button" class="er-sidebar-close-btn" title="Закрыть">×</button>
+				</div>
+				<div class="er-filter-actions">
+					<button type="button" id="er-filter-all" class="er-link-btn">все</button>
+					<button type="button" id="er-filter-none" class="er-link-btn">снять</button>
+				</div>
+				<div class="er-filter-checkboxes" id="er-relation-checkboxes">
+					<!-- заполняется JS -->
+				</div>
+			</aside>
+
+			<main class="er-main">
+				<div id="er-canvas" class="er-canvas"></div>
+				<div id="er-empty" class="er-empty" hidden></div>
+
+				<aside id="er-side" class="er-side" hidden>
+					<header class="er-side-header">
+						<span id="er-side-title" class="er-side-title"></span>
+						<button id="er-side-close" type="button" title="Закрыть">×</button>
+					</header>
+					<section class="er-side-body">
+						<div class="er-side-row"><span class="er-side-key">Тип:</span><span id="er-side-type"></span></div>
+						<div class="er-side-row"><span class="er-side-key">Имя:</span><span id="er-side-name"></span></div>
+						<div class="er-side-row"><span class="er-side-key">Синоним:</span><span id="er-side-synonym"></span></div>
+						<div class="er-side-row"><span class="er-side-key">Источник:</span><span id="er-side-source"></span></div>
+						<div class="er-side-row er-side-row--path">
+							<span class="er-side-key">Файл:</span><span id="er-side-path"></span>
+						</div>
+						<div class="er-side-actions">
+							<button id="er-side-open" type="button">Открыть XML</button>
+							<button id="er-side-focus" type="button">Найти на схеме</button>
+							<button id="er-side-drill" type="button">Схема по объекту</button>
+							<button id="er-side-add" type="button">+ В конструктор</button>
+						</div>
+						<details open class="er-side-edges">
+							<summary>Исходящие связи</summary>
+							<ul id="er-side-out" class="er-side-list"></ul>
+						</details>
+						<details open class="er-side-edges">
+							<summary>Входящие связи</summary>
+							<ul id="er-side-in" class="er-side-list"></ul>
+						</details>
+					</section>
+				</aside>
+			</main>
+
+		</div>
+
+		<footer class="er-footer">
+			<span id="er-status" class="er-status"></span>
+			<span id="er-counts" class="er-counts"></span>
+		</footer>
+	</div>
+	<script nonce="{{NONCE}}">
+		globalThis.__ER_INIT__ = {{INITIAL_JSON}};
+	</script>
+	<script nonce="{{NONCE}}" src="{{JS_URI}}"></script>
+</body>
+</html>
