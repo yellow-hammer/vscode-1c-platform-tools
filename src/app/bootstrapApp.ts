@@ -13,6 +13,7 @@ import { registerWelcomeFlow } from './registerWelcomeFlow';
 import { registerInfrastructure } from './registerInfrastructure';
 import { registerProjectsFlow } from './registerProjectsFlow';
 import { registerMetadataFlow } from './registerMetadataFlow';
+import { checkMdSparrowUpdateInBackground } from '../features/metadata/mdSparrowBootstrap';
 import { registerArtifactsFlow } from './registerArtifactsFlow';
 import { registerTodoFlow } from './registerTodoFlow';
 import { registerMainTreeFlow } from './registerMainTreeFlow';
@@ -26,6 +27,7 @@ export async function bootstrapApp(context: vscode.ExtensionContext): Promise<vo
 	registerDebugFeature(context);
 	const isProject = await detectAndSetInitialProjectContext();
 	const { metadataTreeProvider } = registerMetadataFlow(context, isProject);
+	checkMdSparrowUpdateInBackground(context, () => void metadataTreeProvider.refresh());
 
 	// Инициализируем VRunnerManager с контекстом расширения для доступа к extensionPath
 	VRunnerManager.getInstance(context);

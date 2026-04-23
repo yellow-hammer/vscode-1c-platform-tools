@@ -11,6 +11,8 @@ import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 import * as vscode from 'vscode';
 import { logger } from '../../../shared/logger';
+import { clearMdSparrowDownloadCache } from '../mdSparrowBootstrap';
+import { MdSparrowOutdatedError } from '../mdSparrowErrors';
 import { supportedErFormats } from './erExporters/exporterRegistry';
 import { buildSubgraph, listObjectTypes, listRelationKinds } from './erFilters';
 import { loadErGraph } from './erGraphService';
@@ -177,6 +179,10 @@ async function loadAndInitCanvas(
 			type: 'loadError',
 			payload: { message },
 		});
+		if (e instanceof MdSparrowOutdatedError) {
+			await clearMdSparrowDownloadCache(context, false);
+			void loadAndInitCanvas(instance, context, workspaceRoot, initialScope);
+		}
 	}
 }
 

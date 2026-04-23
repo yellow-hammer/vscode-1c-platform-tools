@@ -319,6 +319,64 @@ export async function ensureMdSparrowRuntime(context: vscode.ExtensionContext): 
 }
 
 /**
+ * Фоновая проверка наличия нового релиза md-sparrow.
+ * При обнаружении более свежего тега тихо очищает кэш JAR и вызывает обратный вызов.
+ * Молча завершается при недоступности сети или отсутствии кэшированного JAR.
+ *
+ * @param context Контекст расширения.
+ * @param onUpdateApplied Вызывается после очистки кэша (например, для перезагрузки дерева).
+ */
+export function checkMdSparrowUpdateInBackground(
+	context: vscode.ExtensionContext,
+	onUpdateApplied: () => void
+): void {
+	void (async () => {
+		try {
+			const cfg = vscode.workspace.getConfiguration('1c-platform-tools');
+			if (cfg.get<string>('metadata.jarFile', '').trim()) {
+				return;
+			}
+			if (!cfg.get<boolean>('metadata.autoloadJar', true)) {
+				return;
+			}
+
+			const base = getInstallBase(context);
+			const stampPath = path.join(base, 'md-sparrow', '.jar-info.json');
+			let currentTag: string | undefined;
+			try {
+				const raw = await fs.readFile(stampPath, 'utf8');
+				const info = JSON.parse(raw) as { tag?: string; jarPath?: string };
+				currentTag = info.tag;
+			} catch {
+				return;
+			}
+			if (!currentTag) {
+				return;
+			}
+
+			const token = process.env.PLATFORM_TOOLS_MD_SPARROW_GITHUB_TOKEN?.trim() ?? '';
+			const { owner, repo } = parseMdSparrowRepo();
+			let latest: GithubRelease;
+			try {
+				latest = await fetchLatestStableRelease(owner, repo, githubHeaders(token));
+			} catch {
+				return;
+			}
+
+			if (latest.tag_name === currentTag) {
+				return;
+			}
+
+			logger.info(`md-sparrow: доступна новая версия ${latest.tag_name}, обновляем кэш.`);
+			await clearMdSparrowDownloadCache(context, false);
+			onUpdateApplied();
+		} catch {
+			/* фоновая проверка — ошибки не показываем */
+		}
+	})();
+}
+
+/**
  * Сброс кэша JAR (и при необходимости JRE) — следующий вызов ensure скачает заново.
  */
 export async function clearMdSparrowDownloadCache(

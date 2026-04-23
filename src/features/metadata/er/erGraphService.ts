@@ -15,6 +15,7 @@ import * as path from 'node:path';
 import * as vscode from 'vscode';
 import { logger } from '../../../shared/logger';
 import { ensureMdSparrowRuntime } from '../mdSparrowBootstrap';
+import { isMdSparrowUnknownCommandError, MdSparrowOutdatedError } from '../mdSparrowErrors';
 import { runMdSparrow } from '../mdSparrowRunner';
 import type { ErGraph, ErNode, ErEdge } from './erTypes';
 
@@ -223,6 +224,9 @@ export async function loadErGraph(
 	});
 	if (res.exitCode !== 0) {
 		const errText = res.stderr.trim() || res.stdout.trim() || `код ${res.exitCode}`;
+		if (isMdSparrowUnknownCommandError(res.stderr, res.stdout)) {
+			throw new MdSparrowOutdatedError();
+		}
 		throw new Error(`md-sparrow cf-md-graph: ${errText}`);
 	}
 	const stdout = res.stdout.trim();
