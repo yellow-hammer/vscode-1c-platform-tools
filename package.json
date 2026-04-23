@@ -419,6 +419,17 @@
         "category": "1C: Метаданные"
       },
       {
+        "command": "1c-platform-tools.metadata.er.openCanvas",
+        "title": "ER-диаграмма",
+        "icon": "$(type-hierarchy)",
+        "category": "1C: Метаданные"
+      },
+      {
+        "command": "1c-platform-tools.metadata.er.openForObject",
+        "title": "ER: диаграмма по объекту",
+        "category": "1C: Метаданные"
+      },
+      {
         "command": "1c-platform-tools.settings.openMetadata",
         "title": "Настройки метаданных",
         "icon": "$(gear)",
@@ -1311,14 +1322,19 @@
           "group": "navigation@2"
         },
         {
+          "command": "1c-platform-tools.metadata.er.openCanvas",
+          "when": "view == 1c-platform-tools-metadata-tree",
+          "group": "navigation@3"
+        },
+        {
           "command": "1c-platform-tools.metadata.clearSubsystemFilter",
           "when": "view == 1c-platform-tools-metadata-tree && 1c-platform-tools.metadata.subsystemFilterActive",
-          "group": "navigation@3"
+          "group": "navigation@4"
         },
         {
           "submenu": "1c-platform-tools.metadata.overflowMenu",
           "when": "view == 1c-platform-tools-metadata-tree",
-          "group": "navigation@4"
+          "group": "navigation@5"
         }
       ],
       "view/item/context": [
@@ -1618,6 +1634,11 @@
           "group": "1_md_open"
         },
         {
+          "command": "1c-platform-tools.metadata.er.openForObject",
+          "when": "view == 1c-platform-tools-metadata-tree && (viewItem == metadataObjectProperties || viewItem == metadataObjectPropertiesSubsystem || viewItem == metadataLeafFile || viewItem == metadataLeaf)",
+          "group": "1_md_open"
+        },
+        {
           "command": "1c-platform-tools.metadata.openExternalConnectionModule",
           "when": "view == 1c-platform-tools-metadata-tree && viewItem == metadataSourceConfigLike",
           "group": "1_modules@1"
@@ -1824,7 +1845,7 @@
       {
         "id": "1c-platform-tools.getStarted",
         "title": "Начало работы с 1C: Platform Tools",
-        "description": "Десять шагов: проект, зависимости, панель команд, артефакты, служебные файлы, панель проектов, список дел, отладка 1С, интеграция с AI и MCP, дерево метаданных.",
+        "description": "Одиннадцать шагов: проект, зависимости, панель команд, артефакты, служебные файлы, панель проектов, список дел, отладка 1С, интеграция с AI и MCP, дерево метаданных, ER-диаграммы.",
         "icon": "resources/1c-icon.png",
         "steps": [
           {
@@ -1905,6 +1926,14 @@
             "description": "Панель метаданных показывает структуру конфигурации и даёт быстрый доступ к операциям с объектами прямо из IDE.\n\n[Открыть панель «Метаданные 1С»](command:workbench.view.extension.1c-platform-tools-metadata)\n[Обновить дерево](command:1c-platform-tools.metadata.refresh)\n[Настройки метаданных](command:1c-platform-tools.settings.openMetadata)",
             "media": {
               "markdown": "walkthrough/step10-metadata-tree.md"
+            }
+          },
+          {
+            "id": "step11-er-diagrams",
+            "title": "ER-диаграммы метаданных",
+            "description": "Интерактивная схема связей объектов конфигурации. Откройте из панели метаданных или через контекстное меню объекта.\n\n[Открыть ER-диаграмму](command:1c-platform-tools.metadata.er.openCanvas)\n[Настройки метаданных](command:1c-platform-tools.settings.openMetadata)",
+            "media": {
+              "markdown": "walkthrough/step11-er-diagrams.md"
             }
           }
         ]
@@ -2197,6 +2226,22 @@
             "type": "string",
             "default": "",
             "description": "Полный путь к java или javaw. Пусто: при включённой автозагрузке JRE — кэш/скачивание; при выключенной — команда java из PATH (укажите путь, если java не в PATH)."
+          },
+          "1c-platform-tools.metadata.er.exportDir": {
+            "type": "string",
+            "default": "docs/schemas",
+            "description": "Каталог проекта для сохранения экспорта ER-диаграмм (mermaid/svg/png)."
+          },
+          "1c-platform-tools.metadata.er.defaultExportFormat": {
+            "type": "string",
+            "enum": [
+              "mermaid",
+              "svg",
+              "png",
+              "drawio"
+            ],
+            "default": "mermaid",
+            "description": "Формат экспорта ER-диаграммы по умолчанию в canvas."
           }
         }
       },
@@ -2258,11 +2303,15 @@
   },
   "dependencies": {
     "@vscode/debugadapter": "^1.67.0",
+    "cytoscape": "^3.33.2",
+    "cytoscape-elk": "^2.3.0",
+    "elkjs": "^0.11.1",
     "extract-zip": "^2.0.1",
     "glob": "^10.5.0",
     "minimatch": "^9.0.9"
   },
   "devDependencies": {
+    "@types/cytoscape": "^3.21.9",
     "@types/minimatch": "^3.0.5",
     "@types/node": "22.x",
     "@types/vscode": "^1.103.0",

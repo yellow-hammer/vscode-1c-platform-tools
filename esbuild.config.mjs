@@ -1,5 +1,6 @@
 /**
- * Сборка расширения через esbuild: один бандл с встроенными зависимостями (minimatch, glob).
+ * Сборка расширения через esbuild: один бандл с встроенными зависимостями (minimatch, glob)
+ * + browser bundle для webview-canvas (Cytoscape + ELK).
  * node_modules не нужен в VSIX.
  */
 import * as esbuild from 'esbuild';
@@ -43,9 +44,24 @@ const testOptions = {
 	mainFields: ['main', 'module'],
 };
 
+const erCanvasOptions = {
+	entryPoints: [path.join(__dirname, 'src', 'webviews', 'metadataErCanvas', 'index.ts')],
+	bundle: true,
+	outfile: path.join(__dirname, 'out', 'webviews', 'metadataErCanvas', 'index.js'),
+	platform: 'browser',
+	format: 'iife',
+	target: ['es2022', 'chrome120'],
+	sourcemap: true,
+	logLevel: 'info',
+	define: { 'process.env.NODE_ENV': '"production"' },
+	loader: { '.js': 'js' },
+};
+
 if (watch) {
 	const extCtx = await esbuild.context(extensionOptions);
 	await extCtx.watch();
+	const erCtx = await esbuild.context(erCanvasOptions);
+	await erCtx.watch();
 	if (testEntryPoints.length > 0) {
 		const testCtx = await esbuild.context(testOptions);
 		await testCtx.watch();
@@ -53,6 +69,7 @@ if (watch) {
 	console.log('watching...');
 } else {
 	await esbuild.build(extensionOptions);
+	await esbuild.build(erCanvasOptions);
 	if (testEntryPoints.length > 0) {
 		await esbuild.build(testOptions);
 	}

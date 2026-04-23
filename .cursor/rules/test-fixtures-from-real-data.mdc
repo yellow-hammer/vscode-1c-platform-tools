@@ -1,0 +1,77 @@
+---
+description: Тестовые данные — из фикстур src/test/fixtures, а не литералы в коде
+globs: src/test/**/*.ts
+alwaysApply: false
+---
+
+# Никаких фикстур в коде тестов
+
+Входные данные тестов (графы, структуры объектов метаданных, JSON-снимки CLI и т.п.)
+**не пишем литералами в коде**. Складываем во внешние файлы под
+[`src/test/fixtures/`](mdc:src/test/fixtures) и читаем оттуда.
+
+Реальные срезы из соседних типовых выгрузок (например, `ssl_3_1`) лучше синтетики:
+ловят регрессии форматов, которые «руками собранный» граф пропустит.
+
+## Запреты
+
+- Не плодить «реалистичные» массивы `nodes` / `edges` / DTO прямо в `*.test.ts`.
+- Не вшивать ключи объектов метаданных (`Subsystem._ДемоАнкетирование`,
+  `Catalog.X`) как сырые литералы поверх большого инлайн-графа — это та же
+  фикстура, только без файла.
+- Не помещать многомегабайтные снимки в репо: фикстура должна быть **компактной
+  и репрезентативной** (десятки–сотни узлов, разные виды связей).
+
+## Как правильно
+
+1. Сгенерировать срез реальных данных через соответствующий CLI (например,
+   `md-sparrow cf-md-graph` против соседнего `ssl_3_1`) и сохранить в
+   `src/test/fixtures/<feature>/<name>.json`.
+2. Рядом — `README.md` с описанием фикстуры и **командой регенерации**, чтобы
+   при изменении контракта её можно было пересобрать.
+3. Абсолютные/изменчивые поля (например, `projectRoot`) обнулять или заменять
+   на стабильное значение (`fixture://...`) для переносимости.
+4. В тесте резолвить путь относительно корня проекта (поднимаемся по
+   `package.json`), а не от `__dirname` — esbuild бандлит `.test.ts` в `out/`,
+   и относительные пути ломаются.
+5. Первый тест в suite пусть валидирует саму фикстуру (наличие опорных узлов,
+   видов связи) — тогда повреждённая регенерация падает с понятной ошибкой.
+
+## Пример
+
+```typescript
+// ❌ BAD — фикстуры в коде
+const nodes: ErNode[] = [
+  makeNode({ key: 'Catalog.Users', objectType: 'Catalog', name: 'Users' }),
+  // …ещё 20 синтетических узлов…
+];
+const edges: ErEdge[] = [/* …синтетические связи… */];
+const graph = makeGraph(nodes, edges);
+
+// ✅ GOOD — фикстура в файле
+const FIXTURE_PATH = resolveFixturePath('er/ssl31-anketirovanie.json');
+const graph: ErGraph = JSON.parse(fs.readFileSync(FIXTURE_PATH, 'utf8'));
+
+function resolveFixturePath(rel: string): string {
+  let dir = __dirname;
+  for (let i = 0; i < 10; i++) {
+    if (fs.existsSync(path.join(dir, 'package.json'))) {
+      return path.join(dir, 'src', 'test', 'fixtures', rel);
+    }
+    const parent = path.dirname(dir);
+    if (parent === dir) break;
+    dir = parent;
+  }
+  throw new Error(`Не найден корень проекта при поиске ${rel}`);
+}
+```
+
+## Исключения
+
+- **Чистые юнит-тесты утилит без доменных данных** (форматирование строки,
+  сортировка, парсинг даты) — литералы допустимы.
+- **Моки VS Code API** (`InputBoxMock`, `MessageMock` из `src/test/fixtures/mocks/`) —
+  это код, а не данные; правило их не касается.
+
+**Связанные правила:** `code-style.mdc`, `evolution-no-legacy.mdc`,
+`reference-repos.mdc`.

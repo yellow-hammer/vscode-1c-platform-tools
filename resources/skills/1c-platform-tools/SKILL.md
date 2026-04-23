@@ -121,6 +121,14 @@ description: Операции с платформой 1С в этом проек
 | Открыть env.json    | `1c-platform-tools.config.env.edit`           |
 | Открыть launch.json | `1c-platform-tools.launch.editConfigurations` |
 
+## Метаданные и ER-диаграмма
+
+| Задача                                 | Command ID                                               |
+|----------------------------------------|----------------------------------------------------------|
+| Открыть конструктор ER-диаграммы       | `1c-platform-tools.metadata.er.openBuilder`              |
+| Построить ER-диаграмму по подсистеме   | `1c-platform-tools.metadata.er.generateForSubsystem`     |
+| Построить ER-диаграмму по объекту      | `1c-platform-tools.metadata.er.generateForObject`        |
+
 ## MCP
 
 Если у тебя есть инструменты MCP **mcp-1c-platform-tools**, используй их для тех же операций: загрузка конфигурации — `configuration_loadFromSrc`, выгрузка — `configuration_dumpToSrc`, расширения — `extensions_loadFromSrc` / `extensions_dumpToSrc`, сборка/разбор обработок и отчётов — `externalProcs_build`, `externalReports_build`, `externalProcs_decompile`, `externalReports_decompile` и т.д. **Для зависимостей** — в первую очередь вызывай **deps_install** и **deps_installOscript**; не переходи в терминал с `opm install add`, пока не убедился, что MCP недоступен. В каждый вызов передавай `projectPath` — корень проекта 1С (каталог с `packagedef`). Имена формируются из command ID: убирается префикс, точки → `_`, длинные слова сокращаются (`dependencies` → `deps`, `Processors` → `Procs`). Полный список возвращается сервером при подключении.
