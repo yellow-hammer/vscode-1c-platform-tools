@@ -21,6 +21,8 @@ import {
 import { mdSparrowSchemaFlagFromConfigurationXml } from './mdSparrowSchemaVersion';
 import { runMdSparrow } from './mdSparrowRunner';
 import { loadProjectMetadataTree } from './metadataTreeService';
+import { openErCanvasPanel } from './er/erCanvasPanel';
+import type { ErScope } from './er/erTypes';
 import {
 	MetadataLeafTreeItem,
 	MetadataMdGroupTreeItem,
@@ -705,7 +707,84 @@ export function registerMetadataFeature(
 		}
 	}
 
+	function resolveErWorkspaceRoot(): string | undefined {
+		return vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+	}
+
+	function erObjectKey(objectType: string, name: string): string {
+		return `${objectType}.${name}`;
+	}
+
+	function buildErScope(params: {
+		kind: ErScope['kind'];
+		label: string;
+		seeds: readonly string[];
+		hops?: number;
+	}): ErScope {
+		return {
+			kind: params.kind,
+			label: params.label,
+			seeds: params.seeds,
+		hops: params.hops ?? (params.kind === 'selection' ? 0 : 1),
+		objectTypes: [],
+		relationKinds: null,
+	};
+	}
+
 	const metadataDisposables: vscode.Disposable[] = [
+		vscode.commands.registerCommand(
+			'1c-platform-tools.metadata.er.openForObject',
+			async (item?: MetadataLeafTreeItem) => {
+			const node = resolveSelectedMetadataLeaf(item);
+			if (!(node instanceof MetadataLeafTreeItem)) {
+				void vscode.window.showInformationMessage('Выберите объект метаданных.');
+				return;
+			}
+			const workspaceRoot = resolveErWorkspaceRoot();
+				if (!workspaceRoot) {
+					void vscode.window.showInformationMessage('Откройте папку проекта.');
+					return;
+				}
+				const seedKey = erObjectKey(node.objectType, node.name);
+				try {
+					await openErCanvasPanel({
+						context,
+						workspaceRoot,
+						initialScope: buildErScope({
+							kind: 'selection',
+							label: `${node.objectType}.${node.name}`,
+							seeds: [seedKey],
+							hops: 1,
+						}),
+					});
+				} catch (error) {
+					const message = error instanceof Error ? error.message : String(error);
+					void vscode.window.showErrorMessage(message.slice(0, MD_SPARROW_CLI_ERR_PREVIEW));
+				}
+			}
+		),
+		vscode.commands.registerCommand('1c-platform-tools.metadata.er.openCanvas', async () => {
+			const workspaceRoot = resolveErWorkspaceRoot();
+			if (!workspaceRoot) {
+				void vscode.window.showInformationMessage('Откройте папку проекта.');
+				return;
+			}
+			try {
+				await openErCanvasPanel({
+					context,
+					workspaceRoot,
+					initialScope: buildErScope({
+						kind: 'selection',
+						label: '',
+						seeds: [],
+						hops: 0,
+					}),
+				});
+			} catch (error) {
+				const message = error instanceof Error ? error.message : String(error);
+				void vscode.window.showErrorMessage(message.slice(0, MD_SPARROW_CLI_ERR_PREVIEW));
+			}
+		}),
 		vscode.commands.registerCommand('1c-platform-tools.metadata.refresh', () => {
 			void metadataTreeProvider.refresh();
 		}),
