@@ -1,0 +1,748 @@
+{
+  "projectRoot": "fixture://ssl_3_1",
+  "mainSchemaVersion": "2.20",
+  "mainSchemaVersionFlag": "V2_20",
+  "nodeCount": 24,
+  "edgeCount": 48,
+  "nodes": [
+    {
+      "key": "Subsystem._ДемоАнкетирование",
+      "objectType": "Subsystem",
+      "name": "_ДемоАнкетирование",
+      "synonymRu": "Анкетирование",
+      "sourceId": "main",
+      "relativePath": "src/cf/Subsystems/_ДемоАнкетирование.xml",
+      "subsystemKeys": [],
+      "partial": false
+    },
+    {
+      "key": "CommonModule.Анкетирование",
+      "objectType": "CommonModule",
+      "name": "Анкетирование",
+      "synonymRu": "Анкетирование",
+      "sourceId": "main",
+      "relativePath": "src/cf/CommonModules/Анкетирование.xml",
+      "subsystemKeys": [
+        "Subsystem._ДемоАнкетирование",
+        "Subsystem.Анкетирование"
+      ],
+      "partial": true
+    },
+    {
+      "key": "CommonModule.АнкетированиеКлиент",
+      "objectType": "CommonModule",
+      "name": "АнкетированиеКлиент",
+      "synonymRu": "Анкетирование клиент",
+      "sourceId": "main",
+      "relativePath": "src/cf/CommonModules/АнкетированиеКлиент.xml",
+      "subsystemKeys": [
+        "Subsystem._ДемоАнкетирование",
+        "Subsystem.Анкетирование"
+      ],
+      "partial": true
+    },
+    {
+      "key": "CommonModule.АнкетированиеКлиентСервер",
+      "objectType": "CommonModule",
+      "name": "АнкетированиеКлиентСервер",
+      "synonymRu": "Анкетирование клиент сервер",
+      "sourceId": "main",
+      "relativePath": "src/cf/CommonModules/АнкетированиеКлиентСервер.xml",
+      "subsystemKeys": [
+        "Subsystem._ДемоАнкетирование",
+        "Subsystem.Анкетирование"
+      ],
+      "partial": true
+    },
+    {
+      "key": "Role._ДемоЧтениеДанныхДляОтветовНаВопросыАнкет",
+      "objectType": "Role",
+      "name": "_ДемоЧтениеДанныхДляОтветовНаВопросыАнкет",
+      "synonymRu": "Демо: Чтение данных для ответов на вопросы анкет",
+      "sourceId": "main",
+      "relativePath": "src/cf/Roles/_ДемоЧтениеДанныхДляОтветовНаВопросыАнкет.xml",
+      "subsystemKeys": [
+        "Subsystem._ДемоАнкетирование"
+      ],
+      "partial": true
+    },
+    {
+      "key": "Role._ДемоЧтениеДанныхРеспондентов",
+      "objectType": "Role",
+      "name": "_ДемоЧтениеДанныхРеспондентов",
+      "synonymRu": "Демо: Чтение данных респондентов",
+      "sourceId": "main",
+      "relativePath": "src/cf/Roles/_ДемоЧтениеДанныхРеспондентов.xml",
+      "subsystemKeys": [
+        "Subsystem._ДемоАнкетирование"
+      ],
+      "partial": true
+    },
+    {
+      "key": "Role.Подсистема_ДемоАнкетирование",
+      "objectType": "Role",
+      "name": "Подсистема_ДемоАнкетирование",
+      "synonymRu": "Раздел \"Анкетирование\"",
+      "sourceId": "main",
+      "relativePath": "src/cf/Roles/Подсистема_ДемоАнкетирование.xml",
+      "subsystemKeys": [
+        "Subsystem._ДемоАнкетирование"
+      ],
+      "partial": true
+    },
+    {
+      "key": "FunctionalOption._ДемоИспользоватьАнкетированиеБСП",
+      "objectType": "FunctionalOption",
+      "name": "_ДемоИспользоватьАнкетированиеБСП",
+      "synonymRu": "Демо: Использовать анкетирование БСП",
+      "sourceId": "main",
+      "relativePath": "src/cf/FunctionalOptions/_ДемоИспользоватьАнкетированиеБСП.xml",
+      "subsystemKeys": [
+        "Subsystem._ДемоАнкетирование"
+      ],
+      "partial": false
+    },
+    {
+      "key": "CommonCommand._ДемоПанельОтчетовАнкетирование",
+      "objectType": "CommonCommand",
+      "name": "_ДемоПанельОтчетовАнкетирование",
+      "synonymRu": "Демо: Отчеты по анкетированию",
+      "sourceId": "main",
+      "relativePath": "src/cf/CommonCommands/_ДемоПанельОтчетовАнкетирование.xml",
+      "subsystemKeys": [
+        "Subsystem._ДемоАнкетирование"
+      ],
+      "partial": true
+    },
+    {
+      "key": "CommonForm._ДемоПримечание",
+      "objectType": "CommonForm",
+      "name": "_ДемоПримечание",
+      "synonymRu": "Демо: Примечание",
+      "sourceId": "main",
+      "relativePath": "src/cf/CommonForms/_ДемоПримечание.xml",
+      "subsystemKeys": [
+        "Subsystem._ДемоАнкетирование"
+      ],
+      "partial": true
+    },
+    {
+      "key": "CommonPicture._ДемоРазделАнкетирование",
+      "objectType": "CommonPicture",
+      "name": "_ДемоРазделАнкетирование",
+      "synonymRu": "Демо: Раздел \"Анкетирование\"",
+      "sourceId": "main",
+      "relativePath": "src/cf/CommonPictures/_ДемоРазделАнкетирование.xml",
+      "subsystemKeys": [
+        "Subsystem._ДемоАнкетирование"
+      ],
+      "partial": true
+    },
+    {
+      "key": "CommonPicture._ДемоРазделАнкетирование48",
+      "objectType": "CommonPicture",
+      "name": "_ДемоРазделАнкетирование48",
+      "synonymRu": "Демо: Раздел \"Анкетирование\" (48x48)",
+      "sourceId": "main",
+      "relativePath": "src/cf/CommonPictures/_ДемоРазделАнкетирование48.xml",
+      "subsystemKeys": [
+        "Subsystem._ДемоАнкетирование"
+      ],
+      "partial": true
+    },
+    {
+      "key": "Constant.ИспользоватьАнкетирование",
+      "objectType": "Constant",
+      "name": "ИспользоватьАнкетирование",
+      "synonymRu": "Использовать анкетирование",
+      "sourceId": "main",
+      "relativePath": "src/cf/Constants/ИспользоватьАнкетирование.xml",
+      "subsystemKeys": [
+        "Subsystem._ДемоАнкетирование",
+        "Subsystem.Анкетирование"
+      ],
+      "partial": false
+    },
+    {
+      "key": "Catalog.ВариантыОтветовАнкет",
+      "objectType": "Catalog",
+      "name": "ВариантыОтветовАнкет",
+      "synonymRu": "Варианты ответов анкет",
+      "sourceId": "main",
+      "relativePath": "src/cf/Catalogs/ВариантыОтветовАнкет.xml",
+      "subsystemKeys": [
+        "Subsystem._ДемоАнкетирование",
+        "Subsystem.СозданиеАнкетИОпросов",
+        "Subsystem.Анкетирование"
+      ],
+      "partial": false
+    },
+    {
+      "key": "Catalog.ВопросыШаблонаАнкеты",
+      "objectType": "Catalog",
+      "name": "ВопросыШаблонаАнкеты",
+      "synonymRu": "Вопросы шаблона анкеты",
+      "sourceId": "main",
+      "relativePath": "src/cf/Catalogs/ВопросыШаблонаАнкеты.xml",
+      "subsystemKeys": [
+        "Subsystem._ДемоАнкетирование",
+        "Subsystem.СозданиеАнкетИОпросов",
+        "Subsystem.Анкетирование"
+      ],
+      "partial": false
+    },
+    {
+      "key": "Catalog.ШаблоныАнкет",
+      "objectType": "Catalog",
+      "name": "ШаблоныАнкет",
+      "synonymRu": "Шаблоны анкет",
+      "sourceId": "main",
+      "relativePath": "src/cf/Catalogs/ШаблоныАнкет.xml",
+      "subsystemKeys": [
+        "Subsystem._ДемоАнкетирование",
+        "Subsystem.СозданиеАнкетИОпросов",
+        "Subsystem.Анкетирование"
+      ],
+      "partial": false
+    },
+    {
+      "key": "Document.Анкета",
+      "objectType": "Document",
+      "name": "Анкета",
+      "synonymRu": "Анкета",
+      "sourceId": "main",
+      "relativePath": "src/cf/Documents/Анкета.xml",
+      "subsystemKeys": [
+        "Subsystem._ДемоАнкетирование",
+        "Subsystem.ХодАнкетированияИАнализ",
+        "Subsystem.Анкетирование"
+      ],
+      "partial": false
+    },
+    {
+      "key": "Document.НазначениеОпросов",
+      "objectType": "Document",
+      "name": "НазначениеОпросов",
+      "synonymRu": "Проведение опросов",
+      "sourceId": "main",
+      "relativePath": "src/cf/Documents/НазначениеОпросов.xml",
+      "subsystemKeys": [
+        "Subsystem._ДемоАнкетирование",
+        "Subsystem.СозданиеАнкетИОпросов",
+        "Subsystem.Анкетирование"
+      ],
+      "partial": false
+    },
+    {
+      "key": "Enum.ТипыВопросовШаблонаАнкеты",
+      "objectType": "Enum",
+      "name": "ТипыВопросовШаблонаАнкеты",
+      "synonymRu": "Типы вопросов шаблона анкеты",
+      "sourceId": "main",
+      "relativePath": "src/cf/Enums/ТипыВопросовШаблонаАнкеты.xml",
+      "subsystemKeys": [
+        "Subsystem._ДемоАнкетирование",
+        "Subsystem.Анкетирование"
+      ],
+      "partial": true
+    },
+    {
+      "key": "Enum.ТипыТабличныхВопросов",
+      "objectType": "Enum",
+      "name": "ТипыТабличныхВопросов",
+      "synonymRu": "Типы табличных вопросов",
+      "sourceId": "main",
+      "relativePath": "src/cf/Enums/ТипыТабличныхВопросов.xml",
+      "subsystemKeys": [
+        "Subsystem._ДемоАнкетирование",
+        "Subsystem.Анкетирование"
+      ],
+      "partial": true
+    },
+    {
+      "key": "ChartOfCharacteristicTypes.ВопросыДляАнкетирования",
+      "objectType": "ChartOfCharacteristicTypes",
+      "name": "ВопросыДляАнкетирования",
+      "synonymRu": "Вопросы для анкетирования",
+      "sourceId": "main",
+      "relativePath": "src/cf/ChartsOfCharacteristicTypes/ВопросыДляАнкетирования.xml",
+      "subsystemKeys": [
+        "Subsystem._ДемоАнкетирование",
+        "Subsystem.СозданиеАнкетИОпросов",
+        "Subsystem._ДемоНастройкаПорядкаЭлементов",
+        "Subsystem.Анкетирование"
+      ],
+      "partial": false
+    },
+    {
+      "key": "Subsystem.Респонденты",
+      "objectType": "Subsystem",
+      "name": "Респонденты",
+      "synonymRu": "Респонденты",
+      "sourceId": "main",
+      "relativePath": "src/cf/Subsystems/_ДемоАнкетирование/Subsystems/Респонденты.xml",
+      "subsystemKeys": [],
+      "partial": false
+    },
+    {
+      "key": "Subsystem.СозданиеАнкетИОпросов",
+      "objectType": "Subsystem",
+      "name": "СозданиеАнкетИОпросов",
+      "synonymRu": "Создание анкет и опросов",
+      "sourceId": "main",
+      "relativePath": "src/cf/Subsystems/_ДемоАнкетирование/Subsystems/СозданиеАнкетИОпросов.xml",
+      "subsystemKeys": [],
+      "partial": false
+    },
+    {
+      "key": "Subsystem.ХодАнкетированияИАнализ",
+      "objectType": "Subsystem",
+      "name": "ХодАнкетированияИАнализ",
+      "synonymRu": "Ход анкетирования и анализ",
+      "sourceId": "main",
+      "relativePath": "src/cf/Subsystems/_ДемоАнкетирование/Subsystems/ХодАнкетированияИАнализ.xml",
+      "subsystemKeys": [],
+      "partial": false
+    }
+  ],
+  "edges": [
+    {
+      "sourceKey": "Subsystem._ДемоАнкетирование",
+      "targetKey": "CommonModule.Анкетирование",
+      "kind": "subsystemMembership",
+      "cardinality": "0..*",
+      "via": [
+        "content[0]"
+      ]
+    },
+    {
+      "sourceKey": "Subsystem._ДемоАнкетирование",
+      "targetKey": "CommonModule.АнкетированиеКлиент",
+      "kind": "subsystemMembership",
+      "cardinality": "0..*",
+      "via": [
+        "content[1]"
+      ]
+    },
+    {
+      "sourceKey": "Subsystem._ДемоАнкетирование",
+      "targetKey": "CommonModule.АнкетированиеКлиентСервер",
+      "kind": "subsystemMembership",
+      "cardinality": "0..*",
+      "via": [
+        "content[2]"
+      ]
+    },
+    {
+      "sourceKey": "Subsystem._ДемоАнкетирование",
+      "targetKey": "CommonPicture._ДемоРазделАнкетирование48",
+      "kind": "subsystemMembership",
+      "cardinality": "0..*",
+      "via": [
+        "content[3]"
+      ]
+    },
+    {
+      "sourceKey": "Subsystem._ДемоАнкетирование",
+      "targetKey": "Constant.ИспользоватьАнкетирование",
+      "kind": "subsystemMembership",
+      "cardinality": "0..*",
+      "via": [
+        "content[4]"
+      ]
+    },
+    {
+      "sourceKey": "Subsystem._ДемоАнкетирование",
+      "targetKey": "Catalog.ВариантыОтветовАнкет",
+      "kind": "subsystemMembership",
+      "cardinality": "0..*",
+      "via": [
+        "content[5]"
+      ]
+    },
+    {
+      "sourceKey": "Subsystem._ДемоАнкетирование",
+      "targetKey": "Catalog.ВопросыШаблонаАнкеты",
+      "kind": "subsystemMembership",
+      "cardinality": "0..*",
+      "via": [
+        "content[6]"
+      ]
+    },
+    {
+      "sourceKey": "Subsystem._ДемоАнкетирование",
+      "targetKey": "Catalog.ШаблоныАнкет",
+      "kind": "subsystemMembership",
+      "cardinality": "0..*",
+      "via": [
+        "content[7]"
+      ]
+    },
+    {
+      "sourceKey": "Subsystem._ДемоАнкетирование",
+      "targetKey": "Document.Анкета",
+      "kind": "subsystemMembership",
+      "cardinality": "0..*",
+      "via": [
+        "content[8]"
+      ]
+    },
+    {
+      "sourceKey": "Subsystem._ДемоАнкетирование",
+      "targetKey": "Document.НазначениеОпросов",
+      "kind": "subsystemMembership",
+      "cardinality": "0..*",
+      "via": [
+        "content[9]"
+      ]
+    },
+    {
+      "sourceKey": "Subsystem._ДемоАнкетирование",
+      "targetKey": "Enum.ТипыВопросовШаблонаАнкеты",
+      "kind": "subsystemMembership",
+      "cardinality": "0..*",
+      "via": [
+        "content[10]"
+      ]
+    },
+    {
+      "sourceKey": "Subsystem._ДемоАнкетирование",
+      "targetKey": "Enum.ТипыТабличныхВопросов",
+      "kind": "subsystemMembership",
+      "cardinality": "0..*",
+      "via": [
+        "content[11]"
+      ]
+    },
+    {
+      "sourceKey": "Subsystem._ДемоАнкетирование",
+      "targetKey": "ChartOfCharacteristicTypes.ВопросыДляАнкетирования",
+      "kind": "subsystemMembership",
+      "cardinality": "0..*",
+      "via": [
+        "content[12]"
+      ]
+    },
+    {
+      "sourceKey": "Subsystem._ДемоАнкетирование",
+      "targetKey": "Role._ДемоЧтениеДанныхДляОтветовНаВопросыАнкет",
+      "kind": "subsystemMembership",
+      "cardinality": "0..*",
+      "via": [
+        "content[13]"
+      ]
+    },
+    {
+      "sourceKey": "Subsystem._ДемоАнкетирование",
+      "targetKey": "Role._ДемоЧтениеДанныхРеспондентов",
+      "kind": "subsystemMembership",
+      "cardinality": "0..*",
+      "via": [
+        "content[14]"
+      ]
+    },
+    {
+      "sourceKey": "Subsystem._ДемоАнкетирование",
+      "targetKey": "FunctionalOption._ДемоИспользоватьАнкетированиеБСП",
+      "kind": "subsystemMembership",
+      "cardinality": "0..*",
+      "via": [
+        "content[15]"
+      ]
+    },
+    {
+      "sourceKey": "Subsystem._ДемоАнкетирование",
+      "targetKey": "CommonCommand._ДемоПанельОтчетовАнкетирование",
+      "kind": "subsystemMembership",
+      "cardinality": "0..*",
+      "via": [
+        "content[16]"
+      ]
+    },
+    {
+      "sourceKey": "Subsystem._ДемоАнкетирование",
+      "targetKey": "CommonPicture._ДемоРазделАнкетирование",
+      "kind": "subsystemMembership",
+      "cardinality": "0..*",
+      "via": [
+        "content[17]"
+      ]
+    },
+    {
+      "sourceKey": "Subsystem._ДемоАнкетирование",
+      "targetKey": "Role.Подсистема_ДемоАнкетирование",
+      "kind": "subsystemMembership",
+      "cardinality": "0..*",
+      "via": [
+        "content[18]"
+      ]
+    },
+    {
+      "sourceKey": "Subsystem._ДемоАнкетирование",
+      "targetKey": "CommonForm._ДемоПримечание",
+      "kind": "subsystemMembership",
+      "cardinality": "0..*",
+      "via": [
+        "content[19]"
+      ]
+    },
+    {
+      "sourceKey": "Subsystem._ДемоАнкетирование",
+      "targetKey": "Subsystem.СозданиеАнкетИОпросов",
+      "kind": "subsystemNesting",
+      "cardinality": "0..*",
+      "via": [
+        "childObjects.subsystem[0]"
+      ]
+    },
+    {
+      "sourceKey": "Subsystem._ДемоАнкетирование",
+      "targetKey": "Subsystem.ХодАнкетированияИАнализ",
+      "kind": "subsystemNesting",
+      "cardinality": "0..*",
+      "via": [
+        "childObjects.subsystem[1]"
+      ]
+    },
+    {
+      "sourceKey": "Subsystem._ДемоАнкетирование",
+      "targetKey": "Subsystem.Респонденты",
+      "kind": "subsystemNesting",
+      "cardinality": "0..*",
+      "via": [
+        "childObjects.subsystem[2]"
+      ]
+    },
+    {
+      "sourceKey": "Role._ДемоЧтениеДанныхДляОтветовНаВопросыАнкет",
+      "targetKey": "CommonForm._ДемоПримечание",
+      "kind": "roleObjectRights",
+      "cardinality": "0..*",
+      "via": [
+        "rights[0]"
+      ]
+    },
+    {
+      "sourceKey": "Role.Подсистема_ДемоАнкетирование",
+      "targetKey": "Subsystem.СозданиеАнкетИОпросов",
+      "kind": "roleObjectRights",
+      "cardinality": "0..*",
+      "via": [
+        "rights[0]"
+      ]
+    },
+    {
+      "sourceKey": "Role.Подсистема_ДемоАнкетирование",
+      "targetKey": "Subsystem.ХодАнкетированияИАнализ",
+      "kind": "roleObjectRights",
+      "cardinality": "0..*",
+      "via": [
+        "rights[1]"
+      ]
+    },
+    {
+      "sourceKey": "Role.Подсистема_ДемоАнкетирование",
+      "targetKey": "CommonCommand._ДемоПанельОтчетовАнкетирование",
+      "kind": "roleObjectRights",
+      "cardinality": "0..*",
+      "via": [
+        "rights[2]"
+      ]
+    },
+    {
+      "sourceKey": "Role.Подсистема_ДемоАнкетирование",
+      "targetKey": "Subsystem.Респонденты",
+      "kind": "roleObjectRights",
+      "cardinality": "0..*",
+      "via": [
+        "rights[3]"
+      ]
+    },
+    {
+      "sourceKey": "Role.Подсистема_ДемоАнкетирование",
+      "targetKey": "Subsystem._ДемоАнкетирование",
+      "kind": "roleObjectRights",
+      "cardinality": "0..*",
+      "via": [
+        "rights[4]"
+      ]
+    },
+    {
+      "sourceKey": "FunctionalOption._ДемоИспользоватьАнкетированиеБСП",
+      "targetKey": "Constant.ИспользоватьАнкетирование",
+      "kind": "functionalOptionLocation",
+      "cardinality": "1..1",
+      "via": [
+        "location"
+      ]
+    },
+    {
+      "sourceKey": "FunctionalOption._ДемоИспользоватьАнкетированиеБСП",
+      "targetKey": "Subsystem._ДемоАнкетирование",
+      "kind": "functionalOptionAffected",
+      "cardinality": "0..*",
+      "via": [
+        "content[0]"
+      ]
+    },
+    {
+      "sourceKey": "Catalog.ВариантыОтветовАнкет",
+      "targetKey": "ChartOfCharacteristicTypes.ВопросыДляАнкетирования",
+      "kind": "catalogOwners",
+      "cardinality": "0..*",
+      "via": [
+        "owners[0]"
+      ]
+    },
+    {
+      "sourceKey": "Catalog.ВопросыШаблонаАнкеты",
+      "targetKey": "Catalog.ШаблоныАнкет",
+      "kind": "catalogOwners",
+      "cardinality": "0..*",
+      "via": [
+        "owners[0]"
+      ]
+    },
+    {
+      "sourceKey": "Catalog.ВопросыШаблонаАнкеты",
+      "targetKey": "Enum.ТипыВопросовШаблонаАнкеты",
+      "kind": "typeComposite",
+      "cardinality": "0..*",
+      "via": [
+        "attributes.ТипВопроса.type[0]"
+      ]
+    },
+    {
+      "sourceKey": "Catalog.ВопросыШаблонаАнкеты",
+      "targetKey": "Enum.ТипыТабличныхВопросов",
+      "kind": "typeComposite",
+      "cardinality": "0..*",
+      "via": [
+        "attributes.ТипТабличногоВопроса.type[0]"
+      ]
+    },
+    {
+      "sourceKey": "Catalog.ВопросыШаблонаАнкеты",
+      "targetKey": "ChartOfCharacteristicTypes.ВопросыДляАнкетирования",
+      "kind": "typeComposite",
+      "cardinality": "0..*",
+      "via": [
+        "attributes.ЭлементарныйВопрос.type[0]",
+        "tabularSections.СоставТабличногоВопроса.attributes.ЭлементарныйВопрос.type[0]",
+        "tabularSections.ПредопределенныеОтветы.attributes.ЭлементарныйВопрос.type[0]",
+        "tabularSections.ПредопределенныеОтветы.attributes.Ответ.typeSet[0]",
+        "tabularSections.СоставКомплексногоВопроса.attributes.ЭлементарныйВопрос.type[0]"
+      ]
+    },
+    {
+      "sourceKey": "Document.Анкета",
+      "targetKey": "Document.НазначениеОпросов",
+      "kind": "typeComposite",
+      "cardinality": "0..*",
+      "via": [
+        "attributes.Опрос.type[0]"
+      ]
+    },
+    {
+      "sourceKey": "Document.Анкета",
+      "targetKey": "Catalog.ВопросыШаблонаАнкеты",
+      "kind": "typeComposite",
+      "cardinality": "0..*",
+      "via": [
+        "attributes.РедактируемыйРаздел.type[0]",
+        "tabularSections.Состав.attributes.Вопрос.type[0]"
+      ]
+    },
+    {
+      "sourceKey": "Document.Анкета",
+      "targetKey": "Catalog.ШаблоныАнкет",
+      "kind": "typeComposite",
+      "cardinality": "0..*",
+      "via": [
+        "attributes.ШаблонАнкеты.type[0]"
+      ]
+    },
+    {
+      "sourceKey": "Document.Анкета",
+      "targetKey": "ChartOfCharacteristicTypes.ВопросыДляАнкетирования",
+      "kind": "typeComposite",
+      "cardinality": "0..*",
+      "via": [
+        "tabularSections.Состав.attributes.ЭлементарныйВопрос.type[0]",
+        "tabularSections.Состав.attributes.Ответ.typeSet[0]"
+      ]
+    },
+    {
+      "sourceKey": "Document.НазначениеОпросов",
+      "targetKey": "Catalog.ШаблоныАнкет",
+      "kind": "typeComposite",
+      "cardinality": "0..*",
+      "via": [
+        "attributes.ШаблонАнкеты.type[0]"
+      ]
+    },
+    {
+      "sourceKey": "ChartOfCharacteristicTypes.ВопросыДляАнкетирования",
+      "targetKey": "Catalog.ВариантыОтветовАнкет",
+      "kind": "valueType",
+      "cardinality": "0..*",
+      "via": [
+        "type[7]"
+      ]
+    },
+    {
+      "sourceKey": "Subsystem.СозданиеАнкетИОпросов",
+      "targetKey": "Catalog.ШаблоныАнкет",
+      "kind": "subsystemMembership",
+      "cardinality": "0..*",
+      "via": [
+        "content[0]"
+      ]
+    },
+    {
+      "sourceKey": "Subsystem.СозданиеАнкетИОпросов",
+      "targetKey": "ChartOfCharacteristicTypes.ВопросыДляАнкетирования",
+      "kind": "subsystemMembership",
+      "cardinality": "0..*",
+      "via": [
+        "content[1]"
+      ]
+    },
+    {
+      "sourceKey": "Subsystem.СозданиеАнкетИОпросов",
+      "targetKey": "Catalog.ВариантыОтветовАнкет",
+      "kind": "subsystemMembership",
+      "cardinality": "0..*",
+      "via": [
+        "content[3]"
+      ]
+    },
+    {
+      "sourceKey": "Subsystem.СозданиеАнкетИОпросов",
+      "targetKey": "Catalog.ВопросыШаблонаАнкеты",
+      "kind": "subsystemMembership",
+      "cardinality": "0..*",
+      "via": [
+        "content[4]"
+      ]
+    },
+    {
+      "sourceKey": "Subsystem.СозданиеАнкетИОпросов",
+      "targetKey": "Document.НазначениеОпросов",
+      "kind": "subsystemMembership",
+      "cardinality": "0..*",
+      "via": [
+        "content[5]"
+      ]
+    },
+    {
+      "sourceKey": "Subsystem.ХодАнкетированияИАнализ",
+      "targetKey": "Document.Анкета",
+      "kind": "subsystemMembership",
+      "cardinality": "0..*",
+      "via": [
+        "content[1]"
+      ]
+    }
+  ]
+}
