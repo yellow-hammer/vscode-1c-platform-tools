@@ -7,7 +7,7 @@ import * as vscode from 'vscode';
 import { expandHomePath } from './pathUtils';
 import { sortProjects } from './sorter';
 import { UNTAGGED_LABEL } from './constants';
-import { ProjectStorage } from './storage';
+import { type FavoriteEntry, ProjectStorage } from './storage';
 import { ProjectsStack } from './stack';
 import { NoTagNode, ProjectNode, TagNode } from './nodes';
 
@@ -80,23 +80,8 @@ export class StorageProvider implements vscode.TreeDataProvider<ProjectNode | Ta
 
 	async getChildren(element?: ProjectNode | TagNode): Promise<(ProjectNode | TagNode)[]> {
 		if (element) {
-			const entries = this.store.byTag(element.label as string);
-			const sorted = sortProjects(entries);
-			const dupes = collectDuplicateLabels(sorted.map((e) => e.label));
-			return sorted.map((e) => {
-				const fullPath = expandHomePath(e.description);
-				const proj = this.store.getByName(e.label);
-				return new ProjectNode(e.label, vscode.TreeItemCollapsibleState.None, 'favorites', {
-					name: e.label,
-					path: fullPath,
-					detail: dupes.has(e.label.toLowerCase()) ? path.basename(path.dirname(fullPath)) : undefined,
-					tags: proj?.tags,
-				}, {
-					command: '1c-platform-tools.projects._open',
-					title: '',
-					arguments: [fullPath, e.label],
-				});
-			});
+			const tag = element instanceof NoTagNode ? '' : element.label as string;
+			return this.createProjectNodes(this.store.byTag(tag));
 		}
 
 		if (this.store.count() === 0) {return [];}
@@ -106,40 +91,50 @@ export class StorageProvider implements vscode.TreeDataProvider<ProjectNode | Ta
 		const collapseMode = cfg.get<string>('projects.tags.collapseItems', 'startExpanded');
 
 		if (!showAsList) {
-			const tags = this.store.allTags();
-			const untaggedCount = this.store.byTag('').length;
-			if (tags.length === 0 && untaggedCount === 0) {
-				/* без тегов — ниже возвращается плоский список */
-			} else {
-				const tagNodes: TagNode[] = tags.map(
-					(t) => new TagNode(t, StorageProvider.getTagCollapsibleState(this.context, t, collapseMode))
-				);
-				if (untaggedCount > 0) {
-					tagNodes.push(
-						new NoTagNode(
-							UNTAGGED_LABEL,
-							StorageProvider.getTagCollapsibleState(this.context, UNTAGGED_LABEL, collapseMode)
-						)
-					);
-				}
-				const filterTags = this.context.globalState.get<string[]>('1c-platform-tools.projects.filterByTags', []);
-				if (filterTags.length > 0) {
-					return tagNodes.filter((n) =>
-						n instanceof NoTagNode ? filterTags.includes(UNTAGGED_LABEL) : filterTags.includes(n.label as string)
-					);
-				}
-				return tagNodes;
-			}
+			const tagNodes = this.createTagNodes(collapseMode);
+			if (tagNodes) {return tagNodes;}
 		}
 
 		const filterTags = this.context.globalState.get<string[]>('1c-platform-tools.projects.filterByTags', []);
 		const entries = filterTags.length > 0 ? this.store.byTags(filterTags) : this.store.entries();
+		return this.createProjectNodes(entries);
+	}
+
+	private createTagNodes(collapseMode: string): TagNode[] | undefined {
+		const tags = this.store.allTags();
+		const untaggedCount = this.store.byTag('').length;
+		if (tags.length === 0 && untaggedCount === 0) {
+			return undefined;
+		}
+
+		const tagNodes: TagNode[] = tags.map(
+			(t) => new TagNode(t, StorageProvider.getTagCollapsibleState(this.context, t, collapseMode))
+		);
+		if (untaggedCount > 0) {
+			tagNodes.push(
+				new NoTagNode(
+					UNTAGGED_LABEL,
+					StorageProvider.getTagCollapsibleState(this.context, UNTAGGED_LABEL, collapseMode)
+				)
+			);
+		}
+
+		const filterTags = this.context.globalState.get<string[]>('1c-platform-tools.projects.filterByTags', []);
+		if (filterTags.length === 0) {
+			return tagNodes;
+		}
+		return tagNodes.filter((n) =>
+			n instanceof NoTagNode ? filterTags.includes(UNTAGGED_LABEL) : filterTags.includes(n.label as string)
+		);
+	}
+
+	private createProjectNodes(entries: FavoriteEntry[]): ProjectNode[] {
 		const sorted = sortProjects(entries);
 		const dupes = collectDuplicateLabels(sorted.map((e) => e.label));
 		return sorted.map((e) => {
 			const fullPath = expandHomePath(e.description);
 			const proj = this.store.getByName(e.label);
-			return new ProjectNode(e.label, vscode.TreeItemCollapsibleState.None, 'favorites', {
+			return new ProjectNode(e.label, vscode.TreeItemCollapsibleState.None, {
 				name: e.label,
 				path: fullPath,
 				detail: dupes.has(e.label.toLowerCase()) ? path.basename(path.dirname(fullPath)) : undefined,

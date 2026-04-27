@@ -17,7 +17,6 @@ export class ProjectNode extends TreeItem {
 	constructor(
 		label: string,
 		collapsibleState: TreeItemCollapsibleState,
-		_icon: string | undefined,
 		preview: ProjectPreview,
 		command?: Command
 	) {
@@ -47,9 +46,4 @@ export class TagNode extends TreeItem {
 	}
 }
 
-export class NoTagNode extends TagNode {
-	constructor(label: string, collapsibleState: TreeItemCollapsibleState) {
-		super('', collapsibleState);
-		this.description = label;
-	}
-}
+export class NoTagNode extends TagNode {}

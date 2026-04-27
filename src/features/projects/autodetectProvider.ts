@@ -55,7 +55,7 @@ export class AutodetectProvider implements vscode.TreeDataProvider<ProjectNode> 
 		const duplicateNames = getDuplicateLabels(sorted.map((p) => p.label));
 		return sorted.map(
 			(prj) =>
-				new ProjectNode(prj.label, vscode.TreeItemCollapsibleState.None, 'folder', {
+				new ProjectNode(prj.label, vscode.TreeItemCollapsibleState.None, {
 					name: prj.label,
 					path: prj.description,
 					detail: duplicateNames.has(prj.label.toLowerCase())
