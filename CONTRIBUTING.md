@@ -1,180 +1,204 @@
 # Руководство для контрибьютеров
 
-Спасибо за интерес к проекту **1C: Platform tools**! Мы рады любому вкладу в развитие расширения.
+Спасибо за интерес к **1C: Platform Tools**. Проект развивается как расширение VS Code для повседневной разработки 1С: команды vanessa-runner, панели проектов и артефактов, дерево метаданных, TODO, отладка и интеграция с AI/MCP.
 
-## Способы внести вклад
+## Как помочь
 
-Есть несколько способов помочь проекту:
+- Сообщить об ошибке через [bug report](.github/ISSUE_TEMPLATE/bug_report.md).
+- Предложить функцию через [feature request](.github/ISSUE_TEMPLATE/feature_request.md).
+- Улучшить README, walkthrough, `docs/` или тексты навыков в `resources/skills/`.
+- Исправить баг, добавить тесты или улучшить существующую фичу.
+- Помочь проверить работу на разных версиях платформы 1С, ОС и сценариях запуска.
 
-- 🐛 **Сообщить об ошибке** — используйте [шаблон для багов](.github/ISSUE_TEMPLATE/bug_report.md)
-- ✨ **Предложить функцию** — используйте [шаблон для предложений](.github/ISSUE_TEMPLATE/feature_request.md)
-- 💬 **Задать вопрос** — используйте [шаблон для вопросов](.github/ISSUE_TEMPLATE/custom.md) или [обсуждения](https://github.com/yellow-hammer/vscode-1c-platform-tools/discussions)
-- 📝 **Улучшить документацию** — исправьте опечатки, добавьте примеры, улучшите описания
-- 💻 **Написать код** — исправьте баги, добавьте функции, улучшите существующий код
-- 🧪 **Написать тесты** — добавьте тесты для новых или существующих функций
+Проблемы безопасности отправляйте по правилам из [SECURITY.md](SECURITY.md), не через публичные Issues.
 
-## Процесс разработки
+## Подготовка окружения
 
-### Подготовка окружения
+1. Сделайте fork репозитория.
+2. Клонируйте fork:
 
-1. **Fork репозитория** на GitHub
-2. **Клонируйте ваш fork**:
+```bash
+git clone https://github.com/<ваш-username>/vscode-1c-platform-tools.git
+cd vscode-1c-platform-tools
+```
 
-   ```bash
-   git clone https://github.com/ваш-username/vscode-1c-platform-tools.git
-   cd vscode-1c-platform-tools
-   ```
+1. Установите зависимости:
 
-3. **Установите зависимости**:
+```bash
+npm install
+```
 
-   ```bash
-   npm install
-   ```
+1. Создайте ветку:
 
-4. **Создайте ветку** для ваших изменений:
+```bash
+git checkout -b feature/short-description
+```
 
-   ```bash
-   git checkout -b feature/название-функции
-   # или
-   git checkout -b fix/описание-бага
-   ```
+## Требования
 
-### Требования
+- Node.js `20.x` или новее.
+- npm.
+- VS Code `1.103.0` или новее.
+- Git.
+- Для ручной проверки команд 1С: платформа 1С:Предприятие, OneScript, OPM и vanessa-runner.
+- Для DAP-отладки и сборки адаптера: [.NET 8](https://dotnet.microsoft.com/download/dotnet/8.0).
 
-- **Node.js** версии 20.x или выше (соответствует `package.json` engines)
-- **npm** или **yarn**
-- **VS Code** версии 1.103 или выше (для тестирования)
-- Для работы и отладки DAP: установленный [.NET 8 SDK](https://dotnet.microsoft.com/download/dotnet/8.0)
-- **TypeScript** (устанавливается автоматически)
-- **Git** для работы с репозиторием
+## Основные команды
 
-### Разработка
+```bash
+npm run compile
+npm run watch
+npm run lint
+npm test
+npm run package
+```
 
-1. **Внесите изменения** в код
-2. **Проверьте код линтером**:
+- `npm run compile` собирает расширение через esbuild.
+- `npm run watch` запускает сборку в watch-режиме.
+- `npm run lint` проверяет `src` через ESLint.
+- `npm test` запускает VS Code extension tests; перед тестами выполняются `compile` и `lint`.
+- `npm run package` собирает VSIX.
+- `npm run build:onec-adapter` скачивает или собирает `onec-debug-adapter`.
 
-   ```bash
-   npm run lint
-   ```
+## Ручная проверка
 
-3. **Скомпилируйте проект**:
+1. Откройте репозиторий в VS Code.
+2. Нажмите `F5`, чтобы запустить Extension Development Host.
+3. В новом окне откройте проект 1С с `packagedef` или выполните **1C: Зависимости: Инициализировать проект**.
+4. Проверьте затронутую область: дерево **Инструменты 1С**, панели **Проекты 1С**, **Артефакты 1С**, **Метаданные 1С**, **Список дел**, DAP или AI/MCP.
+5. Если менялись пользовательские тексты, проверьте их в интерфейсе на русском языке.
 
-   ```bash
-   npm run compile
-   ```
+## Архитектура проекта
 
-4. **Запустите тесты** (если есть):
-
-   ```bash
-   npm test
-   ```
-
-5. **Протестируйте вручную**:
-   - Откройте проект в VS Code
-   - Нажмите `F5` для запуска Extension Development Host
-   - В новом окне VS Code протестируйте ваши изменения
-
-### Работа с адаптером отладки (onec-debug-adapter)
-
-Расширение использует внешний DAP‑процесс из репозитория
-[`yellow-hammer/onec-debug-adapter`](https://github.com/yellow-hammer/onec-debug-adapter).
-
-- Для **обычной разработки расширения** ничего дополнительно делать не нужно:
-  при сборке VSIX через `npm run build:onec-adapter` будет скачан готовый релиз адаптера
-  с GitHub Releases или выполнена локальная сборка из соседнего репозитория `onec-debug-adapter`
-  (если релиз недоступен).
-- Для **разработки самого адаптера** и тестирования его вместе с расширением:
-  1. Клонируйте `onec-debug-adapter` рядом с этим репозиторием (как `../onec-debug-adapter`).
-  2. Внесите изменения в код адаптера.
-  3. Соберите его вручную:
-
-     ```bash
-     cd ../onec-debug-adapter
-     dotnet publish onec-debug-adapter.csproj -c Release -o ../vscode-1c-platform-tools/bin/onec-debug-adapter
-     ```
-
-  4. Вернитесь в `vscode-1c-platform-tools`, соберите и запустите расширение (`npm run compile`, затем `F5`).
-
-Мейнтейнеры публикуют релизы адаптера, помечая версии тегами `vX.Y.Z` в репозитории `onec-debug-adapter`.
-Скрипт `scripts/build-onec-adapter.mjs` загружает соответствующий архив релиза и раскладывает его
-в `bin/onec-debug-adapter/` при сборке расширения.
-
-### Структура проекта
+Ключевые точки входа:
 
 ```txt
-vscode-1c-platform-tools/
-├── src/
-│   ├── extension.ts          # Точка входа, регистрация команд и TreeView
-│   ├── treeViewProvider.ts   # Провайдер дерева команд (в т.ч. динамические узлы)
-│   ├── treeStructure.ts      # TREE_GROUPS — единый источник дерева и избранного
-│   ├── favorites.ts          # Избранное (globalState)
-│   ├── vrunnerManager.ts     # Менеджер vrunner (синглтон)
-│   ├── commandNames.ts       # Названия команд (get*CommandName)
-│   ├── projectStructure.ts   # PROJECT_STRUCTURE для «Инициализировать структуру проекта»
-│   ├── projectContext.ts    # Колбэк после создания packagedef
-│   ├── logger.ts, constants.ts
-│   ├── commands/
-│   │   ├── commandRegistry.ts  # registerCommands()
-│   │   ├── baseCommand.ts
-│   │   ├── infobaseCommands.ts
-│   │   ├── configurationCommands.ts
-│   │   └── ...
-│   └── utils/                # commandUtils, configVersionUtils, dateUtils
-├── resources/                # Иконки, шаблоны (packagedef.template)
-├── src/test/                 # Тесты
-└── out/                      # Скомпилированный код (генерируется)
+src/
+├── extension.ts                 # re-export точки входа
+├── app/
+│   ├── activate.ts              # активация расширения
+│   ├── bootstrapApp.ts          # сборка приложения
+│   ├── register*Flow.ts         # подключение крупных фич
+│   └── projectLifecycle.ts      # контекст проекта 1С
+├── commands/
+│   ├── baseCommand.ts           # базовый класс команд
+│   ├── commandRegistry.ts       # регистрация core-команд
+│   └── *Commands.ts             # доменные команды vrunner и сервиса
+├── features/
+│   ├── tools/                   # дерево «Инструменты 1С», избранное, помощь
+│   ├── projects/                # панель «Проекты 1С»
+│   ├── artifacts/               # панель «Артефакты 1С»
+│   ├── metadata/                # md-sparrow, дерево метаданных, ER
+│   ├── todo/                    # TODO-панель и сканер
+│   └── debug/                   # DAP-интеграция
+├── shared/                      # инфраструктура, vrunner, IPC, логирование
+├── utils/                       # общие утилиты
+├── webviews/                    # webview-код
+└── test/                        # тесты
 ```
+
+Полезные файлы:
+
+- `src/features/tools/treeStructure.ts` — единый источник групп дерева **Инструменты 1С** и команд избранного.
+- `src/features/tools/commandNames.ts` — пользовательские названия команд.
+- `src/shared/vrunnerManager.ts` — запуск vanessa-runner.
+- `src/shared/projectStructure.ts` — структура проекта для команды инициализации.
+- `src/shared/logger.ts` — логирование в Output.
+- `package.json` — contribution points VS Code: команды, панели, настройки, walkthrough.
+- `resources/skills/` — навыки для AI-агентов.
+- `walkthrough/` — страницы onboarding в VS Code.
 
 ## Стандарты кода
 
-- Используйте **TypeScript strict mode**, избегайте `any`
-- Используйте типы из `@types/vscode` для VS Code API
-- Следуйте стилю кода проекта (см. `.cursor/rules/` и документацию в `docs/`)
-- Команды организованы по **доменам** в `src/commands/`
-- Используйте `VRunnerManager.getInstance()` для работы с vrunner
-- Всегда проверяйте `vscode.workspace.workspaceFolders` перед работой с файлами
-- Комментарии и сообщения пользователю на русском языке
+- Пишите на TypeScript и избегайте `any`.
+- Используйте типы из `@types/vscode`.
+- Импорты держите в начале файла.
+- Для VS Code API ориентируйтесь на существующие паттерны в проекте и `docs/vscode-api.md`.
+- Для команд vrunner используйте `BaseCommand` и `VRunnerManager`, подробности в `docs/vrunner-patterns.md`.
+- Не используйте `console.log`/`console.error` в production-коде; используйте `logger`.
+- Комментарии в коде и сообщения пользователю пишите на русском.
+- UI-тексты должны быть короткими и полезными: без внутренних терминов, планов реализации и длинных пояснений.
+- Не добавляйте legacy/fallback-совместимость без явной необходимости.
+- XML метаданных не правьте вручную из TypeScript; операции с метаданными должны идти через md-sparrow.
 
-## Соглашение о коммитах
+## Работа с командами и настройками
 
-Мы используем [Conventional Commits](https://www.conventionalcommits.org/ru/v1.0.0/). Используйте понятные сообщения коммитов, например: `feat(commands): добавить команду для сборки расширений` или `fix(vrunner): исправить обработку ошибок`.
-
-## Pull Request
-
-1. Убедитесь, что код компилируется, линтер не выдает ошибок, тесты проходят
-2. Обновите документацию при необходимости
-3. Создайте коммиты с понятными сообщениями
-4. Отправьте изменения и создайте Pull Request на GitHub
-5. Опишите изменения, укажите связанные issues
-
-Мейнтейнеры проверят PR и могут запросить изменения.
+- Новые команды добавляйте в `package.json`, `src/features/tools/commandNames.ts` и нужный доменный модуль.
+- Если команда должна быть в дереве **Инструменты 1С**, добавьте её в `TREE_GROUPS`.
+- Для новых панелей добавляйте view/container в `package.json`, runtime-регистрацию в соответствующей feature-папке и flow в `src/app`.
+- Кнопка **Настройки** в панели должна открывать релевантный раздел настроек.
+- Все настройки расширения должны открываться с фильтром `@ext:yellow-hammer.1c-platform-tools`.
 
 ## Тестирование
 
-Запустите тесты: `npm test`
+Минимум перед PR:
 
-Для ручного тестирования нажмите `F5` в VS Code для запуска Extension Development Host и протестируйте изменения в новом окне.
+```bash
+npm run lint
+npm run compile
+npm test
+```
+
+Если менялась конкретная пользовательская фича, добавьте или обновите тесты в `src/test/`, когда это разумно. Для изменений в UI или интеграциях обязательно опишите ручную проверку в PR.
+
+## Отладчик 1С
+
+Расширение использует внешний DAP-процесс из репозитория [yellow-hammer/onec-debug-adapter](https://github.com/yellow-hammer/onec-debug-adapter).
+
+Для обычной разработки расширения отдельная настройка адаптера не нужна: при сборке VSIX `npm run build:onec-adapter` скачает релиз адаптера с GitHub Releases или соберёт соседний репозиторий `../onec-debug-adapter`, если релиз недоступен.
+
+Для разработки адаптера рядом с расширением:
+
+```bash
+cd ..
+git clone https://github.com/yellow-hammer/onec-debug-adapter.git
+cd onec-debug-adapter
+dotnet publish onec-debug-adapter.csproj -c Release -o ../vscode-1c-platform-tools/bin/onec-debug-adapter
+```
+
+После этого вернитесь в репозиторий расширения, выполните `npm run compile` и запустите Extension Development Host.
 
 ## Документация
 
-Обновляйте README.md и комментарии в коде при добавлении новых функций. CHANGELOG.md обновляется автоматически при релизе.
+Обновляйте документацию вместе с изменением поведения:
+
+- `README.md` — пользовательский обзор и быстрый старт.
+- `CONTRIBUTING.md` — правила разработки.
+- `docs/` — подробные технические материалы.
+- `walkthrough/` — onboarding внутри VS Code.
+- `resources/skills/` — инструкции для AI-агентов.
+
+`CHANGELOG.md` формируется релизным процессом, вручную его обычно менять не нужно.
+
+## Коммиты и Pull Request
+
+Используйте [Conventional Commits](https://www.conventionalcommits.org/ru/v1.0.0/) на русском языке:
+
+```txt
+feat(metadata): добавить фильтр по подсистемам
+fix(projects): исправить открытие проекта из пустого окна
+docs(readme): обновить описание панелей
+```
+
+Перед PR:
+
+1. Проверьте, что изменения сфокусированы на одной задаче.
+2. Запустите `npm run lint`, `npm run compile` и `npm test`.
+3. Обновите документацию, walkthrough или навыки, если менялось пользовательское поведение.
+4. Заполните шаблон PR: что изменилось, как проверено, какие issues связаны.
+
+Мейнтейнеры могут попросить доработки или дополнительные проверки.
 
 ## Вопросы и помощь
 
-Если у вас есть вопросы:
-
-- 💬 Создайте [обсуждение](https://github.com/yellow-hammer/vscode-1c-platform-tools/discussions)
-- 🐛 Создайте [issue](https://github.com/yellow-hammer/vscode-1c-platform-tools/issues)
-- 📧 Свяжитесь с мейнтейнерами: [i.karlo@outlook.com](mailto:i.karlo@outlook.com)
+- [Discussions](https://github.com/yellow-hammer/vscode-1c-platform-tools/discussions)
+- [Issues](https://github.com/yellow-hammer/vscode-1c-platform-tools/issues)
+- Email: [i.karlo@outlook.com](mailto:i.karlo@outlook.com)
 
 ## Код поведения
 
-Мы придерживаемся принципов открытости и уважения. Будьте вежливы и конструктивны в общении.
+Будьте вежливы, конструктивны и уважайте время других участников. Критика должна помогать улучшить проект.
 
 ## Лицензия
 
-Внося вклад в проект, вы соглашаетесь с тем, что ваш вклад будет лицензирован под [MIT License](LICENSE).
-
----
-
-Спасибо за ваш вклад! 🎉
+Внося вклад в проект, вы соглашаетесь с тем, что ваш вклад распространяется по [MIT License](LICENSE).
