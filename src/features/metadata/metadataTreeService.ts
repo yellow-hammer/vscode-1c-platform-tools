@@ -56,7 +56,6 @@ export async function loadProjectMetadataTree(
 	projectRoot: string
 ): Promise<ProjectMetadataTreeDto> {
 	const abs = path.normalize(path.resolve(projectRoot));
-	const runtime = await ensureMdSparrowRuntime(context);
 	const res = await runProjectMetadataTreeWithRepair(context, abs);
 	
 	if (res.exitCode !== 0) {
@@ -81,8 +80,7 @@ export async function loadProjectMetadataTree(
 }
 
 async function runProjectMetadataTreeWithRepair(context: vscode.ExtensionContext, abs: string) {
-	const runtime = await ensureMdSparrowRuntime(context);
-	const initialRes = await runMdSparrow(runtime, ['project-metadata-tree', abs], {
+	const initialRes = await runMdSparrow(await ensureMdSparrowRuntime(context), ['project-metadata-tree', abs], {
 		cwd: abs,
 	});
 	if (initialRes.exitCode !== 0 && shouldRepairJarAndRetry(initialRes.stderr, initialRes.stdout)) {

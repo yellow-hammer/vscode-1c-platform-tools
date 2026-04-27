@@ -2,7 +2,6 @@
  * Узлы дерева проектов.
  */
 
-import * as path from 'node:path';
 import type { Command } from 'vscode';
 import { MarkdownString, ThemeIcon, TreeItem, TreeItemCollapsibleState, Uri } from 'vscode';
 import { VIEW_SCHEME } from './decoration';
