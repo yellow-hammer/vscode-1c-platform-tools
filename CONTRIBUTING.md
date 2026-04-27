@@ -12,28 +12,6 @@
 
 Проблемы безопасности отправляйте по правилам из [SECURITY.md](SECURITY.md), не через публичные Issues.
 
-## Подготовка окружения
-
-1. Сделайте fork репозитория.
-2. Клонируйте fork:
-
-```bash
-git clone https://github.com/<ваш-username>/vscode-1c-platform-tools.git
-cd vscode-1c-platform-tools
-```
-
-1. Установите зависимости:
-
-```bash
-npm install
-```
-
-1. Создайте ветку:
-
-```bash
-git checkout -b feature/short-description
-```
-
 ## Требования
 
 - Node.js `20.x` или новее.
@@ -44,14 +22,6 @@ git checkout -b feature/short-description
 - Для DAP-отладки и сборки адаптера: [.NET 8](https://dotnet.microsoft.com/download/dotnet/8.0).
 
 ## Основные команды
-
-```bash
-npm run compile
-npm run watch
-npm run lint
-npm test
-npm run package
-```
 
 - `npm run compile` собирает расширение через esbuild.
 - `npm run watch` запускает сборку в watch-режиме.

@@ -22,6 +22,7 @@ import {
 } from './mdSparrowConstants';
 
 const execFileAsync = promisify(execFile);
+const NO_INDENTATION = 0;
 
 export interface MdSparrowRuntime {
 	/** Полный путь к исполняемому java */
@@ -285,7 +286,7 @@ async function ensureJar(
 
 		await fs.writeFile(
 			stampPath,
-			JSON.stringify({ tag: rel.tag_name, jarPath }, undefined, 0),
+			JSON.stringify({ tag: rel.tag_name, jarPath }, undefined, NO_INDENTATION),
 			'utf8'
 		);
 		logger.info(`md-sparrow JAR: ${jarPath} (${rel.tag_name})`);

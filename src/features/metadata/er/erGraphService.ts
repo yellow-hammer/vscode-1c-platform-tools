@@ -19,7 +19,7 @@ import { isMdSparrowUnknownCommandError, MdSparrowOutdatedError } from '../mdSpa
 import { runMdSparrow } from '../mdSparrowRunner';
 import type { ErGraph, ErNode, ErEdge } from './erTypes';
 
-/** Версия формата кэша. Менять при несовместимых изменениях контракта. */
+/** Cache format version. Increment when introducing incompatible contract changes. */
 const CACHE_FORMAT_VERSION = 1;
 
 interface CacheEntryDto {
