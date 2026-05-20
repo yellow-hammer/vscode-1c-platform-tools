@@ -1,8 +1,9 @@
 import * as path from 'node:path';
 import * as vscode from 'vscode';
 import * as fs from 'node:fs/promises';
-import { VRunnerManager } from '../shared/vrunnerManager';
+import { VRunnerManager, type VRunnerExecutionResult } from '../shared/vrunnerManager';
 import { logger } from '../shared/logger';
+import type { CommandExecutionOptions, StructuredCommandResult } from '../shared/commandExecutionTypes';
 
 /**
  * Базовый класс для всех команд
@@ -203,5 +204,175 @@ export abstract class BaseCommand {
 			args.push('--ibcmd');
 		}
 		return args;
+	}
+
+	/**
+	 * Структурированная ошибка для режима wait: true (без UI-диалогов).
+	 */
+	protected executionError(message: string): StructuredCommandResult {
+		return {
+			success: false,
+			exitCode: -1,
+			stdout: '',
+			stderr: message,
+		};
+	}
+
+	/**
+	 * Корень проекта для выполнения: projectPath из MCP или workspace.
+	 */
+	protected getExecutionCwd(opts?: CommandExecutionOptions): string | undefined {
+		const fromOpts = opts?.projectPath?.trim();
+		if (fromOpts) {
+			return path.resolve(fromOpts);
+		}
+		return this.vrunner.getWorkspaceRoot();
+	}
+
+	/**
+	 * При wait: true возвращает ошибку вместо интерактивного шага; иначе undefined — продолжать.
+	 */
+	protected rejectIfWait(
+		opts: CommandExecutionOptions | undefined,
+		message: string
+	): StructuredCommandResult | undefined {
+		if (opts?.wait === true) {
+			return this.executionError(message);
+		}
+		return undefined;
+	}
+
+	/**
+	 * Проверка OneScript: в UI — с предложением установки; при wait — только проверка.
+	 */
+	protected async ensureOscriptForExecution(opts?: CommandExecutionOptions): Promise<boolean> {
+		if (opts?.wait === true) {
+			const oscriptOk = await this.vrunner.checkOscriptAvailable();
+			const opmOk = await this.vrunner.checkOpmAvailable();
+			return oscriptOk && opmOk;
+		}
+		return this.ensureOscriptAvailable();
+	}
+
+	/**
+	 * Создаёт каталог: в UI — с сообщением об ошибке; при wait — без диалогов.
+	 */
+	protected async ensureDirectoryForExecution(
+		dirPath: string,
+		opts?: CommandExecutionOptions,
+		errorMessage?: string
+	): Promise<boolean> {
+		if (opts?.wait === true) {
+			try {
+				await fs.mkdir(dirPath, { recursive: true });
+				const stats = await fs.stat(dirPath);
+				return stats.isDirectory();
+			} catch (error) {
+				logger.error(
+					`${errorMessage ?? 'Каталог'}: ${(error as Error).message}`
+				);
+				return false;
+			}
+		}
+		return this.ensureDirectoryExists(dirPath, errorMessage);
+	}
+
+	protected vrunnerResultToStructured(
+		result: VRunnerExecutionResult,
+		artifact?: string
+	): StructuredCommandResult {
+		return {
+			success: result.success,
+			exitCode: result.exitCode,
+			stdout: result.stdout,
+			stderr: result.stderr,
+			artifact,
+		};
+	}
+
+	/**
+	 * Универсальный запуск vrunner с поддержкой режимов wait: false (терминал) и wait: true (sync).
+	 */
+	protected async runVRunner(
+		args: string[],
+		opts: CommandExecutionOptions | undefined,
+		terminalName: string,
+		artifact?: string
+	): Promise<StructuredCommandResult | void> {
+		const cwd = this.getExecutionCwd(opts);
+		if (!cwd) {
+			if (opts?.wait === true) {
+				return this.executionError(
+					'Укажите projectPath или откройте рабочую область с проектом 1С'
+				);
+			}
+			this.ensureWorkspace();
+			return;
+		}
+		if (!(await this.ensureOscriptForExecution(opts))) {
+			if (opts?.wait === true) {
+				return this.executionError('OneScript (oscript) или opm не найдены');
+			}
+			return;
+		}
+
+		if (opts?.wait === true) {
+			const result = await this.vrunner.executeVRunner(args, { cwd });
+			return this.vrunnerResultToStructured(result, artifact);
+		}
+
+		this.vrunner.executeVRunnerInTerminal(args, {
+			cwd,
+			name: terminalName,
+		});
+	}
+
+	/**
+	 * Несколько вызовов vrunner подряд (например по одному на каждое расширение).
+	 * При wait: true останавливается на первой неуспешной команде.
+	 */
+	protected async runVRunnerSequential(
+		argsList: string[][],
+		opts: CommandExecutionOptions | undefined,
+		terminalName: string
+	): Promise<StructuredCommandResult | void> {
+		const cwd = this.getExecutionCwd(opts);
+		if (!cwd) {
+			if (opts?.wait === true) {
+				return this.executionError(
+					'Укажите projectPath или откройте рабочую область с проектом 1С'
+				);
+			}
+			this.ensureWorkspace();
+			return;
+		}
+		if (!(await this.ensureOscriptForExecution(opts))) {
+			if (opts?.wait === true) {
+				return this.executionError('OneScript (oscript) или opm не найдены');
+			}
+			return;
+		}
+
+		if (opts?.wait === true) {
+			let stdout = '';
+			let stderr = '';
+			let exitCode = 0;
+			let success = true;
+			for (const args of argsList) {
+				const result = await this.vrunner.executeVRunner(args, { cwd });
+				stdout += result.stdout;
+				stderr += result.stderr;
+				exitCode = result.exitCode;
+				if (!result.success) {
+					success = false;
+					break;
+				}
+			}
+			return { success, exitCode, stdout, stderr };
+		}
+
+		for (const args of argsList) {
+			this.vrunner.executeVRunnerInTerminal(args, { cwd, name: terminalName });
+		}
 	}
 }

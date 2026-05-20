@@ -3,6 +3,8 @@ import * as crypto from 'node:crypto';
 import * as path from 'node:path';
 import * as vscode from 'vscode';
 import { logger } from './logger';
+import type { VRunnerExecutionResult } from './vrunnerManager';
+import type { CommandExecutionOptions, StructuredCommandResult } from './commandExecutionTypes';
 
 interface IpcRequest {
 	id: unknown;
@@ -32,6 +34,17 @@ interface IpcServerConfig {
 	host: string;
 	port: number;
 	token: string | null;
+}
+
+/**
+ * Расширенный StructuredCommandResult с метаданными выполнения, которые
+ * добавляет ipcServer (длительность, временные метки). Сама команда возвращает
+ * базовый StructuredCommandResult; ipcServer добавляет durationMs и временные метки.
+ */
+interface StructuredCommandResultWithTiming extends StructuredCommandResult {
+	startedAt: string;
+	finishedAt: string;
+	durationMs: number;
 }
 
 function readConfig(): IpcServerConfig {
@@ -86,6 +99,48 @@ function isProjectPathInWorkspace(
 	});
 }
 
+/**
+ * Извлекает флаги IPC из первого элемента массива args.
+ * Если первый элемент является объектом с полями-флагами, возвращает их.
+ * Иначе возвращает пустой объект.
+ *
+ * @param args — массив аргументов команды
+ * @returns объект с флагами выполнения
+ */
+function extractCommandFlags(args: unknown[]): CommandExecutionOptions {
+	if (args.length === 0) {
+		return {};
+	}
+	const first = args[0];
+	if (typeof first === 'object' && first !== null && !Array.isArray(first)) {
+		return first as CommandExecutionOptions;
+	}
+	return {};
+}
+
+/**
+ * Определяет, поддерживает ли команда синхронный режим выполнения.
+ * UI-команды (открытие окон, навигация, просмотр) не поддерживают wait.
+ *
+ * @param commandId — идентификатор команды расширения
+ * @returns true, если команда может выполняться синхронно
+ */
+function commandSupportsWait(commandId: string): boolean {
+	const uiOnlyPrefixes = [
+		'1c-platform-tools.run.',
+		'1c-platform-tools.file.',
+		'1c-platform-tools.metadata.',
+		'1c-platform-tools.projects.',
+		'1c-platform-tools.todo.',
+		'1c-platform-tools.settings.',
+		'1c-platform-tools.focus',
+		'1c-platform-tools.artifacts.open',
+		'1c-platform-tools.artifacts.delete',
+		'1c-platform-tools.artifacts.runVanessa',
+	];
+	return !uiOnlyPrefixes.some((prefix) => commandId.startsWith(prefix));
+}
+
 async function handlePing(
 	request: IpcRequest,
 	extensionId: string
@@ -101,6 +156,97 @@ async function handlePing(
 			extensionVersion: extension?.packageJSON.version ?? 'unknown',
 		},
 	};
+}
+
+/**
+ * Выполняет команду синхронно через vscode.commands.executeCommand с флагом wait.
+ *
+ * Команда должна принимать аргумент CommandExecutionOptions и возвращать
+ * StructuredCommandResult (или VRunnerExecutionResult — для обратной совместимости).
+ * Если команда возвращает undefined (не реализовала sync-режим), возвращает понятное
+ * сообщение агенту вместо тихого «Выполнено.».
+ *
+ * @param request — исходный IPC-запрос
+ * @param commandId — идентификатор команды
+ * @param projectPath — путь к корню проекта
+ * @param flags — флаги выполнения (wait, settingsFile, ibConnection, pathsOverride)
+ * @returns IPC-ответ со структурированным commandResult
+ */
+async function handleExecuteCommandSync(
+	request: IpcRequest,
+	commandId: string,
+	projectPath: string | undefined,
+	flags: CommandExecutionOptions
+): Promise<IpcResponse> {
+	const base = buildResponseBase(request.id);
+	const startedAt = new Date().toISOString();
+	const startMs = Date.now();
+
+	try {
+		const optsForCommand: CommandExecutionOptions = {
+			wait: true,
+			projectPath,
+			settingsFile: flags.settingsFile,
+			ibConnection: flags.ibConnection,
+			pathsOverride: flags.pathsOverride,
+		};
+		const rawResult = await vscode.commands.executeCommand(commandId, optsForCommand);
+
+		const finishedAt = new Date().toISOString();
+		const durationMs = Date.now() - startMs;
+
+		if (rawResult === undefined || rawResult === null) {
+			logger.warn(
+				`IPC sync: команда ${commandId} вернула undefined при wait: true — ` +
+				'синхронный режим не реализован'
+			);
+			const fallback: StructuredCommandResultWithTiming = {
+				success: false,
+				exitCode: -1,
+				stdout: '',
+				stderr:
+					`Команда ${commandId} не поддерживает wait: true. ` +
+					'Используйте wait: false или реализуйте синхронный режим в команде.',
+				startedAt,
+				finishedAt,
+				durationMs,
+			};
+			return {
+				...base,
+				result: { ok: true, commandResult: fallback },
+			};
+		}
+
+		// Команда может вернуть StructuredCommandResult (новый формат) или VRunnerExecutionResult.
+		// Оба формата имеют поля success, exitCode, stdout, stderr.
+		const r = rawResult as VRunnerExecutionResult & Partial<StructuredCommandResult>;
+		const structured: StructuredCommandResultWithTiming = {
+			success: r.success,
+			exitCode: typeof r.exitCode === 'number' ? r.exitCode : r.success ? 0 : 1,
+			stdout: r.stdout ?? '',
+			stderr: r.stderr ?? '',
+			artifact: r.artifact,
+			startedAt,
+			finishedAt,
+			durationMs,
+		};
+
+		return {
+			...base,
+			result: { ok: true, commandResult: structured },
+		};
+	} catch (error) {
+		const message =
+			error instanceof Error
+				? error.message
+				: 'Неизвестная ошибка при синхронном выполнении команды';
+		logger.error(`IPC sync: ошибка ${commandId}: ${message}`);
+
+		return {
+			...base,
+			error: { message, code: 'COMMAND_ERROR' },
+		};
+	}
 }
 
 async function handleExecuteCommand(
@@ -120,6 +266,7 @@ async function handleExecuteCommand(
 	}
 
 	const args = Array.isArray(params.args) ? params.args : [];
+	const flags = extractCommandFlags(args);
 
 	const expectedProjectPath =
 		typeof params.projectPath === 'string' && params.projectPath.trim() !== ''
@@ -147,6 +294,12 @@ async function handleExecuteCommand(
 		};
 	}
 
+	// Синхронный режим: wait: true и команда его поддерживает
+	if (flags.wait === true && commandSupportsWait(params.commandId)) {
+		return handleExecuteCommandSync(request, params.commandId, expectedProjectPath, flags);
+	}
+
+	// Стандартный режим: запуск в UI-терминале
 	try {
 		const commandResult = await vscode.commands.executeCommand(
 			params.commandId,

@@ -9,6 +9,7 @@ import {
 	getDecompileExternalReportCommandName
 } from '../features/tools/commandNames';
 import { logger } from '../shared/logger';
+import type { CommandExecutionOptions, StructuredCommandResult } from '../shared/commandExecutionTypes';
 
 /**
  * Тип внешнего файла
@@ -20,103 +21,120 @@ export type ExternalFileType = 'processor' | 'report';
  */
 export class ExternalFilesCommands extends BaseCommand {
 
-	/**
-	 * Собирает внешний файл (обработку или отчет) из исходников
-	 * 
-	 * Выполняет команду vrunner compileepf для сборки внешнего файла из исходников
-	 * в бинарный формат (.epf для обработок, .erf для отчетов).
-	 * 
-	 * @param fileType - Тип файла: 'processor' для обработок, 'report' для отчетов
-	 * @returns Промис, который разрешается после запуска команды
-	 */
-	async compile(fileType: ExternalFileType = 'processor'): Promise<void> {
-		const workspaceRoot = this.ensureWorkspace();
-		if (!workspaceRoot) {
+	async compile(
+		fileType: ExternalFileType = 'processor',
+		opts?: CommandExecutionOptions
+	): Promise<StructuredCommandResult | void> {
+		const cwd = this.getExecutionCwd(opts);
+		if (!cwd) {
+			if (opts?.wait === true) {
+				return this.executionError(
+					'Укажите projectPath или откройте рабочую область с проектом 1С'
+				);
+			}
+			this.ensureWorkspace();
 			return;
 		}
-		if (!(await this.ensureOscriptAvailable())) {
+		if (!(await this.ensureOscriptForExecution(opts))) {
+			if (opts?.wait === true) {
+				return this.executionError('OneScript (oscript) или opm не найдены');
+			}
 			return;
 		}
 
 		const srcFolder = fileType === 'processor' ? this.vrunner.getEpfPath() : this.vrunner.getErfPath();
-		const srcPath = path.join(workspaceRoot, srcFolder);
+		const srcPath = path.join(cwd, srcFolder);
 
-		if (!(await this.checkDirectoryExists(srcPath, `Папка ${srcFolder} не является директорией`))) {
+		if (opts?.wait === true) {
+			try {
+				const stats = await fs.stat(srcPath);
+				if (!stats.isDirectory()) {
+					return this.executionError(`Каталог ${srcFolder} не найден`);
+				}
+			} catch {
+				return this.executionError(`Каталог ${srcFolder} не найден`);
+			}
+		} else if (!(await this.checkDirectoryExists(srcPath, `Папка ${srcFolder} не является директорией`))) {
 			return;
 		}
 
-		const ibConnectionParam = await this.vrunner.getIbConnectionParam();
 		const buildPath = this.vrunner.getOutPath();
 		const outputFolder = fileType === 'processor' ? 'epf' : 'erf';
-		const outputFullPath = path.join(workspaceRoot, buildPath, outputFolder);
-		if (!(await this.ensureDirectoryExists(outputFullPath, `Ошибка при создании папки ${buildPath}/${outputFolder}`))) {
+		const outputFullPath = path.join(cwd, buildPath, outputFolder);
+		if (!(await this.ensureDirectoryForExecution(
+			outputFullPath,
+			opts,
+			`Ошибка при создании папки ${buildPath}/${outputFolder}`
+		))) {
+			if (opts?.wait === true) {
+				return this.executionError(`Не удалось создать каталог ${buildPath}/${outputFolder}`);
+			}
 			return;
 		}
 
-		const commandName = fileType === 'processor' 
+		const commandName = fileType === 'processor'
 			? getBuildExternalProcessorCommandName()
 			: getBuildExternalReportCommandName();
-		const vrunnerCommand = 'compileepf';
-		const inputPath = srcFolder;
 		const outputPath = path.join(buildPath, outputFolder);
-		const args = [vrunnerCommand, inputPath, outputPath, ...ibConnectionParam];
-
-		this.vrunner.executeVRunnerInTerminal(args, {
-			cwd: workspaceRoot,
-			name: commandName.title
-		});
+		const ibConnectionParam = await this.vrunner.getIbConnectionParam();
+		const args = ['compileepf', srcFolder, outputPath, ...ibConnectionParam];
+		return this.runVRunner(args, opts, commandName.title, outputPath);
 	}
 
-	/**
-	 * Разбирает внешний файл (обработку или отчет) из .epf/.erf в исходники
-	 * 
-	 * Выполняет команду vrunner decompileepf для разбора бинарного файла
-	 * (.epf для обработок, .erf для отчетов) в исходники.
-	 * 
-	 * @param fileType - Тип файла: 'processor' для обработок, 'report' для отчетов
-	 * @returns Промис, который разрешается после запуска команды
-	 */
-	async decompile(fileType: ExternalFileType = 'processor'): Promise<void> {
-		const workspaceRoot = this.ensureWorkspace();
-		if (!workspaceRoot) {
+	async decompile(
+		fileType: ExternalFileType = 'processor',
+		opts?: CommandExecutionOptions
+	): Promise<StructuredCommandResult | void> {
+		const cwd = this.getExecutionCwd(opts);
+		if (!cwd) {
+			if (opts?.wait === true) {
+				return this.executionError(
+					'Укажите projectPath или откройте рабочую область с проектом 1С'
+				);
+			}
+			this.ensureWorkspace();
 			return;
 		}
-		if (!(await this.ensureOscriptAvailable())) {
+		if (!(await this.ensureOscriptForExecution(opts))) {
+			if (opts?.wait === true) {
+				return this.executionError('OneScript (oscript) или opm не найдены');
+			}
 			return;
 		}
 
 		const buildPath = this.vrunner.getOutPath();
 		const buildFolder = fileType === 'processor' ? 'epf' : 'erf';
 		const inputPath = path.join(buildPath, buildFolder);
-		const inputFullPath = path.join(workspaceRoot, inputPath);
+		const inputFullPath = path.join(cwd, inputPath);
 
-		if (!(await this.checkDirectoryExists(inputFullPath, `Папка ${inputPath} не является директорией`))) {
+		if (opts?.wait === true) {
+			try {
+				const stats = await fs.stat(inputFullPath);
+				if (!stats.isDirectory()) {
+					return this.executionError(`Каталог ${inputPath} не найден`);
+				}
+			} catch {
+				return this.executionError(`Каталог ${inputPath} не найден`);
+			}
+		} else if (!(await this.checkDirectoryExists(inputFullPath, `Папка ${inputPath} не является директорией`))) {
 			return;
 		}
 
 		const outputPath = fileType === 'processor' ? this.vrunner.getEpfPath() : this.vrunner.getErfPath();
 		const ibConnectionParam = await this.vrunner.getIbConnectionParam();
-		const commandName = fileType === 'processor' 
+		const commandName = fileType === 'processor'
 			? getDecompileExternalProcessorCommandName()
 			: getDecompileExternalReportCommandName();
-		const vrunnerCommand = 'decompileepf';
-		const args = [vrunnerCommand, inputPath, outputPath, ...ibConnectionParam];
-
-		this.vrunner.executeVRunnerInTerminal(args, {
-			cwd: workspaceRoot,
-			name: commandName.title
-		});
+		const args = ['decompileepf', inputPath, outputPath, ...ibConnectionParam];
+		return this.runVRunner(args, opts, commandName.title);
 	}
 
-	/**
-	 * Очищает кэш, удаляя файл build/cache.json
-	 * 
-	 * Удаляет файл кэша из директории build. Если файл не существует,
-	 * показывает информационное сообщение.
-	 * 
-	 * @returns Промис, который разрешается после удаления файла кэша
-	 */
-	async clearCache(): Promise<void> {
+	async clearCache(opts?: CommandExecutionOptions): Promise<StructuredCommandResult | void> {
+		const reject = this.rejectIfWait(opts, 'Очистка кэша — файловая операция, не vrunner');
+		if (reject) {
+			return reject;
+		}
+
 		const workspaceRoot = this.ensureWorkspace();
 		if (!workspaceRoot) {
 			return;

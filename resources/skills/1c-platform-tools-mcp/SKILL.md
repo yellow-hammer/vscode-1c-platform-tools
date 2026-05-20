@@ -13,6 +13,15 @@ description: Инструменты MCP для команд 1C: Platform Tools (
 
 Обязательный в каждом вызове. Абсолютный путь к корню проекта 1С (каталог с `packagedef` и env.json). Если пользователь указал путь — используй его; иначе корень текущего workspace (первая папка).
 
+### Параметр wait
+
+- **`wait: false`** (по умолчанию) — команда в терминале VS Code, ответ MCP без stdout/exitCode.
+- **`wait: true`** — синхронное выполнение vrunner; в ответе `{ success, exitCode, stdout, stderr, artifact? }`. Для цикла «собрать → проверить → исправить».
+
+Поддерживают **wait: true**: конфигурация (кроме loadIncFromSrc, loadFromFiles), расширения (кроме loadFromFiles), ИБ (кроме loadFromDt), внешние EPF/ERF, тесты (кроме allure), сборка/разбор алиасов.
+
+**Не поддерживают wait: true** (нужен UI): `run_*`, `metadata_*`, `projects_*`, `support_*`, `dependencies_*` (кроме чистого vrunner), loadFromDt, loadIncFromSrc, objlist, allure, clearCache.
+
 ## Как формируются имена инструментов
 
 Имена генерируются из command ID расширения: убирается префикс `1c-platform-tools.`, точки заменяются на `_`, длинные слова сокращаются (`dependencies` → `deps`, `Processors` → `Procs`, `loadIncrementFromSrc` → `loadIncFromSrc` и др.). Полный список возвращается сервером при подключении.

@@ -8,10 +8,11 @@ import {
 	getVanessaTestsCommandName,
 	getAllureReportCommandName
 } from '../features/tools/commandNames';
+import type { CommandExecutionOptions, StructuredCommandResult } from '../shared/commandExecutionTypes';
 
 /**
  * Команды для тестирования
- * 
+ *
  * Предоставляет методы для запуска различных типов тестов:
  * XUnit тесты, синтаксический контроль, Vanessa тесты и генерация Allure отчетов
  */
@@ -19,84 +20,55 @@ export class TestCommands extends BaseCommand {
 
 	/**
 	 * Запускает XUnit тесты
-	 * 
+	 *
 	 * Выполняет команду vrunner xunit для запуска модульных тестов в формате XUnit.
-	 * 
+	 *
 	 * @returns Промис, который разрешается после запуска команды
 	 */
-	async runXUnit(): Promise<void> {
-		const workspaceRoot = this.ensureWorkspace();
-		if (!workspaceRoot) {
-			return;
-		}
-		if (!(await this.ensureOscriptAvailable())) {
-			return;
-		}
-
+	async runXUnit(opts?: CommandExecutionOptions): Promise<StructuredCommandResult | void> {
 		const commandName = getXUnitTestsCommandName();
-		const args = ['xunit'];
-
-		this.vrunner.executeVRunnerInTerminal(args, {
-			cwd: workspaceRoot,
-			name: commandName.title
-		});
+		return this.runVRunner(['xunit'], opts, commandName.title);
 	}
 
 	/**
-	 * Запускает синтаксический контроль
-	 * 
-	 * Выполняет команду vrunner syntax-check для проверки синтаксиса модулей конфигурации.
-	 * 
-	 * @returns Промис, который разрешается после запуска команды
+	 * Запускает синтаксический контроль.
+	 *
+	 * При вызове без аргументов (из UI) запускает vrunner syntax-check в терминале.
+	 * При вызове с { wait: true } выполняет синхронно и возвращает StructuredCommandResult
+	 * — используется MCP-агентами в автономном цикле «проверка → фикс → проверка».
+	 *
+	 * TODO: при переводе остальных команд на wait: true — распарсить stdout
+	 * vrunner syntax-check в массив errors[{ filepath, line, column, severity, message, mode }]
+	 * (issue #15 mcp-1c-platform-tools).
+	 *
+	 * @param opts — опции выполнения; при wait: true — синхронный режим без диалогов
+	 * @returns void в UI-режиме, StructuredCommandResult при wait: true
 	 */
-	async runSyntaxCheck(): Promise<void> {
-		const workspaceRoot = this.ensureWorkspace();
-		if (!workspaceRoot) {
-			return;
-		}
-		if (!(await this.ensureOscriptAvailable())) {
-			return;
-		}
-
+	async runSyntaxCheck(opts?: CommandExecutionOptions): Promise<StructuredCommandResult | void> {
 		const commandName = getSyntaxCheckCommandName();
-		const args = ['syntax-check'];
-
-		this.vrunner.executeVRunnerInTerminal(args, {
-			cwd: workspaceRoot,
-			name: commandName.title
-		});
+		return this.runVRunner(['syntax-check'], opts, commandName.title);
 	}
 
 	/**
 	 * Запускает Vanessa тесты
-	 * 
+	 *
 	 * Выполняет команду vrunner vanessa для запуска функциональных тестов в формате Vanessa.
-	 * 
+	 *
 	 * @param mode - Режим запуска тестов. В настоящее время не используется и всегда равен 'normal'.
 	 *               Зарезервировано для будущих расширений (например, 'smoke', 'full', 'integration').
 	 * @returns Промис, который разрешается после запуска команды
 	 */
-	async runVanessa(mode: 'normal' = 'normal'): Promise<void> {
-		const workspaceRoot = this.ensureWorkspace();
-		if (!workspaceRoot) {
-			return;
-		}
-		if (!(await this.ensureOscriptAvailable())) {
-			return;
-		}
-
+	async runVanessa(
+		mode: 'normal' = 'normal',
+		opts?: CommandExecutionOptions
+	): Promise<StructuredCommandResult | void> {
 		const commandName = getVanessaTestsCommandName(mode);
-		const args: string[] = ['vanessa'];
-
-		this.vrunner.executeVRunnerInTerminal(args, {
-			cwd: workspaceRoot,
-			name: commandName.title
-		});
+		return this.runVRunner(['vanessa'], opts, commandName.title);
 	}
 
 	/**
 	 * Получает пути к результатам тестов для Allure
-	 * 
+	 *
 	 * @param outPath - Путь к результатам сборки
 	 * @returns Массив путей к результатам тестов
 	 */
@@ -110,7 +82,7 @@ export class TestCommands extends BaseCommand {
 
 	/**
 	 * Формирует команду для генерации Allure отчета
-	 * 
+	 *
 	 * @param allurePath - Путь к исполняемому файлу allure
 	 * @param resultPaths - Пути к результатам тестов
 	 * @param outputPath - Путь для сохранения отчета
@@ -135,7 +107,7 @@ export class TestCommands extends BaseCommand {
 
 	/**
 	 * Формирует команду для открытия Allure отчета
-	 * 
+	 *
 	 * @param allurePath - Путь к исполняемому файлу allure
 	 * @param reportPath - Путь к сгенерированному отчету
 	 * @param shellType - Тип оболочки терминала
@@ -151,13 +123,21 @@ export class TestCommands extends BaseCommand {
 
 	/**
 	 * Формирует Allure отчет из результатов тестирования
-	 * 
+	 *
 	 * Выполняет команду `allure generate` с несколькими путями к результатам тестов
 	 * (syntax-check, smoke, общий allure) и открывает сгенерированный отчет в браузере.
-	 * 
+	 *
 	 * @returns Промис, который разрешается после запуска команд
 	 */
-	async generateAllureReport(): Promise<void> {
+	async generateAllureReport(opts?: CommandExecutionOptions): Promise<StructuredCommandResult | void> {
+		const reject = this.rejectIfWait(
+			opts,
+			'Allure-отчёт открывается в браузере; wait: true недоступен'
+		);
+		if (reject) {
+			return reject;
+		}
+
 		const workspaceRoot = this.ensureWorkspace();
 		if (!workspaceRoot) {
 			return;

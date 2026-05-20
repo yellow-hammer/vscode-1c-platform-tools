@@ -14,6 +14,7 @@ import { WorkspaceTasksCommands } from './workspaceTasksCommands';
 import { ArtifactCommands } from './artifactCommands';
 import { SkillsCommands } from './skillsCommands';
 import { VRunnerManager } from '../shared/vrunnerManager';
+import type { CommandExecutionOptions, StructuredCommandResult } from '../shared/commandExecutionTypes';
 
 /**
  * Объект со всеми командами расширения
@@ -53,6 +54,16 @@ function registerFromEditor(
 }
 
 /**
+ * Регистрация vrunner-команды с поддержкой CommandExecutionOptions (MCP wait: true).
+ */
+function registerVRunnerCommand(
+	id: string,
+	handler: (opts?: CommandExecutionOptions) => Promise<StructuredCommandResult | void>
+): vscode.Disposable {
+	return vscode.commands.registerCommand(id, async (opts?: CommandExecutionOptions) => handler(opts));
+}
+
+/**
  * Регистрирует все команды расширения
  * 
  * @param context - Контекст расширения VS Code
@@ -78,108 +89,108 @@ export function registerCommands(
 
 	// Команды информационных баз
 	const infobaseCommands = [
-		vscode.commands.registerCommand('1c-platform-tools.infobase.createEmpty', () => {
-			commands.infobase.createEmptyInfobase();
-		}),
-		vscode.commands.registerCommand('1c-platform-tools.infobase.updateInfobase', () => {
-			commands.infobase.updateInfobase();
-		}),
-		vscode.commands.registerCommand('1c-platform-tools.infobase.updateDatabase', () => {
-			commands.infobase.updateDatabase();
-		}),
-		vscode.commands.registerCommand('1c-platform-tools.infobase.blockExternalResources', () => {
-			commands.infobase.blockExternalResources();
-		}),
-		vscode.commands.registerCommand('1c-platform-tools.infobase.initialize', () => {
-			commands.infobase.initialize();
-		}),
-		vscode.commands.registerCommand('1c-platform-tools.infobase.dumpToDt', () => {
-			commands.infobase.dumpToDt();
-		}),
-		vscode.commands.registerCommand('1c-platform-tools.infobase.loadFromDt', () => {
-			commands.infobase.loadFromDt();
-		})
+		registerVRunnerCommand('1c-platform-tools.infobase.createEmpty', (opts) =>
+			commands.infobase.createEmptyInfobase(opts)
+		),
+		registerVRunnerCommand('1c-platform-tools.infobase.updateInfobase', (opts) =>
+			commands.infobase.updateInfobase(opts)
+		),
+		registerVRunnerCommand('1c-platform-tools.infobase.updateDatabase', (opts) =>
+			commands.infobase.updateDatabase(opts)
+		),
+		registerVRunnerCommand('1c-platform-tools.infobase.blockExternalResources', (opts) =>
+			commands.infobase.blockExternalResources(opts)
+		),
+		registerVRunnerCommand('1c-platform-tools.infobase.initialize', (opts) =>
+			commands.infobase.initialize(opts)
+		),
+		registerVRunnerCommand('1c-platform-tools.infobase.dumpToDt', (opts) =>
+			commands.infobase.dumpToDt(opts)
+		),
+		registerVRunnerCommand('1c-platform-tools.infobase.loadFromDt', (opts) =>
+			commands.infobase.loadFromDt(opts)
+		),
 	];
 
 	// Команды конфигурации
 	const configurationCommands = [
-		vscode.commands.registerCommand('1c-platform-tools.configuration.loadFromSrc', () => {
-			commands.configuration.loadFromSrc('update');
-		}),
-		vscode.commands.registerCommand('1c-platform-tools.configuration.loadFromSrc.init', () => {
-			commands.configuration.loadFromSrc('init');
-		}),
-		vscode.commands.registerCommand('1c-platform-tools.configuration.loadIncrementFromSrc', () => {
-			commands.configuration.loadIncrementFromSrc();
-		}),
-		vscode.commands.registerCommand('1c-platform-tools.configuration.loadFromFilesByList', () => {
-			commands.configuration.loadFromFilesByList();
-		}),
-		vscode.commands.registerCommand('1c-platform-tools.configuration.loadFromCf', () => {
-			commands.configuration.loadFromCf();
-		}),
-		vscode.commands.registerCommand('1c-platform-tools.configuration.dumpToSrc', () => {
-			commands.configuration.dumpToSrc();
-		}),
-		vscode.commands.registerCommand('1c-platform-tools.configuration.dumpIncrementToSrc', () => {
-			commands.configuration.dumpIncrementToSrc();
-		}),
-		vscode.commands.registerCommand('1c-platform-tools.configuration.dumpToCf', () => {
-			commands.configuration.dumpToCf();
-		}),
-		vscode.commands.registerCommand('1c-platform-tools.configuration.dumpToDist', () => {
-			commands.configuration.dumpToDist();
-		}),
-		vscode.commands.registerCommand('1c-platform-tools.configuration.build', () => {
-			commands.configuration.compile();
-		}),
-		vscode.commands.registerCommand('1c-platform-tools.configuration.decompile', () => {
-			commands.configuration.decompile();
-		})
+		registerVRunnerCommand('1c-platform-tools.configuration.loadFromSrc', (opts) =>
+			commands.configuration.loadFromSrc('update', opts)
+		),
+		registerVRunnerCommand('1c-platform-tools.configuration.loadFromSrc.init', (opts) =>
+			commands.configuration.loadFromSrc('init', opts)
+		),
+		registerVRunnerCommand('1c-platform-tools.configuration.loadIncrementFromSrc', (opts) =>
+			commands.configuration.loadIncrementFromSrc(opts)
+		),
+		registerVRunnerCommand('1c-platform-tools.configuration.loadFromFilesByList', (opts) =>
+			commands.configuration.loadFromFilesByList(opts)
+		),
+		registerVRunnerCommand('1c-platform-tools.configuration.loadFromCf', (opts) =>
+			commands.configuration.loadFromCf(opts)
+		),
+		registerVRunnerCommand('1c-platform-tools.configuration.dumpToSrc', (opts) =>
+			commands.configuration.dumpToSrc(opts)
+		),
+		registerVRunnerCommand('1c-platform-tools.configuration.dumpIncrementToSrc', (opts) =>
+			commands.configuration.dumpIncrementToSrc(opts)
+		),
+		registerVRunnerCommand('1c-platform-tools.configuration.dumpToCf', (opts) =>
+			commands.configuration.dumpToCf(opts)
+		),
+		registerVRunnerCommand('1c-platform-tools.configuration.dumpToDist', (opts) =>
+			commands.configuration.dumpToDist(opts)
+		),
+		registerVRunnerCommand('1c-platform-tools.configuration.build', (opts) =>
+			commands.configuration.compile(opts)
+		),
+		registerVRunnerCommand('1c-platform-tools.configuration.decompile', (opts) =>
+			commands.configuration.decompile(opts)
+		),
 	];
 
 	// Команды расширений
 	const extensionsCommands = [
-		vscode.commands.registerCommand('1c-platform-tools.extensions.loadFromSrc', () => {
-			commands.extensions.loadFromSrc();
-		}),
-		vscode.commands.registerCommand('1c-platform-tools.extensions.loadFromFilesByList', () => {
-			commands.extensions.loadFromFilesByList();
-		}),
-		vscode.commands.registerCommand('1c-platform-tools.extensions.loadFromCfe', () => {
-			commands.extensions.loadFromCfe();
-		}),
-		vscode.commands.registerCommand('1c-platform-tools.extensions.dumpToSrc', () => {
-			commands.extensions.dumpToSrc();
-		}),
-		vscode.commands.registerCommand('1c-platform-tools.extensions.dumpToCfe', () => {
-			commands.extensions.dumpToCfe();
-		}),
-		vscode.commands.registerCommand('1c-platform-tools.extensions.build', () => {
-			commands.extensions.compile();
-		}),
-		vscode.commands.registerCommand('1c-platform-tools.extensions.decompile', () => {
-			commands.extensions.decompile();
-		})
+		registerVRunnerCommand('1c-platform-tools.extensions.loadFromSrc', (opts) =>
+			commands.extensions.loadFromSrc(opts)
+		),
+		registerVRunnerCommand('1c-platform-tools.extensions.loadFromFilesByList', (opts) =>
+			commands.extensions.loadFromFilesByList(opts)
+		),
+		registerVRunnerCommand('1c-platform-tools.extensions.loadFromCfe', (opts) =>
+			commands.extensions.loadFromCfe(opts)
+		),
+		registerVRunnerCommand('1c-platform-tools.extensions.dumpToSrc', (opts) =>
+			commands.extensions.dumpToSrc(opts)
+		),
+		registerVRunnerCommand('1c-platform-tools.extensions.dumpToCfe', (opts) =>
+			commands.extensions.dumpToCfe(opts)
+		),
+		registerVRunnerCommand('1c-platform-tools.extensions.build', (opts) =>
+			commands.extensions.compile(opts)
+		),
+		registerVRunnerCommand('1c-platform-tools.extensions.decompile', (opts) =>
+			commands.extensions.decompile(opts)
+		),
 	];
 
 	// Команды внешних файлов
 	const externalFilesCommands = [
-		vscode.commands.registerCommand('1c-platform-tools.externalProcessors.build', () => {
-			commands.externalFiles.compile('processor');
-		}),
-		vscode.commands.registerCommand('1c-platform-tools.externalProcessors.decompile', () => {
-			commands.externalFiles.decompile('processor');
-		}),
-		vscode.commands.registerCommand('1c-platform-tools.externalReports.build', () => {
-			commands.externalFiles.compile('report');
-		}),
-		vscode.commands.registerCommand('1c-platform-tools.externalReports.decompile', () => {
-			commands.externalFiles.decompile('report');
-		}),
-		vscode.commands.registerCommand('1c-platform-tools.externalFiles.clearCache', () => {
-			commands.externalFiles.clearCache();
-		})
+		registerVRunnerCommand('1c-platform-tools.externalProcessors.build', (opts) =>
+			commands.externalFiles.compile('processor', opts)
+		),
+		registerVRunnerCommand('1c-platform-tools.externalProcessors.decompile', (opts) =>
+			commands.externalFiles.decompile('processor', opts)
+		),
+		registerVRunnerCommand('1c-platform-tools.externalReports.build', (opts) =>
+			commands.externalFiles.compile('report', opts)
+		),
+		registerVRunnerCommand('1c-platform-tools.externalReports.decompile', (opts) =>
+			commands.externalFiles.decompile('report', opts)
+		),
+		registerVRunnerCommand('1c-platform-tools.externalFiles.clearCache', (opts) =>
+			commands.externalFiles.clearCache(opts)
+		),
 	];
 
 	// Команды поддержки и поставки
@@ -244,18 +255,16 @@ export function registerCommands(
 
 	// Команды тестирования
 	const testCommands = [
-		vscode.commands.registerCommand('1c-platform-tools.test.xunit', () => {
-			commands.test.runXUnit();
-		}),
-		vscode.commands.registerCommand('1c-platform-tools.test.syntaxCheck', () => {
-			commands.test.runSyntaxCheck();
-		}),
-		vscode.commands.registerCommand('1c-platform-tools.test.vanessa', () => {
-			commands.test.runVanessa('normal');
-		}),
-		vscode.commands.registerCommand('1c-platform-tools.test.allure', () => {
-			commands.test.generateAllureReport();
-		})
+		registerVRunnerCommand('1c-platform-tools.test.xunit', (opts) => commands.test.runXUnit(opts)),
+		registerVRunnerCommand('1c-platform-tools.test.syntaxCheck', (opts) =>
+			commands.test.runSyntaxCheck(opts)
+		),
+		registerVRunnerCommand('1c-platform-tools.test.vanessa', (opts) =>
+			commands.test.runVanessa('normal', opts)
+		),
+		registerVRunnerCommand('1c-platform-tools.test.allure', (opts) =>
+			commands.test.generateAllureReport(opts)
+		),
 	];
 
 	// Команды установки версий
@@ -279,30 +288,30 @@ export function registerCommands(
 
 	// Команды сборки и разбора (алиасы)
 	const buildDecompileCommands = [
-		vscode.commands.registerCommand('1c-platform-tools.build.configuration', () => {
-			commands.configuration.compile();
-		}),
-		vscode.commands.registerCommand('1c-platform-tools.build.extensions', () => {
-			commands.extensions.compile();
-		}),
-		vscode.commands.registerCommand('1c-platform-tools.build.externalProcessor', () => {
-			commands.externalFiles.compile();
-		}),
-		vscode.commands.registerCommand('1c-platform-tools.build.externalReport', () => {
-			commands.externalFiles.compile();
-		}),
-		vscode.commands.registerCommand('1c-platform-tools.decompile.configuration', () => {
-			commands.configuration.decompile();
-		}),
-		vscode.commands.registerCommand('1c-platform-tools.decompile.externalProcessor', () => {
-			commands.externalFiles.decompile();
-		}),
-		vscode.commands.registerCommand('1c-platform-tools.decompile.externalReport', () => {
-			commands.externalFiles.decompile();
-		}),
-		vscode.commands.registerCommand('1c-platform-tools.decompile.extension', () => {
-			commands.extensions.decompile();
-		})
+		registerVRunnerCommand('1c-platform-tools.build.configuration', (opts) =>
+			commands.configuration.compile(opts)
+		),
+		registerVRunnerCommand('1c-platform-tools.build.extensions', (opts) =>
+			commands.extensions.compile(opts)
+		),
+		registerVRunnerCommand('1c-platform-tools.build.externalProcessor', (opts) =>
+			commands.externalFiles.compile('processor', opts)
+		),
+		registerVRunnerCommand('1c-platform-tools.build.externalReport', (opts) =>
+			commands.externalFiles.compile('report', opts)
+		),
+		registerVRunnerCommand('1c-platform-tools.decompile.configuration', (opts) =>
+			commands.configuration.decompile(opts)
+		),
+		registerVRunnerCommand('1c-platform-tools.decompile.externalProcessor', (opts) =>
+			commands.externalFiles.decompile('processor', opts)
+		),
+		registerVRunnerCommand('1c-platform-tools.decompile.externalReport', (opts) =>
+			commands.externalFiles.decompile('report', opts)
+		),
+		registerVRunnerCommand('1c-platform-tools.decompile.extension', (opts) =>
+			commands.extensions.decompile(opts)
+		),
 	];
 
 	const artifactCommands = [

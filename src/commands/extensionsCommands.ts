@@ -14,6 +14,7 @@ import {
 } from '../features/tools/commandNames';
 import { VANESSA_RUNNER_ROOT, VANESSA_RUNNER_EPF, EPF_NAMES, EPF_COMMANDS } from '../shared/constants';
 import { logger } from '../shared/logger';
+import type { CommandExecutionOptions, StructuredCommandResult } from '../shared/commandExecutionTypes';
 
 /**
  * Команды для работы с расширениями конфигурации
@@ -56,40 +57,57 @@ export class ExtensionsCommands extends BaseCommand {
 	 */
 	private async executeForAllExtensions(
 		buildArgs: (extensionFolder: string) => string[],
-		commandName: string
-	): Promise<void> {
-		const workspaceRoot = this.ensureWorkspace();
+		commandName: string,
+		opts?: CommandExecutionOptions
+	): Promise<StructuredCommandResult | void> {
+		const workspaceRoot = this.getExecutionCwd(opts);
 		if (!workspaceRoot) {
+			if (opts?.wait === true) {
+				return this.executionError(
+					'Укажите projectPath или откройте рабочую область с проектом 1С'
+				);
+			}
+			this.ensureWorkspace();
 			return;
 		}
-		if (!(await this.ensureOscriptAvailable())) {
+		if (!(await this.ensureOscriptForExecution(opts))) {
+			if (opts?.wait === true) {
+				return this.executionError('OneScript (oscript) или opm не найдены');
+			}
 			return;
 		}
 
 		const extensionFolders = await this.getExtensionFoldersFromSrc(workspaceRoot);
 		if (!extensionFolders) {
+			if (opts?.wait === true) {
+				return this.executionError('В каталоге расширений не найдено подкаталогов');
+			}
 			return;
 		}
 
+		const argsList = extensionFolders.map((folder) =>
+			this.addIbcmdIfNeeded(buildArgs(folder))
+		);
+
+		if (opts?.wait === true) {
+			return this.runVRunnerSequential(argsList, opts, commandName);
+		}
+
 		const useDocker = await this.vrunner.shouldUseDocker();
-		
+
 		if (useDocker) {
-			// В Docker выполняем команды последовательно
-			for (const extensionFolder of extensionFolders) {
-				const args = this.addIbcmdIfNeeded(buildArgs(extensionFolder));
-				await this.vrunner.executeVRunnerInTerminal(args, {
+			for (const args of argsList) {
+				this.vrunner.executeVRunnerInTerminal(args, {
 					cwd: workspaceRoot,
 					name: commandName
 				});
 			}
 		} else {
-			// Локальное выполнение - объединяем команды
 			const vrunnerPath = this.vrunner.getVRunnerPath();
 			const shellType = detectShellType();
-			const commands = extensionFolders.map(extensionFolder => {
-				const args = this.addIbcmdIfNeeded(buildArgs(extensionFolder));
-				return buildCommand(vrunnerPath, args, shellType);
-			});
+			const commands = argsList.map((args) =>
+				buildCommand(vrunnerPath, args, shellType)
+			);
 			this.executeCommandsInTerminal(commands, commandName, workspaceRoot, shellType);
 		}
 	}
@@ -167,7 +185,15 @@ export class ExtensionsCommands extends BaseCommand {
 	/**
 	 * Частичная загрузка расширений из objlist.txt: только пути из src/cfe/<имя>. Списки в build, удаляются при следующем запуске.
 	 */
-	async loadFromFilesByList(): Promise<void> {
+	async loadFromFilesByList(opts?: CommandExecutionOptions): Promise<StructuredCommandResult | void> {
+		const reject = this.rejectIfWait(
+			opts,
+			'Частичная загрузка расширений по objlist — несколько шагов; wait: true недоступен'
+		);
+		if (reject) {
+			return reject;
+		}
+
 		const workspaceRoot = this.ensureWorkspace();
 		if (!workspaceRoot || !(await this.ensureOscriptAvailable())) {
 			return;
@@ -235,30 +261,18 @@ export class ExtensionsCommands extends BaseCommand {
 	 * 
 	 * @returns Промис, который разрешается после запуска команд
 	 */
-	async loadFromSrc(): Promise<void> {
-		const workspaceRoot = this.ensureWorkspace();
-		if (!workspaceRoot) {
-			return;
-		}
-		if (!(await this.ensureOscriptAvailable())) {
-			return;
-		}
-
-		const extensionFolders = await this.getExtensionFoldersFromSrc(workspaceRoot);
-		if (!extensionFolders) {
-			return;
-		}
-
+	async loadFromSrc(opts?: CommandExecutionOptions): Promise<StructuredCommandResult | void> {
 		const ibConnectionParam = await this.vrunner.getIbConnectionParam();
 		const commandName = getLoadExtensionFromSrcCommandName();
 		const cfePath = this.vrunner.getCfePath();
 
-		await this.executeForAllExtensions(
+		return this.executeForAllExtensions(
 			(extensionFolder) => {
 				const inputPath = path.join(cfePath, extensionFolder);
 				return ['compileext', inputPath, extensionFolder, ...ibConnectionParam];
 			},
-			commandName.title
+			commandName.title,
+			opts
 		);
 	}
 
@@ -270,24 +284,45 @@ export class ExtensionsCommands extends BaseCommand {
 	 * 
 	 * @returns Промис, который разрешается после запуска команд
 	 */
-	async loadFromCfe(): Promise<void> {
-		const workspaceRoot = this.ensureWorkspace();
-		if (!workspaceRoot) {
+	async loadFromCfe(opts?: CommandExecutionOptions): Promise<StructuredCommandResult | void> {
+		const cwd = this.getExecutionCwd(opts);
+		if (!cwd) {
+			if (opts?.wait === true) {
+				return this.executionError(
+					'Укажите projectPath или откройте рабочую область с проектом 1С'
+				);
+			}
+			this.ensureWorkspace();
 			return;
 		}
-		if (!(await this.ensureOscriptAvailable())) {
+		if (!(await this.ensureOscriptForExecution(opts))) {
+			if (opts?.wait === true) {
+				return this.executionError('OneScript (oscript) или opm не найдены');
+			}
 			return;
 		}
 
 		const buildPath = this.vrunner.getOutPath();
-		const cfePath = path.join(workspaceRoot, buildPath, 'cfe');
+		const cfePath = path.join(cwd, buildPath, 'cfe');
 
-		if (!(await this.checkDirectoryExists(cfePath, `Папка ${buildPath}/cfe не является директорией`))) {
+		if (opts?.wait === true) {
+			try {
+				const stats = await fs.stat(cfePath);
+				if (!stats.isDirectory()) {
+					return this.executionError(`Каталог ${buildPath}/cfe не найден`);
+				}
+			} catch {
+				return this.executionError(`Каталог ${buildPath}/cfe не найден`);
+			}
+		} else if (!(await this.checkDirectoryExists(cfePath, `Папка ${buildPath}/cfe не является директорией`))) {
 			return;
 		}
 
 		const cfeFiles = await this.getFilesByExtension(cfePath, '.cfe', `Ошибка при чтении папки ${buildPath}/cfe`);
 		if (cfeFiles.length === 0) {
+			if (opts?.wait === true) {
+				return this.executionError(`В каталоге ${buildPath}/cfe нет файлов .cfe`);
+			}
 			logger.info(`В папке ${buildPath}/cfe не найдено файлов .cfe`);
 			vscode.window.showInformationMessage(`В папке ${buildPath}/cfe не найдено файлов .cfe`);
 			return;
@@ -296,18 +331,20 @@ export class ExtensionsCommands extends BaseCommand {
 		const ibConnectionParam = await this.vrunner.getIbConnectionParam();
 		const commandName = getLoadExtensionFromCfeCommandName();
 		const epfPath = path.join(VANESSA_RUNNER_ROOT, VANESSA_RUNNER_EPF, EPF_NAMES.LOAD_EXTENSION);
-		const vrunnerPath = this.vrunner.getVRunnerPath();
-		const shellType = detectShellType();
-
-		const commands: string[] = [];
-		for (const cfeFile of cfeFiles) {
+		const argsList = cfeFiles.map((cfeFile) => {
 			const cfeFilePath = path.join(buildPath, 'cfe', cfeFile);
 			const commandParam = EPF_COMMANDS.LOAD_EXTENSION(cfeFilePath);
-			const args = ['run', '--command', commandParam, '--execute', epfPath, ...ibConnectionParam];
-			commands.push(buildCommand(vrunnerPath, args, shellType));
+			return ['run', '--command', commandParam, '--execute', epfPath, ...ibConnectionParam];
+		});
+
+		if (opts?.wait === true) {
+			return this.runVRunnerSequential(argsList, opts, commandName.title);
 		}
 
-		this.executeCommandsInTerminal(commands, commandName.title, workspaceRoot, shellType);
+		const vrunnerPath = this.vrunner.getVRunnerPath();
+		const shellType = detectShellType();
+		const commands = argsList.map((args) => buildCommand(vrunnerPath, args, shellType));
+		this.executeCommandsInTerminal(commands, commandName.title, cwd, shellType);
 	}
 
 	/**
@@ -318,30 +355,18 @@ export class ExtensionsCommands extends BaseCommand {
 	 * 
 	 * @returns Промис, который разрешается после запуска команд
 	 */
-	async dumpToSrc(): Promise<void> {
-		const workspaceRoot = this.ensureWorkspace();
-		if (!workspaceRoot) {
-			return;
-		}
-		if (!(await this.ensureOscriptAvailable())) {
-			return;
-		}
-
-		const extensionFolders = await this.getExtensionFoldersFromSrc(workspaceRoot);
-		if (!extensionFolders) {
-			return;
-		}
-
+	async dumpToSrc(opts?: CommandExecutionOptions): Promise<StructuredCommandResult | void> {
 		const ibConnectionParam = await this.vrunner.getIbConnectionParam();
 		const commandName = getDumpExtensionToSrcCommandName();
 		const cfePath = this.vrunner.getCfePath();
 
-		await this.executeForAllExtensions(
+		return this.executeForAllExtensions(
 			(extensionFolder) => {
 				const outputPath = path.join(cfePath, extensionFolder);
 				return ['decompileext', extensionFolder, outputPath, ...ibConnectionParam];
 			},
-			commandName.title
+			commandName.title,
+			opts
 		);
 	}
 
@@ -353,36 +378,50 @@ export class ExtensionsCommands extends BaseCommand {
 	 * 
 	 * @returns Промис, который разрешается после запуска команд
 	 */
-	async dumpToCfe(): Promise<void> {
-		const workspaceRoot = this.ensureWorkspace();
-		if (!workspaceRoot) {
-			return;
-		}
-		if (!(await this.ensureOscriptAvailable())) {
+	async dumpToCfe(opts?: CommandExecutionOptions): Promise<StructuredCommandResult | void> {
+		const cwd = this.getExecutionCwd(opts);
+		if (!cwd) {
+			if (opts?.wait === true) {
+				return this.executionError(
+					'Укажите projectPath или откройте рабочую область с проектом 1С'
+				);
+			}
+			this.ensureWorkspace();
 			return;
 		}
 
-		const extensionFolders = await this.getExtensionFoldersFromSrc(workspaceRoot);
+		const extensionFolders = await this.getExtensionFoldersFromSrc(cwd);
 		if (!extensionFolders) {
+			if (opts?.wait === true) {
+				return this.executionError('В каталоге расширений не найдено подкаталогов');
+			}
 			return;
 		}
 
 		const buildPath = this.vrunner.getOutPath();
-		const cfeBuildPath = path.join(workspaceRoot, buildPath, 'cfe');
-		if (!(await this.ensureDirectoryExists(cfeBuildPath, `Ошибка при создании папки ${buildPath}/cfe`))) {
+		const cfeBuildPath = path.join(cwd, buildPath, 'cfe');
+		if (!(await this.ensureDirectoryForExecution(
+			cfeBuildPath,
+			opts,
+			`Ошибка при создании папки ${buildPath}/cfe`
+		))) {
+			if (opts?.wait === true) {
+				return this.executionError(`Не удалось создать каталог ${buildPath}/cfe`);
+			}
 			return;
 		}
 
 		const ibConnectionParam = await this.vrunner.getIbConnectionParam();
 		const commandName = getDumpExtensionToCfeCommandName();
 
-		await this.executeForAllExtensions(
+		return this.executeForAllExtensions(
 			(extensionFolder) => {
 				const extensionFileName = `${extensionFolder}.cfe`;
 				const cfepath = path.join(buildPath, 'cfe', extensionFileName);
 				return ['unloadext', cfepath, extensionFolder, ...ibConnectionParam];
 			},
-			commandName.title
+			commandName.title,
+			opts
 		);
 	}
 
@@ -394,37 +433,51 @@ export class ExtensionsCommands extends BaseCommand {
 	 * 
 	 * @returns Промис, который разрешается после запуска команд
 	 */
-	async compile(): Promise<void> {
-		const workspaceRoot = this.ensureWorkspace();
-		if (!workspaceRoot) {
-			return;
-		}
-		if (!(await this.ensureOscriptAvailable())) {
+	async compile(opts?: CommandExecutionOptions): Promise<StructuredCommandResult | void> {
+		const cwd = this.getExecutionCwd(opts);
+		if (!cwd) {
+			if (opts?.wait === true) {
+				return this.executionError(
+					'Укажите projectPath или откройте рабочую область с проектом 1С'
+				);
+			}
+			this.ensureWorkspace();
 			return;
 		}
 
-		const extensionFolders = await this.getExtensionFoldersFromSrc(workspaceRoot);
+		const extensionFolders = await this.getExtensionFoldersFromSrc(cwd);
 		if (!extensionFolders) {
+			if (opts?.wait === true) {
+				return this.executionError('В каталоге расширений не найдено подкаталогов');
+			}
 			return;
 		}
 
 		const buildPath = this.vrunner.getOutPath();
-		const cfeBuildPath = path.join(workspaceRoot, buildPath, 'cfe');
-		if (!(await this.ensureDirectoryExists(cfeBuildPath, `Ошибка при создании папки ${buildPath}/cfe`))) {
+		const cfeBuildPath = path.join(cwd, buildPath, 'cfe');
+		if (!(await this.ensureDirectoryForExecution(
+			cfeBuildPath,
+			opts,
+			`Ошибка при создании папки ${buildPath}/cfe`
+		))) {
+			if (opts?.wait === true) {
+				return this.executionError(`Не удалось создать каталог ${buildPath}/cfe`);
+			}
 			return;
 		}
 
 		const commandName = getBuildExtensionCommandName();
 		const cfePath = this.vrunner.getCfePath();
-		
-		await this.executeForAllExtensions(
+
+		return this.executeForAllExtensions(
 			(extensionFolder) => {
 				const extensionFileName = `${extensionFolder}.cfe`;
 				const srcPath = path.join(cfePath, extensionFolder);
 				const outPath = path.join(buildPath, 'cfe', extensionFileName);
 				return ['compileexttocfe', '--src', srcPath, '--out', outPath];
 			},
-			commandName.title
+			commandName.title,
+			opts
 		);
 	}
 
@@ -436,24 +489,45 @@ export class ExtensionsCommands extends BaseCommand {
 	 * 
 	 * @returns Промис, который разрешается после запуска команд
 	 */
-	async decompile(): Promise<void> {
-		const workspaceRoot = this.ensureWorkspace();
-		if (!workspaceRoot) {
+	async decompile(opts?: CommandExecutionOptions): Promise<StructuredCommandResult | void> {
+		const cwd = this.getExecutionCwd(opts);
+		if (!cwd) {
+			if (opts?.wait === true) {
+				return this.executionError(
+					'Укажите projectPath или откройте рабочую область с проектом 1С'
+				);
+			}
+			this.ensureWorkspace();
 			return;
 		}
-		if (!(await this.ensureOscriptAvailable())) {
+		if (!(await this.ensureOscriptForExecution(opts))) {
+			if (opts?.wait === true) {
+				return this.executionError('OneScript (oscript) или opm не найдены');
+			}
 			return;
 		}
 
 		const buildPath = this.vrunner.getOutPath();
-		const cfeBuildPath = path.join(workspaceRoot, buildPath, 'cfe');
+		const cfeBuildPath = path.join(cwd, buildPath, 'cfe');
 
-		if (!(await this.checkDirectoryExists(cfeBuildPath, `Папка ${buildPath}/cfe не является директорией`))) {
+		if (opts?.wait === true) {
+			try {
+				const stats = await fs.stat(cfeBuildPath);
+				if (!stats.isDirectory()) {
+					return this.executionError(`Каталог ${buildPath}/cfe не найден`);
+				}
+			} catch {
+				return this.executionError(`Каталог ${buildPath}/cfe не найден`);
+			}
+		} else if (!(await this.checkDirectoryExists(cfeBuildPath, `Папка ${buildPath}/cfe не является директорией`))) {
 			return;
 		}
 
 		const cfeFiles = await this.getFilesByExtension(cfeBuildPath, '.cfe', `Ошибка при чтении папки ${buildPath}/cfe`);
 		if (cfeFiles.length === 0) {
+			if (opts?.wait === true) {
+				return this.executionError(`В каталоге ${buildPath}/cfe нет файлов .cfe`);
+			}
 			logger.info(`В папке ${buildPath}/cfe не найдено файлов .cfe`);
 			vscode.window.showInformationMessage(`В папке ${buildPath}/cfe не найдено файлов .cfe`);
 			return;
@@ -461,30 +535,30 @@ export class ExtensionsCommands extends BaseCommand {
 
 		const ibConnectionParam = await this.vrunner.getIbConnectionParam();
 		const commandName = getDecompileExtensionCommandName();
-		const useDocker = await this.vrunner.shouldUseDocker();
 		const cfePath = this.vrunner.getCfePath();
+		const argsList = cfeFiles.map((cfeFile) => {
+			const extensionName = cfeFile.replace(/\.cfe$/i, '');
+			const outputPath = path.join(cfePath, extensionName);
+			return this.addIbcmdIfNeeded(['decompileext', extensionName, outputPath, ...ibConnectionParam]);
+		});
 
+		if (opts?.wait === true) {
+			return this.runVRunnerSequential(argsList, opts, commandName.title);
+		}
+
+		const useDocker = await this.vrunner.shouldUseDocker();
 		if (useDocker) {
-			for (const cfeFile of cfeFiles) {
-				const extensionName = cfeFile.replace(/\.cfe$/i, '');
-				const outputPath = path.join(cfePath, extensionName);
-				const args = this.addIbcmdIfNeeded(['decompileext', extensionName, outputPath, ...ibConnectionParam]);
-				await this.vrunner.executeVRunnerInTerminal(args, {
-					cwd: workspaceRoot,
+			for (const args of argsList) {
+				this.vrunner.executeVRunnerInTerminal(args, {
+					cwd,
 					name: commandName.title
 				});
 			}
 		} else {
 			const vrunnerPath = this.vrunner.getVRunnerPath();
 			const shellType = detectShellType();
-			const commands: string[] = [];
-			for (const cfeFile of cfeFiles) {
-				const extensionName = cfeFile.replace(/\.cfe$/i, '');
-				const outputPath = path.join(cfePath, extensionName);
-				const args = this.addIbcmdIfNeeded(['decompileext', extensionName, outputPath, ...ibConnectionParam]);
-				commands.push(buildCommand(vrunnerPath, args, shellType));
-			}
-			this.executeCommandsInTerminal(commands, commandName.title, workspaceRoot, shellType);
+			const commands = argsList.map((args) => buildCommand(vrunnerPath, args, shellType));
+			this.executeCommandsInTerminal(commands, commandName.title, cwd, shellType);
 		}
 	}
 }

@@ -14,74 +14,28 @@ import {
 import { VANESSA_RUNNER_ROOT, VANESSA_RUNNER_EPF, EPF_NAMES, EPF_COMMANDS } from '../shared/constants';
 import { formatDateForDtFileName } from '../utils/dateUtils';
 import { logger } from '../shared/logger';
+import type { CommandExecutionOptions, StructuredCommandResult } from '../shared/commandExecutionTypes';
 
 /**
  * Команды для работы с информационными базами
  */
 export class InfobaseCommands extends BaseCommand {
 
-	/**
-	 * Создает пустую информационную базу
-	 * Выполняет команду vrunner init-dev с параметром --ibconnection из env.json
-	 * @returns Промис, который разрешается после запуска команды
-	 */
-	async createEmptyInfobase(): Promise<void> {
-		const workspaceRoot = this.ensureWorkspace();
-		if (!workspaceRoot) {
-			return;
-		}
-		if (!(await this.ensureOscriptAvailable())) {
-			return;
-		}
-
+	async createEmptyInfobase(opts?: CommandExecutionOptions): Promise<StructuredCommandResult | void> {
 		const ibConnectionParam = await this.vrunner.getIbConnectionParam();
 		const args = this.addIbcmdIfNeeded(['init-dev', ...ibConnectionParam]);
-		const commandName = getCreateEmptyInfobaseCommandName();
-
-		this.vrunner.executeVRunnerInTerminal(args, {
-			cwd: workspaceRoot,
-			name: commandName.title
-		});
+		return this.runVRunner(args, opts, getCreateEmptyInfobaseCommandName().title);
 	}
 
-	/**
-	 * Обновляет информационную базу (vrunner updatedb).
-	 * @returns Промис, который разрешается после запуска команды
-	 */
-	async updateInfobase(): Promise<void> {
-		const workspaceRoot = this.ensureWorkspace();
-		if (!workspaceRoot) {
-			return;
-		}
-
+	async updateInfobase(opts?: CommandExecutionOptions): Promise<StructuredCommandResult | void> {
 		const ibConnectionParam = await this.vrunner.getIbConnectionParam();
 		const args = this.addIbcmdIfNeeded(['updatedb', ...ibConnectionParam]);
-		const commandName = getUpdateInfobaseCommandName();
-
-		this.vrunner.executeVRunnerInTerminal(args, {
-			cwd: workspaceRoot,
-			name: commandName.title
-		});
+		return this.runVRunner(args, opts, getUpdateInfobaseCommandName().title);
 	}
 
-	/**
-	 * Выполняет постобработку обновления информационной базы
-	 * Выполняет команду vrunner run с обработкой ЗакрытьПредприятие.epf
-	 * @returns Промис, который разрешается после запуска команды
-	 */
-	async updateDatabase(): Promise<void> {
-		const workspaceRoot = this.ensureWorkspace();
-		if (!workspaceRoot) {
-			return;
-		}
-		if (!(await this.ensureOscriptAvailable())) {
-			return;
-		}
-
+	async updateDatabase(opts?: CommandExecutionOptions): Promise<StructuredCommandResult | void> {
 		const ibConnectionParam = await this.vrunner.getIbConnectionParam();
-		const commandName = getUpdateDatabaseCommandName();
 		const epfPath = path.join(VANESSA_RUNNER_ROOT, VANESSA_RUNNER_EPF, EPF_NAMES.CLOSE_ENTERPRISE);
-
 		const args = [
 			'run',
 			'--command',
@@ -90,31 +44,16 @@ export class InfobaseCommands extends BaseCommand {
 			epfPath,
 			...ibConnectionParam
 		];
-
-		this.vrunner.executeVRunnerInTerminal(args, {
-			cwd: workspaceRoot,
-			name: commandName.title
-		});
+		return this.runVRunner(args, opts, getUpdateDatabaseCommandName().title);
 	}
 
-	/**
-	 * Запрещает работу с внешними ресурсами
-	 * Выполняет команду vrunner run с обработкой БлокировкаРаботыСВнешнимиРесурсами.epf
-	 * @returns Промис, который разрешается после запуска команды
-	 */
-	async blockExternalResources(): Promise<void> {
-		const workspaceRoot = this.ensureWorkspace();
-		if (!workspaceRoot) {
-			return;
-		}
-		if (!(await this.ensureOscriptAvailable())) {
-			return;
-		}
-
+	async blockExternalResources(opts?: CommandExecutionOptions): Promise<StructuredCommandResult | void> {
 		const ibConnectionParam = await this.vrunner.getIbConnectionParam();
-		const commandName = getBlockExternalResourcesCommandName();
-		const epfPath = path.join(VANESSA_RUNNER_ROOT, VANESSA_RUNNER_EPF, EPF_NAMES.BLOCK_EXTERNAL_RESOURCES);
-
+		const epfPath = path.join(
+			VANESSA_RUNNER_ROOT,
+			VANESSA_RUNNER_EPF,
+			EPF_NAMES.BLOCK_EXTERNAL_RESOURCES
+		);
 		const args = [
 			'run',
 			'--command',
@@ -123,67 +62,46 @@ export class InfobaseCommands extends BaseCommand {
 			epfPath,
 			...ibConnectionParam
 		];
-
-		this.vrunner.executeVRunnerInTerminal(args, {
-			cwd: workspaceRoot,
-			name: commandName.title
-		});
+		return this.runVRunner(args, opts, getBlockExternalResourcesCommandName().title);
 	}
 
-	/**
-	 * Инициализирует информационную базу
-	 * Выполняет команду vrunner vanessa с настройками из файла инициализации
-	 * @returns Промис, который разрешается после запуска команды
-	 */
-	async initialize(): Promise<void> {
-		const workspaceRoot = this.ensureWorkspace();
-		if (!workspaceRoot) {
-			return;
-		}
-		if (!(await this.ensureOscriptAvailable())) {
-			return;
-		}
-
+	async initialize(opts?: CommandExecutionOptions): Promise<StructuredCommandResult | void> {
 		const ibConnectionParam = await this.vrunner.getIbConnectionParam();
-		const commandName = getInitializeCommandName();
 		const settingsPath = this.vrunner.getVRunnerInitSettingsPath();
-
-		const args = [
-			'vanessa',
-			'--settings',
-			settingsPath,
-			...ibConnectionParam
-		];
-
-		this.vrunner.executeVRunnerInTerminal(args, {
-			cwd: workspaceRoot,
-			name: commandName.title
-		});
+		const args = ['vanessa', '--settings', settingsPath, ...ibConnectionParam];
+		return this.runVRunner(args, opts, getInitializeCommandName().title);
 	}
 
-	/**
-	 * Выгружает информационную базу в dt-файл
-	 * Формирует имя файла в формате: 1Cv8_YYYYMMDD_HHMMSS.dt
-	 * @returns Промис, который разрешается после запуска команды
-	 */
-	async dumpToDt(): Promise<void> {
-		const workspaceRoot = this.ensureWorkspace();
-		if (!workspaceRoot) {
+	async dumpToDt(opts?: CommandExecutionOptions): Promise<StructuredCommandResult | void> {
+		const cwd = this.getExecutionCwd(opts);
+		if (!cwd) {
+			if (opts?.wait === true) {
+				return this.executionError(
+					'Укажите projectPath или откройте рабочую область с проектом 1С'
+				);
+			}
+			this.ensureWorkspace();
 			return;
 		}
-		if (!(await this.ensureOscriptAvailable())) {
+		if (!(await this.ensureOscriptForExecution(opts))) {
+			if (opts?.wait === true) {
+				return this.executionError('OneScript (oscript) или opm не найдены');
+			}
 			return;
 		}
 
 		const buildPath = this.vrunner.getOutPath();
 		const dtFolder = path.join(buildPath, 'dt');
-		const dtFolderFullPath = path.join(workspaceRoot, dtFolder);
+		const dtFolderFullPath = path.join(cwd, dtFolder);
 
 		try {
 			await fs.mkdir(dtFolderFullPath, { recursive: true });
 		} catch (error) {
 			const errMsg = (error as Error).message;
-			logger.error(`Ошибка при создании папки ${dtFolder}: ${errMsg}. Путь: ${dtFolderFullPath}`);
+			if (opts?.wait === true) {
+				return this.executionError(`Не удалось создать каталог ${dtFolder}: ${errMsg}`);
+			}
+			logger.error(`Ошибка при создании папки ${dtFolder}: ${errMsg}`);
 			vscode.window.showErrorMessage(`Ошибка при создании папки ${dtFolder}: ${errMsg}`);
 			return;
 		}
@@ -191,26 +109,21 @@ export class InfobaseCommands extends BaseCommand {
 		const fileName = `1Cv8_${formatDateForDtFileName()}.dt`;
 		const dtPath = path.join(dtFolder, fileName);
 		const ibConnectionParam = await this.vrunner.getIbConnectionParam();
-		const commandName = getDumpInfobaseToDtCommandName();
 		const args = this.addIbcmdIfNeeded(['dump', dtPath, ...ibConnectionParam]);
-
-		this.vrunner.executeVRunnerInTerminal(args, {
-			cwd: workspaceRoot,
-			name: commandName.title
-		});
+		return this.runVRunner(args, opts, getDumpInfobaseToDtCommandName().title, dtPath);
 	}
 
-	/**
-	 * Загружает информационную базу из dt-файла
-	 * Предлагает окно для выбора dt-файла
-	 * @returns Промис, который разрешается после выбора файла и запуска команды
-	 */
-	async loadFromDt(): Promise<void> {
-		const workspaceRoot = this.ensureWorkspace();
-		if (!workspaceRoot) {
-			return;
+	async loadFromDt(opts?: CommandExecutionOptions): Promise<StructuredCommandResult | void> {
+		const reject = this.rejectIfWait(
+			opts,
+			'Загрузка из .dt требует выбора файла в UI; wait: true недоступен'
+		);
+		if (reject) {
+			return reject;
 		}
-		if (!(await this.ensureOscriptAvailable())) {
+
+		const workspaceRoot = this.ensureWorkspace();
+		if (!workspaceRoot || !(await this.ensureOscriptAvailable())) {
 			return;
 		}
 
@@ -222,9 +135,7 @@ export class InfobaseCommands extends BaseCommand {
 			canSelectFolders: false,
 			canSelectMany: false,
 			openLabel: 'Загрузить',
-			filters: {
-				'DT файлы': ['dt']
-			},
+			filters: { 'DT файлы': ['dt'] },
 			defaultUri: vscode.Uri.file(dtFolder)
 		});
 
@@ -235,12 +146,7 @@ export class InfobaseCommands extends BaseCommand {
 		const selectedFilePath = fileUri[0].fsPath;
 		const relativePath = path.relative(workspaceRoot, selectedFilePath);
 		const ibConnectionParam = await this.vrunner.getIbConnectionParam();
-		const commandName = getLoadInfobaseFromDtCommandName();
 		const args = this.addIbcmdIfNeeded(['restore', relativePath, ...ibConnectionParam]);
-
-		this.vrunner.executeVRunnerInTerminal(args, {
-			cwd: workspaceRoot,
-			name: commandName.title
-		});
+		return this.runVRunner(args, opts, getLoadInfobaseFromDtCommandName().title);
 	}
 }
