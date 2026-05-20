@@ -5,6 +5,14 @@
 Формат основан на [Keep a Changelog](https://keepachangelog.com/ru/1.0.0/),
 и этот проект придерживается [Semantic Versioning](https://semver.org/lang/ru/).
 
+## [0.7.3] - 2026-05-20
+
+
+### 🚀 Features
+
+- **commands:** Wait: true и StructuredCommandResult для MCP (https://github.com/yellow-hammer/mcp-1c-platform-tools/issues/15)
+
+
 ## [0.7.2] - 2026-04-27
 
 
