@@ -10,7 +10,8 @@ import {
 	getDumpExtensionToSrcCommandName,
 	getDumpExtensionToCfeCommandName,
 	getBuildExtensionCommandName,
-	getDecompileExtensionCommandName
+	getDecompileExtensionCommandName,
+	getUpdateExtensionsInInfobaseCommandName
 } from '../features/tools/commandNames';
 import { VANESSA_RUNNER_ROOT, VANESSA_RUNNER_EPF, EPF_NAMES, EPF_COMMANDS } from '../shared/constants';
 import { logger } from '../shared/logger';
@@ -287,6 +288,22 @@ export class ExtensionsCommands extends BaseCommand {
 				// изменения не применяются к ИБ (см. issue #76).
 				return ['compileext', inputPath, extensionFolder, '--updatedb', ...ibConnectionParam];
 			},
+			commandName.title,
+			opts
+		);
+	}
+
+	/**
+	 * Обновляет расширения в ИБ: для каждого расширения из src/cfe/<имя>
+	 * выполняется `vrunner updateext <имя>`. Симметрично команде «Обновить
+	 * конфигурацию в ИБ» (vrunner updatedb) для основной конфигурации.
+	 */
+	async updateInInfobase(opts?: CommandExecutionOptions): Promise<StructuredCommandResult | void> {
+		const ibConnectionParam = await this.vrunner.getIbConnectionParam();
+		const commandName = getUpdateExtensionsInInfobaseCommandName();
+
+		return this.executeForAllExtensions(
+			(extensionFolder) => ['updateext', extensionFolder, ...ibConnectionParam],
 			commandName.title,
 			opts
 		);

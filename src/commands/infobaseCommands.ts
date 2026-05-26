@@ -4,7 +4,7 @@ import * as fs from 'node:fs/promises';
 import { BaseCommand } from './baseCommand';
 import {
 	getCreateEmptyInfobaseCommandName,
-	getUpdateInfobaseCommandName,
+	getUpdateConfigurationInInfobaseCommandName,
 	getUpdateDatabaseCommandName,
 	getBlockExternalResourcesCommandName,
 	getInitializeCommandName,
@@ -30,7 +30,7 @@ export class InfobaseCommands extends BaseCommand {
 	async updateInfobase(opts?: CommandExecutionOptions): Promise<StructuredCommandResult | void> {
 		const ibConnectionParam = await this.vrunner.getIbConnectionParam();
 		const args = this.addIbcmdIfNeeded(['updatedb', ...ibConnectionParam]);
-		return this.runVRunner(args, opts, getUpdateInfobaseCommandName().title);
+		return this.runVRunner(args, opts, getUpdateConfigurationInInfobaseCommandName().title);
 	}
 
 	async updateDatabase(opts?: CommandExecutionOptions): Promise<StructuredCommandResult | void> {

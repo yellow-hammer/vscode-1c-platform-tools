@@ -19,12 +19,27 @@ export function getCreateEmptyInfobaseCommandName(): CommandNameAndTitle {
 }
 
 /**
- * Получить название и заголовок для команды обновления информационной базы (vrunner updatedb)
+ * Получить название и заголовок для команды обновления конфигурации в ИБ (vrunner updatedb).
+ *
+ * Применяет изменения основной конфигурации к БД информационной базы. Не затрагивает расширения —
+ * для них есть отдельная команда «Обновить расширения в ИБ» (vrunner updateext).
  */
-export function getUpdateInfobaseCommandName(): CommandNameAndTitle {
+export function getUpdateConfigurationInInfobaseCommandName(): CommandNameAndTitle {
 	return {
-		name: 'Обновить ИБ',
-		title: 'Обновить ИБ'
+		name: 'Обновить конфигурацию в ИБ',
+		title: 'Обновить конфигурацию в ИБ'
+	};
+}
+
+/**
+ * Получить название и заголовок для команды обновления расширений в ИБ (vrunner updateext по всем).
+ *
+ * Применяет изменения каждого расширения из src/cfe/<имя> к БД информационной базы.
+ */
+export function getUpdateExtensionsInInfobaseCommandName(): CommandNameAndTitle {
+	return {
+		name: 'Обновить расширения в ИБ',
+		title: 'Обновить расширения в ИБ'
 	};
 }
 
