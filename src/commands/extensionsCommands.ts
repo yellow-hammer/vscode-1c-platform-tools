@@ -36,11 +36,9 @@ export class ExtensionsCommands extends BaseCommand {
 		workspaceRoot: string,
 		shellType: ReturnType<typeof detectShellType>
 	): void {
-		const terminal = vscode.window.createTerminal({
-			name: terminalName,
-			cwd: workspaceRoot
-		});
-
+		const terminal =
+			vscode.window.terminals.find((t) => t.name === terminalName) ??
+			vscode.window.createTerminal({ name: terminalName, cwd: workspaceRoot });
 		terminal.sendText(joinCommands(commands, shellType));
 		terminal.show();
 	}
@@ -237,6 +235,8 @@ export class ExtensionsCommands extends BaseCommand {
 		const commandName = getLoadExtensionFromFilesByListCommandName();
 		const listFilePrefix = this.pathForCmd(buildPath) + '/';
 
+		const designerArgsList: string[][] = [];
+		const loadedExtensionNames: string[] = [];
 		for (const [extensionName, relativePaths] of pathsByExtension) {
 			const listFileName = `extension-partial-load-${extensionName}.txt`;
 			const listFilePath = path.join(buildFullPath, listFileName);
@@ -245,12 +245,26 @@ export class ExtensionsCommands extends BaseCommand {
 			}
 			const extensionRelativePath = path.join(cfePath, extensionName);
 			const additionalParam = `/LoadConfigFromFiles ${this.pathForCmd(extensionRelativePath)} -Extension ${extensionName} -listFile ${listFilePrefix}${listFileName} -Format Hierarchical -partial`;
-			const args = this.addIbcmdIfNeeded(['designer', '--additional', additionalParam, ...ibConnectionParam]);
-			this.vrunner.executeVRunnerInTerminal(args, {
-				cwd: workspaceRoot,
-				name: commandName.title
-			});
+			designerArgsList.push(this.addIbcmdIfNeeded(['designer', '--additional', additionalParam, ...ibConnectionParam]));
+			loadedExtensionNames.push(extensionName);
 		}
+
+		if (designerArgsList.length === 0) {
+			return;
+		}
+
+		// После загрузки файлов расширения необходимо отдельной командой обновить
+		// БД для каждого расширения — vrunner updatedb обновляет только основную
+		// конфигурацию, для расширений предназначена команда updateext <имя>.
+		const allArgsList: string[][] = [...designerArgsList];
+		for (const extensionName of loadedExtensionNames) {
+			allArgsList.push(this.addIbcmdIfNeeded(['updateext', extensionName, ...ibConnectionParam]));
+		}
+
+		await this.vrunner.executeVRunnerCommandsInSequence(allArgsList, {
+			cwd: workspaceRoot,
+			name: commandName.title,
+		});
 	}
 
 	/**
@@ -269,7 +283,9 @@ export class ExtensionsCommands extends BaseCommand {
 		return this.executeForAllExtensions(
 			(extensionFolder) => {
 				const inputPath = path.join(cfePath, extensionFolder);
-				return ['compileext', inputPath, extensionFolder, ...ibConnectionParam];
+				// --updatedb обновляет БД расширения сразу после компиляции, иначе
+				// изменения не применяются к ИБ (см. issue #76).
+				return ['compileext', inputPath, extensionFolder, '--updatedb', ...ibConnectionParam];
 			},
 			commandName.title,
 			opts

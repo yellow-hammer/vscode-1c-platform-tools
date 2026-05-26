@@ -337,7 +337,7 @@ export class VRunnerManager {
 	 * Команды, которые поддерживают --ibcmd:
 	 * - Операции с информационными базами: init-dev, update-dev, updatedb, dump, restore, dump-dt, load-dt
 	 * - Операции с конфигурацией: load, dump, dumpcf, compile, decompile
-	 * - Операции с расширениями: compileext, decompileext, unloadext, compileexttocfe
+	 * - Операции с расширениями: compileext, decompileext, unloadext, compileexttocfe, updateext
 	 * - Операции с внешними файлами: compileepf, decompileepf
 	 * 
 	 * Команды, которые НЕ поддерживают --ibcmd:
@@ -370,10 +370,11 @@ export class VRunnerManager {
 			'decompile',  
 
 			// Расширения
-			'compileext',      
-			'decompileext',    
-			'unloadext',       
-			'compileexttocfe'  
+			'compileext',
+			'decompileext',
+			'unloadext',
+			'compileexttocfe',
+			'updateext'
 		];
 
 		return ibcmdSupportedCommands.includes(command);
@@ -507,14 +508,16 @@ export class VRunnerManager {
 		const fullArgs = [normalizedScriptPath, ...processedArgs];
 		const command = buildCommand(onescriptPath, fullArgs, shellType);
 
-		const terminal = vscode.window.createTerminal({
-			name: options?.name || '1C: Platform Tools',
-			cwd: cwd,
-			env: options?.env ? { ...process.env, ...options.env } : undefined
-		});
-
-		terminal.sendText(command);
-		terminal.show();
+		const osTerminalName = options?.name || '1C: Platform Tools';
+		const osTerminal =
+			vscode.window.terminals.find((t) => t.name === osTerminalName) ??
+			vscode.window.createTerminal({
+				name: osTerminalName,
+				cwd: cwd,
+				env: options?.env ? { ...process.env, ...options.env } : undefined,
+			});
+		osTerminal.sendText(command);
+		osTerminal.show();
 	}
 
 	/**
@@ -598,11 +601,14 @@ export class VRunnerManager {
 			command = buildCommand(vrunnerPath, processedArgs, shellType);
 		}
 
-		const terminal = vscode.window.createTerminal({
-			name: options?.name || '1C: Platform Tools',
-			cwd: cwd,
-			env: options?.env ? { ...process.env, ...options.env } : undefined
-		});
+		const terminalName = options?.name || '1C: Platform Tools';
+		const terminal =
+			vscode.window.terminals.find((t) => t.name === terminalName) ??
+			vscode.window.createTerminal({
+				name: terminalName,
+				cwd: cwd,
+				env: options?.env ? { ...process.env, ...options.env } : undefined,
+			});
 
 		terminal.sendText(command);
 		terminal.show();
@@ -663,13 +669,16 @@ export class VRunnerManager {
 				vscode.window.showErrorMessage(errMsg);
 				return;
 			}
-			const terminal = vscode.window.createTerminal({
-				name: options?.name || '1C: Platform Tools',
-				cwd: cwd,
-				env: options?.env ? { ...process.env, ...options.env } : undefined
-			});
-			terminal.sendText(command);
-			terminal.show();
+			const dockerTerminalName = options?.name || '1C: Platform Tools';
+			const dockerTerminal =
+				vscode.window.terminals.find((t) => t.name === dockerTerminalName) ??
+				vscode.window.createTerminal({
+					name: dockerTerminalName,
+					cwd: cwd,
+					env: options?.env ? { ...process.env, ...options.env } : undefined,
+				});
+			dockerTerminal.sendText(command);
+			dockerTerminal.show();
 			return;
 		}
 
@@ -680,13 +689,16 @@ export class VRunnerManager {
 		});
 		const fullCommand = joinCommands(commands, shellType);
 
-		const terminal = vscode.window.createTerminal({
-			name: options?.name || '1C: Platform Tools',
-			cwd: cwd,
-			env: options?.env ? { ...process.env, ...options.env } : undefined
-		});
-		terminal.sendText(fullCommand);
-		terminal.show();
+		const seqTerminalName = options?.name || '1C: Platform Tools';
+		const seqTerminal =
+			vscode.window.terminals.find((t) => t.name === seqTerminalName) ??
+			vscode.window.createTerminal({
+				name: seqTerminalName,
+				cwd: cwd,
+				env: options?.env ? { ...process.env, ...options.env } : undefined,
+			});
+		seqTerminal.sendText(fullCommand);
+		seqTerminal.show();
 	}
 
 	/**
@@ -788,13 +800,12 @@ export class VRunnerManager {
 		const processedArgs = this.processCommandArgs(args, cwd, shellType);
 		const command = buildCommand(opmPath, processedArgs, shellType);
 
-		const terminal = vscode.window.createTerminal({
-			name: options?.name || '1C: Platform Tools',
-			cwd: cwd
-		});
-
-		terminal.sendText(command);
-		terminal.show();
+		const opmTerminalName = options?.name || '1C: Platform Tools';
+		const opmTerminal =
+			vscode.window.terminals.find((t) => t.name === opmTerminalName) ??
+			vscode.window.createTerminal({ name: opmTerminalName, cwd: cwd });
+		opmTerminal.sendText(command);
+		opmTerminal.show();
 	}
 
 	/**
@@ -859,13 +870,12 @@ export class VRunnerManager {
 		const command = buildCommand(allurePath, processedArgs, shellType);
 		const cwd = options?.cwd || this.workspaceRoot || os.homedir();
 
-		const terminal = vscode.window.createTerminal({
-			name: options?.name || '1C: Platform Tools',
-			cwd: cwd
-		});
-
-		terminal.sendText(command);
-		terminal.show();
+		const allureTerminalName = options?.name || '1C: Platform Tools';
+		const allureTerminal =
+			vscode.window.terminals.find((t) => t.name === allureTerminalName) ??
+			vscode.window.createTerminal({ name: allureTerminalName, cwd: cwd });
+		allureTerminal.sendText(command);
+		allureTerminal.show();
 	}
 
 	/**

@@ -371,8 +371,9 @@ export abstract class BaseCommand {
 			return { success, exitCode, stdout, stderr };
 		}
 
-		for (const args of argsList) {
-			this.vrunner.executeVRunnerInTerminal(args, { cwd, name: terminalName });
-		}
+		// Объединяем в одну цепочку (&& / ; — в зависимости от оболочки),
+		// чтобы каждая следующая команда стартовала после реального завершения
+		// предыдущей, а не по факту попадания в input-буфер терминала.
+		await this.vrunner.executeVRunnerCommandsInSequence(argsList, { cwd, name: terminalName });
 	}
 }
