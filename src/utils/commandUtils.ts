@@ -352,8 +352,7 @@ function getEncodingPrefix(shellType: ShellType): string {
 	}
 	
 	if (shellType === 'powershell') {
-		// В PowerShell используем [Console]::OutputEncoding для UTF-8
-		return '[Console]::OutputEncoding = [System.Text.Encoding]::UTF8; ';
+		return 'chcp 65001 | Out-Null; [Console]::OutputEncoding = [System.Text.Encoding]::UTF8; [Console]::InputEncoding = [System.Text.Encoding]::UTF8; ';
 	}
 	
 	if (shellType === 'cmd') {

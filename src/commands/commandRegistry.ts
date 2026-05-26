@@ -172,6 +172,9 @@ export function registerCommands(
 		registerVRunnerCommand('1c-platform-tools.extensions.decompile', (opts) =>
 			commands.extensions.decompile(opts)
 		),
+		registerVRunnerCommand('1c-platform-tools.extensions.updateInInfobase', (opts) =>
+			commands.extensions.updateInInfobase(opts)
+		),
 	];
 
 	// Команды внешних файлов

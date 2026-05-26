@@ -5,7 +5,8 @@
 
 import {
 	getCreateEmptyInfobaseCommandName,
-	getUpdateInfobaseCommandName,
+	getUpdateConfigurationInInfobaseCommandName,
+	getUpdateExtensionsInInfobaseCommandName,
 	getUpdateDatabaseCommandName,
 	getBlockExternalResourcesCommandName,
 	getInitializeCommandName,
@@ -90,7 +91,6 @@ export const TREE_GROUPS: TreeGroup[] = [
 		defaultCollapsibleState: 'collapsed',
 		commands: [
 			{ command: '1c-platform-tools.infobase.createEmpty', title: getCreateEmptyInfobaseCommandName().title, treeLabel: '➕ Создать пустую ИБ' },
-			{ command: '1c-platform-tools.infobase.updateInfobase', title: getUpdateInfobaseCommandName().title, treeLabel: '🔄 Обновить ИБ' },
 			{ command: '1c-platform-tools.infobase.updateDatabase', title: getUpdateDatabaseCommandName().title, treeLabel: '🔄 Постобработка обновления' },
 			{ command: '1c-platform-tools.infobase.blockExternalResources', title: getBlockExternalResourcesCommandName().title, treeLabel: '🚫 Запретить работу с внешними ресурсами' },
 			{ command: '1c-platform-tools.infobase.initialize', title: getInitializeCommandName().title, treeLabel: '🚀 Инициализировать данные' },
@@ -107,6 +107,7 @@ export const TREE_GROUPS: TreeGroup[] = [
 			{ command: '1c-platform-tools.configuration.loadIncrementFromSrc', title: getLoadConfigurationIncrementFromSrcCommandName().title, treeLabel: '📥 Загрузить изменения (git diff)' },
 			{ command: '1c-platform-tools.configuration.loadFromFilesByList', title: getLoadConfigurationFromFilesByListCommandName().title, treeLabel: '📥 Загрузить из objlist.txt' },
 			{ command: '1c-platform-tools.configuration.loadFromCf', title: getLoadConfigurationFromCfCommandName().title, treeLabel: '📥 Загрузить из 1Cv8.cf' },
+			{ command: '1c-platform-tools.infobase.updateInfobase', title: getUpdateConfigurationInInfobaseCommandName().title, treeLabel: '🔄 Обновить конфигурацию в ИБ' },
 			{ command: '1c-platform-tools.configuration.dumpToSrc', title: getDumpConfigurationToSrcCommandName().title, treeLabel: '📤 Выгрузить в src/cf' },
 			{ command: '1c-platform-tools.configuration.dumpIncrementToSrc', title: getDumpConfigurationIncrementToSrcCommandName().title, treeLabel: '📤 Выгрузить изменения в src/cf' },
 			{ command: '1c-platform-tools.configuration.dumpToCf', title: getDumpConfigurationToCfCommandName().title, treeLabel: '📤 Выгрузить в 1Cv8.cf' },
@@ -122,6 +123,7 @@ export const TREE_GROUPS: TreeGroup[] = [
 			{ command: '1c-platform-tools.extensions.loadFromSrc', title: getLoadExtensionFromSrcCommandName().title, treeLabel: '📥 Загрузить из src/cfe' },
 			{ command: '1c-platform-tools.extensions.loadFromFilesByList', title: getLoadExtensionFromFilesByListCommandName().title, treeLabel: '📥 Загрузить из objlist.txt' },
 			{ command: '1c-platform-tools.extensions.loadFromCfe', title: getLoadExtensionFromCfeCommandName().title, treeLabel: '📥 Загрузить из *.cfe' },
+			{ command: '1c-platform-tools.extensions.updateInInfobase', title: getUpdateExtensionsInInfobaseCommandName().title, treeLabel: '🔄 Обновить расширения в ИБ' },
 			{ command: '1c-platform-tools.extensions.dumpToSrc', title: getDumpExtensionToSrcCommandName().title, treeLabel: '📤 Выгрузить в src/cfe' },
 			{ command: '1c-platform-tools.extensions.dumpToCfe', title: getDumpExtensionToCfeCommandName().title, treeLabel: '📤 Выгрузить в *.cfe' },
 			{ command: '1c-platform-tools.extensions.build', title: getBuildExtensionCommandName().title, treeLabel: '🔨 Собрать *.cfe из src/cfe' },

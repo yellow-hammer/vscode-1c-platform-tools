@@ -602,8 +602,8 @@
       },
       {
         "command": "1c-platform-tools.infobase.updateInfobase",
-        "title": "Обновить ИБ",
-        "category": "1C: Информационная база"
+        "title": "Обновить конфигурацию в ИБ",
+        "category": "1C: Конфигурация"
       },
       {
         "command": "1c-platform-tools.infobase.updateDatabase",
@@ -718,6 +718,11 @@
       {
         "command": "1c-platform-tools.extensions.decompile",
         "title": "Разобрать *.cfe в src/cfe",
+        "category": "1C: Расширения"
+      },
+      {
+        "command": "1c-platform-tools.extensions.updateInInfobase",
+        "title": "Обновить расширения в ИБ",
         "category": "1C: Расширения"
       },
       {

@@ -42,8 +42,15 @@ export class ConfigurationCommands extends BaseCommand {
 		const buildPath = this.vrunner.getOutPath();
 		const cfFilePath = path.join(buildPath, '1Cv8.cf');
 		const ibConnectionParam = await this.vrunner.getIbConnectionParam();
-		const args = this.addIbcmdIfNeeded(['load', '--src', cfFilePath, ...ibConnectionParam]);
-		return this.runVRunner(args, opts, getLoadConfigurationFromCfCommandName().title);
+		// `vrunner load` загружает .cf в конфигурацию, но не обновляет БД —
+		// цепляем updatedb, иначе изменения не применяются к ИБ.
+		const loadArgs = this.addIbcmdIfNeeded(['load', '--src', cfFilePath, ...ibConnectionParam]);
+		const updateDbArgs = this.addIbcmdIfNeeded(['updatedb', ...ibConnectionParam]);
+		return this.runVRunnerSequential(
+			[loadArgs, updateDbArgs],
+			opts,
+			getLoadConfigurationFromCfCommandName().title
+		);
 	}
 
 	async dumpToSrc(opts?: CommandExecutionOptions): Promise<StructuredCommandResult | void> {
@@ -335,8 +342,15 @@ export class ConfigurationCommands extends BaseCommand {
 		const listFileForCmd = this.pathForCmd(buildPath) + '/' + listFileName;
 		const ibConnectionParam = await this.vrunner.getIbConnectionParam();
 		const additionalParam = `/LoadConfigFromFiles ${this.pathForCmd(srcPath)} -listFile ${listFileForCmd}`;
-		const args = this.addIbcmdIfNeeded(['designer', '--additional', additionalParam, ...ibConnectionParam]);
+		// Частичная загрузка через designer /LoadConfigFromFiles не обновляет БД,
+		// поэтому отдельно цепляем updatedb.
+		const designerArgs = this.addIbcmdIfNeeded(['designer', '--additional', additionalParam, ...ibConnectionParam]);
+		const updateDbArgs = this.addIbcmdIfNeeded(['updatedb', ...ibConnectionParam]);
 
-		return this.runVRunner(args, opts, getLoadConfigurationFromFilesByListCommandName().title);
+		return this.runVRunnerSequential(
+			[designerArgs, updateDbArgs],
+			opts,
+			getLoadConfigurationFromFilesByListCommandName().title
+		);
 	}
 }
