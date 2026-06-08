@@ -4,6 +4,7 @@ import * as path from 'node:path';
 import * as vscode from 'vscode';
 import { VRunnerManager } from '../../shared/vrunnerManager';
 import { clearMdSparrowDownloadCache, ensureMdSparrowRuntime } from './mdSparrowBootstrap';
+import { clearOnecDebugAdapterCache } from '../debug/onecDebugAdapterBootstrap';
 import {
 	parseMdBoilerplateKindFromCommandArgs,
 	resolveNextBoilerplateMdName,
@@ -693,17 +694,12 @@ export function registerMetadataFeature(
 			await fs.promises.access(configurationXmlPath);
 			return await mdSparrowSchemaFlagFromConfigurationXml(configurationXmlPath);
 		} catch {
+			const formats = ['2.21', '2.20', '2.19', '2.18', '2.17', '2.16', '2.15', '2.14', '2.13', '2.12', '2.11', '2.10'];
 			const pick = await vscode.window.showQuickPick(
-				[
-					{ label: 'V2_21', description: 'Схемы 2.21' },
-					{ label: 'V2_20', description: 'Схемы 2.20' },
-				],
+				formats.map((f) => ({ label: `V${f.replace('.', '_')}`, description: `Схемы ${f}` })),
 				{ title: 'Версия XSD для пустой выгрузки (нет Configuration.xml)' }
 			);
-			if (pick?.label === 'V2_21' || pick?.label === 'V2_20') {
-				return pick.label;
-			}
-			return undefined;
+			return pick?.label;
 		}
 	}
 
@@ -1820,20 +1816,21 @@ export function registerMetadataFeature(
 			}
 			return loadProjectMetadataTree(context, root);
 		}),
-		vscode.commands.registerCommand('1c-platform-tools.metadata.updateMdSparrow', async () => {
+		vscode.commands.registerCommand('1c-platform-tools.metadata.resetCache', async () => {
 			const pick = await vscode.window.showQuickPick(
 				[
-					{ label: 'Только JAR', value: 'jar' as const },
-					{ label: 'JAR и portable JRE', value: 'all' as const },
+					{ label: 'JAR md-sparrow и отладчик (DAP)', value: 'jar' as const },
+					{ label: 'JAR, отладчик (DAP) и portable JRE', value: 'all' as const },
 				],
-				{ title: 'Сбросить кэш' }
+				{ title: 'Сбросить кэш внешних компонентов' }
 			);
 			if (!pick) {
 				return;
 			}
 			await clearMdSparrowDownloadCache(context, pick.value === 'all');
+			await clearOnecDebugAdapterCache(context);
 			void vscode.window.showInformationMessage(
-				'Кэш очищен. При следующем действии JAR и при необходимости JRE будут загружены снова.'
+				'Кэш очищен. При следующем действии будут заново загружены JAR md-sparrow, отладчик 1С (DAP) и при необходимости portable JRE.'
 			);
 			void metadataTreeProvider.refresh();
 		}),

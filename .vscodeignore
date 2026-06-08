@@ -33,8 +33,9 @@ build/**
 **/build/**
 scripts/**
 
-# Исходники onec-debug-adapter (клонируются при сборке, в пакет попадает только bin/onec-debug-adapter/)
+# onec-debug-adapter (DAP) качается в рантайме с GitHub Releases, в VSIX не бандлится
 _onec-debug-adapter/**
+bin/onec-debug-adapter/**
 
 # Временные файлы
 *.log

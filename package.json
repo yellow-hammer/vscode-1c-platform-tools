@@ -155,8 +155,6 @@
       {
         "type": "1c-platform-tools",
         "label": "1Cpt: Enterprise Debugger",
-        "program": "./bin/onec-debug-adapter/OnecDebugAdapter.dll",
-        "runtime": "dotnet",
         "languages": [
           "bsl"
         ],
@@ -414,7 +412,7 @@
         "category": "1C: Метаданные"
       },
       {
-        "command": "1c-platform-tools.metadata.updateMdSparrow",
+        "command": "1c-platform-tools.metadata.resetCache",
         "title": "Сбросить кэш",
         "category": "1C: Метаданные"
       },
@@ -1817,7 +1815,7 @@
           "group": "1_md_overflow@1"
         },
         {
-          "command": "1c-platform-tools.metadata.updateMdSparrow",
+          "command": "1c-platform-tools.metadata.resetCache",
           "group": "1_md_overflow@2"
         }
       ]
@@ -2232,6 +2230,16 @@
             "default": "",
             "description": "Полный путь к java или javaw. Пусто: при включённой автозагрузке JRE — кэш/скачивание; при выключенной — команда java из PATH (укажите путь, если java не в PATH)."
           },
+          "1c-platform-tools.debug.autoloadAdapter": {
+            "type": "boolean",
+            "default": true,
+            "description": "Автоматически загружать onec-debug-adapter (DAP) с GitHub Releases, если путь к адаптеру не задан."
+          },
+          "1c-platform-tools.debug.adapterFile": {
+            "type": "string",
+            "default": "",
+            "description": "Полный путь к OnecDebugAdapter.dll. Пусто — загрузка последнего релиза с GitHub или кэш."
+          },
           "1c-platform-tools.metadata.er.exportDir": {
             "type": "string",
             "default": "docs/schemas",
@@ -2287,14 +2295,10 @@
       }
     ]
   },
-  "onecDebugAdapter": {
-    "version": "v0.1.0"
-  },
   "scripts": {
-    "vscode:prepublish": "npm run compile && npm run build:onec-adapter",
+    "vscode:prepublish": "npm run compile",
     "compile": "node esbuild.config.mjs",
     "watch": "node esbuild.config.mjs --watch",
-    "build:onec-adapter": "node scripts/build-onec-adapter.mjs",
     "pretest": "npm run compile && npm run lint",
     "lint": "eslint src",
     "test": "vscode-test",
