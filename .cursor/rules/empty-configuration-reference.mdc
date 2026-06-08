@@ -5,6 +5,6 @@ alwaysApply: true
 
 # Пустая выгрузка конфигурации (метаданные 1С)
 
-- **Эталон пустой выгрузки** — **[yellow-hammer/1c-platform-samples](https://github.com/yellow-hammer/1c-platform-samples)**, каталог **`src/cf`** (корень `Configuration.xml`). Им пользоваться при сверке «Пустая конфигурация» / `init-empty-cf` с реальностью.
+- **Эталоны** — **[yellow-hammer/samples-1c-platform](https://github.com/yellow-hammer/samples-1c-platform)** (`snapshots/<версия>/cf-bare-objects` — голые объекты). Пустую выгрузку формирует `init-empty-cf` (md-sparrow) из этого эталона; отдельного снимка пустой ИБ нет.
 - **Submodule `fixtures/ssl31` в md-sparrow** — типовая большая выгрузка, **не** пустая ИБ; не называть её пустой фикстурой.
 - **`Configuration/@formatVersion`**: в XSD атрибут обязателен, в живой пустой выгрузке на `<Configuration>` его **может не быть** — расхождение схемы и платформы. Подробности и правила для кода — в **`md-sparrow/.cursor/rules/empty-configuration-reference.mdc`** и **`md-sparrow/docs/cf-layout.md`**.

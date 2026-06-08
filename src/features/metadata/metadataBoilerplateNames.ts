@@ -1,6 +1,6 @@
 /**
- * Имена «болванок» новых объектов МД — в духе эталонных деревьев выгрузки:
- * `1c-platform-samples/snapshots/2.20/cf/empty-full-objects/` (например `Catalogs/Справочник1.xml`).
+ * Имена «болванок» новых объектов МД — в духе эталонных голых объектов выгрузки:
+ * `samples-1c-platform/snapshots/<версия>/cf-bare-objects/` (например `Catalogs/Справочник1.xml`).
  * @module metadataBoilerplateNames
  */
 

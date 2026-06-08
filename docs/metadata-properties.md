@@ -6,7 +6,7 @@
 
 | Команда                                      | Назначение           |
 |----------------------------------------------|----------------------|
-| `cf-md-object-get <путь.xml> -v V2_20/V2_21` | stdout: один JSON    |
+| `cf-md-object-get <путь.xml> -v V2_10…V2_21` | stdout: один JSON    |
 | `cf-md-object-set <путь.xml> <json> -v …`    | запись из файла JSON |
 
 ### CRUD дочерних узлов объекта
@@ -83,7 +83,7 @@
 
 ## Эталоны для проверки
 
-Round-trip и регрессии — на выгрузках вроде submodule **fixtures/ssl31** в md-sparrow; пустая конфигурация — [1c-platform-samples](https://github.com/yellow-hammer/1c-platform-samples) `src/cf` (см. правила эталона пустой выгрузки).
+Round-trip и регрессии — на выгрузках вроде submodule **fixtures/ssl31** в md-sparrow; пустая конфигурация — [samples-1c-platform](https://github.com/yellow-hammer/samples-1c-platform) (см. правила эталона пустой выгрузки).
 
 ## Ограничения текущего этапа
 
