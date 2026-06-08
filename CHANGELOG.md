@@ -5,6 +5,28 @@
 Формат основан на [Keep a Changelog](https://keepachangelog.com/ru/1.0.0/),
 и этот проект придерживается [Semantic Versioning](https://semver.org/lang/ru/).
 
+## [0.7.5] - 2026-06-08
+
+
+### 🚀 Features
+
+- Рантайм-загрузка md-sparrow и onec-debug-adapter из GitHub Releases
+
+
+### 💼 Other
+
+- **deps-dev:** Bump qs from 6.15.0 to 6.15.2
+
+- **deps-dev:** Bump fast-uri from 3.1.0 to 3.1.2
+
+- **deps-dev:** Bump tmp from 0.2.5 to 0.2.6
+
+
+### 📚 Documentation
+
+- Переименование samples-1c-platform и диапазон версий V2_10…V2_21
+
+
 ## [0.7.4] - 2026-05-26
 
 
