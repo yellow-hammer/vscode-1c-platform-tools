@@ -15,12 +15,17 @@ const launchConfig: vscode.DebugConfiguration = {
 	autoAttachTypes: ['ManagedClient', 'Server'],
 };
 
-function readConnectionStringFromEnv(workspaceRoot: string): string | undefined {
+interface EnvDefault {
+	'--ibconnection'?: string;
+	'--db-user'?: string;
+	'--db-pwd'?: string;
+}
+
+function readEnvDefault(workspaceRoot: string): EnvDefault | undefined {
 	const envPath = path.join(workspaceRoot, 'env.json');
 	try {
 		const content = fs.readFileSync(envPath, 'utf8');
-		const env = JSON.parse(content) as { default?: { '--ibconnection'?: string } };
-		return env.default?.['--ibconnection'];
+		return (JSON.parse(content) as { default?: EnvDefault }).default;
 	} catch {
 		return undefined;
 	}
@@ -108,7 +113,8 @@ export class OnecDebugConfigurationProvoider implements vscode.DebugConfiguratio
 			return undefined;
 		}
 
-		const connectionString = readConnectionStringFromEnv(workspaceRoot);
+		const envDefault = readEnvDefault(workspaceRoot);
+		const connectionString = envDefault?.['--ibconnection'];
 		if (typeof connectionString !== 'string' || connectionString.trim() === '') {
 			void vscode.window.showErrorMessage(
 				'Укажите default["--ibconnection"] в env.json в корне проекта (формат /F или /S).'
@@ -132,7 +138,15 @@ export class OnecDebugConfigurationProvoider implements vscode.DebugConfiguratio
 			resolvedConnectionString = '/F' + absolutePath;
 		}
 
-		return { ...config, connectionString: resolvedConnectionString };
+		// При logLevel=debug включаем диагностику адаптера (нейтральный флаг trace в конфигурации запуска).
+		const trace =
+			vscode.workspace.getConfiguration('1c-platform-tools').get<string>('logLevel', 'info') === 'debug';
+
+		// Учётные данные автовхода: из конфигурации запуска либо env.json.
+		const user = (config.user as string | undefined) ?? envDefault?.['--db-user'] ?? '';
+		const password = (config.password as string | undefined) ?? envDefault?.['--db-pwd'] ?? '';
+
+		return { ...config, connectionString: resolvedConnectionString, trace, user, password };
 	}
 }
 
