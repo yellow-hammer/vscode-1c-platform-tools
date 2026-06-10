@@ -51,7 +51,54 @@ export function registerDebugFeature(context: vscode.ExtensionContext): void {
 			}
 		})
 	);
-	// Сброс кэша DAP объединён в команду «1C: Метаданные: Сбросить кэш» (см. registerMetadataFeature).
+	context.subscriptions.push(
+		vscode.commands.registerCommand(
+			'1c-platform-tools.debug.showVariableInWindow',
+			(arg?: unknown) => showVariableInWindow(arg)
+		)
+	);
 	checkOnecDebugAdapterUpdateInBackground(context);
 	onecDebugTargets.init(context);
+}
+
+/**
+ * Открывает полное значение переменной отладки в отдельном редакторе. Неусечённое значение
+ * по возможности берётся через evaluate (контекст clipboard), иначе — value из панели.
+ */
+async function showVariableInWindow(arg?: unknown): Promise<void> {
+	// Контекстное меню панелей передаёт объект с полем variable; поддерживаем и прямую передачу.
+	const container = arg as { variable?: Record<string, unknown> } | undefined;
+	const variable = (container?.variable ?? arg) as Record<string, unknown> | undefined;
+	if (!variable) {
+		void vscode.window.showWarningMessage('Не удалось определить переменную отладки.');
+		return;
+	}
+
+	const name = String(variable.name ?? variable.evaluateName ?? 'значение');
+	const type = typeof variable.type === 'string' ? variable.type : undefined;
+	let value = typeof variable.value === 'string' ? variable.value : String(variable.value ?? '');
+
+	const session = vscode.debug.activeDebugSession;
+	const evaluateName = typeof variable.evaluateName === 'string' ? variable.evaluateName : undefined;
+	// activeStackItem есть не во всех версиях VS Code API.
+	const stackItem = (vscode.debug as { activeStackItem?: { frameId?: number } }).activeStackItem;
+	const frameId = stackItem?.frameId;
+	if (session && evaluateName && typeof frameId === 'number') {
+		try {
+			const res = await session.customRequest('evaluate', {
+				expression: evaluateName,
+				frameId,
+				context: 'clipboard',
+			});
+			if (res && typeof res.result === 'string' && res.result.length > 0) {
+				value = res.result;
+			}
+		} catch {
+			// откатываемся на value из панели
+		}
+	}
+
+	const header = type ? `// ${name}: ${type}\n` : `// ${name}\n`;
+	const doc = await vscode.workspace.openTextDocument({ content: header + value, language: 'plaintext' });
+	await vscode.window.showTextDocument(doc, { preview: false });
 }

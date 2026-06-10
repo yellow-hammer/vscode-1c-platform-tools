@@ -417,6 +417,11 @@
         "category": "1C: Метаданные"
       },
       {
+        "command": "1c-platform-tools.debug.showVariableInWindow",
+        "title": "Показать значение в окне",
+        "category": "1C: Отладка"
+      },
+      {
         "command": "1c-platform-tools.metadata.er.openCanvas",
         "title": "ER-диаграмма",
         "icon": "$(type-hierarchy)",
@@ -1183,6 +1188,26 @@
       }
     ],
     "menus": {
+      "commandPalette": [
+        {
+          "command": "1c-platform-tools.debug.showVariableInWindow",
+          "when": "false"
+        }
+      ],
+      "debug/variables/context": [
+        {
+          "command": "1c-platform-tools.debug.showVariableInWindow",
+          "when": "debugType == '1c-platform-tools'",
+          "group": "1_view@1"
+        }
+      ],
+      "debug/watch/context": [
+        {
+          "command": "1c-platform-tools.debug.showVariableInWindow",
+          "when": "debugType == '1c-platform-tools'",
+          "group": "1_view@1"
+        }
+      ],
       "view/title": [
         {
           "command": "debug.debugTargets.connect",
