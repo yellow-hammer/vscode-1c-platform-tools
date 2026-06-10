@@ -1,7 +1,6 @@
 /**
  * Загрузка onec-debug-adapter (DAP) с GitHub Releases в рантайме — тем же механизмом, что и md-sparrow
- * (см. {@link githubReleaseLoader}). Раньше адаптер собирался в VSIX на этапе vscode:prepublish;
- * теперь расширение само видит новые релизы и качает их.
+ * (см. {@link githubReleaseLoader}).
  * @module onecDebugAdapterBootstrap
  */
 

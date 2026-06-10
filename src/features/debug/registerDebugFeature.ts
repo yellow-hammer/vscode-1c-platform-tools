@@ -8,6 +8,7 @@ import {
 	checkOnecDebugAdapterUpdateInBackground,
 	ensureOnecDebugAdapter,
 } from './onecDebugAdapterBootstrap';
+import { logger } from '../../shared/logger';
 
 const DEBUG_TYPE = '1c-platform-tools';
 
@@ -48,6 +49,9 @@ export function registerDebugFeature(context: vscode.ExtensionContext): void {
 		vscode.debug.onDidReceiveDebugSessionCustomEvent((ev) => {
 			if (ev.event === 'DebugTargetsUpdated') {
 				onecDebugTargets.updateDebugTargets(ev.session);
+			} else if (ev.event === 'AdapterLog') {
+				// Диагностика DAP-адаптера — в общий Output-канал, как остальные логи расширения.
+				logger.debug(`[DAP] ${(ev.body as { message?: string })?.message ?? ''}`);
 			}
 		})
 	);
