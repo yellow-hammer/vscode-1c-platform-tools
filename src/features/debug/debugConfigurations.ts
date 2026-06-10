@@ -93,6 +93,35 @@ export class OnecDebugConfigurationProvoider implements vscode.DebugConfiguratio
 			(baseConfig as vscode.DebugConfiguration & { extensions: string[] }).extensions = extensions;
 		}
 
+		// Внешние обработки/отчёты — в launch.json при генерации (из настроек путей);
+		// при отладке адаптер использует только то, что записано в конфигурации запуска.
+		if (folder) {
+			const cfg = vscode.workspace.getConfiguration('1c-platform-tools');
+			const normalize = (p: string) => p.replace(/\\/g, '/').replace(/^\.?\//, '');
+
+			for (const [settingKey, configKey, def] of [
+				['paths.epf', 'externalDataProcessors', 'src/epf'],
+				['paths.erf', 'externalReports', 'src/erf'],
+			] as const) {
+				const normalized = normalize(cfg.get<string>(settingKey, def));
+				if (fs.existsSync(path.join(folder.uri.fsPath, normalized))) {
+					(baseConfig as Record<string, unknown>)[configKey] = [`\${workspaceFolder}/${normalized}`];
+				}
+			}
+
+			// Собранные .epf/.erf — сервер отладки адресует внешние модули по URL файла.
+			const outPath = normalize(cfg.get<string>('paths.out', 'build/out'));
+			for (const [kind, configKey] of [
+				['epf', 'externalDataProcessorsBuilds'],
+				['erf', 'externalReportsBuilds'],
+			] as const) {
+				const rel = `${outPath}/${kind}`;
+				if (fs.existsSync(path.join(folder.uri.fsPath, rel))) {
+					(baseConfig as Record<string, unknown>)[configKey] = [`\${workspaceFolder}/${rel}`];
+				}
+			}
+		}
+
 		return [baseConfig];
 	}
 
