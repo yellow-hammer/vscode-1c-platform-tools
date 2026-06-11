@@ -28,7 +28,6 @@
 - `npm run lint` проверяет `src` через ESLint.
 - `npm test` запускает VS Code extension tests; перед тестами выполняются `compile` и `lint`.
 - `npm run package` собирает VSIX.
-- `npm run build:onec-adapter` скачивает или собирает `onec-debug-adapter`.
 
 ## Ручная проверка
 
@@ -83,8 +82,7 @@ src/
 - Пишите на TypeScript и избегайте `any`.
 - Используйте типы из `@types/vscode`.
 - Импорты держите в начале файла.
-- Для VS Code API ориентируйтесь на существующие паттерны в проекте и `docs/vscode-api.md`.
-- Для команд vrunner используйте `BaseCommand` и `VRunnerManager`, подробности в `docs/vrunner-patterns.md`.
+- Для VS Code API и команд vrunner ориентируйтесь на существующие паттерны в коде: `BaseCommand`, `VRunnerManager`.
 - Не используйте `console.log`/`console.error` в production-коде; используйте `logger`.
 - Комментарии в коде и сообщения пользователю пишите на русском.
 - UI-тексты должны быть короткими и полезными: без внутренних терминов, планов реализации и длинных пояснений.
@@ -113,20 +111,18 @@ npm test
 
 ## Отладчик 1С
 
-Расширение использует внешний DAP-процесс из репозитория [yellow-hammer/onec-debug-adapter](https://github.com/yellow-hammer/onec-debug-adapter).
+Расширение использует внешний DAP-процесс из репозитория [yellow-hammer/onec-debug-adapter](https://github.com/yellow-hammer/onec-debug-adapter). Адаптер не бандлится в VSIX — он скачивается с GitHub Releases в рантайме при первом запуске отладки.
 
-Для обычной разработки расширения отдельная настройка адаптера не нужна: при сборке VSIX `npm run build:onec-adapter` скачает релиз адаптера с GitHub Releases или соберёт соседний репозиторий `../onec-debug-adapter`, если релиз недоступен.
-
-Для разработки адаптера рядом с расширением:
+Для обычной разработки расширения отдельная настройка не нужна. Для разработки самого адаптера:
 
 ```bash
 cd ..
 git clone https://github.com/yellow-hammer/onec-debug-adapter.git
 cd onec-debug-adapter
-dotnet publish onec-debug-adapter.csproj -c Release -o ../vscode-1c-platform-tools/bin/onec-debug-adapter
+dotnet build -c Release
 ```
 
-После этого вернитесь в репозиторий расширения, выполните `npm run compile` и запустите Extension Development Host.
+Затем в настройках укажите путь к локальной сборке: `1c-platform-tools.debug.adapterFile` → `…/onec-debug-adapter/bin/Release/net8.0/OnecDebugAdapter.dll` и выключите `1c-platform-tools.debug.autoloadAdapter`.
 
 ## Документация
 
@@ -134,7 +130,7 @@ dotnet publish onec-debug-adapter.csproj -c Release -o ../vscode-1c-platform-too
 
 - `README.md` — пользовательский обзор и быстрый старт.
 - `CONTRIBUTING.md` — правила разработки.
-- `docs/` — подробные технические материалы.
+- `docs/` — пользовательские руководства, по одному документу на функцию.
 - `walkthrough/` — onboarding внутри VS Code.
 - `resources/skills/` — инструкции для AI-агентов.
 
@@ -158,6 +154,15 @@ docs(readme): обновить описание панелей
 4. Заполните шаблон PR: что изменилось, как проверено, какие issues связаны.
 
 Мейнтейнеры могут попросить доработки или дополнительные проверки.
+
+## Релизы
+
+Релиз выпускается тегом `vX.Y.Z` (`git tag v0.1.0 && git push origin v0.1.0`) или вручную: **Actions** → workflow **Release** → **Run workflow** (параметры: `version`, `skip_publish`, `draft`, `prerelease`). Workflow обновит версию в `package.json`, сгенерирует `CHANGELOG.md` из Conventional Commits, создаст GitHub Release и опубликует расширение в маркетплейсы.
+
+Для публикации в секретах репозитория (**Settings** → **Secrets and variables** → **Actions**) должны быть заданы токены:
+
+- `VSCE_PAT` — VS Code Marketplace: [Azure DevOps](https://dev.azure.com/) → Personal Access Tokens → New Token → Scopes: **Custom defined** → **Marketplace: Manage**;
+- `OVSX_TOKEN` — Open VSX Registry: [open-vsx.org](https://open-vsx.org/) → [Access Tokens](https://open-vsx.org/user-settings/keys) → Generate Token (если namespace не создан — сначала создайте его в Namespaces и запросите ownership через issue в [EclipseFdn/open-vsx.org](https://github.com/EclipseFdn/open-vsx.org)).
 
 ## Вопросы и помощь
 

@@ -51,7 +51,8 @@ Thumbs.db
 .github/FUNDING.yml
 .github/PULL_REQUEST_TEMPLATE.md
 
-# Документация разработки
+# Документация: ссылки README при упаковке переписываются vsce на GitHub-URL,
+# поэтому docs в VSIX не нужен (walkthrough при этом остаётся в пакете)
 docs/**
 CONTRIBUTING.md
 cliff.toml
