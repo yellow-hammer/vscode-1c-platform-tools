@@ -1,6 +1,6 @@
 ---
 description: Правила для работы с DAP и onec-debug-adapter
-globs: src/features/debug/**/*.ts,package.json,scripts/build-onec-adapter.mjs
+globs: src/features/debug/**/*.ts,package.json
 alwaysApply: false
 ---
 
@@ -8,27 +8,25 @@ alwaysApply: false
 
 ## Общие принципы
 
-- Адаптер отладки (`onec-debug-adapter`) — **внешний бинарь**, не часть исходников расширения.
-- В VSIX попадает **только** каталог `bin/onec-debug-adapter/` с уже опубликованным релизом.
-- Исходный код адаптера живёт в отдельном репозитории `yellow-hammer/onec-debug-adapter` и собирается/упаковывается GitHub Actions там.
+- Адаптер отладки (`onec-debug-adapter`) — **внешний бинарь**, не часть исходников расширения и **не бандлится в VSIX**.
+- Исходный код адаптера живёт в отдельном репозитории `yellow-hammer/onec-debug-adapter` и собирается/публикуется GitHub Actions там.
 
-## Сборка и поставка адаптера
+## Поставка адаптера
 
-- Скрипт `scripts/build-onec-adapter.mjs`:
-  - сначала пытается скачать готовый релиз с GitHub Releases `yellow-hammer/onec-debug-adapter` по версии из `package.json.onecDebugAdapter.version` (или `ONEC_DEBUG_ADAPTER_VERSION`);
-  - если релиз недоступен — клонирует/обновляет соседний репозиторий `../onec-debug-adapter` и делает `dotnet publish` в `bin/onec-debug-adapter/`.
-- После распаковки релиза временный архив `bin/onec-debug-adapter-*.zip` **удаляется**; в git он также игнорируется.
-- Папка `scripts/` и любые вспомогательные скрипты **не должны** попадать в VSIX (`.vscodeignore` их исключает).
+- Адаптер скачивается **в рантайме** с GitHub Releases в globalStorage (`src/features/debug/onecDebugAdapterBootstrap.ts`, общий загрузчик `src/shared/githubReleaseLoader.ts` — тот же механизм, что у md-sparrow); фоновая проверка обновлений — при регистрации debug feature.
+- `DebugAdapterDescriptorFactory` запускает `dotnet <путь к OnecDebugAdapter.dll>`; статический `program` в `package.json` не используется.
+- Локальная сборка для разработки: настройки `1c-platform-tools.debug.adapterFile` (путь к DLL) и `1c-platform-tools.debug.autoloadAdapter` (выключить автозагрузку).
 
 ## Использование DAP в расширении
 
-- Тип дебаггера в `package.json` — `1c-platform-tools`, программа: `./bin/onec-debug-adapter/OnecDebugAdapter.dll`, runtime: `dotnet`.
+- Тип дебаггера в `package.json` — `1c-platform-tools`.
 - В debug feature (`src/features/debug/*`):
   - базовый `platformPath` определяется как:
     - Windows: `${env:PROGRAMFILES}/1cv8`
     - Linux: `/opt/1C/v8.3/x86_64`;
   - `rootProject` при создании конфигурации строится из настройки `1c-platform-tools.paths.cf` (`paths.cf` → `${workspaceFolder}/<cfPath>`);
-  - `extensions` при создании конфигурации строится из подкаталогов настройки `1c-platform-tools.paths.cfe` (`paths.cfe` → `${workspaceFolder}/<cfePath>/<ИмяКаталога>` для каждого каталога).
+  - `extensions` при создании конфигурации строится из подкаталогов настройки `1c-platform-tools.paths.cfe` (`paths.cfe` → `${workspaceFolder}/<cfePath>/<ИмяКаталога>` для каждого каталога);
+  - внешние обработки/отчёты — общие списки `externalFilesSrc` (исходники, из `paths.epf`/`paths.erf`) и `externalFilesBuilds` (собранные `.epf`/`.erf`, из `paths.out`); пользовательская документация — `docs/debug.md`.
 
 ## Связь с env.json и VRunner
 
