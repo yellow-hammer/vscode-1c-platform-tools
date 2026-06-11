@@ -1,77 +1,81 @@
+# Публикует VSIX в GitHub Release, VS Code Marketplace и Open VSX Registry; обновляет CHANGELOG.
+# Запуск: пуш тега v* или вручную (workflow_dispatch) с вводом версии.
 name: Release
 
 on:
   push:
     tags:
-      - 'v*' # Запускается при создании тега, начинающегося с 'v'
+      - 'v*'
   workflow_dispatch:
     inputs:
       version:
-        description: 'Версия релиза (например, v0.1.0, v0.1.0-alpha.1, v0.1.0-beta.2, v0.1.0-rc.1)'
+        description: 'Версия релиза (например, v0.1.0 или v0.1.0-rc.1)'
         required: true
         type: string
       skip_publish:
-        description: 'Пропустить публикацию в маркетплейсы (VS Code Marketplace и Open VSX Registry)'
+        description: 'Пропустить публикацию в маркетплейсы (только GitHub Release)'
         required: false
         type: boolean
         default: false
       draft:
-        description: 'Создать draft (черновик) релиз. Draft релизы не публикуются публично, но доступны для просмотра и тестирования. Полезно для предварительного просмотра перед публикацией.'
+        description: 'Создать черновик релиза (не публикуется публично)'
         required: false
         type: boolean
         default: false
       prerelease:
-        description: 'Создать prerelease (предварительный релиз). Prerelease помечается как нестабильная версия (alpha, beta, rc). Примеры версий: 0.1.0-alpha.1, 0.1.0-beta.2, 0.1.0-rc.1, 1.0.0-alpha, 1.0.0-beta.3'
+        description: 'Пометить релиз как предварительный (alpha/beta/rc)'
         required: false
         type: boolean
         default: false
 
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
 jobs:
   release:
-    name: Build and Publish
     runs-on: ubuntu-latest
     env:
       OVSX_TOKEN: ${{ secrets.OVSX_TOKEN }}
       VSCE_PAT: ${{ secrets.VSCE_PAT }}
     permissions:
-      contents: write # Необходимо для создания релизов
-      packages: write # Необходимо для публикации в VS Code Marketplace
+      contents: write # создание релизов
+      packages: write # публикация в VS Code Marketplace
 
     steps:
-      - name: Checkout code
+      - name: Получить код
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0 # Нужно для git-cliff
+          fetch-depth: 0 # нужно для git-cliff
 
-      - name: Setup Node.js
+      - name: Установить Node.js 20
         uses: actions/setup-node@v4
         with:
           node-version: '20'
           cache: 'npm'
 
-      - name: Install dependencies
+      - name: Установить зависимости
         run: npm ci
 
-      - name: Run linter
+      - name: Проверить линтером
         run: npm run lint
 
-      - name: Compile TypeScript
+      - name: Скомпилировать TypeScript
         run: npm run compile
 
-      - name: Get version from tag or input
-        id: tag_version
+      - name: Определить версию (из тега или ввода)
+        id: ver
         run: |
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
             VERSION="${{ github.event.inputs.version }}"
-            # Убираем префикс 'v', если он есть
             VERSION=${VERSION#v}
           else
             VERSION=${GITHUB_REF#refs/tags/v}
           fi
-          echo "version=$VERSION" >> $GITHUB_OUTPUT
-          echo "Version: $VERSION"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "Версия: $VERSION"
 
-      - name: Switch to main branch and update version
+      - name: Обновить версию в package.json
         run: |
           git config --local user.email "action@github.com"
           git config --local user.name "GitHub Action"
@@ -83,39 +87,37 @@ jobs:
           else
             BRANCH=$(git ls-remote --heads origin | grep -E '(main|master)' | head -1 | sed 's/.*refs\/heads\///' || echo "main")
           fi
-          echo "Switching to branch: $BRANCH"
+          echo "Ветка: $BRANCH"
           git checkout $BRANCH
-          # Обновляем версию в package.json и package-lock.json (игнорируем ошибку, если версия уже совпадает)
-          npm version ${{ steps.tag_version.outputs.version }} --no-git-tag-version || echo "Version already matches, skipping update"
-          # Коммитим изменения версии, если они есть (формат не попадает в changelog)
+          # Обновляем версию в package.json и package-lock.json (ошибка игнорируется, если версия уже совпадает)
+          npm version ${{ steps.ver.outputs.version }} --no-git-tag-version || echo "Версия уже совпадает — пропуск"
           git add package.json package-lock.json
           if git diff --staged --quiet; then
-            echo "No changes to commit (version already matches)"
+            echo "Версия уже совпадает — коммит не нужен"
           else
-            git commit -m "chore(release): prepare for v${{ steps.tag_version.outputs.version }}"
+            git commit -m "chore(release): prepare for v${{ steps.ver.outputs.version }}"
             git push origin $BRANCH
           fi
-      
-      - name: Create tag if not exists (workflow_dispatch)
+
+      - name: Создать и отправить тег, если его нет (workflow_dispatch)
         if: github.event_name == 'workflow_dispatch'
         run: |
-          TAG="v${{ steps.tag_version.outputs.version }}"
+          TAG="v${{ steps.ver.outputs.version }}"
           if git rev-parse "$TAG" >/dev/null 2>&1; then
-            echo "Tag $TAG already exists, skipping creation"
+            echo "Тег $TAG уже существует — пропуск"
           else
-            echo "Creating tag $TAG"
             git config --local user.email "action@github.com"
             git config --local user.name "GitHub Action"
             git tag -a "$TAG" -m "Release $TAG"
             git push origin "$TAG"
           fi
 
-      - name: Install Rust toolchain
+      - name: Установить Rust toolchain
         uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: stable
 
-      - name: Cache cargo registry
+      - name: Кэшировать cargo
         uses: actions/cache@v4
         with:
           path: |
@@ -127,30 +129,20 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-cargo-git-cliff-
 
-      - name: Install git-cliff
+      - name: Установить git-cliff
         run: |
           if ! command -v git-cliff &> /dev/null; then
-            echo "Installing git-cliff via cargo..."
             cargo install git-cliff --locked
-          else
-            echo "git-cliff already installed"
           fi
           git-cliff --version
 
-      - name: Generate changelog
+      - name: Сгенерировать CHANGELOG
         id: changelog
         run: |
-          # Генерируем полный changelog используя конфиг cliff.toml
-          echo "Generating changelog with git-cliff..."
           git-cliff --config cliff.toml --output CHANGELOG.md
-          
+
           if [ -f CHANGELOG.md ]; then
-            echo "CHANGELOG.md generated successfully"
-            echo "First 20 lines of CHANGELOG.md:"
-            head -n 20 CHANGELOG.md
-            
-            # Извлекаем только последний релиз (первый ## [version] в файле после заголовка)
-            # Пропускаем заголовок файла и берем первый релиз до следующего ## или конца файла
+            # Извлекаем только последний релиз (первый ## [version] до следующего ##)
             CHANGELOG=$(awk '
               /^## \[/ {
                 if (found) exit
@@ -158,22 +150,18 @@ jobs:
               }
               found { print }
             ' CHANGELOG.md)
-            
+
             # Удаляем пустые строки в конце
             CHANGELOG=$(echo "$CHANGELOG" | sed -e :a -e '/^\n*$/{$d;N;ba' -e '}')
-            
-            echo "Extracted changelog length: ${#CHANGELOG}"
-            
-            # Если changelog пустой или слишком короткий, используем fallback
+
+            # Если changelog пустой или слишком короткий — fallback на историю коммитов
             if [ -z "$CHANGELOG" ] || [ ${#CHANGELOG} -lt 20 ]; then
-              echo "Changelog is empty or too short, using fallback"
               CHANGELOG="## Изменения\n\nСм. [историю коммитов](https://github.com/${{ github.repository }}/compare/${{ github.event.before }}...${{ github.ref }})"
             fi
           else
-            echo "CHANGELOG.md not found, using fallback"
             CHANGELOG="## Изменения\n\nСм. [историю коммитов](https://github.com/${{ github.repository }}/compare/${{ github.event.before }}...${{ github.ref }})"
           fi
-          
+
           # Многострочный вывод в GitHub Actions
           {
             echo 'changelog<<EOF'
@@ -182,11 +170,10 @@ jobs:
           } >> $GITHUB_OUTPUT
         continue-on-error: true
 
-      - name: Commit changelog
+      - name: Закоммитить CHANGELOG
         run: |
           git config --local user.email "action@github.com"
           git config --local user.name "GitHub Action"
-          # Определяем основную ветку (main или master)
           if git show-ref --verify --quiet refs/remotes/origin/main; then
             BRANCH="main"
           elif git show-ref --verify --quiet refs/remotes/origin/master; then
@@ -194,42 +181,39 @@ jobs:
           else
             BRANCH=$(git ls-remote --heads origin | grep -E '(main|master)' | head -1 | sed 's/.*refs\/heads\///' || echo "main")
           fi
-          # Коммитим changelog.md, если он был сгенерирован (формат не попадает в changelog)
           if [ -f CHANGELOG.md ]; then
             git add CHANGELOG.md
             if git diff --staged --quiet; then
-              echo "No changes to commit in CHANGELOG.md"
+              echo "CHANGELOG.md без изменений — коммит не нужен"
             else
               git commit -m "chore(deps): update changelog"
               git push origin $BRANCH
             fi
-          else
-            echo "CHANGELOG.md not found, skipping commit"
           fi
         continue-on-error: true
 
-      - name: Package extension
+      - name: Собрать VSIX
         run: npm run package
 
-      - name: Create GitHub Release
-        uses: softprops/action-gh-release@v1
+      - name: Создать GitHub Release
+        uses: softprops/action-gh-release@v2
         with:
-          tag_name: v${{ steps.tag_version.outputs.version }}
+          tag_name: v${{ steps.ver.outputs.version }}
           files: |
             *.vsix
           body: |
-            ## Версия ${{ steps.tag_version.outputs.version }}
-            
+            ## Версия ${{ steps.ver.outputs.version }}
+
             ${{ steps.changelog.outputs.changelog }}
-            
+
             ### Установка
-            
+
             Скачайте файл `.vsix` и установите через VS Code:
             - `Ctrl+Shift+P` → `Extensions: Install from VSIX...`
           draft: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.draft == 'true' || false }}
           prerelease: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.prerelease == 'true' || false }}
 
-      - name: Publish to Open VSX Registry
+      - name: Опубликовать в Open VSX Registry
         if: github.event_name != 'workflow_dispatch' || github.event.inputs.skip_publish != 'true'
         uses: HaaLeo/publish-vscode-extension@v1
         id: publishToOpenVSX
@@ -237,7 +221,7 @@ jobs:
           pat: ${{ env.OVSX_TOKEN }}
           skipDuplicate: true
 
-      - name: Publish to Visual Studio Marketplace
+      - name: Опубликовать в VS Code Marketplace
         if: github.event_name != 'workflow_dispatch' || github.event.inputs.skip_publish != 'true'
         uses: HaaLeo/publish-vscode-extension@v1
         with:
