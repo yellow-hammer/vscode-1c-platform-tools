@@ -10,11 +10,10 @@ import {
 } from './onecDebugAdapterBootstrap';
 import { logger } from '../../shared/logger';
 import { registerBslBreakpointNormalizer } from './bslBreakpoints';
+import { DEBUG_TYPE } from './debugConstants';
 import { registerMeasureFeature } from './measure';
 
 const log = logger.scope('dap');
-
-const DEBUG_TYPE = '1c-platform-tools';
 
 /**
  * Фабрика дескриптора DAP: скачивает onec-debug-adapter в рантайме (как md-sparrow) и запускает его

@@ -1,10 +1,9 @@
 import * as vscode from 'vscode';
 import { logger } from '../../shared/logger';
+import { DEBUG_TYPE } from './debugConstants';
 import { disposeMeasureResultsPanel, showMeasureResultsPanel } from './measureResultsPanel';
 
 const log = logger.scope('dap');
-
-const DEBUG_TYPE = '1c-platform-tools';
 
 export interface MeasureLine {
 	line: number;

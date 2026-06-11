@@ -1,13 +1,14 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import * as vscode from 'vscode';
+import { DEBUG_TYPE } from './debugConstants';
 
 const platformBasePath =
 	process.platform === 'win32' ? '${env:PROGRAMFILES}/1cv8' : '/opt/1C/v8.3/x86_64';
 
 const launchConfig: vscode.DebugConfiguration = {
 	name: 'Отладка 1С (запуск)',
-	type: '1c-platform-tools',
+	type: DEBUG_TYPE,
 	request: 'launch',
 	platformPath: platformBasePath,
 	rootProject: '${workspaceFolder}',
@@ -125,7 +126,7 @@ export class OnecDebugConfigurationProvoider implements vscode.DebugConfiguratio
 		config: vscode.DebugConfiguration,
 		_token?: vscode.CancellationToken
 	): Promise<vscode.DebugConfiguration | undefined> {
-		if (config.type !== '1c-platform-tools') {
+		if (config.type !== DEBUG_TYPE) {
 			return config;
 		}
 
@@ -180,7 +181,7 @@ export function getOnecConfigurations(): vscode.DebugConfiguration[] {
 	if (configurations === undefined) {
 		return [];
 	}
-	return configurations.filter((c) => c.type === '1c-platform-tools');
+	return configurations.filter((c) => c.type === DEBUG_TYPE);
 }
 
 export function watchTargetTypesChanged(context: vscode.ExtensionContext): void {
