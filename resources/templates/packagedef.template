@@ -8,6 +8,6 @@
     .ВерсияСреды("2.0.0")
     .ЗависитОт("add")
     .ЗависитОт("vanessa-automation-single")
-    .ЗависитОт("vanessa-runner")
+    .ЗависитОт("vanessa-runner", "2.6.1")
 
 ;
