@@ -22,6 +22,8 @@ const SYNONYM_RU_REGEX = /<Synonym>[\s\S]*?<v8:lang>ru<\/v8:lang>\s*<v8:content>
 import * as vscode from 'vscode';
 import { logger } from '../shared/logger';
 
+const log = logger.scope('commands');
+
 /**
  * Читает версию конфигурации из файла Configuration.xml (свойство Configuration/Properties/Version).
  * @param configurationXmlPath - Полный путь к файлу Configuration.xml (обычно src/cf/Configuration.xml)
@@ -113,7 +115,7 @@ export async function handleMissingVersionFile(srcFullPath: string, srcPath: str
 			return true;
 		}
 
-		logger.info(`Файл ConfigDumpInfo.xml не найден в каталоге ${srcPath}, запрос пользователя`);
+		log.info(`Файл ConfigDumpInfo.xml не найден в каталоге ${srcPath}, запрос пользователя`);
 		const action = await vscode.window.showWarningMessage(
 			`Файл ConfigDumpInfo.xml не найден в каталоге ${srcPath}. Для инкрементальной выгрузки необходим файл версии. Выполните сначала полную выгрузку через "Выгрузить конфигурацию в src/cf".`,
 			'Выполнить полную выгрузку (очистить каталог)',
@@ -121,12 +123,12 @@ export async function handleMissingVersionFile(srcFullPath: string, srcPath: str
 		);
 
 		if (action === 'Отмена' || action === undefined) {
-			logger.debug('Пользователь отменил операцию (ConfigDumpInfo.xml отсутствует)');
+			log.debug('Пользователь отменил операцию (ConfigDumpInfo.xml отсутствует)');
 			return false;
 		}
 
 		if (action === 'Выполнить полную выгрузку (очистить каталог)') {
-			logger.info(`Очистка каталога ${srcFullPath} перед полной выгрузкой`);
+			log.info(`Очистка каталога ${srcFullPath} перед полной выгрузкой`);
 			await clearDirectory(srcFullPath, entries);
 			return true;
 		}

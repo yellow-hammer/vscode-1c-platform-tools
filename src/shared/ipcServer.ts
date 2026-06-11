@@ -6,6 +6,8 @@ import { logger } from './logger';
 import type { VRunnerExecutionResult } from './vrunnerManager';
 import type { CommandExecutionOptions, StructuredCommandResult } from './commandExecutionTypes';
 
+const log = logger.scope('ipc');
+
 interface IpcRequest {
 	id: unknown;
 	method: unknown;
@@ -196,8 +198,8 @@ async function handleExecuteCommandSync(
 		const durationMs = Date.now() - startMs;
 
 		if (rawResult === undefined || rawResult === null) {
-			logger.warn(
-				`IPC sync: команда ${commandId} вернула undefined при wait: true — ` +
+			log.warn(
+				`sync: команда ${commandId} вернула undefined при wait: true — ` +
 				'синхронный режим не реализован'
 			);
 			const fallback: StructuredCommandResultWithTiming = {
@@ -240,7 +242,7 @@ async function handleExecuteCommandSync(
 			error instanceof Error
 				? error.message
 				: 'Неизвестная ошибка при синхронном выполнении команды';
-		logger.error(`IPC sync: ошибка ${commandId}: ${message}`);
+		log.error(`sync: ошибка ${commandId}: ${message}`);
 
 		return {
 			...base,
@@ -316,8 +318,8 @@ async function handleExecuteCommand(
 	} catch (error) {
 		const message =
 			error instanceof Error ? error.message : 'Неизвестная ошибка при выполнении команды';
-		logger.error(
-			`IPC: ошибка при выполнении команды ${String(params.commandId)}: ${message}`
+		log.error(
+			`ошибка при выполнении команды ${String(params.commandId)}: ${message}`
 		);
 
 		return {
@@ -361,7 +363,7 @@ function createResponseForError(id: unknown, error: unknown): IpcResponse {
 
 function createServer(config: IpcServerConfig, extensionId: string): net.Server {
 	return net.createServer((socket) => {
-		logger.debug('IPC: новое соединение');
+		log.debug('новое соединение');
 
 		let buffer = '';
 
@@ -374,7 +376,7 @@ function createServer(config: IpcServerConfig, extensionId: string): net.Server 
 					error instanceof Error
 						? error.message
 						: 'Неизвестная ошибка при сериализации ответа';
-				logger.error(`IPC: ошибка при отправке ответа: ${message}`);
+				log.error(`ошибка при отправке ответа: ${message}`);
 			}
 		};
 
@@ -466,11 +468,11 @@ function createServer(config: IpcServerConfig, extensionId: string): net.Server 
 		socket.on('error', (error) => {
 			const message =
 				error instanceof Error ? error.message : 'Неизвестная ошибка сокета';
-			logger.error(`IPC: ошибка сокета: ${message}`);
+			log.error(`ошибка сокета: ${message}`);
 		});
 
 		socket.on('close', () => {
-			logger.debug('IPC: соединение закрыто');
+			log.debug('соединение закрыто');
 		});
 	});
 }
@@ -481,18 +483,18 @@ function listenServer(server: net.Server, config: IpcServerConfig): void {
 			const message = `Не удалось запустить IPC-сервер: порт ${
 				config.port
 			} уже используется. Измените настройку 1c-platform-tools.ipc.port.`;
-			logger.error(`IPC: ${message}`);
+			log.error(message);
 			void vscode.window.showErrorMessage(message);
 			return;
 		}
 
 		const message =
 			error instanceof Error ? error.message : 'Неизвестная ошибка IPC-сервера';
-		logger.error(`IPC: ошибка сервера: ${message}`);
+		log.error(`ошибка сервера: ${message}`);
 	});
 
 	server.listen(config.port, config.host, () => {
-		logger.info(`IPC-сервер запущен на ${config.host}:${config.port}`);
+		log.info(`сервер запущен на ${config.host}:${config.port}`);
 	});
 }
 
@@ -503,7 +505,7 @@ export function startIpcServer(context: vscode.ExtensionContext): void {
 
 	const start = (): void => {
 		if (!config.enabled) {
-			logger.debug('IPC-сервер отключен настройкой 1c-platform-tools.ipc.enabled');
+			log.debug('сервер отключен настройкой 1c-platform-tools.ipc.enabled');
 			return;
 		}
 		activeServer = createServer(config, extensionId);

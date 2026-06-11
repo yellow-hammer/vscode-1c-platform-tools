@@ -12,6 +12,8 @@ import {
 	type PickableCommandGroup,
 } from './favorites';
 
+const log = logger.scope('ui');
+
 type FavoritesSelectableItem = vscode.QuickPickItem & {
 	command: string;
 	title: string;
@@ -220,7 +222,7 @@ export function registerMainTreeCommands(
 			return;
 		}
 		treeDataProvider.refresh();
-		logger.debug('Дерево обновлено');
+		log.debug('Дерево обновлено');
 		vscode.window.showInformationMessage('Дерево обновлено');
 	});
 
@@ -340,7 +342,7 @@ export function registerMainTreeCommands(
 			const newFavorites = toFavoriteEntries(selected);
 			await setFavorites(context, newFavorites);
 			treeDataProvider.refresh();
-			logger.info(`Избранное обновлено: ${newFavorites.length} команд`);
+			log.info(`Избранное обновлено: ${newFavorites.length} команд`);
 			vscode.window.showInformationMessage(
 				`Избранное обновлено: ${newFavorites.length} команд`
 			);

@@ -21,6 +21,8 @@ import {
 import { logger } from '../shared/logger';
 import type { CommandExecutionOptions, StructuredCommandResult } from '../shared/commandExecutionTypes';
 
+const log = logger.scope('commands');
+
 /**
  * Команды для работы с конфигурацией
  */
@@ -261,7 +263,7 @@ export class ConfigurationCommands extends BaseCommand {
 			await fs.writeFile(lastUploadedCommitPath, shaInput.trim(), 'utf-8');
 		} catch (error) {
 			const errMsg = (error as Error).message;
-			logger.error(`Не удалось записать SHA в файл ${lastUploadedCommitPath}: ${errMsg}`);
+			log.error(`Не удалось записать SHA в файл ${lastUploadedCommitPath}: ${errMsg}`);
 			vscode.window.showErrorMessage(
 				`Не удалось записать SHA в файл ${lastUploadedCommitPath}: ${errMsg}`
 			);
@@ -297,7 +299,7 @@ export class ConfigurationCommands extends BaseCommand {
 		try {
 			await fs.access(objlistPath);
 		} catch {
-			logger.warn(`Файл objlist.txt не найден: ${objlistPath}`);
+			log.warn(`Файл objlist.txt не найден: ${objlistPath}`);
 			vscode.window.showErrorMessage(
 				'Файл objlist.txt не найден в корне проекта. Создайте файл со списком путей к объектам для загрузки.'
 			);
@@ -320,7 +322,7 @@ export class ConfigurationCommands extends BaseCommand {
 		}
 
 		if (configRelativePaths.length === 0) {
-			logger.info('В objlist.txt нет путей в каталоге конфигурации (src/cf)');
+			log.info('В objlist.txt нет путей в каталоге конфигурации (src/cf)');
 			vscode.window.showInformationMessage(
 				'В objlist.txt нет путей из каталога конфигурации (src/cf). Для расширений используйте команду «Загрузить из objlist.txt» в разделе «Расширения».'
 			);

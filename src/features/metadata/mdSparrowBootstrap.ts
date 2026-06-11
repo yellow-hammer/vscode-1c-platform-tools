@@ -27,6 +27,8 @@ import {
 	adoptiumBinaryUrl,
 } from './mdSparrowConstants';
 
+const log = logger.scope('md-sparrow');
+
 export interface MdSparrowRuntime {
 	/** Полный путь к исполняемому java */
 	java: string;
@@ -77,14 +79,14 @@ async function ensurePortableJre(baseDir: string, download: boolean, javaOverrid
 	try {
 		const prev = (await fs.readFile(stamp, 'utf8')).trim();
 		if (prev && fssync.existsSync(prev)) {
-			logger.debug(`md-sparrow JRE из кэша: ${prev}`);
+			log.debug(`JRE из кэша: ${prev}`);
 			return prev;
 		}
 	} catch {
 		/* fetch fresh */
 	}
 
-	logger.info('Загрузка portable JRE 21 (Eclipse Temurin) для md-sparrow…');
+	log.info('загрузка portable JRE 21 (Eclipse Temurin)…');
 	const status = showStatus('md-sparrow: загружаем JRE 21...');
 	try {
 		await fs.rm(jreRoot, { recursive: true, force: true }).catch(() => undefined);
@@ -107,7 +109,7 @@ async function ensurePortableJre(baseDir: string, download: boolean, javaOverrid
 			throw new Error('После распаковки JRE не найден bin/java');
 		}
 		await fs.writeFile(stamp, javaExe, 'utf8');
-		logger.info(`md-sparrow JRE готова: ${javaExe}`);
+		log.info(`JRE готова: ${javaExe}`);
 		return javaExe;
 	} finally {
 		status.dispose();

@@ -2,6 +2,8 @@ import * as vscode from 'vscode';
 import { logger } from '../../shared/logger';
 import { disposeMeasureResultsPanel, showMeasureResultsPanel } from './measureResultsPanel';
 
+const log = logger.scope('dap');
+
 const DEBUG_TYPE = '1c-platform-tools';
 
 export interface MeasureLine {
@@ -60,6 +62,7 @@ export function registerMeasureFeature(context: vscode.ExtensionContext): void {
 		vscode.debug.onDidReceiveDebugSessionCustomEvent((ev) => {
 			if (ev.event === 'MeasureResults' && ev.session.type === DEBUG_TYPE) {
 				results = ev.body as MeasureResults;
+				log.debug(`результаты замера: модулей — ${results.modules.length}, всего — ${formatSeconds(results.totalSeconds)}`);
 				updateStatusBar();
 				applyDecorations();
 				// Результаты приходят порциями от каждого предмета отладки — таблицу
@@ -105,7 +108,7 @@ async function setMeasureMode(enabled: boolean): Promise<void> {
 	try {
 		await session.customRequest('SetMeasureModeRequest', { enabled });
 	} catch (err) {
-		logger.error(`Ошибка переключения замера производительности: ${String(err)}`);
+		log.error(`Ошибка переключения замера производительности: ${String(err)}`);
 		void vscode.window.showErrorMessage('Не удалось переключить режим замера производительности.');
 		return;
 	} finally {
@@ -113,6 +116,7 @@ async function setMeasureMode(enabled: boolean): Promise<void> {
 	}
 
 	setMeasureActive(enabled);
+	log.info(`замер производительности ${enabled ? 'запущен' : 'остановлен'}`);
 	if (enabled) {
 		results = undefined;
 		applyDecorations();

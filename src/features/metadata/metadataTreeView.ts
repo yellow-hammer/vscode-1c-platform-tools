@@ -18,6 +18,8 @@ import {
 	type MetadataObjectSectionSource,
 } from './metadataObjectSectionProfiles';
 
+const log = logger.scope('metadata');
+
 interface MdObjectStructureDto {
 	readonly kind: string;
 	readonly internalName: string;
@@ -1047,7 +1049,7 @@ export class MetadataTreeDataProvider implements vscode.TreeDataProvider<vscode.
 			this.rebuildItemCache(root, this._dto);
 		} catch (e) {
 			const msg = e instanceof Error ? e.message : String(e);
-			logger.error(`metadata tree: ${msg}`);
+			log.error(`дерево: ${msg}`);
 			this._lastError = msg;
 		}
 		this._onDidChange.fire(undefined);
@@ -1445,7 +1447,7 @@ export class MetadataTreeDataProvider implements vscode.TreeDataProvider<vscode.
 			try {
 				dto = await this.loadObjectStructure(leaf);
 			} catch (e) {
-				logger.warn(`metadata structure: ${e instanceof Error ? e.message : String(e)}`);
+				log.warn(`структура: ${e instanceof Error ? e.message : String(e)}`);
 			}
 		}
 		const sections: MetadataObjectSectionTreeItem[] = [];

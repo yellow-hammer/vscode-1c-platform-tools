@@ -14,6 +14,8 @@ import {
 import { readConfigurationVersion, readConfigurationDeliveryProperties } from '../utils/configVersionUtils';
 import { logger } from '../shared/logger';
 
+const log = logger.scope('commands');
+
 /** Имя файла поставки (канонический регистр для путей в команде) */
 const DISTRIBUTION_CF_FILENAME = '1Cv8.cf';
 /** Символы, недопустимые в пути к каталогу версии (Windows/Unix). Заменяются на подчёркивание. */
@@ -274,7 +276,7 @@ export class SupportCommands extends BaseCommand {
 		void vscode.window.showInformationMessage(
 			`${commandName.title}: создан файл ${path.join(versionDir, edfFileName)}`
 		);
-		logger.info(`Создан файл описания поставки: ${edfPath}`);
+		log.info(`Создан файл описания поставки: ${edfPath}`);
 	}
 
 	/**
@@ -423,7 +425,7 @@ export class SupportCommands extends BaseCommand {
 			return;
 		}
 		if (noPreviousVersionsWarning) {
-			logger.info(noPreviousVersionsWarning);
+			log.info(noPreviousVersionsWarning);
 			void vscode.window.showInformationMessage(noPreviousVersionsWarning);
 		}
 

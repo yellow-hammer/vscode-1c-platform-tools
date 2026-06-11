@@ -12,6 +12,8 @@ import { logger } from '../../shared/logger';
 import { registerBslBreakpointNormalizer } from './bslBreakpoints';
 import { registerMeasureFeature } from './measure';
 
+const log = logger.scope('dap');
+
 const DEBUG_TYPE = '1c-platform-tools';
 
 /**
@@ -44,7 +46,17 @@ export function registerDebugFeature(context: vscode.ExtensionContext): void {
 	watchTargetTypesChanged(context);
 	context.subscriptions.push(
 		vscode.debug.onDidStartDebugSession((session) => {
+			if (session.type === DEBUG_TYPE) {
+				log.info(`сессия отладки запущена: ${session.name}`);
+			}
 			onecDebugTargets.updateDebugTargets(session);
+		})
+	);
+	context.subscriptions.push(
+		vscode.debug.onDidTerminateDebugSession((session) => {
+			if (session.type === DEBUG_TYPE) {
+				log.info(`сессия отладки завершена: ${session.name}`);
+			}
 		})
 	);
 	context.subscriptions.push(
@@ -53,7 +65,7 @@ export function registerDebugFeature(context: vscode.ExtensionContext): void {
 				onecDebugTargets.updateDebugTargets(ev.session);
 			} else if (ev.event === 'AdapterLog') {
 				// Диагностика DAP-адаптера — в общий Output-канал, как остальные логи расширения.
-				logger.debug(`[DAP] ${(ev.body as { message?: string })?.message ?? ''}`);
+				log.debug((ev.body as { message?: string })?.message ?? '');
 			}
 		})
 	);

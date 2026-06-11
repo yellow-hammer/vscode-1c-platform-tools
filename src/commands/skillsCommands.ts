@@ -5,6 +5,8 @@ import * as path from 'node:path';
 import * as vscode from 'vscode';
 import { logger } from '../shared/logger';
 
+const log = logger.scope('skills');
+
 const CC_1C_SKILLS_ZIP_URL =
 	'https://github.com/Nikolay-Shirokov/cc-1c-skills/archive/refs/heads/main.zip';
 const CC_1C_SKILLS_ARCHIVE_ROOT = 'cc-1c-skills-main';
@@ -208,17 +210,17 @@ export class SkillsCommands {
 					await copyContents(sourceSkillsPath, targetDir);
 					const rewrittenFiles = await rewriteSkillPathPrefixes(targetDir);
 					if (rewrittenFiles > 0) {
-						logger.info(
+						log.info(
 							`В навыках разработки 1С обновлены префиксы путей для агента: ${rewrittenFiles}`
 						);
 					}
-					logger.info(`Навыки разработки 1С (cc-1c-skills) установлены в ${targetDir}`);
+					log.info(`Навыки разработки 1С (cc-1c-skills) установлены в ${targetDir}`);
 					vscode.window.showInformationMessage(
 						'Навыки разработки 1С (cc-1c-skills) установлены (источник: GitHub, MIT). Агент сможет использовать инструкции по XML, формам, ролям, СКД, метаданным и др.'
 					);
 				} catch (error) {
 					const errMsg = error instanceof Error ? error.message : String(error);
-					logger.error(`Не удалось установить навыки разработки 1С (cc-1c-skills): ${errMsg}`);
+					log.error(`Не удалось установить навыки разработки 1С (cc-1c-skills): ${errMsg}`);
 					vscode.window.showErrorMessage(
 						`Не удалось установить навыки разработки 1С (cc-1c-skills): ${errMsg}. Проверьте подключение к интернету и доступ к GitHub.`
 					);
@@ -254,7 +256,7 @@ export class SkillsCommands {
 			try {
 				await fs.access(path.join(sourceDir, 'SKILL.md'));
 			} catch {
-				logger.debug(`Пропуск навыка ${skillId}: SKILL.md не найден`);
+				log.debug(`Пропуск навыка ${skillId}: SKILL.md не найден`);
 				continue;
 			}
 			const targetDir = path.join(targetBaseDir, skillId);
@@ -264,15 +266,15 @@ export class SkillsCommands {
 				copied++;
 			} catch (error) {
 				const errMsg = error instanceof Error ? error.message : String(error);
-				logger.error(`Не удалось скопировать навык ${skillId}: ${errMsg}`);
+				log.error(`Не удалось скопировать навык ${skillId}: ${errMsg}`);
 			}
 		}
 		if (copied > 0) {
 			const rewrittenFiles = await rewriteSkillPathPrefixes(targetBaseDir);
 			if (rewrittenFiles > 0) {
-				logger.info(`В навыках расширения обновлены префиксы путей для агента: ${rewrittenFiles}`);
+				log.info(`В навыках расширения обновлены префиксы путей для агента: ${rewrittenFiles}`);
 			}
-			logger.info(`Установлено навыков расширения (команды и MCP): ${copied} в ${targetBaseDir}`);
+			log.info(`Установлено навыков расширения (команды и MCP): ${copied} в ${targetBaseDir}`);
 			vscode.window.showInformationMessage(
 				`Установлено навыков расширения (команды и MCP): ${copied}. Агент будет использовать команды расширения и MCP.`
 			);

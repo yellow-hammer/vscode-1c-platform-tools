@@ -16,6 +16,8 @@ import {
 } from './metadataObjectPropertyProfiles';
 import { type MetadataObjectSectionSource } from './metadataObjectSectionProfiles';
 
+const log = logger.scope('metadata');
+
 const ERR_PREVIEW = 500;
 
 interface MdObjectPropertiesDto {
@@ -1041,7 +1043,7 @@ export async function openMetadataObjectPropertiesEditor(
 	try {
 		panel.webview.html = await loadMetadataObjectHtml(panel.webview, context.extensionUri, viewModel);
 	} catch (e) {
-		logger.error(`metadata object template: ${e instanceof Error ? e.message : String(e)}`);
+		log.error(`шаблон объекта: ${e instanceof Error ? e.message : String(e)}`);
 		void vscode.window.showErrorMessage('Не удалось загрузить панель свойств.');
 		panel.dispose();
 	}

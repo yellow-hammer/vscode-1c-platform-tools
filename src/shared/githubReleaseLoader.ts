@@ -16,6 +16,8 @@ import * as vscode from 'vscode';
 import extract from 'extract-zip';
 import { logger } from './logger';
 
+const log = logger.scope('releases');
+
 const execFileAsync = promisify(execFile);
 const NO_INDENTATION = 0;
 /** Не опрашивать GitHub чаще, чем раз в это время (как в reference 1c-syntax/vsc-language-1c-bsl — 8 мин). */
@@ -247,13 +249,13 @@ export async function ensureReleaseComponent(
 	const cached = await readStamp(baseDir, spec);
 	const cachedPath = cached?.assetPath ?? cached?.jarPath;
 	if (cached?.tag && cachedPath && fssync.existsSync(cachedPath)) {
-		logger.debug(`${spec.label} из кэша: ${cachedPath} (${cached.tag})`);
+		log.debug(`${spec.label} из кэша: ${cachedPath} (${cached.tag})`);
 		return { tag: cached.tag, assetPath: cachedPath };
 	}
 
 	const { owner, repo } = parseRepoSlug(spec.repoSlug);
 	const headers = githubHeaders(token);
-	logger.info(`Загрузка ${spec.label} с GitHub (${owner}/${repo})…`);
+	log.info(`Загрузка ${spec.label} с GitHub (${owner}/${repo})…`);
 	const status = showStatus(`${spec.label}: загрузка…`);
 	try {
 		const rel = await fetchLatestStableRelease(owner, repo, headers);
@@ -281,7 +283,7 @@ export async function ensureReleaseComponent(
 		}
 
 		await writeStamp(baseDir, spec, { tag: rel.tag_name, assetPath, lastCheckMs: Date.now() });
-		logger.info(`${spec.label}: ${assetPath} (${rel.tag_name})`);
+		log.info(`${spec.label}: ${assetPath} (${rel.tag_name})`);
 		return { tag: rel.tag_name, assetPath };
 	} finally {
 		status.dispose();
@@ -324,7 +326,7 @@ export function checkReleaseUpdateInBackground(
 				await writeStamp(baseDir, spec, { ...cached, lastCheckMs: Date.now() });
 				return;
 			}
-			logger.info(`${spec.label}: доступна новая версия ${latest.tag_name} (было ${cached.tag}), обновляем кэш.`);
+			log.info(`${spec.label}: доступна новая версия ${latest.tag_name} (было ${cached.tag}), обновляем кэш.`);
 			await clearReleaseCache(baseDir, spec);
 			onUpdate();
 		} catch {

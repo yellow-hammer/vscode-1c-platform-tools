@@ -17,6 +17,8 @@ import { VANESSA_RUNNER_ROOT, VANESSA_RUNNER_EPF, EPF_NAMES, EPF_COMMANDS } from
 import { logger } from '../shared/logger';
 import type { CommandExecutionOptions, StructuredCommandResult } from '../shared/commandExecutionTypes';
 
+const log = logger.scope('commands');
+
 /**
  * Команды для работы с расширениями конфигурации
  * 
@@ -126,7 +128,7 @@ export class ExtensionsCommands extends BaseCommand {
 
 		const extensionFolders = await this.getDirectories(extensionsSrcPath, `Ошибка при чтении папки ${cfePath}`);
 		if (extensionFolders.length === 0) {
-			logger.info(`В папке ${cfePath} не найдено расширений`);
+			log.info(`В папке ${cfePath} не найдено расширений`);
 			vscode.window.showInformationMessage(`В папке ${cfePath} не найдено расширений`);
 			return undefined;
 		}
@@ -173,7 +175,7 @@ export class ExtensionsCommands extends BaseCommand {
 			for (const entry of entries) {
 				if (entry.isFile() && entry.name.startsWith('extension-partial-load-') && entry.name.endsWith('.txt')) {
 					await fs.unlink(path.join(buildDir, entry.name));
-					logger.debug(`Удалён временный список: ${entry.name}`);
+					log.debug(`Удалён временный список: ${entry.name}`);
 				}
 			}
 		} catch {
@@ -206,7 +208,7 @@ export class ExtensionsCommands extends BaseCommand {
 		try {
 			await fs.access(objlistPath);
 		} catch {
-			logger.warn(`Файл objlist.txt не найден: ${objlistPath}`);
+			log.warn(`Файл objlist.txt не найден: ${objlistPath}`);
 			vscode.window.showErrorMessage(
 				'Файл objlist.txt не найден в корне проекта. Создайте файл со списком путей к объектам для загрузки.'
 			);
@@ -220,7 +222,7 @@ export class ExtensionsCommands extends BaseCommand {
 
 		const pathsByExtension = await this.getPathsByExtensionFromObjlist(workspaceRoot, extensionFolders);
 		if (pathsByExtension.size === 0) {
-			logger.info('В objlist.txt нет путей в каталогах расширений (src/cfe/...)');
+			log.info('В objlist.txt нет путей в каталогах расширений (src/cfe/...)');
 			vscode.window.showInformationMessage(
 				'В objlist.txt нет путей из каталогов расширений (src/cfe/<имя>).'
 			);
@@ -356,7 +358,7 @@ export class ExtensionsCommands extends BaseCommand {
 			if (opts?.wait === true) {
 				return this.executionError(`В каталоге ${buildPath}/cfe нет файлов .cfe`);
 			}
-			logger.info(`В папке ${buildPath}/cfe не найдено файлов .cfe`);
+			log.info(`В папке ${buildPath}/cfe не найдено файлов .cfe`);
 			vscode.window.showInformationMessage(`В папке ${buildPath}/cfe не найдено файлов .cfe`);
 			return;
 		}
@@ -561,7 +563,7 @@ export class ExtensionsCommands extends BaseCommand {
 			if (opts?.wait === true) {
 				return this.executionError(`В каталоге ${buildPath}/cfe нет файлов .cfe`);
 			}
-			logger.info(`В папке ${buildPath}/cfe не найдено файлов .cfe`);
+			log.info(`В папке ${buildPath}/cfe не найдено файлов .cfe`);
 			vscode.window.showInformationMessage(`В папке ${buildPath}/cfe не найдено файлов .cfe`);
 			return;
 		}

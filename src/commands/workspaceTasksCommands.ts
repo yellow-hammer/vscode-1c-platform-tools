@@ -4,6 +4,8 @@ import * as fs from 'node:fs/promises';
 import { BaseCommand } from './baseCommand';
 import { logger } from '../shared/logger';
 
+const log = logger.scope('tasks');
+
 interface Task {
 	label: string;
 	type: string;
@@ -105,7 +107,7 @@ export class WorkspaceTasksCommands extends BaseCommand {
 	 */
 	async runTask(taskLabel: string): Promise<void> {
 		if (!this.workspaceRoot) {
-			logger.warn('Команда runTask вызвана без открытой рабочей области');
+			log.warn('Команда runTask вызвана без открытой рабочей области');
 			vscode.window.showErrorMessage('Откройте рабочую область для работы с проектом');
 			return;
 		}
@@ -117,14 +119,14 @@ export class WorkspaceTasksCommands extends BaseCommand {
 			);
 
 			if (vscodeTask) {
-				logger.debug(`Запуск задачи: ${taskLabel}`);
+				log.debug(`Запуск задачи: ${taskLabel}`);
 				await vscode.tasks.executeTask(vscodeTask);
 			} else {
 				await this.runLaunchConfiguration(taskLabel);
 			}
 		} catch (error) {
 			const errMsg = (error as Error).message;
-			logger.error(`Ошибка при запуске задачи "${taskLabel}": ${errMsg}`);
+			log.error(`Ошибка при запуске задачи "${taskLabel}": ${errMsg}`);
 			vscode.window.showErrorMessage(`Ошибка при запуске задачи "${taskLabel}": ${errMsg}`);
 		}
 	}
@@ -141,7 +143,7 @@ export class WorkspaceTasksCommands extends BaseCommand {
 	 */
 	async runLaunchConfiguration(name: string): Promise<void> {
 		if (!this.workspaceRoot) {
-			logger.warn('Команда runLaunchConfiguration вызвана без открытой рабочей области');
+			log.warn('Команда runLaunchConfiguration вызвана без открытой рабочей области');
 			vscode.window.showErrorMessage('Откройте рабочую область для работы с проектом');
 			return;
 		}
@@ -150,17 +152,17 @@ export class WorkspaceTasksCommands extends BaseCommand {
 		const config = configs.find(c => c.name === name);
 
 		if (!config) {
-			logger.warn(`Конфигурация отладки не найдена: ${name}`);
+			log.warn(`Конфигурация отладки не найдена: ${name}`);
 			vscode.window.showErrorMessage(`Конфигурация отладки "${name}" не найдена`);
 			return;
 		}
 
 		try {
-			logger.debug(`Запуск конфигурации отладки: ${name}`);
+			log.debug(`Запуск конфигурации отладки: ${name}`);
 			await vscode.debug.startDebugging(undefined, config);
 		} catch (error) {
 			const errMsg = (error as Error).message;
-			logger.error(`Ошибка при запуске конфигурации "${name}": ${errMsg}`);
+			log.error(`Ошибка при запуске конфигурации "${name}": ${errMsg}`);
 			vscode.window.showErrorMessage(`Ошибка при запуске конфигурации "${name}": ${errMsg}`);
 		}
 	}
@@ -176,7 +178,7 @@ export class WorkspaceTasksCommands extends BaseCommand {
 	 */
 	async editTasks(): Promise<void> {
 		if (!this.workspaceRoot) {
-			logger.warn('Команда editTasks вызвана без открытой рабочей области');
+			log.warn('Команда editTasks вызвана без открытой рабочей области');
 			vscode.window.showErrorMessage('Откройте рабочую область для работы с проектом');
 			return;
 		}
@@ -218,7 +220,7 @@ export class WorkspaceTasksCommands extends BaseCommand {
 	 */
 	async editLaunchConfigurations(): Promise<void> {
 		if (!this.workspaceRoot) {
-			logger.warn('Команда editLaunchConfigurations вызвана без открытой рабочей области');
+			log.warn('Команда editLaunchConfigurations вызвана без открытой рабочей области');
 			vscode.window.showErrorMessage('Откройте рабочую область для работы с проектом');
 			return;
 		}
@@ -261,12 +263,12 @@ export class WorkspaceTasksCommands extends BaseCommand {
 	 */
 	async addTask(task: Task): Promise<void> {
 		if (!this.workspaceRoot) {
-			logger.warn('Команда addTask вызвана без открытой рабочей области');
+			log.warn('Команда addTask вызвана без открытой рабочей области');
 			vscode.window.showErrorMessage('Откройте рабочую область для работы с проектом');
 			return;
 		}
 
-		logger.info(`Добавление задачи "${task.label}" (заглушка)`);
+		log.info(`Добавление задачи "${task.label}" (заглушка)`);
 		vscode.window.showInformationMessage(`Добавление задачи "${task.label}" (заглушка)`);
 	}
 }

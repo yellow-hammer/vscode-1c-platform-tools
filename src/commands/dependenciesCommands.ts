@@ -14,6 +14,8 @@ import { logger } from '../shared/logger';
 import { notifyProjectCreated } from '../shared/projectContext';
 import { PROJECT_STRUCTURE } from '../shared/projectStructure';
 
+const log = logger.scope('commands');
+
 /** URL для скачивания OVM (OneScript Version Manager) */
 const OVM_DOWNLOAD_URL = 'https://github.com/oscript-library/ovm/releases/latest/download/ovm.exe';
 
@@ -183,7 +185,7 @@ async function runGitAdminElevated(): Promise<boolean> {
 		await fs.writeFile(tempFile, adminScript, 'utf-8');
 	} catch (error) {
 		const errMsg = (error as Error).message;
-		logger.error(`Не удалось создать скрипт для админ-настроек: ${errMsg}`);
+		log.error(`Не удалось создать скрипт для админ-настроек: ${errMsg}`);
 		vscode.window.showErrorMessage(`Не удалось создать временный скрипт: ${errMsg}`);
 		return false;
 	}
@@ -201,11 +203,11 @@ async function runGitAdminElevated(): Promise<boolean> {
 			{ encoding: 'utf8', shell: false }
 		);
 		if (psRun.status !== 0) {
-			logger.warn(`Запуск с правами администратора завершился с кодом ${psRun.status}`);
+			log.warn(`Запуск с правами администратора завершился с кодом ${psRun.status}`);
 		}
 	} catch (error) {
 		const errMsg = (error as Error).message;
-		logger.error(`Ошибка запуска с правами администратора: ${errMsg}`);
+		log.error(`Ошибка запуска с правами администратора: ${errMsg}`);
 		vscode.window.showWarningMessage(
 			'Не удалось запустить настройки с правами администратора. Выполните вручную от имени администратора: git config --system core.longpaths true и setx LC_ALL C.UTF-8 /M'
 		);
@@ -282,19 +284,19 @@ export class DependenciesCommands extends BaseCommand {
 			const stats = await fs.stat(oscriptModulesPath);
 			if (stats.isDirectory()) {
 				await fs.rm(oscriptModulesPath, { recursive: true, force: true });
-				logger.info(`Каталог oscript_modules успешно удалён: ${oscriptModulesPath}`);
+				log.info(`Каталог oscript_modules успешно удалён: ${oscriptModulesPath}`);
 				vscode.window.showInformationMessage('Каталог oscript_modules успешно удален');
 			} else {
-				logger.warn(`oscript_modules не является каталогом: ${oscriptModulesPath}`);
+				log.warn(`oscript_modules не является каталогом: ${oscriptModulesPath}`);
 				vscode.window.showWarningMessage('oscript_modules не является каталогом');
 			}
 		} catch (error) {
 			if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
-				logger.info('Каталог oscript_modules не найден');
+				log.info('Каталог oscript_modules не найден');
 				vscode.window.showInformationMessage('Каталог oscript_modules не найден');
 			} else {
 				const errMsg = (error as Error).message;
-				logger.error(`Не удалось удалить каталог oscript_modules: ${errMsg}. Путь: ${oscriptModulesPath}`);
+				log.error(`Не удалось удалить каталог oscript_modules: ${errMsg}. Путь: ${oscriptModulesPath}`);
 				vscode.window.showErrorMessage(`Не удалось удалить каталог oscript_modules: ${errMsg}`);
 			}
 		}
@@ -390,13 +392,13 @@ export class DependenciesCommands extends BaseCommand {
 		for (const [key, value] of configs) {
 			const { ok, stderr } = runGitConfig([...globalFlag, 'config', key, value]);
 			if (!ok) {
-				logger.error(`Git config ${key}=${value}: ${stderr}`);
+				log.error(`Git config ${key}=${value}: ${stderr}`);
 				vscode.window.showErrorMessage(`Ошибка настройки Git (${key}): ${stderr || 'неизвестная ошибка'}`);
 				return;
 			}
 		}
 
-		logger.info(`Настройки Git применены (${isGlobal ? 'глобально' : 'для текущего проекта'})`);
+		log.info(`Настройки Git применены (${isGlobal ? 'глобально' : 'для текущего проекта'})`);
 		vscode.window.showInformationMessage(
 			`Настройки Git успешно применены (${isGlobal ? 'глобально' : 'для текущего проекта'}).`
 		);
@@ -485,7 +487,7 @@ export class DependenciesCommands extends BaseCommand {
 		const extensionPath = this.vrunner.getExtensionPath();
 		if (!extensionPath) {
 			const msg = 'Не удалось определить путь к расширению';
-			logger.error(
+			log.error(
 				`${msg}. Возможные причины: расширение не передало ExtensionContext в VRunnerManager при активации; workspaceRoot=${workspaceRoot ?? 'не определён'}. Проверьте панель Output (1C: Platform Tools) для диагностики.`
 			);
 			logger.show();
@@ -494,7 +496,7 @@ export class DependenciesCommands extends BaseCommand {
 		}
 
 		const templatePath = path.join(extensionPath, 'resources', 'templates', 'packagedef.template');
-		logger.debug(`Инициализация packagedef: workspaceRoot=${workspaceRoot}, extensionPath=${extensionPath}, templatePath=${templatePath}`);
+		log.debug(`Инициализация packagedef: workspaceRoot=${workspaceRoot}, extensionPath=${extensionPath}, templatePath=${templatePath}`);
 
 		// Читаем шаблон из файла
 		let packagedefContent: string;
@@ -502,7 +504,7 @@ export class DependenciesCommands extends BaseCommand {
 			packagedefContent = await fs.readFile(templatePath, 'utf-8');
 		} catch (error) {
 			const errMsg = (error as Error).message;
-			logger.error(`Не удалось прочитать шаблон packagedef: ${errMsg}. Путь: ${templatePath}`);
+			log.error(`Не удалось прочитать шаблон packagedef: ${errMsg}. Путь: ${templatePath}`);
 			logger.show();
 			vscode.window.showErrorMessage(
 				`Не удалось прочитать шаблон packagedef: ${errMsg}`
@@ -512,7 +514,7 @@ export class DependenciesCommands extends BaseCommand {
 
 		try {
 			await fs.writeFile(packagedefPath, packagedefContent, 'utf-8');
-			logger.info(`Файл packagedef успешно создан: ${packagedefPath}`);
+			log.info(`Файл packagedef успешно создан: ${packagedefPath}`);
 			vscode.window.showInformationMessage('Файл packagedef успешно создан');
 
 			// Полная активация расширения: панель «Инструменты 1С» и дерево появятся без перезагрузки окна
@@ -526,7 +528,7 @@ export class DependenciesCommands extends BaseCommand {
 			await this.offerReloadAfterProjectInitialization();
 		} catch (error) {
 			const errMsg = (error as Error).message;
-			logger.error(`Не удалось создать файл packagedef: ${errMsg}. Путь: ${packagedefPath}`);
+			log.error(`Не удалось создать файл packagedef: ${errMsg}. Путь: ${packagedefPath}`);
 			logger.show();
 			vscode.window.showErrorMessage(`Не удалось создать файл packagedef: ${errMsg}`);
 		}
@@ -634,7 +636,7 @@ export class DependenciesCommands extends BaseCommand {
 		const extensionPath = this.vrunner.getExtensionPath();
 		if (!extensionPath) {
 			const msg = 'Не удалось определить путь к расширению';
-			logger.error(msg);
+			log.error(msg);
 			logger.show();
 			vscode.window.showErrorMessage(msg);
 			return;
@@ -663,7 +665,7 @@ export class DependenciesCommands extends BaseCommand {
 			packagedefContent = await fs.readFile(templatePath, 'utf-8');
 		} catch (error) {
 			const errMsg = (error as Error).message;
-			logger.error(`Не удалось прочитать шаблон packagedef: ${errMsg}. Путь: ${templatePath}`);
+			log.error(`Не удалось прочитать шаблон packagedef: ${errMsg}. Путь: ${templatePath}`);
 			logger.show();
 			vscode.window.showErrorMessage(`Не удалось прочитать шаблон packagedef: ${errMsg}`);
 			return;
@@ -671,12 +673,12 @@ export class DependenciesCommands extends BaseCommand {
 
 		try {
 			await fs.writeFile(packagedefPath, packagedefContent, 'utf-8');
-			logger.info(`Файл packagedef создан: ${packagedefPath}`);
+			log.info(`Файл packagedef создан: ${packagedefPath}`);
 
 			if (withStructure) {
 				try {
 					const { createdDirs, createdReadmes } = await this.createProjectStructureInFolder(targetDir);
-					logger.info(
+					log.info(
 						`Структура проекта создана: каталогов=${createdDirs}, новых README=${createdReadmes}. Путь: ${targetDir}`
 					);
 					vscode.window.showInformationMessage(
@@ -684,7 +686,7 @@ export class DependenciesCommands extends BaseCommand {
 					);
 				} catch (error) {
 					const errMsg = (error as Error).message;
-					logger.error(`Не удалось создать структуру проекта: ${errMsg}. Путь: ${targetDir}`);
+					log.error(`Не удалось создать структуру проекта: ${errMsg}. Путь: ${targetDir}`);
 					logger.show();
 					vscode.window.showWarningMessage(
 						`packagedef создан, но не удалось создать каталоги: ${errMsg}. Открываю папку.`
@@ -706,7 +708,7 @@ export class DependenciesCommands extends BaseCommand {
 			await vscode.commands.executeCommand('vscode.openFolder', selected[0]);
 		} catch (error) {
 			const errMsg = (error as Error).message;
-			logger.error(`Не удалось создать файл packagedef: ${errMsg}. Путь: ${packagedefPath}`);
+			log.error(`Не удалось создать файл packagedef: ${errMsg}. Путь: ${packagedefPath}`);
 			logger.show();
 			vscode.window.showErrorMessage(`Не удалось создать файл packagedef: ${errMsg}`);
 		}
@@ -746,7 +748,7 @@ export class DependenciesCommands extends BaseCommand {
 				}
 			}
 
-			logger.info(
+			log.info(
 				`Структура проекта создана: каталогов=${createdDirs}, новых README=${createdReadmes}. Workspace: ${workspaceRoot}`
 			);
 			vscode.window.showInformationMessage(
@@ -755,7 +757,7 @@ export class DependenciesCommands extends BaseCommand {
 			notifyProjectCreated();
 		} catch (error) {
 			const errMsg = (error as Error).message;
-			logger.error(`Не удалось создать структуру проекта: ${errMsg}. Workspace: ${workspaceRoot}`);
+			log.error(`Не удалось создать структуру проекта: ${errMsg}. Workspace: ${workspaceRoot}`);
 			logger.show();
 			vscode.window.showErrorMessage(`Не удалось создать структуру проекта: ${errMsg}`);
 		}
@@ -843,14 +845,14 @@ export class DependenciesCommands extends BaseCommand {
 			terminal.show();
 		}
 
-		logger.info(`Установка OneScript запущена в терминале: ${commandName.title}, версия: ${ovmVersion}`);
+		log.info(`Установка OneScript запущена в терминале: ${commandName.title}, версия: ${ovmVersion}`);
 
 		vscode.window.setStatusBarMessage('Ожидание установки OneScript…', OVM_POLL_TIMEOUT_MS);
 		const installed = await waitForOvmInstallComplete(ovmOscriptMtimeBefore);
 		vscode.window.setStatusBarMessage('', 0);
 
 		if (!installed) {
-			logger.info('Таймаут ожидания установки OVM');
+			log.info('Таймаут ожидания установки OVM');
 			vscode.window.showInformationMessage(
 				'Установка идёт дольше или с ошибкой. Если в терминале успешно — перезапустите окно (Reload Window).'
 			);

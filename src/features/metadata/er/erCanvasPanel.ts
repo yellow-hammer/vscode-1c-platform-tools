@@ -18,6 +18,8 @@ import { buildSubgraph, listObjectTypes, listRelationKinds } from './erFilters';
 import { loadErGraph } from './erGraphService';
 import type { ErExportFormat, ErGraph, ErScope, ErSubgraph } from './erTypes';
 
+const log = logger.scope('er');
+
 /**
  * Жёсткий лимит количества узлов, который мы соглашаемся отрисовать в Cytoscape.
  * 500 выбрано как практический компромисс: при больших графах заметно растут время layout
@@ -176,7 +178,7 @@ async function loadAndInitCanvas(
 		});
 	} catch (e) {
 		const message = e instanceof Error ? e.message : String(e);
-		logger.error(`ER canvas: не удалось загрузить граф: ${message}`);
+		log.error(`не удалось загрузить граф: ${message}`);
 		await instance.panel.webview.postMessage({
 			type: 'loadError',
 			payload: { message },
@@ -278,12 +280,10 @@ async function handleMessage(
 	if (message.type === 'log') {
 		const payload = message.payload as { level?: string; message?: string } | undefined;
 		const text = String(payload?.message ?? '');
-		if (payload?.level === 'error') {
-			logger.warn(`er-canvas: ${text}`);
-		} else if (payload?.level === 'warn') {
-			logger.warn(`er-canvas: ${text}`);
+		if (payload?.level === 'error' || payload?.level === 'warn') {
+			log.warn(`webview: ${text}`);
 		} else {
-			logger.debug(`er-canvas: ${text}`);
+			log.debug(`webview: ${text}`);
 		}
 		return;
 	}

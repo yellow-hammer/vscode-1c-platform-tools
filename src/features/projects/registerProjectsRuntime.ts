@@ -13,6 +13,8 @@ import {
 	showStatusBar,
 } from './index';
 
+const log = logger.scope('projects');
+
 export interface RegisterProjectsRuntimeParams {
 	context: vscode.ExtensionContext;
 	projectStorage: ProjectStorage;
@@ -74,7 +76,7 @@ export async function registerProjectsRuntime(
 	try {
 		await providers.showTreeViews();
 	} catch (err) {
-		logger.error(`Ошибка при загрузке списка проектов 1С: ${String(err)}`);
+		log.error(`Ошибка при загрузке списка проектов 1С: ${String(err)}`);
 	}
 
 	try {

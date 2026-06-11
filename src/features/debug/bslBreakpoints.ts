@@ -1,4 +1,7 @@
 import * as vscode from 'vscode';
+import { logger } from '../../shared/logger';
+
+const log = logger.scope('dap');
 
 const PROC_START = /^\s*(Процедура|Функция)\s+[А-Яа-яёЁA-Za-z_][А-Яа-яёЁ\w]*\s*\(/i;
 const VAR_DECLARE = /^Перем\s/i;
@@ -59,6 +62,7 @@ export function registerBslBreakpointNormalizer(context: vscode.ExtensionContext
 					continue;
 				}
 
+				log.debug(`точка ${vscode.workspace.asRelativePath(uri)}:${line0 + 1} перенесена на исполняемую строку ${adjusted0 + 1}`);
 				remove.push(bp);
 				// На целевой строке уже может стоять точка — тогда просто убираем неисполняемую.
 				const occupied = vscode.debug.breakpoints.some(

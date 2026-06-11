@@ -17,6 +17,8 @@ import {
 	resolveGithubToken,
 } from '../../shared/githubReleaseLoader';
 
+const log = logger.scope('dap');
+
 /** Главный исполняемый файл адаптера внутри релизного архива. */
 export const ONEC_DEBUG_ADAPTER_DLL = 'OnecDebugAdapter.dll';
 
@@ -76,7 +78,7 @@ export async function ensureOnecDebugAdapter(context: vscode.ExtensionContext): 
 	if (!dll) {
 		throw new Error(`В релизе onec-debug-adapter ${ensured.tag} не найден ${ONEC_DEBUG_ADAPTER_DLL}.`);
 	}
-	logger.info(`onec-debug-adapter: ${dll} (${ensured.tag})`);
+	log.info(`адаптер готов: ${dll} (${ensured.tag})`);
 	return { dllPath: dll, releaseTag: ensured.tag };
 }
 

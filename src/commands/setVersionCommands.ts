@@ -11,6 +11,8 @@ import {
 } from '../features/tools/commandNames';
 import { logger } from '../shared/logger';
 
+const log = logger.scope('commands');
+
 /**
  * Команды для установки версий исходного кода конфигурации, расширений и внешних файлов
  *
@@ -115,7 +117,7 @@ export class SetVersionCommands extends BaseCommand {
 		if (selected === undefined) {
 			const extensions = await this.getExtensionFoldersForTree();
 			if (extensions.length === 0) {
-				logger.info('В папке src/cfe не найдено расширений');
+				log.info('В папке src/cfe не найдено расширений');
 				vscode.window.showInformationMessage('В папке src/cfe не найдено расширений');
 				return;
 			}
@@ -165,7 +167,7 @@ export class SetVersionCommands extends BaseCommand {
 		if (selected === undefined) {
 			const reports = await this.getReportFoldersForTree();
 			if (reports.length === 0) {
-				logger.info('В папке src/erf не найдено внешних отчётов');
+				log.info('В папке src/erf не найдено внешних отчётов');
 				vscode.window.showInformationMessage('В папке src/erf не найдено внешних отчётов');
 				return;
 			}
@@ -215,7 +217,7 @@ export class SetVersionCommands extends BaseCommand {
 		if (selected === undefined) {
 			const processors = await this.getProcessorFoldersForTree();
 			if (processors.length === 0) {
-				logger.info('В папке src/epf не найдено внешних обработок');
+				log.info('В папке src/epf не найдено внешних обработок');
 				vscode.window.showInformationMessage('В папке src/epf не найдено внешних обработок');
 				return;
 			}

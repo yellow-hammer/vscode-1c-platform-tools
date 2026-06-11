@@ -5,6 +5,8 @@ import {
 	type FeaturesViewMode,
 } from './projectArtifactsView';
 
+const log = logger.scope('artifacts');
+
 export interface RegisterArtifactsFeatureParams {
 	artifactsProvider: ProjectArtifactsTreeDataProvider;
 	isProjectRef: { current: boolean };
@@ -65,7 +67,7 @@ export function registerArtifactsFeature(
 				return;
 			}
 			await artifactsProvider.refresh();
-			logger.debug('Дерево артефактов обновлено');
+			log.debug('Дерево артефактов обновлено');
 			vscode.window.showInformationMessage('Дерево артефактов обновлено');
 		}
 	);

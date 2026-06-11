@@ -7,6 +7,8 @@
 import * as vscode from 'vscode';
 import { logger } from '../../shared/logger';
 
+const log = logger.scope('todo');
+
 /** Одна найденная метка в коде (тег, строка, URI, текст). */
 export interface TodoEntry {
 	uri: vscode.Uri;
@@ -107,7 +109,7 @@ export async function scanWorkspaceForTodos(): Promise<TodoEntry[]> {
 			const content = new TextDecoder('utf-8', { fatal: false }).decode(bytes);
 			allEntries.push(...scanFile(uri, content, regex));
 		} catch (err) {
-			logger.debug(`Не удалось прочитать файл ${uri.fsPath}: ${String(err)}`);
+			log.debug(`Не удалось прочитать файл ${uri.fsPath}: ${String(err)}`);
 		}
 	}
 

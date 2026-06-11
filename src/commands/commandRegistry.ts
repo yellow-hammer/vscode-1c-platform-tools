@@ -16,6 +16,8 @@ import { SkillsCommands } from './skillsCommands';
 import { VRunnerManager } from '../shared/vrunnerManager';
 import type { CommandExecutionOptions, StructuredCommandResult } from '../shared/commandExecutionTypes';
 
+const log = logger.scope('commands');
+
 /**
  * Объект со всеми командами расширения
  */
@@ -398,7 +400,7 @@ export function registerCommands(
 	const envEditCommand = vscode.commands.registerCommand('1c-platform-tools.config.env.edit', async () => {
 		const workspaceRoot = vrunnerManager.getWorkspaceRoot();
 		if (!workspaceRoot) {
-			logger.warn('Команда env.edit вызвана без открытой рабочей области');
+			log.warn('Команда env.edit вызвана без открытой рабочей области');
 			vscode.window.showErrorMessage('Откройте рабочую область для работы с проектом');
 			return;
 		}

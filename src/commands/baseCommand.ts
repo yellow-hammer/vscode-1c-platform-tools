@@ -5,6 +5,8 @@ import { VRunnerManager, type VRunnerExecutionResult } from '../shared/vrunnerMa
 import { logger } from '../shared/logger';
 import type { CommandExecutionOptions, StructuredCommandResult } from '../shared/commandExecutionTypes';
 
+const log = logger.scope('commands');
+
 /**
  * Базовый класс для всех команд
  * Предоставляет общие методы для проверки workspace и работы с файловой системой
@@ -23,7 +25,7 @@ export abstract class BaseCommand {
 	protected ensureWorkspace(): string | undefined {
 		const workspaceRoot = this.vrunner.getWorkspaceRoot();
 		if (!workspaceRoot) {
-			logger.warn('Команда вызвана без открытой рабочей области (workspaceFolders пуст или отсутствует)');
+			log.warn('Команда вызвана без открытой рабочей области (workspaceFolders пуст или отсутствует)');
 			vscode.window.showErrorMessage('Откройте рабочую область для работы с проектом');
 		}
 		return workspaceRoot;
@@ -62,7 +64,7 @@ export abstract class BaseCommand {
 			const stats = await fs.stat(dirPath);
 			if (!stats.isDirectory()) {
 				const message = errorMessage || `Папка ${dirPath} не является директорией`;
-				logger.error(message);
+				log.error(message);
 				vscode.window.showErrorMessage(message);
 				return false;
 			}
@@ -70,12 +72,12 @@ export abstract class BaseCommand {
 		} catch (error) {
 			if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
 				const message = errorMessage || `Папка ${dirPath} не найдена`;
-				logger.warn(message);
+				log.warn(message);
 				vscode.window.showErrorMessage(message);
 				return false;
 			}
 			const message = errorMessage || `Ошибка при проверке папки ${dirPath}: ${(error as Error).message}`;
-			logger.error(message);
+			log.error(message);
 			vscode.window.showErrorMessage(message);
 			return false;
 		}
@@ -95,7 +97,7 @@ export abstract class BaseCommand {
 				.map(entry => entry.name);
 		} catch (error) {
 			const message = errorMessage || `Ошибка при чтении папки ${dirPath}: ${(error as Error).message}`;
-			logger.error(message);
+			log.error(message);
 			vscode.window.showErrorMessage(message);
 			return [];
 		}
@@ -116,7 +118,7 @@ export abstract class BaseCommand {
 				.map(entry => entry.name);
 		} catch (error) {
 			const message = errorMessage || `Ошибка при чтении папки ${dirPath}: ${(error as Error).message}`;
-			logger.error(message);
+			log.error(message);
 			vscode.window.showErrorMessage(message);
 			return [];
 		}
@@ -134,7 +136,7 @@ export abstract class BaseCommand {
 			return true;
 		} catch (error) {
 			const message = errorMessage || `Ошибка при создании папки ${dirPath}: ${(error as Error).message}`;
-			logger.error(message);
+			log.error(message);
 			vscode.window.showErrorMessage(message);
 			return false;
 		}
@@ -185,7 +187,7 @@ export abstract class BaseCommand {
 			return true;
 		} catch (error) {
 			const errMsg = (error as Error).message;
-			logger.error(`${errorContext ?? 'Запись списка'}: ${errMsg}`);
+			log.error(`${errorContext ?? 'Запись списка'}: ${errMsg}`);
 			vscode.window.showErrorMessage(`Не удалось записать список файлов: ${errMsg}`);
 			return false;
 		}
@@ -268,7 +270,7 @@ export abstract class BaseCommand {
 				const stats = await fs.stat(dirPath);
 				return stats.isDirectory();
 			} catch (error) {
-				logger.error(
+				log.error(
 					`${errorMessage ?? 'Каталог'}: ${(error as Error).message}`
 				);
 				return false;

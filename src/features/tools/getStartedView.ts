@@ -15,6 +15,8 @@ import * as path from 'node:path';
 import * as vscode from 'vscode';
 import { logger } from '../../shared/logger';
 
+const log = logger.scope('walkthrough');
+
 const WELCOMED_KEY = '1c-platform-tools.getStarted.welcomed';
 
 /** Локальный id первого walkthrough в `package.json` (`contributes.walkthroughs`). */
@@ -120,9 +122,9 @@ async function loadWalkthroughData(context: vscode.ExtensionContext): Promise<Wa
 		try {
 			const pkgContent = await fs.readFile(pkgPath, 'utf-8');
 			pkg = JSON.parse(pkgContent) as PackageWithContributes;
-			logger.debug('Walkthrough: загружен из файла package.json');
+			log.debug('загружен из файла package.json');
 		} catch (err) {
-			logger.warn(`Walkthrough: не найден в API и при чтении ${pkgPath}: ${String(err)}`);
+			log.warn(`не найден в API и при чтении ${pkgPath}: ${String(err)}`);
 			pkg = {};
 		}
 	}
@@ -339,12 +341,12 @@ async function openBuiltinWalkthroughWithFallback(
 	try {
 		await tryOpen();
 	} catch (error) {
-		logger.warn(`openWalkthrough: ${String(error)} — повтор через 400 мс`);
+		log.warn(`открытие: ${String(error)} — повтор через 400 мс`);
 		await sleep(400);
 		try {
 			await tryOpen();
 		} catch (retryError) {
-			logger.warn(`openWalkthrough: ${String(retryError)} — открываем Webview`);
+			log.warn(`открытие: ${String(retryError)} — открываем Webview`);
 			await openWalkthroughWebview(context);
 		}
 	}

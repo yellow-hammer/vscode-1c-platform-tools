@@ -32,49 +32,66 @@ function getConfiguredLevel(): number {
 }
 
 /**
- * Форматирует строку лога с меткой времени и уровнем
+ * Форматирует строку лога: [время] [уровень] [компонент] сообщение
  */
-function formatMessage(level: string, message: string): string {
-	const now = new Date();
-	const time = now.toISOString();
-	return `[${time}] [${level}] ${message}`;
+function formatMessage(level: string, scope: string | undefined, message: string): string {
+	const time = new Date().toISOString();
+	return scope ? `[${time}] [${level}] [${scope}] ${message}` : `[${time}] [${level}] ${message}`;
 }
 
 /**
  * Пишет сообщение в output, если уровень не ниже настроенного
  */
-function log(level: LogLevelName, message: string): void {
+function log(level: LogLevelName, scope: string | undefined, message: string): void {
 	const configured = getConfiguredLevel();
 	const currentLevel = LOG_LEVELS[level];
 	if (currentLevel > configured) {
 		return;
 	}
-	const formatted = formatMessage(level, message);
-	getChannel().appendLine(formatted);
+	getChannel().appendLine(formatMessage(level, scope, message));
+}
+
+/** Логгер компонента: пишет с постоянным префиксом [компонент]. */
+export interface ScopedLogger {
+	error(message: string): void;
+	warn(message: string): void;
+	info(message: string): void;
+	debug(message: string): void;
 }
 
 /**
  * Выводит сообщения в панель Output в соответствии с настройкой logLevel.
+ * Модули получают свой префикс через scope(): `const log = logger.scope('md-sparrow');`
  */
 export const logger = {
 	/** Критические ошибки (всегда видны при уровне error и выше) */
 	error(message: string): void {
-		log('error', message);
+		log('error', undefined, message);
 	},
 
 	/** Предупреждения (видны при warnings, info, debug) */
 	warn(message: string): void {
-		log('warnings', message);
+		log('warnings', undefined, message);
 	},
 
 	/** Информационные сообщения (видны при info, debug) */
 	info(message: string): void {
-		log('info', message);
+		log('info', undefined, message);
 	},
 
 	/** Отладочные сообщения (видны только при debug) */
 	debug(message: string): void {
-		log('debug', message);
+		log('debug', undefined, message);
+	},
+
+	/** Логгер с постоянным компонентом в префиксе: [время] [уровень] [компонент] сообщение. */
+	scope(name: string): ScopedLogger {
+		return {
+			error: (message: string) => log('error', name, message),
+			warn: (message: string) => log('warnings', name, message),
+			info: (message: string) => log('info', name, message),
+			debug: (message: string) => log('debug', name, message),
+		};
 	},
 
 	/** Показать панель Output с логами расширения */

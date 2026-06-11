@@ -16,6 +16,8 @@ import { formatDateForDtFileName } from '../utils/dateUtils';
 import { logger } from '../shared/logger';
 import type { CommandExecutionOptions, StructuredCommandResult } from '../shared/commandExecutionTypes';
 
+const log = logger.scope('commands');
+
 /**
  * Команды для работы с информационными базами
  */
@@ -101,7 +103,7 @@ export class InfobaseCommands extends BaseCommand {
 			if (opts?.wait === true) {
 				return this.executionError(`Не удалось создать каталог ${dtFolder}: ${errMsg}`);
 			}
-			logger.error(`Ошибка при создании папки ${dtFolder}: ${errMsg}`);
+			log.error(`Ошибка при создании папки ${dtFolder}: ${errMsg}`);
 			vscode.window.showErrorMessage(`Ошибка при создании папки ${dtFolder}: ${errMsg}`);
 			return;
 		}

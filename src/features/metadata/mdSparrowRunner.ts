@@ -8,6 +8,8 @@ import * as vscode from 'vscode';
 import { logger } from '../../shared/logger';
 import type { MdSparrowRuntime } from './mdSparrowBootstrap';
 
+const log = logger.scope('md-sparrow');
+
 export interface MdSparrowRunResult {
 	exitCode: number;
 	stdout: string;
@@ -37,8 +39,9 @@ export function runMdSparrow(
 		...args,
 	];
 	const cmdLine = `${java} ${fullArgs.map((a) => (/\s/.test(a) ? `"${a}"` : a)).join(' ')}`;
-	logger.debug(`md-sparrow: ${cmdLine}${options?.cwd ? ` (cwd=${options.cwd})` : ''}`);
+	log.debug(`запуск: ${cmdLine}${options?.cwd ? ` (cwd=${options.cwd})` : ''}`);
 
+	const startedAt = Date.now();
 	return new Promise((resolve, reject) => {
 		const child = spawn(java, fullArgs, {
 			cwd: options?.cwd,
@@ -61,10 +64,17 @@ export function runMdSparrow(
 		});
 		child.on('error', (err) => {
 			sub?.dispose();
+			log.error(`не удалось запустить процесс: ${err.message}`);
 			reject(err);
 		});
 		child.on('close', (code) => {
 			sub?.dispose();
+			const duration = Date.now() - startedAt;
+			if (code === 0) {
+				log.debug(`завершено за ${duration} мс (${args[0] ?? ''})`);
+			} else {
+				log.warn(`код выхода ${code ?? -1} за ${duration} мс (${args[0] ?? ''})${stderr ? `: ${stderr.trim().split('\n')[0]}` : ''}`);
+			}
 			resolve({ exitCode: code ?? -1, stdout, stderr });
 		});
 	});

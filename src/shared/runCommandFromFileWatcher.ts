@@ -1,6 +1,8 @@
 import * as vscode from 'vscode';
 import { logger } from './logger';
 
+const log = logger.scope('trigger');
+
 const RUN_COMMAND_FILE = '1c-platform-tools-run-command';
 const COMMAND_PREFIX = '1c-platform-tools.';
 
@@ -9,18 +11,18 @@ async function handleRunCommandFile(uri: vscode.Uri): Promise<void> {
 		const doc = await vscode.workspace.openTextDocument(uri);
 		const line = doc.getText().split(/\r?\n/)[0]?.trim() ?? '';
 		if (!line.startsWith(COMMAND_PREFIX)) {
-			logger.warn(
-				`runCommandFromFile: неверный идентификатор в ${uri.fsPath} (ожидается строка, начинающаяся с ${COMMAND_PREFIX})`
+			log.warn(
+				`неверный идентификатор в ${uri.fsPath} (ожидается строка, начинающаяся с ${COMMAND_PREFIX})`
 			);
 			await vscode.workspace.fs.delete(uri, { useTrash: false });
 			return;
 		}
 		await vscode.workspace.fs.delete(uri, { useTrash: false });
 		await vscode.commands.executeCommand(line);
-		logger.info(`runCommandFromFile: выполнена команда ${line}`);
+		log.info(`выполнена команда ${line}`);
 	} catch (error) {
 		const errMsg = (error as Error).message;
-		logger.error(`runCommandFromFile: ошибка при обработке ${uri.fsPath}: ${errMsg}`);
+		log.error(`ошибка при обработке ${uri.fsPath}: ${errMsg}`);
 	}
 }
 

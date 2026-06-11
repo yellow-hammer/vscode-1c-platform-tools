@@ -19,6 +19,8 @@ import { isMdSparrowUnknownCommandError, MdSparrowOutdatedError } from '../mdSpa
 import { runMdSparrow } from '../mdSparrowRunner';
 import type { ErGraph, ErNode, ErEdge } from './erTypes';
 
+const log = logger.scope('er');
+
 /** Cache format version. Increment when introducing incompatible contract changes. */
 const CACHE_FORMAT_VERSION = 1;
 
@@ -144,7 +146,7 @@ async function writeCache(file: string, fingerprint: string, graph: ErGraph): Pr
 		};
 		await fs.writeFile(file, JSON.stringify(payload), 'utf8');
 	} catch (e) {
-		logger.warn(`ER cache: не удалось записать ${file}: ${e instanceof Error ? e.message : String(e)}`);
+		log.warn(`кэш: не удалось записать ${file}: ${e instanceof Error ? e.message : String(e)}`);
 	}
 }
 
@@ -214,7 +216,7 @@ export async function loadErGraph(
 	const fingerprint = await computeFingerprint(workspaceRoot, jarIdentity);
 	const cached = await readCache(cacheFile, fingerprint);
 	if (cached) {
-		logger.debug(`ER cache hit: ${cacheFile}`);
+		log.debug(`кэш найден: ${cacheFile}`);
 		return { graph: cached, fromCache: true, fingerprint };
 	}
 	options.progress?.report({ message: 'ER: построение графа (md-sparrow cf-md-graph)' });

@@ -10,6 +10,8 @@ import { isMdSparrowUnknownCommandError, MdSparrowOutdatedError } from './mdSpar
 import { logger } from '../../shared/logger';
 import { runMdSparrow } from './mdSparrowRunner';
 
+const log = logger.scope('metadata');
+
 /** Контракт с md-sparrow {@link io.github.yellowhammer.designerxml.cf.ProjectMetadataTreeDto}. */
 export interface ProjectMetadataTreeDto {
 	readonly projectRoot: string;
@@ -73,7 +75,7 @@ export async function loadProjectMetadataTree(
 		throw new Error(`Ожидался JSON, получено: ${line.slice(0, 200)}`);
 	}
 	if (!isProjectMetadataTreeDto(parsed)) {
-		logger.error(`metadata tree JSON: неожиданная форма`);
+		log.error('дерево: неожиданная форма JSON ответа md-sparrow');
 		throw new Error('Не удалось разобрать ответ md-sparrow.');
 	}
 	return parsed;
@@ -84,7 +86,7 @@ async function runProjectMetadataTreeWithRepair(context: vscode.ExtensionContext
 		cwd: abs,
 	});
 	if (initialRes.exitCode !== 0 && shouldRepairJarAndRetry(initialRes.stderr, initialRes.stdout)) {
-		logger.warn('md-sparrow: ошибка загрузки классов, очищаем кэш JAR и повторяем запуск.');
+		log.warn('ошибка загрузки классов md-sparrow — очищаем кэш JAR и повторяем запуск');
 		await clearMdSparrowDownloadCache(context, false);
 		const repairedRuntime = await ensureMdSparrowRuntime(context);
 		return runMdSparrow(repairedRuntime, ['project-metadata-tree', abs], {

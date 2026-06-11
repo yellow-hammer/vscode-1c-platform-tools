@@ -1,6 +1,8 @@
 import * as vscode from 'vscode';
 import { logger } from '../shared/logger';
 
+const log = logger.scope('ui');
+
 const NOT_1C_PROJECT_MESSAGE =
 	'Откройте папку проекта 1С (в корне должен быть файл packagedef). ' +
 	'Чтобы создать новый проект, выполните команду «1C: Зависимости: Инициализировать проект» из палитры команд.';
@@ -10,7 +12,7 @@ const NOT_1C_PROJECT_MESSAGE =
  */
 export function createShowNot1CProjectMessage(): () => void {
 	return (): void => {
-		logger.info(NOT_1C_PROJECT_MESSAGE);
+		log.info(NOT_1C_PROJECT_MESSAGE);
 		void vscode.window.showInformationMessage(NOT_1C_PROJECT_MESSAGE);
 	};
 }
