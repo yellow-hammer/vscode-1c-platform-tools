@@ -3,14 +3,13 @@
  */
 
 /**
- * Корневая папка vanessa-runner в oscript_modules
+ * Путь к обработке из поставки vanessa-runner для параметра --execute.
+ * Макрос $runnerRoot разворачивает сам vrunner в свой каталог — работает
+ * и для локальной установки (oscript_modules), и для глобальной.
  */
-export const VANESSA_RUNNER_ROOT = 'oscript_modules/vanessa-runner';
-
-/**
- * Папка с обработками в vanessa-runner
- */
-export const VANESSA_RUNNER_EPF = 'epf';
+export function vanessaRunnerEpf(epfName: string): string {
+	return `$runnerRoot/epf/${epfName}`;
+}
 
 /**
  * Имена обработок vanessa-runner

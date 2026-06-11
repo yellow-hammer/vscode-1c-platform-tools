@@ -11,7 +11,7 @@ import {
 	getDumpInfobaseToDtCommandName,
 	getLoadInfobaseFromDtCommandName
 } from '../features/tools/commandNames';
-import { VANESSA_RUNNER_ROOT, VANESSA_RUNNER_EPF, EPF_NAMES, EPF_COMMANDS } from '../shared/constants';
+import { vanessaRunnerEpf, EPF_NAMES, EPF_COMMANDS } from '../shared/constants';
 import { formatDateForDtFileName } from '../utils/dateUtils';
 import { logger } from '../shared/logger';
 import type { CommandExecutionOptions, StructuredCommandResult } from '../shared/commandExecutionTypes';
@@ -37,7 +37,7 @@ export class InfobaseCommands extends BaseCommand {
 
 	async updateDatabase(opts?: CommandExecutionOptions): Promise<StructuredCommandResult | void> {
 		const ibConnectionParam = await this.vrunner.getIbConnectionParam();
-		const epfPath = path.join(VANESSA_RUNNER_ROOT, VANESSA_RUNNER_EPF, EPF_NAMES.CLOSE_ENTERPRISE);
+		const epfPath = vanessaRunnerEpf(EPF_NAMES.CLOSE_ENTERPRISE);
 		const args = [
 			'run',
 			'--command',
@@ -51,11 +51,7 @@ export class InfobaseCommands extends BaseCommand {
 
 	async blockExternalResources(opts?: CommandExecutionOptions): Promise<StructuredCommandResult | void> {
 		const ibConnectionParam = await this.vrunner.getIbConnectionParam();
-		const epfPath = path.join(
-			VANESSA_RUNNER_ROOT,
-			VANESSA_RUNNER_EPF,
-			EPF_NAMES.BLOCK_EXTERNAL_RESOURCES
-		);
+		const epfPath = vanessaRunnerEpf(EPF_NAMES.BLOCK_EXTERNAL_RESOURCES);
 		const args = [
 			'run',
 			'--command',

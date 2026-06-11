@@ -13,7 +13,7 @@ import {
 	getDecompileExtensionCommandName,
 	getUpdateExtensionsInInfobaseCommandName
 } from '../features/tools/commandNames';
-import { VANESSA_RUNNER_ROOT, VANESSA_RUNNER_EPF, EPF_NAMES, EPF_COMMANDS } from '../shared/constants';
+import { vanessaRunnerEpf, EPF_NAMES, EPF_COMMANDS } from '../shared/constants';
 import { logger } from '../shared/logger';
 import type { CommandExecutionOptions, StructuredCommandResult } from '../shared/commandExecutionTypes';
 
@@ -365,7 +365,7 @@ export class ExtensionsCommands extends BaseCommand {
 
 		const ibConnectionParam = await this.vrunner.getIbConnectionParam();
 		const commandName = getLoadExtensionFromCfeCommandName();
-		const epfPath = path.join(VANESSA_RUNNER_ROOT, VANESSA_RUNNER_EPF, EPF_NAMES.LOAD_EXTENSION);
+		const epfPath = vanessaRunnerEpf(EPF_NAMES.LOAD_EXTENSION);
 		const argsList = cfeFiles.map((cfeFile) => {
 			const cfeFilePath = path.join(buildPath, 'cfe', cfeFile);
 			const commandParam = EPF_COMMANDS.LOAD_EXTENSION(cfeFilePath);

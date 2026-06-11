@@ -270,6 +270,23 @@ function escapeArgForCmdBash(arg: string): string {
 }
 
 /**
+ * Экранирует аргумент команды для bash/sh/zsh
+ *
+ * Одинарные кавычки для аргументов с пробелами и спецсимволами: $ и обратная
+ * кавычка не должны раскрываться оболочкой (например, макрос $runnerRoot
+ * обязан дойти до vrunner литералом).
+ *
+ * @param arg - Аргумент команды
+ * @returns Экранированный аргумент
+ */
+function escapeArgForBash(arg: string): string {
+	if (arg.includes(' ') || arg.includes('$') || arg.includes('`')) {
+		return `'${arg.replaceAll("'", `'\\''`)}'`;
+	}
+	return arg;
+}
+
+/**
  * Экранирует аргументы команды для безопасной передачи в терминал
  * 
  * Автоматически нормализует пути для bash оболочек на Windows.
@@ -286,12 +303,15 @@ export function escapeCommandArgs(args: string[], shellType?: ShellType): string
 	
 	return args.map((arg) => {
 		const normalizedArg = normalizeArgForShell(arg, shell);
-		
+
 		if (shell === 'powershell') {
 			return escapeArgForPowerShell(normalizedArg);
 		}
-		
-		return escapeArgForCmdBash(normalizedArg);
+		if (shell === 'cmd') {
+			return escapeArgForCmdBash(normalizedArg);
+		}
+
+		return escapeArgForBash(normalizedArg);
 	}).join(' ');
 }
 

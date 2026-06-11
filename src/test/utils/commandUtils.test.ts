@@ -18,8 +18,16 @@ suite('commandUtils', () => {
 	test('escapeCommandArgs экранирует аргументы с пробелами для bash', () => {
 		const args = ['path/to/file', 'value with spaces', '--option'];
 		const result = escapeCommandArgs(args, 'bash');
-		assert.ok(result.includes('"value with spaces"'), 'Аргумент с пробелами должен быть в кавычках');
+		assert.ok(result.includes("'value with spaces'"), 'Аргумент с пробелами должен быть в одинарных кавычках');
 		assert.ok(result.includes('path/to/file'), 'Аргумент без пробелов не должен быть в кавычках');
+	});
+
+	test('escapeCommandArgs не даёт bash раскрыть $runnerRoot', () => {
+		const result = escapeCommandArgs(['--execute', '$runnerRoot/epf/ЗакрытьПредприятие.epf'], 'bash');
+		assert.ok(
+			result.includes("'$runnerRoot/epf/ЗакрытьПредприятие.epf'"),
+			'Аргумент с $ должен быть в одинарных кавычках, чтобы оболочка не раскрыла переменную'
+		);
 	});
 
 	test('escapeCommandArgs экранирует аргументы с пробелами для PowerShell', () => {
