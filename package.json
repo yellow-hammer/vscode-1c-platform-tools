@@ -422,6 +422,28 @@
         "category": "1C: Отладка"
       },
       {
+        "command": "1c-platform-tools.debug.measure.start",
+        "title": "Начать замер производительности",
+        "icon": "$(dashboard)",
+        "category": "1C: Отладка"
+      },
+      {
+        "command": "1c-platform-tools.debug.measure.stop",
+        "title": "Закончить замер производительности",
+        "icon": "$(stop-circle)",
+        "category": "1C: Отладка"
+      },
+      {
+        "command": "1c-platform-tools.debug.measure.showResults",
+        "title": "Показать результаты замера производительности",
+        "category": "1C: Отладка"
+      },
+      {
+        "command": "1c-platform-tools.debug.measure.clear",
+        "title": "Скрыть результаты замера производительности",
+        "category": "1C: Отладка"
+      },
+      {
         "command": "1c-platform-tools.metadata.er.openCanvas",
         "title": "ER-диаграмма",
         "icon": "$(type-hierarchy)",
@@ -1192,6 +1214,22 @@
         {
           "command": "1c-platform-tools.debug.showVariableInWindow",
           "when": "false"
+        },
+        {
+          "command": "1c-platform-tools.debug.measure.stop",
+          "when": "onecPlatformTools.debug.measureActive"
+        }
+      ],
+      "debug/toolBar": [
+        {
+          "command": "1c-platform-tools.debug.measure.start",
+          "when": "debugType == '1c-platform-tools' && !onecPlatformTools.debug.measureActive",
+          "group": "navigation@45"
+        },
+        {
+          "command": "1c-platform-tools.debug.measure.stop",
+          "when": "debugType == '1c-platform-tools' && onecPlatformTools.debug.measureActive",
+          "group": "navigation@45"
         }
       ],
       "debug/variables/context": [

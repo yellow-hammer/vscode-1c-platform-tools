@@ -10,6 +10,7 @@ import {
 } from './onecDebugAdapterBootstrap';
 import { logger } from '../../shared/logger';
 import { registerBslBreakpointNormalizer } from './bslBreakpoints';
+import { registerMeasureFeature } from './measure';
 
 const DEBUG_TYPE = '1c-platform-tools';
 
@@ -63,6 +64,7 @@ export function registerDebugFeature(context: vscode.ExtensionContext): void {
 		)
 	);
 	registerBslBreakpointNormalizer(context);
+	registerMeasureFeature(context);
 	checkOnecDebugAdapterUpdateInBackground(context);
 	onecDebugTargets.init(context);
 }
