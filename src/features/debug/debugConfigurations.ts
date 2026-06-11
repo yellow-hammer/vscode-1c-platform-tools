@@ -99,26 +99,21 @@ export class OnecDebugConfigurationProvoider implements vscode.DebugConfiguratio
 			const cfg = vscode.workspace.getConfiguration('1c-platform-tools');
 			const normalize = (p: string) => p.replace(/\\/g, '/').replace(/^\.?\//, '');
 
-			for (const [settingKey, configKey, def] of [
-				['paths.epf', 'externalDataProcessors', 'src/epf'],
-				['paths.erf', 'externalReports', 'src/erf'],
-			] as const) {
-				const normalized = normalize(cfg.get<string>(settingKey, def));
-				if (fs.existsSync(path.join(folder.uri.fsPath, normalized))) {
-					(baseConfig as Record<string, unknown>)[configKey] = [`\${workspaceFolder}/${normalized}`];
-				}
+			// Исходники обработок и отчётов — общий список externalFilesSrc.
+			const src = [
+				normalize(cfg.get<string>('paths.epf', 'src/epf')),
+				normalize(cfg.get<string>('paths.erf', 'src/erf')),
+			].filter((rel) => fs.existsSync(path.join(folder.uri.fsPath, rel)));
+			if (src.length > 0) {
+				(baseConfig as Record<string, unknown>).externalFilesSrc = src.map((rel) => `\${workspaceFolder}/${rel}`);
 			}
 
 			// Собранные .epf/.erf — сервер отладки адресует внешние модули по URL файла.
 			const outPath = normalize(cfg.get<string>('paths.out', 'build/out'));
-			for (const [kind, configKey] of [
-				['epf', 'externalDataProcessorsBuilds'],
-				['erf', 'externalReportsBuilds'],
-			] as const) {
-				const rel = `${outPath}/${kind}`;
-				if (fs.existsSync(path.join(folder.uri.fsPath, rel))) {
-					(baseConfig as Record<string, unknown>)[configKey] = [`\${workspaceFolder}/${rel}`];
-				}
+			const builds = [`${outPath}/epf`, `${outPath}/erf`]
+				.filter((rel) => fs.existsSync(path.join(folder.uri.fsPath, rel)));
+			if (builds.length > 0) {
+				(baseConfig as Record<string, unknown>).externalFilesBuilds = builds.map((rel) => `\${workspaceFolder}/${rel}`);
 			}
 		}
 
