@@ -94,29 +94,22 @@ export class OnecDebugConfigurationProvoider implements vscode.DebugConfiguratio
 			(baseConfig as vscode.DebugConfiguration & { extensions: string[] }).extensions = extensions;
 		}
 
-		// Внешние обработки/отчёты — в launch.json при генерации (из настроек путей);
-		// при отладке адаптер использует только то, что записано в конфигурации запуска.
-		if (folder) {
-			const cfg = vscode.workspace.getConfiguration('1c-platform-tools');
-			const normalize = (p: string) => p.replace(/\\/g, '/').replace(/^\.?\//, '');
+		// Внешние обработки/отчёты — всегда в шаблоне (из настроек путей): несуществующие
+		// каталоги адаптер пропускает, а параметры не теряются, если каталог появится позже.
+		const cfg = vscode.workspace.getConfiguration('1c-platform-tools');
+		const normalize = (p: string) => p.replace(/\\/g, '/').replace(/^\.?\//, '');
 
-			// Исходники обработок и отчётов — общий список externalFilesSrc.
-			const src = [
-				normalize(cfg.get<string>('paths.epf', 'src/epf')),
-				normalize(cfg.get<string>('paths.erf', 'src/erf')),
-			].filter((rel) => fs.existsSync(path.join(folder.uri.fsPath, rel)));
-			if (src.length > 0) {
-				(baseConfig as Record<string, unknown>).externalFilesSrc = src.map((rel) => `\${workspaceFolder}/${rel}`);
-			}
+		(baseConfig as Record<string, unknown>).externalFilesSrc = [
+			normalize(cfg.get<string>('paths.epf', 'src/epf')),
+			normalize(cfg.get<string>('paths.erf', 'src/erf')),
+		].map((rel) => `\${workspaceFolder}/${rel}`);
 
-			// Собранные .epf/.erf — сервер отладки адресует внешние модули по URL файла.
-			const outPath = normalize(cfg.get<string>('paths.out', 'build/out'));
-			const builds = [`${outPath}/epf`, `${outPath}/erf`]
-				.filter((rel) => fs.existsSync(path.join(folder.uri.fsPath, rel)));
-			if (builds.length > 0) {
-				(baseConfig as Record<string, unknown>).externalFilesBuilds = builds.map((rel) => `\${workspaceFolder}/${rel}`);
-			}
-		}
+		// Собранные .epf/.erf — сервер отладки адресует внешние модули по URL файла.
+		const outPath = normalize(cfg.get<string>('paths.out', 'build/out'));
+		(baseConfig as Record<string, unknown>).externalFilesBuilds = [
+			`\${workspaceFolder}/${outPath}/epf`,
+			`\${workspaceFolder}/${outPath}/erf`,
+		];
 
 		return [baseConfig];
 	}

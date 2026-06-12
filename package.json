@@ -213,6 +213,55 @@
                     "MobileManagedServer"
                   ]
                 }
+              },
+              "user": {
+                "type": "string",
+                "description": "Пользователь ИБ для автовхода. Пусто — берётся --db-user из env.json"
+              },
+              "password": {
+                "type": "string",
+                "description": "Пароль пользователя ИБ для автовхода. Пусто — берётся --db-pwd из env.json"
+              },
+              "externalFilesSrc": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "description": "Каталоги исходников внешних обработок и отчётов"
+              },
+              "externalFilesBuilds": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "description": "Каталоги собранных .epf/.erf — необходимы для точек останова во внешних файлах"
+              },
+              "calcWaitingTimeMs": {
+                "type": "number",
+                "description": "Время ожидания результата вычислений сервером отладки, мс (25–5000)",
+                "default": 100
+              },
+              "variablesRetryDelaysMs": {
+                "type": "array",
+                "items": {
+                  "type": "number"
+                },
+                "description": "Паузы повторов при пустом списке локальных переменных после останова, мс",
+                "default": [
+                  50,
+                  100,
+                  150
+                ]
+              },
+              "debugPollMinDelayMs": {
+                "type": "number",
+                "description": "Минимальная пауза опроса сервера отладки, мс",
+                "default": 25
+              },
+              "debugPollMaxDelayMs": {
+                "type": "number",
+                "description": "Максимальная пауза опроса сервера отладки, мс",
+                "default": 200
               }
             }
           },
@@ -270,10 +319,88 @@
                     "MobileManagedServer"
                   ]
                 }
+              },
+              "user": {
+                "type": "string",
+                "description": "Пользователь ИБ для автовхода. Пусто — берётся --db-user из env.json"
+              },
+              "password": {
+                "type": "string",
+                "description": "Пароль пользователя ИБ для автовхода. Пусто — берётся --db-pwd из env.json"
+              },
+              "externalFilesSrc": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "description": "Каталоги исходников внешних обработок и отчётов"
+              },
+              "externalFilesBuilds": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "description": "Каталоги собранных .epf/.erf — необходимы для точек останова во внешних файлах"
+              },
+              "calcWaitingTimeMs": {
+                "type": "number",
+                "description": "Время ожидания результата вычислений сервером отладки, мс (25–5000)",
+                "default": 100
+              },
+              "variablesRetryDelaysMs": {
+                "type": "array",
+                "items": {
+                  "type": "number"
+                },
+                "description": "Паузы повторов при пустом списке локальных переменных после останова, мс",
+                "default": [
+                  50,
+                  100,
+                  150
+                ]
+              },
+              "debugPollMinDelayMs": {
+                "type": "number",
+                "description": "Минимальная пауза опроса сервера отладки, мс",
+                "default": 25
+              },
+              "debugPollMaxDelayMs": {
+                "type": "number",
+                "description": "Максимальная пауза опроса сервера отладки, мс",
+                "default": 200
               }
             }
           }
-        }
+        },
+        "configurationSnippets": [
+          {
+            "label": "1С: Отладка (запуск)",
+            "description": "Запуск клиента 1С с подключением отладчика",
+            "body": {
+              "name": "Отладка 1С (запуск)",
+              "type": "1c-platform-tools",
+              "request": "launch",
+              "platformPath": "\\${env:PROGRAMFILES}/1cv8",
+              "rootProject": "\\${workspaceFolder}/src/cf",
+              "debugServerHost": "localhost",
+              "autoAttachTypes": [
+                "ManagedClient",
+                "Server"
+              ],
+              "extensions": [
+                "\\${workspaceFolder}/src/cfe/ИмяРасширения"
+              ],
+              "externalFilesSrc": [
+                "\\${workspaceFolder}/src/epf",
+                "\\${workspaceFolder}/src/erf"
+              ],
+              "externalFilesBuilds": [
+                "\\${workspaceFolder}/build/out/epf",
+                "\\${workspaceFolder}/build/out/erf"
+              ]
+            }
+          }
+        ]
       }
     ],
     "commands": [
