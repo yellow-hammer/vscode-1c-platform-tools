@@ -12,6 +12,7 @@ import { globSync } from 'glob';
 import { logger } from '../../shared/logger';
 import {
 	type ReleaseComponentSpec,
+	cachedReleaseTag,
 	checkReleaseUpdateInBackground,
 	clearReleaseCache,
 	ensureReleaseComponent,
@@ -125,17 +126,17 @@ async function ensureJar(
 	const trimmed = jarOverride.trim();
 	if (trimmed) {
 		if (trimmed.includes('${')) {
-			throw new Error('metadata.jarFile: укажите полный путь к md-sparrow-*-all.jar.');
+			throw new Error('components.metadataJarFile: укажите полный путь к md-sparrow-*-all.jar.');
 		}
 		if (!fssync.existsSync(trimmed)) {
 			throw new Error(
-				`metadata.jarFile не найден: ${trimmed}. Соберите артефакт: в каталоге md-sparrow выполните ./gradlew shadowJar (build/libs/md-sparrow-*-all.jar).`
+				`components.metadataJarFile не найден: ${trimmed}. Соберите артефакт: в каталоге md-sparrow выполните ./gradlew shadowJar (build/libs/md-sparrow-*-all.jar).`
 			);
 		}
 		return { jarPath: trimmed };
 	}
 	if (!download) {
-		throw new Error('Укажите metadata.jarFile или включите metadata.autoloadJar.');
+		throw new Error('Укажите components.metadataJarFile или включите components.metadataJarAutoload.');
 	}
 
 	const ensured = await ensureReleaseComponent(baseDir, MD_SPARROW_SPEC, githubToken);
@@ -147,12 +148,12 @@ async function ensureJar(
  */
 export async function ensureMdSparrowRuntime(context: vscode.ExtensionContext): Promise<MdSparrowRuntime> {
 	const cfg = vscode.workspace.getConfiguration('1c-platform-tools');
-	const download = cfg.get<boolean>('metadata.autoloadJar', true);
-	const downloadJre = cfg.get<boolean>('metadata.autoloadJre', true);
-	const jarPathSetting = cfg.get<string>('metadata.jarFile', '').trim();
-	const javaPathSetting = cfg.get<string>('metadata.javaExecutable', '').trim();
+	const download = cfg.get<boolean>('components.metadataJarAutoload', true);
+	const downloadJre = cfg.get<boolean>('components.jreAutoload', true);
+	const jarPathSetting = cfg.get<string>('components.metadataJarFile', '').trim();
+	const javaPathSetting = cfg.get<string>('components.javaExecutable', '').trim();
 	if (javaPathSetting.includes('${')) {
-		throw new Error('metadata.javaExecutable: укажите полный путь к java или оставьте поле пустым.');
+		throw new Error('components.javaExecutable: укажите полный путь к java или оставьте поле пустым.');
 	}
 
 	const base = installBaseDir(context);
@@ -172,25 +173,31 @@ export function checkMdSparrowUpdateInBackground(
 	onUpdateApplied: () => void
 ): void {
 	const cfg = vscode.workspace.getConfiguration('1c-platform-tools');
-	if (cfg.get<string>('metadata.jarFile', '').trim()) {
+	if (cfg.get<string>('components.metadataJarFile', '').trim()) {
 		return;
 	}
-	if (!cfg.get<boolean>('metadata.autoloadJar', true)) {
+	if (!cfg.get<boolean>('components.metadataJarAutoload', true)) {
 		return;
 	}
 	checkReleaseUpdateInBackground(installBaseDir(context), MD_SPARROW_SPEC, resolveGithubToken(), onUpdateApplied);
 }
 
-/**
- * Сброс кэша JAR (и при необходимости JRE) — следующий вызов ensure скачает заново.
- */
-export async function clearMdSparrowDownloadCache(
-	context: vscode.ExtensionContext,
-	includeJre: boolean
-): Promise<void> {
-	const base = installBaseDir(context);
-	await clearReleaseCache(base, MD_SPARROW_SPEC);
-	if (includeJre) {
-		await fs.rm(path.join(base, 'jre-temurin-21'), { recursive: true, force: true }).catch(() => undefined);
-	}
+/** Тег релиза md-sparrow в кэше; undefined — не загружен. */
+export async function cachedMdSparrowTag(context: vscode.ExtensionContext): Promise<string | undefined> {
+	return cachedReleaseTag(installBaseDir(context), MD_SPARROW_SPEC);
+}
+
+/** Сброс кэша JAR — следующий вызов ensure скачает заново. */
+export async function clearMdSparrowJarCache(context: vscode.ExtensionContext): Promise<void> {
+	await clearReleaseCache(installBaseDir(context), MD_SPARROW_SPEC);
+}
+
+/** Есть ли в кэше portable JRE. */
+export function portableJreCached(context: vscode.ExtensionContext): boolean {
+	return fssync.existsSync(path.join(installBaseDir(context), 'jre-temurin-21', '.java-path'));
+}
+
+/** Сброс кэша portable JRE — скачается заново при следующем использовании дерева метаданных. */
+export async function clearPortableJreCache(context: vscode.ExtensionContext): Promise<void> {
+	await fs.rm(path.join(installBaseDir(context), 'jre-temurin-21'), { recursive: true, force: true }).catch(() => undefined);
 }

@@ -15,7 +15,7 @@ alwaysApply: false
 
 - Адаптер скачивается **в рантайме** с GitHub Releases в globalStorage (`src/features/debug/onecDebugAdapterBootstrap.ts`, общий загрузчик `src/shared/githubReleaseLoader.ts` — тот же механизм, что у md-sparrow); фоновая проверка обновлений — при регистрации debug feature.
 - `DebugAdapterDescriptorFactory` запускает `dotnet <путь к OnecDebugAdapter.dll>`; статический `program` в `package.json` не используется.
-- Локальная сборка для разработки: настройки `1c-platform-tools.debug.adapterFile` (путь к DLL) и `1c-platform-tools.debug.autoloadAdapter` (выключить автозагрузку).
+- Локальная сборка для разработки: настройки `1c-platform-tools.components.adapterFile` (путь к DLL) и `1c-platform-tools.components.adapterAutoload` (выключить автозагрузку); раздел настроек «Внешние компоненты».
 
 ## Использование DAP в расширении
 

@@ -3,8 +3,14 @@ import * as os from 'node:os';
 import * as path from 'node:path';
 import * as vscode from 'vscode';
 import { VRunnerManager } from '../../shared/vrunnerManager';
-import { clearMdSparrowDownloadCache, ensureMdSparrowRuntime } from './mdSparrowBootstrap';
-import { clearOnecDebugAdapterCache } from '../debug/onecDebugAdapterBootstrap';
+import {
+	cachedMdSparrowTag,
+	clearMdSparrowJarCache,
+	clearPortableJreCache,
+	ensureMdSparrowRuntime,
+	portableJreCached,
+} from './mdSparrowBootstrap';
+import { cachedOnecDebugAdapterTag, clearOnecDebugAdapterCache } from '../debug/onecDebugAdapterBootstrap';
 import {
 	parseMdBoilerplateKindFromCommandArgs,
 	resolveNextBoilerplateMdName,
@@ -1816,23 +1822,47 @@ export function registerMetadataFeature(
 			}
 			return loadProjectMetadataTree(context, root);
 		}),
-		vscode.commands.registerCommand('1c-platform-tools.metadata.resetCache', async () => {
-			const pick = await vscode.window.showQuickPick(
+		vscode.commands.registerCommand('1c-platform-tools.components.update', async () => {
+			const [adapterTag, jarTag] = await Promise.all([
+				cachedOnecDebugAdapterTag(context),
+				cachedMdSparrowTag(context),
+			]);
+			const picked = await vscode.window.showQuickPick(
 				[
-					{ label: 'JAR md-sparrow и отладчик (DAP)', value: 'jar' as const },
-					{ label: 'JAR, отладчик (DAP) и portable JRE', value: 'all' as const },
+					{ label: 'Отладчик', description: adapterTag ?? 'не загружен', value: 'adapter' as const, picked: true },
+					{ label: 'Дерево метаданных', description: jarTag ?? 'не загружен', value: 'jar' as const, picked: true },
+					{
+						label: 'Portable JRE',
+						description: portableJreCached(context) ? 'загружена' : 'не загружена',
+						value: 'jre' as const,
+						picked: false,
+					},
 				],
-				{ title: 'Сбросить кэш внешних компонентов' }
+				{
+					title: 'Обновить внешние компоненты',
+					canPickMany: true,
+					placeHolder: 'Выбранные компоненты будут загружены заново при следующем использовании',
+				}
 			);
-			if (!pick) {
+			if (!picked || picked.length === 0) {
 				return;
 			}
-			await clearMdSparrowDownloadCache(context, pick.value === 'all');
-			await clearOnecDebugAdapterCache(context);
+			const values = new Set(picked.map((p) => p.value));
+			if (values.has('adapter')) {
+				await clearOnecDebugAdapterCache(context);
+			}
+			if (values.has('jar')) {
+				await clearMdSparrowJarCache(context);
+			}
+			if (values.has('jre')) {
+				await clearPortableJreCache(context);
+			}
 			void vscode.window.showInformationMessage(
-				'Кэш очищен. При следующем действии будут заново загружены JAR md-sparrow, отладчик 1С (DAP) и при необходимости portable JRE.'
+				'Компоненты будут загружены заново при следующем использовании.'
 			);
-			void metadataTreeProvider.refresh();
+			if (values.has('jar') || values.has('jre')) {
+				void metadataTreeProvider.refresh();
+			}
 		}),
 		vscode.workspace.onDidChangeConfiguration((e) => {
 			if (e.affectsConfiguration('1c-platform-tools.metadata')) {

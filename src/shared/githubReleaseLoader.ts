@@ -295,6 +295,13 @@ export async function clearReleaseCache(baseDir: string, spec: ReleaseComponentS
 	await fs.rm(path.join(baseDir, spec.cacheSubdir), { recursive: true, force: true }).catch(() => undefined);
 }
 
+/** Тег релиза в кэше компонента; undefined — кэш пуст или повреждён. */
+export async function cachedReleaseTag(baseDir: string, spec: ReleaseComponentSpec): Promise<string | undefined> {
+	const cached = await readStamp(baseDir, spec);
+	const cachedPath = cached?.assetPath ?? cached?.jarPath;
+	return cached?.tag && cachedPath && fssync.existsSync(cachedPath) ? cached.tag : undefined;
+}
+
 /**
  * Фоновая проверка нового релиза (стабильного — endpoint `releases/latest`, без выбора prerelease).
  * Опрос троттлится ({@link UPDATE_CHECK_THROTTLE_MS}); обновление применяется только если тег СТРОГО новее

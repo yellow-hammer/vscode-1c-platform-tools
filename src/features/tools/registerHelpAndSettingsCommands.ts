@@ -71,8 +71,13 @@ export function registerHelpAndSettingsCommands(): vscode.Disposable[] {
 					},
 					{
 						label: '$(list-tree) Метаданные 1С',
-						detail: 'дерево метаданных, JAR, JRE',
+						detail: 'дерево метаданных, экспорт ER-диаграмм',
 						filter: '1c-platform-tools.metadata.',
+					},
+					{
+						label: '$(cloud-download) Внешние компоненты',
+						detail: 'отладчик, дерево метаданных, JRE',
+						filter: '1c-platform-tools.components.',
 					},
 					{
 						label: '$(settings-gear) Общее',

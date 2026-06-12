@@ -10,6 +10,7 @@ import { globSync } from 'glob';
 import { logger } from '../../shared/logger';
 import {
 	type ReleaseComponentSpec,
+	cachedReleaseTag,
 	checkReleaseUpdateInBackground,
 	clearReleaseCache,
 	ensureReleaseComponent,
@@ -55,22 +56,22 @@ function findDllUnder(root: string): string | undefined {
 /**
  * Гарантирует наличие onec-debug-adapter согласно настройкам расширения.
  *
- * @throws Error если автозагрузка выключена и не задан debug.adapterFile, либо dll не найдена.
+ * @throws Error если автозагрузка выключена и не задан components.adapterFile, либо dll не найдена.
  */
 export async function ensureOnecDebugAdapter(context: vscode.ExtensionContext): Promise<OnecDebugAdapterRuntime> {
 	const cfg = vscode.workspace.getConfiguration('1c-platform-tools');
-	const override = cfg.get<string>('debug.adapterFile', '').trim();
+	const override = cfg.get<string>('components.adapterFile', '').trim();
 	if (override) {
 		if (override.includes('${')) {
-			throw new Error('debug.adapterFile: укажите полный путь к OnecDebugAdapter.dll.');
+			throw new Error('components.adapterFile: укажите полный путь к OnecDebugAdapter.dll.');
 		}
 		if (!fssync.existsSync(override)) {
-			throw new Error(`debug.adapterFile не найден: ${override}.`);
+			throw new Error(`components.adapterFile не найден: ${override}.`);
 		}
 		return { dllPath: override };
 	}
-	if (!cfg.get<boolean>('debug.autoloadAdapter', true)) {
-		throw new Error('Укажите debug.adapterFile или включите debug.autoloadAdapter.');
+	if (!cfg.get<boolean>('components.adapterAutoload', true)) {
+		throw new Error('Укажите components.adapterFile или включите components.adapterAutoload.');
 	}
 
 	const ensured = await ensureReleaseComponent(installBaseDir(context), ONEC_DEBUG_ADAPTER_SPEC, resolveGithubToken());
@@ -85,15 +86,20 @@ export async function ensureOnecDebugAdapter(context: vscode.ExtensionContext): 
 /** Фоновая проверка нового релиза адаптера (чистит кэш, чтобы следующий запуск скачал свежий). */
 export function checkOnecDebugAdapterUpdateInBackground(context: vscode.ExtensionContext): void {
 	const cfg = vscode.workspace.getConfiguration('1c-platform-tools');
-	if (cfg.get<string>('debug.adapterFile', '').trim()) {
+	if (cfg.get<string>('components.adapterFile', '').trim()) {
 		return;
 	}
-	if (!cfg.get<boolean>('debug.autoloadAdapter', true)) {
+	if (!cfg.get<boolean>('components.adapterAutoload', true)) {
 		return;
 	}
 	checkReleaseUpdateInBackground(installBaseDir(context), ONEC_DEBUG_ADAPTER_SPEC, resolveGithubToken(), () => {
 		/* кэш очищен; следующий запуск отладки скачает новую версию */
 	});
+}
+
+/** Тег релиза адаптера в кэше; undefined — не загружен. */
+export async function cachedOnecDebugAdapterTag(context: vscode.ExtensionContext): Promise<string | undefined> {
+	return cachedReleaseTag(installBaseDir(context), ONEC_DEBUG_ADAPTER_SPEC);
 }
 
 /** Сброс кэша адаптера — следующий запуск отладки скачает заново. */

@@ -539,9 +539,9 @@
         "category": "1C: Метаданные"
       },
       {
-        "command": "1c-platform-tools.metadata.resetCache",
-        "title": "Сбросить кэш",
-        "category": "1C: Метаданные"
+        "command": "1c-platform-tools.components.update",
+        "title": "Обновить внешние компоненты",
+        "category": "1C: Внешние компоненты"
       },
       {
         "command": "1c-platform-tools.debug.showVariableInWindow",
@@ -2005,7 +2005,7 @@
           "group": "1_md_overflow@1"
         },
         {
-          "command": "1c-platform-tools.metadata.resetCache",
+          "command": "1c-platform-tools.components.update",
           "group": "1_md_overflow@2"
         }
       ]
@@ -2400,36 +2400,6 @@
         "id": "1c-platform-tools.metadata",
         "order": 4,
         "properties": {
-          "1c-platform-tools.metadata.autoloadJar": {
-            "type": "boolean",
-            "default": true,
-            "description": "Автоматически загружать JAR инструмента дерева метаданных с GitHub, если путь к JAR не задан."
-          },
-          "1c-platform-tools.metadata.autoloadJre": {
-            "type": "boolean",
-            "default": true,
-            "description": "Скачивать portable JRE, если путь к Java не задан."
-          },
-          "1c-platform-tools.metadata.jarFile": {
-            "type": "string",
-            "default": "",
-            "description": "Полный путь к JAR со всеми зависимостями (shadowJar). Пусто — загрузка с GitHub или кэш."
-          },
-          "1c-platform-tools.metadata.javaExecutable": {
-            "type": "string",
-            "default": "",
-            "description": "Полный путь к java или javaw. Пусто: при включённой автозагрузке JRE — кэш/скачивание; при выключенной — команда java из PATH (укажите путь, если java не в PATH)."
-          },
-          "1c-platform-tools.debug.autoloadAdapter": {
-            "type": "boolean",
-            "default": true,
-            "description": "Автоматически загружать onec-debug-adapter (DAP) с GitHub Releases, если путь к адаптеру не задан."
-          },
-          "1c-platform-tools.debug.adapterFile": {
-            "type": "string",
-            "default": "",
-            "description": "Полный путь к OnecDebugAdapter.dll. Пусто — загрузка последнего релиза с GitHub или кэш."
-          },
           "1c-platform-tools.metadata.er.exportDir": {
             "type": "string",
             "default": "docs/schemas",
@@ -2469,6 +2439,43 @@
             "type": "string",
             "default": "",
             "description": "Секретный токен для аутентификации клиентов IPC. Рекомендуется задать непустое значение и указать его в переменной окружения ONEC_IPC_TOKEN для MCP-сервера. При пустом значении соединения принимаются без проверки токена (режим разработки)."
+          }
+        }
+      },
+      {
+        "title": "Внешние компоненты",
+        "id": "1c-platform-tools.components",
+        "order": 6,
+        "properties": {
+          "1c-platform-tools.components.adapterAutoload": {
+            "type": "boolean",
+            "default": true,
+            "description": "Загружать отладчик с GitHub Releases и обновлять его автоматически. Выключите, если используете локальную сборку из «Отладчик: путь к файлу»."
+          },
+          "1c-platform-tools.components.adapterFile": {
+            "type": "string",
+            "default": "",
+            "description": "Отладчик: полный путь к локальной сборке OnecDebugAdapter.dll. Пусто — используется загруженный с GitHub."
+          },
+          "1c-platform-tools.components.metadataJarAutoload": {
+            "type": "boolean",
+            "default": true,
+            "description": "Загружать компонент дерева метаданных (md-sparrow) с GitHub Releases и обновлять его автоматически. Выключите, если используете локальную сборку из «Дерево метаданных: путь к файлу»."
+          },
+          "1c-platform-tools.components.metadataJarFile": {
+            "type": "string",
+            "default": "",
+            "description": "Дерево метаданных: полный путь к локальной сборке md-sparrow-*-all.jar. Пусто — используется загруженный с GitHub."
+          },
+          "1c-platform-tools.components.jreAutoload": {
+            "type": "boolean",
+            "default": true,
+            "description": "Скачивать portable JRE 21 для дерева метаданных. Выключите, если Java установлена и указана в «Java: путь к исполняемому файлу» или доступна в PATH."
+          },
+          "1c-platform-tools.components.javaExecutable": {
+            "type": "string",
+            "default": "",
+            "description": "Java: полный путь к java или javaw для дерева метаданных. Пусто — portable JRE из кэша либо java из PATH."
           }
         }
       }

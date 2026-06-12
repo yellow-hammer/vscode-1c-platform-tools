@@ -84,10 +84,10 @@ src/
 
 Два компонента живут в отдельных репозиториях и не бандлятся в VSIX — расширение скачивает их с GitHub Releases в рантайме. Для разработки самого компонента соберите его локально и укажите путь в настройках:
 
-| Компонент             | Репозиторий                                                               | Локальная сборка          | Настройки                                                                                             |
-|-----------------------|---------------------------------------------------------------------------|---------------------------|-------------------------------------------------------------------------------------------------------|
-| Адаптер отладки (DAP) | [onec-debug-adapter](https://github.com/yellow-hammer/onec-debug-adapter) | `dotnet build -c Release` | `1c-platform-tools.debug.adapterFile` — путь к `OnecDebugAdapter.dll`, `debug.autoloadAdapter: false` |
-| Дерево метаданных     | [md-sparrow](https://github.com/yellow-hammer/md-sparrow)                 | `gradlew shadowJar`       | `1c-platform-tools.metadata.jarFile` — путь к `md-sparrow-*-all.jar`, `metadata.autoloadJar: false`   |
+| Компонент             | Репозиторий                                                               | Локальная сборка          | Настройки (раздел «Внешние компоненты»)                                                                                 |
+|-----------------------|---------------------------------------------------------------------------|---------------------------|-------------------------------------------------------------------------------------------------------------------------|
+| Адаптер отладки (DAP) | [onec-debug-adapter](https://github.com/yellow-hammer/onec-debug-adapter) | `dotnet build -c Release` | `1c-platform-tools.components.adapterFile` — путь к `OnecDebugAdapter.dll`, `components.adapterAutoload: false`         |
+| Дерево метаданных     | [md-sparrow](https://github.com/yellow-hammer/md-sparrow)                 | `gradlew shadowJar`       | `1c-platform-tools.components.metadataJarFile` — путь к `md-sparrow-*-all.jar`, `components.metadataJarAutoload: false` |
 
 После изменения компонента достаточно пересобрать его и перезапустить сессию отладки (адаптер) или обновить дерево (md-sparrow) — переустановка расширения не нужна.
 
