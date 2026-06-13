@@ -8,7 +8,9 @@ import {
 	reportsXunitFromEnv
 } from '../../features/testing/projectTestConfig';
 
-const ROOT = path.join('C:', 'proj');
+// Абсолютный корень на любой ОС: path.join('C:','proj') не абсолютен под Linux,
+// из-за чего проверка ветки «уже абсолютный путь» падала в CI.
+const ROOT = path.resolve(path.sep, 'proj');
 
 suite('projectTestConfig', () => {
 	test('resolveConfigPath подставляет $workspaceRoot и разрешает относительные пути', () => {
