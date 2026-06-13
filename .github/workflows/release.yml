@@ -79,15 +79,7 @@ jobs:
         run: |
           git config --local user.email "action@github.com"
           git config --local user.name "GitHub Action"
-          # Определяем основную ветку (main или master)
-          if git show-ref --verify --quiet refs/remotes/origin/main; then
-            BRANCH="main"
-          elif git show-ref --verify --quiet refs/remotes/origin/master; then
-            BRANCH="master"
-          else
-            BRANCH=$(git ls-remote --heads origin | grep -E '(main|master)' | head -1 | sed 's/.*refs\/heads\///' || echo "main")
-          fi
-          echo "Ветка: $BRANCH"
+          BRANCH="main"
           git checkout $BRANCH
           # Обновляем версию в package.json и package-lock.json (ошибка игнорируется, если версия уже совпадает)
           npm version ${{ steps.ver.outputs.version }} --no-git-tag-version || echo "Версия уже совпадает — пропуск"
@@ -174,13 +166,7 @@ jobs:
         run: |
           git config --local user.email "action@github.com"
           git config --local user.name "GitHub Action"
-          if git show-ref --verify --quiet refs/remotes/origin/main; then
-            BRANCH="main"
-          elif git show-ref --verify --quiet refs/remotes/origin/master; then
-            BRANCH="master"
-          else
-            BRANCH=$(git ls-remote --heads origin | grep -E '(main|master)' | head -1 | sed 's/.*refs\/heads\///' || echo "main")
-          fi
+          BRANCH="main"
           if [ -f CHANGELOG.md ]; then
             git add CHANGELOG.md
             if git diff --staged --quiet; then

@@ -1,0 +1,40 @@
+# Проверка PR и пушей в main: линт, компиляция и запуск тестов расширения.
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Получить код
+        uses: actions/checkout@v4
+
+      - name: Установить Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Установить зависимости
+        run: npm ci
+
+      - name: Проверить линтером
+        run: npm run lint
+
+      - name: Скомпилировать
+        run: npm run compile
+
+      - name: Запустить тесты (через xvfb для Extension Host)
+        run: xvfb-run -a npm test

@@ -17,6 +17,7 @@ import { checkMdSparrowUpdateInBackground } from '../features/metadata/mdSparrow
 import { registerArtifactsFlow } from './registerArtifactsFlow';
 import { registerTodoFlow } from './registerTodoFlow';
 import { registerMainTreeFlow } from './registerMainTreeFlow';
+import { registerTestingFlow } from './registerTestingFlow';
 
 /**
  * Выполняет полную инициализацию расширения.
@@ -52,11 +53,14 @@ export async function bootstrapApp(context: vscode.ExtensionContext): Promise<vo
 		workspaceTasksCommands: commands.workspaceTasks,
 	});
 
+	const { testingFeatureDisposables, rebuildTesting } = registerTestingFlow(isProjectRef);
+
 	registerProjectCreatedHandler({
 		isProjectRef,
 		treeDataProvider,
 		artifactsProvider,
 		metadataTreeProvider,
+		rebuildTesting,
 	});
 
 	registerWelcomeFlow(context);
@@ -77,6 +81,7 @@ export async function bootstrapApp(context: vscode.ExtensionContext): Promise<vo
 		onProjectsConfigChange,
 		...mainTreeCommandDisposables,
 		...todoFeatureDisposables,
+		...testingFeatureDisposables,
 		...commandDisposables
 	);
 }

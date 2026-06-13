@@ -9,6 +9,11 @@ import {
 } from '../../utils/commandUtils';
 
 suite('commandUtils', () => {
+	// Установка кодировки (chcp/[Console]::OutputEncoding) добавляется только на Windows
+	// (см. buildCommand → process.platform === 'win32'), поэтому соответствующие проверки
+	// выполняем только там.
+	const winTest = process.platform === 'win32' ? test : test.skip;
+
 	test('detectShellType возвращает валидный тип оболочки', () => {
 		const shell = detectShellType();
 		const validShells: ShellType[] = ['cmd', 'powershell', 'bash', 'sh', 'zsh'];
@@ -54,14 +59,14 @@ suite('commandUtils', () => {
 		assert.strictEqual(result, '--ibconnection', 'Параметры команд не должны изменяться');
 	});
 
-	test('buildCommand формирует команду для PowerShell с кодировкой', () => {
+	winTest('buildCommand формирует команду для PowerShell с кодировкой', () => {
 		const result = buildCommand('vrunner.bat', ['init-dev', '--ibconnection', '/F./build/ib'], 'powershell');
 		assert.ok(result.includes('[Console]::OutputEncoding'), 'Команда для PowerShell должна содержать установку кодировки');
 		assert.ok(result.includes('vrunner.bat'), 'Команда должна содержать путь к исполняемому файлу');
 		assert.ok(result.includes('init-dev'), 'Команда должна содержать аргументы');
 	});
 
-	test('buildCommand формирует команду для cmd с кодировкой', () => {
+	winTest('buildCommand формирует команду для cmd с кодировкой', () => {
 		const result = buildCommand('vrunner.bat', ['init-dev'], 'cmd');
 		assert.ok(result.includes('chcp 65001'), 'Команда для cmd должна содержать установку кодировки');
 		assert.ok(result.includes('vrunner.bat'), 'Команда должна содержать путь к исполняемому файлу');

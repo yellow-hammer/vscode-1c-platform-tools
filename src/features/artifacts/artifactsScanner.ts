@@ -2,7 +2,7 @@
  * Поиск артефактов 1С в workspace через {@link vscode.workspace.findFiles}.
  *
  * Порядок: один проход по `Configuration.xml` (конфигурации, расширения, префиксы для прунинга);
- * пул из пяти лёгких сканов (feature, cf, cfe, epf, erf) с ограниченным параллелизмом;
+ * пул из четырёх лёгких сканов (cf, cfe, epf, erf) с ограниченным параллелизмом;
  * один проход по `*.xml` с пропуском файлов внутри деревьев исходников конфигурации/расширения
  * и одним чтением заголовка на оставшийся кандидат.
  *
@@ -70,7 +70,6 @@ type PoolFnTuple = readonly (() => Promise<unknown>)[];
  * @internal
  */
 type BinaryScansPool = readonly [
-	() => Promise<FeatureArtifact[]>,
 	() => Promise<ConfigurationArtifact[]>,
 	() => Promise<ExtensionArtifact[]>,
 	() => Promise<ProcessorArtifact[]>,
@@ -105,14 +104,6 @@ async function runPoolTuple<T extends PoolFnTuple>(
 
 	await Promise.all(Array.from({ length: nWorkers }, () => worker()));
 	return results as { [I in keyof T]: Awaited<ReturnType<T[I]>> };
-}
-
-/** Feature-файл (Vanessa Automation). */
-export interface FeatureArtifact {
-	type: 'feature';
-	uri: vscode.Uri;
-	name: string;
-	relativePath: string;
 }
 
 /** Конфигурация: каталог исходников или файл `.cf`. */
@@ -160,7 +151,6 @@ export interface ReportArtifact {
 }
 
 export type Artifact =
-	| FeatureArtifact
 	| ConfigurationArtifact
 	| ExtensionArtifact
 	| ProcessorArtifact
@@ -168,7 +158,6 @@ export type Artifact =
 
 /** Результат {@link scanArtifacts}. */
 export interface ArtifactsScanResult {
-	features: FeatureArtifact[];
 	configurations: ConfigurationArtifact[];
 	extensions: ExtensionArtifact[];
 	processors: ProcessorArtifact[];
@@ -276,19 +265,6 @@ async function scanConfigurationAndExtensionSources(
 	}
 
 	return { configSources, extSources, configTreeRootPrefixes };
-}
-
-async function scanFeatures(
-	exclude: string[],
-	token: vscode.CancellationToken | undefined
-): Promise<FeatureArtifact[]> {
-	const files = await vscode.workspace.findFiles('**/*.feature', undefined, undefined, token);
-	const filtered = files.filter((uri) => !isUriExcluded(uri, exclude));
-	return filtered.map((uri) => {
-		const rel = getWorkspaceRelativePath(uri);
-		const name = path.basename(uri.fsPath);
-		return { type: 'feature' as const, uri, name, relativePath: rel };
-	});
 }
 
 async function scanConfigurationBinaries(
@@ -451,9 +427,8 @@ export async function scanArtifacts(
 
 	throwIfCancelled(token);
 
-	const [features, configBinaries, extBinaries, procBinaries, reportBinaries] = await runPoolTuple(
+	const [configBinaries, extBinaries, procBinaries, reportBinaries] = await runPoolTuple(
 		[
-			() => scanFeatures(exclude, token),
 			() => scanConfigurationBinaries(exclude, token),
 			() => scanExtensionBinaries(exclude, token),
 			() => scanProcessorBinaries(exclude, token),
@@ -472,7 +447,6 @@ export async function scanArtifacts(
 	);
 
 	return {
-		features,
 		configurations: [...configSources, ...configBinaries],
 		extensions: [...extSources, ...extBinaries],
 		processors: [...procSources, ...procBinaries],

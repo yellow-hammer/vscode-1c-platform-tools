@@ -13,6 +13,8 @@ export interface RegisterProjectCreatedHandlerParams {
 	treeDataProvider: RefreshableProvider;
 	artifactsProvider: RefreshableProvider;
 	metadataTreeProvider: RefreshableProvider;
+	/** Пересобрать дерево панели тестирования (проект создан → появились каталоги тестов) */
+	rebuildTesting?: () => void;
 }
 
 /**
@@ -58,7 +60,8 @@ export async function detectAndSetInitialProjectContext(): Promise<boolean> {
 export function registerProjectCreatedHandler(
 	params: RegisterProjectCreatedHandlerParams
 ): void {
-	const { isProjectRef, treeDataProvider, artifactsProvider, metadataTreeProvider } = params;
+	const { isProjectRef, treeDataProvider, artifactsProvider, metadataTreeProvider, rebuildTesting } =
+		params;
 
 	setOnProjectCreated(() => {
 		isProjectRef.current = true;
@@ -66,6 +69,7 @@ export function registerProjectCreatedHandler(
 		treeDataProvider.refresh();
 		artifactsProvider.refresh();
 		metadataTreeProvider.refresh();
+		rebuildTesting?.();
 	});
 }
 

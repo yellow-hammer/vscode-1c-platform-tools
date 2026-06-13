@@ -20,7 +20,7 @@ const log = logger.scope('releases');
 
 const execFileAsync = promisify(execFile);
 const NO_INDENTATION = 0;
-/** Не опрашивать GitHub чаще, чем раз в это время (как в reference 1c-syntax/vsc-language-1c-bsl — 8 мин). */
+/** Не опрашивать GitHub чаще, чем раз в это время (8 минут). */
 const UPDATE_CHECK_THROTTLE_MS = 8 * 60 * 1000;
 
 export interface GithubAsset {

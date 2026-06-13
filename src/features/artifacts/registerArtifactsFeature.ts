@@ -2,7 +2,7 @@ import * as vscode from 'vscode';
 import { logger } from '../../shared/logger';
 import {
 	ProjectArtifactsTreeDataProvider,
-	type FeaturesViewMode,
+	type ArtifactsViewMode,
 } from './projectArtifactsView';
 
 const log = logger.scope('artifacts');
@@ -43,7 +43,6 @@ export function registerArtifactsFeature(
 	};
 
 	const artifactPatterns = [
-		'**/*.feature',
 		'**/*.cf',
 		'**/*.cfe',
 		'**/*.epf',
@@ -73,7 +72,7 @@ export function registerArtifactsFeature(
 	);
 
 	const updateArtifactsViewContext = (): void => {
-		const mode = artifactsProvider.getFeaturesViewMode();
+		const mode = artifactsProvider.getViewMode();
 		void vscode.commands.executeCommand(
 			'setContext',
 			'1c-platform-tools.artifacts.viewAsList',
@@ -85,14 +84,14 @@ export function registerArtifactsFeature(
 	const artifactsViewAsListCommand = vscode.commands.registerCommand(
 		'1c-platform-tools.artifacts._viewAsList',
 		async () => {
-			await artifactsProvider.setFeaturesViewMode('list' as FeaturesViewMode);
+			await artifactsProvider.setViewMode('list' as ArtifactsViewMode);
 		}
 	);
 
 	const artifactsViewByFolderCommand = vscode.commands.registerCommand(
 		'1c-platform-tools.artifacts._viewByFolder',
 		async () => {
-			await artifactsProvider.setFeaturesViewMode('folder' as FeaturesViewMode);
+			await artifactsProvider.setViewMode('folder' as ArtifactsViewMode);
 		}
 	);
 

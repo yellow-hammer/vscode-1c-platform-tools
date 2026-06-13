@@ -359,6 +359,36 @@ export function getAllureReportCommandName(): CommandNameAndTitle {
 	};
 }
 
+/**
+ * Получить название и заголовок для команды YAxUnit тестов
+ */
+export function getYAxUnitTestsCommandName(): CommandNameAndTitle {
+	return {
+		name: 'YAxUnit тесты',
+		title: 'YAxUnit тесты'
+	};
+}
+
+/**
+ * Получить название и заголовок для команды сборки unit тестов
+ */
+export function getBuildTestEpfCommandName(): CommandNameAndTitle {
+	return {
+		name: 'Собрать unit тесты',
+		title: 'Собрать unit тесты'
+	};
+}
+
+/**
+ * Получить название и заголовок для команды разборки unit тестов
+ */
+export function getDecompileTestEpfCommandName(): CommandNameAndTitle {
+	return {
+		name: 'Разобрать unit тесты',
+		title: 'Разобрать unit тесты'
+	};
+}
+
 // ============================================================================
 // Команды для работы с конфигурацией
 // ============================================================================

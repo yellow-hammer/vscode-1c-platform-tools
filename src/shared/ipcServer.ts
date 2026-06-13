@@ -138,7 +138,6 @@ function commandSupportsWait(commandId: string): boolean {
 		'1c-platform-tools.focus',
 		'1c-platform-tools.artifacts.open',
 		'1c-platform-tools.artifacts.delete',
-		'1c-platform-tools.artifacts.runVanessa',
 	];
 	return !uiOnlyPrefixes.some((prefix) => commandId.startsWith(prefix));
 }

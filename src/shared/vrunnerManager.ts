@@ -16,6 +16,8 @@ import {
 	normalizeIbPathForDocker,
 } from '../utils/commandUtils';
 import { logger } from './logger';
+import { runCancellableCommand, CancellableProcessResult } from './cancellableProcess';
+import { DEFAULT_PATHS, DEFAULT_VRUNNER } from './pathDefaults';
 
 const log = logger.scope('vrunner');
 
@@ -109,15 +111,19 @@ export class VRunnerManager {
 
 	/**
 	 * Получает путь к файлу настроек инициализации vrunner
-	 * 
+	 *
 	 * Путь берется из настроек VS Code (1c-platform-tools.vrunner.initSettingsPath).
-	 * По умолчанию: './tools/vrunner.init.json'
-	 * 
+	 * По умолчанию: 'tools/vrunner.init.json'
+	 *
+	 * ВАЖНО: использовать только для команды инициализации ИБ данными
+	 * («Инициализировать данные»). Для остальных команд (тесты, запуск feature)
+	 * применяются батч-настройки из env.json — см. getSettingsParam().
+	 *
 	 * @returns Путь к файлу настроек инициализации (относительно workspace)
 	 */
 	public getVRunnerInitSettingsPath(): string {
 		const config = vscode.workspace.getConfiguration('1c-platform-tools');
-		return config.get<string>('vrunner.initSettingsPath', './tools/vrunner.init.json');
+		return config.get<string>('vrunner.initSettingsPath', DEFAULT_VRUNNER.initSettingsPath);
 	}
 
 	/**
@@ -152,7 +158,7 @@ export class VRunnerManager {
 	 */
 	public getCfPath(): string {
 		const config = vscode.workspace.getConfiguration('1c-platform-tools');
-		return config.get<string>('paths.cf', 'src/cf');
+		return config.get<string>('paths.cf', DEFAULT_PATHS.cf);
 	}
 
 	/**
@@ -165,7 +171,7 @@ export class VRunnerManager {
 	 */
 	public getOutPath(): string {
 		const config = vscode.workspace.getConfiguration('1c-platform-tools');
-		return config.get<string>('paths.out', 'build/out');
+		return config.get<string>('paths.out', DEFAULT_PATHS.out);
 	}
 
 	/**
@@ -178,7 +184,7 @@ export class VRunnerManager {
 	 */
 	public getDistPath(): string {
 		const config = vscode.workspace.getConfiguration('1c-platform-tools');
-		return config.get<string>('paths.dist', 'build/dist');
+		return config.get<string>('paths.dist', DEFAULT_PATHS.dist);
 	}
 
 	/**
@@ -191,7 +197,7 @@ export class VRunnerManager {
 	 */
 	public getEpfPath(): string {
 		const config = vscode.workspace.getConfiguration('1c-platform-tools');
-		return config.get<string>('paths.epf', 'src/epf');
+		return config.get<string>('paths.epf', DEFAULT_PATHS.epf);
 	}
 
 	/**
@@ -204,20 +210,46 @@ export class VRunnerManager {
 	 */
 	public getErfPath(): string {
 		const config = vscode.workspace.getConfiguration('1c-platform-tools');
-		return config.get<string>('paths.erf', 'src/erf');
+		return config.get<string>('paths.erf', DEFAULT_PATHS.erf);
 	}
 
 	/**
 	 * Получает путь к исходникам расширений
-	 * 
+	 *
 	 * Путь берется из настроек VS Code (1c-platform-tools.paths.cfe).
 	 * По умолчанию: 'src/cfe'
-	 * 
+	 *
 	 * @returns Путь к исходникам расширений (относительно workspace)
 	 */
 	public getCfePath(): string {
 		const config = vscode.workspace.getConfiguration('1c-platform-tools');
-		return config.get<string>('paths.cfe', 'src/cfe');
+		return config.get<string>('paths.cfe', DEFAULT_PATHS.cfe);
+	}
+
+	/**
+	 * Получает путь к исходникам тестовых обработок (xUnit/Vanessa-ADD)
+	 *
+	 * Путь берется из настроек VS Code (1c-platform-tools.paths.testsSrc).
+	 * По умолчанию: 'src/tests'
+	 *
+	 * @returns Путь к исходникам тестовых обработок (относительно workspace)
+	 */
+	public getTestsSrcPath(): string {
+		const config = vscode.workspace.getConfiguration('1c-platform-tools');
+		return config.get<string>('paths.testsSrc', DEFAULT_PATHS.testsSrc);
+	}
+
+	/**
+	 * Получает путь к каталогу исполняемых тестов (*.os и собранные *.epf)
+	 *
+	 * Путь берется из настроек VS Code (1c-platform-tools.paths.tests).
+	 * По умолчанию: 'tests'
+	 *
+	 * @returns Путь к каталогу тестов (относительно workspace)
+	 */
+	public getTestsPath(): string {
+		const config = vscode.workspace.getConfiguration('1c-platform-tools');
+		return config.get<string>('paths.tests', DEFAULT_PATHS.tests);
 	}
 
 	/**
@@ -704,14 +736,45 @@ export class VRunnerManager {
 	}
 
 	/**
+	 * Строит полную строку команды vrunner для выполнения в child process
+	 *
+	 * Учитывает режим Docker (docker.enabled): в этом случае команда оборачивается
+	 * в docker run, а пути нормализуются для контейнера.
+	 *
+	 * @param args - Аргументы команды vrunner
+	 * @returns Объект с командой либо с текстом ошибки подготовки
+	 */
+	private buildExecCommand(args: string[], useDocker: boolean): { command: string } | { error: string } {
+		if (useDocker) {
+			if (!this.workspaceRoot) {
+				return { error: 'Для использования Docker необходимо открыть рабочую область' };
+			}
+
+			try {
+				const dockerImage = this.getDockerImage();
+				const processedArgs = this.processCommandArgsForDocker(args);
+				const shellType = detectShellType();
+				return { command: buildDockerCommand(dockerImage, processedArgs, this.workspaceRoot, shellType) };
+			} catch (error) {
+				return { error: (error as Error).message };
+			}
+		}
+
+		const vrunnerPath = this.getVRunnerPath();
+		const argsString = escapeCommandArgs(args);
+		const quotedPath = vrunnerPath.includes(' ') ? `"${vrunnerPath}"` : vrunnerPath;
+		return { command: `${quotedPath} ${argsString}` };
+	}
+
+	/**
 	 * Выполняет команду vrunner синхронно (для проверок)
-	 * 
+	 *
 	 * Используется для проверок и валидации, а не для выполнения команд пользователю.
 	 * Для выполнения команд пользователю используйте `executeVRunnerInTerminal()`.
-	 * 
+	 *
 	 * Поддерживает выполнение через Docker, если включена настройка `docker.enabled = true`.
 	 * При использовании Docker пути автоматически нормализуются для Docker-окружения.
-	 * 
+	 *
 	 * @param args - Аргументы команды vrunner
 	 * @param options - Опции выполнения
 	 * @param options.cwd - Рабочая директория (по умолчанию workspace root)
@@ -724,41 +787,19 @@ export class VRunnerManager {
 	): Promise<VRunnerExecutionResult> {
 		const useDocker = await this.shouldUseDocker();
 		const cwd = options?.cwd || this.workspaceRoot;
-		
+
 		return new Promise((resolve) => {
-			let command: string;
-			
-			if (useDocker) {
-				if (!this.workspaceRoot) {
-					resolve({
-						success: false,
-						stdout: '',
-						stderr: 'Для использования Docker необходимо открыть рабочую область',
-						exitCode: 1
-					});
-					return;
-				}
-				
-				try {
-					const dockerImage = this.getDockerImage();
-					const processedArgs = this.processCommandArgsForDocker(args);
-					const shellType = detectShellType();
-					command = buildDockerCommand(dockerImage, processedArgs, this.workspaceRoot, shellType);
-				} catch (error) {
-					resolve({
-						success: false,
-						stdout: '',
-						stderr: (error as Error).message,
-						exitCode: 1
-					});
-					return;
-				}
-			} else {
-				const vrunnerPath = this.getVRunnerPath();
-				const argsString = escapeCommandArgs(args);
-				const quotedPath = vrunnerPath.includes(' ') ? `"${vrunnerPath}"` : vrunnerPath;
-				command = `${quotedPath} ${argsString}`;
+			const built = this.buildExecCommand(args, useDocker);
+			if ('error' in built) {
+				resolve({
+					success: false,
+					stdout: '',
+					stderr: built.error,
+					exitCode: 1
+				});
+				return;
 			}
+			const command = built.command;
 
 			const execOptions = {
 				cwd: cwd,
@@ -777,6 +818,48 @@ export class VRunnerManager {
 
 				resolve(result);
 			});
+		});
+	}
+
+	/**
+	 * Выполняет команду vrunner как отменяемый процесс с живым выводом
+	 *
+	 * Используется панелью тестирования (Testing API): позволяет прервать прогон
+	 * по CancellationToken (с завершением всего дерева процессов cmd → oscript → 1cv8)
+	 * и транслировать stdout/stderr по мере выполнения.
+	 *
+	 * Поддерживает Docker-режим так же, как executeVRunner.
+	 *
+	 * @param args - Аргументы команды vrunner
+	 * @param options - Опции выполнения (cwd, env, token, onOutput)
+	 * @returns Промис с результатом выполнения (включая признак отмены)
+	 */
+	public async executeVRunnerCancellable(
+		args: string[],
+		options?: {
+			cwd?: string;
+			env?: NodeJS.ProcessEnv;
+			token?: vscode.CancellationToken;
+			onOutput?: (chunk: string) => void;
+		}
+	): Promise<CancellableProcessResult> {
+		const useDocker = await this.shouldUseDocker();
+		const built = this.buildExecCommand(args, useDocker);
+		if ('error' in built) {
+			return {
+				success: false,
+				stdout: '',
+				stderr: built.error,
+				exitCode: 1,
+				cancelled: false
+			};
+		}
+
+		return runCancellableCommand(built.command, {
+			cwd: options?.cwd || this.workspaceRoot,
+			env: options?.env,
+			token: options?.token,
+			onOutput: options?.onOutput
 		});
 	}
 
