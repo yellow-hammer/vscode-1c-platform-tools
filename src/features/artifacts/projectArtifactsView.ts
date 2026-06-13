@@ -13,16 +13,17 @@ import * as vscode from 'vscode';
 import {
 	scanArtifacts,
 	type ArtifactsScanResult,
-	type FeatureArtifact,
 	type ConfigurationArtifact,
 	type ExtensionArtifact,
 	type ProcessorArtifact,
 	type ReportArtifact,
 } from './artifactsScanner';
 
-const FEATURES_VIEW_KEY = '1c-platform-tools.artifacts.featuresView';
+// Ключ сохранения режима вида дерева (список/каталоги). Историческое имя
+// 'featuresView' сохранено намеренно, чтобы не сбрасывать настройку пользователей.
+const VIEW_MODE_KEY = '1c-platform-tools.artifacts.featuresView';
 
-export type FeaturesViewMode = 'list' | 'folder';
+export type ArtifactsViewMode = 'list' | 'folder';
 
 type NonSectionArtifact =
 	| ConfigurationArtifact
@@ -102,15 +103,15 @@ export class ProjectArtifactsTreeDataProvider
 		}
 	}
 
-	getFeaturesViewMode(): FeaturesViewMode {
+	getViewMode(): ArtifactsViewMode {
 		return (
-			this._context.globalState.get<FeaturesViewMode>(FEATURES_VIEW_KEY) ??
+			this._context.globalState.get<ArtifactsViewMode>(VIEW_MODE_KEY) ??
 			'list'
 		);
 	}
 
-	async setFeaturesViewMode(mode: FeaturesViewMode): Promise<void> {
-		await this._context.globalState.update(FEATURES_VIEW_KEY, mode);
+	async setViewMode(mode: ArtifactsViewMode): Promise<void> {
+		await this._context.globalState.update(VIEW_MODE_KEY, mode);
 		void vscode.commands.executeCommand(
 			'setContext',
 			'1c-platform-tools.artifacts.viewAsList',
@@ -173,12 +174,6 @@ export class ProjectArtifactsTreeDataProvider
 				icon: 'file-text',
 				count: result.reports.length,
 			},
-			{
-				id: 'features',
-				label: 'Тесты (VA)',
-				icon: 'beaker',
-				count: result.features.length,
-			},
 		];
 
 		return sections.map(
@@ -190,11 +185,9 @@ export class ProjectArtifactsTreeDataProvider
 		sectionId: string,
 		result: ArtifactsScanResult
 	): ArtifactTreeItem[] {
-		const viewMode = this.getFeaturesViewMode();
+		const viewMode = this.getViewMode();
 
 		switch (sectionId) {
-			case 'features':
-				return this.buildFeatureItems(result.features, viewMode);
 			case 'configurations':
 				return this.buildArtifactItems(result.configurations, viewMode);
 			case 'extensions':
@@ -210,7 +203,7 @@ export class ProjectArtifactsTreeDataProvider
 
 	private buildArtifactItems(
 		items: NonSectionArtifact[],
-		viewMode: FeaturesViewMode
+		viewMode: ArtifactsViewMode
 	): ArtifactTreeItem[] {
 		const sorted = [...items].sort((a, b) =>
 			a.relativePath.localeCompare(b.relativePath, undefined, {
@@ -231,31 +224,6 @@ export class ProjectArtifactsTreeDataProvider
 		}
 
 		return this.buildHierarchy(sorted, (a) => this.artifactToItem(a));
-	}
-
-	private buildFeatureItems(
-		features: FeatureArtifact[],
-		viewMode: FeaturesViewMode
-	): ArtifactTreeItem[] {
-		const sorted = [...features].sort((a, b) =>
-			a.relativePath.localeCompare(b.relativePath, undefined, {
-				sensitivity: 'base',
-			})
-		);
-
-		if (viewMode === 'list') {
-			const dupes = collectDuplicateLabels(sorted);
-			return sorted.map((a) =>
-				new FeatureItem(
-					a,
-					dupes.has(a.name.toLowerCase())
-						? parentDirName(a.relativePath)
-						: undefined
-				)
-			);
-		}
-
-		return this.buildHierarchy(sorted, (a) => new FeatureItem(a));
 	}
 
 	private buildHierarchy<T extends { relativePath: string }>(
@@ -406,7 +374,6 @@ interface SectionMeta {
 type ArtifactTreeItem =
 	| SectionItem
 	| FolderGroupItem
-	| FeatureItem
 	| ArtifactItem;
 
 class SectionItem extends vscode.TreeItem {
@@ -441,29 +408,6 @@ class FolderGroupItem extends vscode.TreeItem {
 			: folderPath;
 		this.resourceUri = vscode.Uri.file(fullPath);
 		this.contextValue = 'artifactsFolderGroup';
-	}
-}
-
-class FeatureItem extends vscode.TreeItem {
-	constructor(
-		public readonly artifact: FeatureArtifact,
-		parentDirDescription?: string
-	) {
-		super(artifact.name, vscode.TreeItemCollapsibleState.None);
-		this.resourceUri = artifact.uri;
-		const tooltipMd = new vscode.MarkdownString(undefined, true);
-		tooltipMd.appendCodeblock(artifact.relativePath, 'plaintext');
-		if (parentDirDescription) {
-			tooltipMd.appendMarkdown(`\n_Родитель: ${parentDirDescription}_`);
-		}
-		this.tooltip = tooltipMd;
-		this.description = parentDirDescription;
-		this.contextValue = 'artifactsFeature';
-		this.command = {
-			command: 'vscode.open',
-			title: 'Открыть',
-			arguments: [artifact.uri],
-		};
 	}
 }
 
