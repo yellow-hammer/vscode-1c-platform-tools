@@ -6,9 +6,15 @@ import {
 	getXUnitTestsCommandName,
 	getSyntaxCheckCommandName,
 	getVanessaTestsCommandName,
-	getAllureReportCommandName
+	getAllureReportCommandName,
+	getBuildTestEpfCommandName,
+	getDecompileTestEpfCommandName,
+	getYAxUnitTestsCommandName
 } from '../features/tools/commandNames';
+import { collectAllureResultDirs } from '../utils/allureResults';
+import * as fsSync from 'node:fs';
 import type { CommandExecutionOptions, StructuredCommandResult } from '../shared/commandExecutionTypes';
+import { DEFAULT_TESTING } from '../shared/pathDefaults';
 
 /**
  * Команды для тестирования
@@ -67,17 +73,91 @@ export class TestCommands extends BaseCommand {
 	}
 
 	/**
+	 * Запускает тесты YAxUnit
+	 *
+	 * Выполняет vrunner run --command RunUnitTests=<конфиг>. Конфиг прогона —
+	 * testing.yaxunitConfigPath (по умолчанию tools/yaxunit.json), отчёт
+	 * и фильтры берутся из него.
+	 *
+	 * Предварительно в ИБ должны быть загружены расширение-движок YAXUNIT
+	 * и тестовое расширение (с отключённым безопасным режимом).
+	 *
+	 * @param opts — опции выполнения; при wait: true — синхронный режим
+	 * @returns void в UI-режиме, StructuredCommandResult при wait: true
+	 */
+	async runYAxUnit(opts?: CommandExecutionOptions): Promise<StructuredCommandResult | void> {
+		const workspaceRoot = this.ensureWorkspace();
+		if (!workspaceRoot) {
+			if (opts?.wait === true) {
+				return this.executionError('Откройте рабочую область с проектом 1С');
+			}
+			return;
+		}
+
+		const config = vscode.workspace.getConfiguration('1c-platform-tools');
+		const configPath = config.get<string>('testing.yaxunitConfigPath', DEFAULT_TESTING.yaxunitConfigPath);
+		const ibConnectionParam = await this.vrunner.getIbConnectionParam(opts?.ibConnection);
+		const args = ['run', '--command', `RunUnitTests=${configPath}`, ...ibConnectionParam];
+		// Конфиг vanessa-runner (testing.vrunnerSettings) передаём через --settings, если он есть
+		const vrunnerSettings = config.get<string>('testing.vrunnerSettings', DEFAULT_TESTING.vrunnerSettings);
+		if (fsSync.existsSync(path.join(workspaceRoot, vrunnerSettings))) {
+			args.push('--settings', vrunnerSettings);
+		}
+		return this.runVRunner(args, opts, getYAxUnitTestsCommandName().title);
+	}
+
+	/**
+	 * Собирает тестовые обработки из исходников в бинарники
+	 *
+	 * Выполняет vrunner compileepf <paths.testsSrc> <paths.out>/tests:
+	 * разобранные исходники тестовых обработок (src/tests) собираются в .epf
+	 * в каталог результатов сборки (build/out/tests) — собранные артефакты
+	 * не попадают в git. vrunner кэширует сборку и пересобирает только
+	 * изменённые обработки.
+	 *
+	 * @param opts — опции выполнения; при wait: true — синхронный режим
+	 * @returns void в UI-режиме, StructuredCommandResult при wait: true
+	 */
+	async buildTestEpf(opts?: CommandExecutionOptions): Promise<StructuredCommandResult | void> {
+		const sourcesPath = this.vrunner.getTestsSrcPath();
+		const binariesPath = path.join(this.vrunner.getOutPath(), 'tests');
+		const ibConnectionParam = await this.vrunner.getIbConnectionParam();
+		const args = ['compileepf', sourcesPath, binariesPath, ...ibConnectionParam];
+		return this.runVRunner(args, opts, getBuildTestEpfCommandName().title, binariesPath);
+	}
+
+	/**
+	 * Разбирает бинарники тестовых обработок в исходники
+	 *
+	 * Выполняет vrunner decompileepf <paths.tests> <paths.testsSrc>:
+	 * .epf из каталога тестов раскладываются в исходники (src/tests) —
+	 * удобно для первичного переноса существующих бинарных тестов под контроль версий.
+	 *
+	 * @param opts — опции выполнения; при wait: true — синхронный режим
+	 * @returns void в UI-режиме, StructuredCommandResult при wait: true
+	 */
+	async decompileTestEpf(opts?: CommandExecutionOptions): Promise<StructuredCommandResult | void> {
+		const sourcesPath = this.vrunner.getTestsSrcPath();
+		const binariesPath = this.vrunner.getTestsPath();
+		const ibConnectionParam = await this.vrunner.getIbConnectionParam();
+		const args = ['decompileepf', binariesPath, sourcesPath, ...ibConnectionParam];
+		return this.runVRunner(args, opts, getDecompileTestEpfCommandName().title, sourcesPath);
+	}
+
+	/**
 	 * Получает пути к результатам тестов для Allure
 	 *
-	 * @param outPath - Путь к результатам сборки
-	 * @returns Массив путей к результатам тестов
+	 * Сканирует каталог результатов сборки и возвращает все реально
+	 * существующие источники: каталоги allure, jUnit (в т.ч. yaxunit)
+	 * и Cucumber JSON — Allure 2 понимает все три формата.
+	 *
+	 * @param workspaceRoot - Корень workspace
+	 * @param outPath - Путь к результатам сборки (относительно workspace)
+	 * @returns Массив путей к результатам тестов (относительно workspace)
 	 */
-	private getAllureResultPaths(outPath: string): string[] {
-		return [
-			path.join(outPath, 'syntax-check', 'allure'),
-			path.join(outPath, 'smoke', 'allure'),
-			path.join(outPath, 'allure')
-		];
+	private getAllureResultPaths(workspaceRoot: string, outPath: string): string[] {
+		const absoluteDirs = collectAllureResultDirs(path.join(workspaceRoot, outPath));
+		return absoluteDirs.map((dir) => path.relative(workspaceRoot, dir));
 	}
 
 	/**
@@ -145,8 +225,15 @@ export class TestCommands extends BaseCommand {
 
 		const outPath = this.vrunner.getOutPath();
 		const commandName = getAllureReportCommandName();
-		const allureResultPaths = this.getAllureResultPaths(outPath);
-		const outputPath = 'build/allure-report';
+		const allureResultPaths = this.getAllureResultPaths(workspaceRoot, outPath);
+		if (allureResultPaths.length === 0) {
+			void vscode.window.showWarningMessage(
+				`Результаты тестов не найдены в «${outPath}». ` +
+				'Сначала выполните прогон тестов (Vanessa, xUnit, YAxUnit или синтаксический контроль).'
+			);
+			return;
+		}
+		const outputPath = path.join(outPath, 'allure-report');
 		const allurePath = this.vrunner.getAllurePath();
 		const shellType = detectShellType();
 

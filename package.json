@@ -618,12 +618,6 @@
         "category": "1C: Артефакты"
       },
       {
-        "command": "1c-platform-tools.artifacts.runVanessa",
-        "title": "Запустить",
-        "icon": "$(play)",
-        "category": "1C: Артефакты"
-      },
-      {
         "command": "1c-platform-tools.artifacts.buildConfiguration",
         "title": "Собрать",
         "icon": "$(play)",
@@ -675,12 +669,6 @@
         "command": "1c-platform-tools.artifacts.delete",
         "title": "Удалить",
         "icon": "$(trash)",
-        "category": "1C: Артефакты"
-      },
-      {
-        "command": "1c-platform-tools.artifacts.runVanessa.fromEditor",
-        "title": "Запустить Vanessa",
-        "icon": "$(play)",
         "category": "1C: Артефакты"
       },
       {
@@ -1045,6 +1033,26 @@
         "category": "1C: Тестирование"
       },
       {
+        "command": "1c-platform-tools.testing.configure",
+        "title": "Настроить тесты",
+        "category": "1C: Тестирование"
+      },
+      {
+        "command": "1c-platform-tools.test.yaxunit",
+        "title": "YAxUnit тесты",
+        "category": "1C: Тестирование"
+      },
+      {
+        "command": "1c-platform-tools.test.buildEpf",
+        "title": "Собрать unit тесты",
+        "category": "1C: Внешние файлы"
+      },
+      {
+        "command": "1c-platform-tools.test.decompileEpf",
+        "title": "Разобрать unit тесты",
+        "category": "1C: Внешние файлы"
+      },
+      {
         "command": "1c-platform-tools.test.allure",
         "title": "Allure отчет",
         "category": "1C: Тестирование"
@@ -1330,6 +1338,11 @@
         "view": "explorer",
         "contents": "Вы также можете [открыть папку проекта 1С](command:vscode.openFolder), или создать новый проект 1С, нажав кнопку ниже.\n[Создать проект 1С](command:1c-platform-tools.project.createFromWelcome)",
         "when": "workspaceFolderCount == 0"
+      },
+      {
+        "view": "testing",
+        "contents": "Настройте тестовые фреймворки 1С (Vanessa, xUnit, YAxUnit, OneScript, 1bdd), чтобы тесты появились в этой панели.\n[Настроить тесты 1С](command:1c-platform-tools.testing.configure)",
+        "when": "1c-platform-tools.is1CProject == true"
       },
       {
         "view": "1c-platform-tools-projects-favorites",
@@ -1628,16 +1641,6 @@
         },
         {
           "command": "1c-platform-tools.artifacts.open",
-          "when": "view == 1c-platform-tools-artifacts-tree && viewItem == 'artifactsFeature'",
-          "group": "inline"
-        },
-        {
-          "command": "1c-platform-tools.artifacts.runVanessa",
-          "when": "view == 1c-platform-tools-artifacts-tree && viewItem == 'artifactsFeature'",
-          "group": "inline"
-        },
-        {
-          "command": "1c-platform-tools.artifacts.open",
           "when": "view == 1c-platform-tools-artifacts-tree && viewItem == 'artifactsConfigurationSource'",
           "group": "inline"
         },
@@ -1715,16 +1718,6 @@
           "command": "1c-platform-tools.artifacts.decompileReport",
           "when": "view == 1c-platform-tools-artifacts-tree && viewItem == 'artifactsReportBinary'",
           "group": "inline"
-        },
-        {
-          "command": "1c-platform-tools.artifacts.open",
-          "when": "view == 1c-platform-tools-artifacts-tree && viewItem == 'artifactsFeature'",
-          "group": "navigation"
-        },
-        {
-          "command": "1c-platform-tools.artifacts.runVanessa",
-          "when": "view == 1c-platform-tools-artifacts-tree && viewItem == 'artifactsFeature'",
-          "group": "navigation"
         },
         {
           "command": "1c-platform-tools.artifacts.open",
@@ -1919,11 +1912,6 @@
       ],
       "editor/title": [
         {
-          "command": "1c-platform-tools.artifacts.runVanessa.fromEditor",
-          "when": "1c-platform-tools.is1CProject == true && resourceExtname == '.feature'",
-          "group": "navigation"
-        },
-        {
           "command": "1c-platform-tools.artifacts.decompileConfiguration.fromEditor",
           "when": "1c-platform-tools.is1CProject == true && resourceExtname == '.cf'",
           "group": "navigation"
@@ -1945,11 +1933,6 @@
         }
       ],
       "editor/context": [
-        {
-          "command": "1c-platform-tools.artifacts.runVanessa.fromEditor",
-          "when": "1c-platform-tools.is1CProject == true && resourceExtname == '.feature'",
-          "group": "1c_artifacts@1"
-        },
         {
           "command": "1c-platform-tools.artifacts.decompileConfiguration.fromEditor",
           "when": "1c-platform-tools.is1CProject == true && resourceExtname == '.cf'",
@@ -2106,6 +2089,14 @@
             }
           },
           {
+            "id": "step12-testing",
+            "title": "Панель тестирования",
+            "description": "Тесты Vanessa, xUnit, YAxUnit, OneScript и 1bdd в нативной панели тестирования VS Code: запуск из редактора, статусы, переход к падению.\n\n[Открыть панель тестирования](command:workbench.view.testing.focus)\n[Настроить тесты](command:1c-platform-tools.testing.configure)",
+            "media": {
+              "markdown": "walkthrough/step12-testing.md"
+            }
+          },
+          {
             "id": "step9-ai-mcp",
             "title": "Интеграция с AI и MCP",
             "description": "Навыки для агента: разработка 1С (cc-1c-skills), команды и MCP расширения.\n\n[Добавить навыки разработки 1С (cc-1c-skills)](command:1c-platform-tools.skills.addDevSkills) · [Добавить навыки расширения (команды и MCP)](command:1c-platform-tools.skills.add1cpt) · [Настройки сервера IPC](command:1c-platform-tools.settings.openIpc)",
@@ -2150,7 +2141,7 @@
           },
           "1c-platform-tools.vrunner.initSettingsPath": {
             "type": "string",
-            "default": "./tools/vrunner.init.json",
+            "default": "tools/vrunner.init.json",
             "description": "Путь к файлу настроек инициализации vrunner (vrunner.init.json)"
           },
           "1c-platform-tools.paths.out": {
@@ -2182,6 +2173,16 @@
             "type": "string",
             "default": "src/erf",
             "description": "Путь к исходному коду внешних отчетов"
+          },
+          "1c-platform-tools.paths.testsSrc": {
+            "type": "string",
+            "default": "src/tests",
+            "description": "Путь к исходному коду тестовых обработок (xUnit/Vanessa-ADD, формат decompileepf). Собранные .epf выкладываются в build/out/tests командой «Собрать unit тесты»."
+          },
+          "1c-platform-tools.paths.tests": {
+            "type": "string",
+            "default": "tests",
+            "description": "Путь к каталогу скриптовых тестов OneScript (*.os). Бинарники тестов здесь не хранятся: дымовые наборы Vanessa-ADD поставляются в пакете add (oscript_modules), собственные обработки собираются из paths.testsSrc в build/out/tests."
           },
           "1c-platform-tools.allure.path": {
             "type": "string",
@@ -2478,6 +2479,99 @@
             "description": "Java: полный путь к java или javaw для дерева метаданных. Пусто — portable JRE из кэша либо java из PATH."
           }
         }
+      },
+      {
+        "title": "Тестирование",
+        "id": "1c-platform-tools.testing",
+        "order": 7,
+        "properties": {
+          "1c-platform-tools.testing.enabled": {
+            "type": "boolean",
+            "default": true,
+            "description": "Интеграция тестов 1С с панелью тестирования VS Code (Test Explorer): дерево тестов, кнопки запуска в редакторе, статусы и переход к месту падения."
+          },
+          "1c-platform-tools.testing.featuresPath": {
+            "type": "string",
+            "default": "features",
+            "description": "Каталог feature-файлов Vanessa Automation (относительно корня проекта)."
+          },
+          "1c-platform-tools.testing.onescriptTestsPath": {
+            "type": "string",
+            "default": "tests",
+            "description": "Каталог тестов OneScript (1testrunner/OneUnit), относительно корня проекта."
+          },
+          "1c-platform-tools.testing.exclude": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "default": [
+              "oscript_modules",
+              "build"
+            ],
+            "description": "Сегменты пути, исключаемые при поиске тестов в панели тестирования (например: oscript_modules, build, vendor). build исключён, чтобы не находить собранные обработки и отчёты прогонов."
+          },
+          "1c-platform-tools.testing.reportsPath": {
+            "type": "string",
+            "default": "build/out/testapi",
+            "description": "Каталог временных файлов прогонов из панели тестирования (относительно корня проекта; должен быть внутри workspace для работы в Docker). Используется, только если пути отчётов не настроены в env.json/tools проекта."
+          },
+          "1c-platform-tools.testing.yaxunitConfigPath": {
+            "type": "string",
+            "default": "tools/yaxunit.json",
+            "description": "Базовый конфиг YAxUnit (RunUnitTests). Панель тестирования накладывает на него фильтр по выбранному модулю/тесту и берёт из него reportPath."
+          },
+          "1c-platform-tools.testing.vrunnerSettings": {
+            "type": "string",
+            "default": "tools/vrunner.json",
+            "description": "Конфиг vanessa-runner для прогонов тестов (--settings). Если файл существует — передаётся vrunner; иначе vrunner использует env.json."
+          },
+          "1c-platform-tools.testing.frameworks.vanessa": {
+            "type": "boolean",
+            "default": true,
+            "description": "Показывать в панели тестирования сценарии Vanessa Automation (.feature)."
+          },
+          "1c-platform-tools.testing.frameworks.xunit": {
+            "type": "boolean",
+            "default": true,
+            "description": "Показывать в панели тестирования тестовые обработки xUnit/Vanessa-ADD (исходники в paths.testsSrc; перед прогоном собираются в .epf). Активен только при наличии исходников конфигурации (paths.cf) — тесты выполняются в информационной базе."
+          },
+          "1c-platform-tools.testing.frameworks.yaxunit": {
+            "type": "boolean",
+            "default": true,
+            "description": "Показывать в панели тестирования тесты YAxUnit (общие модули тестового расширения в каталоге расширений)."
+          },
+          "1c-platform-tools.testing.frameworks.onescript": {
+            "type": "boolean",
+            "default": true,
+            "description": "Показывать в панели тестирования тесты OneScript (*.os в каталоге тестов): классический стиль (ИсполняемыеСценарии) и аннотации &Тест."
+          },
+          "1c-platform-tools.testing.frameworks.onebdd": {
+            "type": "boolean",
+            "default": true,
+            "description": "Показывать в панели тестирования BDD-сценарии 1bdd (.feature в OneScript-проектах). Активен только в проектах без исходников конфигурации — в проектах 1С фичи относятся к Vanessa Automation."
+          },
+          "1c-platform-tools.testing.onescriptRunner": {
+            "type": "string",
+            "enum": [
+              "auto",
+              "1testrunner",
+              "oneunit"
+            ],
+            "default": "auto",
+            "description": "Раннер тестов OneScript. auto — OneUnit при наличии в oscript_modules/bin, иначе 1testrunner. Оба пишут jUnit-отчёт (1testrunner — через xddReportPath, OneUnit — через --junit)."
+          },
+          "1c-platform-tools.testing.onescriptRunnerPath": {
+            "type": "string",
+            "default": "",
+            "description": "Путь к раннеру тестов OneScript (1testrunner/oneunit). Поддерживаются относительные пути от корня проекта (например ./oscript_modules/bin/oneunit.bat). Пусто — локальная установка oscript_modules/bin, затем PATH."
+          },
+          "1c-platform-tools.testing.onebddPath": {
+            "type": "string",
+            "default": "",
+            "description": "Путь к раннеру 1bdd. Поддерживаются относительные пути от корня проекта. Пусто — локальная установка oscript_modules/bin, затем PATH."
+          }
+        }
       }
     ],
     "colors": [
@@ -2514,6 +2608,7 @@
     "cytoscape-elk": "^2.3.0",
     "elkjs": "^0.11.1",
     "extract-zip": "^2.0.1",
+    "fast-xml-parser": "^5.8.0",
     "glob": "^10.5.0",
     "minimatch": "^9.0.9"
   },

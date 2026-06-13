@@ -2,6 +2,7 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import * as vscode from 'vscode';
 import { DEBUG_TYPE } from './debugConstants';
+import { DEFAULT_PATHS } from '../../shared/pathDefaults';
 
 const platformBasePath =
 	process.platform === 'win32' ? '${env:PROGRAMFILES}/1cv8' : '/opt/1C/v8.3/x86_64';
@@ -40,7 +41,7 @@ export class OnecDebugConfigurationProvoider implements vscode.DebugConfiguratio
 		const cfPathSetting = vscode
 			.workspace
 			.getConfiguration('1c-platform-tools')
-			.get<string>('paths.cf', 'src/cf');
+			.get<string>('paths.cf', DEFAULT_PATHS.cf);
 
 		// Нормализуем путь: убираем ведущие ./ и /, слэши приводим к Unix-стилю,
 		// чтобы получить корректный шаблон относительно ${workspaceFolder}.
@@ -60,7 +61,7 @@ export class OnecDebugConfigurationProvoider implements vscode.DebugConfiguratio
 			const cfePathSetting = vscode
 				.workspace
 				.getConfiguration('1c-platform-tools')
-				.get<string>('paths.cfe', 'src/cfe');
+				.get<string>('paths.cfe', DEFAULT_PATHS.cfe);
 
 			const normalizedCfePath = cfePathSetting
 				.replace(/\\/g, '/')
@@ -100,12 +101,12 @@ export class OnecDebugConfigurationProvoider implements vscode.DebugConfiguratio
 		const normalize = (p: string) => p.replace(/\\/g, '/').replace(/^\.?\//, '');
 
 		(baseConfig as Record<string, unknown>).externalFilesSrc = [
-			normalize(cfg.get<string>('paths.epf', 'src/epf')),
-			normalize(cfg.get<string>('paths.erf', 'src/erf')),
+			normalize(cfg.get<string>('paths.epf', DEFAULT_PATHS.epf)),
+			normalize(cfg.get<string>('paths.erf', DEFAULT_PATHS.erf)),
 		].map((rel) => `\${workspaceFolder}/${rel}`);
 
 		// Собранные .epf/.erf — сервер отладки адресует внешние модули по URL файла.
-		const outPath = normalize(cfg.get<string>('paths.out', 'build/out'));
+		const outPath = normalize(cfg.get<string>('paths.out', DEFAULT_PATHS.out));
 		(baseConfig as Record<string, unknown>).externalFilesBuilds = [
 			`\${workspaceFolder}/${outPath}/epf`,
 			`\${workspaceFolder}/${outPath}/erf`,

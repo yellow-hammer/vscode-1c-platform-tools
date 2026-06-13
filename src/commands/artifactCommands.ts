@@ -1,5 +1,5 @@
 /**
- * Команды для артефактов: точечная сборка/разборка, запуск Vanessa.
+ * Команды для артефактов: точечная сборка/разборка.
  * @module artifactCommands
  */
 
@@ -277,21 +277,5 @@ export class ArtifactCommands extends BaseCommand {
 		}
 		await vscode.workspace.fs.delete(artifactUri, { recursive: true });
 		await vscode.commands.executeCommand('1c-platform-tools.artifacts.refresh');
-	}
-
-	/** Запустить Vanessa-тест (feature-файл или каталог). */
-	async runVanessa(artifactUri: vscode.Uri): Promise<void> {
-		const workspaceRoot = this.ensureWorkspace();
-		if (!workspaceRoot || !(await this.ensureOscriptAvailable())) {
-			return;
-		}
-		const settingsPath = this.vrunner.getVRunnerInitSettingsPath();
-		const ibConnectionParam = await this.vrunner.getIbConnectionParam();
-		const targetRel = getRelativePath(artifactUri);
-		const args = ['vanessa', '--settings', settingsPath, ...ibConnectionParam, '--path', targetRel];
-		this.vrunner.executeVRunnerInTerminal(args, {
-			cwd: workspaceRoot,
-			name: `Vanessa: ${path.basename(artifactUri.fsPath)}`,
-		});
 	}
 }

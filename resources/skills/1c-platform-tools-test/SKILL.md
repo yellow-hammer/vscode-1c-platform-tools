@@ -14,15 +14,25 @@ description: Тестирование 1С. Используй, когда пол
 | Запусти тесты, XUnit, Vanessa             | `test_xunit` / `test_vanessa` или команда |
 | Синтаксический контроль                   | `test_syntaxCheck` или команда            |
 | Построй Allure-отчёт                      | `test_allure` или команда                 |
+| Собери/разбери unit тесты (.epf)          | команда buildEpf / decompileEpf           |
 
 ## Команды расширения
 
-| Задача                  | Command ID                           |
-|-------------------------|--------------------------------------|
-| XUnit тесты             | `1c-platform-tools.test.xunit`       |
-| Синтаксический контроль | `1c-platform-tools.test.syntaxCheck` |
-| Vanessa тесты           | `1c-platform-tools.test.vanessa`     |
-| Allure отчёт            | `1c-platform-tools.test.allure`      |
+| Задача                        | Command ID                            |
+|-------------------------------|---------------------------------------|
+| XUnit тесты                   | `1c-platform-tools.test.xunit`        |
+| Синтаксический контроль       | `1c-platform-tools.test.syntaxCheck`  |
+| Vanessa тесты                 | `1c-platform-tools.test.vanessa`      |
+| YAxUnit тесты                 | `1c-platform-tools.test.yaxunit`      |
+| Allure отчёт                  | `1c-platform-tools.test.allure`       |
+| Собрать unit тесты            | `1c-platform-tools.test.buildEpf`     |
+| Разобрать unit тесты          | `1c-platform-tools.test.decompileEpf` |
+
+Сборка/разборка unit тестов (тестовых обработок 1С): исходники в `src/tests` (настройка `paths.testsSrc`), собранные `.epf` — в `build/out/tests` (артефакт, в git не попадает). В `tests` — скриптовые `.os`-тесты OneScript; дымовые наборы Vanessa-ADD поставляются в пакете add (oscript_modules). Обе команды поддерживают `wait: true`.
+
+## Панель тестирования VS Code
+
+Тесты также отображаются в нативной панели «Тестирование» (Test Explorer): Vanessa (.feature), xUnit (тестовые обработки в src/tests), YAxUnit, OneScript (.os в tests), 1bdd — с запуском отдельных тестов и статусами. Для интерактивной работы пользователя направляй туда; команды выше — для прогона «всего сразу» и агентных циклов.
 
 ## MCP (mcp-1c-platform-tools)
 

@@ -267,8 +267,17 @@ export function registerCommands(
 		registerVRunnerCommand('1c-platform-tools.test.vanessa', (opts) =>
 			commands.test.runVanessa('normal', opts)
 		),
+		registerVRunnerCommand('1c-platform-tools.test.yaxunit', (opts) =>
+			commands.test.runYAxUnit(opts)
+		),
 		registerVRunnerCommand('1c-platform-tools.test.allure', (opts) =>
 			commands.test.generateAllureReport(opts)
+		),
+		registerVRunnerCommand('1c-platform-tools.test.buildEpf', (opts) =>
+			commands.test.buildTestEpf(opts)
+		),
+		registerVRunnerCommand('1c-platform-tools.test.decompileEpf', (opts) =>
+			commands.test.decompileTestEpf(opts)
 		),
 	];
 
@@ -368,19 +377,11 @@ export function registerCommands(
 				void commands.artifact.decompileReport(element.resourceUri);
 			}
 		}),
-		vscode.commands.registerCommand('1c-platform-tools.artifacts.runVanessa', (element: vscode.TreeItem) => {
-			if (element.resourceUri) {
-				void commands.artifact.runVanessa(element.resourceUri);
-			}
-		}),
 		vscode.commands.registerCommand('1c-platform-tools.artifacts.delete', (element: vscode.TreeItem) => {
 			if (element.resourceUri) {
 				void commands.artifact.delete(element.resourceUri);
 			}
 		}),
-		registerFromEditor('1c-platform-tools.artifacts.runVanessa.fromEditor', (u) =>
-			commands.artifact.runVanessa(u)
-		),
 		registerFromEditor('1c-platform-tools.artifacts.decompileConfiguration.fromEditor', (u) =>
 			commands.artifact.decompileConfiguration(u)
 		),

@@ -1,0 +1,75 @@
+# Тестирование
+
+Расширение интегрирует тесты 1С с нативной панелью **Тестирование** VS Code (Test Explorer): дерево тестов с иерархией каталогов, кнопки запуска в редакторе, зелёные/красные статусы и переход к месту падения.
+
+![Панель тестирования](../resources/treeview-screenshot.png)
+
+## Поддерживаемые фреймворки
+
+| Фреймворк               | Что в дереве                                              | Запуск                                                           | Результаты                                     |
+|-------------------------|-----------------------------------------------------------|------------------------------------------------------------------|------------------------------------------------|
+| **Vanessa Automation**  | `.feature` → сценарии                                     | `vrunner vanessa --path <файл>`                                  | jUnit или Cucumber JSON из настроек VA проекта |
+| **xUnit / Vanessa-ADD** | исходники тестовых обработок → методы                     | `vrunner xunit <.epf>` (обработка собирается автоматически)      | jUnit из `env.json` (`--reportsxunit`)         |
+| **YAxUnit**             | модули тестового расширения → тесты                       | `vrunner run --command RunUnitTests=<конфиг>`                    | jUnit из `tools/yaxunit.json`                  |
+| **OneScript**           | `.os`-тесты (`ИсполняемыеСценарии` или аннотации `&Тест`) | `1testrunner -run ... xddReportPath` / `oneunit execute --junit` | jUnit в `build/out/onescript`                  |
+| **1bdd**                | `.feature` в OneScript-проектах                           | `1bdd exec -junit-out`                                           | jUnit в `build/out/1bdd`                       |
+
+Все фреймворки включены по умолчанию; состав можно менять командой **Настроить тесты** (кнопка «Настроить тесты 1С» в пустой панели тестирования) или настройками `1c-platform-tools.testing.frameworks.*`. Каталог фич принадлежит Vanessa в проектах 1С (есть исходники конфигурации) и 1bdd — в OneScript-библиотеках. Файлы `.os` — всегда OneScript: тесты для 1С (xUnit) существуют только как внешние обработки.
+
+Точечный запуск отдельного теста поддерживают YAxUnit, OneScript (1testrunner/OneUnit) и 1bdd. Для Vanessa и xUnit CLI запускает файл целиком — статусы всех кейсов файла обновляются из отчёта.
+
+## Структура каталогов тестов
+
+```txt
+project/
+├── build/out/tests/        # СОБРАННЫЕ .epf тестов 1С (артефакт, не в git)
+├── features/               # Сценарии Gherkin (Vanessa Automation / 1bdd)
+├── src/
+│   └── tests/              # ИСХОДНИКИ тестовых обработок 1С (формат decompileepf)
+└── tests/                  # Скриптовые тесты OneScript (*.os)
+```
+
+- `tests/` — скриптовые тесты OneScript (1testrunner/OneUnit). Бинарники тестов здесь не хранятся: дымовые наборы Vanessa-ADD поставляются в составе пакета `add` (`oscript_modules/add/tests/smoke`);
+- `src/tests/` — разобранные исходники тестовых обработок 1С, по подкаталогу на обработку. Панель тестирования показывает методы прямо из исходника и автоматически собирает обработку перед прогоном (vrunner кэширует сборку);
+- `build/out/tests/` — собранные из исходников `.epf`: артефакт сборки, в git не попадает.
+
+## Команды сборки unit тестов
+
+- **Собрать unit тесты** (`1c-platform-tools.test.buildEpf`) — `vrunner compileepf src/tests build/out/tests`: собирает все тестовые обработки из исходников в `.epf`.
+- **Разобрать unit тесты** (`1c-platform-tools.test.decompileEpf`) — `vrunner decompileepf tests src/tests`: раскладывает хранимые бинарники в исходники — удобно для первичного переноса под контроль версий.
+
+Обе доступны из дерева команд (группа «Внешние файлы», рядом со сборкой обработок и отчётов) и палитры.
+
+## Конфигурация проекта
+
+Расширение использует служебные файлы проекта и не генерирует свои:
+
+- `env.json` — секции `vanessa` (`--vanessasettings`) и `xunit` (`--reportsxunit` — отсюда берётся путь jUnit-отчёта);
+- `tools/VAParams.json` — какие отчёты пишет Vanessa Automation (jUnit или Cucumber JSON) и куда;
+- `tools/yaxunit.json` — базовый конфиг RunUnitTests; панель накладывает на него фильтр по выбранному модулю/тесту.
+
+Если конфиги не настроены, используются временные настройки с отчётом в `testing.reportsPath`.
+
+## Настройки
+
+| Настройка                                           | По умолчанию                   | Описание                                          |
+|-----------------------------------------------------|--------------------------------|---------------------------------------------------|
+| `testing.enabled`                                   | `true`                         | Интеграция с панелью тестирования                 |
+| `paths.testsSrc`                                    | `src/tests`                    | Исходники тестовых обработок (xUnit)              |
+| `paths.tests`                                       | `tests`                        | Скриптовые тесты OneScript (*.os)                 |
+| `testing.featuresPath`                              | `features`                     | Сценарии Gherkin                                  |
+| `testing.onescriptTestsPath`                        | `tests`                        | Тесты OneScript                                   |
+| `testing.frameworks.*`                              | включены                       | Включение фреймворков (через «Настроить тесты»)   |
+| `testing.exclude`                                   | `["oscript_modules", "build"]` | Сегменты пути, исключаемые при поиске тестов      |
+| `testing.onescriptRunner`                           | `auto`                         | Раннер OneScript: auto / 1testrunner / oneunit    |
+| `testing.onescriptRunnerPath`, `testing.onebddPath` | —                              | Пути к раннерам (поддерживают относительные)      |
+| `testing.yaxunitConfigPath`                         | `tools/yaxunit.json`           | Базовый конфиг YAxUnit                            |
+| `testing.vrunnerSettings`                           | `tools/vrunner.json`           | Конфиг vanessa-runner для прогонов (`--settings`) |
+| `testing.reportsPath`                               | `build/out/testapi`            | Временные файлы прогонов                          |
+
+## Особенности
+
+- Прогоны выполняются последовательно — информационная база одна.
+- Отмена прогона завершает всё дерево процессов (включая 1cv8).
+- Команды группы «Тестирование» в дереве инструментов (XUnit, Vanessa, YAxUnit, синтаксический контроль, Allure) остаются прежним способом запуска «всего сразу» в терминале.
+- **Allure отчёт** собирает результаты всех фреймворков: команда сканирует `build/out` и берёт все существующие источники — allure-каталоги (smoke, syntax-check, VA), jUnit (yaxunit, onescript, 1bdd) и Cucumber JSON (VA); дубли одного прогона в двух форматах исключаются.
