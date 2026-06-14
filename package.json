@@ -1018,6 +1018,53 @@
         "icon": "$(tools)"
       },
       {
+        "command": "1c-platform-tools.env.selectProfile",
+        "title": "Выбрать env-профиль запуска",
+        "category": "1C: Конфигурации запуска",
+        "icon": "$(server-environment)"
+      },
+      {
+        "command": "1c-platform-tools.env.createProfile",
+        "title": "Создать env-профиль запуска",
+        "category": "1C: Конфигурации запуска"
+      },
+      {
+        "command": "1c-platform-tools.env.setOverrides",
+        "title": "Задать временные параметры запуска",
+        "category": "1C: Конфигурации запуска"
+      },
+      {
+        "command": "1c-platform-tools.env.clearOverrides",
+        "title": "Сбросить временные параметры запуска",
+        "category": "1C: Конфигурации запуска"
+      },
+      {
+        "command": "1c-platform-tools.serviceFiles.create",
+        "title": "Создать служебные файлы…",
+        "category": "1C: Служебные файлы",
+        "icon": "$(new-file)"
+      },
+      {
+        "command": "1c-platform-tools.serviceFiles.createGitignore",
+        "title": "Создать .gitignore",
+        "category": "1C: Служебные файлы"
+      },
+      {
+        "command": "1c-platform-tools.serviceFiles.createGitattributes",
+        "title": "Создать .gitattributes",
+        "category": "1C: Служебные файлы"
+      },
+      {
+        "command": "1c-platform-tools.serviceFiles.createEnvJson",
+        "title": "Создать env.json",
+        "category": "1C: Служебные файлы"
+      },
+      {
+        "command": "1c-platform-tools.serviceFiles.createRecommendedSet",
+        "title": "Создать базовый набор служебных файлов",
+        "category": "1C: Служебные файлы"
+      },
+      {
         "command": "1c-platform-tools.test.xunit",
         "title": "XUnit тесты",
         "category": "1C: Тестирование"
@@ -2144,6 +2191,11 @@
             "default": "tools/vrunner.init.json",
             "description": "Путь к файлу настроек инициализации vrunner (vrunner.init.json)"
           },
+          "1c-platform-tools.defaultEnvProfile": {
+            "type": "string",
+            "default": "",
+            "description": "Идентификатор env-профиля по умолчанию (имя X из env.X.json; пусто — базовый env.json). Активный профиль выбирается локально и не коммитится, переопределяя это значение. Подставляется во все команды vrunner через --settings."
+          },
           "1c-platform-tools.paths.out": {
             "type": "string",
             "default": "build/out",
@@ -2520,11 +2572,6 @@
             "type": "string",
             "default": "tools/yaxunit.json",
             "description": "Базовый конфиг YAxUnit (RunUnitTests). Панель тестирования накладывает на него фильтр по выбранному модулю/тесту и берёт из него reportPath."
-          },
-          "1c-platform-tools.testing.vrunnerSettings": {
-            "type": "string",
-            "default": "tools/vrunner.json",
-            "description": "Конфиг vanessa-runner для прогонов тестов (--settings). Если файл существует — передаётся vrunner; иначе vrunner использует env.json."
           },
           "1c-platform-tools.testing.frameworks.vanessa": {
             "type": "boolean",

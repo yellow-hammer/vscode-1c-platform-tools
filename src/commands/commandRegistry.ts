@@ -13,6 +13,7 @@ import { SetVersionCommands } from './setVersionCommands';
 import { WorkspaceTasksCommands } from './workspaceTasksCommands';
 import { ArtifactCommands } from './artifactCommands';
 import { SkillsCommands } from './skillsCommands';
+import { ServiceFilesCommands } from './serviceFilesCommands';
 import { VRunnerManager } from '../shared/vrunnerManager';
 import type { CommandExecutionOptions, StructuredCommandResult } from '../shared/commandExecutionTypes';
 
@@ -34,6 +35,7 @@ interface Commands {
 	workspaceTasks: WorkspaceTasksCommands;
 	artifact: ArtifactCommands;
 	skills: SkillsCommands;
+	serviceFiles: ServiceFilesCommands;
 }
 
 function getActiveEditorResourceUri(): vscode.Uri | undefined {
@@ -88,6 +90,32 @@ export function registerCommands(
 		}),
 	];
 	disposables.push(...skillsCommands);
+
+	// Команды служебных файлов
+	const serviceFilesCommands = [
+		vscode.commands.registerCommand('1c-platform-tools.serviceFiles.create', () =>
+			commands.serviceFiles.pickAndCreate()
+		),
+		vscode.commands.registerCommand('1c-platform-tools.serviceFiles.ensure', (specId?: string) => {
+			if (typeof specId === 'string') {
+				return commands.serviceFiles.ensure(specId);
+			}
+			return commands.serviceFiles.pickAndCreate();
+		}),
+		vscode.commands.registerCommand('1c-platform-tools.serviceFiles.createGitignore', () =>
+			commands.serviceFiles.createGitignore()
+		),
+		vscode.commands.registerCommand('1c-platform-tools.serviceFiles.createGitattributes', () =>
+			commands.serviceFiles.createGitattributes()
+		),
+		vscode.commands.registerCommand('1c-platform-tools.serviceFiles.createEnvJson', () =>
+			commands.serviceFiles.createEnvJson()
+		),
+		vscode.commands.registerCommand('1c-platform-tools.serviceFiles.createRecommendedSet', () =>
+			commands.serviceFiles.createRecommendedSet()
+		),
+	];
+	disposables.push(...serviceFilesCommands);
 
 	// Команды информационных баз
 	const infobaseCommands = [

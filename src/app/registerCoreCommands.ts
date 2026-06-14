@@ -13,6 +13,7 @@ import { WorkspaceTasksCommands } from '../commands/workspaceTasksCommands';
 import { ArtifactCommands } from '../commands/artifactCommands';
 import { OscriptTasksCommands } from '../commands/oscriptTasksCommands';
 import { SkillsCommands } from '../commands/skillsCommands';
+import { ServiceFilesCommands } from '../commands/serviceFilesCommands';
 
 export interface CoreCommands {
 	dependencies: DependenciesCommands;
@@ -46,6 +47,7 @@ export function registerCoreCommands(
 		oscriptTasks: new OscriptTasksCommands(),
 		workspaceTasks: new WorkspaceTasksCommands(),
 		skills: new SkillsCommands(),
+		serviceFiles: new ServiceFilesCommands(),
 	};
 	const commandDisposables = registerCommands(context, commandObjects);
 

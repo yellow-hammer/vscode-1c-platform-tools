@@ -160,9 +160,6 @@ async function buildFavoritesQuickPickItems(
 	const items: vscode.QuickPickItem[] = [];
 
 	for (const group of groups) {
-		if (group.sectionType === 'config') {
-			continue;
-		}
 		items.push({
 			label: group.groupLabel,
 			kind: vscode.QuickPickItemKind.Separator,
@@ -175,15 +172,6 @@ async function buildFavoritesQuickPickItems(
 	}
 
 	await pushOscriptTasksItems(items, favoriteKeys, oscriptTasksCommands);
-
-	const configGroup = groups.find((group) => group.sectionType === 'config');
-	if (configGroup) {
-		items.push({
-			label: configGroup.groupLabel,
-			kind: vscode.QuickPickItemKind.Separator,
-		});
-		appendStaticGroupCommands(items, configGroup, favoriteKeys);
-	}
 
 	return items;
 }
