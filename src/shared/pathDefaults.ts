@@ -37,13 +37,17 @@ export const DEFAULT_TESTING = {
 	/** Каталог временных файлов прогонов (testing.reportsPath) */
 	reportsPath: 'build/out/testapi',
 	/** Базовый конфиг YAxUnit (testing.yaxunitConfigPath) */
-	yaxunitConfigPath: 'tools/yaxunit.json',
-	/** Настройки vanessa-runner для прогона (testing.vrunnerSettings) */
-	vrunnerSettings: 'tools/vrunner.json'
+	yaxunitConfigPath: 'tools/yaxunit.json'
 } as const;
 
 /** Дефолты путей группы 1c-platform-tools.vrunner.* */
 export const DEFAULT_VRUNNER = {
 	/** Файл настроек инициализации ИБ (vrunner.initSettingsPath) */
 	initSettingsPath: 'tools/vrunner.init.json'
+} as const;
+
+/** Дефолты группы 1c-platform-tools env-профилей */
+export const DEFAULT_ENV = {
+	/** Идентификатор профиля по умолчанию (defaultEnvProfile); '' — базовый env.json */
+	defaultProfile: ''
 } as const;
