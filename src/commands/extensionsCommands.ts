@@ -287,7 +287,7 @@ export class ExtensionsCommands extends BaseCommand {
 			(extensionFolder) => {
 				const inputPath = path.join(cfePath, extensionFolder);
 				// --updatedb обновляет БД расширения сразу после компиляции, иначе
-				// изменения не применяются к ИБ (см. issue #76).
+				// изменения не применяются к ИБ
 				return ['compileext', inputPath, extensionFolder, '--updatedb', ...ibConnectionParam];
 			},
 			commandName.title,
