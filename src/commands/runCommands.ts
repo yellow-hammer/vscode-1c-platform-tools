@@ -7,11 +7,28 @@ import { getRunEnterpriseCommandName, getRunDesignerCommandName } from '../featu
 export class RunCommands extends BaseCommand {
 
 	/**
+	 * Собирает аргументы подключения для команд run/designer.
+	 *
+	 * При наличии файла активного профиля передаётся `--settings`, иначе — явный
+	 * `--ibconnection`. Временные параметры добавляются централизованно в VRunnerManager.
+	 *
+	 * @returns Аргументы vrunner без имени команды
+	 */
+	private async buildConnectionArgs(): Promise<string[]> {
+		const settingsParam = this.vrunner.getActiveSettingsParamIfExists();
+		if (settingsParam.length > 0) {
+			return settingsParam;
+		}
+		return this.vrunner.getIbConnectionParam();
+	}
+
+	/**
 	 * Запускает 1С:Предприятие
-	 * 
-	 * Выполняет команду vrunner run с параметрами подключения из env.json.
-	 * Запускает 1С:Предприятие в режиме предприятия с указанными параметрами подключения.
-	 * 
+	 *
+	 * Выполняет команду vrunner run с параметрами подключения из активного env-профиля.
+	 * При наличии файла профиля он передаётся через --settings (применяются --v8version,
+	 * учётка, --additional и пр.); поверх накладываются временные параметры.
+	 *
 	 * @returns Промис, который разрешается после запуска команды
 	 */
 	async runEnterprise(): Promise<void> {
@@ -23,9 +40,9 @@ export class RunCommands extends BaseCommand {
 			return;
 		}
 
-		const ibConnectionParam = await this.vrunner.getIbConnectionParam();
+		const connectionArgs = await this.buildConnectionArgs();
 		const commandName = getRunEnterpriseCommandName();
-		const args = ['run', '--no-wait', ...ibConnectionParam];
+		const args = ['run', '--no-wait', ...connectionArgs];
 
 		this.vrunner.executeVRunnerInTerminal(args, {
 			cwd: workspaceRoot,
@@ -35,10 +52,11 @@ export class RunCommands extends BaseCommand {
 
 	/**
 	 * Запускает Конфигуратор
-	 * 
-	 * Выполняет команду vrunner designer с параметрами подключения из env.json.
-	 * Запускает Конфигуратор 1С:Предприятие с указанными параметрами подключения.
-	 * 
+	 *
+	 * Выполняет команду vrunner designer с параметрами подключения из активного env-профиля.
+	 * При наличии файла профиля он передаётся через --settings; поверх накладываются
+	 * временные параметры.
+	 *
 	 * @returns Промис, который разрешается после запуска команды
 	 */
 	async runDesigner(): Promise<void> {
@@ -50,9 +68,9 @@ export class RunCommands extends BaseCommand {
 			return;
 		}
 
-		const ibConnectionParam = await this.vrunner.getIbConnectionParam();
+		const connectionArgs = await this.buildConnectionArgs();
 		const commandName = getRunDesignerCommandName();
-		const args = ['designer', '--no-wait', ...ibConnectionParam];
+		const args = ['designer', '--no-wait', ...connectionArgs];
 
 		this.vrunner.executeVRunnerInTerminal(args, {
 			cwd: workspaceRoot,

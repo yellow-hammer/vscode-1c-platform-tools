@@ -1,7 +1,6 @@
 import * as vscode from 'vscode';
 import * as path from 'node:path';
 import * as fs from 'node:fs/promises';
-import * as fsSync from 'node:fs';
 import { VRunnerManager } from '../../../shared/vrunnerManager';
 import { logger } from '../../../shared/logger';
 import { TestFrameworkAdapter, AdapterRunPlan, RunUnit } from '../frameworkAdapter';
@@ -100,34 +99,18 @@ export class YaxunitAdapter implements TestFrameworkAdapter {
 			'(yaxunit.cfe с https://github.com/bia-technologies/yaxunit/releases) и тестовое расширение ' +
 			'с вашими тестами. У обоих отключите «Безопасный режим» и «Защиту от опасных действий».';
 
-		const ibConnectionParam = await this.vrunner.getIbConnectionParam();
-		const args = ['run', '--command', `RunUnitTests=${configPath}`, ...ibConnectionParam];
-		const vrunnerSettings = this.resolveVrunnerSettings(workspaceRoot);
-		if (vrunnerSettings) {
-			args.push('--settings', vrunnerSettings);
-		}
+		// Выбранный профиль подставляется через --settings; при «Не выбран» — адрес ИБ
+		const settingsParam = this.vrunner.getActiveSettingsParamIfExists();
+		const connectionArgs = settingsParam.length > 0
+			? settingsParam
+			: await this.vrunner.getIbConnectionParam();
+		const args = ['run', '--command', `RunUnitTests=${configPath}`, ...connectionArgs];
 		return {
 			tool: 'vrunner',
 			args,
 			reportTarget: { format: 'junit', path: reportPathAbsolute },
 			noReportHint
 		};
-	}
-
-	/**
-	 * Настройки vanessa-runner для прогона
-	 *
-	 * Путь к конфигу берётся из testing.vrunnerSettings (по умолчанию tools/vrunner.json).
-	 * Если файл существует, передаём его через --settings; иначе vrunner использует
-	 * env.json по умолчанию.
-	 */
-	private resolveVrunnerSettings(workspaceRoot: string | undefined): string | undefined {
-		if (!workspaceRoot) {
-			return undefined;
-		}
-		const config = vscode.workspace.getConfiguration('1c-platform-tools');
-		const candidate = config.get<string>('testing.vrunnerSettings', DEFAULT_TESTING.vrunnerSettings);
-		return fsSync.existsSync(resolveConfigPath(candidate, workspaceRoot)) ? candidate : undefined;
 	}
 
 	/**

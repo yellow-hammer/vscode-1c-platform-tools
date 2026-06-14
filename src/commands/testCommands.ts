@@ -12,7 +12,6 @@ import {
 	getYAxUnitTestsCommandName
 } from '../features/tools/commandNames';
 import { collectAllureResultDirs } from '../utils/allureResults';
-import * as fsSync from 'node:fs';
 import type { CommandExecutionOptions, StructuredCommandResult } from '../shared/commandExecutionTypes';
 import { DEFAULT_TESTING } from '../shared/pathDefaults';
 
@@ -33,7 +32,7 @@ export class TestCommands extends BaseCommand {
 	 */
 	async runXUnit(opts?: CommandExecutionOptions): Promise<StructuredCommandResult | void> {
 		const commandName = getXUnitTestsCommandName();
-		return this.runVRunner(['xunit'], opts, commandName.title);
+		return this.runVRunner(['xunit', ...this.vrunner.getActiveSettingsParamIfExists()], opts, commandName.title);
 	}
 
 	/**
@@ -44,15 +43,14 @@ export class TestCommands extends BaseCommand {
 	 * — используется MCP-агентами в автономном цикле «проверка → фикс → проверка».
 	 *
 	 * TODO: при переводе остальных команд на wait: true — распарсить stdout
-	 * vrunner syntax-check в массив errors[{ filepath, line, column, severity, message, mode }]
-	 * (issue #15 mcp-1c-platform-tools).
+	 * vrunner syntax-check в массив errors[{ filepath, line, column, severity, message, mode }].
 	 *
 	 * @param opts — опции выполнения; при wait: true — синхронный режим без диалогов
 	 * @returns void в UI-режиме, StructuredCommandResult при wait: true
 	 */
 	async runSyntaxCheck(opts?: CommandExecutionOptions): Promise<StructuredCommandResult | void> {
 		const commandName = getSyntaxCheckCommandName();
-		return this.runVRunner(['syntax-check'], opts, commandName.title);
+		return this.runVRunner(['syntax-check', ...this.vrunner.getActiveSettingsParamIfExists()], opts, commandName.title);
 	}
 
 	/**
@@ -69,7 +67,7 @@ export class TestCommands extends BaseCommand {
 		opts?: CommandExecutionOptions
 	): Promise<StructuredCommandResult | void> {
 		const commandName = getVanessaTestsCommandName(mode);
-		return this.runVRunner(['vanessa'], opts, commandName.title);
+		return this.runVRunner(['vanessa', ...this.vrunner.getActiveSettingsParamIfExists()], opts, commandName.title);
 	}
 
 	/**
@@ -96,13 +94,12 @@ export class TestCommands extends BaseCommand {
 
 		const config = vscode.workspace.getConfiguration('1c-platform-tools');
 		const configPath = config.get<string>('testing.yaxunitConfigPath', DEFAULT_TESTING.yaxunitConfigPath);
-		const ibConnectionParam = await this.vrunner.getIbConnectionParam(opts?.ibConnection);
-		const args = ['run', '--command', `RunUnitTests=${configPath}`, ...ibConnectionParam];
-		// Конфиг vanessa-runner (testing.vrunnerSettings) передаём через --settings, если он есть
-		const vrunnerSettings = config.get<string>('testing.vrunnerSettings', DEFAULT_TESTING.vrunnerSettings);
-		if (fsSync.existsSync(path.join(workspaceRoot, vrunnerSettings))) {
-			args.push('--settings', vrunnerSettings);
-		}
+		// Выбранный профиль подставляется через --settings; при «Не выбран» — адрес ИБ
+		const settingsParam = this.vrunner.getActiveSettingsParamIfExists();
+		const connectionArgs = settingsParam.length > 0
+			? settingsParam
+			: await this.vrunner.getIbConnectionParam(opts?.ibConnection);
+		const args = ['run', '--command', `RunUnitTests=${configPath}`, ...connectionArgs];
 		return this.runVRunner(args, opts, getYAxUnitTestsCommandName().title);
 	}
 

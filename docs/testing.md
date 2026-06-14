@@ -64,7 +64,6 @@ project/
 | `testing.onescriptRunner`                           | `auto`                         | Раннер OneScript: auto / 1testrunner / oneunit    |
 | `testing.onescriptRunnerPath`, `testing.onebddPath` | —                              | Пути к раннерам (поддерживают относительные)      |
 | `testing.yaxunitConfigPath`                         | `tools/yaxunit.json`           | Базовый конфиг YAxUnit                            |
-| `testing.vrunnerSettings`                           | `tools/vrunner.json`           | Конфиг vanessa-runner для прогонов (`--settings`) |
 | `testing.reportsPath`                               | `build/out/testapi`            | Временные файлы прогонов                          |
 
 ## Особенности
