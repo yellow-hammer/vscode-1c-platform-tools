@@ -157,7 +157,18 @@ export class ArtifactCommands extends BaseCommand {
 		});
 	}
 
-	/** Разобрать .cfe в исходники. */
+	/**
+	 * Разобрать .cfe в исходники.
+	 *
+	 * vanessa-runner не умеет разбирать .cfe напрямую: `decompileext` выгружает
+	 * расширение ИЗ информационной базы, а не из файла. Поэтому сначала загружаем
+	 * .cfe в ИБ (`loadext --file <cfe> --extension <имя>`), затем выгружаем его
+	 * из ИБ в исходники (`decompileext <имя> <каталог>`). Обе команды выполняются
+	 * по цепочке в одном терминале. См. issue #65.
+	 *
+	 * Расширение раскладывается в подкаталог <выбранный каталог>/<имя расширения>
+	 * (формат src/cfe/<имя>), как в `vrunner decompileext`.
+	 */
 	async decompileExtension(artifactUri: vscode.Uri): Promise<void> {
 		const workspaceRoot = this.ensureWorkspace();
 		if (!workspaceRoot || !(await this.ensureOscriptAvailable())) {
@@ -168,12 +179,21 @@ export class ArtifactCommands extends BaseCommand {
 		if (!outDir) {
 			return;
 		}
-		const extensionName = path.basename(artifactUri.fsPath).replace(/\.cfe$/i, '');
+		const cfeName = path.basename(artifactUri.fsPath);
+		const extensionName = cfeName.replace(/\.cfe$/i, '');
+		const cfeRel = getRelativePath(artifactUri);
+		const targetDir = this.pathForCmd(path.join(outDir, extensionName));
 		const ibConnectionParam = await this.vrunner.getIbConnectionParam();
-		const args = this.addIbcmdIfNeeded(['decompileext', extensionName, outDir, ...ibConnectionParam]);
-		this.vrunner.executeVRunnerInTerminal(args, {
+		const loadArgs = ['loadext', '--file', cfeRel, '--extension', extensionName, ...ibConnectionParam];
+		const decompileArgs = this.addIbcmdIfNeeded([
+			'decompileext',
+			extensionName,
+			targetDir,
+			...ibConnectionParam,
+		]);
+		await this.vrunner.executeVRunnerCommandsInSequence([loadArgs, decompileArgs], {
 			cwd: workspaceRoot,
-			name: `Разобрать расширение: ${path.basename(artifactUri.fsPath)}`,
+			name: `Разобрать расширение: ${cfeName}`,
 		});
 	}
 
