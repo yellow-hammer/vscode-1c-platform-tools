@@ -1,6 +1,9 @@
 import * as vscode from 'vscode';
+import * as path from 'node:path';
+import * as fsSync from 'node:fs';
 import { WorkspaceTasksCommands } from '../../commands/workspaceTasksCommands';
 import { OscriptTasksCommands } from '../../commands/oscriptTasksCommands';
+import { SERVICE_FILES } from '../serviceFiles/registry';
 import {
 	getSetVersionAllExtensionsCommandName,
 	getSetVersionExtensionCommandName,
@@ -234,6 +237,7 @@ export class PlatformTreeDataProvider implements vscode.TreeDataProvider<Platfor
 			test: TreeItemType.Test,
 			setVersion: TreeItemType.SetVersion,
 			config: TreeItemType.Config,
+			serviceFiles: TreeItemType.Config,
 			helpAndSupport: TreeItemType.Lightbulb,
 			oscriptTasks: TreeItemType.OscriptTasks,
 			skills: TreeItemType.Skills,
@@ -350,6 +354,54 @@ export class PlatformTreeDataProvider implements vscode.TreeDataProvider<Platfor
 	}
 
 	/**
+	 * Строит дочерние элементы группы «Служебные файлы»: для каждого файла его
+	 * наличие в проекте и действие создать (если нет) или открыть (если есть).
+	 * @returns Массив элементов дерева
+	 */
+	private buildServiceFilesChildren(): PlatformTreeItem[] {
+		const workspaceRoot = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+		const items: PlatformTreeItem[] = [
+			this.createTreeItem(
+				'Базовый набор',
+				TreeItemType.Task,
+				vscode.TreeItemCollapsibleState.None,
+				{
+					command: '1c-platform-tools.serviceFiles.createRecommendedSet',
+					title: 'Базовый набор',
+				},
+				undefined,
+				undefined,
+				undefined,
+				'checklist'
+			),
+		];
+
+		for (const spec of SERVICE_FILES) {
+			const exists = workspaceRoot
+				? fsSync.existsSync(path.join(workspaceRoot, spec.relPath))
+				: false;
+			const item = this.createTreeItem(
+				spec.label,
+				TreeItemType.Task,
+				vscode.TreeItemCollapsibleState.None,
+				{
+					command: '1c-platform-tools.serviceFiles.ensure',
+					title: spec.label,
+					arguments: [spec.id],
+				},
+				undefined,
+				undefined,
+				undefined,
+				exists ? 'check' : 'add'
+			);
+			item.tooltip = exists ? `Открыть ${spec.relPath}` : `Создать ${spec.relPath}`;
+			items.push(item);
+		}
+
+		return items;
+	}
+
+	/**
 	 * Получает корневые элементы дерева из единой структуры TREE_GROUPS и динамических узлов
 	 * @returns Массив корневых элементов
 	 */
@@ -357,7 +409,7 @@ export class PlatformTreeDataProvider implements vscode.TreeDataProvider<Platfor
 		const allSections: PlatformTreeItem[] = [];
 
 		for (const group of TREE_GROUPS) {
-			if (group.sectionType === 'config' || group.sectionType === 'helpAndSupport') {
+			if (group.sectionType === 'helpAndSupport') {
 				continue;
 			}
 			const groupType = this.sectionTypeToRootType(group.sectionType);
@@ -376,6 +428,11 @@ export class PlatformTreeDataProvider implements vscode.TreeDataProvider<Platfor
 					cmd.icon
 				)
 			);
+
+			if (group.sectionType === 'serviceFiles') {
+				children.length = 0;
+				children.push(...this.buildServiceFilesChildren());
+			}
 
 			if (group.sectionType === 'setVersion') {
 				children.push(
@@ -438,36 +495,6 @@ export class PlatformTreeDataProvider implements vscode.TreeDataProvider<Platfor
 				'launch'
 			)
 		);
-
-		const configGroup = TREE_GROUPS.find((g) => g.sectionType === 'config');
-		if (configGroup) {
-			const groupType = this.sectionTypeToRootType(configGroup.sectionType);
-			const configDefaultExpanded = configGroup.defaultCollapsibleState === 'expanded';
-			const collapsibleState = this.resolveGroupCollapsibleState('config', configDefaultExpanded);
-			const children: PlatformTreeItem[] = configGroup.commands.map((cmd) =>
-				this.createTreeItem(
-					cmd.treeLabel,
-					TreeItemType.Task,
-					vscode.TreeItemCollapsibleState.None,
-					{ command: cmd.command, title: cmd.title },
-					undefined,
-					this.sectionTypeToIconType(configGroup.sectionType),
-					undefined,
-					cmd.icon
-				)
-			);
-			allSections.push(
-				this.createTreeItem(
-					configGroup.groupLabel,
-					groupType,
-					collapsibleState,
-					undefined,
-					children,
-					undefined,
-					'config'
-				)
-			);
-		}
 
 		const helpAndSupportGroup = TREE_GROUPS.find((g) => g.sectionType === 'helpAndSupport');
 		if (helpAndSupportGroup) {

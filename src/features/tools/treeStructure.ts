@@ -212,12 +212,15 @@ export const TREE_GROUPS: TreeGroup[] = [
 		],
 	},
 	{
-		groupLabel: 'Конфигурации запуска',
-		sectionType: 'config',
+		groupLabel: 'Служебные файлы',
+		sectionType: 'serviceFiles',
 		defaultCollapsibleState: 'collapsed',
 		commands: [
-			{ command: '1c-platform-tools.config.env.edit', title: 'Открыть env.json', treeLabel: '📄 env.json' },
-			{ command: '1c-platform-tools.launch.editConfigurations', title: 'Открыть launch.json', treeLabel: '📄 launch.json' },
+			{ command: '1c-platform-tools.serviceFiles.create', title: 'Создать служебные файлы', treeLabel: 'Создать служебные файлы' },
+			{ command: '1c-platform-tools.serviceFiles.createRecommendedSet', title: 'Создать базовый набор', treeLabel: 'Базовый набор' },
+			{ command: '1c-platform-tools.serviceFiles.createGitignore', title: 'Создать .gitignore', treeLabel: '.gitignore' },
+			{ command: '1c-platform-tools.serviceFiles.createGitattributes', title: 'Создать .gitattributes', treeLabel: '.gitattributes' },
+			{ command: '1c-platform-tools.serviceFiles.createEnvJson', title: 'Создать env.json', treeLabel: 'env.json' },
 		],
 	},
 	{
