@@ -47,3 +47,9 @@ export const DEFAULT_VRUNNER = {
 	/** Файл настроек инициализации ИБ (vrunner.initSettingsPath) */
 	initSettingsPath: 'tools/vrunner.init.json'
 } as const;
+
+/** Дефолты группы 1c-platform-tools env-профилей */
+export const DEFAULT_ENV = {
+	/** Идентификатор профиля по умолчанию (defaultEnvProfile); '' — базовый env.json */
+	defaultProfile: ''
+} as const;

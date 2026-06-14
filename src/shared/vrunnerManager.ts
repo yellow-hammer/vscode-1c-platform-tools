@@ -17,7 +17,18 @@ import {
 } from '../utils/commandUtils';
 import { logger } from './logger';
 import { runCancellableCommand, CancellableProcessResult } from './cancellableProcess';
-import { DEFAULT_PATHS, DEFAULT_VRUNNER } from './pathDefaults';
+import { DEFAULT_PATHS, DEFAULT_VRUNNER, DEFAULT_ENV } from './pathDefaults';
+import {
+	ACTIVE_ENV_PROFILE_KEY,
+	ACTIVE_ENV_OVERRIDES_KEY,
+	BASE_ENV_FILE,
+	EnvProfile,
+	EnvOverrides,
+	buildEnvProfiles,
+	buildOverrideArgs,
+	hasOverrides,
+	resolveActiveEnvFileName,
+} from './envProfiles';
 
 const log = logger.scope('vrunner');
 
@@ -60,6 +71,7 @@ export class VRunnerManager {
 	private static instance: VRunnerManager;
 	private readonly workspaceRoot: string | undefined;
 	private extensionPath: string | undefined;
+	private memento: vscode.Memento | undefined;
 
 	private constructor(context?: vscode.ExtensionContext) {
 		const workspaceFolders = vscode.workspace.workspaceFolders;
@@ -68,6 +80,7 @@ export class VRunnerManager {
 		}
 		if (context) {
 			this.extensionPath = context.extensionPath;
+			this.memento = context.workspaceState;
 		}
 	}
 
@@ -83,8 +96,13 @@ export class VRunnerManager {
 	public static getInstance(context?: vscode.ExtensionContext): VRunnerManager {
 		if (!VRunnerManager.instance) {
 			VRunnerManager.instance = new VRunnerManager(context);
-		} else if (context && !VRunnerManager.instance.extensionPath) {
-			VRunnerManager.instance.extensionPath = context.extensionPath;
+		} else if (context) {
+			if (!VRunnerManager.instance.extensionPath) {
+				VRunnerManager.instance.extensionPath = context.extensionPath;
+			}
+			if (!VRunnerManager.instance.memento) {
+				VRunnerManager.instance.memento = context.workspaceState;
+			}
 		}
 		return VRunnerManager.instance;
 	}
@@ -587,9 +605,10 @@ export class VRunnerManager {
 		args: string[],
 		options?: { cwd?: string; env?: NodeJS.ProcessEnv; name?: string; shellType?: ShellType }
 	): Promise<void> {
+		args = this.appendActiveOverrides(args);
 		const cwd = options?.cwd || this.workspaceRoot || os.homedir();
 		const shellType = options?.shellType || detectShellType();
-		
+
 		const useDocker = await this.shouldUseDocker();
 		
 		let command: string;
@@ -667,6 +686,8 @@ export class VRunnerManager {
 			await this.executeVRunnerInTerminal(argsArray[0], options);
 			return;
 		}
+
+		argsArray = argsArray.map((args) => this.appendActiveOverrides(args));
 
 		const cwd = options?.cwd || this.workspaceRoot || os.homedir();
 		const shellType = options?.shellType || detectShellType();
@@ -843,6 +864,7 @@ export class VRunnerManager {
 			onOutput?: (chunk: string) => void;
 		}
 	): Promise<CancellableProcessResult> {
+		args = this.appendActiveOverrides(args);
 		const useDocker = await this.shouldUseDocker();
 		const built = this.buildExecCommand(args, useDocker);
 		if ('error' in built) {
@@ -1047,15 +1069,151 @@ export class VRunnerManager {
 	}
 
 	/**
+	 * Возвращает id активного env-профиля.
+	 *
+	 * Порядок определения:
+	 * 1. Локальный выбор из workspaceState (не коммитится).
+	 * 2. Командное значение по умолчанию из настройки `defaultEnvProfile`.
+	 *
+	 * @returns Идентификатор профиля (пустая строка — базовый env.json)
+	 */
+	public getActiveEnvProfileId(): string {
+		const fromState = this.memento?.get<string>(ACTIVE_ENV_PROFILE_KEY);
+		if (typeof fromState === 'string') {
+			return fromState;
+		}
+		const config = vscode.workspace.getConfiguration('1c-platform-tools');
+		return config.get<string>('defaultEnvProfile', DEFAULT_ENV.defaultProfile);
+	}
+
+	/**
+	 * Сохраняет id активного env-профиля в workspaceState (локально, не коммитится)
+	 *
+	 * @param profileId - Идентификатор профиля (пустая строка — базовый env.json)
+	 * @returns Промис завершения записи
+	 */
+	public async setActiveEnvProfileId(profileId: string): Promise<void> {
+		await this.memento?.update(ACTIVE_ENV_PROFILE_KEY, profileId);
+	}
+
+	/**
+	 * Находит доступные env-профили в корне workspace
+	 *
+	 * Базовый профиль (`env.json`) присутствует всегда, даже если файл ещё не создан.
+	 *
+	 * @returns Список профилей (см. {@link EnvProfile})
+	 */
+	public discoverEnvProfiles(): EnvProfile[] {
+		let fileNames: string[] = [];
+		if (this.workspaceRoot) {
+			try {
+				fileNames = fsSync
+					.readdirSync(this.workspaceRoot, { withFileTypes: true })
+					.filter((entry) => entry.isFile())
+					.map((entry) => entry.name);
+			} catch {
+				fileNames = [];
+			}
+		}
+		return buildEnvProfiles(fileNames);
+	}
+
+	/**
+	 * Возвращает временные параметры активного профиля.
+	 *
+	 * @returns Временные параметры из workspaceState или undefined
+	 */
+	public getActiveEnvOverrides(): EnvOverrides | undefined {
+		const raw = this.memento?.get<EnvOverrides>(ACTIVE_ENV_OVERRIDES_KEY);
+		return raw && hasOverrides(raw) ? raw : undefined;
+	}
+
+	/**
+	 * Сохраняет временные параметры активного профиля (локально, не коммитится)
+	 *
+	 * @param overrides - Временные параметры или undefined для сброса
+	 * @returns Промис завершения записи
+	 */
+	public async setActiveEnvOverrides(overrides: EnvOverrides | undefined): Promise<void> {
+		const value = overrides && hasOverrides(overrides) ? overrides : undefined;
+		await this.memento?.update(ACTIVE_ENV_OVERRIDES_KEY, value);
+	}
+
+	/**
+	 * Признак наличия активных временных параметров
+	 *
+	 * @returns true, если задан хотя бы один временный параметр
+	 */
+	public hasActiveEnvOverrides(): boolean {
+		return hasOverrides(this.getActiveEnvOverrides());
+	}
+
+	/**
+	 * Возвращает флаги vrunner для активных временных параметров
+	 *
+	 * @returns Массив аргументов (может быть пустым)
+	 */
+	public getActiveEnvOverrideArgs(): string[] {
+		return buildOverrideArgs(this.getActiveEnvOverrides());
+	}
+
+	/**
+	 * Добавляет к аргументам команды активные временные параметры.
+	 *
+	 * Отдельные флаги дописываются в конец и перекрывают значения файла профиля.
+	 * Если временных параметров нет — массив возвращается без изменений.
+	 *
+	 * @param args - Исходные аргументы команды vrunner
+	 * @returns Аргументы с добавленными параметрами (или те же, если их нет)
+	 */
+	private appendActiveOverrides(args: string[]): string[] {
+		const overrides = this.getActiveEnvOverrideArgs();
+		return overrides.length > 0 ? [...args, ...overrides] : args;
+	}
+
+	/**
+	 * Возвращает имя файла активного env-профиля (относительно workspace)
+	 *
+	 * Если выбранный профиль не найден среди файлов — возвращается базовый
+	 * `env.json` (полная обратная совместимость).
+	 *
+	 * @returns Имя файла env-профиля (например 'env.json' или 'env.dev.json')
+	 */
+	public getActiveEnvFile(): string {
+		const activeId = this.getActiveEnvProfileId();
+		if (!activeId) {
+			return BASE_ENV_FILE;
+		}
+		return resolveActiveEnvFileName(activeId, this.discoverEnvProfiles());
+	}
+
+	/**
+	 * Возвращает параметр --settings с активным env-профилем, только если файл существует
+	 *
+	 * Используется для команд (run/designer), которые раньше работали без env.json:
+	 * если файла профиля нет — параметр не добавляется и поведение не меняется.
+	 *
+	 * @returns Массив ['--settings', файл] или пустой массив
+	 */
+	public getActiveSettingsParamIfExists(): string[] {
+		const file = this.getActiveEnvFile();
+		if (this.workspaceRoot && fsSync.existsSync(path.join(this.workspaceRoot, file))) {
+			return ['--settings', file];
+		}
+		return [];
+	}
+
+	/**
 	 * Получает параметр --settings для команды vrunner
-	 * 
+	 *
 	 * Используется для указания файла настроек при выполнении команд vrunner.
-	 * 
-	 * @param settingsFile - Путь к файлу настроек (относительно workspace). По умолчанию 'env.json'
+	 *
+	 * @param settingsFile - Путь к файлу настроек (относительно workspace).
+	 *                        По умолчанию — активный env-профиль
 	 * @returns Массив параметров ['--settings', 'путь_к_файлу']
 	 */
-	public getSettingsParam(settingsFile: string = 'env.json'): string[] {
-		return ['--settings', settingsFile];
+	public getSettingsParam(settingsFile?: string): string[] {
+		return ['--settings', settingsFile ?? this.getActiveEnvFile()];
 	}
 
 	/**
@@ -1067,18 +1225,21 @@ export class VRunnerManager {
 	 * 3. Использует значение по умолчанию '/F./build/ib'
 	 * 
 	 * @param ibConnection - Строка подключения к ИБ. Если указана, используется напрямую
-	 * @param settingsFile - Путь к файлу настроек (относительно workspace). По умолчанию 'env.json'
+	 * @param settingsFile - Путь к файлу настроек (относительно workspace).
+	 *                        По умолчанию — активный env-профиль
 	 * @returns Промис, который разрешается массивом параметров ['--ibconnection', 'строка_подключения']
 	 */
-	public async getIbConnectionParam(ibConnection?: string, settingsFile: string = 'env.json'): Promise<string[]> {
+	public async getIbConnectionParam(ibConnection?: string, settingsFile?: string): Promise<string[]> {
 		if (ibConnection) {
 			return ['--ibconnection', ibConnection];
 		}
 
+		const resolvedSettingsFile = settingsFile ?? this.getActiveEnvFile();
+
 		if (this.workspaceRoot) {
-			const absoluteSettingsPath = path.isAbsolute(settingsFile)
-				? settingsFile
-				: path.join(this.workspaceRoot, settingsFile);
+			const absoluteSettingsPath = path.isAbsolute(resolvedSettingsFile)
+				? resolvedSettingsFile
+				: path.join(this.workspaceRoot, resolvedSettingsFile);
 
 			try {
 				const content = await fs.readFile(absoluteSettingsPath, 'utf8');

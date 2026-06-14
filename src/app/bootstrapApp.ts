@@ -18,6 +18,7 @@ import { registerArtifactsFlow } from './registerArtifactsFlow';
 import { registerTodoFlow } from './registerTodoFlow';
 import { registerMainTreeFlow } from './registerMainTreeFlow';
 import { registerTestingFlow } from './registerTestingFlow';
+import { registerLaunchFeature } from '../features/launch/launchFeature';
 
 /**
  * Выполняет полную инициализацию расширения.
@@ -54,6 +55,7 @@ export async function bootstrapApp(context: vscode.ExtensionContext): Promise<vo
 	});
 
 	const { testingFeatureDisposables, rebuildTesting } = registerTestingFlow(isProjectRef);
+	const launchFeatureDisposables = registerLaunchFeature(context, isProjectRef);
 
 	registerProjectCreatedHandler({
 		isProjectRef,
@@ -82,6 +84,7 @@ export async function bootstrapApp(context: vscode.ExtensionContext): Promise<vo
 		...mainTreeCommandDisposables,
 		...todoFeatureDisposables,
 		...testingFeatureDisposables,
+		...launchFeatureDisposables,
 		...commandDisposables
 	);
 }
