@@ -100,6 +100,77 @@ const MD_PROPS_TYPES = new Set([
 	'Role',
 ]);
 
+/** Вид модуля объекта метаданных, доступного для открытия из дерева. */
+export type ObjectModuleKind =
+	| 'object'
+	| 'manager'
+	| 'recordset'
+	| 'valueManager'
+	| 'module'
+	| 'form';
+
+interface ObjectModuleDescriptor {
+	/** Путь к файлу модуля относительно каталога `<Объект>/Ext`. */
+	readonly fileName: string;
+	/** Токен в contextValue листа для when-условия пункта меню. */
+	readonly contextToken: string;
+}
+
+const OBJECT_MODULE_DESCRIPTORS: Record<ObjectModuleKind, ObjectModuleDescriptor> = {
+	object: { fileName: 'ObjectModule.bsl', contextToken: 'mdObjModule' },
+	manager: { fileName: 'ManagerModule.bsl', contextToken: 'mdMgrModule' },
+	recordset: { fileName: 'RecordSetModule.bsl', contextToken: 'mdRecModule' },
+	valueManager: { fileName: 'ValueManagerModule.bsl', contextToken: 'mdValModule' },
+	module: { fileName: 'Module.bsl', contextToken: 'mdModule' },
+	form: { fileName: path.join('Form', 'Module.bsl'), contextToken: 'mdFormModule' },
+};
+
+/**
+ * Виды модулей по нормализованному типу объекта (формат выгрузки конфигуратора:
+ * модули лежат файлами в `<Объект>/Ext`). Набор фиксирован по типу — пункты меню
+ * стабильны и не зависят от наличия файла модуля на диске. Проверено по реальной
+ * выгрузке (БСП 3.1): модули нигде не объявляются в XML, только файлами в `Ext`.
+ */
+const OBJECT_MODULE_KINDS_BY_TYPE: Record<string, ObjectModuleKind[]> = {
+	Catalog: ['object', 'manager'],
+	Document: ['object', 'manager'],
+	Report: ['object', 'manager'],
+	DataProcessor: ['object', 'manager'],
+	ChartOfCharacteristicTypes: ['object', 'manager'],
+	ChartOfAccounts: ['object', 'manager'],
+	ChartOfCalculationTypes: ['object', 'manager'],
+	ExchangePlan: ['object', 'manager'],
+	BusinessProcess: ['object', 'manager'],
+	Task: ['object', 'manager'],
+	InformationRegister: ['recordset', 'manager'],
+	AccumulationRegister: ['recordset', 'manager'],
+	AccountingRegister: ['recordset', 'manager'],
+	CalculationRegister: ['recordset', 'manager'],
+	DocumentJournal: ['manager'],
+	Enum: ['manager'],
+	FilterCriterion: ['manager'],
+	SettingsStorage: ['manager'],
+	Constant: ['valueManager', 'manager'],
+	CommonModule: ['module'],
+	HTTPService: ['module'],
+	WebService: ['module'],
+	CommonForm: ['form'],
+};
+
+/** Виды модулей, доступных для типа объекта метаданных (пусто — модулей нет). */
+export function objectModuleKindsForType(objectType: string): ObjectModuleKind[] {
+	return OBJECT_MODULE_KINDS_BY_TYPE[normalizeMetadataObjectType(objectType)] ?? [];
+}
+
+/** Абсолютный путь к файлу модуля объекта рядом с его XML (`<Объект>/Ext/<Модуль>.bsl`). */
+export function objectModuleFilePath(
+	objectXmlFsPath: string,
+	objectName: string,
+	kind: ObjectModuleKind
+): string {
+	return path.join(path.dirname(objectXmlFsPath), objectName, 'Ext', OBJECT_MODULE_DESCRIPTORS[kind].fileName);
+}
+
 /** Корень дерева: основная конфигурация, расширение или блок внешних отчётов/обработок. */
 export class MetadataSourceTreeItem extends vscode.TreeItem {
 	constructor(
@@ -219,6 +290,15 @@ export class MetadataLeafTreeItem extends vscode.TreeItem {
 			this.contextValue = abs ? 'metadataLeaf' : 'metadataLeafNoFile';
 			if (!abs) {
 				this.tooltip = name;
+			}
+		}
+		// Стабильные токены доступных модулей объекта — по типу, не по наличию файла.
+		// Пункты меню «Открыть модуль …» всегда присутствуют для подходящих типов.
+		if (abs) {
+			const moduleKinds = OBJECT_MODULE_KINDS_BY_TYPE[normalizedObjectType];
+			if (moduleKinds && moduleKinds.length > 0) {
+				const tokens = moduleKinds.map((kind) => OBJECT_MODULE_DESCRIPTORS[kind].contextToken);
+				this.contextValue = [this.contextValue, ...tokens].join(' ');
 			}
 		}
 		this.iconPath = metadataObjectTypeIcon(normalizedObjectType, extensionUri, groupId, subgroupId);

@@ -454,6 +454,36 @@
         "category": "1C: Метаданные"
       },
       {
+        "command": "1c-platform-tools.metadata.openObjectModule",
+        "title": "Открыть модуль объекта",
+        "category": "1C: Метаданные"
+      },
+      {
+        "command": "1c-platform-tools.metadata.openManagerModule",
+        "title": "Открыть модуль менеджера",
+        "category": "1C: Метаданные"
+      },
+      {
+        "command": "1c-platform-tools.metadata.openRecordSetModule",
+        "title": "Открыть модуль набора записей",
+        "category": "1C: Метаданные"
+      },
+      {
+        "command": "1c-platform-tools.metadata.openValueManagerModule",
+        "title": "Открыть модуль менеджера значения",
+        "category": "1C: Метаданные"
+      },
+      {
+        "command": "1c-platform-tools.metadata.openModule",
+        "title": "Открыть модуль",
+        "category": "1C: Метаданные"
+      },
+      {
+        "command": "1c-platform-tools.metadata.openFormModule",
+        "title": "Открыть модуль формы",
+        "category": "1C: Метаданные"
+      },
+      {
         "command": "1c-platform-tools.metadata.openSourceProperties",
         "title": "Свойства",
         "category": "1C: Метаданные"
@@ -1863,12 +1893,12 @@
         },
         {
           "command": "1c-platform-tools.metadata.openObjectProperties",
-          "when": "view == 1c-platform-tools-metadata-tree && (viewItem == metadataObjectProperties || viewItem == metadataObjectPropertiesSubsystem || viewItem == metadataLeaf || viewItem == metadataLeafFile)",
+          "when": "view == 1c-platform-tools-metadata-tree && (viewItem =~ /^metadataObjectProperties($| )/ || viewItem == metadataObjectPropertiesSubsystem || viewItem =~ /^metadataLeaf($| )/ || viewItem == metadataLeafFile)",
           "group": "1_md_open"
         },
         {
           "command": "1c-platform-tools.metadata.er.openForObject",
-          "when": "view == 1c-platform-tools-metadata-tree && (viewItem == metadataObjectProperties || viewItem == metadataObjectPropertiesSubsystem || viewItem == metadataLeafFile || viewItem == metadataLeaf)",
+          "when": "view == 1c-platform-tools-metadata-tree && (viewItem =~ /^metadataObjectProperties($| )/ || viewItem == metadataObjectPropertiesSubsystem || viewItem == metadataLeafFile || viewItem =~ /^metadataLeaf($| )/)",
           "group": "1_md_open"
         },
         {
@@ -1884,6 +1914,36 @@
         {
           "command": "1c-platform-tools.metadata.openSessionModule",
           "when": "view == 1c-platform-tools-metadata-tree && viewItem == metadataSourceConfigLike",
+          "group": "1_modules@3"
+        },
+        {
+          "command": "1c-platform-tools.metadata.openObjectModule",
+          "when": "view == 1c-platform-tools-metadata-tree && viewItem =~ /(^| )mdObjModule( |$)/",
+          "group": "1_modules@1"
+        },
+        {
+          "command": "1c-platform-tools.metadata.openRecordSetModule",
+          "when": "view == 1c-platform-tools-metadata-tree && viewItem =~ /(^| )mdRecModule( |$)/",
+          "group": "1_modules@1"
+        },
+        {
+          "command": "1c-platform-tools.metadata.openValueManagerModule",
+          "when": "view == 1c-platform-tools-metadata-tree && viewItem =~ /(^| )mdValModule( |$)/",
+          "group": "1_modules@1"
+        },
+        {
+          "command": "1c-platform-tools.metadata.openModule",
+          "when": "view == 1c-platform-tools-metadata-tree && viewItem =~ /(^| )mdModule( |$)/",
+          "group": "1_modules@1"
+        },
+        {
+          "command": "1c-platform-tools.metadata.openManagerModule",
+          "when": "view == 1c-platform-tools-metadata-tree && viewItem =~ /(^| )mdMgrModule( |$)/",
+          "group": "1_modules@2"
+        },
+        {
+          "command": "1c-platform-tools.metadata.openFormModule",
+          "when": "view == 1c-platform-tools-metadata-tree && viewItem =~ /(^| )mdFormModule( |$)/",
           "group": "1_modules@3"
         },
         {
@@ -1903,7 +1963,7 @@
         },
         {
           "command": "1c-platform-tools.metadata.addChildNode",
-          "when": "view == 1c-platform-tools-metadata-tree && (viewItem == metadataObjectProperties || viewItem == metadataAttributesSection || viewItem == metadataTabularSectionsSection || viewItem == metadataTabularSection)",
+          "when": "view == 1c-platform-tools-metadata-tree && (viewItem =~ /^metadataObjectProperties($| )/ || viewItem == metadataAttributesSection || viewItem == metadataTabularSectionsSection || viewItem == metadataTabularSection)",
           "group": "3_md_mutate"
         },
         {
@@ -1923,17 +1983,17 @@
         },
         {
           "command": "1c-platform-tools.metadata.renameObject",
-          "when": "view == 1c-platform-tools-metadata-tree && (viewItem == metadataObjectProperties || viewItem == metadataObjectPropertiesSubsystem || viewItem == metadataLeafFile)",
+          "when": "view == 1c-platform-tools-metadata-tree && (viewItem =~ /^metadataObjectProperties($| )/ || viewItem == metadataObjectPropertiesSubsystem || viewItem == metadataLeafFile)",
           "group": "3_md_mutate"
         },
         {
           "command": "1c-platform-tools.metadata.duplicateObject",
-          "when": "view == 1c-platform-tools-metadata-tree && (viewItem == metadataObjectProperties || viewItem == metadataObjectPropertiesSubsystem || viewItem == metadataLeafFile)",
+          "when": "view == 1c-platform-tools-metadata-tree && (viewItem =~ /^metadataObjectProperties($| )/ || viewItem == metadataObjectPropertiesSubsystem || viewItem == metadataLeafFile)",
           "group": "3_md_mutate"
         },
         {
           "command": "1c-platform-tools.metadata.deleteObject",
-          "when": "view == 1c-platform-tools-metadata-tree && (viewItem == metadataObjectProperties || viewItem == metadataObjectPropertiesSubsystem || viewItem == metadataLeafFile)",
+          "when": "view == 1c-platform-tools-metadata-tree && (viewItem =~ /^metadataObjectProperties($| )/ || viewItem == metadataObjectPropertiesSubsystem || viewItem == metadataLeafFile)",
           "group": "3_md_mutate"
         },
         {
@@ -1948,12 +2008,12 @@
         },
         {
           "command": "1c-platform-tools.metadata.copyObjectName",
-          "when": "view == 1c-platform-tools-metadata-tree && (viewItem == metadataObjectProperties || viewItem == metadataObjectPropertiesSubsystem || viewItem == metadataLeafFile)",
+          "when": "view == 1c-platform-tools-metadata-tree && (viewItem =~ /^metadataObjectProperties($| )/ || viewItem == metadataObjectPropertiesSubsystem || viewItem == metadataLeafFile)",
           "group": "5_md_copy"
         },
         {
           "command": "1c-platform-tools.metadata.copyObjectPath",
-          "when": "view == 1c-platform-tools-metadata-tree && (viewItem == metadataObjectProperties || viewItem == metadataObjectPropertiesSubsystem || viewItem == metadataLeafFile)",
+          "when": "view == 1c-platform-tools-metadata-tree && (viewItem =~ /^metadataObjectProperties($| )/ || viewItem == metadataObjectPropertiesSubsystem || viewItem == metadataLeafFile)",
           "group": "5_md_copy"
         }
       ],
