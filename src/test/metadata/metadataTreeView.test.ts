@@ -1,10 +1,13 @@
 import * as assert from 'node:assert';
+import * as path from 'node:path';
 import {
 	MetadataLeafTreeItem,
 	MetadataMdGroupTreeItem,
 	MetadataObjectNodeTreeItem,
 	MetadataSourceTreeItem,
 	MetadataTreeDataProvider,
+	objectModuleFilePath,
+	objectModuleKindsForType,
 } from '../../features/metadata/metadataTreeView';
 import { createMockExtensionContext } from '../fixtures/mocks/vscodeMocks';
 
@@ -187,5 +190,63 @@ suite('metadataTreeView nested nodes', () => {
 		assert.strictEqual(attr.contextValue, 'metadataAttribute');
 		assert.strictEqual(ts.contextValue, 'metadataTabularSection');
 		assert.strictEqual(tsAttr.contextValue, 'metadataTabularAttribute');
+	});
+});
+
+suite('metadataTreeView object modules', () => {
+	const context = createMockExtensionContext();
+
+	function leaf(objectType: string, name: string, relativePath: string): MetadataLeafTreeItem {
+		return new MetadataLeafTreeItem(
+			'main',
+			'catalogs',
+			undefined,
+			objectType,
+			name,
+			relativePath,
+			'C:/ws',
+			context.extensionUri,
+			'C:/ws/src/cf/Configuration.xml',
+			'C:/ws/src/cf'
+		);
+	}
+
+	test('contextValue получает токены модулей по типу', () => {
+		assert.strictEqual(
+			leaf('Catalog', 'Контрагенты', 'src/cf/Catalogs/Контрагенты.xml').contextValue,
+			'metadataObjectProperties mdObjModule mdMgrModule'
+		);
+		assert.strictEqual(
+			leaf('InformationRegister', 'Курсы', 'src/cf/InformationRegisters/Курсы.xml').contextValue,
+			'metadataLeaf mdRecModule mdMgrModule'
+		);
+		// Константа: модуль менеджера значения + модуль менеджера (как в конфигураторе).
+		assert.strictEqual(
+			leaf('Constant', 'Версия', 'src/cf/Constants/Версия.xml').contextValue,
+			'metadataObjectProperties mdValModule mdMgrModule'
+		);
+		assert.strictEqual(
+			leaf('CommonModule', 'Общий', 'src/cf/CommonModules/Общий.xml').contextValue,
+			'metadataObjectProperties mdModule'
+		);
+	});
+
+	test('типы без модулей не получают токенов', () => {
+		assert.strictEqual(
+			leaf('Role', 'Администратор', 'src/cf/Roles/Администратор.xml').contextValue,
+			'metadataObjectProperties'
+		);
+		assert.strictEqual(objectModuleKindsForType('Role').length, 0);
+	});
+
+	test('objectModuleFilePath строит путь рядом с объектом', () => {
+		assert.strictEqual(
+			objectModuleFilePath('C:/ws/src/cf/Catalogs/Контрагенты.xml', 'Контрагенты', 'object'),
+			path.join('C:/ws/src/cf/Catalogs', 'Контрагенты', 'Ext', 'ObjectModule.bsl')
+		);
+		assert.strictEqual(
+			objectModuleFilePath('C:/ws/src/cf/CommonForms/Форма.xml', 'Форма', 'form'),
+			path.join('C:/ws/src/cf/CommonForms', 'Форма', 'Ext', 'Form', 'Module.bsl')
+		);
 	});
 });

@@ -37,7 +37,10 @@ import {
 	MetadataObjectNodeTreeItem,
 	MetadataObjectSectionTreeItem,
 	MetadataSourceTreeItem,
+	objectModuleFilePath,
+	objectModuleKindsForType,
 	type MetadataTreeDataProvider,
+	type ObjectModuleKind,
 } from './metadataTreeView';
 
 export interface RegisterMetadataFeatureParams {
@@ -131,6 +134,53 @@ export function registerMetadataFeature(
 	async function openTextFile(pathToOpen: string): Promise<void> {
 		const doc = await vscode.workspace.openTextDocument(vscode.Uri.file(pathToOpen));
 		await vscode.window.showTextDocument(doc, { preview: false });
+	}
+
+	/**
+	 * Гарантирует существование файла модуля .bsl. Если файла нет — создаёт пустой
+	 * (UTF-8 BOM, как у конфигуратора) вместе с каталогом `Ext`. Возвращает true,
+	 * если файл был создан.
+	 */
+	async function ensureBslModuleFile(modulePath: string): Promise<boolean> {
+		try {
+			await fs.promises.access(modulePath);
+			return false;
+		} catch {
+			/* файла нет — создаём ниже */
+		}
+		await fs.promises.mkdir(path.dirname(modulePath), { recursive: true });
+		await fs.promises.writeFile(modulePath, Buffer.from([0xef, 0xbb, 0xbf]));
+		return true;
+	}
+
+	/**
+	 * Открывает модуль объекта метаданных заданного вида. Если файла модуля ещё
+	 * нет — создаёт пустой и открывает его.
+	 */
+	async function openObjectModuleOfKind(
+		item: MetadataLeafTreeItem | undefined,
+		kind: ObjectModuleKind
+	): Promise<void> {
+		const node = resolveSelectedMetadataLeaf(item);
+		if (!(node instanceof MetadataLeafTreeItem) || !node.resourceUri) {
+			void vscode.window.showInformationMessage('Выберите объект метаданных в дереве.');
+			return;
+		}
+		if (!objectModuleKindsForType(node.objectType).includes(kind)) {
+			void vscode.window.showInformationMessage(`У объекта «${node.name}» нет такого модуля.`);
+			return;
+		}
+		const modulePath = objectModuleFilePath(node.resourceUri.fsPath, node.name, kind);
+		try {
+			const created = await ensureBslModuleFile(modulePath);
+			await openTextFile(modulePath);
+			if (created) {
+				void vscode.window.showInformationMessage(`Создан пустой модуль: ${path.basename(modulePath)}`);
+			}
+		} catch (e) {
+			const msg = e instanceof Error ? e.message : String(e);
+			void vscode.window.showErrorMessage(`Не удалось открыть модуль: ${msg}`);
+		}
 	}
 
 	async function resolveFirstXmlInDir(dir: string): Promise<string | undefined> {
@@ -1575,6 +1625,30 @@ export function registerMetadataFeature(
 				}
 				await openTextFile(modulePath);
 			}
+		),
+		vscode.commands.registerCommand(
+			'1c-platform-tools.metadata.openObjectModule',
+			(item?: MetadataLeafTreeItem) => openObjectModuleOfKind(item, 'object')
+		),
+		vscode.commands.registerCommand(
+			'1c-platform-tools.metadata.openRecordSetModule',
+			(item?: MetadataLeafTreeItem) => openObjectModuleOfKind(item, 'recordset')
+		),
+		vscode.commands.registerCommand(
+			'1c-platform-tools.metadata.openManagerModule',
+			(item?: MetadataLeafTreeItem) => openObjectModuleOfKind(item, 'manager')
+		),
+		vscode.commands.registerCommand(
+			'1c-platform-tools.metadata.openValueManagerModule',
+			(item?: MetadataLeafTreeItem) => openObjectModuleOfKind(item, 'valueManager')
+		),
+		vscode.commands.registerCommand(
+			'1c-platform-tools.metadata.openModule',
+			(item?: MetadataLeafTreeItem) => openObjectModuleOfKind(item, 'module')
+		),
+		vscode.commands.registerCommand(
+			'1c-platform-tools.metadata.openFormModule',
+			(item?: MetadataLeafTreeItem) => openObjectModuleOfKind(item, 'form')
 		),
 		vscode.commands.registerCommand(
 			'1c-platform-tools.metadata.openSourceProperties',
