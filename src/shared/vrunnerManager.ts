@@ -29,6 +29,13 @@ import {
 	hasOverrides,
 	resolveActiveEnvFileName,
 } from './envProfiles';
+import {
+	VRunnerVersion,
+	VRunnerFeature,
+	parseVRunnerVersion,
+	parseVRunnerVersionFromOpmMetadata,
+	supportsFeature,
+} from './vrunnerVersion';
 
 const log = logger.scope('vrunner');
 
@@ -72,6 +79,11 @@ export class VRunnerManager {
 	private readonly workspaceRoot: string | undefined;
 	private extensionPath: string | undefined;
 	private memento: vscode.Memento | undefined;
+	/**
+	 * Кэш определённой версии vrunner.
+	 * undefined — ещё не определяли; null — определить не удалось.
+	 */
+	private vrunnerVersionCache: VRunnerVersion | null | undefined = undefined;
 
 	private constructor(context?: vscode.ExtensionContext) {
 		const workspaceFolders = vscode.workspace.workspaceFolders;
@@ -351,6 +363,97 @@ export class VRunnerManager {
 		} catch {
 			return false;
 		}
+	}
+
+	/**
+	 * Определяет версию vrunner (vanessa-runner).
+	 *
+	 * Основной источник — команда `vrunner version` (печатает чистую строку
+	 * версии, например `2.6.0` или `3.0.0-rc3`). Если её не удалось выполнить
+	 * или разобрать, выполняется запасное чтение `opm-metadata.xml` из
+	 * `oscript_modules/vanessa-runner` в корне workspace.
+	 *
+	 * Результат кэшируется на время сессии; используйте forceRefresh для
+	 * принудительного повторного определения (например, после переустановки).
+	 *
+	 * ВАЖНО: НЕ использовать `vrunner --version` — этот флаг не поддерживается
+	 * и приводит к ошибке «Неизвестный параметр».
+	 *
+	 * @param forceRefresh - Игнорировать кэш и определить версию заново
+	 * @returns Разобранная версия или undefined, если определить не удалось
+	 */
+	public async getVRunnerVersion(forceRefresh = false): Promise<VRunnerVersion | undefined> {
+		if (!forceRefresh && this.vrunnerVersionCache !== undefined) {
+			return this.vrunnerVersionCache ?? undefined;
+		}
+
+		let version: VRunnerVersion | undefined;
+		try {
+			const result = await this.executeVRunner(['version']);
+			if (result.success) {
+				version = parseVRunnerVersion(result.stdout);
+			}
+		} catch {
+			version = undefined;
+		}
+
+		if (!version) {
+			version = await this.readVRunnerVersionFromOpmMetadata();
+		}
+
+		if (version) {
+			log.debug(`Определена версия vrunner: ${version.raw}`);
+		} else {
+			log.warn('Не удалось определить версию vrunner');
+		}
+
+		this.vrunnerVersionCache = version ?? null;
+		return version;
+	}
+
+	/**
+	 * Запасное определение версии vrunner по opm-metadata.xml в workspace.
+	 *
+	 * Проверяется только локальный путь `oscript_modules/vanessa-runner`
+	 * (детерминирован относительно проекта). Системную папку lib OneScript
+	 * не угадываем — там путь зависит от установки и может не совпадать с
+	 * реально вызываемым бинарём.
+	 *
+	 * @returns Разобранная версия или undefined
+	 */
+	private async readVRunnerVersionFromOpmMetadata(): Promise<VRunnerVersion | undefined> {
+		if (!this.workspaceRoot) {
+			return undefined;
+		}
+
+		const metadataPath = path.join(
+			this.workspaceRoot,
+			'oscript_modules',
+			'vanessa-runner',
+			'opm-metadata.xml'
+		);
+
+		try {
+			const content = await fs.readFile(metadataPath, 'utf8');
+			return parseVRunnerVersionFromOpmMetadata(content);
+		} catch {
+			return undefined;
+		}
+	}
+
+	/**
+	 * Поддерживает ли установленный vrunner указанную возможность.
+	 *
+	 * Используется для гейтинга возможностей, доступных только в vrunner 3.x
+	 * (новый CLI, флаги автономного сервера `--ibsrv*`). Если версию определить
+	 * не удалось, считаем возможность недоступной (консервативно).
+	 *
+	 * @param feature - Идентификатор возможности (см. VRUNNER_FEATURES)
+	 * @returns true, если возможность доступна
+	 */
+	public async supportsVRunnerFeature(feature: VRunnerFeature): Promise<boolean> {
+		const version = await this.getVRunnerVersion();
+		return version ? supportsFeature(version, feature) : false;
 	}
 
 	/**
