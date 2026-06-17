@@ -1361,8 +1361,42 @@ export class VRunnerManager {
 	}
 
 	/**
+	 * Возвращает версию платформы 1С активного профиля (`--v8version`).
+	 *
+	 * Единый источник версии платформы для команд расширения: сначала временный
+	 * параметр (override), затем `default["--v8version"]` активного env-профиля.
+	 *
+	 * @returns Версия платформы или undefined, если не задана
+	 */
+	public async getActiveV8Version(): Promise<string | undefined> {
+		const override = this.getActiveEnvOverrides()?.v8version;
+		if (override) {
+			return override;
+		}
+
+		if (this.workspaceRoot) {
+			const settingsFile = this.getActiveEnvFile();
+			const absoluteSettingsPath = path.isAbsolute(settingsFile)
+				? settingsFile
+				: path.join(this.workspaceRoot, settingsFile);
+			try {
+				const content = await fs.readFile(absoluteSettingsPath, 'utf8');
+				const env = JSON.parse(content);
+				const value = env.default?.['--v8version'];
+				if (typeof value === 'string' && value.trim()) {
+					return value.trim();
+				}
+			} catch {
+				// файл недоступен или не JSON — версия не определена из профиля
+			}
+		}
+
+		return undefined;
+	}
+
+	/**
 	 * Получает путь к корню workspace
-	 * 
+	 *
 	 * @returns Путь к workspace или undefined, если workspace не открыт
 	 */
 	public getWorkspaceRoot(): string | undefined {

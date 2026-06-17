@@ -1069,6 +1069,60 @@
         "category": "1C: Конфигурации запуска"
       },
       {
+        "command": "1c-platform-tools.server.menu",
+        "title": "Меню автономного сервера",
+        "category": "1C: Автономный сервер",
+        "icon": "$(server)"
+      },
+      {
+        "command": "1c-platform-tools.server.start",
+        "title": "Запустить автономный сервер",
+        "category": "1C: Автономный сервер",
+        "icon": "$(run)"
+      },
+      {
+        "command": "1c-platform-tools.server.stop",
+        "title": "Остановить автономный сервер",
+        "category": "1C: Автономный сервер",
+        "icon": "$(debug-stop)"
+      },
+      {
+        "command": "1c-platform-tools.server.restart",
+        "title": "Перезапустить автономный сервер",
+        "category": "1C: Автономный сервер",
+        "icon": "$(debug-restart)"
+      },
+      {
+        "command": "1c-platform-tools.server.openInBrowser",
+        "title": "Открыть публикацию в браузере",
+        "category": "1C: Автономный сервер",
+        "icon": "$(globe)"
+      },
+      {
+        "command": "1c-platform-tools.server.selectServices",
+        "title": "Выбрать публикуемые сервисы",
+        "category": "1C: Автономный сервер",
+        "icon": "$(checklist)"
+      },
+      {
+        "command": "1c-platform-tools.server.debug",
+        "title": "Отладка через автономный сервер",
+        "category": "1C: Автономный сервер",
+        "icon": "$(debug-alt)"
+      },
+      {
+        "command": "1c-platform-tools.server.showLogs",
+        "title": "Показать журнал автономного сервера",
+        "category": "1C: Автономный сервер",
+        "icon": "$(output)"
+      },
+      {
+        "command": "1c-platform-tools.server.openConfig",
+        "title": "Открыть конфиг публикации",
+        "category": "1C: Автономный сервер",
+        "icon": "$(settings-gear)"
+      },
+      {
         "command": "1c-platform-tools.serviceFiles.create",
         "title": "Создать служебные файлы…",
         "category": "1C: Служебные файлы",
@@ -2226,6 +2280,14 @@
             "media": {
               "markdown": "walkthrough/step11-er-diagrams.md"
             }
+          },
+          {
+            "id": "step13-autonomous-server",
+            "title": "Автономный сервер",
+            "description": "Публикация файловой ИБ через ibsrv: запуск, выбор сервисов (HTTP/Web/OData), открытие в браузере и отладка.\n\n[Запустить сервер](command:1c-platform-tools.server.start)\n[Выбрать публикуемые сервисы](command:1c-platform-tools.server.selectServices)",
+            "media": {
+              "markdown": "walkthrough/step13-autonomous-server.md"
+            }
           }
         ]
       }
@@ -2677,6 +2739,72 @@
             "type": "string",
             "default": "",
             "description": "Путь к раннеру 1bdd. Поддерживаются относительные пути от корня проекта. Пусто — локальная установка oscript_modules/bin, затем PATH."
+          }
+        }
+      },
+      {
+        "title": "Автономный сервер и отладка",
+        "order": 8,
+        "properties": {
+          "1c-platform-tools.server.platformPath": {
+            "type": "string",
+            "default": "",
+            "description": "Каталог установки платформы 1С для поиска ibsrv (автономный сервер). Пусто — определяется автоматически (%PROGRAMFILES%\\1cv8 в Windows, /opt/1C/v8.3/x86_64 в Linux)."
+          },
+          "1c-platform-tools.server.platformVersion": {
+            "type": "string",
+            "default": "",
+            "description": "Версия платформы для автономного сервера (например 8.3.27.1936 или префикс 8.3.27). Пусто — берётся наибольшая установленная."
+          },
+          "1c-platform-tools.server.host": {
+            "type": "string",
+            "default": "localhost",
+            "description": "Сетевой интерфейс автономного сервера (localhost, any или IP)."
+          },
+          "1c-platform-tools.server.port": {
+            "type": "number",
+            "default": 8314,
+            "description": "HTTP-порт автономного сервера. Стабильный порт делает сервер совместимым с подключением vanessa-runner 3 через --ibsrv-attach --ibsrv-port."
+          },
+          "1c-platform-tools.server.httpBase": {
+            "type": "string",
+            "default": "ib",
+            "description": "Базовый путь публикации информационной базы. Например ib → http://localhost:8314/ib/. Пусто или / — корень сайта."
+          },
+          "1c-platform-tools.server.dataPath": {
+            "type": "string",
+            "default": "",
+            "description": "Каталог данных автономного сервера (сеансовые данные, журнал, конфиг публикации publication.yaml). Относительный путь — от корня проекта. Пусто — build/ibsrv в корне проекта."
+          },
+          "1c-platform-tools.server.distributeLicenses": {
+            "type": "boolean",
+            "default": true,
+            "description": "Разрешить автономному серверу выдачу клиентских лицензий (позволяет работать и отлаживать без отдельной лицензии)."
+          },
+          "1c-platform-tools.server.publishOData": {
+            "type": "boolean",
+            "default": true,
+            "description": "Публиковать стандартный интерфейс OData."
+          },
+          "1c-platform-tools.server.publishWebServices": {
+            "type": "boolean",
+            "default": true,
+            "description": "Публиковать Web-сервисы (SOAP) приложения по умолчанию."
+          },
+          "1c-platform-tools.server.publishHttpServices": {
+            "type": "boolean",
+            "default": true,
+            "description": "Публиковать HTTP-сервисы приложения по умолчанию."
+          },
+          "1c-platform-tools.server.debug": {
+            "type": "boolean",
+            "default": false,
+            "description": "Включить порт отладки автономного сервера (HTTP), чтобы цеплять отладчик расширения."
+          },
+          "1c-platform-tools.server.debugPort": {
+            "type": "number",
+            "default": 1550,
+            "description": "TCP-порт сервера отладки автономного сервера (при server.debug = true)."
           }
         }
       }
