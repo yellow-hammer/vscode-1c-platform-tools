@@ -5,6 +5,34 @@
 Формат основан на [Keep a Changelog](https://keepachangelog.com/ru/1.0.0/),
 и этот проект придерживается [Semantic Versioning](https://semver.org/lang/ru/).
 
+## [0.7.8] - 2026-06-18
+
+
+### Исправления
+
+- **debug:** Вынесли нормализацию пути файловой ИБ в общий модуль
+
+- **metadata:** Добавлено свойство sun.jnu.encoding и упрощение создания объекта метаданных.
+
+- **ibConnectionPath:** Исправили резолв Windows-путей в строках /F на Linux
+
+
+### Прочее
+
+- **deps-dev:** Bump tmp in the npm_and_yarn group across 1 directory
+
+- **deps:** Bump the npm_and_yarn group across 1 directory with 2 updates
+
+- **deps-dev:** Bump markdown-it
+
+
+### Документация
+
+- **walkthrough:** Актуализировали шаг про служебные файлы
+
+- Добавили руководства по служебным файлам и профилям запуска
+
+
 ## [0.7.7] - 2026-06-15
 
 
