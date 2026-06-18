@@ -2,6 +2,7 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import * as vscode from 'vscode';
 import { DEBUG_TYPE } from './debugConstants';
+import { resolveFileIbConnectionString } from '../../shared/ibConnectionPath';
 import { DEFAULT_PATHS } from '../../shared/pathDefaults';
 
 const platformBasePath =
@@ -149,13 +150,7 @@ export class OnecDebugConfigurationProvoider implements vscode.DebugConfiguratio
 			return undefined;
 		}
 
-		// Для файловой ИБ (/F) достраиваем относительный путь до полного относительно корня проекта
-		let resolvedConnectionString = trimmed;
-		if (trimmed.startsWith('/F')) {
-			const pathPart = trimmed.slice(2).trim();
-			const absolutePath = path.resolve(workspaceRoot, pathPart);
-			resolvedConnectionString = '/F' + absolutePath;
-		}
+		const resolvedConnectionString = resolveFileIbConnectionString(trimmed, workspaceRoot);
 
 		// При logLevel=debug включаем диагностику адаптера (нейтральный флаг trace в конфигурации запуска).
 		const trace =
