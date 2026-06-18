@@ -30,6 +30,7 @@ export function runMdSparrow(
 	const { java, jarPath } = runtime;
 	const fullArgs = [
 		'-Dfile.encoding=UTF-8',
+		'-Dsun.jnu.encoding=UTF-8',
 		'-Dstdout.encoding=UTF-8',
 		'-Dstderr.encoding=UTF-8',
 		'-Dsun.stdout.encoding=UTF-8',

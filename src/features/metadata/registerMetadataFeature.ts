@@ -11,10 +11,7 @@ import {
 	portableJreCached,
 } from './mdSparrowBootstrap';
 import { cachedOnecDebugAdapterTag, clearOnecDebugAdapterCache } from '../debug/onecDebugAdapterBootstrap';
-import {
-	parseMdBoilerplateKindFromCommandArgs,
-	resolveNextBoilerplateMdName,
-} from './metadataBoilerplateNames';
+import { parseMdBoilerplateKindFromCommandArgs } from './metadataBoilerplateNames';
 import {
 	openExternalArtifactPropertiesPanel,
 	type ExternalArtifactPropertiesDto,
@@ -867,21 +864,7 @@ export function registerMetadataFeature(
 					try {
 						const schema = await mdSparrowSchemaFlagFromConfigurationXml(cfgPath);
 						const runtime = await ensureMdSparrowRuntime(context);
-						const resolved = await resolveNextBoilerplateMdName(
-							runtime,
-							cfgPath,
-							schema,
-							cfRoot,
-							kind
-						);
-						if ('error' in resolved) {
-							void vscode.window.showErrorMessage(
-								resolved.error.slice(0, MD_SPARROW_CLI_ERR_PREVIEW)
-							);
-							return;
-						}
-						const name = resolved.name;
-						const addArgs = ['add-md-object', cfgPath, name, '-v', schema, '--type', kind];
+						const addArgs = ['add-md-object', cfgPath, '-v', schema, '--type', kind, '--auto-name'];
 						if (kind === 'CATALOG') {
 							addArgs.push('--synonym-empty');
 						}
@@ -896,6 +879,11 @@ export function registerMetadataFeature(
 								MD_SPARROW_CLI_ERR_PREVIEW
 							);
 							void vscode.window.showErrorMessage(errText);
+							return;
+						}
+						const name = res.stdout.trim();
+						if (!name) {
+							void vscode.window.showErrorMessage('md-sparrow не вернул имя созданного объекта.');
 							return;
 						}
 						await metadataTreeProvider.refresh();
