@@ -24,6 +24,11 @@ import {
 } from './metadataSourcePropertiesPanel';
 import { mdSparrowSchemaFlagFromConfigurationXml } from './mdSparrowSchemaVersion';
 import { runMdSparrow } from './mdSparrowRunner';
+import {
+	runMdSparrowParamsMutation,
+	runMdSparrowParamsRead,
+	type MdSparrowParams,
+} from './mdSparrowParams';
 import { loadProjectMetadataTree } from './metadataTreeService';
 import { openErCanvasPanel } from './er/erCanvasPanel';
 import type { ErScope } from './er/erTypes';
@@ -272,9 +277,9 @@ export function registerMetadataFeature(
 	): Promise<{ schema: string; dto: SourcePropertiesDto }> {
 		const schema = await mdSparrowSchemaFlagFromConfigurationXml(cfgPath);
 		const runtime = await ensureMdSparrowRuntime(context);
-		const getRes = await runMdSparrow(
+		const getRes = await runMdSparrowParamsRead(
 			runtime,
-			['cf-configuration-properties-get', cfgPath, '-v', schema],
+			{ op: 'cf-configuration-properties-get', configurationXml: cfgPath, schemaVersion: schema },
 			{ cwd: cfRoot }
 		);
 		if (getRes.exitCode !== 0) {
@@ -299,13 +304,16 @@ export function registerMetadataFeature(
 		schema: string,
 		dto: SourcePropertiesDto
 	): Promise<boolean> {
-		const tmpPath = path.join(os.tmpdir(), `md-sparrow-source-props-${Date.now()}.json`);
 		try {
-			await fs.promises.writeFile(tmpPath, JSON.stringify(dto), 'utf8');
 			const runtime = await ensureMdSparrowRuntime(context);
-			const setRes = await runMdSparrow(
+			const setRes = await runMdSparrowParamsMutation(
 				runtime,
-				['cf-configuration-properties-set', cfgPath, tmpPath, '-v', schema],
+				{
+					op: 'cf-configuration-properties-set',
+					configurationXml: cfgPath,
+					schemaVersion: schema,
+					payloadJson: JSON.stringify(dto),
+				},
 				{ cwd: cfRoot }
 			);
 			if (setRes.exitCode !== 0) {
@@ -321,12 +329,6 @@ export function registerMetadataFeature(
 			const msg = e instanceof Error ? e.message : String(e);
 			void vscode.window.showErrorMessage(msg.slice(0, MD_SPARROW_CLI_ERR_PREVIEW));
 			return false;
-		} finally {
-			try {
-				await fs.promises.unlink(tmpPath);
-			} catch {
-				/* ignore */
-			}
 		}
 	}
 
@@ -336,9 +338,9 @@ export function registerMetadataFeature(
 	): Promise<{ schema: string; dto: ExternalArtifactPropertiesDto }> {
 		const schema = await mdSparrowSchemaFlagFromConfigurationXml(objectXmlPath);
 		const runtime = await ensureMdSparrowRuntime(context);
-		const getRes = await runMdSparrow(
+		const getRes = await runMdSparrowParamsRead(
 			runtime,
-			['external-artifact-properties-get', objectXmlPath, '-v', schema],
+			{ op: 'external-artifact-properties-get', objectXml: objectXmlPath, schemaVersion: schema },
 			{ cwd }
 		);
 		if (getRes.exitCode !== 0) {
@@ -370,18 +372,21 @@ export function registerMetadataFeature(
 		schema: string,
 		dto: ExternalArtifactPropertiesDto
 	): Promise<boolean> {
-		const tmpPath = path.join(os.tmpdir(), `md-sparrow-external-props-${Date.now()}.json`);
 		try {
 			const payload = {
 				name: dto.name,
 				synonymRu: dto.synonymRu,
 				comment: dto.comment,
 			};
-			await fs.promises.writeFile(tmpPath, JSON.stringify(payload), 'utf8');
 			const runtime = await ensureMdSparrowRuntime(context);
-			const setRes = await runMdSparrow(
+			const setRes = await runMdSparrowParamsMutation(
 				runtime,
-				['external-artifact-properties-set', objectXmlPath, tmpPath, '-v', schema],
+				{
+					op: 'external-artifact-properties-set',
+					objectXml: objectXmlPath,
+					schemaVersion: schema,
+					payloadJson: JSON.stringify(payload),
+				},
 				{ cwd }
 			);
 			if (setRes.exitCode !== 0) {
@@ -397,12 +402,6 @@ export function registerMetadataFeature(
 			const msg = e instanceof Error ? e.message : String(e);
 			void vscode.window.showErrorMessage(msg.slice(0, MD_SPARROW_CLI_ERR_PREVIEW));
 			return false;
-		} finally {
-			try {
-				await fs.promises.unlink(tmpPath);
-			} catch {
-				/* ignore */
-			}
 		}
 	}
 
@@ -475,17 +474,15 @@ export function registerMetadataFeature(
 					return;
 				}
 				const runtime = await ensureMdSparrowRuntime(context);
-				const res = await runMdSparrow(
+				const res = await runMdSparrowParamsMutation(
 					runtime,
-					[
-						'external-artifact-add',
-						rootAbs,
-						candidate,
-						'--kind',
-						isReport ? 'REPORT' : 'DATA_PROCESSOR',
-						'-v',
-						schema,
-					],
+					{
+						op: 'external-artifact-add',
+						artifactsRoot: rootAbs,
+						name: candidate,
+						kind: isReport ? 'REPORT' : 'DATA_PROCESSOR',
+						schemaVersion: schema,
+					},
 					{ cwd: workspaceRoot }
 				);
 				if (res.exitCode !== 0) {
@@ -647,88 +644,72 @@ export function registerMetadataFeature(
 	 * @param name Имя для операции (`new-name`/`name` в зависимости от режима).
 	 * @returns Аргументы для вызова `runMdSparrow`.
 	 */
-	function buildChildNodeMutationArgs(
+	function buildChildNodeMutationParams(
 		node: MutatableChildNode,
 		mode: ChildNodeMutationMode,
 		name: string
-	): string[] {
+	): MdSparrowParams {
 		const objectXmlPath = node.owner.resourceUri.fsPath;
 		if (node.nodeKind === 'attribute') {
 			if (mode === 'rename') {
-				return ['cf-md-attribute-rename', objectXmlPath, '--old-name', node.name, '--new-name', name];
+				return { op: 'cf-md-attribute-rename', objectXml: objectXmlPath, oldName: node.name, newName: name };
 			}
 			if (mode === 'delete') {
-				return ['cf-md-attribute-delete', objectXmlPath, '--name', name];
+				return { op: 'cf-md-attribute-delete', objectXml: objectXmlPath, name };
 			}
-			return ['cf-md-attribute-duplicate', objectXmlPath, '--source-name', node.name, '--new-name', name];
+			return { op: 'cf-md-attribute-duplicate', objectXml: objectXmlPath, sourceName: node.name, newName: name };
 		}
 		if (node.nodeKind === 'tabularSection') {
 			if (mode === 'rename') {
-				return ['cf-md-tabular-section-rename', objectXmlPath, '--old-name', node.name, '--new-name', name];
+				return { op: 'cf-md-tabular-section-rename', objectXml: objectXmlPath, oldName: node.name, newName: name };
 			}
 			if (mode === 'delete') {
-				return ['cf-md-tabular-section-delete', objectXmlPath, '--name', name];
+				return { op: 'cf-md-tabular-section-delete', objectXml: objectXmlPath, name };
 			}
-			return [
-				'cf-md-tabular-section-duplicate',
-				objectXmlPath,
-				'--source-name',
-				node.name,
-				'--new-name',
-				name,
-			];
+			return { op: 'cf-md-tabular-section-duplicate', objectXml: objectXmlPath, sourceName: node.name, newName: name };
 		}
 		const tabularSectionName = node.tabularSectionName ?? '';
 		if (mode === 'rename') {
-			return [
-				'cf-md-tabular-attribute-rename',
-				objectXmlPath,
-				'--tabular-section',
-				tabularSectionName,
-				'--old-name',
-				node.name,
-				'--new-name',
-				name,
-			];
+			return {
+				op: 'cf-md-tabular-attribute-rename',
+				objectXml: objectXmlPath,
+				tabularSection: tabularSectionName,
+				oldName: node.name,
+				newName: name,
+			};
 		}
 		if (mode === 'delete') {
-			return [
-				'cf-md-tabular-attribute-delete',
-				objectXmlPath,
-				'--tabular-section',
-				tabularSectionName,
-				'--name',
-				name,
-			];
+			return { op: 'cf-md-tabular-attribute-delete', objectXml: objectXmlPath, tabularSection: tabularSectionName, name };
 		}
-		return [
-			'cf-md-tabular-attribute-duplicate',
-			objectXmlPath,
-			'--tabular-section',
-			tabularSectionName,
-			'--source-name',
-			node.name,
-			'--new-name',
-			name,
-		];
+		return {
+			op: 'cf-md-tabular-attribute-duplicate',
+			objectXml: objectXmlPath,
+			tabularSection: tabularSectionName,
+			sourceName: node.name,
+			newName: name,
+		};
 	}
 
 	/**
 	 * Выполняет мутацию дочернего узла объекта через md-sparrow и обновляет дерево.
 	 *
 	 * @param node Узел, к которому относится операция.
-	 * @param args Аргументы подкоманды md-sparrow без флага схемы.
+	 * @param params Параметры мутации без версии схемы.
 	 * @param successMessage Сообщение после успешного завершения.
 	 * @returns Промис, который разрешается после выполнения операции.
 	 */
 	async function runChildNodeMutation(
 		node: MutatableChildNode,
-		args: string[],
+		params: MdSparrowParams,
 		successMessage: string
 	): Promise<void> {
 		const schema = await mdSparrowSchemaFlagFromConfigurationXml(node.owner.configurationXmlAbs);
 		const runtime = await ensureMdSparrowRuntime(context);
-		const res = await runMdSparrow(runtime, [...args, '-v', schema], { cwd: node.owner.metadataRootAbs });
+		const res = await runMdSparrowParamsMutation(
+			runtime,
+			{ ...params, schemaVersion: schema },
+			{ cwd: node.owner.metadataRootAbs }
+		);
 		if (res.exitCode !== 0) {
 			const errText = (res.stderr.trim() || res.stdout.trim() || `код ${res.exitCode}`).slice(
 				0,
@@ -864,13 +845,16 @@ export function registerMetadataFeature(
 					try {
 						const schema = await mdSparrowSchemaFlagFromConfigurationXml(cfgPath);
 						const runtime = await ensureMdSparrowRuntime(context);
-						const addArgs = ['add-md-object', cfgPath, '-v', schema, '--type', kind, '--auto-name'];
-						if (kind === 'CATALOG') {
-							addArgs.push('--synonym-empty');
-						}
-						const res = await runMdSparrow(
+						const res = await runMdSparrowParamsMutation(
 							runtime,
-							addArgs,
+							{
+								op: 'add-md-object',
+								configurationXml: cfgPath,
+								schemaVersion: schema,
+								type: kind,
+								autoName: true,
+								synonymEmpty: kind === 'CATALOG' ? true : undefined,
+							},
 							{ cwd: cfRoot }
 						);
 						if (res.exitCode !== 0) {
@@ -954,16 +938,14 @@ export function registerMetadataFeature(
 						const cwd = workspaceRoot ?? path.dirname(node.resourceUri.fsPath);
 						const schema = await mdSparrowSchemaFlagFromConfigurationXml(node.resourceUri.fsPath);
 						const runtime = await ensureMdSparrowRuntime(context);
-						const res = await runMdSparrow(
+						const res = await runMdSparrowParamsMutation(
 							runtime,
-							[
-								'external-artifact-rename',
-								node.resourceUri.fsPath,
-								'--new-name',
-								nextName.trim(),
-								'-v',
-								schema,
-							],
+							{
+								op: 'external-artifact-rename',
+								objectXml: node.resourceUri.fsPath,
+								newName: nextName.trim(),
+								schemaVersion: schema,
+							},
 							{ cwd }
 						);
 						if (res.exitCode !== 0) {
@@ -1010,19 +992,16 @@ export function registerMetadataFeature(
 						return;
 					}
 					const runtime = await ensureMdSparrowRuntime(context);
-					const res = await runMdSparrow(
+					const res = await runMdSparrowParamsMutation(
 						runtime,
-						[
-							'cf-md-object-rename',
-							cfgPath,
-							node.resourceUri.fsPath,
-							'--tag',
+						{
+							op: 'cf-md-object-rename',
+							configurationXml: cfgPath,
+							objectXml: node.resourceUri.fsPath,
 							tag,
-							'--old-name',
-							node.name,
-							'--new-name',
-							nextName.trim(),
-						],
+							oldName: node.name,
+							newName: nextName.trim(),
+						},
 						{ cwd: cfRoot }
 					);
 					if (res.exitCode !== 0) {
@@ -1059,9 +1038,9 @@ export function registerMetadataFeature(
 						const workspaceRoot = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
 						const cwd = workspaceRoot ?? path.dirname(node.resourceUri.fsPath);
 						const runtime = await ensureMdSparrowRuntime(context);
-						const res = await runMdSparrow(
+						const res = await runMdSparrowParamsMutation(
 							runtime,
-							['external-artifact-delete', node.resourceUri.fsPath],
+							{ op: 'external-artifact-delete', objectXml: node.resourceUri.fsPath },
 							{ cwd }
 						);
 						if (res.exitCode !== 0) {
@@ -1096,17 +1075,15 @@ export function registerMetadataFeature(
 						return;
 					}
 					const runtime = await ensureMdSparrowRuntime(context);
-					const res = await runMdSparrow(
+					const res = await runMdSparrowParamsMutation(
 						runtime,
-						[
-							'cf-md-object-delete',
-							cfgPath,
-							node.resourceUri.fsPath,
-							'--tag',
+						{
+							op: 'cf-md-object-delete',
+							configurationXml: cfgPath,
+							objectXml: node.resourceUri.fsPath,
 							tag,
-							'--name',
-							node.name,
-						],
+							name: node.name,
+						},
 						{ cwd: cfRoot }
 					);
 					if (res.exitCode !== 0) {
@@ -1150,16 +1127,14 @@ export function registerMetadataFeature(
 						const cwd = workspaceRoot ?? path.dirname(node.resourceUri.fsPath);
 						const schema = await mdSparrowSchemaFlagFromConfigurationXml(node.resourceUri.fsPath);
 						const runtime = await ensureMdSparrowRuntime(context);
-						const res = await runMdSparrow(
+						const res = await runMdSparrowParamsMutation(
 							runtime,
-							[
-								'external-artifact-duplicate',
-								node.resourceUri.fsPath,
-								'--new-name',
-								nextName.trim(),
-								'-v',
-								schema,
-							],
+							{
+								op: 'external-artifact-duplicate',
+								objectXml: node.resourceUri.fsPath,
+								newName: nextName.trim(),
+								schemaVersion: schema,
+							},
 							{ cwd }
 						);
 						if (res.exitCode !== 0) {
@@ -1200,19 +1175,16 @@ export function registerMetadataFeature(
 						return;
 					}
 					const runtime = await ensureMdSparrowRuntime(context);
-					const res = await runMdSparrow(
+					const res = await runMdSparrowParamsMutation(
 						runtime,
-						[
-							'cf-md-object-duplicate',
-							cfgPath,
-							node.resourceUri.fsPath,
-							'--tag',
+						{
+							op: 'cf-md-object-duplicate',
+							configurationXml: cfgPath,
+							objectXml: node.resourceUri.fsPath,
 							tag,
-							'--source-name',
-							node.name,
-							'--new-name',
-							nextName.trim(),
-						],
+							sourceName: node.name,
+							newName: nextName.trim(),
+						},
 						{ cwd: cfRoot }
 					);
 					if (res.exitCode !== 0) {
@@ -1234,7 +1206,7 @@ export function registerMetadataFeature(
 				await runMdSparrowMutation(async () => {
 					const selected = item ?? metadataTreeView.selection[0];
 					let leaf: MetadataLeafTreeItem | undefined;
-					let args: string[] | undefined;
+					let params: MdSparrowParams | undefined;
 					let okText: string | undefined;
 					if (selected instanceof MetadataObjectNodeTreeItem && selected.nodeKind === 'tabularSection') {
 						leaf = selected.owner;
@@ -1246,14 +1218,12 @@ export function registerMetadataFeature(
 						if (!name) {
 							return;
 						}
-						args = [
-							'cf-md-tabular-attribute-add',
-							leaf.resourceUri?.fsPath ?? '',
-							'--tabular-section',
-							selected.name,
-							'--name',
-							name.trim(),
-						];
+						params = {
+							op: 'cf-md-tabular-attribute-add',
+							objectXml: leaf.resourceUri?.fsPath ?? '',
+							tabularSection: selected.name,
+							name: name.trim(),
+						};
 						okText = `Реквизит добавлен в табличную часть «${selected.name}».`;
 					} else if (selected instanceof MetadataObjectSectionTreeItem) {
 						leaf = selected.owner;
@@ -1271,15 +1241,14 @@ export function registerMetadataFeature(
 						if (!name) {
 							return;
 						}
-						args =
+						params =
 							selected.sectionKind === 'attributes'
-								? ['cf-md-attribute-add', leaf.resourceUri?.fsPath ?? '', '--name', name.trim()]
-								: [
-										'cf-md-tabular-section-add',
-										leaf.resourceUri?.fsPath ?? '',
-										'--name',
-										name.trim(),
-									];
+								? { op: 'cf-md-attribute-add', objectXml: leaf.resourceUri?.fsPath ?? '', name: name.trim() }
+								: {
+										op: 'cf-md-tabular-section-add',
+										objectXml: leaf.resourceUri?.fsPath ?? '',
+										name: name.trim(),
+									};
 						okText =
 							selected.sectionKind === 'attributes'
 								? `Реквизит «${name.trim()}» добавлен.`
@@ -1304,15 +1273,14 @@ export function registerMetadataFeature(
 						if (!name) {
 							return;
 						}
-						args =
+						params =
 							kind.value === 'attribute'
-								? ['cf-md-attribute-add', leaf.resourceUri?.fsPath ?? '', '--name', name.trim()]
-								: [
-										'cf-md-tabular-section-add',
-										leaf.resourceUri?.fsPath ?? '',
-										'--name',
-										name.trim(),
-									];
+								? { op: 'cf-md-attribute-add', objectXml: leaf.resourceUri?.fsPath ?? '', name: name.trim() }
+								: {
+										op: 'cf-md-tabular-section-add',
+										objectXml: leaf.resourceUri?.fsPath ?? '',
+										name: name.trim(),
+									};
 						okText =
 							kind.value === 'attribute'
 								? `Реквизит «${name.trim()}» добавлен.`
@@ -1328,7 +1296,7 @@ export function registerMetadataFeature(
 					}
 					const schema = await mdSparrowSchemaFlagFromConfigurationXml(leaf.configurationXmlAbs);
 					const runtime = await ensureMdSparrowRuntime(context);
-					const res = await runMdSparrow(runtime, [...args, '-v', schema], {
+					const res = await runMdSparrowParamsMutation(runtime, { ...params, schemaVersion: schema }, {
 						cwd: leaf.metadataRootAbs,
 					});
 					if (res.exitCode !== 0) {
@@ -1360,8 +1328,8 @@ export function registerMetadataFeature(
 					if (!newName || newName.trim() === node.name) {
 						return;
 					}
-					const args = buildChildNodeMutationArgs(node, 'rename', newName.trim());
-					await runChildNodeMutation(node, args, 'Переименование выполнено.');
+					const params = buildChildNodeMutationParams(node, 'rename', newName.trim());
+					await runChildNodeMutation(node, params, 'Переименование выполнено.');
 				});
 			}
 		),
@@ -1377,8 +1345,8 @@ export function registerMetadataFeature(
 					if (answer !== 'Удалить') {
 						return;
 					}
-					const args = buildChildNodeMutationArgs(node, 'delete', node.name);
-					await runChildNodeMutation(node, args, 'Удаление выполнено.');
+					const params = buildChildNodeMutationParams(node, 'delete', node.name);
+					await runChildNodeMutation(node, params, 'Удаление выполнено.');
 				});
 			}
 		),
@@ -1398,8 +1366,8 @@ export function registerMetadataFeature(
 					if (!newName) {
 						return;
 					}
-					const args = buildChildNodeMutationArgs(node, 'duplicate', newName.trim());
-					await runChildNodeMutation(node, args, 'Дублирование выполнено.');
+					const params = buildChildNodeMutationParams(node, 'duplicate', newName.trim());
+					await runChildNodeMutation(node, params, 'Дублирование выполнено.');
 				});
 			}
 		),
@@ -1429,9 +1397,9 @@ export function registerMetadataFeature(
 					if (!subsystemNode.resourceUri) {
 						return undefined;
 					}
-					const getRes = await runMdSparrow(
+					const getRes = await runMdSparrowParamsRead(
 						runtime,
-						['cf-md-object-get', subsystemNode.resourceUri.fsPath, '-v', schema],
+						{ op: 'cf-md-object-get', objectXml: subsystemNode.resourceUri.fsPath, schemaVersion: schema },
 						{ cwd: cfRoot }
 					);
 					if (getRes.exitCode !== 0) {
@@ -1811,9 +1779,9 @@ export function registerMetadataFeature(
 				}
 				try {
 					const runtime = await ensureMdSparrowRuntime(context);
-					const res = await runMdSparrow(
+					const res = await runMdSparrowParamsMutation(
 						runtime,
-						['init-empty-cf', cfRoot, '-v', schema],
+						{ op: 'init-empty-cf', targetCfRoot: cfRoot, schemaVersion: schema },
 						{ cwd: cfRoot }
 					);
 					if (res.exitCode !== 0) {

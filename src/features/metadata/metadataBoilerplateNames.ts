@@ -8,7 +8,7 @@ import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 
 import type { MdSparrowRuntime } from './mdSparrowBootstrap';
-import { runMdSparrow } from './mdSparrowRunner';
+import { runMdSparrowParamsRead } from './mdSparrowParams';
 
 /** Префикс имени первого/следующего справочника по снапшоту `Справочник1`, `Справочник2`, … */
 export const CATALOG_BOILERPLATE_PREFIX = 'Справочник';
@@ -259,9 +259,9 @@ export async function fetchChildObjectNamesFromCfList(
 	cwd: string,
 	xmlTag: string
 ): Promise<{ names: string[] } | { error: string }> {
-	const res = await runMdSparrow(
+	const res = await runMdSparrowParamsRead(
 		runtime,
-		['cf-list-child-objects', configurationXmlPath, '--tag', xmlTag, '-v', schemaFlag],
+		{ op: 'cf-list-child-objects', configurationXml: configurationXmlPath, tag: xmlTag, schemaVersion: schemaFlag },
 		{ cwd }
 	);
 	if (res.exitCode !== 0) {

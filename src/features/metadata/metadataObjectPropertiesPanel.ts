@@ -8,7 +8,7 @@ import * as vscode from 'vscode';
 import { ensureMdSparrowRuntime } from './mdSparrowBootstrap';
 import { logger } from '../../shared/logger';
 import { mdSparrowSchemaFlagFromConfigurationXml } from './mdSparrowSchemaVersion';
-import { runMdSparrow } from './mdSparrowRunner';
+import { runMdSparrowParamsRead, type MdSparrowParams } from './mdSparrowParams';
 import {
 	metadataObjectPropertyProfileByType,
 	type MetadataObjectPropertyProfile,
@@ -726,10 +726,10 @@ async function resolveSchemaFlag(params: OpenMetadataObjectPropertiesParams): Pr
 
 async function runMdSparrowJson<T>(
 	runtime: Awaited<ReturnType<typeof ensureMdSparrowRuntime>>,
-	args: string[],
+	params: MdSparrowParams,
 	cwd: string
 ): Promise<{ ok: true; value: T } | { ok: false; error: string }> {
-	const res = await runMdSparrow(runtime, args, { cwd });
+	const res = await runMdSparrowParamsRead(runtime, params, { cwd });
 	if (res.exitCode !== 0) {
 		const errText = res.stderr.trim() || res.stdout.trim() || `код ${res.exitCode}`;
 		return { ok: false, error: errText };
@@ -1015,10 +1015,14 @@ export async function openMetadataObjectPropertiesEditor(
 
 	const runtime = await ensureMdSparrowRuntime(context);
 	const [propsResult, structureResult] = await Promise.all([
-		runMdSparrowJson<MdObjectPropertiesDto>(runtime, ['cf-md-object-get', params.objectXmlFsPath, '-v', schema], params.cwd),
+		runMdSparrowJson<MdObjectPropertiesDto>(
+			runtime,
+			{ op: 'cf-md-object-get', objectXml: params.objectXmlFsPath, schemaVersion: schema },
+			params.cwd
+		),
 		runMdSparrowJson<MdObjectStructureDto>(
 			runtime,
-			['cf-md-object-structure-get', params.objectXmlFsPath, '-v', schema],
+			{ op: 'cf-md-object-structure-get', objectXml: params.objectXmlFsPath, schemaVersion: schema },
 			params.cwd
 		),
 	]);

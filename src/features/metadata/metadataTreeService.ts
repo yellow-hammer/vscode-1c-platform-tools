@@ -8,7 +8,7 @@ import * as vscode from 'vscode';
 import { clearMdSparrowJarCache, ensureMdSparrowRuntime } from './mdSparrowBootstrap';
 import { isMdSparrowUnknownCommandError, MdSparrowOutdatedError } from './mdSparrowErrors';
 import { logger } from '../../shared/logger';
-import { runMdSparrow } from './mdSparrowRunner';
+import { runMdSparrowParamsRead } from './mdSparrowParams';
 
 const log = logger.scope('metadata');
 
@@ -82,14 +82,16 @@ export async function loadProjectMetadataTree(
 }
 
 async function runProjectMetadataTreeWithRepair(context: vscode.ExtensionContext, abs: string) {
-	const initialRes = await runMdSparrow(await ensureMdSparrowRuntime(context), ['project-metadata-tree', abs], {
-		cwd: abs,
-	});
+	const initialRes = await runMdSparrowParamsRead(
+		await ensureMdSparrowRuntime(context),
+		{ op: 'project-metadata-tree', projectRoot: abs },
+		{ cwd: abs }
+	);
 	if (initialRes.exitCode !== 0 && shouldRepairJarAndRetry(initialRes.stderr, initialRes.stdout)) {
 		log.warn('ошибка загрузки классов md-sparrow — очищаем кэш JAR и повторяем запуск');
 		await clearMdSparrowJarCache(context);
 		const repairedRuntime = await ensureMdSparrowRuntime(context);
-		return runMdSparrow(repairedRuntime, ['project-metadata-tree', abs], {
+		return runMdSparrowParamsRead(repairedRuntime, { op: 'project-metadata-tree', projectRoot: abs }, {
 			cwd: abs,
 		});
 	}

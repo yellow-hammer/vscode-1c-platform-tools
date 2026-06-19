@@ -10,7 +10,7 @@ import { VRunnerManager } from '../../shared/vrunnerManager';
 import { logger } from '../../shared/logger';
 import { loadProjectMetadataTree, type ProjectMetadataTreeDto } from './metadataTreeService';
 import { ensureMdSparrowRuntime } from './mdSparrowBootstrap';
-import { runMdSparrow } from './mdSparrowRunner';
+import { runMdSparrowParamsRead } from './mdSparrowParams';
 import { mdSparrowSchemaFlagFromConfigurationXml } from './mdSparrowSchemaVersion';
 import {
 	METADATA_OBJECT_NON_EXPANDABLE_TYPES,
@@ -1624,9 +1624,9 @@ export class MetadataTreeDataProvider implements vscode.TreeDataProvider<vscode.
 			throw new Error('Не удалось определить схему XSD для структуры объекта.');
 		}
 		const runtime = await ensureMdSparrowRuntime(this._context);
-		const res = await runMdSparrow(
+		const res = await runMdSparrowParamsRead(
 			runtime,
-			['cf-md-object-structure-get', leaf.resourceUri.fsPath, '-v', schema],
+			{ op: 'cf-md-object-structure-get', objectXml: leaf.resourceUri.fsPath, schemaVersion: schema },
 			{ cwd: leaf.metadataRootAbs ?? path.dirname(leaf.resourceUri.fsPath) }
 		);
 		if (res.exitCode !== 0) {
@@ -1648,9 +1648,11 @@ export class MetadataTreeDataProvider implements vscode.TreeDataProvider<vscode.
 		try {
 			const schema = await mdSparrowSchemaFlagFromConfigurationXml(leaf.configurationXmlAbs);
 			const runtime = await ensureMdSparrowRuntime(this._context);
-			const res = await runMdSparrow(runtime, ['cf-md-object-get', leaf.resourceUri.fsPath, '-v', schema], {
-				cwd: leaf.metadataRootAbs,
-			});
+			const res = await runMdSparrowParamsRead(
+				runtime,
+				{ op: 'cf-md-object-get', objectXml: leaf.resourceUri.fsPath, schemaVersion: schema },
+				{ cwd: leaf.metadataRootAbs }
+			);
 			if (res.exitCode !== 0) {
 				return [];
 			}

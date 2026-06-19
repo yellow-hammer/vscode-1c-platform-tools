@@ -16,7 +16,7 @@ import * as vscode from 'vscode';
 import { logger } from '../../../shared/logger';
 import { ensureMdSparrowRuntime } from '../mdSparrowBootstrap';
 import { isMdSparrowUnknownCommandError, MdSparrowOutdatedError } from '../mdSparrowErrors';
-import { runMdSparrow } from '../mdSparrowRunner';
+import { runMdSparrowParamsRead } from '../mdSparrowParams';
 import type { ErGraph, ErNode, ErEdge } from './erTypes';
 
 const log = logger.scope('er');
@@ -220,10 +220,11 @@ export async function loadErGraph(
 		return { graph: cached, fromCache: true, fingerprint };
 	}
 	options.progress?.report({ message: 'ER: построение графа (md-sparrow cf-md-graph)' });
-	const res = await runMdSparrow(runtime, ['cf-md-graph', workspaceRoot], {
-		cwd: workspaceRoot,
-		token: options.token,
-	});
+	const res = await runMdSparrowParamsRead(
+		runtime,
+		{ op: 'cf-md-graph', projectRoot: workspaceRoot },
+		{ cwd: workspaceRoot, token: options.token }
+	);
 	if (res.exitCode !== 0) {
 		const errText = res.stderr.trim() || res.stdout.trim() || `код ${res.exitCode}`;
 		if (isMdSparrowUnknownCommandError(res.stderr, res.stdout)) {
