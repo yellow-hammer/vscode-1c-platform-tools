@@ -5,6 +5,19 @@
 Формат основан на [Keep a Changelog](https://keepachangelog.com/ru/1.0.0/),
 и этот проект придерживается [Semantic Versioning](https://semver.org/lang/ru/).
 
+## [0.7.9] - 2026-06-19
+
+
+### Исправления
+
+- **metadata:** Исправили искажение кириллицы в вызовах md-sparrow на Windows
+
+
+### Обслуживание
+
+- **docs:** Удален устаревший файл README.md для бинарников отладчика 1С
+
+
 ## [0.7.8] - 2026-06-18
 
 
