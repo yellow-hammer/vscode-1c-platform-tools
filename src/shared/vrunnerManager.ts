@@ -22,6 +22,8 @@ import {
 	ACTIVE_ENV_PROFILE_KEY,
 	ACTIVE_ENV_OVERRIDES_KEY,
 	BASE_ENV_FILE,
+	DEFAULT_PROFILE_ID,
+	NONE_PROFILE_ID,
 	EnvProfile,
 	EnvOverrides,
 	buildEnvProfiles,
@@ -1175,10 +1177,14 @@ export class VRunnerManager {
 	 * Возвращает id активного env-профиля.
 	 *
 	 * Порядок определения:
-	 * 1. Локальный выбор из workspaceState (не коммитится).
+	 * 1. Локальный выбор из workspaceState (не коммитится). Сюда же относится
+	 *    осознанный выбор «Не выбран» — он хранится как пустая строка.
 	 * 2. Командное значение по умолчанию из настройки `defaultEnvProfile`.
+	 * 3. Если явного выбора нет и есть базовый `env.json` — он считается активным
+	 *    по умолчанию (а не «Не выбран»), чтобы открытый проект с env.json сразу
+	 *    работал предсказуемо.
 	 *
-	 * @returns Идентификатор профиля (пустая строка — базовый env.json)
+	 * @returns Идентификатор профиля (пустая строка — «Не выбран»)
 	 */
 	public getActiveEnvProfileId(): string {
 		const fromState = this.memento?.get<string>(ACTIVE_ENV_PROFILE_KEY);
@@ -1186,7 +1192,14 @@ export class VRunnerManager {
 			return fromState;
 		}
 		const config = vscode.workspace.getConfiguration('1c-platform-tools');
-		return config.get<string>('defaultEnvProfile', DEFAULT_ENV.defaultProfile);
+		const configured = config.get<string>('defaultEnvProfile', DEFAULT_ENV.defaultProfile);
+		if (configured) {
+			return configured;
+		}
+		// Нет явного выбора и не задан командный дефолт: базовый env.json,
+		// если он существует, активен по умолчанию.
+		const hasBase = this.discoverEnvProfiles().some((profile) => profile.isBase);
+		return hasBase ? DEFAULT_PROFILE_ID : NONE_PROFILE_ID;
 	}
 
 	/**
