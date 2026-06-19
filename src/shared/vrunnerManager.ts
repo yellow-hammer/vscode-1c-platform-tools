@@ -123,21 +123,24 @@ export class VRunnerManager {
 
 	/**
 	 * Получает путь к vrunner
-	 * 
-	 * Ищет vrunner.bat в oscript_modules/bin/ в workspace.
-	 * Если не найден, возвращает 'vrunner' для поиска в PATH.
-	 * 
-	 * @returns Относительный путь к vrunner.bat (например, 'oscript_modules/bin/vrunner.bat')
+	 *
+	 * Ищет локальный бинарь в oscript_modules/bin/ в workspace: на Windows —
+	 * `vrunner.bat`, на остальных ОС — `vrunner`. Если не найден, возвращает
+	 * 'vrunner' для поиска в PATH.
+	 *
+	 * @returns Относительный путь к локальному бинарю vrunner
 	 *          или 'vrunner' для поиска в PATH
 	 */
 	public getVRunnerPath(): string {
+		// Имя локального бинаря зависит от ОС: на Windows — vrunner.bat, иначе vrunner.
+		const binaryName = process.platform === 'win32' ? 'vrunner.bat' : 'vrunner';
 		if (this.workspaceRoot) {
-			const vrunnerPath = path.join(this.workspaceRoot, 'oscript_modules', 'bin', 'vrunner.bat');
+			const vrunnerPath = path.join(this.workspaceRoot, 'oscript_modules', 'bin', binaryName);
 			if (fsSync.existsSync(vrunnerPath)) {
-				return path.join('oscript_modules', 'bin', 'vrunner.bat');
+				return path.join('oscript_modules', 'bin', binaryName);
 			}
 		}
-		
+
 		return 'vrunner';
 	}
 
