@@ -38,6 +38,7 @@ import {
 	parseVRunnerVersionFromOpmMetadata,
 	supportsFeature,
 } from './vrunnerVersion';
+import { translateVRunnerCommandTo3x, hasVRunner3Mapping } from './vrunnerCommandMap';
 
 const log = logger.scope('vrunner');
 
@@ -713,7 +714,7 @@ export class VRunnerManager {
 		args: string[],
 		options?: { cwd?: string; env?: NodeJS.ProcessEnv; name?: string; shellType?: ShellType }
 	): Promise<void> {
-		args = this.appendActiveOverrides(args);
+		args = await this.prepareVRunnerCommand(this.appendActiveOverrides(args));
 		const cwd = options?.cwd || this.workspaceRoot || os.homedir();
 		const shellType = options?.shellType || detectShellType();
 
@@ -795,7 +796,9 @@ export class VRunnerManager {
 			return;
 		}
 
-		argsArray = argsArray.map((args) => this.appendActiveOverrides(args));
+		argsArray = await Promise.all(
+			argsArray.map((args) => this.prepareVRunnerCommand(this.appendActiveOverrides(args)))
+		);
 
 		const cwd = options?.cwd || this.workspaceRoot || os.homedir();
 		const shellType = options?.shellType || detectShellType();
@@ -916,6 +919,7 @@ export class VRunnerManager {
 	): Promise<VRunnerExecutionResult> {
 		const useDocker = await this.shouldUseDocker();
 		const cwd = options?.cwd || this.workspaceRoot;
+		args = await this.prepareVRunnerCommand(args);
 
 		return new Promise((resolve) => {
 			const built = this.buildExecCommand(args, useDocker);
@@ -972,7 +976,7 @@ export class VRunnerManager {
 			onOutput?: (chunk: string) => void;
 		}
 	): Promise<CancellableProcessResult> {
-		args = this.appendActiveOverrides(args);
+		args = await this.prepareVRunnerCommand(this.appendActiveOverrides(args));
 		const useDocker = await this.shouldUseDocker();
 		const built = this.buildExecCommand(args, useDocker);
 		if ('error' in built) {
@@ -1288,6 +1292,27 @@ export class VRunnerManager {
 	private appendActiveOverrides(args: string[]): string[] {
 		const overrides = this.getActiveEnvOverrideArgs();
 		return overrides.length > 0 ? [...args, ...overrides] : args;
+	}
+
+	/**
+	 * Приводит команду к синтаксису vrunner 3, если установлен vrunner ≥ 3.0.
+	 *
+	 * vrunner 3 использует иерархические команды (`vanessa` → `test vanessa`).
+	 * Для 2.x (LTS) и непереводимых команд (например `version`) аргументы не
+	 * меняются; в последнем случае версия даже не определяется (исключает
+	 * рекурсию при вызове `vrunner version`).
+	 *
+	 * @param args - Аргументы команды в форме 2.x
+	 * @returns Аргументы в форме, подходящей установленной версии vrunner
+	 */
+	private async prepareVRunnerCommand(args: string[]): Promise<string[]> {
+		if (args.length === 0 || !hasVRunner3Mapping(args[0])) {
+			return args;
+		}
+		if (await this.supportsVRunnerFeature('cli3')) {
+			return translateVRunnerCommandTo3x(args);
+		}
+		return args;
 	}
 
 	/**
