@@ -22,6 +22,8 @@ import {
 	ACTIVE_ENV_PROFILE_KEY,
 	ACTIVE_ENV_OVERRIDES_KEY,
 	BASE_ENV_FILE,
+	DEFAULT_PROFILE_ID,
+	NONE_PROFILE_ID,
 	EnvProfile,
 	EnvOverrides,
 	buildEnvProfiles,
@@ -29,6 +31,13 @@ import {
 	hasOverrides,
 	resolveActiveEnvFileName,
 } from './envProfiles';
+import {
+	VRunnerVersion,
+	VRunnerFeature,
+	parseVRunnerVersion,
+	parseVRunnerVersionFromOpmMetadata,
+	supportsFeature,
+} from './vrunnerVersion';
 
 const log = logger.scope('vrunner');
 
@@ -72,6 +81,11 @@ export class VRunnerManager {
 	private readonly workspaceRoot: string | undefined;
 	private extensionPath: string | undefined;
 	private memento: vscode.Memento | undefined;
+	/**
+	 * Кэш определённой версии vrunner.
+	 * undefined — ещё не определяли; null — определить не удалось.
+	 */
+	private vrunnerVersionCache: VRunnerVersion | null | undefined = undefined;
 
 	private constructor(context?: vscode.ExtensionContext) {
 		const workspaceFolders = vscode.workspace.workspaceFolders;
@@ -109,21 +123,24 @@ export class VRunnerManager {
 
 	/**
 	 * Получает путь к vrunner
-	 * 
-	 * Ищет vrunner.bat в oscript_modules/bin/ в workspace.
-	 * Если не найден, возвращает 'vrunner' для поиска в PATH.
-	 * 
-	 * @returns Относительный путь к vrunner.bat (например, 'oscript_modules/bin/vrunner.bat')
+	 *
+	 * Ищет локальный бинарь в oscript_modules/bin/ в workspace: на Windows —
+	 * `vrunner.bat`, на остальных ОС — `vrunner`. Если не найден, возвращает
+	 * 'vrunner' для поиска в PATH.
+	 *
+	 * @returns Относительный путь к локальному бинарю vrunner
 	 *          или 'vrunner' для поиска в PATH
 	 */
 	public getVRunnerPath(): string {
+		// Имя локального бинаря зависит от ОС: на Windows — vrunner.bat, иначе vrunner.
+		const binaryName = process.platform === 'win32' ? 'vrunner.bat' : 'vrunner';
 		if (this.workspaceRoot) {
-			const vrunnerPath = path.join(this.workspaceRoot, 'oscript_modules', 'bin', 'vrunner.bat');
+			const vrunnerPath = path.join(this.workspaceRoot, 'oscript_modules', 'bin', binaryName);
 			if (fsSync.existsSync(vrunnerPath)) {
-				return path.join('oscript_modules', 'bin', 'vrunner.bat');
+				return path.join('oscript_modules', 'bin', binaryName);
 			}
 		}
-		
+
 		return 'vrunner';
 	}
 
@@ -351,6 +368,97 @@ export class VRunnerManager {
 		} catch {
 			return false;
 		}
+	}
+
+	/**
+	 * Определяет версию vrunner (vanessa-runner).
+	 *
+	 * Основной источник — команда `vrunner version` (печатает чистую строку
+	 * версии, например `2.6.0` или `3.0.0-rc3`). Если её не удалось выполнить
+	 * или разобрать, выполняется запасное чтение `opm-metadata.xml` из
+	 * `oscript_modules/vanessa-runner` в корне workspace.
+	 *
+	 * Результат кэшируется на время сессии; используйте forceRefresh для
+	 * принудительного повторного определения (например, после переустановки).
+	 *
+	 * ВАЖНО: НЕ использовать `vrunner --version` — этот флаг не поддерживается
+	 * и приводит к ошибке «Неизвестный параметр».
+	 *
+	 * @param forceRefresh - Игнорировать кэш и определить версию заново
+	 * @returns Разобранная версия или undefined, если определить не удалось
+	 */
+	public async getVRunnerVersion(forceRefresh = false): Promise<VRunnerVersion | undefined> {
+		if (!forceRefresh && this.vrunnerVersionCache !== undefined) {
+			return this.vrunnerVersionCache ?? undefined;
+		}
+
+		let version: VRunnerVersion | undefined;
+		try {
+			const result = await this.executeVRunner(['version']);
+			if (result.success) {
+				version = parseVRunnerVersion(result.stdout);
+			}
+		} catch {
+			version = undefined;
+		}
+
+		if (!version) {
+			version = await this.readVRunnerVersionFromOpmMetadata();
+		}
+
+		if (version) {
+			log.debug(`Определена версия vrunner: ${version.raw}`);
+		} else {
+			log.warn('Не удалось определить версию vrunner');
+		}
+
+		this.vrunnerVersionCache = version ?? null;
+		return version;
+	}
+
+	/**
+	 * Запасное определение версии vrunner по opm-metadata.xml в workspace.
+	 *
+	 * Проверяется только локальный путь `oscript_modules/vanessa-runner`
+	 * (детерминирован относительно проекта). Системную папку lib OneScript
+	 * не угадываем — там путь зависит от установки и может не совпадать с
+	 * реально вызываемым бинарём.
+	 *
+	 * @returns Разобранная версия или undefined
+	 */
+	private async readVRunnerVersionFromOpmMetadata(): Promise<VRunnerVersion | undefined> {
+		if (!this.workspaceRoot) {
+			return undefined;
+		}
+
+		const metadataPath = path.join(
+			this.workspaceRoot,
+			'oscript_modules',
+			'vanessa-runner',
+			'opm-metadata.xml'
+		);
+
+		try {
+			const content = await fs.readFile(metadataPath, 'utf8');
+			return parseVRunnerVersionFromOpmMetadata(content);
+		} catch {
+			return undefined;
+		}
+	}
+
+	/**
+	 * Поддерживает ли установленный vrunner указанную возможность.
+	 *
+	 * Используется для гейтинга возможностей, доступных только в vrunner 3.x
+	 * (новый CLI, флаги автономного сервера `--ibsrv*`). Если версию определить
+	 * не удалось, считаем возможность недоступной (консервативно).
+	 *
+	 * @param feature - Идентификатор возможности (см. VRUNNER_FEATURES)
+	 * @returns true, если возможность доступна
+	 */
+	public async supportsVRunnerFeature(feature: VRunnerFeature): Promise<boolean> {
+		const version = await this.getVRunnerVersion();
+		return version ? supportsFeature(version, feature) : false;
 	}
 
 	/**
@@ -1072,10 +1180,14 @@ export class VRunnerManager {
 	 * Возвращает id активного env-профиля.
 	 *
 	 * Порядок определения:
-	 * 1. Локальный выбор из workspaceState (не коммитится).
+	 * 1. Локальный выбор из workspaceState (не коммитится). Сюда же относится
+	 *    осознанный выбор «Не выбран» — он хранится как пустая строка.
 	 * 2. Командное значение по умолчанию из настройки `defaultEnvProfile`.
+	 * 3. Если явного выбора нет и есть базовый `env.json` — он считается активным
+	 *    по умолчанию (а не «Не выбран»), чтобы открытый проект с env.json сразу
+	 *    работал предсказуемо.
 	 *
-	 * @returns Идентификатор профиля (пустая строка — базовый env.json)
+	 * @returns Идентификатор профиля (пустая строка — «Не выбран»)
 	 */
 	public getActiveEnvProfileId(): string {
 		const fromState = this.memento?.get<string>(ACTIVE_ENV_PROFILE_KEY);
@@ -1083,7 +1195,14 @@ export class VRunnerManager {
 			return fromState;
 		}
 		const config = vscode.workspace.getConfiguration('1c-platform-tools');
-		return config.get<string>('defaultEnvProfile', DEFAULT_ENV.defaultProfile);
+		const configured = config.get<string>('defaultEnvProfile', DEFAULT_ENV.defaultProfile);
+		if (configured) {
+			return configured;
+		}
+		// Нет явного выбора и не задан командный дефолт: базовый env.json,
+		// если он существует, активен по умолчанию.
+		const hasBase = this.discoverEnvProfiles().some((profile) => profile.isBase);
+		return hasBase ? DEFAULT_PROFILE_ID : NONE_PROFILE_ID;
 	}
 
 	/**
@@ -1258,8 +1377,42 @@ export class VRunnerManager {
 	}
 
 	/**
+	 * Возвращает версию платформы 1С активного профиля (`--v8version`).
+	 *
+	 * Единый источник версии платформы для команд расширения: сначала временный
+	 * параметр (override), затем `default["--v8version"]` активного env-профиля.
+	 *
+	 * @returns Версия платформы или undefined, если не задана
+	 */
+	public async getActiveV8Version(): Promise<string | undefined> {
+		const override = this.getActiveEnvOverrides()?.v8version;
+		if (override) {
+			return override;
+		}
+
+		if (this.workspaceRoot) {
+			const settingsFile = this.getActiveEnvFile();
+			const absoluteSettingsPath = path.isAbsolute(settingsFile)
+				? settingsFile
+				: path.join(this.workspaceRoot, settingsFile);
+			try {
+				const content = await fs.readFile(absoluteSettingsPath, 'utf8');
+				const env = JSON.parse(content);
+				const value = env.default?.['--v8version'];
+				if (typeof value === 'string' && value.trim()) {
+					return value.trim();
+				}
+			} catch {
+				// файл недоступен или не JSON — версия не определена из профиля
+			}
+		}
+
+		return undefined;
+	}
+
+	/**
 	 * Получает путь к корню workspace
-	 * 
+	 *
 	 * @returns Путь к workspace или undefined, если workspace не открыт
 	 */
 	public getWorkspaceRoot(): string | undefined {
