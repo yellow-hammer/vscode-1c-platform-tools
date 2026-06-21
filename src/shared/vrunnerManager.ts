@@ -471,6 +471,36 @@ export class VRunnerManager {
 	}
 
 	/**
+	 * Аргументы vrunner 3 для разбора расширения из .cfe-файла (`cfe decompile`).
+	 *
+	 * В 3.x `cfe decompile` разбирает именно .cfe-файл (`--cfe-file`), а не ИБ.
+	 * Опции идут перед позиционным каталогом вывода (требование vrunner 3).
+	 *
+	 * @param cfeFile - Путь к .cfe-файлу
+	 * @param extensionName - Имя расширения
+	 * @param outDir - Каталог вывода исходников (позиционный)
+	 * @param ibConnectionParam - Параметры подключения к ИБ (['--ibconnection', …])
+	 * @returns Аргументы команды `cfe decompile`
+	 */
+	public buildCfeDecompileArgs(cfeFile: string, extensionName: string, outDir: string, ibConnectionParam: string[]): string[] {
+		const ibcmd = this.getUseIbcmd() ? ['--ibcmd'] : [];
+		return ['cfe', 'decompile', '--cfe-file', cfeFile, '--extension-name', extensionName, ...ibcmd, ...ibConnectionParam, outDir];
+	}
+
+	/**
+	 * Аргументы vrunner 3 для выгрузки расширения из ИБ в .cfe-файл (`cfe unload`).
+	 *
+	 * @param cfeFile - Путь к .cfe-файлу (позиционный OUT)
+	 * @param extensionName - Имя расширения в ИБ
+	 * @param ibConnectionParam - Параметры подключения к ИБ
+	 * @returns Аргументы команды `cfe unload`
+	 */
+	public buildCfeUnloadArgs(cfeFile: string, extensionName: string, ibConnectionParam: string[]): string[] {
+		const ibcmd = this.getUseIbcmd() ? ['--ibcmd'] : [];
+		return ['cfe', 'unload', '--extension-name', extensionName, ...ibcmd, ...ibConnectionParam, cfeFile];
+	}
+
+	/**
 	 * Проверяет, доступен ли Docker для выполнения команд
 	 * 
 	 * Выполняет команду `docker --version` для проверки доступности Docker.
