@@ -1444,6 +1444,36 @@ export class VRunnerManager {
 	}
 
 	/**
+	 * Путь к тестам xUnit (vanessa-add) для команды `vrunner test xunit`.
+	 *
+	 * В 2.x путь брался из секции `xunit.testsPath` файла env.json; в 3.x его нужно
+	 * передавать позиционным аргументом `TESTSPATH` (в настройки он не переносится).
+	 * Берём из активного env-профиля, иначе — стандартные smoke-тесты vanessa-add.
+	 *
+	 * @returns Путь к тестам (по умолчанию `$addRoot/tests/smoke`)
+	 */
+	public async getXunitTestsPath(): Promise<string> {
+		const fallback = '$addRoot/tests/smoke';
+		if (!this.workspaceRoot) {
+			return fallback;
+		}
+		const settingsFile = this.getActiveEnvFile();
+		const absolutePath = path.isAbsolute(settingsFile)
+			? settingsFile
+			: path.join(this.workspaceRoot, settingsFile);
+		try {
+			const env = JSON.parse(await fs.readFile(absolutePath, 'utf8'));
+			const value = env.xunit?.testsPath;
+			if (typeof value === 'string' && value.trim()) {
+				return value.trim();
+			}
+		} catch {
+			// файл недоступен/не JSON — используем значение по умолчанию
+		}
+		return fallback;
+	}
+
+	/**
 	 * Получает параметр --ibconnection для команды vrunner
 	 * 
 	 * Порядок определения значения:

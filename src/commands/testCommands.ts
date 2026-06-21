@@ -32,7 +32,13 @@ export class TestCommands extends BaseCommand {
 	 */
 	async runXUnit(opts?: CommandExecutionOptions): Promise<StructuredCommandResult | void> {
 		const commandName = getXUnitTestsCommandName();
-		return this.runVRunner(['xunit', ...this.vrunner.getActiveSettingsParamIfExists()], opts, commandName.title);
+		const args = ['xunit', ...this.vrunner.getActiveSettingsParamIfExists()];
+		// vrunner 3 требует путь к тестам позиционным аргументом (в 2.x он шёл из
+		// секции xunit.testsPath env.json, которая в настройки 3.x не переносится).
+		if (await this.vrunner.supportsVRunnerFeature('cli3')) {
+			args.push(await this.vrunner.getXunitTestsPath());
+		}
+		return this.runVRunner(args, opts, commandName.title);
 	}
 
 	/**
