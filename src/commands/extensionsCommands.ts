@@ -395,6 +395,12 @@ export class ExtensionsCommands extends BaseCommand {
 		const commandName = getDumpExtensionToSrcCommandName();
 		const cfePath = this.vrunner.getCfePath();
 
+		// vrunner 3 не умеет разбирать расширение из ИБ напрямую: сначала выгружаем
+		// его из ИБ в .cfe (`cfe unload`), затем разбираем .cfe (`cfe decompile`).
+		if (await this.vrunner.supportsVRunnerFeature('cli3')) {
+			return this.dumpToSrcV3(ibConnectionParam, commandName.title, opts);
+		}
+
 		return this.executeForAllExtensions(
 			(extensionFolder) => {
 				const outputPath = path.join(cfePath, extensionFolder);
@@ -403,6 +409,56 @@ export class ExtensionsCommands extends BaseCommand {
 			commandName.title,
 			opts
 		);
+	}
+
+	/**
+	 * Выгрузка расширений из ИБ в исходники для vrunner 3 (cfe unload + cfe decompile).
+	 *
+	 * @param ibConnectionParam - Параметры подключения к ИБ
+	 * @param commandName - Заголовок команды (терминал/результат)
+	 * @param opts - Опции выполнения
+	 */
+	private async dumpToSrcV3(
+		ibConnectionParam: string[],
+		commandName: string,
+		opts?: CommandExecutionOptions
+	): Promise<StructuredCommandResult | void> {
+		const workspaceRoot = this.getExecutionCwd(opts);
+		if (!workspaceRoot) {
+			if (opts?.wait === true) {
+				return this.executionError('Укажите projectPath или откройте рабочую область с проектом 1С');
+			}
+			this.ensureWorkspace();
+			return;
+		}
+		if (!(await this.ensureOscriptForExecution(opts))) {
+			if (opts?.wait === true) {
+				return this.executionError('OneScript (oscript) или opm не найдены');
+			}
+			return;
+		}
+		const folders = await this.getExtensionFoldersFromSrc(workspaceRoot);
+		if (!folders) {
+			if (opts?.wait === true) {
+				return this.executionError('В каталоге расширений не найдено подкаталогов');
+			}
+			return;
+		}
+
+		const cfePath = this.vrunner.getCfePath();
+		const cfeBuildDir = path.join(this.vrunner.getOutPath(), 'cfe');
+		const argsList: string[][] = [];
+		for (const folder of folders) {
+			const tmpCfe = path.join(cfeBuildDir, `${folder}.cfe`);
+			const outputPath = path.join(cfePath, folder);
+			argsList.push(this.vrunner.buildCfeUnloadArgs(tmpCfe, folder, ibConnectionParam));
+			argsList.push(this.vrunner.buildCfeDecompileArgs(tmpCfe, folder, outputPath, ibConnectionParam));
+		}
+
+		if (opts?.wait === true) {
+			return this.runVRunnerSequential(argsList, opts, commandName);
+		}
+		await this.vrunner.executeVRunnerCommandsInSequence(argsList, { cwd: workspaceRoot, name: commandName });
 	}
 
 	/**
@@ -571,9 +627,15 @@ export class ExtensionsCommands extends BaseCommand {
 		const ibConnectionParam = await this.vrunner.getIbConnectionParam();
 		const commandName = getDecompileExtensionCommandName();
 		const cfePath = this.vrunner.getCfePath();
+		// vrunner 3 разбирает .cfe напрямую (`cfe decompile --cfe-file`); в 2.x — из ИБ по имени.
+		const useV3 = await this.vrunner.supportsVRunnerFeature('cli3');
 		const argsList = cfeFiles.map((cfeFile) => {
 			const extensionName = cfeFile.replace(/\.cfe$/i, '');
 			const outputPath = path.join(cfePath, extensionName);
+			if (useV3) {
+				const cfeFilePath = path.join(buildPath, 'cfe', cfeFile);
+				return this.vrunner.buildCfeDecompileArgs(cfeFilePath, extensionName, outputPath, ibConnectionParam);
+			}
 			return this.addIbcmdIfNeeded(['decompileext', extensionName, outputPath, ...ibConnectionParam]);
 		});
 

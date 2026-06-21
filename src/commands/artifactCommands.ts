@@ -184,6 +184,18 @@ export class ArtifactCommands extends BaseCommand {
 		const cfeRel = getRelativePath(artifactUri);
 		const targetDir = this.pathForCmd(path.join(outDir, extensionName));
 		const ibConnectionParam = await this.vrunner.getIbConnectionParam();
+
+		// vrunner 3 разбирает .cfe напрямую (`cfe decompile --cfe-file`) — без загрузки в ИБ.
+		if (await this.vrunner.supportsVRunnerFeature('cli3')) {
+			const args = this.vrunner.buildCfeDecompileArgs(cfeRel, extensionName, targetDir, ibConnectionParam);
+			await this.vrunner.executeVRunnerInTerminal(args, {
+				cwd: workspaceRoot,
+				name: `Разобрать расширение: ${cfeName}`,
+			});
+			return;
+		}
+
+		// 2.x: .cfe нельзя разобрать напрямую — грузим в ИБ, затем выгружаем из ИБ.
 		const loadArgs = ['loadext', '--file', cfeRel, '--extension', extensionName, ...ibConnectionParam];
 		const decompileArgs = this.addIbcmdIfNeeded([
 			'decompileext',

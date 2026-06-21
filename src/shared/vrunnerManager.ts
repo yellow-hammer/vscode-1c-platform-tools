@@ -38,6 +38,9 @@ import {
 	parseVRunnerVersionFromOpmMetadata,
 	supportsFeature,
 } from './vrunnerVersion';
+import { translateVRunnerCommandTo3x, hasVRunner3Mapping } from './vrunnerCommandMap';
+import { convertEnvToAutumnProperties } from './vrunnerSettingsMigration';
+import * as crypto from 'node:crypto';
 
 const log = logger.scope('vrunner');
 
@@ -356,15 +359,15 @@ export class VRunnerManager {
 
 	/**
 	 * Проверяет, установлен ли vrunner и доступен ли он для выполнения
-	 * 
-	 * Выполняет команду `vrunner version` для проверки доступности.
-	 * 
+	 *
+	 * Доступность определяется по успешному определению версии (2.x — `vrunner
+	 * version`, 3.x — `vrunner --version`).
+	 *
 	 * @returns Промис, который разрешается true, если vrunner установлен и доступен, иначе false
 	 */
 	public async checkVRunnerInstalled(): Promise<boolean> {
 		try {
-			const result = await this.executeVRunner(['version']);
-			return result.success && result.exitCode === 0;
+			return (await this.getVRunnerVersion()) !== undefined;
 		} catch {
 			return false;
 		}
@@ -373,16 +376,16 @@ export class VRunnerManager {
 	/**
 	 * Определяет версию vrunner (vanessa-runner).
 	 *
-	 * Основной источник — команда `vrunner version` (печатает чистую строку
-	 * версии, например `2.6.0` или `3.0.0-rc3`). Если её не удалось выполнить
-	 * или разобрать, выполняется запасное чтение `opm-metadata.xml` из
+	 * Источник версии зависит от мажорной версии vrunner:
+	 *   - 2.x — команда `vrunner version` (печатает `2.6.0`);
+	 *   - 3.x — опция `vrunner --version` (печатает `3.0.0_beta`); подкоманда
+	 *     `version` в 3.x удалена.
+	 * Пробуем оба варианта; успешным считается тот, чей вывод разобрался в версию.
+	 * Если ни один не сработал — запасное чтение `opm-metadata.xml` из
 	 * `oscript_modules/vanessa-runner` в корне workspace.
 	 *
 	 * Результат кэшируется на время сессии; используйте forceRefresh для
 	 * принудительного повторного определения (например, после переустановки).
-	 *
-	 * ВАЖНО: НЕ использовать `vrunner --version` — этот флаг не поддерживается
-	 * и приводит к ошибке «Неизвестный параметр».
 	 *
 	 * @param forceRefresh - Игнорировать кэш и определить версию заново
 	 * @returns Разобранная версия или undefined, если определить не удалось
@@ -393,13 +396,19 @@ export class VRunnerManager {
 		}
 
 		let version: VRunnerVersion | undefined;
-		try {
-			const result = await this.executeVRunner(['version']);
-			if (result.success) {
-				version = parseVRunnerVersion(result.stdout);
+		// 2.x: `version` (подкоманда), 3.x: `--version` (опция).
+		for (const probe of [['version'], ['--version']]) {
+			try {
+				const result = await this.executeVRunner(probe);
+				if (result.success) {
+					version = parseVRunnerVersion(result.stdout);
+				}
+			} catch {
+				version = undefined;
 			}
-		} catch {
-			version = undefined;
+			if (version) {
+				break;
+			}
 		}
 
 		if (!version) {
@@ -459,6 +468,36 @@ export class VRunnerManager {
 	public async supportsVRunnerFeature(feature: VRunnerFeature): Promise<boolean> {
 		const version = await this.getVRunnerVersion();
 		return version ? supportsFeature(version, feature) : false;
+	}
+
+	/**
+	 * Аргументы vrunner 3 для разбора расширения из .cfe-файла (`cfe decompile`).
+	 *
+	 * В 3.x `cfe decompile` разбирает именно .cfe-файл (`--cfe-file`), а не ИБ.
+	 * Опции идут перед позиционным каталогом вывода (требование vrunner 3).
+	 *
+	 * @param cfeFile - Путь к .cfe-файлу
+	 * @param extensionName - Имя расширения
+	 * @param outDir - Каталог вывода исходников (позиционный)
+	 * @param ibConnectionParam - Параметры подключения к ИБ (['--ibconnection', …])
+	 * @returns Аргументы команды `cfe decompile`
+	 */
+	public buildCfeDecompileArgs(cfeFile: string, extensionName: string, outDir: string, ibConnectionParam: string[]): string[] {
+		const ibcmd = this.getUseIbcmd() ? ['--ibcmd'] : [];
+		return ['cfe', 'decompile', '--cfe-file', cfeFile, '--extension-name', extensionName, ...ibcmd, ...ibConnectionParam, outDir];
+	}
+
+	/**
+	 * Аргументы vrunner 3 для выгрузки расширения из ИБ в .cfe-файл (`cfe unload`).
+	 *
+	 * @param cfeFile - Путь к .cfe-файлу (позиционный OUT)
+	 * @param extensionName - Имя расширения в ИБ
+	 * @param ibConnectionParam - Параметры подключения к ИБ
+	 * @returns Аргументы команды `cfe unload`
+	 */
+	public buildCfeUnloadArgs(cfeFile: string, extensionName: string, ibConnectionParam: string[]): string[] {
+		const ibcmd = this.getUseIbcmd() ? ['--ibcmd'] : [];
+		return ['cfe', 'unload', '--extension-name', extensionName, ...ibcmd, ...ibConnectionParam, cfeFile];
 	}
 
 	/**
@@ -713,7 +752,7 @@ export class VRunnerManager {
 		args: string[],
 		options?: { cwd?: string; env?: NodeJS.ProcessEnv; name?: string; shellType?: ShellType }
 	): Promise<void> {
-		args = this.appendActiveOverrides(args);
+		args = await this.prepareVRunnerCommand(this.appendActiveOverrides(args));
 		const cwd = options?.cwd || this.workspaceRoot || os.homedir();
 		const shellType = options?.shellType || detectShellType();
 
@@ -795,7 +834,9 @@ export class VRunnerManager {
 			return;
 		}
 
-		argsArray = argsArray.map((args) => this.appendActiveOverrides(args));
+		argsArray = await Promise.all(
+			argsArray.map((args) => this.prepareVRunnerCommand(this.appendActiveOverrides(args)))
+		);
 
 		const cwd = options?.cwd || this.workspaceRoot || os.homedir();
 		const shellType = options?.shellType || detectShellType();
@@ -916,6 +957,7 @@ export class VRunnerManager {
 	): Promise<VRunnerExecutionResult> {
 		const useDocker = await this.shouldUseDocker();
 		const cwd = options?.cwd || this.workspaceRoot;
+		args = await this.prepareVRunnerCommand(args);
 
 		return new Promise((resolve) => {
 			const built = this.buildExecCommand(args, useDocker);
@@ -972,7 +1014,7 @@ export class VRunnerManager {
 			onOutput?: (chunk: string) => void;
 		}
 	): Promise<CancellableProcessResult> {
-		args = this.appendActiveOverrides(args);
+		args = await this.prepareVRunnerCommand(this.appendActiveOverrides(args));
 		const useDocker = await this.shouldUseDocker();
 		const built = this.buildExecCommand(args, useDocker);
 		if ('error' in built) {
@@ -1288,6 +1330,70 @@ export class VRunnerManager {
 	private appendActiveOverrides(args: string[]): string[] {
 		const overrides = this.getActiveEnvOverrideArgs();
 		return overrides.length > 0 ? [...args, ...overrides] : args;
+	}
+
+	/**
+	 * Приводит команду к синтаксису vrunner 3, если установлен vrunner ≥ 3.0.
+	 *
+	 * vrunner 3 использует иерархические команды (`vanessa` → `test vanessa`).
+	 * Для 2.x (LTS) и непереводимых команд (например `version`) аргументы не
+	 * меняются; в последнем случае версия даже не определяется (исключает
+	 * рекурсию при вызове `vrunner version`).
+	 *
+	 * @param args - Аргументы команды в форме 2.x
+	 * @returns Аргументы в форме, подходящей установленной версии vrunner
+	 */
+	private async prepareVRunnerCommand(args: string[]): Promise<string[]> {
+		// Быстрый выход: транслировать нечего и нет --settings → версию не
+		// определяем (исключает рекурсию на `vrunner version`/`--version`).
+		const hasSettings = args.includes('--settings');
+		if (args.length === 0 || (!hasVRunner3Mapping(args[0]) && !hasSettings)) {
+			return args;
+		}
+		if (!(await this.supportsVRunnerFeature('cli3'))) {
+			return args;
+		}
+		const translated = translateVRunnerCommandTo3x(args);
+		return this.convertSettingsArgForV3(translated);
+	}
+
+	/**
+	 * Подменяет файл `--settings` на конвертированный в формат vrunner 3.
+	 *
+	 * vrunner 3 читает настройки в формате autumn-properties (иная иерархия и
+	 * ключи без `--`). Конвертируем активный env.json «на лету» во временный файл
+	 * и подставляем его путь. При ошибке чтения/разбора оставляем исходный путь.
+	 *
+	 * @param args - Аргументы команды (уже в синтаксисе 3.x)
+	 * @returns Аргументы с подменённым путём --settings (если он был)
+	 */
+	private async convertSettingsArgForV3(args: string[]): Promise<string[]> {
+		const index = args.indexOf('--settings');
+		if (index < 0 || index + 1 >= args.length) {
+			return args;
+		}
+		const settingsArg = args[index + 1];
+		const absoluteSource = path.isAbsolute(settingsArg)
+			? settingsArg
+			: path.join(this.workspaceRoot ?? process.cwd(), settingsArg);
+
+		try {
+			const env = JSON.parse(await fs.readFile(absoluteSource, 'utf8'));
+			const { result } = convertEnvToAutumnProperties(env);
+			const hash = crypto.createHash('md5').update(absoluteSource).digest('hex').slice(0, 12);
+			const targetDir = path.join(os.tmpdir(), 'vscode-1c-vrunner3-settings');
+			await fs.mkdir(targetDir, { recursive: true });
+			const targetPath = path.join(targetDir, `${hash}.json`);
+			await fs.writeFile(targetPath, JSON.stringify(result, null, 2), 'utf8');
+
+			const converted = [...args];
+			converted[index + 1] = targetPath;
+			log.debug(`vrunner 3: настройки сконвертированы ${absoluteSource} → ${targetPath}`);
+			return converted;
+		} catch (error) {
+			log.warn(`Не удалось сконвертировать настройки для vrunner 3: ${(error as Error).message}`);
+			return args;
+		}
 	}
 
 	/**
