@@ -357,15 +357,15 @@ export class VRunnerManager {
 
 	/**
 	 * Проверяет, установлен ли vrunner и доступен ли он для выполнения
-	 * 
-	 * Выполняет команду `vrunner version` для проверки доступности.
-	 * 
+	 *
+	 * Доступность определяется по успешному определению версии (2.x — `vrunner
+	 * version`, 3.x — `vrunner --version`).
+	 *
 	 * @returns Промис, который разрешается true, если vrunner установлен и доступен, иначе false
 	 */
 	public async checkVRunnerInstalled(): Promise<boolean> {
 		try {
-			const result = await this.executeVRunner(['version']);
-			return result.success && result.exitCode === 0;
+			return (await this.getVRunnerVersion()) !== undefined;
 		} catch {
 			return false;
 		}
@@ -374,16 +374,16 @@ export class VRunnerManager {
 	/**
 	 * Определяет версию vrunner (vanessa-runner).
 	 *
-	 * Основной источник — команда `vrunner version` (печатает чистую строку
-	 * версии, например `2.6.0` или `3.0.0-rc3`). Если её не удалось выполнить
-	 * или разобрать, выполняется запасное чтение `opm-metadata.xml` из
+	 * Источник версии зависит от мажорной версии vrunner:
+	 *   - 2.x — команда `vrunner version` (печатает `2.6.0`);
+	 *   - 3.x — опция `vrunner --version` (печатает `3.0.0_beta`); подкоманда
+	 *     `version` в 3.x удалена.
+	 * Пробуем оба варианта; успешным считается тот, чей вывод разобрался в версию.
+	 * Если ни один не сработал — запасное чтение `opm-metadata.xml` из
 	 * `oscript_modules/vanessa-runner` в корне workspace.
 	 *
 	 * Результат кэшируется на время сессии; используйте forceRefresh для
 	 * принудительного повторного определения (например, после переустановки).
-	 *
-	 * ВАЖНО: НЕ использовать `vrunner --version` — этот флаг не поддерживается
-	 * и приводит к ошибке «Неизвестный параметр».
 	 *
 	 * @param forceRefresh - Игнорировать кэш и определить версию заново
 	 * @returns Разобранная версия или undefined, если определить не удалось
@@ -394,13 +394,19 @@ export class VRunnerManager {
 		}
 
 		let version: VRunnerVersion | undefined;
-		try {
-			const result = await this.executeVRunner(['version']);
-			if (result.success) {
-				version = parseVRunnerVersion(result.stdout);
+		// 2.x: `version` (подкоманда), 3.x: `--version` (опция).
+		for (const probe of [['version'], ['--version']]) {
+			try {
+				const result = await this.executeVRunner(probe);
+				if (result.success) {
+					version = parseVRunnerVersion(result.stdout);
+				}
+			} catch {
+				version = undefined;
 			}
-		} catch {
-			version = undefined;
+			if (version) {
+				break;
+			}
 		}
 
 		if (!version) {
