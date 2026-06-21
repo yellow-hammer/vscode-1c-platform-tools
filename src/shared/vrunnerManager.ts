@@ -39,6 +39,8 @@ import {
 	supportsFeature,
 } from './vrunnerVersion';
 import { translateVRunnerCommandTo3x, hasVRunner3Mapping } from './vrunnerCommandMap';
+import { convertEnvToAutumnProperties } from './vrunnerSettingsMigration';
+import * as crypto from 'node:crypto';
 
 const log = logger.scope('vrunner');
 
@@ -1312,13 +1314,56 @@ export class VRunnerManager {
 	 * @returns Аргументы в форме, подходящей установленной версии vrunner
 	 */
 	private async prepareVRunnerCommand(args: string[]): Promise<string[]> {
-		if (args.length === 0 || !hasVRunner3Mapping(args[0])) {
+		// Быстрый выход: транслировать нечего и нет --settings → версию не
+		// определяем (исключает рекурсию на `vrunner version`/`--version`).
+		const hasSettings = args.includes('--settings');
+		if (args.length === 0 || (!hasVRunner3Mapping(args[0]) && !hasSettings)) {
 			return args;
 		}
-		if (await this.supportsVRunnerFeature('cli3')) {
-			return translateVRunnerCommandTo3x(args);
+		if (!(await this.supportsVRunnerFeature('cli3'))) {
+			return args;
 		}
-		return args;
+		const translated = translateVRunnerCommandTo3x(args);
+		return this.convertSettingsArgForV3(translated);
+	}
+
+	/**
+	 * Подменяет файл `--settings` на конвертированный в формат vrunner 3.
+	 *
+	 * vrunner 3 читает настройки в формате autumn-properties (иная иерархия и
+	 * ключи без `--`). Конвертируем активный env.json «на лету» во временный файл
+	 * и подставляем его путь. При ошибке чтения/разбора оставляем исходный путь.
+	 *
+	 * @param args - Аргументы команды (уже в синтаксисе 3.x)
+	 * @returns Аргументы с подменённым путём --settings (если он был)
+	 */
+	private async convertSettingsArgForV3(args: string[]): Promise<string[]> {
+		const index = args.indexOf('--settings');
+		if (index < 0 || index + 1 >= args.length) {
+			return args;
+		}
+		const settingsArg = args[index + 1];
+		const absoluteSource = path.isAbsolute(settingsArg)
+			? settingsArg
+			: path.join(this.workspaceRoot ?? process.cwd(), settingsArg);
+
+		try {
+			const env = JSON.parse(await fs.readFile(absoluteSource, 'utf8'));
+			const { result } = convertEnvToAutumnProperties(env);
+			const hash = crypto.createHash('md5').update(absoluteSource).digest('hex').slice(0, 12);
+			const targetDir = path.join(os.tmpdir(), 'vscode-1c-vrunner3-settings');
+			await fs.mkdir(targetDir, { recursive: true });
+			const targetPath = path.join(targetDir, `${hash}.json`);
+			await fs.writeFile(targetPath, JSON.stringify(result, null, 2), 'utf8');
+
+			const converted = [...args];
+			converted[index + 1] = targetPath;
+			log.debug(`vrunner 3: настройки сконвертированы ${absoluteSource} → ${targetPath}`);
+			return converted;
+		} catch (error) {
+			log.warn(`Не удалось сконвертировать настройки для vrunner 3: ${(error as Error).message}`);
+			return args;
+		}
 	}
 
 	/**
