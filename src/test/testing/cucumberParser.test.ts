@@ -85,6 +85,31 @@ suite('cucumberParser', () => {
 		assert.strictEqual(cases[0].timeMs, undefined);
 	});
 
+	test('извлекает expected/actual из error_message шага', () => {
+		const json = JSON.stringify([
+			{
+				name: 'Фича',
+				elements: [
+					{
+						name: 'Сравнение значений',
+						type: 'scenario',
+						steps: [
+							{
+								keyword: 'Тогда ',
+								name: 'значения равны',
+								result: { status: 'failed', error_message: 'Ожидаемое значение: 10. Фактическое значение: 20' }
+							}
+						]
+					}
+				]
+			}
+		]);
+
+		const cases = parseCucumberJson(json);
+		assert.strictEqual(cases[0].expected, '10');
+		assert.strictEqual(cases[0].actual, '20');
+	});
+
 	test('битый JSON и не-массив вызывают ошибку', () => {
 		assert.throws(() => parseCucumberJson('{оборвано'), /Cucumber JSON/);
 		assert.throws(() => parseCucumberJson('{"name": "не массив"}'), /массив/);

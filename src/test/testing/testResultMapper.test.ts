@@ -32,7 +32,7 @@ suite('testResultMapper', () => {
 		const mapped = results.get('id-1');
 		assert.ok(mapped);
 		assert.strictEqual(mapped.status, 'failed');
-		assert.deepStrictEqual(mapped.messages, ['Упал']);
+		assert.deepStrictEqual(mapped.messages, [{ text: 'Упал' }]);
 	});
 
 	test('подстрочное совпадение: единственный кандидат привязывается', () => {
@@ -69,7 +69,7 @@ suite('testResultMapper', () => {
 		assert.ok(mapped);
 		assert.strictEqual(mapped.status, 'failed', 'failed важнее passed');
 		assert.strictEqual(mapped.durationMs, 300);
-		assert.deepStrictEqual(mapped.messages, ['Строка 2 упала']);
+		assert.deepStrictEqual(mapped.messages, [{ text: 'Строка 2 упала' }]);
 	});
 
 	test('error важнее failed, skipped — только если все пропущены', () => {
@@ -98,6 +98,36 @@ suite('testResultMapper', () => {
 	test('падение без message получает заглушку', () => {
 		const { results } = mapResults([junitCase('Параметризованный', 'failed')], known);
 		assert.strictEqual(results.get('id-3')?.messages.length, 1);
-		assert.ok(results.get('id-3')?.messages[0].length);
+		assert.ok(results.get('id-3')?.messages[0].text.length);
+	});
+
+	test('пара expected/actual пробрасывается в сообщение для diff', () => {
+		const { results } = mapResults(
+			[
+				junitCase('ТестДолжен_ПроверитьСложение', 'failed', {
+					message: 'expected:<4> but was:<5>',
+					expected: '4',
+					actual: '5'
+				})
+			],
+			known
+		);
+		const mapped = results.get('id-2');
+		assert.ok(mapped);
+		assert.strictEqual(mapped.messages.length, 1);
+		assert.strictEqual(mapped.messages[0].expected, '4');
+		assert.strictEqual(mapped.messages[0].actual, '5');
+		assert.ok(mapped.messages[0].text.includes('expected:<4>'));
+	});
+
+	test('без пары expected/actual поля diff не выставляются (fallback на текст)', () => {
+		const { results } = mapResults(
+			[junitCase('ТестДолжен_ПроверитьСложение', 'failed', { message: 'Просто упал' })],
+			known
+		);
+		const message = results.get('id-2')?.messages[0];
+		assert.ok(message);
+		assert.strictEqual(message.expected, undefined);
+		assert.strictEqual(message.actual, undefined);
 	});
 });

@@ -76,6 +76,30 @@ suite('junitParser', () => {
 		assert.strictEqual(cases[0].timeMs, 250);
 	});
 
+	test('извлекает expected/actual из текста падения (классический assertEquals)', () => {
+		const xml = `<testsuite name="S">
+	<testcase name="Сложение">
+		<failure message="expected:&lt;4&gt; but was:&lt;5&gt;">Стек вызовов</failure>
+	</testcase>
+</testsuite>`;
+
+		const cases = parseJUnitXml(xml);
+		assert.strictEqual(cases[0].expected, '4');
+		assert.strictEqual(cases[0].actual, '5');
+	});
+
+	test('без распознанной пары expected/actual остаются undefined', () => {
+		const xml = `<testsuite name="S">
+	<testcase name="Без пары">
+		<failure message="Объект не найден">детали</failure>
+	</testcase>
+</testsuite>`;
+
+		const cases = parseJUnitXml(xml);
+		assert.strictEqual(cases[0].expected, undefined);
+		assert.strictEqual(cases[0].actual, undefined);
+	});
+
 	test('пустой testsuite даёт пустой список', () => {
 		assert.deepStrictEqual(parseJUnitXml('<testsuite name="Пусто"/>'), []);
 	});

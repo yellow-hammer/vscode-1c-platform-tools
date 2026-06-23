@@ -1,4 +1,5 @@
 import { XMLParser } from 'fast-xml-parser';
+import { extractExpectedActual } from './expectedActual';
 
 /**
  * Парсер jUnit XML отчётов
@@ -27,6 +28,10 @@ export interface JUnitCase {
 	message?: string;
 	/** Подробности падения (текст элемента failure/error) */
 	details?: string;
+	/** Ожидаемое значение, если распознано в тексте падения (для diff-представления) */
+	expected?: string;
+	/** Фактическое значение, если распознано в тексте падения (для diff-представления) */
+	actual?: string;
 }
 
 /**
@@ -108,6 +113,7 @@ function parseTestCase(testcase: Record<string, unknown>, suiteName: string): JU
 	}
 
 	const { message, details } = extractFailureInfo(failureNode);
+	const diff = extractExpectedActual(message, details);
 
 	return {
 		suiteName,
@@ -116,7 +122,9 @@ function parseTestCase(testcase: Record<string, unknown>, suiteName: string): JU
 		status,
 		timeMs: parseTimeMs(testcase['@_time']),
 		message,
-		details
+		details,
+		expected: diff?.expected,
+		actual: diff?.actual
 	};
 }
 

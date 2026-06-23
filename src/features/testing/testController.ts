@@ -683,8 +683,13 @@ export class TestingController implements vscode.Disposable {
 					break;
 				case 'failed':
 				case 'error': {
-					const messages = mapped.messages.map((text) => {
-						const message = new vscode.TestMessage(text);
+					const messages = mapped.messages.map((failure) => {
+						// При наличии пары ожидаемое/фактическое показываем нативный
+						// diff, иначе откатываемся на обычное текстовое сообщение
+						const message =
+							failure.expected !== undefined && failure.actual !== undefined
+								? vscode.TestMessage.diff(failure.text, failure.expected, failure.actual)
+								: new vscode.TestMessage(failure.text);
 						if (item.uri && item.range) {
 							message.location = new vscode.Location(item.uri, item.range.start);
 						}
