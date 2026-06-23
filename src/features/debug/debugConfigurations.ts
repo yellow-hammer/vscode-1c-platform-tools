@@ -4,6 +4,7 @@ import * as vscode from 'vscode';
 import { DEBUG_TYPE } from './debugConstants';
 import { resolveFileIbConnectionString } from '../../shared/ibConnectionPath';
 import { DEFAULT_PATHS } from '../../shared/pathDefaults';
+import { logger } from '../../shared/logger';
 
 const platformBasePath =
 	process.platform === 'win32' ? '${env:PROGRAMFILES}/1cv8' : '/opt/1C/v8.3/x86_64';
@@ -152,9 +153,9 @@ export class OnecDebugConfigurationProvoider implements vscode.DebugConfiguratio
 
 		const resolvedConnectionString = resolveFileIbConnectionString(trimmed, workspaceRoot);
 
-		// При logLevel=debug включаем диагностику адаптера (нейтральный флаг trace в конфигурации запуска).
-		const trace =
-			vscode.workspace.getConfiguration('1c-platform-tools').get<string>('logLevel', 'info') === 'debug';
+		// При уровне логирования Debug (или подробнее) включаем диагностику адаптера
+		// (нейтральный флаг trace в конфигурации запуска).
+		const trace = logger.isDebugEnabled();
 
 		// Учётные данные автовхода: из конфигурации запуска либо env.json.
 		const user = (config.user as string | undefined) ?? envDefault?.['--db-user'] ?? '';

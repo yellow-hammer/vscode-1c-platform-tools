@@ -1,54 +1,22 @@
 import * as vscode from 'vscode';
 
-/** Уровни логирования: чем больше число, тем подробнее вывод */
-const LOG_LEVELS = {
-	error: 0,
-	warnings: 1,
-	info: 2,
-	debug: 3,
-} as const;
-
-export type LogLevelName = keyof typeof LOG_LEVELS;
-
 const OUTPUT_CHANNEL_NAME = '1C: Platform Tools';
 
-let outputChannel: vscode.OutputChannel | undefined;
+let outputChannel: vscode.LogOutputChannel | undefined;
 
 /**
- * Возвращает канал вывода, создавая его при первом обращении
+ * Возвращает канал вывода с поддержкой уровней, создавая его при первом обращении.
+ * Таймстемпы, уровень и фильтрацию по уровню обеспечивает сам VS Code
+ * (селектор уровня у канала Output / «Developer: Set Log Level…»).
  */
-function getChannel(): vscode.OutputChannel {
-	outputChannel ??= vscode.window.createOutputChannel(OUTPUT_CHANNEL_NAME);
+function getChannel(): vscode.LogOutputChannel {
+	outputChannel ??= vscode.window.createOutputChannel(OUTPUT_CHANNEL_NAME, { log: true });
 	return outputChannel;
 }
 
-/**
- * Читает текущий уровень логирования из настроек
- */
-function getConfiguredLevel(): number {
-	const config = vscode.workspace.getConfiguration('1c-platform-tools');
-	const name = config.get<LogLevelName>('logLevel', 'info');
-	return LOG_LEVELS[name] ?? LOG_LEVELS.info;
-}
-
-/**
- * Форматирует строку лога: [время] [уровень] [компонент] сообщение
- */
-function formatMessage(level: string, scope: string | undefined, message: string): string {
-	const time = new Date().toISOString();
-	return scope ? `[${time}] [${level}] [${scope}] ${message}` : `[${time}] [${level}] ${message}`;
-}
-
-/**
- * Пишет сообщение в output, если уровень не ниже настроенного
- */
-function log(level: LogLevelName, scope: string | undefined, message: string): void {
-	const configured = getConfiguredLevel();
-	const currentLevel = LOG_LEVELS[level];
-	if (currentLevel > configured) {
-		return;
-	}
-	getChannel().appendLine(formatMessage(level, scope, message));
+/** Добавляет к сообщению префикс компонента: `[компонент] сообщение`. */
+function withScope(scope: string, message: string): string {
+	return `[${scope}] ${message}`;
 }
 
 /** Логгер компонента: пишет с постоянным префиксом [компонент]. */
@@ -57,41 +25,55 @@ export interface ScopedLogger {
 	warn(message: string): void;
 	info(message: string): void;
 	debug(message: string): void;
+	trace(message: string): void;
 }
 
 /**
- * Выводит сообщения в панель Output в соответствии с настройкой logLevel.
- * Модули получают свой префикс через scope(): `const log = logger.scope('md-sparrow');`
+ * Выводит сообщения в панель Output поверх `LogOutputChannel`: уровень, таймстемп
+ * и фильтрацию по уровню обеспечивает VS Code. В текст добавляется только префикс
+ * компонента, который модули получают через scope(): `const log = logger.scope('md-sparrow');`
  */
 export const logger = {
-	/** Критические ошибки (всегда видны при уровне error и выше) */
+	/** Критические ошибки */
 	error(message: string): void {
-		log('error', undefined, message);
+		getChannel().error(message);
 	},
 
-	/** Предупреждения (видны при warnings, info, debug) */
+	/** Предупреждения */
 	warn(message: string): void {
-		log('warnings', undefined, message);
+		getChannel().warn(message);
 	},
 
-	/** Информационные сообщения (видны при info, debug) */
+	/** Информационные сообщения */
 	info(message: string): void {
-		log('info', undefined, message);
+		getChannel().info(message);
 	},
 
-	/** Отладочные сообщения (видны только при debug) */
+	/** Отладочные сообщения */
 	debug(message: string): void {
-		log('debug', undefined, message);
+		getChannel().debug(message);
 	},
 
-	/** Логгер с постоянным компонентом в префиксе: [время] [уровень] [компонент] сообщение. */
+	/** Подробная трассировка */
+	trace(message: string): void {
+		getChannel().trace(message);
+	},
+
+	/** Логгер с постоянным компонентом в префиксе: `[компонент] сообщение`. */
 	scope(name: string): ScopedLogger {
 		return {
-			error: (message: string) => log('error', name, message),
-			warn: (message: string) => log('warnings', name, message),
-			info: (message: string) => log('info', name, message),
-			debug: (message: string) => log('debug', name, message),
+			error: (message: string) => getChannel().error(withScope(name, message)),
+			warn: (message: string) => getChannel().warn(withScope(name, message)),
+			info: (message: string) => getChannel().info(withScope(name, message)),
+			debug: (message: string) => getChannel().debug(withScope(name, message)),
+			trace: (message: string) => getChannel().trace(withScope(name, message)),
 		};
+	},
+
+	/** true, если активен уровень Debug или подробнее (Trace) — для диагностики DAP-адаптера. */
+	isDebugEnabled(): boolean {
+		const level = getChannel().logLevel;
+		return level !== vscode.LogLevel.Off && level <= vscode.LogLevel.Debug;
 	},
 
 	/** Показать панель Output с логами расширения */
@@ -101,9 +83,7 @@ export const logger = {
 
 	/** Освободить канал (вызывать при деактивации расширения) */
 	dispose(): void {
-		if (outputChannel) {
-			outputChannel.dispose();
-			outputChannel = undefined;
-		}
+		outputChannel?.dispose();
+		outputChannel = undefined;
 	},
 };
