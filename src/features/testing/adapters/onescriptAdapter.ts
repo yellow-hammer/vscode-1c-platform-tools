@@ -21,8 +21,12 @@ type OneScriptRunner = '1testrunner' | 'oneunit';
  *
  * Запуск — без платформы 1С, раннер выбирается настройкой
  * testing.onescriptRunner ('auto' — по наличию oneunit в oscript_modules/bin):
- * - 1testrunner: `-run <файл> [ИмяТеста] xddReportPath <каталог>` — jUnit-отчёт;
- * - OneUnit: `execute -f <файл> [-m <метод>] --junit <отчёт>` — jUnit-отчёт.
+ * - 1testrunner: `-run <файл> xddReportPath <каталог>` — jUnit-отчёт. Имя файла
+ *   отчёта раннер выбирает сам по набору тестов, поэтому точечный фильтр не
+ *   передаём (при одном тесте имя расходится с <файл>.os.xml и отчёт не находится)
+ *   — гоняем весь файл, панель раскладывает результаты по кейсам;
+ * - OneUnit: `execute -f <файл> [-m <метод>] --junit <отчёт>` — точечный запуск
+ *   надёжен, отчёт пишется в явный файл.
  *
  * Отчёты складываются в build/out/onescript — их подхватывает команда
  * «Allure отчёт». Для старых версий 1testrunner без поддержки xddReportPath
@@ -66,7 +70,8 @@ export class OneScriptAdapter implements TestFrameworkAdapter {
 	public async buildRunPlan(unit: RunUnit, _reportDir: string): Promise<AdapterRunPlan> {
 		const runner = this.resolveRunner();
 		const quotedFile = `"${unit.fileUri.fsPath}"`;
-		// Точечный запуск возможен только для одного теста
+		// Точечный запуск надёжен только у OneUnit (явный --junit <файл>).
+		// У 1testrunner имя отчёта выбирается раннером — фильтр его ломает (см. ниже).
 		const singleCase = unit.caseNames?.length === 1 ? unit.caseNames[0] : undefined;
 
 		// Отчёты складываем в build/out/onescript (постоянное место):
@@ -89,13 +94,15 @@ export class OneScriptAdapter implements TestFrameworkAdapter {
 			};
 		}
 
-		// 1testrunner: jUnit через xddReportPath <каталог> —
-		// внутри создаётся <имяФайлаТеста>.xml (testcase = метод, статус атрибутом)
-		const args = [runner.command, '-run', quotedFile];
-		if (singleCase) {
-			args.push(`"${singleCase}"`);
-		}
-		args.push('xddReportPath', `"${reportsDir}"`);
+		// 1testrunner: jUnit через xddReportPath <каталог> — внутри создаётся
+		// <имяФайлаТеста>.xml (testcase = метод, статус атрибутом).
+		//
+		// Точечный фильтр (`-run <файл> "ИмяТеста"`) намеренно НЕ передаём: при одном
+		// отобранном тесте 1testrunner формирует имя файла отчёта из схлопнутого набора
+		// тестов, и оно расходится с ожидаемым <файл>.os.xml — отчёт пишется, но панель
+		// его не находит («без jUnit-отчёта»). Поэтому всегда гоняем весь файл, а нужный
+		// кейс панель подсветит при раскладке результатов.
+		const args = [runner.command, '-run', quotedFile, 'xddReportPath', `"${reportsDir}"`];
 		return {
 			tool: 'shell',
 			args: [args.join(' ')],

@@ -25,14 +25,25 @@ suite('onescriptAdapter', () => {
 		);
 	});
 
-	test('buildRunPlan (1testrunner): один кейс добавляет имя теста', async () => {
+	test('buildRunPlan (1testrunner): один кейс гонит весь файл, без фильтра по имени', async () => {
 		const adapter = new OneScriptAdapter(VRunnerManager.getInstance());
 
 		const plan = await adapter.buildRunPlan(
 			{ fileUri, caseNames: ['ТестДолжен_Проверить'] },
 			'C:\\proj\\build\\report'
 		);
-		assert.ok(plan.args[0].includes('"ТестДолжен_Проверить"'));
+		// 1testrunner сам выбирает имя файла отчёта по набору тестов: при точечном
+		// фильтре оно расходится с <файл>.os.xml и отчёт не находится. Поэтому фильтр
+		// по имени не передаём — гоняем весь файл (отчёт остаётся test_example.os.xml).
+		assert.ok(
+			!plan.args[0].includes('"ТестДолжен_Проверить"'),
+			'Имя теста не передаётся в 1testrunner — запускается весь файл'
+		);
+		assert.ok(plan.args[0].includes('xddReportPath'), 'Отчёт пишется через xddReportPath');
+		assert.ok(
+			plan.reportTarget?.path.endsWith('test_example.os.xml'),
+			'Отчёт по имени файла теста'
+		);
 	});
 
 	test('parseFile распознаёт xdd-структуру и аннотации', () => {
