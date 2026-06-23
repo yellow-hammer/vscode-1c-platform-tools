@@ -19,6 +19,14 @@ function withScope(scope: string, message: string): string {
 	return `[${scope}] ${message}`;
 }
 
+/**
+ * true для уровней Debug и подробнее (Trace), но не для Off.
+ * Off (=0) численно меньше Debug, поэтому исключается отдельной проверкой.
+ */
+export function isVerboseLevel(level: vscode.LogLevel): boolean {
+	return level !== vscode.LogLevel.Off && level <= vscode.LogLevel.Debug;
+}
+
 /** Логгер компонента: пишет с постоянным префиксом [компонент]. */
 export interface ScopedLogger {
 	error(message: string): void;
@@ -72,8 +80,7 @@ export const logger = {
 
 	/** true, если активен уровень Debug или подробнее (Trace) — для диагностики DAP-адаптера. */
 	isDebugEnabled(): boolean {
-		const level = getChannel().logLevel;
-		return level !== vscode.LogLevel.Off && level <= vscode.LogLevel.Debug;
+		return isVerboseLevel(getChannel().logLevel);
 	},
 
 	/** Показать панель Output с логами расширения */
