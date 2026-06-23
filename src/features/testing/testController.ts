@@ -221,7 +221,7 @@ export class TestingController implements vscode.Disposable {
 				// Мутации дерева сериализуем через ту же цепочку, что и rebuild,
 				// чтобы события watcher и пересборка не переплетались на this.files
 				watcher.onDidCreate((uri) => this.enqueueMutation(() => this.upsertFile(adapter, uri)));
-				watcher.onDidChange((uri) => this.enqueueMutation(() => this.upsertFile(adapter, uri)));
+				watcher.onDidChange((uri) => this.enqueueMutation(() => this.reparseChangedFile(adapter, uri)));
 				watcher.onDidDelete((uri) => this.enqueueMutation(async () => this.removeFile(adapter, uri)));
 				this.watchers.push(watcher);
 			}
@@ -240,61 +240,90 @@ export class TestingController implements vscode.Disposable {
 			return;
 		}
 
-		let content: string;
-		try {
-			const bytes = await vscode.workspace.fs.readFile(uri);
-			content = new TextDecoder('utf-8', { fatal: false }).decode(bytes);
-		} catch (error) {
-			log.warn(`Не удалось прочитать ${uri.fsPath}: ${(error as Error).message}`);
-			this.removeFile(adapter, uri);
-			return;
-		}
-
-		const discovered = adapter.parseFile(content);
-		if (!discovered) {
-			this.removeFile(adapter, uri);
-			return;
-		}
-
-		const workspaceRoot = this.vrunner.getWorkspaceRoot() ?? '';
-		const location = adapter.describeFileLocation(uri, workspaceRoot);
-		const parent = this.ensureDirectoryChain(adapter, uri, location.segments);
 		const id = fileItemId(adapter.id, uri.toString());
-		const label = discovered.label ?? location.label ?? path.basename(uri.fsPath);
-		let entry = this.files.get(id);
-
-		if (!entry) {
-			const item = this.controller.createTestItem(id, label, uri);
-			parent.children.add(item);
-			entry = { item, adapter };
-			this.files.set(id, entry);
-		} else {
-			entry.item.label = label;
-		}
-		// Файлы сортируются после каталогов (префикс «1» против «0» у каталогов)
-		entry.item.sortText = `1${label}`;
-
-		if (discovered.labelLine !== undefined) {
-			entry.item.range = new vscode.Range(discovered.labelLine, 0, discovered.labelLine, 0);
+		// Пока идёт чтение и разбор, крутим спиннер на узле файла (busy). Для новых
+		// файлов узла ещё нет — спиннер появится при последующих изменениях.
+		const tracked = this.files.get(id);
+		if (tracked) {
+			tracked.item.busy = true;
 		}
 
-		const children: vscode.TestItem[] = [];
-		const seenIds = new Set<string>();
-		for (const testCase of discovered.cases) {
-			// Дубли имён (одинаковые сценарии в одном файле) различаем по строке,
-			// иначе TestItemCollection отвергнет повторный ID
-			const baseId = caseItemId(adapter.id, uri.toString(), testCase.name);
-			const id = dedupedCaseId(baseId, testCase.line, seenIds);
-			const child = this.controller.createTestItem(id, testCase.name, uri);
-			child.range = new vscode.Range(testCase.line, 0, testCase.line, 0);
-			// Кейсы — в порядке следования по файлу, а не по алфавиту
-			child.sortText = String(testCase.line).padStart(6, '0');
-			if (testCase.tags) {
-				child.tags = testCase.tags.map((tag) => new vscode.TestTag(tag));
+		try {
+			let content: string;
+			try {
+				const bytes = await vscode.workspace.fs.readFile(uri);
+				content = new TextDecoder('utf-8', { fatal: false }).decode(bytes);
+			} catch (error) {
+				log.warn(`Не удалось прочитать ${uri.fsPath}: ${(error as Error).message}`);
+				this.removeFile(adapter, uri);
+				return;
 			}
-			children.push(child);
+
+			const discovered = adapter.parseFile(content);
+			if (!discovered) {
+				this.removeFile(adapter, uri);
+				return;
+			}
+
+			const workspaceRoot = this.vrunner.getWorkspaceRoot() ?? '';
+			const location = adapter.describeFileLocation(uri, workspaceRoot);
+			const parent = this.ensureDirectoryChain(adapter, uri, location.segments);
+			const label = discovered.label ?? location.label ?? path.basename(uri.fsPath);
+			let entry = this.files.get(id);
+
+			if (!entry) {
+				const item = this.controller.createTestItem(id, label, uri);
+				parent.children.add(item);
+				entry = { item, adapter };
+				this.files.set(id, entry);
+			} else {
+				entry.item.label = label;
+			}
+			// Файлы сортируются после каталогов (префикс «1» против «0» у каталогов)
+			entry.item.sortText = `1${label}`;
+
+			if (discovered.labelLine !== undefined) {
+				entry.item.range = new vscode.Range(discovered.labelLine, 0, discovered.labelLine, 0);
+			}
+
+			const children: vscode.TestItem[] = [];
+			const seenIds = new Set<string>();
+			for (const testCase of discovered.cases) {
+				// Дубли имён (одинаковые сценарии в одном файле) различаем по строке,
+				// иначе TestItemCollection отвергнет повторный ID
+				const baseId = caseItemId(adapter.id, uri.toString(), testCase.name);
+				const caseId = dedupedCaseId(baseId, testCase.line, seenIds);
+				const child = this.controller.createTestItem(caseId, testCase.name, uri);
+				child.range = new vscode.Range(testCase.line, 0, testCase.line, 0);
+				// Кейсы — в порядке следования по файлу, а не по алфавиту
+				child.sortText = String(testCase.line).padStart(6, '0');
+				if (testCase.tags) {
+					child.tags = testCase.tags.map((tag) => new vscode.TestTag(tag));
+				}
+				children.push(child);
+			}
+			entry.item.children.replace(children);
+		} finally {
+			const entry = this.files.get(id);
+			if (entry) {
+				entry.item.busy = false;
+			}
 		}
-		entry.item.children.replace(children);
+	}
+
+	/**
+	 * Обрабатывает изменение содержимого тестового файла
+	 *
+	 * Прошлые результаты затронутого файла помечаются устаревшими
+	 * (invalidateTestResults): VS Code приглушает их сразу, не дожидаясь нового
+	 * прогона. Дерево обновляется точечным upsert, без полной пересборки.
+	 */
+	private async reparseChangedFile(adapter: TestFrameworkAdapter, uri: vscode.Uri): Promise<void> {
+		const entry = this.files.get(fileItemId(adapter.id, uri.toString()));
+		if (entry) {
+			this.controller.invalidateTestResults(entry.item);
+		}
+		await this.upsertFile(adapter, uri);
 	}
 
 	/**
@@ -540,9 +569,11 @@ export class TestingController implements vscode.Disposable {
 				await this.clearReportTarget(plan.reportTarget);
 			}
 
-			const onOutput = (chunk: string) => run.appendOutput(chunk.replaceAll(/(?<!\r)\n/g, '\r\n'));
+			// Привязываем вывод к узлу файла: в Test Explorer работает «Перейти к выводу теста»
+			const onOutput = (chunk: string) =>
+				run.appendOutput(chunk.replaceAll(/(?<!\r)\n/g, '\r\n'), undefined, entry.item);
 
-			run.appendOutput(`\r\n=== ${adapter.label}: ${entry.item.label} ===\r\n`);
+			run.appendOutput(`\r\n=== ${adapter.label}: ${entry.item.label} ===\r\n`, undefined, entry.item);
 
 			// Подготовительные шаги (например, сборка тестовой обработки)
 			for (const step of plan.prepare ?? []) {
@@ -550,7 +581,7 @@ export class TestingController implements vscode.Disposable {
 					await this.cleanupReportDir(reportDir);
 					return;
 				}
-				run.appendOutput(`\r\n--- ${step.title} ---\r\n`);
+				run.appendOutput(`\r\n--- ${step.title} ---\r\n`, undefined, entry.item);
 				const stepResult = await this.executeStep(step.tool, step.args, plan.env, token, onOutput);
 				if (stepResult.cancelled) {
 					await this.cleanupReportDir(reportDir);
@@ -671,7 +702,9 @@ export class TestingController implements vscode.Disposable {
 
 		for (const orphan of unmatched) {
 			run.appendOutput(
-				`\r\n[предупреждение] testcase «${orphan.name}» (${orphan.status}) не сопоставлен с деревом тестов\r\n`
+				`\r\n[предупреждение] testcase «${orphan.name}» (${orphan.status}) не сопоставлен с деревом тестов\r\n`,
+				undefined,
+				entry.item
 			);
 		}
 	}
