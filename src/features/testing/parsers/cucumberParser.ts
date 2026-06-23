@@ -1,4 +1,5 @@
 import { JUnitCase } from './junitParser';
+import { extractExpectedActual } from './expectedActual';
 
 /**
  * Парсер отчётов Cucumber JSON (Vanessa Automation)
@@ -111,6 +112,7 @@ export function parseCucumberJson(json: string): JUnitCase[] {
 			const steps = element.steps ?? [];
 			const status = elementStatus(steps);
 			const { message, details } = firstError(steps);
+			const diff = extractExpectedActual(details, message);
 
 			// duration шагов — в наносекундах
 			let totalNs = 0;
@@ -129,7 +131,9 @@ export function parseCucumberJson(json: string): JUnitCase[] {
 				status,
 				timeMs: hasDuration ? Math.round(totalNs / 1_000_000) : undefined,
 				message,
-				details
+				details,
+				expected: diff?.expected,
+				actual: diff?.actual
 			});
 		}
 	}

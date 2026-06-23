@@ -21,6 +21,22 @@ export interface KnownCase {
 }
 
 /**
+ * Сообщение о падении одного testcase
+ *
+ * Когда отчёт содержит ожидаемое/фактическое значения, они едут отдельными
+ * полями — вызывающий код покажет нативный diff (vscode.TestMessage.diff),
+ * иначе откатится на обычный текст.
+ */
+export interface FailureMessage {
+	/** Текст сообщения (message + details) */
+	text: string;
+	/** Ожидаемое значение для diff (только вместе с actual) */
+	expected?: string;
+	/** Фактическое значение для diff (только вместе с expected) */
+	actual?: string;
+}
+
+/**
  * Агрегированный результат одного элемента дерева
  *
  * Один элемент может собрать несколько testcase (Структура сценария → строки Examples).
@@ -31,7 +47,7 @@ export interface MappedResult {
 	/** Суммарная длительность, мс (undefined, если ни один testcase не содержал time) */
 	durationMs?: number;
 	/** Сообщения падений (message + details), в порядке встречаемости */
-	messages: string[];
+	messages: FailureMessage[];
 }
 
 /**
@@ -161,7 +177,7 @@ export function mapResults(junitCases: JUnitCase[], knownCases: KnownCase[]): Ma
 function aggregate(bucket: JUnitCase[]): MappedResult {
 	let status: MappedResult['status'] = 'skipped';
 	let durationMs: number | undefined;
-	const messages: string[] = [];
+	const messages: FailureMessage[] = [];
 
 	const hasError = bucket.some((c) => c.status === 'error');
 	const hasFailed = bucket.some((c) => c.status === 'failed');
@@ -183,7 +199,15 @@ function aggregate(bucket: JUnitCase[]): MappedResult {
 			const parts = [junitCase.message, junitCase.details].filter(
 				(part): part is string => typeof part === 'string' && part.length > 0
 			);
-			messages.push(parts.length > 0 ? parts.join('\n') : 'Тест не пройден (без подробностей в отчёте)');
+			const message: FailureMessage = {
+				text: parts.length > 0 ? parts.join('\n') : 'Тест не пройден (без подробностей в отчёте)'
+			};
+			// expected/actual едут парой: diff бессмыслен без обоих значений
+			if (junitCase.expected !== undefined && junitCase.actual !== undefined) {
+				message.expected = junitCase.expected;
+				message.actual = junitCase.actual;
+			}
+			messages.push(message);
 		}
 	}
 

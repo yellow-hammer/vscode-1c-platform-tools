@@ -156,7 +156,10 @@ export function aggregateBddStepsToScenarios(stepCases: JUnitCase[]): JUnitCase[
 			status: failedStep ? 'failed' : allSkipped ? 'skipped' : 'passed',
 			timeMs,
 			message: failedStep ? `Шаг: ${failedStep.name}` : undefined,
-			details: failedStep?.details ?? failedStep?.message
+			details: failedStep?.details ?? failedStep?.message,
+			// Пара ожидаемое/фактическое упавшего шага едет дальше для diff
+			expected: failedStep?.expected,
+			actual: failedStep?.actual
 		});
 	}
 	return result;
