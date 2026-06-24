@@ -5,7 +5,9 @@ import {
 	extractJUnitPathFromReportsXunit,
 	vanessaReportTarget,
 	vanessaSettingsPathFromEnv,
-	reportsXunitFromEnv
+	reportsXunitFromEnv,
+	syntaxCheckJUnitPathFromEnv,
+	syntaxCheckGroupByMetadataFromEnv
 } from '../../features/testing/projectTestConfig';
 
 // Абсолютный корень на любой ОС: path.join('C:','proj') не абсолютен под Linux,
@@ -91,5 +93,33 @@ suite('projectTestConfig', () => {
 		assert.strictEqual(reportsXunitFromEnv(envJson), 'ГенераторОтчетаJUnitXML{build/junit.xml}');
 		assert.strictEqual(vanessaSettingsPathFromEnv({}), undefined);
 		assert.strictEqual(reportsXunitFromEnv({}), undefined);
+	});
+
+	test('syntaxCheckJUnitPathFromEnv читает --junitpath секции syntax-check', () => {
+		const envJson = {
+			'syntax-check': {
+				'--junitpath': 'build/out/syntax-check/junit/junit.xml',
+				'--groupbymetadata': true
+			}
+		};
+		assert.strictEqual(
+			syntaxCheckJUnitPathFromEnv(envJson),
+			'build/out/syntax-check/junit/junit.xml'
+		);
+		assert.strictEqual(syntaxCheckJUnitPathFromEnv({}), undefined);
+		assert.strictEqual(syntaxCheckJUnitPathFromEnv({ 'syntax-check': {} }), undefined);
+	});
+
+	test('syntaxCheckGroupByMetadataFromEnv возвращает флаг или undefined', () => {
+		assert.strictEqual(
+			syntaxCheckGroupByMetadataFromEnv({ 'syntax-check': { '--groupbymetadata': true } }),
+			true
+		);
+		assert.strictEqual(
+			syntaxCheckGroupByMetadataFromEnv({ 'syntax-check': { '--groupbymetadata': false } }),
+			false
+		);
+		assert.strictEqual(syntaxCheckGroupByMetadataFromEnv({ 'syntax-check': {} }), undefined);
+		assert.strictEqual(syntaxCheckGroupByMetadataFromEnv({}), undefined);
 	});
 });

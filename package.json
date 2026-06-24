@@ -1159,6 +1159,16 @@
         "category": "1C: Тестирование"
       },
       {
+        "command": "1c-platform-tools.syntaxCheck.refreshDiagnostics",
+        "title": "Синтаксический контроль: обновить ошибки в Problems",
+        "category": "1C: Тестирование"
+      },
+      {
+        "command": "1c-platform-tools.syntaxCheck.clearDiagnostics",
+        "title": "Синтаксический контроль: очистить ошибки в Problems",
+        "category": "1C: Тестирование"
+      },
+      {
         "command": "1c-platform-tools.test.vanessa",
         "title": "Vanessa тесты",
         "category": "1C: Тестирование"

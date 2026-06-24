@@ -130,3 +130,47 @@ export function reportsXunitFromEnv(envJson: Record<string, unknown>): string | 
 	}
 	return undefined;
 }
+
+/**
+ * Извлекает путь jUnit-отчёта синтаксического контроля из env.json (секция syntax-check)
+ *
+ * Формат vanessa-runner v2: `syntax-check.--junitpath` (см. envSections.ts).
+ * В vanessa-runner v3 структура env.json иная (`vrunner.<путь>.<опция>`) —
+ * не поддерживается, пока миграция на v3 не реализована (issue #118).
+ *
+ * @param envJson - Разобранное содержимое env.json
+ * @returns Путь как записан в конфиге (относительный/с $workspaceRoot) или undefined
+ */
+export function syntaxCheckJUnitPathFromEnv(envJson: Record<string, unknown>): string | undefined {
+	const section = envJson['syntax-check'];
+	if (section && typeof section === 'object') {
+		const value = (section as Record<string, unknown>)['--junitpath'];
+		if (typeof value === 'string' && value.length > 0) {
+			return value;
+		}
+	}
+	return undefined;
+}
+
+/**
+ * Определяет, включена ли группировка результатов syntax-check по метаданным
+ *
+ * При --groupbymetadata: true атрибут testcase name содержит путь по метаданным
+ * (`ОбщийМодуль.Имя.Модуль`), который маппится в файл модуля. При false формат
+ * иной — маппинг в .bsl не гарантирован, диагностика падает на fallback-файл.
+ *
+ * @param envJson - Разобранное содержимое env.json
+ * @returns true/false как задано в конфиге; undefined, если опции нет
+ */
+export function syntaxCheckGroupByMetadataFromEnv(
+	envJson: Record<string, unknown>
+): boolean | undefined {
+	const section = envJson['syntax-check'];
+	if (section && typeof section === 'object') {
+		const value = (section as Record<string, unknown>)['--groupbymetadata'];
+		if (typeof value === 'boolean') {
+			return value;
+		}
+	}
+	return undefined;
+}
