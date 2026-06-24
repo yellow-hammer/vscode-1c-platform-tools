@@ -7,6 +7,35 @@ import { VRunnerManager } from '../../shared/vrunnerManager';
 import { YaxunitAdapter, extractModuleName } from '../../features/testing/adapters/yaxunitAdapter';
 
 suite('yaxunitAdapter', () => {
+	test('isTestFile: служебный модуль фреймворка (без зарегистрированных тестов) отсекается', () => {
+		const adapter = new YaxunitAdapter(VRunnerManager.getInstance());
+		// Похоже на ЮТТестыСлужебный: есть ИсполняемыеСценарии и текст «ДобавитьТест(»,
+		// но нет ни одной регистрации .ДобавитьТест("Имя") — это плумбинг, не тесты
+		const serviceModule = [
+			'Процедура ДобавитьТест(Знач НаборТестов, Знач ИмяТеста) Экспорт',
+			'\tНаборТестов.Тесты.Добавить(ИмяТеста);',
+			'КонецПроцедуры',
+			'',
+			'Функция ИсполняемыеСценарии() Экспорт',
+			'\tВозврат Неопределено;',
+			'КонецФункции'
+		].join('\n');
+		assert.strictEqual(adapter.isTestFile(serviceModule), false);
+	});
+
+	test('isTestFile: модуль с .ДобавитьТест("...") распознаётся тестовым', () => {
+		const adapter = new YaxunitAdapter(VRunnerManager.getInstance());
+		const testModule = [
+			'Процедура ИсполняемыеСценарии() Экспорт',
+			'\tЮТТесты.ДобавитьТест("ПроверитьЗапись");',
+			'КонецПроцедуры',
+			'',
+			'Процедура ПроверитьЗапись() Экспорт',
+			'КонецПроцедуры'
+		].join('\n');
+		assert.strictEqual(adapter.isTestFile(testModule), true);
+	});
+
 	test('extractModuleName извлекает имя модуля из пути', () => {
 		assert.strictEqual(
 			extractModuleName('C:\\proj\\src\\cfe\\Тесты\\CommonModules\\ОМ_ПроверкаЗаписи\\Module.bsl'),

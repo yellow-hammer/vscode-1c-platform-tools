@@ -37,16 +37,20 @@ export class YaxunitAdapter implements TestFrameworkAdapter {
 	public getIncludeGlobs(): string[] {
 		const config = vscode.workspace.getConfiguration('1c-platform-tools');
 		const base = normalizeGlobBase(config.get<string>('paths.cfe', DEFAULT_PATHS.cfe));
-		// Формат Конфигуратора: CommonModules/<Имя>/Ext/Module.bsl;
-		// формат EDT: CommonModules/<Имя>/Module.bsl
-		return [
-			`${base}/*/CommonModules/*/Ext/Module.bsl`,
-			`${base}/*/CommonModules/*/Module.bsl`
-		];
+		// Формат Конфигуратора: CommonModules/<Имя>/Ext/Module.bsl
+		return [`${base}/*/CommonModules/*/Ext/Module.bsl`];
 	}
 
 	public parseFile(content: string): DiscoveredFile | undefined {
 		return parseBslTestModule(content, 'yaxunit');
+	}
+
+	public isTestFile(content: string): boolean {
+		// glob матчит все общие модули расширений (включая сам фреймворк YAxUnit:
+		// ЮТ*-модули). Тестовый — лишь модуль с фактически зарегистрированными
+		// тестами (.ДобавитьТест("Имя")); по нему же parseFile строит кейсы.
+		// Служебные модули фреймворка таких регистраций не содержат и отсекаются.
+		return parseBslTestModule(content, 'yaxunit') !== undefined;
 	}
 
 	public describeFileLocation(fileUri: vscode.Uri, _workspaceRoot: string) {
