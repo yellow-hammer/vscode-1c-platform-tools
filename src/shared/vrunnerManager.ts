@@ -87,6 +87,11 @@ export class VRunnerManager {
 	 */
 	private vrunnerVersionCache: VRunnerVersion | null | undefined = undefined;
 
+	/** Событие смены активного env-профиля (id в workspaceState) */
+	private readonly _onDidChangeActiveEnvProfile = new vscode.EventEmitter<void>();
+	/** Срабатывает при выборе другого env-профиля запуска */
+	public readonly onDidChangeActiveEnvProfile = this._onDidChangeActiveEnvProfile.event;
+
 	private constructor(context?: vscode.ExtensionContext) {
 		const workspaceFolders = vscode.workspace.workspaceFolders;
 		if (workspaceFolders && workspaceFolders.length > 0) {
@@ -1134,20 +1139,22 @@ export class VRunnerManager {
 	}
 
 	/**
-	 * Читает и парсит env.json из корня workspace
-	 * 
+	 * Читает и парсит env-файл из корня workspace
+	 *
 	 * Файл env.json используется для хранения параметров подключения к ИБ
-	 * и других настроек проекта.
-	 * 
-	 * @returns Промис, который разрешается содержимым env.json или пустым объектом при ошибке
+	 * и других настроек проекта. Для чтения активного профиля запуска
+	 * (env.<id>.json) передайте его имя из {@link getActiveEnvFile}.
+	 *
+	 * @param fileName - Имя env-файла относительно корня (по умолчанию env.json)
+	 * @returns Промис, который разрешается содержимым файла или пустым объектом при ошибке
 	 * @throws {Error} Если рабочая область не открыта
 	 */
-	public async readEnvJson(): Promise<any> {
+	public async readEnvJson(fileName: string = BASE_ENV_FILE): Promise<any> {
 		if (!this.workspaceRoot) {
 			throw new Error('Рабочая область не открыта');
 		}
 
-		const envPath = path.join(this.workspaceRoot, 'env.json');
+		const envPath = path.join(this.workspaceRoot, fileName);
 		try {
 			const content = await fs.readFile(envPath, 'utf8');
 			return JSON.parse(content);
@@ -1213,6 +1220,7 @@ export class VRunnerManager {
 	 */
 	public async setActiveEnvProfileId(profileId: string): Promise<void> {
 		await this.memento?.update(ACTIVE_ENV_PROFILE_KEY, profileId);
+		this._onDidChangeActiveEnvProfile.fire();
 	}
 
 	/**

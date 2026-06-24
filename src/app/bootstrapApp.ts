@@ -20,6 +20,7 @@ import { registerMainTreeFlow } from './registerMainTreeFlow';
 import { registerTestingFlow } from './registerTestingFlow';
 import { registerLaunchFeature } from '../features/launch/launchFeature';
 import { registerPlatformServerFeature } from '../features/launch/platformServerFeature';
+import { registerDiagnosticsFeature } from '../features/diagnostics/registerDiagnosticsFeature';
 
 /**
  * Выполняет полную инициализацию расширения.
@@ -58,6 +59,7 @@ export async function bootstrapApp(context: vscode.ExtensionContext): Promise<vo
 	const { testingFeatureDisposables, rebuildTesting } = registerTestingFlow(isProjectRef);
 	const launchFeatureDisposables = registerLaunchFeature(context, isProjectRef);
 	const platformServerDisposables = registerPlatformServerFeature(context, isProjectRef);
+	const diagnosticsFeatureDisposables = registerDiagnosticsFeature();
 
 	registerProjectCreatedHandler({
 		isProjectRef,
@@ -88,6 +90,7 @@ export async function bootstrapApp(context: vscode.ExtensionContext): Promise<vo
 		...testingFeatureDisposables,
 		...launchFeatureDisposables,
 		...platformServerDisposables,
+		...diagnosticsFeatureDisposables,
 		...commandDisposables
 	);
 }
