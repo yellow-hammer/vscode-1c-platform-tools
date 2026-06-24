@@ -38,62 +38,78 @@ const DEFAULT_JUNIT_REL = 'build/out/syntax-check/junit/junit.xml';
 export class SyntaxCheckDiagnostics implements vscode.Disposable {
 	private readonly collection: vscode.DiagnosticCollection;
 	private readonly disposables: vscode.Disposable[] = [];
-	private junitWatcher: vscode.FileSystemWatcher | undefined;
-	private readonly junitWatcherListeners: vscode.Disposable[] = [];
+	/** Watcher'ы, пересоздаваемые при reconfigure (файл отчёта + активный env-файл) */
+	private readonly reconfigurableListeners: vscode.Disposable[] = [];
 
 	constructor(private readonly vrunner: VRunnerManager) {
 		this.collection = vscode.languages.createDiagnosticCollection('1c-syntax-check');
 		this.disposables.push(this.collection);
 
-		const root = this.vrunner.getWorkspaceRoot();
-		if (root) {
-			const envWatcher = vscode.workspace.createFileSystemWatcher(
-				new vscode.RelativePattern(root, 'env.json')
-			);
-			envWatcher.onDidChange(() => void this.reconfigure(), null, this.disposables);
-			envWatcher.onDidCreate(() => void this.reconfigure(), null, this.disposables);
-			this.disposables.push(envWatcher);
-		}
+		// Смена активного профиля запуска меняет читаемый env-файл и путь к отчёту
+		this.disposables.push(
+			this.vrunner.onDidChangeActiveEnvProfile(() => void this.reconfigure())
+		);
+		// Дефолтный профиль может задаваться настройкой
+		this.disposables.push(
+			vscode.workspace.onDidChangeConfiguration((event) => {
+				if (event.affectsConfiguration('1c-platform-tools.defaultEnvProfile')) {
+					void this.reconfigure();
+				}
+			})
+		);
 
 		void this.reconfigure();
 	}
 
 	/**
-	 * Пересоздаёт watcher по актуальному пути из env.json и перечитывает отчёт
+	 * Пересоздаёт watcher'ы (активный env-файл + файл отчёта) и перечитывает отчёт
 	 */
 	private async reconfigure(): Promise<void> {
 		const root = this.vrunner.getWorkspaceRoot();
+
+		for (const listener of this.reconfigurableListeners.splice(0)) {
+			listener.dispose();
+		}
 		if (!root) {
+			this.collection.clear();
 			return;
 		}
 
+		// Следим за активным env-файлом: правка пути/опции syntax-check → пересборка
+		const envWatcher = vscode.workspace.createFileSystemWatcher(
+			new vscode.RelativePattern(root, this.vrunner.getActiveEnvFile())
+		);
+		this.reconfigurableListeners.push(
+			envWatcher,
+			envWatcher.onDidChange(() => void this.reconfigure()),
+			envWatcher.onDidCreate(() => void this.reconfigure()),
+			envWatcher.onDidDelete(() => void this.reconfigure())
+		);
+
+		// Следим за файлом отчёта: перезапись после прогона → обновление диагностики
 		const junitAbs = await this.resolveJunitPath(root);
-
-		for (const listener of this.junitWatcherListeners.splice(0)) {
-			listener.dispose();
-		}
-		this.junitWatcher?.dispose();
-		this.junitWatcher = undefined;
-
-		if (junitAbs) {
-			this.junitWatcher = vscode.workspace.createFileSystemWatcher(buildWatchPattern(root, junitAbs));
-			this.junitWatcherListeners.push(
-				this.junitWatcher.onDidChange(() => void this.refresh()),
-				this.junitWatcher.onDidCreate(() => void this.refresh()),
-				this.junitWatcher.onDidDelete(() => this.clear())
-			);
-		}
+		const junitWatcher = vscode.workspace.createFileSystemWatcher(buildWatchPattern(root, junitAbs));
+		this.reconfigurableListeners.push(
+			junitWatcher,
+			junitWatcher.onDidChange(() => void this.refresh()),
+			junitWatcher.onDidCreate(() => void this.refresh()),
+			junitWatcher.onDidDelete(() => this.clear())
+		);
 
 		await this.refresh();
 	}
 
 	/**
-	 * Разрешает абсолютный путь к junit-отчёту из env.json (с откатом на дефолт)
+	 * Разрешает абсолютный путь к junit-отчёту из env активного профиля
+	 *
+	 * Берётся файл выбранного профиля запуска (env.<id>.json), а не корневой
+	 * env.json. Путь — из секции syntax-check (--junitpath), с откатом на дефолт.
 	 */
 	private async resolveJunitPath(root: string): Promise<string> {
 		let rel = DEFAULT_JUNIT_REL;
+		const envFile = this.vrunner.getActiveEnvFile();
 		try {
-			const envJson = (await this.vrunner.readEnvJson()) as Record<string, unknown>;
+			const envJson = (await this.vrunner.readEnvJson(envFile)) as Record<string, unknown>;
 			const configured = syntaxCheckJUnitPathFromEnv(envJson);
 			if (configured) {
 				rel = configured;
@@ -105,7 +121,7 @@ export class SyntaxCheckDiagnostics implements vscode.Disposable {
 				);
 			}
 		} catch (error) {
-			log.debug(`не удалось прочитать env.json: ${(error as Error).message}`);
+			log.debug(`не удалось прочитать ${envFile}: ${(error as Error).message}`);
 		}
 		return resolveConfigPath(rel, root);
 	}
@@ -275,10 +291,9 @@ export class SyntaxCheckDiagnostics implements vscode.Disposable {
 	}
 
 	public dispose(): void {
-		for (const listener of this.junitWatcherListeners.splice(0)) {
+		for (const listener of this.reconfigurableListeners.splice(0)) {
 			listener.dispose();
 		}
-		this.junitWatcher?.dispose();
 		for (const disposable of this.disposables.splice(0)) {
 			disposable.dispose();
 		}
