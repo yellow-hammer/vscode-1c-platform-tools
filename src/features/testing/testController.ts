@@ -4,9 +4,11 @@ import * as fs from 'node:fs/promises';
 import { VRunnerManager } from '../../shared/vrunnerManager';
 import { runCancellableCommand, CancellableProcessResult } from '../../shared/cancellableProcess';
 import { logger } from '../../shared/logger';
-import { TestFrameworkAdapter, RunUnit, AdapterRunPlan } from './frameworkAdapter';
-import { frameworkRootId, fileItemId, caseItemId } from './testItemIds';
-import { directoryNodeId, directoryNodeFsPath, dedupedCaseId } from './treeLayout';
+import { TestFrameworkAdapter, RunUnit, AdapterRunPlan, FileTreeLocation } from './frameworkAdapter';
+import { DiscoveredFile } from './parsers/parserTypes';
+import { frameworkRootId, fileItemId } from './testItemIds';
+import { directoryNodeId, directoryNodeFsPath } from './treeLayout';
+import { buildCaseDescriptors } from './caseResolver';
 import { mapResults, KnownCase } from './testResultMapper';
 import { parseJUnitXml, JUnitCase } from './parsers/junitParser';
 import { parseCucumberJson } from './parsers/cucumberParser';
@@ -72,6 +74,13 @@ function missingRunnerHint(result: { stdout: string; stderr: string; exitCode: n
 interface FileEntry {
 	item: vscode.TestItem;
 	adapter: TestFrameworkAdapter;
+	/**
+	 * Разобрано ли содержимое файла (кейсы загружены в children)
+	 *
+	 * При обнаружении узел-файл создаётся пустым (resolved = false); кейсы
+	 * парсятся лениво в resolveFile — при разворачивании, запуске или изменении.
+	 */
+	resolved: boolean;
 }
 
 /**
@@ -105,6 +114,17 @@ export class TestingController implements vscode.Disposable {
 		this.controller = vscode.tests.createTestController('1c-platform-tools-tests', '1С: Тесты');
 		// Ручной Refresh выполняет пересборку и ждёт её (спиннер в панели)
 		this.controller.refreshHandler = () => this.enqueueRebuild();
+		// Ленивое раскрытие: при разворачивании узла-файла парсим его кейсы;
+		// item === undefined — запрос корней (например, после перезагрузки окна)
+		this.controller.resolveHandler = (item) => {
+			if (!item) {
+				return this.enqueueRebuild();
+			}
+			const entry = this.files.get(item.id);
+			if (entry) {
+				return this.resolveFile(entry);
+			}
+		};
 
 		this.controller.createRunProfile(
 			'Запуск',
@@ -189,141 +209,257 @@ export class TestingController implements vscode.Disposable {
 	 * (дебаунс) или enqueueRebuild (сериализация).
 	 */
 	private async rebuild(): Promise<void> {
-		this.disposeWatchers();
-		this.files.clear();
-		this.controller.items.replace([]);
-
+		// Если проект больше не 1С (или workspace закрыт) — единственный случай,
+		// когда дерево обнуляется. Во всех остальных случаях обновляем дифом:
+		// findFiles на большой конфигурации идёт ~1.5 с, и всё это время прежнее
+		// дерево остаётся видимым (раньше items.replace([]) очищал его сразу).
 		if (!this.isProjectRef.current) {
+			this.clearTree();
 			return;
 		}
 
 		const workspaceRoot = this.vrunner.getWorkspaceRoot();
 		if (!workspaceRoot) {
+			this.clearTree();
 			return;
 		}
 
 		const excludeGlob = buildExcludeGlob(getExcludeSegments());
+		const startedAt = Date.now();
 
-		for (const adapter of this.adapters) {
-			if (!adapter.isEnabled()) {
-				continue;
+		// Каждый (адаптер, glob) — независимый обход workspace. На больших
+		// конфигурациях именно эти findFiles доминируют над временем сборки, поэтому
+		// все обходы и классификацию запускаем параллельно — БЕЗ мутаций дерева.
+		// Дерево обновляется ниже единым последовательным дифом, чтобы пользователь
+		// не видел «прыгающие» узлы во время refresh.
+		const jobs = this.adapters
+			.filter((adapter) => adapter.isEnabled())
+			.flatMap((adapter) => adapter.getIncludeGlobs().map((glob) => ({ adapter, glob })));
+
+		const discovered = await Promise.all(
+			jobs.map(async ({ adapter, glob }) => {
+				const uris = await vscode.workspace.findFiles(glob, excludeGlob);
+				const classified = await Promise.all(
+					uris.map(async (uri) => ({ uri, location: await this.classifyTestFile(adapter, uri) }))
+				);
+				return { adapter, glob, classified };
+			})
+		);
+
+		// Диф-апдейт: новые/изменившиеся узлы upsert'ятся, исчезнувшие удаляются.
+		// addFileNode идемпотентен — для существующей записи обновит лишь label/sort,
+		// но сохранит и сам узел, и уже загруженные дети (resolved=true).
+		this.disposeWatchers();
+
+		const nextFileIds = new Set<string>();
+		for (const { adapter, glob, classified } of discovered) {
+			for (const { uri, location } of classified) {
+				if (location) {
+					nextFileIds.add(fileItemId(adapter.id, uri.toString()));
+					this.addFileNode(adapter, location, uri);
+				}
 			}
 
-			for (const glob of adapter.getIncludeGlobs()) {
-				const uris = await vscode.workspace.findFiles(glob, excludeGlob);
-				for (const uri of uris) {
-					await this.upsertFile(adapter, uri);
-				}
+			const watcher = vscode.workspace.createFileSystemWatcher(
+				new vscode.RelativePattern(workspaceRoot, glob)
+			);
+			// Мутации дерева сериализуем через ту же цепочку, что и rebuild,
+			// чтобы события watcher и пересборка не переплетались на this.files
+			watcher.onDidCreate((uri) => this.enqueueMutation(() => this.registerFile(adapter, uri)));
+			watcher.onDidChange((uri) => this.enqueueMutation(() => this.onFileChanged(adapter, uri)));
+			watcher.onDidDelete((uri) => this.enqueueMutation(async () => this.removeFile(adapter, uri)));
+			this.watchers.push(watcher);
+		}
 
-				const watcher = vscode.workspace.createFileSystemWatcher(
-					new vscode.RelativePattern(workspaceRoot, glob)
-				);
-				// Мутации дерева сериализуем через ту же цепочку, что и rebuild,
-				// чтобы события watcher и пересборка не переплетались на this.files
-				watcher.onDidCreate((uri) => this.enqueueMutation(() => this.upsertFile(adapter, uri)));
-				watcher.onDidChange((uri) => this.enqueueMutation(() => this.reparseChangedFile(adapter, uri)));
-				watcher.onDidDelete((uri) => this.enqueueMutation(async () => this.removeFile(adapter, uri)));
-				this.watchers.push(watcher);
+		// Удаляем файлы, которых больше нет (стёрты с диска или, для широкого glob,
+		// перестали быть тестовыми). Снимок this.files обязателен — removeFile мутирует
+		for (const entry of [...this.files.values()]) {
+			if (!nextFileIds.has(entry.item.id) && entry.item.uri) {
+				this.removeFile(entry.adapter, entry.item.uri);
 			}
 		}
 
-		log.debug(`Дерево тестов построено: файлов ${this.files.size}`);
+		log.debug(`Дерево тестов построено: файлов ${this.files.size} за ${Date.now() - startedAt} мс`);
 	}
 
 	/**
-	 * Читает файл, разбирает его адаптером и обновляет дерево
-	 *
-	 * Файл, переставший быть тестовым (или с ошибкой чтения), удаляется из дерева.
+	 * Полностью очищает дерево (используется только при потере проекта/workspace)
 	 */
-	private async upsertFile(adapter: TestFrameworkAdapter, uri: vscode.Uri): Promise<void> {
-		if (this.isExcluded(uri)) {
+	private clearTree(): void {
+		this.disposeWatchers();
+		this.files.clear();
+		this.controller.items.replace([]);
+	}
+
+	/**
+	 * Регистрирует/обновляет узел-файл в дереве (точечно, для событий watcher)
+	 *
+	 * Если файл не тестовый (исключён или не прошёл проверку широкого glob) —
+	 * удаляет узел. Полный разбор кейсов всё равно откладывается до resolveFile.
+	 */
+	private async registerFile(adapter: TestFrameworkAdapter, uri: vscode.Uri): Promise<void> {
+		const location = await this.classifyTestFile(adapter, uri);
+		if (!location) {
+			this.removeFile(adapter, uri);
 			return;
 		}
+		this.addFileNode(adapter, location, uri);
+	}
 
-		const id = fileItemId(adapter.id, uri.toString());
-		// Пока идёт чтение и разбор, крутим спиннер на узле файла (busy). Для новых
-		// файлов узла ещё нет — спиннер появится при последующих изменениях.
-		const tracked = this.files.get(id);
-		if (tracked) {
-			tracked.item.busy = true;
+	/**
+	 * Определяет, тестовый ли файл, и его положение в дереве (без мутаций дерева)
+	 *
+	 * Для большинства адаптеров содержимое не читается — glob сам признак теста.
+	 * Адаптеры с широким glob (isTestFile, например YAxUnit) читаются здесь,
+	 * чтобы отсеять нетестовые файлы (иначе дерево заполнят все общие модули);
+	 * вызывается параллельно для всех файлов при пересборке.
+	 *
+	 * @returns Положение файла в дереве либо undefined, если файл не тестовый
+	 */
+	private async classifyTestFile(
+		adapter: TestFrameworkAdapter,
+		uri: vscode.Uri
+	): Promise<FileTreeLocation | undefined> {
+		if (this.isExcluded(uri)) {
+			return undefined;
 		}
 
-		try {
+		if (adapter.isTestFile) {
 			let content: string;
 			try {
 				const bytes = await vscode.workspace.fs.readFile(uri);
 				content = new TextDecoder('utf-8', { fatal: false }).decode(bytes);
 			} catch (error) {
 				log.warn(`Не удалось прочитать ${uri.fsPath}: ${(error as Error).message}`);
-				this.removeFile(adapter, uri);
+				return undefined;
+			}
+			if (!adapter.isTestFile(content)) {
+				return undefined;
+			}
+		}
+
+		const workspaceRoot = this.vrunner.getWorkspaceRoot() ?? '';
+		return adapter.describeFileLocation(uri, workspaceRoot);
+	}
+
+	/**
+	 * Добавляет (или обновляет) пустой узел-файл в дерево — без разбора содержимого
+	 *
+	 * Узел получает canResolveChildren = true; кейсы парсятся лениво в resolveFile
+	 * (при разворачивании/запуске/изменении). Заголовок — из раскладки адаптера
+	 * или имени файла. Только синхронные мутации дерева (вызывать последовательно).
+	 */
+	private addFileNode(
+		adapter: TestFrameworkAdapter,
+		location: FileTreeLocation,
+		uri: vscode.Uri
+	): void {
+		const parent = this.ensureDirectoryChain(adapter, uri, location.segments);
+		const id = fileItemId(adapter.id, uri.toString());
+		const label = location.label ?? path.basename(uri.fsPath);
+		let entry = this.files.get(id);
+
+		if (!entry) {
+			const item = this.controller.createTestItem(id, label, uri);
+			// Дети (кейсы) подгружаются лениво в resolveFile
+			item.canResolveChildren = true;
+			parent.children.add(item);
+			entry = { item, adapter, resolved: false };
+			this.files.set(id, entry);
+		} else {
+			entry.item.label = label;
+		}
+		// Файлы сортируются после каталогов (префикс «1» против «0» у каталогов)
+		entry.item.sortText = `1${label}`;
+	}
+
+	/**
+	 * Разбирает файл и заполняет его кейсы (ядро ленивого резолвера)
+	 *
+	 * Вызывается при разворачивании узла (resolveHandler), перед запуском
+	 * (resolveForRun) и при изменении содержимого (force). Идемпотентен:
+	 * повторный вызов без force ничего не делает.
+	 *
+	 * @param entry - Запись файла в дереве
+	 * @param force - Перечитать и пересобрать кейсы, даже если файл уже разобран
+	 */
+	private async resolveFile(entry: FileEntry, force = false): Promise<void> {
+		if (entry.resolved && !force) {
+			return;
+		}
+		const uri = entry.item.uri;
+		if (!uri) {
+			return;
+		}
+
+		entry.item.busy = true;
+		try {
+			let discovered: DiscoveredFile | undefined;
+			try {
+				const bytes = await vscode.workspace.fs.readFile(uri);
+				const content = new TextDecoder('utf-8', { fatal: false }).decode(bytes);
+				discovered = entry.adapter.parseFile(content);
+			} catch (error) {
+				log.warn(`Не удалось прочитать ${uri.fsPath}: ${(error as Error).message}`);
+				discovered = undefined;
+			}
+
+			// Дерево могло быть пересобрано за время чтения — запись устарела,
+			// её узел уже отсоединён; новый узел резолвится по запросу заново
+			if (this.files.get(entry.item.id) !== entry) {
 				return;
 			}
 
-			const discovered = adapter.parseFile(content);
-			if (!discovered) {
-				this.removeFile(adapter, uri);
-				return;
+			// Уточняем заголовок и положение объявления по содержимому
+			// (например, имя Функционала для .feature вместо имени файла)
+			if (discovered?.label) {
+				entry.item.label = discovered.label;
+				entry.item.sortText = `1${discovered.label}`;
 			}
-
-			const workspaceRoot = this.vrunner.getWorkspaceRoot() ?? '';
-			const location = adapter.describeFileLocation(uri, workspaceRoot);
-			const parent = this.ensureDirectoryChain(adapter, uri, location.segments);
-			const label = discovered.label ?? location.label ?? path.basename(uri.fsPath);
-			let entry = this.files.get(id);
-
-			if (!entry) {
-				const item = this.controller.createTestItem(id, label, uri);
-				parent.children.add(item);
-				entry = { item, adapter };
-				this.files.set(id, entry);
-			} else {
-				entry.item.label = label;
-			}
-			// Файлы сортируются после каталогов (префикс «1» против «0» у каталогов)
-			entry.item.sortText = `1${label}`;
-
-			if (discovered.labelLine !== undefined) {
+			if (discovered?.labelLine !== undefined) {
 				entry.item.range = new vscode.Range(discovered.labelLine, 0, discovered.labelLine, 0);
 			}
 
-			const children: vscode.TestItem[] = [];
-			const seenIds = new Set<string>();
-			for (const testCase of discovered.cases) {
-				// Дубли имён (одинаковые сценарии в одном файле) различаем по строке,
-				// иначе TestItemCollection отвергнет повторный ID
-				const baseId = caseItemId(adapter.id, uri.toString(), testCase.name);
-				const caseId = dedupedCaseId(baseId, testCase.line, seenIds);
-				const child = this.controller.createTestItem(caseId, testCase.name, uri);
-				child.range = new vscode.Range(testCase.line, 0, testCase.line, 0);
-				// Кейсы — в порядке следования по файлу, а не по алфавиту
-				child.sortText = String(testCase.line).padStart(6, '0');
-				if (testCase.tags) {
-					child.tags = testCase.tags.map((tag) => new vscode.TestTag(tag));
+			const descriptors = buildCaseDescriptors(entry.adapter.id, uri.toString(), discovered?.cases ?? []);
+			const children = descriptors.map((descriptor) => {
+				const child = this.controller.createTestItem(descriptor.id, descriptor.name, uri);
+				child.range = new vscode.Range(descriptor.line, 0, descriptor.line, 0);
+				child.sortText = descriptor.sortText;
+				if (descriptor.tags) {
+					child.tags = descriptor.tags.map((tag) => new vscode.TestTag(tag));
 				}
-				children.push(child);
-			}
+				return child;
+			});
 			entry.item.children.replace(children);
+			entry.resolved = true;
+			// Кейсы загружены — повторно резолвить не нужно (изменения ловит watcher)
+			entry.item.canResolveChildren = false;
 		} finally {
-			const entry = this.files.get(id);
-			if (entry) {
-				entry.item.busy = false;
-			}
+			entry.item.busy = false;
 		}
 	}
 
 	/**
-	 * Обрабатывает изменение содержимого тестового файла
+	 * Реакция на изменение содержимого файла
 	 *
 	 * Прошлые результаты затронутого файла помечаются устаревшими
 	 * (invalidateTestResults): VS Code приглушает их сразу, не дожидаясь нового
-	 * прогона. Дерево обновляется точечным upsert, без полной пересборки.
+	 * прогона. Затем гарантируется регистрация узла (для широкого glob — заодно
+	 * отсев, если файл перестал быть тестовым) и перечитываются кейсы, если файл
+	 * уже был разобран. Неразобранные узлы остаются ленивыми — перечитаются при
+	 * разворачивании.
 	 */
-	private async reparseChangedFile(adapter: TestFrameworkAdapter, uri: vscode.Uri): Promise<void> {
-		const entry = this.files.get(fileItemId(adapter.id, uri.toString()));
-		if (entry) {
-			this.controller.invalidateTestResults(entry.item);
+	private async onFileChanged(adapter: TestFrameworkAdapter, uri: vscode.Uri): Promise<void> {
+		const id = fileItemId(adapter.id, uri.toString());
+		const existing = this.files.get(id);
+		if (existing) {
+			this.controller.invalidateTestResults(existing.item);
 		}
-		await this.upsertFile(adapter, uri);
+		await this.registerFile(adapter, uri);
+		const entry = this.files.get(id);
+		if (entry?.resolved) {
+			await this.resolveFile(entry, true);
+		}
 	}
 
 	/**
@@ -415,24 +551,30 @@ export class TestingController implements vscode.Disposable {
 		request: vscode.TestRunRequest,
 		token: vscode.CancellationToken
 	): Promise<void> {
-		const units = this.collectRunUnits(request);
-		if (units.length === 0) {
-			return;
-		}
-
-		const run = this.controller.createTestRun(request);
-
-		for (const unit of units) {
-			for (const item of this.leafItems(unit.entry.item)) {
-				run.enqueued(item);
-			}
-		}
-
-		// Замораживаем структуру дерева на время прогона: файловые события от
-		// самого прогона (сборка обработок, запись отчётов) не должны пересобирать
-		// дерево под результатами. Накопленный пересбор выполнится после завершения.
+		// Замораживаем структуру дерева на всё время обработки запроса, включая
+		// ленивый резолв запрошенных файлов: файловые события (как от самого
+		// прогона — сборка обработок, запись отчётов, — так и сторонние) не
+		// должны пересобирать дерево под результатами. Накопленный пересбор
+		// выполнится после завершения (flushPendingRebuild).
 		this.activeRuns += 1;
 		try {
+			// Лениво обнаруженные узлы-файлы могут быть ещё не разобраны: резолвим
+			// детей для всех запрошенных файлов, чтобы прогон видел кейсы
+			await this.resolveForRun(request);
+
+			const units = this.collectRunUnits(request);
+			if (units.length === 0) {
+				return;
+			}
+
+			const run = this.controller.createTestRun(request);
+
+			for (const unit of units) {
+				for (const item of this.leafItems(unit.entry.item)) {
+					run.enqueued(item);
+				}
+			}
+
 			await this.queue.enqueue(async () => {
 				try {
 					for (const unit of units) {
@@ -449,6 +591,41 @@ export class TestingController implements vscode.Disposable {
 			this.activeRuns -= 1;
 			this.flushPendingRebuild();
 		}
+	}
+
+	/**
+	 * Резолвит детей всех файлов, затронутых запросом запуска
+	 *
+	 * Корень/каталог раскрываются до файлов; кейс пропускается (его файл уже
+	 * разобран, раз кейс существует). Без этого запуск нераскрытого файла видел
+	 * бы пустой список кейсов.
+	 */
+	private async resolveForRun(request: vscode.TestRunRequest): Promise<void> {
+		const seen = new Set<string>();
+		const targets: FileEntry[] = [];
+
+		const visit = (item: vscode.TestItem) => {
+			const entry = this.files.get(item.id);
+			if (entry) {
+				if (!seen.has(entry.item.id)) {
+					seen.add(entry.item.id);
+					targets.push(entry);
+				}
+				return;
+			}
+			// Кейс: его родитель-файл уже разобран (иначе кейса бы не было)
+			if (item.parent && this.files.has(item.parent.id)) {
+				return;
+			}
+			item.children.forEach((child) => visit(child));
+		};
+
+		const included = request.include ?? [...this.controller.items].map(([, item]) => item);
+		for (const item of included) {
+			visit(item);
+		}
+
+		await Promise.all(targets.map((entry) => this.resolveFile(entry)));
 	}
 
 	/**
