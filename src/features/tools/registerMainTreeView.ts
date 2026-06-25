@@ -5,6 +5,7 @@ import {
 	PlatformTreeItem,
 	TREE_GROUP_EXPANDED_STATE_KEY,
 } from './treeViewProvider';
+import { HelpAndSupportProvider } from '../projects/helpAndSupportProvider';
 
 export interface MainTreeViewRegistration {
 	treeDataProvider: PlatformTreeDataProvider;
@@ -28,6 +29,12 @@ export function registerMainTreeView(
 		showCollapseAll: true,
 	});
 
+	// Отдельная плашка «Помощь и поддержка» под деревом команд
+	const helpTreeView = vscode.window.createTreeView('1c-platform-tools-help', {
+		treeDataProvider: new HelpAndSupportProvider(),
+		showCollapseAll: false,
+	});
+
 	const saveGroupExpandedState = (element: unknown, expanded: boolean): void => {
 		if (!(element instanceof PlatformTreeItem) || !element.groupId) {
 			return;
@@ -40,6 +47,7 @@ export function registerMainTreeView(
 
 	context.subscriptions.push(
 		treeView,
+		helpTreeView,
 		treeView.onDidExpandElement((event) =>
 			saveGroupExpandedState(event.element, true)
 		),

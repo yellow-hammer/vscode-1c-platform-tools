@@ -2,7 +2,6 @@ import * as vscode from 'vscode';
 import * as path from 'node:path';
 import * as fs from 'node:fs/promises';
 import { BaseCommand } from './baseCommand';
-import { buildCommand, joinCommands, detectShellType } from '../utils/commandUtils';
 import {
 	getLoadExtensionFromSrcCommandName,
 	getLoadExtensionFromCfeCommandName,
@@ -27,33 +26,13 @@ const log = logger.scope('commands');
 export class ExtensionsCommands extends BaseCommand {
 
 	/**
-	 * Выполняет команды в терминале VS Code
-	 * @param commands - Массив команд для выполнения
-	 * @param terminalName - Имя терминала
-	 * @param workspaceRoot - Корневая директория workspace
-	 * @param shellType - Тип оболочки терминала
-	 */
-	private executeCommandsInTerminal(
-		commands: string[],
-		terminalName: string,
-		workspaceRoot: string,
-		shellType: ReturnType<typeof detectShellType>
-	): void {
-		const terminal =
-			vscode.window.terminals.find((t) => t.name === terminalName) ??
-			vscode.window.createTerminal({ name: terminalName, cwd: workspaceRoot });
-		terminal.sendText(joinCommands(commands, shellType));
-		terminal.show();
-	}
-
-	/**
-	 * Выполняет команду vrunner для всех расширений с учетом Docker
-	 * 
-	 * Если Docker включен, выполняет команды последовательно через executeVRunnerInTerminal.
-	 * Если Docker выключен, объединяет команды в одну строку для выполнения в одном терминале.
-	 * 
+	 * Выполняет команду vrunner для всех расширений
+	 *
+	 * Команды для всех расширений выполняются одной последовательной задачей
+	 * через executeVRunnerCommandsInSequence (с учётом Docker и режима задач/терминала).
+	 *
 	 * @param buildArgs - Функция, которая строит аргументы команды для одного расширения
-	 * @param commandName - Название команды для отображения в терминале
+	 * @param commandName - Название команды для отображения
 	 * @returns Промис, который разрешается после запуска всех команд
 	 */
 	private async executeForAllExtensions(
@@ -94,23 +73,10 @@ export class ExtensionsCommands extends BaseCommand {
 			return this.runVRunnerSequential(argsList, opts, commandName);
 		}
 
-		const useDocker = await this.vrunner.shouldUseDocker();
-
-		if (useDocker) {
-			for (const args of argsList) {
-				this.vrunner.executeVRunnerInTerminal(args, {
-					cwd: workspaceRoot,
-					name: commandName
-				});
-			}
-		} else {
-			const vrunnerPath = this.vrunner.getVRunnerPath();
-			const shellType = detectShellType();
-			const commands = argsList.map((args) =>
-				buildCommand(vrunnerPath, args, shellType)
-			);
-			this.executeCommandsInTerminal(commands, commandName, workspaceRoot, shellType);
-		}
+		await this.vrunner.executeVRunnerCommandsInSequence(argsList, {
+			cwd: workspaceRoot,
+			name: commandName,
+		});
 	}
 
 	/**
@@ -376,10 +342,10 @@ export class ExtensionsCommands extends BaseCommand {
 			return this.runVRunnerSequential(argsList, opts, commandName.title);
 		}
 
-		const vrunnerPath = this.vrunner.getVRunnerPath();
-		const shellType = detectShellType();
-		const commands = argsList.map((args) => buildCommand(vrunnerPath, args, shellType));
-		this.executeCommandsInTerminal(commands, commandName.title, cwd, shellType);
+		await this.vrunner.executeVRunnerCommandsInSequence(argsList, {
+			cwd,
+			name: commandName.title,
+		});
 	}
 
 	/**
@@ -581,19 +547,9 @@ export class ExtensionsCommands extends BaseCommand {
 			return this.runVRunnerSequential(argsList, opts, commandName.title);
 		}
 
-		const useDocker = await this.vrunner.shouldUseDocker();
-		if (useDocker) {
-			for (const args of argsList) {
-				this.vrunner.executeVRunnerInTerminal(args, {
-					cwd,
-					name: commandName.title
-				});
-			}
-		} else {
-			const vrunnerPath = this.vrunner.getVRunnerPath();
-			const shellType = detectShellType();
-			const commands = argsList.map((args) => buildCommand(vrunnerPath, args, shellType));
-			this.executeCommandsInTerminal(commands, commandName.title, cwd, shellType);
-		}
+		await this.vrunner.executeVRunnerCommandsInSequence(argsList, {
+			cwd,
+			name: commandName.title,
+		});
 	}
 }

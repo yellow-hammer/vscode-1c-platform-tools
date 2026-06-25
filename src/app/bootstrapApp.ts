@@ -21,6 +21,7 @@ import { registerTestingFlow } from './registerTestingFlow';
 import { registerLaunchFeature } from '../features/launch/launchFeature';
 import { registerPlatformServerFeature } from '../features/launch/platformServerFeature';
 import { registerDiagnosticsFeature } from '../features/diagnostics/registerDiagnosticsFeature';
+import { registerTasksFeature } from '../features/tasks/registerTasksFeature';
 
 /**
  * Выполняет полную инициализацию расширения.
@@ -60,6 +61,7 @@ export async function bootstrapApp(context: vscode.ExtensionContext): Promise<vo
 	const launchFeatureDisposables = registerLaunchFeature(context, isProjectRef);
 	const platformServerDisposables = registerPlatformServerFeature(context, isProjectRef);
 	const diagnosticsFeatureDisposables = registerDiagnosticsFeature();
+	const tasksFeatureDisposables = registerTasksFeature();
 
 	registerProjectCreatedHandler({
 		isProjectRef,
@@ -91,6 +93,7 @@ export async function bootstrapApp(context: vscode.ExtensionContext): Promise<vo
 		...launchFeatureDisposables,
 		...platformServerDisposables,
 		...diagnosticsFeatureDisposables,
+		...tasksFeatureDisposables,
 		...commandDisposables
 	);
 }
