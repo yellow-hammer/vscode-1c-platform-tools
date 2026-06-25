@@ -53,6 +53,27 @@
   ],
   "main": "./out/extension.js",
   "contributes": {
+    "taskDefinitions": [
+      {
+        "type": "1c-vrunner",
+        "required": [
+          "command"
+        ],
+        "properties": {
+          "command": {
+            "type": "string",
+            "description": "Команда vrunner (например, vanessa, compile, syntax-check, init-dev)"
+          },
+          "args": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Дополнительные аргументы команды vrunner"
+          }
+        }
+      }
+    ],
     "viewsContainers": {
       "activitybar": [
         {
@@ -2312,6 +2333,11 @@
             "type": "string",
             "default": "vrunner",
             "description": "Путь к vrunner (vanessa-runner)"
+          },
+          "1c-platform-tools.execution.useTasks": {
+            "type": "boolean",
+            "default": true,
+            "description": "Запускать команды vrunner как задачи VS Code: ошибки прогона попадают в панель Problems (с переходом к строке), доступна команда «Rerun Last Task», команды видны в списке задач. Отключите, чтобы выполнять команды в обычном интерактивном терминале."
           },
           "1c-platform-tools.useIbcmd": {
             "type": "boolean",

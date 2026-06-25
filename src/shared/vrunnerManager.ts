@@ -38,6 +38,14 @@ import {
 	parseVRunnerVersionFromOpmMetadata,
 	supportsFeature,
 } from './vrunnerVersion';
+import { createVRunnerTask } from '../features/tasks/vrunnerTask';
+
+/**
+ * Имя оболочки, через которую исполняется команда задачи (`spawn` с shell: true):
+ * на Windows это cmd.exe, на остальных ОС — /bin/sh. Используется для корректного
+ * экранирования и склейки команд в задачах, в отличие от интегрированного терминала.
+ */
+const TASK_HOST_SHELL: ShellType = process.platform === 'win32' ? 'cmd' : 'sh';
 
 const log = logger.scope('vrunner');
 
@@ -695,6 +703,183 @@ export class VRunnerManager {
 	}
 
 	/**
+	 * Запускать ли команды vrunner как задачи VS Code (Tasks).
+	 *
+	 * По умолчанию включено: доступен «Rerun Last Task», команды видны в списке
+	 * задач, прогон можно остановить. При `false` сохраняется прежний запуск
+	 * в интерактивном терминале.
+	 *
+	 * @returns true, если использовать задачи; false — интерактивный терминал
+	 */
+	private shouldUseTasks(): boolean {
+		const config = vscode.workspace.getConfiguration('1c-platform-tools');
+		return config.get<boolean>('execution.useTasks', true);
+	}
+
+	/**
+	 * Запрашивает подтверждение запуска в Docker для команды без поддержки --ibcmd.
+	 *
+	 * @param args - Аргументы команды vrunner (первый — имя команды)
+	 * @returns true, если можно продолжать (команда поддерживает --ibcmd или пользователь согласился)
+	 */
+	private async confirmDockerIbcmd(args: string[]): Promise<boolean> {
+		if (this.supportsIbcmd(args)) {
+			return true;
+		}
+		const commandName = args[0] || 'команда';
+		log.warn(`Команда "${commandName}" не поддерживает --ibcmd, необходимый для Docker`);
+		const action = await vscode.window.showWarningMessage(
+			`Команда "${commandName}" не поддерживает параметр --ibcmd, который необходим для работы в Docker. ` +
+			'Эта команда может не работать корректно в Docker-контейнере без графического интерфейса. ' +
+			'Продолжить выполнение?',
+			'Да',
+			'Нет'
+		);
+		return action === 'Да';
+	}
+
+	/**
+	 * Строит задачу VS Code для одиночной команды vrunner.
+	 *
+	 * Учитывает активные временные параметры профиля, режим Docker и построение
+	 * команды так же, как синхронный путь (executeVRunner). Используется как для
+	 * ad-hoc запуска из команд расширения, так и для разрешения задач из tasks.json.
+	 *
+	 * @param args - Аргументы команды vrunner
+	 * @param options - Опции (cwd, env, name, appendOverrides)
+	 * @returns Готовая задача или undefined, если подготовка не удалась/отменена
+	 */
+	public async createVRunnerTaskFromArgs(
+		args: string[],
+		options?: {
+			cwd?: string;
+			env?: NodeJS.ProcessEnv;
+			name?: string;
+			appendOverrides?: boolean;
+			definition?: vscode.TaskDefinition;
+		}
+	): Promise<vscode.Task | undefined> {
+		const finalArgs = options?.appendOverrides === false ? args : this.appendActiveOverrides(args);
+		const cwd = options?.cwd || this.workspaceRoot || os.homedir();
+		const useDocker = await this.shouldUseDocker();
+
+		if (useDocker) {
+			if (!this.workspaceRoot) {
+				log.error('Для использования Docker необходимо открыть рабочую область');
+				vscode.window.showErrorMessage('Для использования Docker необходимо открыть рабочую область');
+				return undefined;
+			}
+			if (!(await this.confirmDockerIbcmd(finalArgs))) {
+				return undefined;
+			}
+		}
+
+		const built = this.buildExecCommand(finalArgs, useDocker);
+		if ('error' in built) {
+			log.error(`Ошибка при подготовке команды: ${built.error}`);
+			vscode.window.showErrorMessage(built.error);
+			return undefined;
+		}
+
+		return createVRunnerTask({
+			name: options?.name || '1C: Platform Tools',
+			command: built.command,
+			cwd,
+			env: options?.env,
+			definition: options?.definition,
+		});
+	}
+
+	/**
+	 * Выполняет команду vrunner как задачу VS Code.
+	 *
+	 * Задача становится «последней» для команды «Rerun Last Task».
+	 * Аналог executeVRunnerInTerminal, но через Task API.
+	 *
+	 * @param args - Аргументы команды vrunner
+	 * @param options - Опции выполнения (cwd, env, name)
+	 */
+	public async executeVRunnerTask(
+		args: string[],
+		options?: { cwd?: string; env?: NodeJS.ProcessEnv; name?: string }
+	): Promise<void> {
+		const task = await this.createVRunnerTaskFromArgs(args, options);
+		if (task) {
+			await vscode.tasks.executeTask(task);
+		}
+	}
+
+	/**
+	 * Выполняет несколько команд vrunner последовательно как одну задачу VS Code.
+	 *
+	 * Команды объединяются в одну строку (через `&&`, в Docker — через
+	 * buildDockerCommandSequence), что гарантирует запуск следующей только после
+	 * фактического завершения предыдущей.
+	 *
+	 * @param argsArray - Массив наборов аргументов (каждый — одна команда vrunner)
+	 * @param options - Опции выполнения (cwd, env, name)
+	 */
+	public async executeVRunnerTaskSequence(
+		argsArray: string[][],
+		options?: { cwd?: string; env?: NodeJS.ProcessEnv; name?: string }
+	): Promise<void> {
+		if (argsArray.length === 0) {
+			return;
+		}
+		if (argsArray.length === 1) {
+			await this.executeVRunnerTask(argsArray[0], options);
+			return;
+		}
+
+		const finalArgsArray = argsArray.map((args) => this.appendActiveOverrides(args));
+		const cwd = options?.cwd || this.workspaceRoot || os.homedir();
+		const useDocker = await this.shouldUseDocker();
+		let command: string;
+
+		if (useDocker) {
+			if (!this.workspaceRoot) {
+				log.error('Для использования Docker необходимо открыть рабочую область');
+				vscode.window.showErrorMessage('Для использования Docker необходимо открыть рабочую область');
+				return;
+			}
+			if (!(await this.confirmDockerIbcmd(finalArgsArray[0]))) {
+				return;
+			}
+			try {
+				const dockerImage = this.getDockerImage();
+				const processedArgsArray = finalArgsArray.map((args) => this.processCommandArgsForDocker(args));
+				command = buildDockerCommandSequence(dockerImage, processedArgsArray, this.workspaceRoot, TASK_HOST_SHELL);
+			} catch (error) {
+				const errMsg = (error as Error).message;
+				log.error(`Ошибка при подготовке команды Docker: ${errMsg}`);
+				vscode.window.showErrorMessage(errMsg);
+				return;
+			}
+		} else {
+			const parts: string[] = [];
+			for (const args of finalArgsArray) {
+				const built = this.buildExecCommand(args, false);
+				if ('error' in built) {
+					log.error(`Ошибка при подготовке команды: ${built.error}`);
+					vscode.window.showErrorMessage(built.error);
+					return;
+				}
+				parts.push(built.command);
+			}
+			// && одинаково работает в cmd и sh (оболочки spawn для задач)
+			command = parts.join(' && ');
+		}
+
+		const task = createVRunnerTask({
+			name: options?.name || '1C: Platform Tools',
+			command,
+			cwd,
+			env: options?.env,
+		});
+		await vscode.tasks.executeTask(task);
+	}
+
+	/**
 	 * Выполняет команду vrunner в терминале VS Code
 	 * 
 	 * Создает новый терминал или использует существующий, отправляет команду
@@ -718,6 +903,12 @@ export class VRunnerManager {
 		args: string[],
 		options?: { cwd?: string; env?: NodeJS.ProcessEnv; name?: string; shellType?: ShellType }
 	): Promise<void> {
+		// По умолчанию команды идут как задачи VS Code (Rerun, список задач).
+		// Сырой терминал остаётся опцией (настройка execution.useTasks).
+		if (this.shouldUseTasks()) {
+			await this.executeVRunnerTask(args, options);
+			return;
+		}
 		args = this.appendActiveOverrides(args);
 		const cwd = options?.cwd || this.workspaceRoot || os.homedir();
 		const shellType = options?.shellType || detectShellType();
@@ -793,6 +984,11 @@ export class VRunnerManager {
 		options?: { cwd?: string; env?: NodeJS.ProcessEnv; name?: string; shellType?: ShellType }
 	): Promise<void> {
 		if (argsArray.length === 0) {
+			return;
+		}
+		// По умолчанию — как задача VS Code; сырой терминал остаётся опцией.
+		if (this.shouldUseTasks()) {
+			await this.executeVRunnerTaskSequence(argsArray, options);
 			return;
 		}
 		if (argsArray.length === 1) {
@@ -999,11 +1195,37 @@ export class VRunnerManager {
 	}
 
 	/**
+	 * Выполняет команду opm как задачу VS Code.
+	 *
+	 * Аналог executeOpmInTerminal через Task API: «Rerun Last Task», список задач,
+	 * остановка прогона. opm — host-инструмент, Docker здесь не применяется.
+	 *
+	 * @param args - Аргументы команды opm
+	 * @param options - Опции выполнения (cwd, env, name)
+	 */
+	public async executeOpmTask(
+		args: string[],
+		options?: { cwd?: string; env?: NodeJS.ProcessEnv; name?: string }
+	): Promise<void> {
+		const opmPath = this.getOpmPath();
+		const cwd = options?.cwd || this.workspaceRoot || os.homedir();
+		const quotedPath = opmPath.includes(' ') ? `"${opmPath}"` : opmPath;
+		const command = `${quotedPath} ${escapeCommandArgs(args)}`;
+		const task = createVRunnerTask({
+			name: options?.name || '1C: Platform Tools',
+			command,
+			cwd,
+			env: options?.env,
+		});
+		await vscode.tasks.executeTask(task);
+	}
+
+	/**
 	 * Выполняет команду opm в терминале VS Code
-	 * 
+	 *
 	 * Создает терминал и выполняет команду opm (OneScript Package Manager).
 	 * Используется для установки и управления зависимостями проекта.
-	 * 
+	 *
 	 * @param args - Аргументы команды opm (например, ['install', '-l'])
 	 * @param options - Опции выполнения
 	 * @param options.cwd - Рабочая директория (по умолчанию workspace root)
@@ -1014,6 +1236,11 @@ export class VRunnerManager {
 		args: string[],
 		options?: { cwd?: string; name?: string; shellType?: ShellType }
 	): void {
+		// По умолчанию команды идут как задачи VS Code; сырой терминал остаётся опцией.
+		if (this.shouldUseTasks()) {
+			void this.executeOpmTask(args, options);
+			return;
+		}
 		const opmPath = this.getOpmPath();
 		const shellType = options?.shellType || detectShellType();
 		const cwd = options?.cwd || this.workspaceRoot || os.homedir();

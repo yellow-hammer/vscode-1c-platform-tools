@@ -17,7 +17,42 @@
 
 Активный [профиль запуска](launch-profiles.md) выбирается в статусной строке (слева) и подставляется во все команды vrunner.
 
-Команды выполняются через [vanessa-runner](https://github.com/vanessa-opensource/vanessa-runner) в терминале VS Code — вывод всегда виден.
+## Запуск команд: задачи VS Code
+
+По умолчанию команды [vanessa-runner](https://github.com/vanessa-opensource/vanessa-runner) и `opm` (установка зависимостей, запуск oscript-задач) выполняются как **задачи VS Code** (Tasks). Это даёт:
+
+- **«Rerun Last Task».** Последний запуск повторяется командой палитры **Tasks: Rerun Last Task** (по умолчанию без хоткея, можно назначить свой).
+- **Запуск из списка задач и `tasks.json`.** Команды видны в **Tasks: Run Task**, их можно вынести в `tasks.json`, навесить хоткей или включить в составную задачу.
+- **Единый статус и вывод.** Прогон идёт в панели задачи; вывод виден полностью, задачу можно остановить (она завершает всё дерево процессов `cmd → oscript → 1cv8`).
+
+Отключить и вернуться к обычному интерактивному терминалу можно настройкой `1c-platform-tools.execution.useTasks: false`.
+
+### Свои задачи в `tasks.json`
+
+Команды vrunner можно описывать вручную в `.vscode/tasks.json` (тип `1c-vrunner`):
+
+```jsonc
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "type": "1c-vrunner",
+      "command": "vanessa",
+      "args": ["--settings", "env.json"],
+      "label": "1C: Прогнать Vanessa",
+      "group": "test"
+    },
+    {
+      "type": "1c-vrunner",
+      "command": "compile",
+      "args": ["--src", "src/cf"],
+      "label": "1C: Собрать конфигурацию"
+    }
+  ]
+}
+```
+
+Запуск — **Tasks: Run Task** → выбрать задачу. Поле `command` — это команда vrunner (`vanessa`, `compile`, `syntax-check`, `init-dev` и т.д.), `args` — её аргументы.
 
 ## Избранное и палитра
 
@@ -28,5 +63,6 @@
 
 - `1c-platform-tools.paths.*` — пути к исходникам (`src/cf`, `src/cfe`, `src/epf`, `src/erf`) и результатам сборки.
 - `1c-platform-tools.vrunner.*` — путь и параметры vanessa-runner; по умолчанию используется `oscript_modules/bin/vrunner.bat` проекта, если он есть.
+- `1c-platform-tools.execution.useTasks` — запускать команды как задачи VS Code (Rerun Last Task, запуск из списка задач); по умолчанию `true`. `false` — обычный интерактивный терминал.
 - `1c-platform-tools.useIbcmd` — выполнять команды через `ibcmd` без GUI (нужен компонент сервера 1С).
 - Выполнение в Docker — [docker.md](docker.md).
