@@ -496,35 +496,8 @@ export class PlatformTreeDataProvider implements vscode.TreeDataProvider<Platfor
 			)
 		);
 
-		const helpAndSupportGroup = TREE_GROUPS.find((g) => g.sectionType === 'helpAndSupport');
-		if (helpAndSupportGroup) {
-			const groupType = this.sectionTypeToRootType(helpAndSupportGroup.sectionType);
-			const defaultExpanded = helpAndSupportGroup.defaultCollapsibleState === 'expanded';
-			const collapsibleState = this.resolveGroupCollapsibleState('helpAndSupport', defaultExpanded);
-			const children: PlatformTreeItem[] = helpAndSupportGroup.commands.map((cmd) =>
-				this.createTreeItem(
-					cmd.treeLabel,
-					TreeItemType.Task,
-					vscode.TreeItemCollapsibleState.None,
-					{ command: cmd.command, title: cmd.title },
-					undefined,
-					this.sectionTypeToIconType(helpAndSupportGroup.sectionType),
-					undefined,
-					cmd.icon
-				)
-			);
-			allSections.push(
-				this.createTreeItem(
-					helpAndSupportGroup.groupLabel,
-					groupType,
-					collapsibleState,
-					undefined,
-					children,
-					undefined,
-					'helpAndSupport'
-				)
-			);
-		}
+		// Группа «Помощь и поддержка» вынесена в отдельную плашку (view
+		// 1c-platform-tools-help), данные даёт HelpAndSupportProvider.
 
 		const favorites = this.extensionContext ? getFavorites(this.extensionContext) : [];
 		const favoritesRoot = this.createFavoritesRootItem(favorites);

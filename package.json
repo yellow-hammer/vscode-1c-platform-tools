@@ -127,6 +127,13 @@
           "id": "1c-platform-tools",
           "name": "Команды",
           "when": "1c-platform-tools.is1CProject == true"
+        },
+        {
+          "id": "1c-platform-tools-help",
+          "name": "Помощь и поддержка",
+          "contextualTitle": "Помощь",
+          "when": "1c-platform-tools.is1CProject == true",
+          "visibility": "collapsed"
         }
       ],
       "1c-platform-tools-metadata": [
