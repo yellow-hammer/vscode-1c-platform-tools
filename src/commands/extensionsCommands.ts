@@ -38,7 +38,8 @@ export class ExtensionsCommands extends BaseCommand {
 	private async executeForAllExtensions(
 		buildArgs: (extensionFolder: string) => string[],
 		commandName: string,
-		opts?: CommandExecutionOptions
+		opts?: CommandExecutionOptions,
+		commandId?: string
 	): Promise<StructuredCommandResult | void> {
 		const workspaceRoot = this.getExecutionCwd(opts);
 		if (!workspaceRoot) {
@@ -70,7 +71,7 @@ export class ExtensionsCommands extends BaseCommand {
 		);
 
 		if (opts?.wait === true) {
-			return this.runVRunnerSequential(argsList, opts, commandName);
+			return this.runVRunnerSequential(argsList, opts, commandName, commandId);
 		}
 
 		await this.vrunner.executeVRunnerCommandsInSequence(argsList, {
@@ -257,7 +258,8 @@ export class ExtensionsCommands extends BaseCommand {
 				return ['compileext', inputPath, extensionFolder, '--updatedb', ...ibConnectionParam];
 			},
 			commandName.title,
-			opts
+			opts,
+			commandName.id
 		);
 	}
 
@@ -273,7 +275,8 @@ export class ExtensionsCommands extends BaseCommand {
 		return this.executeForAllExtensions(
 			(extensionFolder) => ['updateext', extensionFolder, ...ibConnectionParam],
 			commandName.title,
-			opts
+			opts,
+			commandName.id
 		);
 	}
 
@@ -339,7 +342,7 @@ export class ExtensionsCommands extends BaseCommand {
 		});
 
 		if (opts?.wait === true) {
-			return this.runVRunnerSequential(argsList, opts, commandName.title);
+			return this.runVRunnerSequential(argsList, opts, commandName.title, commandName.id);
 		}
 
 		await this.vrunner.executeVRunnerCommandsInSequence(argsList, {
@@ -367,7 +370,8 @@ export class ExtensionsCommands extends BaseCommand {
 				return ['decompileext', extensionFolder, outputPath, ...ibConnectionParam];
 			},
 			commandName.title,
-			opts
+			opts,
+			commandName.id
 		);
 	}
 
@@ -422,7 +426,8 @@ export class ExtensionsCommands extends BaseCommand {
 				return ['unloadext', cfepath, extensionFolder, ...ibConnectionParam];
 			},
 			commandName.title,
-			opts
+			opts,
+			commandName.id
 		);
 	}
 
@@ -478,7 +483,8 @@ export class ExtensionsCommands extends BaseCommand {
 				return ['compileexttocfe', '--src', srcPath, '--out', outPath];
 			},
 			commandName.title,
-			opts
+			opts,
+			commandName.id
 		);
 	}
 
@@ -544,7 +550,7 @@ export class ExtensionsCommands extends BaseCommand {
 		});
 
 		if (opts?.wait === true) {
-			return this.runVRunnerSequential(argsList, opts, commandName.title);
+			return this.runVRunnerSequential(argsList, opts, commandName.title, commandName.id);
 		}
 
 		await this.vrunner.executeVRunnerCommandsInSequence(argsList, {

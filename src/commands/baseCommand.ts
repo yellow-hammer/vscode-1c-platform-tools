@@ -3,6 +3,7 @@ import * as vscode from 'vscode';
 import * as fs from 'node:fs/promises';
 import { VRunnerManager, type VRunnerExecutionResult } from '../shared/vrunnerManager';
 import { logger } from '../shared/logger';
+import { runWithHooks, runHooksAroundTerminalTask } from '../shared/commandHooks';
 import type { CommandExecutionOptions, StructuredCommandResult } from '../shared/commandExecutionTypes';
 
 const log = logger.scope('commands');
@@ -299,7 +300,8 @@ export abstract class BaseCommand {
 		args: string[],
 		opts: CommandExecutionOptions | undefined,
 		terminalName: string,
-		artifact?: string
+		artifact?: string,
+		commandId?: string
 	): Promise<StructuredCommandResult | void> {
 		const cwd = this.getExecutionCwd(opts);
 		if (!cwd) {
@@ -318,15 +320,28 @@ export abstract class BaseCommand {
 			return;
 		}
 
+		const workspaceRoot = this.vrunner.getWorkspaceRoot() ?? cwd;
+
 		if (opts?.wait === true) {
-			const result = await this.vrunner.executeVRunner(args, { cwd });
-			return this.vrunnerResultToStructured(result, artifact);
+			const execute = async (): Promise<StructuredCommandResult> => {
+				const result = await this.vrunner.executeVRunner(args, { cwd });
+				return this.vrunnerResultToStructured(result, artifact) as StructuredCommandResult;
+			};
+			if (!commandId) {
+				return execute();
+			}
+			return runWithHooks({ commandId, cwd, args, workspaceRoot, run: execute });
 		}
 
-		this.vrunner.executeVRunnerInTerminal(args, {
-			cwd,
-			name: terminalName,
-		});
+		if (commandId) {
+			void runHooksAroundTerminalTask({
+				commandId, cwd, args, workspaceRoot,
+				runTracked: () => this.vrunner.executeVRunnerTaskAndWait(args, { cwd, name: terminalName }),
+				runUntracked: () => this.vrunner.executeVRunnerInTerminal(args, { cwd, name: terminalName }),
+			}).catch((err) => log.error(`Ошибка хуков команды: ${(err as Error).message}`));
+		} else {
+			this.vrunner.executeVRunnerInTerminal(args, { cwd, name: terminalName });
+		}
 	}
 
 	/**
@@ -336,7 +351,8 @@ export abstract class BaseCommand {
 	protected async runVRunnerSequential(
 		argsList: string[][],
 		opts: CommandExecutionOptions | undefined,
-		terminalName: string
+		terminalName: string,
+		commandId?: string
 	): Promise<StructuredCommandResult | void> {
 		const cwd = this.getExecutionCwd(opts);
 		if (!cwd) {
@@ -355,27 +371,44 @@ export abstract class BaseCommand {
 			return;
 		}
 
+		const workspaceRoot = this.vrunner.getWorkspaceRoot() ?? cwd;
+		const flatArgs = argsList.flat();
+
 		if (opts?.wait === true) {
-			let stdout = '';
-			let stderr = '';
-			let exitCode = 0;
-			let success = true;
-			for (const args of argsList) {
-				const result = await this.vrunner.executeVRunner(args, { cwd });
-				stdout += result.stdout;
-				stderr += result.stderr;
-				exitCode = result.exitCode;
-				if (!result.success) {
-					success = false;
-					break;
+			const execute = async (): Promise<StructuredCommandResult> => {
+				let stdout = '';
+				let stderr = '';
+				let exitCode = 0;
+				let success = true;
+				for (const args of argsList) {
+					const result = await this.vrunner.executeVRunner(args, { cwd });
+					stdout += result.stdout;
+					stderr += result.stderr;
+					exitCode = result.exitCode;
+					if (!result.success) {
+						success = false;
+						break;
+					}
 				}
+				return { success, exitCode, stdout, stderr };
+			};
+			if (!commandId) {
+				return execute();
 			}
-			return { success, exitCode, stdout, stderr };
+			return runWithHooks({ commandId, cwd, args: flatArgs, workspaceRoot, run: execute });
 		}
 
 		// Объединяем в одну цепочку (&& / ; — в зависимости от оболочки),
 		// чтобы каждая следующая команда стартовала после реального завершения
 		// предыдущей, а не по факту попадания в input-буфер терминала.
-		await this.vrunner.executeVRunnerCommandsInSequence(argsList, { cwd, name: terminalName });
+		if (commandId) {
+			void runHooksAroundTerminalTask({
+				commandId, cwd, args: flatArgs, workspaceRoot,
+				runTracked: () => this.vrunner.executeVRunnerTaskSequenceAndWait(argsList, { cwd, name: terminalName }),
+				runUntracked: () => this.vrunner.executeVRunnerCommandsInSequence(argsList, { cwd, name: terminalName }),
+			}).catch((err) => log.error(`Ошибка хуков команды: ${(err as Error).message}`));
+		} else {
+			await this.vrunner.executeVRunnerCommandsInSequence(argsList, { cwd, name: terminalName });
+		}
 	}
 }

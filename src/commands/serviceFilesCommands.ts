@@ -7,7 +7,7 @@ import { logger } from '../shared/logger';
 import { readTemplate } from '../features/serviceFiles/templates';
 import { SERVICE_FILES, getServiceFileSpec, type ServiceFileSpec } from '../features/serviceFiles/registry';
 import { buildEnvJsonWithSections } from '../features/serviceFiles/envJsonBuilder';
-import { ENV_DEFAULTS, VRUNNER_DEFAULTS, VRUNNER_INIT_DEFAULTS } from '../features/serviceFiles/envDefaults';
+import { ENV_DEFAULTS, VRUNNER_DEFAULTS, VRUNNER_INIT_DEFAULTS, HOOKS_DEFAULTS } from '../features/serviceFiles/envDefaults';
 import { DEFAULT_PROFILE_ID } from '../shared/envProfiles';
 
 const log = logger.scope('serviceFiles');
@@ -98,6 +98,10 @@ export class ServiceFilesCommands extends BaseCommand {
 		}
 		if (spec.id === 'vrunner' || spec.id === 'vrunnerInit') {
 			await this.ensureFromDefaults(spec, spec.id === 'vrunner' ? VRUNNER_DEFAULTS : VRUNNER_INIT_DEFAULTS);
+			return;
+		}
+		if (spec.id === 'hooks') {
+			await this.ensureFromDefaults(spec, HOOKS_DEFAULTS);
 			return;
 		}
 		if (await this.createFromSpec(spec, true)) {

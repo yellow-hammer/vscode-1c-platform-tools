@@ -4,6 +4,7 @@
  */
 
 export interface CommandNameAndTitle {
+	id: string;
 	name: string;
 	title: string;
 }
@@ -13,6 +14,7 @@ export interface CommandNameAndTitle {
  */
 export function getCreateEmptyInfobaseCommandName(): CommandNameAndTitle {
 	return {
+		id: '1c-platform-tools.infobase.createEmpty',
 		name: 'Создать пустую',
 		title: 'Создать пустую'
 	};
@@ -26,6 +28,7 @@ export function getCreateEmptyInfobaseCommandName(): CommandNameAndTitle {
  */
 export function getUpdateConfigurationInInfobaseCommandName(): CommandNameAndTitle {
 	return {
+		id: '1c-platform-tools.infobase.updateInfobase',
 		name: 'Обновить конфигурацию в ИБ',
 		title: 'Обновить конфигурацию в ИБ'
 	};
@@ -38,6 +41,7 @@ export function getUpdateConfigurationInInfobaseCommandName(): CommandNameAndTit
  */
 export function getUpdateExtensionsInInfobaseCommandName(): CommandNameAndTitle {
 	return {
+		id: '1c-platform-tools.extensions.updateInInfobase',
 		name: 'Обновить расширения в ИБ',
 		title: 'Обновить расширения в ИБ'
 	};
@@ -48,6 +52,7 @@ export function getUpdateExtensionsInInfobaseCommandName(): CommandNameAndTitle 
  */
 export function getLoadConfigurationFromCfCommandName(): CommandNameAndTitle {
 	return {
+		id: '1c-platform-tools.configuration.loadFromCf',
 		name: 'Загрузка конфигурации из CF',
 		title: 'Загрузить конфигурацию из *.cf'
 	};
@@ -58,6 +63,7 @@ export function getLoadConfigurationFromCfCommandName(): CommandNameAndTitle {
  */
 export function getLoadExtensionsCommandName(): CommandNameAndTitle {
 	return {
+		id: '1c-platform-tools.extensions.loadFromSrc',
 		name: 'Загрузка расширений',
 		title: 'Загрузка расширений'
 	};
@@ -68,6 +74,7 @@ export function getLoadExtensionsCommandName(): CommandNameAndTitle {
  */
 export function getUpdateDatabaseCommandName(): CommandNameAndTitle {
 	return {
+		id: '1c-platform-tools.infobase.updateDatabase',
 		name: 'Запустить обновление',
 		title: 'Запустить обновление'
 	};
@@ -78,6 +85,7 @@ export function getUpdateDatabaseCommandName(): CommandNameAndTitle {
  */
 export function getBlockExternalResourcesCommandName(): CommandNameAndTitle {
 	return {
+		id: '1c-platform-tools.infobase.blockExternalResources',
 		name: 'Запретить работу с внешними ресурсами',
 		title: 'Запретить работу с внешними ресурсами'
 	};
@@ -88,6 +96,7 @@ export function getBlockExternalResourcesCommandName(): CommandNameAndTitle {
  */
 export function getInitializeCommandName(): CommandNameAndTitle {
 	return {
+		id: '1c-platform-tools.infobase.initialize',
 		name: 'Инициализировать данные',
 		title: 'Инициализировать данные'
 	};
@@ -98,6 +107,7 @@ export function getInitializeCommandName(): CommandNameAndTitle {
  */
 export function getDumpInfobaseToDtCommandName(): CommandNameAndTitle {
 	return {
+		id: '1c-platform-tools.infobase.dumpToDt',
 		name: 'Выгрузить в dt',
 		title: 'Выгрузить в dt'
 	};
@@ -108,6 +118,7 @@ export function getDumpInfobaseToDtCommandName(): CommandNameAndTitle {
  */
 export function getLoadInfobaseFromDtCommandName(): CommandNameAndTitle {
 	return {
+		id: '1c-platform-tools.infobase.loadFromDt',
 		name: 'Загрузить из dt',
 		title: 'Загрузить из dt'
 	};
@@ -118,6 +129,7 @@ export function getLoadInfobaseFromDtCommandName(): CommandNameAndTitle {
  */
 export function getInstallDependenciesCommandName(): CommandNameAndTitle {
 	return {
+		id: '1c-platform-tools.dependencies.install',
 		name: 'Установить зависимости',
 		title: 'Установить зависимости'
 	};
@@ -128,6 +140,7 @@ export function getInstallDependenciesCommandName(): CommandNameAndTitle {
  */
 export function getRemoveDependenciesCommandName(): CommandNameAndTitle {
 	return {
+		id: '1c-platform-tools.dependencies.remove',
 		name: 'Удалить зависимости',
 		title: 'Удалить зависимости'
 	};
@@ -138,6 +151,7 @@ export function getRemoveDependenciesCommandName(): CommandNameAndTitle {
  */
 export function getInitializePackagedefCommandName(): CommandNameAndTitle {
 	return {
+		id: '1c-platform-tools.dependencies.initPackagedef',
 		name: 'Инициализировать проект',
 		title: 'Инициализировать проект'
 	};
@@ -148,6 +162,7 @@ export function getInitializePackagedefCommandName(): CommandNameAndTitle {
  */
 export function getInitializeProjectStructureCommandName(): CommandNameAndTitle {
 	return {
+		id: '1c-platform-tools.dependencies.initProjectStructure',
 		name: 'Инициализировать структуру проекта',
 		title: 'Инициализировать структуру проекта'
 	};
@@ -158,6 +173,7 @@ export function getInitializeProjectStructureCommandName(): CommandNameAndTitle 
  */
 export function getAddDevSkillsCommandName(): CommandNameAndTitle {
 	return {
+		id: '1c-platform-tools.service.addDevSkills',
 		name: 'Добавить навыки разработки 1С (cc-1c-skills)',
 		title: 'Добавить навыки разработки 1С (cc-1c-skills)'
 	};
@@ -168,6 +184,7 @@ export function getAddDevSkillsCommandName(): CommandNameAndTitle {
  */
 export function getAdd1cptSkillsCommandName(): CommandNameAndTitle {
 	return {
+		id: '1c-platform-tools.service.add1cptSkills',
 		name: 'Добавить навыки расширения (команды и MCP)',
 		title: 'Добавить навыки расширения (команды и MCP)'
 	};
@@ -178,6 +195,7 @@ export function getAdd1cptSkillsCommandName(): CommandNameAndTitle {
  */
 export function getUpdateOpmCommandName(): CommandNameAndTitle {
 	return {
+		id: '1c-platform-tools.service.updateOpm',
 		name: 'Установить пакетный менеджер OneScript',
 		title: 'Установить пакетный менеджер OneScript'
 	};
@@ -188,6 +206,7 @@ export function getUpdateOpmCommandName(): CommandNameAndTitle {
  */
 export function getInstallOneScriptCommandName(): CommandNameAndTitle {
 	return {
+		id: '1c-platform-tools.service.installOneScript',
 		name: 'Установить OneScript',
 		title: 'Установить OneScript'
 	};
@@ -198,6 +217,7 @@ export function getInstallOneScriptCommandName(): CommandNameAndTitle {
  */
 export function getSetupGitCommandName(): CommandNameAndTitle {
 	return {
+		id: '1c-platform-tools.service.setupGit',
 		name: 'Настроить Git',
 		title: 'Настроить Git'
 	};
@@ -208,6 +228,7 @@ export function getSetupGitCommandName(): CommandNameAndTitle {
  */
 export function getBuildConfigurationCommandName(): CommandNameAndTitle {
 	return {
+		id: '1c-platform-tools.configuration.build',
 		name: 'Собрать конфигурацию',
 		title: 'Собрать конфигурацию'
 	};
@@ -218,6 +239,7 @@ export function getBuildConfigurationCommandName(): CommandNameAndTitle {
  */
 export function getBuildExtensionsCommandName(): CommandNameAndTitle {
 	return {
+		id: '1c-platform-tools.extensions.build',
 		name: 'Собрать расширения',
 		title: 'Собрать расширения'
 	};
@@ -228,6 +250,7 @@ export function getBuildExtensionsCommandName(): CommandNameAndTitle {
  */
 export function getBuildExternalProcessorCommandName(): CommandNameAndTitle {
 	return {
+		id: '1c-platform-tools.artifacts.buildProcessor',
 		name: 'Собрать внешнюю обработку',
 		title: 'Собрать внешнюю обработку'
 	};
@@ -238,6 +261,7 @@ export function getBuildExternalProcessorCommandName(): CommandNameAndTitle {
  */
 export function getBuildExternalReportCommandName(): CommandNameAndTitle {
 	return {
+		id: '1c-platform-tools.artifacts.buildReport',
 		name: 'Собрать внешний отчет',
 		title: 'Собрать внешний отчет'
 	};
@@ -248,6 +272,7 @@ export function getBuildExternalReportCommandName(): CommandNameAndTitle {
  */
 export function getDecompileConfigurationCommandName(): CommandNameAndTitle {
 	return {
+		id: '1c-platform-tools.configuration.decompile',
 		name: 'Разобрать конфигурацию',
 		title: 'Разобрать конфигурацию'
 	};
@@ -258,6 +283,7 @@ export function getDecompileConfigurationCommandName(): CommandNameAndTitle {
  */
 export function getDecompileExternalProcessorCommandName(): CommandNameAndTitle {
 	return {
+		id: '1c-platform-tools.artifacts.decompileProcessor',
 		name: 'Разобрать внешнюю обработку',
 		title: 'Разобрать внешнюю обработку'
 	};
@@ -268,6 +294,7 @@ export function getDecompileExternalProcessorCommandName(): CommandNameAndTitle 
  */
 export function getDecompileExternalReportCommandName(): CommandNameAndTitle {
 	return {
+		id: '1c-platform-tools.artifacts.decompileReport',
 		name: 'Разобрать внешний отчет',
 		title: 'Разобрать внешний отчет'
 	};
@@ -278,6 +305,7 @@ export function getDecompileExternalReportCommandName(): CommandNameAndTitle {
  */
 export function getClearCacheCommandName(): CommandNameAndTitle {
 	return {
+		id: '1c-platform-tools.externalFiles.clearCache',
 		name: 'Удалить кэш',
 		title: 'Удалить кэш'
 	};
@@ -288,6 +316,7 @@ export function getClearCacheCommandName(): CommandNameAndTitle {
  */
 export function getDecompileExtensionCommandName(): CommandNameAndTitle {
 	return {
+		id: '1c-platform-tools.extensions.decompile',
 		name: 'Разобрать расширение',
 		title: 'Разобрать расширение'
 	};
@@ -298,6 +327,7 @@ export function getDecompileExtensionCommandName(): CommandNameAndTitle {
  */
 export function getRunEnterpriseCommandName(): CommandNameAndTitle {
 	return {
+		id: '1c-platform-tools.run.enterprise',
 		name: '1С:Предприятие',
 		title: 'Запустить Предприятие'
 	};
@@ -308,6 +338,7 @@ export function getRunEnterpriseCommandName(): CommandNameAndTitle {
  */
 export function getRunDesignerCommandName(): CommandNameAndTitle {
 	return {
+		id: '1c-platform-tools.run.designer',
 		name: 'Конфигуратор',
 		title: 'Запустить Конфигуратор'
 	};
@@ -318,6 +349,7 @@ export function getRunDesignerCommandName(): CommandNameAndTitle {
  */
 export function getXUnitTestsCommandName(): CommandNameAndTitle {
 	return {
+		id: '1c-platform-tools.test.xunit',
 		name: 'XUnit тесты',
 		title: 'XUnit тесты'
 	};
@@ -328,6 +360,7 @@ export function getXUnitTestsCommandName(): CommandNameAndTitle {
  */
 export function getSyntaxCheckCommandName(): CommandNameAndTitle {
 	return {
+		id: '1c-platform-tools.test.syntaxCheck',
 		name: 'Синтаксический контроль',
 		title: 'Синтаксический контроль'
 	};
@@ -339,11 +372,13 @@ export function getSyntaxCheckCommandName(): CommandNameAndTitle {
 export function getVanessaTestsCommandName(mode: 'normal' | 'currentFile' = 'normal'): CommandNameAndTitle {
 	if (mode === 'currentFile') {
 		return {
+			id: '1c-platform-tools.test.vanessa',
 			name: 'Vanessa тесты (текущий файл)',
 			title: 'Запустить текущий feature'
 		};
 	}
 	return {
+		id: '1c-platform-tools.test.vanessa',
 		name: 'Vanessa тесты',
 		title: 'Vanessa тесты'
 	};
@@ -354,6 +389,7 @@ export function getVanessaTestsCommandName(mode: 'normal' | 'currentFile' = 'nor
  */
 export function getAllureReportCommandName(): CommandNameAndTitle {
 	return {
+		id: '1c-platform-tools.test.allure',
 		name: 'Allure отчет',
 		title: 'Allure отчет'
 	};
@@ -364,6 +400,7 @@ export function getAllureReportCommandName(): CommandNameAndTitle {
  */
 export function getYAxUnitTestsCommandName(): CommandNameAndTitle {
 	return {
+		id: '1c-platform-tools.test.yaxunit',
 		name: 'YAxUnit тесты',
 		title: 'YAxUnit тесты'
 	};
@@ -374,6 +411,7 @@ export function getYAxUnitTestsCommandName(): CommandNameAndTitle {
  */
 export function getBuildTestEpfCommandName(): CommandNameAndTitle {
 	return {
+		id: '1c-platform-tools.test.buildEpf',
 		name: 'Собрать unit тесты',
 		title: 'Собрать unit тесты'
 	};
@@ -384,6 +422,7 @@ export function getBuildTestEpfCommandName(): CommandNameAndTitle {
  */
 export function getDecompileTestEpfCommandName(): CommandNameAndTitle {
 	return {
+		id: '1c-platform-tools.test.decompileEpf',
 		name: 'Разобрать unit тесты',
 		title: 'Разобрать unit тесты'
 	};
@@ -399,11 +438,13 @@ export function getDecompileTestEpfCommandName(): CommandNameAndTitle {
 export function getLoadConfigurationFromSrcCommandName(mode: 'init' | 'update' = 'update'): CommandNameAndTitle {
 	if (mode === 'init') {
 		return {
+			id: '1c-platform-tools.configuration.loadFromSrc.init',
 			name: 'Инициализация конфигурации',
 			title: 'Загрузить конфигурацию из src/cf'
 		};
 	}
 	return {
+		id: '1c-platform-tools.configuration.loadFromSrc',
 		name: 'Обновление конфигурации',
 		title: 'Загрузить конфигурацию из src/cf'
 	};
@@ -414,6 +455,7 @@ export function getLoadConfigurationFromSrcCommandName(mode: 'init' | 'update' =
  */
 export function getDumpConfigurationToSrcCommandName(): CommandNameAndTitle {
 	return {
+		id: '1c-platform-tools.configuration.dumpToSrc',
 		name: 'Выгрузить конфигурацию в src/cf',
 		title: 'Выгрузить конфигурацию в src/cf'
 	};
@@ -424,6 +466,7 @@ export function getDumpConfigurationToSrcCommandName(): CommandNameAndTitle {
  */
 export function getDumpConfigurationIncrementToSrcCommandName(): CommandNameAndTitle {
 	return {
+		id: '1c-platform-tools.configuration.dumpIncrementToSrc',
 		name: 'Выгрузить изменения в src/cf',
 		title: 'Выгрузить изменения в src/cf'
 	};
@@ -434,6 +477,7 @@ export function getDumpConfigurationIncrementToSrcCommandName(): CommandNameAndT
  */
 export function getDumpConfigurationToCfCommandName(): CommandNameAndTitle {
 	return {
+		id: '1c-platform-tools.configuration.dumpToCf',
 		name: 'Выгрузить конфигурацию в 1Cv8.cf',
 		title: 'Выгрузить конфигурацию в 1Cv8.cf'
 	};
@@ -444,6 +488,7 @@ export function getDumpConfigurationToCfCommandName(): CommandNameAndTitle {
  */
 export function getDumpConfigurationToDistCommandName(): CommandNameAndTitle {
 	return {
+		id: '1c-platform-tools.configuration.dumpToDist',
 		name: 'Выгрузить в 1Cv8dist.cf',
 		title: 'Выгрузить в 1Cv8dist.cf'
 	};
@@ -454,6 +499,7 @@ export function getDumpConfigurationToDistCommandName(): CommandNameAndTitle {
  */
 export function getLoadConfigurationIncrementFromSrcCommandName(): CommandNameAndTitle {
 	return {
+		id: '1c-platform-tools.configuration.loadIncrementFromSrc',
 		name: 'Загрузить изменения (git diff)',
 		title: 'Загрузить изменения (git diff)'
 	};
@@ -464,6 +510,7 @@ export function getLoadConfigurationIncrementFromSrcCommandName(): CommandNameAn
  */
 export function getLoadConfigurationFromFilesByListCommandName(): CommandNameAndTitle {
 	return {
+		id: '1c-platform-tools.configuration.loadFromFilesByList',
 		name: 'Загрузить из objlist.txt',
 		title: 'Загрузить из objlist.txt'
 	};
@@ -478,6 +525,7 @@ export function getLoadConfigurationFromFilesByListCommandName(): CommandNameAnd
  */
 export function getLoadExtensionFromSrcCommandName(): CommandNameAndTitle {
 	return {
+		id: '1c-platform-tools.extensions.loadFromSrc',
 		name: 'Загрузить расширения из src/cfe',
 		title: 'Загрузить расширения из src/cfe'
 	};
@@ -488,6 +536,7 @@ export function getLoadExtensionFromSrcCommandName(): CommandNameAndTitle {
  */
 export function getLoadExtensionFromFilesByListCommandName(): CommandNameAndTitle {
 	return {
+		id: '1c-platform-tools.extensions.loadFromFilesByList',
 		name: 'Загрузить из objlist.txt',
 		title: 'Загрузить из objlist.txt'
 	};
@@ -498,6 +547,7 @@ export function getLoadExtensionFromFilesByListCommandName(): CommandNameAndTitl
  */
 export function getLoadExtensionFromCfeCommandName(): CommandNameAndTitle {
 	return {
+		id: '1c-platform-tools.extensions.loadFromCfe',
 		name: 'Загрузить расширение из *.cfe',
 		title: 'Загрузить расширение из *.cfe'
 	};
@@ -508,6 +558,7 @@ export function getLoadExtensionFromCfeCommandName(): CommandNameAndTitle {
  */
 export function getDumpExtensionToSrcCommandName(): CommandNameAndTitle {
 	return {
+		id: '1c-platform-tools.extensions.dumpToSrc',
 		name: 'Выгрузить расширения в src/cfe',
 		title: 'Выгрузить расширения в src/cfe'
 	};
@@ -518,6 +569,7 @@ export function getDumpExtensionToSrcCommandName(): CommandNameAndTitle {
  */
 export function getDumpExtensionToCfeCommandName(): CommandNameAndTitle {
 	return {
+		id: '1c-platform-tools.extensions.dumpToCfe',
 		name: 'Выгрузить расширение в *.cfe',
 		title: 'Выгрузить расширение в *.cfe'
 	};
@@ -528,6 +580,7 @@ export function getDumpExtensionToCfeCommandName(): CommandNameAndTitle {
  */
 export function getBuildExtensionCommandName(): CommandNameAndTitle {
 	return {
+		id: '1c-platform-tools.extensions.build',
 		name: 'Собрать расширение',
 		title: 'Собрать расширение'
 	};
@@ -542,6 +595,7 @@ export function getBuildExtensionCommandName(): CommandNameAndTitle {
  */
 export function getSetVersionConfigurationCommandName(): CommandNameAndTitle {
 	return {
+		id: '1c-platform-tools.setVersion.configuration',
 		name: 'Конфигурации',
 		title: 'Конфигурации'
 	};
@@ -552,6 +606,7 @@ export function getSetVersionConfigurationCommandName(): CommandNameAndTitle {
  */
 export function getSetVersionAllExtensionsCommandName(): CommandNameAndTitle {
 	return {
+		id: '1c-platform-tools.setVersion.allExtensions',
 		name: 'Все',
 		title: 'Все'
 	};
@@ -563,6 +618,7 @@ export function getSetVersionAllExtensionsCommandName(): CommandNameAndTitle {
  */
 export function getSetVersionExtensionCommandName(extensionName: string): CommandNameAndTitle {
 	return {
+		id: '1c-platform-tools.setVersion.extension',
 		name: extensionName,
 		title: extensionName
 	};
@@ -574,6 +630,7 @@ export function getSetVersionExtensionCommandName(extensionName: string): Comman
  */
 export function getSetVersionReportCommandName(reportName: string): CommandNameAndTitle {
 	return {
+		id: '1c-platform-tools.setVersion.report',
 		name: reportName,
 		title: reportName
 	};
@@ -585,6 +642,7 @@ export function getSetVersionReportCommandName(reportName: string): CommandNameA
  */
 export function getSetVersionProcessorCommandName(processorName: string): CommandNameAndTitle {
 	return {
+		id: '1c-platform-tools.setVersion.processor',
 		name: processorName,
 		title: processorName
 	};
@@ -599,6 +657,7 @@ export function getSetVersionProcessorCommandName(processorName: string): Comman
  */
 export function getUpdateCfgSupportCommandName(): CommandNameAndTitle {
 	return {
+		id: '1c-platform-tools.support.updateCfg',
 		name: 'Загрузить из cf/cfu',
 		title: 'Загрузить из cf/cfu'
 	};
@@ -609,6 +668,7 @@ export function getUpdateCfgSupportCommandName(): CommandNameAndTitle {
  */
 export function getDisableCfgSupportCommandName(): CommandNameAndTitle {
 	return {
+		id: '1c-platform-tools.support.disableCfg',
 		name: 'Удалить',
 		title: 'Удалить'
 	};
@@ -619,6 +679,7 @@ export function getDisableCfgSupportCommandName(): CommandNameAndTitle {
  */
 export function getCreateTemplateListFileCommandName(): CommandNameAndTitle {
 	return {
+		id: '1c-platform-tools.support.createTemplateListFile',
 		name: 'Создать файл списка шаблонов',
 		title: 'Создать файл списка шаблонов'
 	};
@@ -629,6 +690,7 @@ export function getCreateTemplateListFileCommandName(): CommandNameAndTitle {
  */
 export function getCreateDeliveryDescriptionFileCommandName(): CommandNameAndTitle {
 	return {
+		id: '1c-platform-tools.support.createDeliveryDescriptionFile',
 		name: 'Создать файл описания шаблона поставки',
 		title: 'Создать файл описания шаблона поставки'
 	};
@@ -639,6 +701,7 @@ export function getCreateDeliveryDescriptionFileCommandName(): CommandNameAndTit
  */
 export function getCreateDistributivePackageCommandName(): CommandNameAndTitle {
 	return {
+		id: '1c-platform-tools.support.createDistributivePackage',
 		name: 'Создать комплект',
 		title: 'Создать комплект'
 	};
@@ -649,6 +712,7 @@ export function getCreateDistributivePackageCommandName(): CommandNameAndTitle {
  */
 export function getCreateDistributionFilesCommandName(): CommandNameAndTitle {
 	return {
+		id: '1c-platform-tools.support.createDistributionFiles',
 		name: 'Создать файлы поставки и обновления (cf/cfu)',
 		title: 'Создать файлы поставки и обновления (cf/cfu)'
 	};
