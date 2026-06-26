@@ -11,8 +11,8 @@ export interface ServiceFileSpec {
 	id: string;
 	/** Путь относительно корня проекта (например '.gitignore', 'tools/VAParams.json') */
 	relPath: string;
-	/** Имя шаблона в resources/templates (может содержать подкаталог, например 'tools/x.json.template') */
-	templateName: string;
+	/** Имя шаблона в resources/templates (может содержать подкаталог, например 'tools/x.json.template'). Отсутствует, если файл генерируется из кода */
+	templateName?: string;
 	/** Подпись для UI */
 	label: string;
 	/** Пояснение для UI */
@@ -42,7 +42,6 @@ export const SERVICE_FILES: ServiceFileSpec[] = [
 	{
 		id: 'env',
 		relPath: 'env.json',
-		templateName: 'env.json.template',
 		label: 'env.json',
 		description: 'базовый профиль запуска',
 		recommended: true,
@@ -50,7 +49,6 @@ export const SERVICE_FILES: ServiceFileSpec[] = [
 	{
 		id: 'vrunner',
 		relPath: 'tools/vrunner.json',
-		templateName: 'tools/vrunner.json.template',
 		label: 'vrunner.json',
 		description: 'настройки vanessa-runner (пакетный прогон)',
 		recommended: false,
@@ -58,7 +56,6 @@ export const SERVICE_FILES: ServiceFileSpec[] = [
 	{
 		id: 'vrunnerInit',
 		relPath: 'tools/vrunner.init.json',
-		templateName: 'tools/vrunner.init.json.template',
 		label: 'vrunner.init.json',
 		description: 'настройки vanessa-runner (интерактивное открытие VA)',
 		recommended: false,
