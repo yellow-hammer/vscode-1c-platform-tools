@@ -32,7 +32,7 @@ export class TestCommands extends BaseCommand {
 	 */
 	async runXUnit(opts?: CommandExecutionOptions): Promise<StructuredCommandResult | void> {
 		const commandName = getXUnitTestsCommandName();
-		return this.runVRunner(['xunit', ...this.vrunner.getActiveSettingsParamIfExists()], opts, commandName.title);
+		return this.runVRunner(['xunit', ...this.vrunner.getActiveSettingsParamIfExists()], opts, commandName.title, undefined, commandName.id);
 	}
 
 	/**
@@ -50,7 +50,7 @@ export class TestCommands extends BaseCommand {
 	 */
 	async runSyntaxCheck(opts?: CommandExecutionOptions): Promise<StructuredCommandResult | void> {
 		const commandName = getSyntaxCheckCommandName();
-		return this.runVRunner(['syntax-check', ...this.vrunner.getActiveSettingsParamIfExists()], opts, commandName.title);
+		return this.runVRunner(['syntax-check', ...this.vrunner.getActiveSettingsParamIfExists()], opts, commandName.title, undefined, commandName.id);
 	}
 
 	/**
@@ -67,7 +67,7 @@ export class TestCommands extends BaseCommand {
 		opts?: CommandExecutionOptions
 	): Promise<StructuredCommandResult | void> {
 		const commandName = getVanessaTestsCommandName(mode);
-		return this.runVRunner(['vanessa', ...this.vrunner.getActiveSettingsParamIfExists()], opts, commandName.title);
+		return this.runVRunner(['vanessa', ...this.vrunner.getActiveSettingsParamIfExists()], opts, commandName.title, undefined, commandName.id);
 	}
 
 	/**
@@ -100,7 +100,8 @@ export class TestCommands extends BaseCommand {
 			? settingsParam
 			: await this.vrunner.getIbConnectionParam(opts?.ibConnection);
 		const args = ['run', '--command', `RunUnitTests=${configPath}`, ...connectionArgs];
-		return this.runVRunner(args, opts, getYAxUnitTestsCommandName().title);
+		const yaxCmd = getYAxUnitTestsCommandName();
+		return this.runVRunner(args, opts, yaxCmd.title, undefined, yaxCmd.id);
 	}
 
 	/**
@@ -120,7 +121,8 @@ export class TestCommands extends BaseCommand {
 		const binariesPath = path.join(this.vrunner.getOutPath(), 'tests');
 		const ibConnectionParam = await this.vrunner.getIbConnectionParam();
 		const args = ['compileepf', sourcesPath, binariesPath, ...ibConnectionParam];
-		return this.runVRunner(args, opts, getBuildTestEpfCommandName().title, binariesPath);
+		const buildEpfCmd = getBuildTestEpfCommandName();
+		return this.runVRunner(args, opts, buildEpfCmd.title, binariesPath, buildEpfCmd.id);
 	}
 
 	/**
@@ -138,7 +140,8 @@ export class TestCommands extends BaseCommand {
 		const binariesPath = this.vrunner.getTestsPath();
 		const ibConnectionParam = await this.vrunner.getIbConnectionParam();
 		const args = ['decompileepf', binariesPath, sourcesPath, ...ibConnectionParam];
-		return this.runVRunner(args, opts, getDecompileTestEpfCommandName().title, sourcesPath);
+		const decompileEpfCmd = getDecompileTestEpfCommandName();
+		return this.runVRunner(args, opts, decompileEpfCmd.title, sourcesPath, decompileEpfCmd.id);
 	}
 
 	/**

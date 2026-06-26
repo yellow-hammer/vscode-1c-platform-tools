@@ -1,4 +1,4 @@
-import { VRUNNER_SCHEMA } from './schemaUrls';
+import { VRUNNER_SCHEMA, HOOKS_SCHEMA } from './schemaUrls';
 
 /** Базовые поля секции default, общие для всех env-файлов */
 const DEFAULT_SECTION = {
@@ -50,4 +50,11 @@ export const VRUNNER_INIT_DEFAULTS = {
 		'--pathvanessa': './oscript_modules/vanessa-automation-single/vanessa-automation-single.epf',
 		'--additional': VANESSA_ADDITIONAL,
 	},
+};
+
+
+export const HOOKS_DEFAULTS = {
+	$schema: HOOKS_SCHEMA,
+	version: 1 as const,
+	hooks: {} as Record<string, unknown>,
 };

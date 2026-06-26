@@ -37,7 +37,7 @@ export class ConfigurationCommands extends BaseCommand {
 		const ibConnectionParam = await this.vrunner.getIbConnectionParam();
 		const args = this.addIbcmdIfNeeded([command, '--src', srcPath, ...ibConnectionParam]);
 		const commandName = getLoadConfigurationFromSrcCommandName(mode);
-		return this.runVRunner(args, opts, commandName.title);
+		return this.runVRunner(args, opts, commandName.title, undefined, commandName.id);
 	}
 
 	async loadFromCf(opts?: CommandExecutionOptions): Promise<StructuredCommandResult | void> {
@@ -48,10 +48,12 @@ export class ConfigurationCommands extends BaseCommand {
 		// цепляем updatedb, иначе изменения не применяются к ИБ.
 		const loadArgs = this.addIbcmdIfNeeded(['load', '--src', cfFilePath, ...ibConnectionParam]);
 		const updateDbArgs = this.addIbcmdIfNeeded(['updatedb', ...ibConnectionParam]);
+		const loadFromCfCmd = getLoadConfigurationFromCfCommandName();
 		return this.runVRunnerSequential(
 			[loadArgs, updateDbArgs],
 			opts,
-			getLoadConfigurationFromCfCommandName().title
+			loadFromCfCmd.title,
+			loadFromCfCmd.id
 		);
 	}
 
@@ -59,7 +61,8 @@ export class ConfigurationCommands extends BaseCommand {
 		const srcPath = this.vrunner.getCfPath();
 		const ibConnectionParam = await this.vrunner.getIbConnectionParam();
 		const args = this.addIbcmdIfNeeded(['decompile', '--current', '--out', srcPath, ...ibConnectionParam]);
-		return this.runVRunner(args, opts, getDumpConfigurationToSrcCommandName().title);
+		const dumpToSrcCmd = getDumpConfigurationToSrcCommandName();
+		return this.runVRunner(args, opts, dumpToSrcCmd.title, undefined, dumpToSrcCmd.id);
 	}
 
 	async dumpIncrementToSrc(opts?: CommandExecutionOptions): Promise<StructuredCommandResult | void> {
@@ -101,10 +104,13 @@ export class ConfigurationCommands extends BaseCommand {
 		if (versionFileExists) {
 			args.push('--versions', path.join(srcPath, 'ConfigDumpInfo.xml'));
 		}
+		const dumpIncrCmd = getDumpConfigurationIncrementToSrcCommandName();
 		return this.runVRunner(
 			this.addIbcmdIfNeeded(args),
 			opts,
-			getDumpConfigurationIncrementToSrcCommandName().title
+			dumpIncrCmd.title,
+			undefined,
+			dumpIncrCmd.id
 		);
 	}
 
@@ -136,11 +142,13 @@ export class ConfigurationCommands extends BaseCommand {
 		const outputPath = path.join(buildPath, '1Cv8.cf');
 		const ibConnectionParam = await this.vrunner.getIbConnectionParam();
 		const args = this.addIbcmdIfNeeded(['unload', outputPath, ...ibConnectionParam]);
+		const dumpToCfCmd = getDumpConfigurationToCfCommandName();
 		return this.runVRunner(
 			args,
 			opts,
-			getDumpConfigurationToCfCommandName().title,
-			outputPath
+			dumpToCfCmd.title,
+			outputPath,
+			dumpToCfCmd.id
 		);
 	}
 
@@ -172,11 +180,13 @@ export class ConfigurationCommands extends BaseCommand {
 		const outputPath = path.join(buildPath, '1Cv8dist.cf');
 		const ibConnectionParam = await this.vrunner.getIbConnectionParam();
 		const args = ['make-dist', outputPath, ...ibConnectionParam];
+		const dumpToDistCmd = getDumpConfigurationToDistCommandName();
 		return this.runVRunner(
 			args,
 			opts,
-			getDumpConfigurationToDistCommandName().title,
-			outputPath
+			dumpToDistCmd.title,
+			outputPath,
+			dumpToDistCmd.id
 		);
 	}
 
@@ -208,7 +218,8 @@ export class ConfigurationCommands extends BaseCommand {
 
 		const outputPath = path.join(buildPath, '1Cv8.cf');
 		const args = this.addIbcmdIfNeeded(['compile', '--src', srcPath, '--out', outputPath]);
-		return this.runVRunner(args, opts, getBuildConfigurationCommandName().title, outputPath);
+		const buildCmd = getBuildConfigurationCommandName();
+		return this.runVRunner(args, opts, buildCmd.title, outputPath, buildCmd.id);
 	}
 
 	async decompile(opts?: CommandExecutionOptions): Promise<StructuredCommandResult | void> {
@@ -216,7 +227,8 @@ export class ConfigurationCommands extends BaseCommand {
 		const inputPath = path.join(buildPath, '1Cv8.cf');
 		const srcPath = this.vrunner.getCfPath();
 		const args = this.addIbcmdIfNeeded(['decompile', '--in', inputPath, '--out', srcPath]);
-		return this.runVRunner(args, opts, getDecompileConfigurationCommandName().title);
+		const decompileCmd = getDecompileConfigurationCommandName();
+		return this.runVRunner(args, opts, decompileCmd.title, undefined, decompileCmd.id);
 	}
 
 	async loadIncrementFromSrc(opts?: CommandExecutionOptions): Promise<StructuredCommandResult | void> {
@@ -278,7 +290,8 @@ export class ConfigurationCommands extends BaseCommand {
 			'--git-increment',
 			...ibConnectionParam
 		]);
-		return this.runVRunner(args, opts, getLoadConfigurationIncrementFromSrcCommandName().title);
+		const loadIncrCmd = getLoadConfigurationIncrementFromSrcCommandName();
+		return this.runVRunner(args, opts, loadIncrCmd.title, undefined, loadIncrCmd.id);
 	}
 
 	async loadFromFilesByList(opts?: CommandExecutionOptions): Promise<StructuredCommandResult | void> {
@@ -349,10 +362,12 @@ export class ConfigurationCommands extends BaseCommand {
 		const designerArgs = this.addIbcmdIfNeeded(['designer', '--additional', additionalParam, ...ibConnectionParam]);
 		const updateDbArgs = this.addIbcmdIfNeeded(['updatedb', ...ibConnectionParam]);
 
+		const loadByListCmd = getLoadConfigurationFromFilesByListCommandName();
 		return this.runVRunnerSequential(
 			[designerArgs, updateDbArgs],
 			opts,
-			getLoadConfigurationFromFilesByListCommandName().title
+			loadByListCmd.title,
+			loadByListCmd.id
 		);
 	}
 }

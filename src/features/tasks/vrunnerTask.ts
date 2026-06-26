@@ -38,6 +38,8 @@ export interface VRunnerTaskParams {
 	problemMatchers?: string[];
 	/** Определение задачи (по умолчанию строится из имени). */
 	definition?: vscode.TaskDefinition;
+	/** Вызывается с exit code при завершении задачи (для отслеживания результата). */
+	exitCallback?: (exitCode: number) => void;
 }
 
 /**
@@ -58,7 +60,8 @@ class VRunnerPseudoterminal implements vscode.Pseudoterminal {
 	constructor(
 		private readonly command: string,
 		private readonly cwd: string,
-		private readonly env?: NodeJS.ProcessEnv
+		private readonly env?: NodeJS.ProcessEnv,
+		private readonly exitCallback?: (exitCode: number) => void
 	) {}
 
 	public open(): void {
@@ -77,7 +80,9 @@ class VRunnerPseudoterminal implements vscode.Pseudoterminal {
 				this.writeEmitter.fire('\r\n[33mЗадача остановлена[0m\r\n');
 			}
 			// Код < 0 (ошибка запуска или отмена) приводим к 1, чтобы VS Code пометил задачу неуспешной.
-			this.closeEmitter.fire(result.exitCode >= 0 ? result.exitCode : 1);
+			const exitCode = result.exitCode >= 0 ? result.exitCode : 1;
+			this.exitCallback?.(exitCode);
+			this.closeEmitter.fire(exitCode);
 		});
 	}
 
@@ -102,7 +107,7 @@ export function createVRunnerTask(params: VRunnerTaskParams): vscode.Task {
 		params.definition ?? { type: VRUNNER_TASK_TYPE, command: params.name };
 
 	const execution = new vscode.CustomExecution(
-		async () => new VRunnerPseudoterminal(params.command, params.cwd, params.env)
+		async () => new VRunnerPseudoterminal(params.command, params.cwd, params.env, params.exitCallback)
 	);
 
 	const task = new vscode.Task(

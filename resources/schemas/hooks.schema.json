@@ -1,0 +1,162 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://raw.githubusercontent.com/yellow-hammer/vscode-1c-platform-tools/main/resources/schemas/hooks.schema.json",
+  "title": "1C Platform Tools hooks",
+  "description": "Конфигурация хуков для команд расширения 1C Platform Tools (1cpt/hooks.json)",
+  "type": "object",
+  "properties": {
+    "$schema": {
+      "type": "string"
+    },
+    "version": {
+      "type": "integer",
+      "description": "Версия формата файла",
+      "enum": [
+        1
+      ]
+    },
+    "hooks": {
+      "type": "object",
+      "description": "Таблица хуков: ключ — VS Code command id или \"*\" для всех команд",
+      "propertyNames": {
+        "enum": [
+          "*",
+          "1c-platform-tools.artifacts.buildProcessor",
+          "1c-platform-tools.artifacts.buildReport",
+          "1c-platform-tools.artifacts.decompileProcessor",
+          "1c-platform-tools.artifacts.decompileReport",
+          "1c-platform-tools.configuration.build",
+          "1c-platform-tools.configuration.decompile",
+          "1c-platform-tools.configuration.dumpIncrementToSrc",
+          "1c-platform-tools.configuration.dumpToCf",
+          "1c-platform-tools.configuration.dumpToDist",
+          "1c-platform-tools.configuration.dumpToSrc",
+          "1c-platform-tools.configuration.loadFromCf",
+          "1c-platform-tools.configuration.loadFromFilesByList",
+          "1c-platform-tools.configuration.loadFromSrc",
+          "1c-platform-tools.configuration.loadFromSrc.init",
+          "1c-platform-tools.configuration.loadIncrementFromSrc",
+          "1c-platform-tools.dependencies.initPackagedef",
+          "1c-platform-tools.dependencies.initProjectStructure",
+          "1c-platform-tools.dependencies.install",
+          "1c-platform-tools.dependencies.remove",
+          "1c-platform-tools.extensions.build",
+          "1c-platform-tools.extensions.decompile",
+          "1c-platform-tools.extensions.dumpToCfe",
+          "1c-platform-tools.extensions.dumpToSrc",
+          "1c-platform-tools.extensions.loadFromCfe",
+          "1c-platform-tools.extensions.loadFromFilesByList",
+          "1c-platform-tools.extensions.loadFromSrc",
+          "1c-platform-tools.extensions.updateInInfobase",
+          "1c-platform-tools.externalFiles.clearCache",
+          "1c-platform-tools.infobase.blockExternalResources",
+          "1c-platform-tools.infobase.createEmpty",
+          "1c-platform-tools.infobase.dumpToDt",
+          "1c-platform-tools.infobase.initialize",
+          "1c-platform-tools.infobase.loadFromDt",
+          "1c-platform-tools.infobase.updateDatabase",
+          "1c-platform-tools.infobase.updateInfobase",
+          "1c-platform-tools.run.designer",
+          "1c-platform-tools.run.enterprise",
+          "1c-platform-tools.service.add1cptSkills",
+          "1c-platform-tools.service.addDevSkills",
+          "1c-platform-tools.service.installOneScript",
+          "1c-platform-tools.service.setupGit",
+          "1c-platform-tools.service.updateOpm",
+          "1c-platform-tools.setVersion.allExtensions",
+          "1c-platform-tools.setVersion.configuration",
+          "1c-platform-tools.setVersion.extension",
+          "1c-platform-tools.setVersion.processor",
+          "1c-platform-tools.setVersion.report",
+          "1c-platform-tools.support.createDeliveryDescriptionFile",
+          "1c-platform-tools.support.createDistributionFiles",
+          "1c-platform-tools.support.createDistributivePackage",
+          "1c-platform-tools.support.createTemplateListFile",
+          "1c-platform-tools.support.disableCfg",
+          "1c-platform-tools.support.updateCfg",
+          "1c-platform-tools.test.allure",
+          "1c-platform-tools.test.buildEpf",
+          "1c-platform-tools.test.decompileEpf",
+          "1c-platform-tools.test.syntaxCheck",
+          "1c-platform-tools.test.vanessa",
+          "1c-platform-tools.test.xunit",
+          "1c-platform-tools.test.yaxunit"
+        ]
+      },
+      "additionalProperties": {
+        "$ref": "#/definitions/hookEntry"
+      }
+    }
+  },
+  "additionalProperties": false,
+  "definitions": {
+    "hookStep": {
+      "oneOf": [
+        {
+          "type": "string",
+          "description": "Команда оболочки"
+        },
+        {
+          "$ref": "#/definitions/hookAction"
+        }
+      ]
+    },
+    "hookPhase": {
+      "oneOf": [
+        {
+          "$ref": "#/definitions/hookStep"
+        },
+        {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/hookStep"
+          },
+          "description": "Последовательность команд"
+        }
+      ]
+    },
+    "hookAction": {
+      "type": "object",
+      "required": [
+        "command"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "command": {
+          "type": "string",
+          "description": "Команда оболочки"
+        },
+        "continueOnError": {
+          "type": "boolean",
+          "description": "Не прерывать выполнение при ненулевом коде возврата",
+          "default": false
+        },
+        "timeout": {
+          "type": "number",
+          "description": "Таймаут в секундах",
+          "minimum": 1,
+          "default": 30
+        }
+      }
+    },
+    "hookEntry": {
+      "type": "object",
+      "description": "Хуки для одной команды",
+      "additionalProperties": false,
+      "properties": {
+        "pre": {
+          "$ref": "#/definitions/hookPhase",
+          "description": "Выполняется до команды. Ненулевой код прерывает команду и запускает onError (если нет continueOnError)"
+        },
+        "post": {
+          "$ref": "#/definitions/hookPhase",
+          "description": "Выполняется после успешной команды"
+        },
+        "onError": {
+          "$ref": "#/definitions/hookPhase",
+          "description": "Выполняется при ошибке: ненулевой pre, ненулевой код команды или исключение"
+        }
+      }
+    }
+  }
+}

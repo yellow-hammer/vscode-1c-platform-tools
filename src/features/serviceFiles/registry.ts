@@ -100,6 +100,13 @@ export const SERVICE_FILES: ServiceFileSpec[] = [
 		description: 'исключения синтаксического контроля',
 		recommended: false,
 	},
+	{
+		id: 'hooks',
+		relPath: '1cpt/hooks.json',
+		label: 'hooks.json',
+		description: 'хуки pre/post/onError на команды расширения',
+		recommended: false,
+	},
 	// tools/README.md создаётся командой «Инициализировать структуру проекта»
 	// (см. PROJECT_STRUCTURE), здесь не дублируется.
 ];

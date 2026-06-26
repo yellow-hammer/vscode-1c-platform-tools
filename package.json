@@ -53,6 +53,12 @@
   ],
   "main": "./out/extension.js",
   "contributes": {
+    "jsonValidation": [
+      {
+        "fileMatch": "**/1cpt/hooks.json",
+        "url": "./resources/schemas/hooks.schema.json"
+      }
+    ],
     "taskDefinitions": [
       {
         "type": "1c-vrunner",
@@ -2854,10 +2860,11 @@
     ]
   },
   "scripts": {
-    "vscode:prepublish": "npm run compile",
+    "vscode:prepublish": "npm run gen:hooks-schema && npm run compile",
     "compile": "node esbuild.config.mjs",
     "watch": "node esbuild.config.mjs --watch",
-    "pretest": "npm run compile && npm run lint",
+    "gen:hooks-schema": "node scripts/gen-hooks-schema.mjs",
+    "pretest": "node scripts/gen-hooks-schema.mjs --check && npm run compile && npm run lint",
     "lint": "eslint src",
     "test": "vscode-test",
     "package": "vsce package",

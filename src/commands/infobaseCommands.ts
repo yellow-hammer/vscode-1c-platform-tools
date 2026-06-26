@@ -26,13 +26,15 @@ export class InfobaseCommands extends BaseCommand {
 	async createEmptyInfobase(opts?: CommandExecutionOptions): Promise<StructuredCommandResult | void> {
 		const ibConnectionParam = await this.vrunner.getIbConnectionParam();
 		const args = this.addIbcmdIfNeeded(['init-dev', ...ibConnectionParam]);
-		return this.runVRunner(args, opts, getCreateEmptyInfobaseCommandName().title);
+		const cmd = getCreateEmptyInfobaseCommandName();
+		return this.runVRunner(args, opts, cmd.title, undefined, cmd.id);
 	}
 
 	async updateInfobase(opts?: CommandExecutionOptions): Promise<StructuredCommandResult | void> {
 		const ibConnectionParam = await this.vrunner.getIbConnectionParam();
 		const args = this.addIbcmdIfNeeded(['updatedb', ...ibConnectionParam]);
-		return this.runVRunner(args, opts, getUpdateConfigurationInInfobaseCommandName().title);
+		const cmd = getUpdateConfigurationInInfobaseCommandName();
+		return this.runVRunner(args, opts, cmd.title, undefined, cmd.id);
 	}
 
 	async updateDatabase(opts?: CommandExecutionOptions): Promise<StructuredCommandResult | void> {
@@ -46,7 +48,8 @@ export class InfobaseCommands extends BaseCommand {
 			epfPath,
 			...ibConnectionParam
 		];
-		return this.runVRunner(args, opts, getUpdateDatabaseCommandName().title);
+		const cmd = getUpdateDatabaseCommandName();
+		return this.runVRunner(args, opts, cmd.title, undefined, cmd.id);
 	}
 
 	async blockExternalResources(opts?: CommandExecutionOptions): Promise<StructuredCommandResult | void> {
@@ -60,14 +63,16 @@ export class InfobaseCommands extends BaseCommand {
 			epfPath,
 			...ibConnectionParam
 		];
-		return this.runVRunner(args, opts, getBlockExternalResourcesCommandName().title);
+		const cmd = getBlockExternalResourcesCommandName();
+		return this.runVRunner(args, opts, cmd.title, undefined, cmd.id);
 	}
 
 	async initialize(opts?: CommandExecutionOptions): Promise<StructuredCommandResult | void> {
 		const ibConnectionParam = await this.vrunner.getIbConnectionParam();
 		const settingsPath = this.vrunner.getVRunnerInitSettingsPath();
 		const args = ['vanessa', '--settings', settingsPath, ...ibConnectionParam];
-		return this.runVRunner(args, opts, getInitializeCommandName().title);
+		const cmd = getInitializeCommandName();
+		return this.runVRunner(args, opts, cmd.title, undefined, cmd.id);
 	}
 
 	async dumpToDt(opts?: CommandExecutionOptions): Promise<StructuredCommandResult | void> {
@@ -108,7 +113,8 @@ export class InfobaseCommands extends BaseCommand {
 		const dtPath = path.join(dtFolder, fileName);
 		const ibConnectionParam = await this.vrunner.getIbConnectionParam();
 		const args = this.addIbcmdIfNeeded(['dump', dtPath, ...ibConnectionParam]);
-		return this.runVRunner(args, opts, getDumpInfobaseToDtCommandName().title, dtPath);
+		const cmd = getDumpInfobaseToDtCommandName();
+		return this.runVRunner(args, opts, cmd.title, dtPath, cmd.id);
 	}
 
 	async loadFromDt(opts?: CommandExecutionOptions): Promise<StructuredCommandResult | void> {
@@ -145,6 +151,7 @@ export class InfobaseCommands extends BaseCommand {
 		const relativePath = path.relative(workspaceRoot, selectedFilePath);
 		const ibConnectionParam = await this.vrunner.getIbConnectionParam();
 		const args = this.addIbcmdIfNeeded(['restore', relativePath, ...ibConnectionParam]);
-		return this.runVRunner(args, opts, getLoadInfobaseFromDtCommandName().title);
+		const cmd = getLoadInfobaseFromDtCommandName();
+		return this.runVRunner(args, opts, cmd.title, undefined, cmd.id);
 	}
 }

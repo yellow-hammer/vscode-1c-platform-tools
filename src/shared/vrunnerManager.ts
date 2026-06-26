@@ -757,6 +757,7 @@ export class VRunnerManager {
 			name?: string;
 			appendOverrides?: boolean;
 			definition?: vscode.TaskDefinition;
+			exitCallback?: (exitCode: number) => void;
 		}
 	): Promise<vscode.Task | undefined> {
 		const finalArgs = options?.appendOverrides === false ? args : this.appendActiveOverrides(args);
@@ -787,6 +788,7 @@ export class VRunnerManager {
 			cwd,
 			env: options?.env,
 			definition: options?.definition,
+			exitCallback: options?.exitCallback,
 		});
 	}
 
@@ -807,6 +809,30 @@ export class VRunnerManager {
 		if (task) {
 			await vscode.tasks.executeTask(task);
 		}
+	}
+
+	/**
+	 * Запускает команду vrunner как задачу VS Code и ожидает её завершения.
+	 *
+	 * @returns Промис с exit code задачи (0 — успех).
+	 */
+	public async executeVRunnerTaskAndWait(
+		args: string[],
+		options?: { cwd?: string; env?: NodeJS.ProcessEnv; name?: string }
+	): Promise<number> {
+		let resolveExit!: (exitCode: number) => void;
+		const exitPromise = new Promise<number>((resolve) => {
+			resolveExit = resolve;
+		});
+		const task = await this.createVRunnerTaskFromArgs(args, {
+			...options,
+			exitCallback: resolveExit,
+		});
+		if (!task) {
+			return 1;
+		}
+		await vscode.tasks.executeTask(task);
+		return exitPromise;
 	}
 
 	/**
@@ -877,6 +903,75 @@ export class VRunnerManager {
 			env: options?.env,
 		});
 		await vscode.tasks.executeTask(task);
+	}
+
+	/**
+	 * Запускает последовательность команд vrunner как одну задачу VS Code и ожидает завершения.
+	 *
+	 * @returns Промис с exit code задачи (0 — успех).
+	 */
+	public async executeVRunnerTaskSequenceAndWait(
+		argsArray: string[][],
+		options?: { cwd?: string; env?: NodeJS.ProcessEnv; name?: string }
+	): Promise<number> {
+		if (argsArray.length === 0) {
+			return 0;
+		}
+		if (argsArray.length === 1) {
+			return this.executeVRunnerTaskAndWait(argsArray[0], options);
+		}
+
+		const finalArgsArray = argsArray.map((args) => this.appendActiveOverrides(args));
+		const cwd = options?.cwd || this.workspaceRoot || os.homedir();
+		const useDocker = await this.shouldUseDocker();
+		let command: string;
+
+		if (useDocker) {
+			if (!this.workspaceRoot) {
+				log.error('Для использования Docker необходимо открыть рабочую область');
+				vscode.window.showErrorMessage('Для использования Docker необходимо открыть рабочую область');
+				return 1;
+			}
+			if (!(await this.confirmDockerIbcmd(finalArgsArray[0]))) {
+				return 1;
+			}
+			try {
+				const dockerImage = this.getDockerImage();
+				const processedArgsArray = finalArgsArray.map((args) => this.processCommandArgsForDocker(args));
+				command = buildDockerCommandSequence(dockerImage, processedArgsArray, this.workspaceRoot, TASK_HOST_SHELL);
+			} catch (error) {
+				const errMsg = (error as Error).message;
+				log.error(`Ошибка при подготовке команды Docker: ${errMsg}`);
+				vscode.window.showErrorMessage(errMsg);
+				return 1;
+			}
+		} else {
+			const parts: string[] = [];
+			for (const args of finalArgsArray) {
+				const built = this.buildExecCommand(args, false);
+				if ('error' in built) {
+					log.error(`Ошибка при подготовке команды: ${built.error}`);
+					vscode.window.showErrorMessage(built.error);
+					return 1;
+				}
+				parts.push(built.command);
+			}
+			command = parts.join(' && ');
+		}
+
+		let resolveExit!: (exitCode: number) => void;
+		const exitPromise = new Promise<number>((resolve) => {
+			resolveExit = resolve;
+		});
+		const task = createVRunnerTask({
+			name: options?.name || '1C: Platform Tools',
+			command,
+			cwd,
+			env: options?.env,
+			exitCallback: resolveExit,
+		});
+		await vscode.tasks.executeTask(task);
+		return exitPromise;
 	}
 
 	/**
