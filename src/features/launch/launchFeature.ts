@@ -13,7 +13,7 @@ import * as fsSync from 'node:fs';
 import { VRunnerManager } from '../../shared/vrunnerManager';
 import { EnvOverrides, NOT_SELECTED_LABEL } from '../../shared/envProfiles';
 import { logger } from '../../shared/logger';
-import { readTemplate } from '../serviceFiles/templates';
+import { ENV_DEFAULTS } from '../serviceFiles/envDefaults';
 import { buildEnvJsonWithSections } from '../serviceFiles/envJsonBuilder';
 import {
 	ensureEnvProfileStatusBar,
@@ -44,44 +44,22 @@ const OVERRIDE_FIELDS: OverrideField[] = [
 	{ key: 'additional', flag: '--additional', prompt: 'Дополнительные параметры командной строки запуска 1С' },
 ];
 
-/** Скелет нового env-файла, если базового env.json ещё нет */
-const ENV_SKELETON = {
-	$schema:
-		'https://raw.githubusercontent.com/vanessa-opensource/vanessa-runner/develop/vanessa-runner-schema.json',
-	default: {
-		'--ibconnection': '/F./build/ib',
-		'--db-user': '',
-		'--db-pwd': '',
-		'--v8version': '8.3',
-		'--locale': 'ru',
-		'--language': 'ru',
-	},
-};
-
 /**
- * Содержимое для нового env-файла: копия базового env.json, шаблон или скелет.
+ * Содержимое для нового env-файла: копия базового env.json или канонический дефолт.
  *
  * @param workspaceRoot - Корень рабочей области
- * @param extensionPath - Путь к ресурсам расширения (для шаблона)
  * @returns Текст файла (JSON)
  */
-async function buildNewEnvContent(workspaceRoot: string, extensionPath: string | undefined): Promise<string> {
+async function buildNewEnvContent(workspaceRoot: string): Promise<string> {
 	const basePath = path.join(workspaceRoot, 'env.json');
 	try {
 		const base = await fs.readFile(basePath, 'utf8');
 		JSON.parse(base); // валидируем, что это корректный JSON
 		return base;
 	} catch {
-		// базового env.json нет — берём шаблон расширения
+		// базового env.json нет — используем канонический дефолт
 	}
-	if (extensionPath) {
-		try {
-			return await readTemplate(extensionPath, 'env.json.template');
-		} catch {
-			// шаблон недоступен — используем встроенный скелет
-		}
-	}
-	return JSON.stringify(ENV_SKELETON, null, 2);
+	return JSON.stringify(ENV_DEFAULTS, null, 4) + '\n';
 }
 
 /**
@@ -98,7 +76,7 @@ async function openEnvFile(vrunner: VRunnerManager, fileName: string): Promise<v
 	}
 	const fullPath = path.join(workspaceRoot, fileName);
 	if (!fsSync.existsSync(fullPath)) {
-		await fs.writeFile(fullPath, await buildNewEnvContent(workspaceRoot, vrunner.getExtensionPath()), 'utf8');
+		await fs.writeFile(fullPath, await buildNewEnvContent(workspaceRoot), 'utf8');
 		log.info(`Создан env-файл: ${fileName}`);
 	}
 	const doc = await vscode.workspace.openTextDocument(vscode.Uri.file(fullPath));
@@ -142,7 +120,7 @@ async function createProfile(vrunner: VRunnerManager, refresh: () => void): Prom
 	const fullPath = path.join(workspaceRoot, `env.${profileId}.json`);
 	let created = false;
 	if (!fsSync.existsSync(fullPath)) {
-		const content = await buildEnvJsonWithSections(vrunner.getExtensionPath());
+		const content = await buildEnvJsonWithSections();
 		if (content === undefined) {
 			return;
 		}

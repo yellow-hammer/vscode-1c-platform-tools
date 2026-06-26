@@ -7,6 +7,7 @@ import { logger } from '../shared/logger';
 import { readTemplate } from '../features/serviceFiles/templates';
 import { SERVICE_FILES, getServiceFileSpec, type ServiceFileSpec } from '../features/serviceFiles/registry';
 import { buildEnvJsonWithSections } from '../features/serviceFiles/envJsonBuilder';
+import { ENV_DEFAULTS, VRUNNER_DEFAULTS, VRUNNER_INIT_DEFAULTS } from '../features/serviceFiles/envDefaults';
 import { DEFAULT_PROFILE_ID } from '../shared/envProfiles';
 
 const log = logger.scope('serviceFiles');
@@ -50,6 +51,11 @@ export class ServiceFilesCommands extends BaseCommand {
 			return false;
 		}
 
+		if (!spec.templateName) {
+			log.warn(`createFromSpec вызван для файла без шаблона: ${spec.id}`);
+			return false;
+		}
+
 		const extensionPath = this.vrunner.getExtensionPath();
 		if (!extensionPath) {
 			vscode.window.showErrorMessage('Расширение не активировано, путь к ресурсам недоступен');
@@ -85,14 +91,41 @@ export class ServiceFilesCommands extends BaseCommand {
 			log.warn(`Неизвестный служебный файл: ${specId}`);
 			return;
 		}
-		// env.json создаётся с выбором секций команд (флажки), остальное — копия шаблона
+		// env.json создаётся с выбором секций команд (флажки), остальные без шаблона — из кода
 		if (spec.id === 'env') {
 			await this.ensureEnv();
+			return;
+		}
+		if (spec.id === 'vrunner' || spec.id === 'vrunnerInit') {
+			await this.ensureFromDefaults(spec, spec.id === 'vrunner' ? VRUNNER_DEFAULTS : VRUNNER_INIT_DEFAULTS);
 			return;
 		}
 		if (await this.createFromSpec(spec, true)) {
 			this.refreshTree();
 		}
+	}
+
+	/**
+	 * Открывает файл служебного файла без шаблона, создавая его из кода при отсутствии.
+	 *
+	 * @param spec - Описание файла
+	 * @param defaults - Объект-дефолт для сериализации в JSON
+	 */
+	private async ensureFromDefaults(spec: ServiceFileSpec, defaults: object): Promise<void> {
+		const workspaceRoot = this.ensureWorkspace();
+		if (!workspaceRoot) {
+			return;
+		}
+		const fullPath = path.join(workspaceRoot, spec.relPath);
+		if (!fsSync.existsSync(fullPath)) {
+			await fs.mkdir(path.dirname(fullPath), { recursive: true });
+			await fs.writeFile(fullPath, `${JSON.stringify(defaults, null, 4)}\n`, 'utf8');
+			log.info(`Создан служебный файл ${spec.relPath}`);
+			vscode.window.showInformationMessage(`Создан ${spec.relPath}`);
+			this.refreshTree();
+		}
+		const doc = await vscode.workspace.openTextDocument(vscode.Uri.file(fullPath));
+		await vscode.window.showTextDocument(doc);
 	}
 
 	/**
@@ -117,13 +150,31 @@ export class ServiceFilesCommands extends BaseCommand {
 	}
 
 	/**
+	 * Создаёт env.json из канонического дефолта без интерактивного выбора секций.
+	 * Используется при пакетном создании рекомендованного набора.
+	 *
+	 * @param fullPath - Абсолютный путь к создаваемому env.json
+	 * @returns true, если файл создан
+	 */
+	private async createEnvDefault(fullPath: string): Promise<boolean> {
+		if (fsSync.existsSync(fullPath)) {
+			vscode.window.showInformationMessage('env.json уже существует');
+			return false;
+		}
+		await fs.writeFile(fullPath, `${JSON.stringify(ENV_DEFAULTS, null, 4)}\n`, 'utf8');
+		log.info('Создан env.json');
+		vscode.window.showInformationMessage('Создан env.json');
+		return true;
+	}
+
+	/**
 	 * Создаёт env.json: базовая секция default + выбранные флажками секции команд
 	 *
 	 * @param fullPath - Абсолютный путь к создаваемому env.json
 	 * @returns true, если файл создан
 	 */
 	private async createEnvWithSections(fullPath: string): Promise<boolean> {
-		const content = await buildEnvJsonWithSections(this.vrunner.getExtensionPath());
+		const content = await buildEnvJsonWithSections();
 		if (content === undefined) {
 			return false;
 		}
@@ -158,17 +209,21 @@ export class ServiceFilesCommands extends BaseCommand {
 	 * Создаёт рекомендованный набор служебных файлов (только отсутствующие)
 	 */
 	async createRecommendedSet(): Promise<void> {
-		if (!this.ensureWorkspace()) {
+		const workspaceRoot = this.ensureWorkspace();
+		if (!workspaceRoot) {
 			return;
 		}
 		let changed = false;
 		let envCreated = false;
 		for (const spec of SERVICE_FILES.filter((s) => s.recommended)) {
-			const created = await this.createFromSpec(spec, false);
-			changed = created || changed;
-			if (created && spec.id === 'env') {
-				envCreated = true;
+			let created: boolean;
+			if (spec.id === 'env') {
+				created = await this.createEnvDefault(path.join(workspaceRoot, spec.relPath));
+				envCreated = created || envCreated;
+			} else {
+				created = await this.createFromSpec(spec, false);
 			}
+			changed = created || changed;
 		}
 		if (envCreated) {
 			await this.vrunner.setActiveEnvProfileId(DEFAULT_PROFILE_ID);
