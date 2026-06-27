@@ -5,6 +5,56 @@
 Формат основан на [Keep a Changelog](https://keepachangelog.com/ru/1.0.0/),
 и этот проект придерживается [Semantic Versioning](https://semver.org/lang/ru/).
 
+## [0.7.11] - 2026-06-27
+
+
+### Новые возможности
+
+- **testing:** Улучшили панель тестов через Testing API
+
+- **testing:** Inline-diff для упавших тестов через TestMessage.diff
+
+- **testing:** Ленивое раскрытие дерева тестов через resolveHandler
+
+- **diagnostics:** Ошибки syntax-check в Problems с привязкой к строке
+
+- **tools:** Запуск команд vrunner и opm через Task API
+
+- **tools:** Отдельная плашка «Помощь и поддержка» в панели «Инструменты 1С»
+
+- **hooks:** Добавили хуки pre/post/onError на команды расширения
+
+
+### Исправления
+
+- **testing:** Гоняли весь файл в 1testrunner при точечном запуске
+
+- **diagnostics:** Путь к отчёту из env активного профиля запуска
+
+- **serviceFiles:** Выровняли ссылки на схему vanessa-runner — vanessa-opensource, refs/heads/release/2.6
+
+
+### Рефакторинг
+
+- **logger:** Перешли на LogOutputChannel вместо createOutputChannel
+
+- **serviceFiles:** Вынесли URL схем vanessa-runner в schemaUrls.ts и дефолты env в envDefaults.ts
+
+- **serviceFiles:** Удалили шаблоны env/vrunner, генерируем файлы из кода через envDefaults
+
+
+### Тестирование
+
+- **logger:** Покрыли граничную логику уровня isVerboseLevel
+
+
+### Обслуживание
+
+- **testing:** Убран EDT-вариант glob YAxUnit
+
+- **scripts:** Удалили устаревший run-vsce-package.cjs
+
+
 ## [0.7.10] - 2026-06-21
 
 
