@@ -7,7 +7,13 @@ import { logger } from '../../shared/logger';
 import { TestFrameworkAdapter, RunUnit, AdapterRunPlan, FileTreeLocation } from './frameworkAdapter';
 import { DiscoveredFile } from './parsers/parserTypes';
 import { frameworkRootId, fileItemId } from './testItemIds';
-import { directoryNodeId, directoryNodeFsPath } from './treeLayout';
+import {
+	directoryNodeId,
+	directoryNodeFsPath,
+	directorySortKey,
+	fileSortKey,
+	caseSortKey
+} from './treeLayout';
 import { buildCaseDescriptors } from './caseResolver';
 import { mapResults, KnownCase } from './testResultMapper';
 import { parseJUnitXml, JUnitCase } from './parsers/junitParser';
@@ -369,8 +375,10 @@ export class TestingController implements vscode.Disposable {
 		} else {
 			entry.item.label = label;
 		}
-		// Файлы сортируются после каталогов (префикс «1» против «0» у каталогов)
-		entry.item.sortText = `1${label}`;
+		// Ключ сортировки по пути: внутри каталога файлы идут после подкаталогов
+		// и по имени (числовые префиксы задают порядок запуска), а плоский список
+		// в Test Explorer повторяет обход дерева
+		entry.item.sortText = fileSortKey(location.segments, label);
 	}
 
 	/**
@@ -410,21 +418,21 @@ export class TestingController implements vscode.Disposable {
 				return;
 			}
 
-			// Уточняем заголовок и положение объявления по содержимому
-			// (например, имя Функционала для .feature вместо имени файла)
-			if (discovered?.label) {
-				entry.item.label = discovered.label;
-				entry.item.sortText = `1${discovered.label}`;
-			}
+			// Заголовок узла-файла остаётся именем файла — так в дереве сохраняется
+			// порядок запуска по числовым префиксам, а имя не «прыгает» при
+			// разворачивании. Строку объявления (например, «Функционал:» для
+			// .feature) используем лишь для позиции гуттер-кнопки запуска.
 			if (discovered?.labelLine !== undefined) {
 				entry.item.range = new vscode.Range(discovered.labelLine, 0, discovered.labelLine, 0);
 			}
 
+			const fileKey = entry.item.sortText ?? '';
 			const descriptors = buildCaseDescriptors(entry.adapter.id, uri.toString(), discovered?.cases ?? []);
 			const children = descriptors.map((descriptor) => {
 				const child = this.controller.createTestItem(descriptor.id, descriptor.name, uri);
 				child.range = new vscode.Range(descriptor.line, 0, descriptor.line, 0);
-				child.sortText = descriptor.sortText;
+				// Префикс ключом файла: кейсы держатся под своим файлом и в плоском списке
+				child.sortText = caseSortKey(fileKey, descriptor.sortText);
 				if (descriptor.tags) {
 					child.tags = descriptor.tags.map((tag) => new vscode.TestTag(tag));
 				}
@@ -512,8 +520,9 @@ export class TestingController implements vscode.Disposable {
 			if (!dirItem) {
 				const dirFsPath = directoryNodeFsPath(fileUri.fsPath, segments.length, i);
 				dirItem = this.controller.createTestItem(id, segments[i], vscode.Uri.file(dirFsPath));
-				// Каталоги сортируются перед файлами (префикс «0» против «1» у файлов)
-				dirItem.sortText = `0${segments[i]}`;
+				// Ключ сортировки по пути: каталог идёт перед файлами того же
+				// родителя, а его поддерево — единым блоком в плоском списке
+				dirItem.sortText = directorySortKey(segments.slice(0, i + 1));
 				parent.children.add(dirItem);
 			}
 			parent = dirItem;
