@@ -7,7 +7,7 @@ import { logger } from './logger';
 const execAsync = promisify(exec);
 const log = logger.scope('hooks');
 
-const HOOKS_FILE = path.join('1cpt', 'hooks.json');
+const HOOKS_FILE = path.join('.1cpt', 'hooks.json');
 const DEFAULT_TIMEOUT_MS = 30_000;
 
 /** Объектная форма описания одного действия хука */

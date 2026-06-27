@@ -55,7 +55,7 @@
   "contributes": {
     "jsonValidation": [
       {
-        "fileMatch": "**/1cpt/hooks.json",
+        "fileMatch": "**/.1cpt/hooks.json",
         "url": "./resources/schemas/hooks.schema.json"
       }
     ],

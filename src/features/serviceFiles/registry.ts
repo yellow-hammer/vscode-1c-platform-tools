@@ -102,7 +102,7 @@ export const SERVICE_FILES: ServiceFileSpec[] = [
 	},
 	{
 		id: 'hooks',
-		relPath: '1cpt/hooks.json',
+		relPath: '.1cpt/hooks.json',
 		label: 'hooks.json',
 		description: 'хуки pre/post/onError на команды расширения',
 		recommended: false,

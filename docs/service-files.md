@@ -18,7 +18,7 @@
 | `tools/xUnitParams.json` | параметры дымовых тестов xUnit | нет |
 | `tools/yaxunit.json` | конфигурация YAxUnit | нет |
 | `tools/syntax-check-excludes.txt` | исключения синтаксического контроля | нет |
-| `1cpt/hooks.json` | [хуки](hooks.md) `pre`/`post`/`onError` на команды расширения | нет |
+| `.1cpt/hooks.json` | [хуки](hooks.md) `pre`/`post`/`onError` на команды расширения | нет |
 
 ## Создание
 

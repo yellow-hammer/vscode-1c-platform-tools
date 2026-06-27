@@ -2,7 +2,7 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "https://raw.githubusercontent.com/yellow-hammer/vscode-1c-platform-tools/main/resources/schemas/hooks.schema.json",
   "title": "1C Platform Tools hooks",
-  "description": "Конфигурация хуков для команд расширения 1C Platform Tools (1cpt/hooks.json)",
+  "description": "Конфигурация хуков для команд расширения 1C Platform Tools (.1cpt/hooks.json)",
   "type": "object",
   "properties": {
     "$schema": {
