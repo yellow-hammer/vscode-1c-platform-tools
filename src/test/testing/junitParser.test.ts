@@ -104,6 +104,18 @@ suite('junitParser', () => {
 		assert.deepStrictEqual(parseJUnitXml('<testsuite name="Пусто"/>'), []);
 	});
 
+	test('читает атрибут file у testcase и наследует его у набора', () => {
+		const xml = `<testsuites>
+	<testsuite name="Набор" file="tests/Набор.os">
+		<testcase name="Свой" file="tests/Свой.os"/>
+		<testcase name="Унаследованный"/>
+	</testsuite>
+</testsuites>`;
+		const cases = parseJUnitXml(xml);
+		assert.strictEqual(cases[0].file, 'tests/Свой.os', 'берётся file самого testcase');
+		assert.strictEqual(cases[1].file, 'tests/Набор.os', 'наследуется file набора');
+	});
+
 	test('XML без testsuite вызывает ошибку', () => {
 		assert.throws(() => parseJUnitXml('<root/>'), /testsuites\/testsuite/);
 	});

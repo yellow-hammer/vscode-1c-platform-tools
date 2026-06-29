@@ -147,4 +147,21 @@ export interface TestFrameworkAdapter {
 	 * @returns План запуска
 	 */
 	buildRunPlan(unit: RunUnit, reportDir: string): Promise<AdapterRunPlan>;
+
+	/**
+	 * Строит план батч-прогона: несколько файлов одним процессом, общий отчёт
+	 *
+	 * Реализуется адаптерами, чей раннер умеет прогнать несколько файлов за один
+	 * запуск (OneScript/OneUnit). Контроллер вызывает метод, когда запрошено ≥2
+	 * полнофайловых единиц этого адаптера (без подмножества кейсов), и раскладывает
+	 * общий отчёт обратно по файлам (по атрибуту file/classname кейса).
+	 *
+	 * Возврат undefined означает «батч в текущей конфигурации недоступен»
+	 * (например, выбран другой раннер) — контроллер прогонит файлы поштучно.
+	 *
+	 * @param units - Полнофайловые единицы запуска (caseNames не заданы)
+	 * @param reportDir - Каталог отчёта прогона (пустая строка, если usesReportDir === false)
+	 * @returns План батч-прогона либо undefined
+	 */
+	buildBatchRunPlan?(units: RunUnit[], reportDir: string): Promise<AdapterRunPlan | undefined>;
 }

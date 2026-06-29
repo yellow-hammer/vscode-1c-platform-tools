@@ -242,10 +242,12 @@ export class DependenciesCommands extends BaseCommand {
 
 	/**
 	 * Устанавливает зависимости проекта
-	 * 
-	 * Выполняет команду opm install -l в терминале для установки всех зависимостей,
-	 * указанных в packagedef файле проекта.
-	 * 
+	 *
+	 * Выполняет команду opm install --dev -l в терминале для установки всех
+	 * зависимостей из packagedef. Флаг --dev добавляет зависимости разработки
+	 * (РазработкаЗависитОт): без него не ставятся раннеры/хелперы тестов
+	 * (oneunit, asserts), и панель тестирования не находит раннер.
+	 *
 	 * @returns Промис, который разрешается после запуска команды
 	 */
 	async installDependencies(): Promise<void> {
@@ -258,7 +260,7 @@ export class DependenciesCommands extends BaseCommand {
 		}
 
 		const commandName = getInstallDependenciesCommandName();
-		this.vrunner.executeOpmInTerminal(['install', '-l'], {
+		this.vrunner.executeOpmInTerminal(['install', '--dev', '-l'], {
 			cwd: workspaceRoot,
 			name: commandName.title
 		});
@@ -600,7 +602,7 @@ export class DependenciesCommands extends BaseCommand {
 			[
 				{
 					label: '$(check) Да, установить зависимости',
-					description: 'opm install -l по списку из packagedef',
+					description: 'opm install --dev -l по списку из packagedef',
 					detail: 'Требуется OneScript (oscript, opm)',
 					picked: true,
 					installDeps: true
@@ -698,7 +700,7 @@ export class DependenciesCommands extends BaseCommand {
 			if (installDependencies && context) {
 				await context.globalState.update(DependenciesCommands.INSTALL_DEPS_AFTER_CREATE_KEY, targetDir);
 				vscode.window.showInformationMessage(
-					'После открытия папки будет предложена установка зависимостей (opm install -l).'
+					'После открытия папки будет предложена установка зависимостей (opm install --dev -l).'
 				);
 			}
 			// Показать панель «Начало работы» после открытия только что созданного проекта

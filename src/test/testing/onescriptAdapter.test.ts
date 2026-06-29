@@ -1,7 +1,7 @@
 import * as assert from 'node:assert';
 import * as vscode from 'vscode';
 import { VRunnerManager } from '../../shared/vrunnerManager';
-import { OneScriptAdapter } from '../../features/testing/adapters/onescriptAdapter';
+import { OneScriptAdapter, packagedefDeclaresDependency } from '../../features/testing/adapters/onescriptAdapter';
 
 suite('onescriptAdapter', () => {
 	const fileUri = vscode.Uri.file('C:\\proj\\tests os\\test_example.os');
@@ -44,6 +44,49 @@ suite('onescriptAdapter', () => {
 			plan.reportTarget?.path.endsWith('test_example.os.xml'),
 			'Отчёт по имени файла теста'
 		);
+	});
+
+	test('isTestFile: тестовый модуль — да, хелпер без тестов — нет', () => {
+		const adapter = new OneScriptAdapter(VRunnerManager.getInstance());
+		const testModule = [
+			'Функция ИсполняемыеСценарии() Экспорт',
+			'КонецФункции',
+			'Процедура Тест_Один() Экспорт',
+			'КонецПроцедуры'
+		].join('\n');
+		// Хелпер/билдер из utils/: экспортные методы есть, но нет ни ИсполняемыеСценарии,
+		// ни &Тест — в дереве тестов ему не место
+		const helper = [
+			'Функция Построить() Экспорт',
+			'	Возврат Новый Структура;',
+			'КонецФункции'
+		].join('\n');
+
+		assert.strictEqual(adapter.isTestFile(testModule), true);
+		assert.strictEqual(adapter.isTestFile('&Тест\nПроцедура Т() Экспорт\nКонецПроцедуры'), true);
+		assert.strictEqual(adapter.isTestFile(helper), false);
+	});
+
+	test('packagedefDeclaresDependency: ловит ЗависитОт и РазработкаЗависитОт', () => {
+		const packagedef = [
+			'Пакет',
+			'	.Имя("проект")',
+			'	.ЗависитОт("irac", "1.4.0")',
+			'	.РазработкаЗависитОт("oneunit", "0.3.3")',
+			';'
+		].join('\n');
+
+		assert.strictEqual(packagedefDeclaresDependency(packagedef, 'oneunit'), true, 'РазработкаЗависитОт');
+		assert.strictEqual(packagedefDeclaresDependency(packagedef, 'irac'), true, 'ЗависитОт');
+		assert.strictEqual(packagedefDeclaresDependency(packagedef, '1testrunner'), false, 'не объявлен');
+	});
+
+	test('buildBatchRunPlan: для 1testrunner батч недоступен (undefined)', async () => {
+		// В тестовом окружении (без локального oneunit) раннер — 1testrunner,
+		// батч им не поддержан: контроллер прогонит файлы поштучно
+		const adapter = new OneScriptAdapter(VRunnerManager.getInstance());
+		const plan = await adapter.buildBatchRunPlan([{ fileUri }], 'C:\\proj\\build\\report');
+		assert.strictEqual(plan, undefined);
 	});
 
 	test('parseFile распознаёт xdd-структуру и аннотации', () => {

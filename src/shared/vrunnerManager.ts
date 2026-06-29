@@ -1321,7 +1321,7 @@ export class VRunnerManager {
 	 * Создает терминал и выполняет команду opm (OneScript Package Manager).
 	 * Используется для установки и управления зависимостями проекта.
 	 *
-	 * @param args - Аргументы команды opm (например, ['install', '-l'])
+	 * @param args - Аргументы команды opm (например, ['install', '--dev', '-l'])
 	 * @param options - Опции выполнения
 	 * @param options.cwd - Рабочая директория (по умолчанию workspace root)
 	 * @param options.name - Имя терминала (по умолчанию '1C: Platform Tools')
