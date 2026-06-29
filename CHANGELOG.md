@@ -5,6 +5,19 @@
 Формат основан на [Keep a Changelog](https://keepachangelog.com/ru/1.0.0/),
 и этот проект придерживается [Semantic Versioning](https://semver.org/lang/ru/).
 
+## [0.7.14] - 2026-06-29
+
+
+### Новые возможности
+
+- **testing:** Батч-прогон OneScript, фильтр утиля, выбор и установка oneunit
+
+
+### Исправления
+
+- **deps:** Находим oscript/opm из установки OVM, когда их нет в PATH
+
+
 ## [0.7.12] - 2026-06-27
 
 
