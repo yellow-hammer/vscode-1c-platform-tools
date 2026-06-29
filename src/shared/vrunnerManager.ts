@@ -18,6 +18,7 @@ import {
 import { logger } from './logger';
 import { runCancellableCommand, CancellableProcessResult } from './cancellableProcess';
 import { DEFAULT_PATHS, DEFAULT_VRUNNER, DEFAULT_ENV } from './pathDefaults';
+import { getOvmBinaryPath } from './ovmPaths';
 import {
 	ACTIVE_ENV_PROFILE_KEY,
 	ACTIVE_ENV_OVERRIDES_KEY,
@@ -94,6 +95,14 @@ export class VRunnerManager {
 	 * undefined — ещё не определяли; null — определить не удалось.
 	 */
 	private vrunnerVersionCache: VRunnerVersion | null | undefined = undefined;
+	/**
+	 * Разрешённый путь к oscript: имя для PATH, абсолютный путь установки OVM или
+	 * undefined, пока проверка не выполнялась. Обновляется в checkOscriptAvailable
+	 * и используется синхронными getOnescriptPath/исполнением.
+	 */
+	private resolvedOscriptPath: string | undefined = undefined;
+	/** Разрешённый путь к opm (по той же схеме, что и resolvedOscriptPath). */
+	private resolvedOpmPath: string | undefined = undefined;
 
 	/** Событие смены активного env-профиля (id в workspaceState) */
 	private readonly _onDidChangeActiveEnvProfile = new vscode.EventEmitter<void>();
@@ -177,10 +186,13 @@ export class VRunnerManager {
 	/**
 	 * Получает путь к opm (OneScript Package Manager)
 	 *
-	 * @returns Имя команды для поиска в PATH
+	 * Возвращает путь, разрешённый последней проверкой checkOpmAvailable (имя для
+	 * PATH или абсолютный путь установки OVM). До первой проверки — имя 'opm'.
+	 *
+	 * @returns Имя команды для PATH или абсолютный путь к opm
 	 */
 	private getOpmPath(): string {
-		return 'opm';
+		return this.resolvedOpmPath ?? 'opm';
 	}
 
 	/**
@@ -333,21 +345,51 @@ export class VRunnerManager {
 	}
 
 	/**
-	 * Проверяет, доступны ли oscript и opm (по настройкам путей или PATH).
+	 * Проверяет, доступен ли oscript: сначала в PATH, затем в установке OVM.
 	 *
-	 * @returns Промис, который разрешается true, если обе утилиты доступны, иначе false
+	 * Найденный путь запоминается и используется при последующем выполнении,
+	 * чтобы детекция и реальный запуск работали с одним и тем же бинарём.
+	 *
+	 * @returns Промис, который разрешается true, если oscript доступен, иначе false
 	 */
 	public async checkOscriptAvailable(): Promise<boolean> {
-		return this.runCommandForCheck(this.getOnescriptPath(), ['-version']);
+		this.resolvedOscriptPath = await this.resolveBinaryPath('oscript', '-version');
+		return this.resolvedOscriptPath !== undefined;
 	}
 
 	/**
-	 * Проверяет, доступен ли opm (по настройкам путей или PATH).
+	 * Проверяет, доступен ли opm: сначала в PATH, затем в установке OVM.
 	 *
 	 * @returns Промис, который разрешается true, если opm доступен, иначе false
 	 */
 	public async checkOpmAvailable(): Promise<boolean> {
-		return this.runCommandForCheck(this.getOpmPath(), ['--version']);
+		this.resolvedOpmPath = await this.resolveBinaryPath('opm', '--version');
+		return this.resolvedOpmPath !== undefined;
+	}
+
+	/**
+	 * Разрешает исполняемый путь инструмента OneScript.
+	 *
+	 * Порядок: имя в PATH (нативная установка или настроенный PATH), затем
+	 * известный путь установки OVM. Путь OVM детерминирован, поэтому отдельная
+	 * настройка не нужна. Возвращает рабочий путь или undefined, если бинарь
+	 * недоступен ни одним способом.
+	 *
+	 * @param name - Имя бинаря (oscript/opm)
+	 * @param versionArg - Аргумент проверки версии (-version / --version)
+	 * @returns Имя для PATH, абсолютный путь OVM или undefined
+	 */
+	private async resolveBinaryPath(name: string, versionArg: string): Promise<string | undefined> {
+		if (await this.runCommandForCheck(name, [versionArg])) {
+			return name;
+		}
+		const ovmPath = getOvmBinaryPath(name);
+		if (fsSync.existsSync(ovmPath) && await this.runCommandForCheck(ovmPath, [versionArg])) {
+			log.info(`${name} не найден в PATH, используется установка OVM: ${ovmPath}`);
+			return ovmPath;
+		}
+		log.warn(`${name} не найден ни в PATH, ни в установке OVM: ${ovmPath}`);
+		return undefined;
 	}
 
 	/**
@@ -696,10 +738,13 @@ export class VRunnerManager {
 	/**
 	 * Получает путь к OneScript
 	 *
-	 * @returns Имя команды для поиска в PATH
+	 * Возвращает путь, разрешённый последней проверкой checkOscriptAvailable (имя
+	 * для PATH или абсолютный путь установки OVM). До первой проверки — имя 'oscript'.
+	 *
+	 * @returns Имя команды для PATH или абсолютный путь к oscript
 	 */
 	private getOnescriptPath(): string {
-		return 'oscript';
+		return this.resolvedOscriptPath ?? 'oscript';
 	}
 
 	/**

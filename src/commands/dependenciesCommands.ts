@@ -13,6 +13,7 @@ import {
 import { logger } from '../shared/logger';
 import { notifyProjectCreated } from '../shared/projectContext';
 import { PROJECT_STRUCTURE } from '../shared/projectStructure';
+import { getOvmBinaryPath } from '../shared/ovmPaths';
 
 const log = logger.scope('commands');
 
@@ -124,10 +125,7 @@ async function getOscriptVersionFromPackagedef(workspaceRoot: string): Promise<O
  * Возвращает путь к oscript в каталоге OVM и его текущее время модификации (или 0, если файла нет).
  */
 function getOvmOscriptPathAndMtime(): { path: string; mtimeMs: number } {
-	const oscriptPath =
-		process.platform === 'win32'
-			? path.join(process.env.LOCALAPPDATA || '', 'ovm', 'current', 'bin', 'oscript.exe')
-			: path.join(os.homedir(), '.local', 'share', 'ovm', 'current', 'bin', 'oscript');
+	const oscriptPath = getOvmBinaryPath('oscript');
 	let mtimeMs = 0;
 	try {
 		const stat = fsSync.statSync(oscriptPath);
