@@ -20,6 +20,7 @@ import { parseJUnitXml, JUnitCase } from './parsers/junitParser';
 import { parseCucumberJson } from './parsers/cucumberParser';
 import { ReportTarget } from './projectTestConfig';
 import { RunQueue } from './runQueue';
+import { routeReportCases, RoutableFile } from './batchRouter';
 import { DEFAULT_TESTING } from '../../shared/pathDefaults';
 
 const log = logger.scope('testing');
@@ -71,6 +72,25 @@ function missingRunnerHint(result: { stdout: string; stderr: string; exitCode: n
 		'\nПохоже, раннер тестов не найден. Установите зависимости проекта ' +
 		'(команда «Установить зависимости» или opm install --dev -l) ' +
 		'либо укажите путь к раннеру в настройках testing.*Path.'
+	);
+}
+
+/**
+ * Подсказка при падении прогона из-за неустановленных зависимостей проекта
+ *
+ * oscript-раннер не находит библиотеку, которую #Использует тест, если
+ * зависимости проекта не установлены — сообщение раннера «Библиотека не найдена:
+ * 'irac'». Это общая проблема прогона (затрагивает все файлы), а не конкретного теста.
+ */
+function missingDependencyHint(result: { stdout: string; stderr: string }): string {
+	const match = /Библиотека не найдена:?\s*['"«]?([\wа-яёА-ЯЁ.\-]+)/i.exec(result.stdout + result.stderr);
+	if (!match) {
+		return '';
+	}
+	return (
+		`\nНе найдена библиотека «${match[1]}», которую используют тесты — ` +
+		'похоже, зависимости проекта не установлены. Выполните «Установить зависимости» ' +
+		'(opm install --dev -l) и повторите прогон.'
 	);
 }
 
@@ -586,12 +606,7 @@ export class TestingController implements vscode.Disposable {
 
 			await this.queue.enqueue(async () => {
 				try {
-					for (const unit of units) {
-						if (token.isCancellationRequested) {
-							break;
-						}
-						await this.runUnit(run, unit, token);
-					}
+					await this.runUnits(run, units, token);
 				} finally {
 					run.end();
 				}
@@ -600,6 +615,220 @@ export class TestingController implements vscode.Disposable {
 			this.activeRuns -= 1;
 			this.flushPendingRebuild();
 		}
+	}
+
+	/**
+	 * Выполняет единицы запроса: батчит полнофайловые прогоны адаптеров,
+	 * умеющих прогнать несколько файлов одним процессом, остальное — поштучно
+	 *
+	 * Батч (один холодный старт раннера вместо N) применяется к ≥2 полнофайловым
+	 * единицам одного адаптера без подмножества кейсов. Группируем по каталогу:
+	 * файлы одной папки совместимы в одном процессе, а разнородные категории
+	 * (например, unit и e2e) не валят друг друга конфликтом регистрации наборов.
+	 * Прогон подмножества кейсов и адаптеры без батча идут прежним поштучным путём.
+	 * Если адаптер вернул undefined-план (батч недоступен) или батч не дал отчёта,
+	 * файлы группы прогоняются поштучно.
+	 */
+	private async runUnits(
+		run: vscode.TestRun,
+		units: { entry: FileEntry; caseNames?: string[] }[],
+		token: vscode.CancellationToken
+	): Promise<void> {
+		const batches = new Map<string, { entry: FileEntry; caseNames?: string[] }[]>();
+		const individual: { entry: FileEntry; caseNames?: string[] }[] = [];
+
+		for (const unit of units) {
+			const uri = unit.entry.item.uri;
+			if (!unit.caseNames && unit.entry.adapter.buildBatchRunPlan && uri) {
+				const key = `${unit.entry.adapter.id} ${path.dirname(uri.fsPath)}`;
+				const group = batches.get(key);
+				if (group) {
+					group.push(unit);
+				} else {
+					batches.set(key, [unit]);
+				}
+			} else {
+				individual.push(unit);
+			}
+		}
+
+		for (const group of batches.values()) {
+			if (token.isCancellationRequested) {
+				return;
+			}
+			// Один файл проще и не дешевле прогнать обычным путём (без раскладки общего отчёта)
+			if (group.length < 2 || !(await this.runBatch(run, group, token))) {
+				individual.push(...group);
+			}
+		}
+
+		for (const unit of individual) {
+			if (token.isCancellationRequested) {
+				break;
+			}
+			await this.runUnit(run, unit, token);
+		}
+	}
+
+	/**
+	 * Прогоняет несколько файлов одним процессом и раскладывает общий отчёт по файлам
+	 *
+	 * @returns true — батч обработан (исполнен или размечен ошибкой); false — батч
+	 *          в текущей конфигурации недоступен, файлы нужно прогнать поштучно
+	 */
+	private async runBatch(
+		run: vscode.TestRun,
+		units: { entry: FileEntry; caseNames?: string[] }[],
+		token: vscode.CancellationToken
+	): Promise<boolean> {
+		const adapter = units[0].entry.adapter;
+		const entries = units.map((unit) => unit.entry);
+		const allLeaves = entries.flatMap((entry) => this.leafItems(entry.item));
+
+		const runUnits: RunUnit[] = [];
+		for (const entry of entries) {
+			if (!entry.item.uri) {
+				this.markAll(run, allLeaves, 'errored', 'У элемента теста нет привязанного файла');
+				return true;
+			}
+			runUnits.push({ fileUri: entry.item.uri });
+		}
+
+		let reportDir = '';
+		if (adapter.usesReportDir !== false) {
+			const created = await this.createReportDir(adapter.id);
+			if (!created) {
+				this.markAll(run, allLeaves, 'errored', 'Не удалось создать каталог отчёта прогона');
+				return true;
+			}
+			reportDir = created;
+		}
+
+		let plan: AdapterRunPlan | undefined;
+		let result: CancellableProcessResult;
+		try {
+			plan = await adapter.buildBatchRunPlan!(runUnits, reportDir);
+			if (!plan) {
+				await this.cleanupReportDir(reportDir);
+				return false;
+			}
+
+			if (plan.reportTarget) {
+				await this.clearReportTarget(plan.reportTarget);
+			}
+
+			// Вывод общий (один процесс на все файлы) — привязываем к прогону, не к узлу
+			const onOutput = (chunk: string) => run.appendOutput(chunk.replaceAll(/(?<!\r)\n/g, '\r\n'));
+			run.appendOutput(`\r\n=== ${adapter.label}: батч-прогон (${entries.length} файлов) ===\r\n`);
+
+			for (const item of allLeaves) {
+				run.started(item);
+			}
+
+			for (const step of plan.prepare ?? []) {
+				if (token.isCancellationRequested) {
+					await this.cleanupReportDir(reportDir);
+					return true;
+				}
+				run.appendOutput(`\r\n--- ${step.title} ---\r\n`);
+				const stepResult = await this.executeStep(step.tool, step.args, plan.env, token, onOutput);
+				if (stepResult.cancelled) {
+					await this.cleanupReportDir(reportDir);
+					return true;
+				}
+				if (!stepResult.success) {
+					const tail = (stepResult.stdout + '\n' + stepResult.stderr).slice(-ERROR_OUTPUT_TAIL_LENGTH);
+					this.markAll(
+						run,
+						allLeaves,
+						'errored',
+						`Шаг «${step.title}» завершился с кодом ${stepResult.exitCode}.\n${tail}`
+					);
+					await this.cleanupReportDir(reportDir);
+					return true;
+				}
+			}
+
+			result = await this.executeStep(plan.tool, plan.args, plan.env, token, onOutput);
+		} catch (error) {
+			this.markAll(run, allLeaves, 'errored', `Ошибка запуска: ${(error as Error).message}`);
+			await this.cleanupReportDir(reportDir);
+			return true;
+		}
+
+		if (result.cancelled) {
+			await this.cleanupReportDir(reportDir);
+			return true;
+		}
+
+		const target: ReportTarget = plan.reportTarget ?? { format: 'junit', path: reportDir };
+		let junitCases = await this.readReports(target);
+		if (junitCases && adapter.transformReportCases) {
+			junitCases = adapter.transformReportCases(junitCases);
+		}
+
+		if (junitCases === undefined || junitCases.length === 0) {
+			const tail = (result.stdout + '\n' + result.stderr).slice(-ERROR_OUTPUT_TAIL_LENGTH);
+			const runnerHint = missingRunnerHint(result);
+			const depHint = missingDependencyHint(result);
+
+			// Раннер не найден или не установлены зависимости — это общая проблема всех
+			// файлов, поштучный прогон её не вылечит. Помечаем ошибкой с подсказкой,
+			// не плодя бесполезные повторные запуски.
+			if (runnerHint || depHint) {
+				const planHint = plan.noReportHint ? `\n${plan.noReportHint}` : '';
+				this.markAll(
+					run,
+					allLeaves,
+					'errored',
+					`Батч-прогон завершился без jUnit-отчёта (код возврата ${result.exitCode}).` +
+						`${planHint}${runnerHint}${depHint}\n${tail}`
+				);
+				await this.cleanupReportDir(reportDir);
+				return true;
+			}
+
+			// Иначе вероятен сбой одного файла или конфликт (двойная регистрация набора):
+			// откатываемся на поштучный прогон — он изолирует сбойный файл, остальные
+			// дадут результат (поведение прежней версии). Узлы остаются enqueued/started —
+			// runUnit проставит им финальный статус.
+			log.warn(
+				`Батч-прогон ${adapter.label} без jUnit-отчёта (код ${result.exitCode}) — откат на поштучный прогон`
+			);
+			run.appendOutput(
+				`\r\n[батч] прогон одним процессом не дал отчёта (код ${result.exitCode}) — повторяю по файлам\r\n` +
+					`${tail.replaceAll(/(?<!\r)\n/g, '\r\n')}\r\n`
+			);
+			await this.cleanupReportDir(reportDir);
+			return false;
+		}
+
+		// Раскладываем общий отчёт по файлам (по атрибуту file/classname кейса)
+		const routable: RoutableFile[] = entries.map((entry) => ({
+			id: entry.item.id,
+			fsPath: entry.item.uri!.fsPath
+		}));
+		const { byFile, unrouted } = routeReportCases(junitCases, routable);
+
+		for (const entry of entries) {
+			const cases = byFile.get(entry.item.id);
+			// Раскладка не дала кейсов файлу (нестандартный формат отчёта) — запасной путь:
+			// применяем весь отчёт по совпадению имён, чтобы не пометить пройденный файл
+			// ошибкой; в обычном случае сюда приходят только свои кейсы файла
+			this.applyResults(run, entry, cases && cases.length > 0 ? cases : junitCases);
+		}
+
+		// unrouted логируем только если он не «съест» весь отчёт запасным путём выше
+		if (byFile.size > 0) {
+			for (const orphan of unrouted) {
+				run.appendOutput(
+					`\r\n[предупреждение] testcase «${orphan.name}» (${orphan.status}) не сопоставлен ни с одним файлом\r\n`
+				);
+			}
+		}
+
+		await this.cleanupReportDir(reportDir);
+		return true;
 	}
 
 	/**
@@ -813,7 +1042,7 @@ export class TestingController implements vscode.Disposable {
 				leaves,
 				'errored',
 				`Прогон завершился без jUnit-отчёта (код возврата ${result.exitCode}).` +
-					`${planHint}${missingRunnerHint(result)}\n${tail}`
+					`${planHint}${missingRunnerHint(result)}${missingDependencyHint(result)}\n${tail}`
 			);
 			await this.cleanupReportDir(reportDir);
 			return;

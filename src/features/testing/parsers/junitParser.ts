@@ -20,6 +20,8 @@ export interface JUnitCase {
 	className: string;
 	/** Атрибут name testcase */
 	name: string;
+	/** Атрибут file testcase (путь к файлу теста; OneUnit его проставляет) */
+	file?: string;
 	/** Статус по дочерним элементам */
 	status: 'passed' | 'failed' | 'error' | 'skipped';
 	/** Длительность в миллисекундах */
@@ -84,7 +86,11 @@ function parseTimeMs(time: unknown): number | undefined {
 /**
  * Разбирает один testcase
  */
-function parseTestCase(testcase: Record<string, unknown>, suiteName: string): JUnitCase {
+function parseTestCase(
+	testcase: Record<string, unknown>,
+	suiteName: string,
+	suiteFile: string | undefined
+): JUnitCase {
 	const failures = toArray(testcase['failure']);
 	const errors = toArray(testcase['error']);
 	const skipped = toArray(testcase['skipped']);
@@ -115,10 +121,12 @@ function parseTestCase(testcase: Record<string, unknown>, suiteName: string): JU
 	const { message, details } = extractFailureInfo(failureNode);
 	const diff = extractExpectedActual(message, details);
 
+	const file = typeof testcase['@_file'] === 'string' ? testcase['@_file'] : suiteFile;
 	return {
 		suiteName,
 		className: typeof testcase['@_classname'] === 'string' ? testcase['@_classname'] : '',
 		name: typeof testcase['@_name'] === 'string' ? testcase['@_name'] : String(testcase['@_name'] ?? ''),
+		file: file && file.length > 0 ? file : undefined,
 		status,
 		timeMs: parseTimeMs(testcase['@_time']),
 		message,
@@ -133,10 +141,12 @@ function parseTestCase(testcase: Record<string, unknown>, suiteName: string): JU
  */
 function collectFromSuite(suite: Record<string, unknown>, results: JUnitCase[]): void {
 	const suiteName = typeof suite['@_name'] === 'string' ? suite['@_name'] : '';
+	// file наследуется кейсами набора, если у самого testcase атрибута нет
+	const suiteFile = typeof suite['@_file'] === 'string' ? suite['@_file'] : undefined;
 
 	for (const testcase of toArray(suite['testcase'])) {
 		if (testcase && typeof testcase === 'object') {
-			results.push(parseTestCase(testcase as Record<string, unknown>, suiteName));
+			results.push(parseTestCase(testcase as Record<string, unknown>, suiteName, suiteFile));
 		}
 	}
 
