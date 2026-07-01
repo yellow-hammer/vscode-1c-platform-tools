@@ -26,6 +26,10 @@ export interface CaseDescriptor {
 	sortText: string;
 	/** Теги Gherkin без символа @ */
 	tags?: string[];
+	/** Имя метода-процедуры для точечного запуска, если отличается от name (параметризованные тесты) */
+	methodName?: string;
+	/** Имя группы (контейнера) параметризованного теста — для различения одноимённых кейсов и подписи */
+	groupName?: string;
 }
 
 /**
@@ -54,7 +58,9 @@ export function buildCaseDescriptors(
 			name: testCase.name,
 			line: testCase.line,
 			sortText: String(testCase.line).padStart(6, '0'),
-			tags: testCase.tags
+			tags: testCase.tags,
+			methodName: testCase.methodName,
+			groupName: testCase.groupName
 		});
 	}
 

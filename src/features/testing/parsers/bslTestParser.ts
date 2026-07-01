@@ -42,6 +42,24 @@ const ADD_TEST_REGEX = /\.\s*ДобавитьТест\s*\(\s*"([^"]+)"/gi;
 /** Аннотация теста (современный 1testrunner): &Тест над процедурой */
 const TEST_ANNOTATION_REGEX = /^\s*&(?:Тест|Test)\s*(?:\/\/.*)?$/i;
 
+/** Аннотация параметризованного теста (OneUnit): &ПараметризованныйТест[("шаблон имени")] */
+const PARAMETERIZED_ANNOTATION_REGEX =
+	/^\s*&(?:ПараметризованныйТест|ParameterizedTest)\s*(?:\(\s*"((?:[^"]|"")*)"\s*\))?\s*(?:\/\/.*)?$/i;
+
+/** Источник значений параметров (OneUnit, повторяемый): &ИсточникЗначение(литералы) */
+const VALUE_SOURCE_ANNOTATION_REGEX =
+	/^\s*&(?:ИсточникЗначение|ValueSource)\s*\((.*)\)\s*(?:\/\/.*)?$/i;
+
+/** Отображаемое имя теста (OneUnit): &ОтображаемоеИмя("имя") */
+const DISPLAY_NAME_ANNOTATION_REGEX =
+	/^\s*&(?:ОтображаемоеИмя|DisplayName)\s*\(\s*"((?:[^"]|"")*)"\s*\)\s*(?:\/\/.*)?$/i;
+
+/** Любая аннотация (строка, начинающаяся с &) — для обхода блока аннотаций над процедурой */
+const ANY_ANNOTATION_REGEX = /^\s*&/;
+
+/** Шаблон имени параметризованного теста по умолчанию (как в OneUnit) */
+const DEFAULT_PARAM_NAME_TEMPLATE = '{Параметры}';
+
 /**
  * Проверяет, является ли содержимое тестовым модулем для заданного режима
  *
@@ -54,10 +72,11 @@ export function isBslTestModule(content: string, mode: BslTestMode): boolean {
 		return /ИсполняемыеСценарии/i.test(content) && /ДобавитьТест\s*\(/i.test(content);
 	}
 	// ПолучитьСписокТестов — альтернативное имя регистрации в новых тестах add;
-	// &Тест — аннотационный стиль современного 1testrunner (OneScript)
+	// &Тест / &ПараметризованныйТест — аннотационный стиль 1testrunner/OneUnit.
+	// Отрицательный lookahead на букву отсекает &ТестовыйНабор, не задевая &Тест.
 	return (
 		/ИсполняемыеСценарии|ЗаполнитьНаборТестов|ПолучитьСписокТестов/i.test(content) ||
-		/^\s*&(?:Тест|Test)\s*$/im.test(content)
+		/^\s*&(?:Тест|Test|ПараметризованныйТест|ParameterizedTest)(?![\wа-яёА-ЯЁ])/im.test(content)
 	);
 }
 
@@ -100,9 +119,159 @@ function collectExportedMethods(lines: string[]): Map<string, { name: string; li
 }
 
 /**
- * Собирает тесты аннотационного стиля: &Тест над объявлением процедуры
+ * Разбитый на аргументы список литералов из аннотации-источника значений
  *
- * Между аннотацией и объявлением допускаются другие аннотации и комментарии.
+ * Делит по запятым верхнего уровня, не задевая запятые внутри строк ("...")
+ * и дат ('...'). Экранированная кавычка внутри строки — "".
+ *
+ * @param argsText - Содержимое скобок аннотации (без самих скобок)
+ * @returns Массив токенов-аргументов в исходном виде (с кавычками)
+ */
+function splitAnnotationArgs(argsText: string): string[] {
+	const args: string[] = [];
+	let current = '';
+	let quote: '"' | "'" | undefined;
+
+	for (let i = 0; i < argsText.length; i++) {
+		const ch = argsText[i];
+		if (quote) {
+			current += ch;
+			if (ch === quote) {
+				// Удвоенная кавычка того же типа — экранирование, не конец строки
+				if (argsText[i + 1] === quote) {
+					current += argsText[++i];
+				} else {
+					quote = undefined;
+				}
+			}
+			continue;
+		}
+		if (ch === '"' || ch === "'") {
+			quote = ch;
+			current += ch;
+		} else if (ch === ',') {
+			args.push(current.trim());
+			current = '';
+		} else {
+			current += ch;
+		}
+	}
+	if (current.trim().length > 0 || args.length > 0) {
+		args.push(current.trim());
+	}
+	return args;
+}
+
+/**
+ * Представление одного значения параметра, как его показывает OneUnit
+ *
+ * Строковый литерал — без кавычек ("ibcmd" → ibcmd), остальное (числа, булево,
+ * даты) — как записано в аннотации. Точное совпадение с jUnit гарантировано
+ * для строк и чисел; экзотические типы (дата/булево) могут не совпасть.
+ *
+ * @param token - Токен-аргумент из splitAnnotationArgs
+ */
+function renderParamValue(token: string): string {
+	if (token.length >= 2 && token.startsWith('"') && token.endsWith('"')) {
+		return token.slice(1, -1).replaceAll('""', '"');
+	}
+	return token;
+}
+
+/**
+ * Формирует отображаемое имя параметризованного кейса по шаблону OneUnit
+ *
+ * `{Параметры}` → `[знач1, знач2]`, `{ОтображаемоеИмя}` → имя метода/аннотации.
+ * Совпадает с `Тест.Имя()` в jUnit-отчёте OneUnit.
+ *
+ * @param template - Шаблон имени (по умолчанию `{Параметры}`)
+ * @param displayName - Отображаемое имя метода
+ * @param valueTokens - Токены значений набора параметров
+ */
+function renderParameterizedName(
+	template: string,
+	displayName: string,
+	valueTokens: string[]
+): string {
+	const params = `[${valueTokens.map(renderParamValue).join(', ')}]`;
+	return template.replaceAll('{ОтображаемоеИмя}', displayName).replaceAll('{Параметры}', params);
+}
+
+/** Описание блока аннотаций, стоящего над объявлением процедуры */
+interface AnnotationBlock {
+	isTest: boolean;
+	isParameterized: boolean;
+	/** Шаблон имени из &ПараметризованныйТест или дефолт */
+	template: string;
+	/** Отображаемое имя из &ОтображаемоеИмя, если задано */
+	displayName?: string;
+	/** Наборы значений из каждой &ИсточникЗначение (по одному кейсу на набор) */
+	valueSets: string[][];
+}
+
+/**
+ * Собирает блок аннотаций непосредственно над строкой объявления процедуры
+ *
+ * Идём вверх, пока строки — аннотации (&...), комментарии или пустые. Первая
+ * «обычная» строка (код, КонецПроцедуры) завершает блок.
+ *
+ * @param lines - Строки модуля
+ * @param declLine - Индекс строки объявления процедуры
+ */
+function collectAnnotationBlock(lines: string[], declLine: number): AnnotationBlock {
+	const block: AnnotationBlock = {
+		isTest: false,
+		isParameterized: false,
+		template: DEFAULT_PARAM_NAME_TEMPLATE,
+		valueSets: []
+	};
+
+	for (let i = declLine - 1; i >= 0; i--) {
+		const trimmed = lines[i].trim();
+		if (trimmed.length === 0 || trimmed.startsWith('//')) {
+			continue;
+		}
+		if (!ANY_ANNOTATION_REGEX.test(lines[i])) {
+			break;
+		}
+
+		if (TEST_ANNOTATION_REGEX.test(lines[i])) {
+			block.isTest = true;
+			continue;
+		}
+		const param = PARAMETERIZED_ANNOTATION_REGEX.exec(lines[i]);
+		if (param) {
+			block.isParameterized = true;
+			if (param[1] !== undefined) {
+				block.template = param[1].replaceAll('""', '"');
+			}
+			continue;
+		}
+		const source = VALUE_SOURCE_ANNOTATION_REGEX.exec(lines[i]);
+		if (source) {
+			// Аннотации идут снизу вверх — восстанавливаем исходный порядок ниже
+			block.valueSets.push(splitAnnotationArgs(source[1]));
+			continue;
+		}
+		const display = DISPLAY_NAME_ANNOTATION_REGEX.exec(lines[i]);
+		if (display) {
+			block.displayName = display[1].replaceAll('""', '"');
+		}
+	}
+
+	block.valueSets.reverse();
+	return block;
+}
+
+/**
+ * Собирает тесты аннотационного стиля: &Тест и &ПараметризованныйТест
+ *
+ * Обычный &Тест даёт один кейс (имя = отображаемое имя или имя метода).
+ * &ПараметризованныйТест с &ИсточникЗначение разворачивается в кейс на каждый
+ * набор значений (имя = отображаемое имя набора, напр. «[ibcmd]»), а methodName
+ * несёт имя процедуры для точечного запуска. Параметризованный тест с иными
+ * источниками (JSON/Выражение/Перечисление — значения известны лишь в рантайме)
+ * даёт один кейс по имени метода, чтобы он был хотя бы виден и запускаем.
  *
  * @param lines - Строки модуля
  * @returns Кейсы в порядке следования по файлу
@@ -111,22 +280,35 @@ function collectAnnotatedTests(lines: string[]): DiscoveredCase[] {
 	const cases: DiscoveredCase[] = [];
 
 	for (let i = 0; i < lines.length; i++) {
-		if (!TEST_ANNOTATION_REGEX.test(lines[i])) {
+		const decl = METHOD_DECLARATION_REGEX.exec(lines[i]);
+		if (!decl) {
 			continue;
 		}
 
-		// Ищем объявление процедуры ниже, пропуская аннотации и комментарии
-		for (let j = i + 1; j < lines.length; j++) {
-			const trimmed = lines[j].trim();
-			if (trimmed.length === 0 || trimmed.startsWith('&') || trimmed.startsWith('//')) {
-				continue;
-			}
-			const match = METHOD_DECLARATION_REGEX.exec(lines[j]);
-			if (match) {
-				cases.push({ name: match[1], line: j });
-			}
-			break;
+		const methodName = decl[1];
+		const block = collectAnnotationBlock(lines, i);
+		if (!block.isTest && !block.isParameterized) {
+			continue;
 		}
+
+		const displayName = block.displayName ?? methodName;
+
+		if (block.isParameterized && block.valueSets.length > 0) {
+			for (const valueSet of block.valueSets) {
+				cases.push({
+					name: renderParameterizedName(block.template, displayName, valueSet),
+					line: i,
+					methodName,
+					// Контейнер параметризованного теста — отображаемое имя процедуры;
+					// различает одноимённые «[ibcmd]» разных процедур и поясняет их в дереве
+					groupName: displayName
+				});
+			}
+			continue;
+		}
+
+		// Обычный &Тест либо параметризованный без статических источников значений
+		cases.push({ name: displayName, line: i, methodName });
 	}
 
 	return cases;

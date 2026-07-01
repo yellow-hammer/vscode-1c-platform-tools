@@ -122,6 +122,21 @@ export class TestingController implements vscode.Disposable {
 	private watchers: vscode.FileSystemWatcher[] = [];
 	/** fileItemId → запись */
 	private readonly files = new Map<string, FileEntry>();
+	/**
+	 * caseItemId → имя метода для точечного запуска (только когда отличается от label).
+	 *
+	 * Параметризованные кейсы («[ibcmd]») в отчёте зовутся отображаемым именем
+	 * набора значений, а раннеру для `-m` нужна сама процедура. Матчинг результатов
+	 * идёт по label, запуск — по этому имени.
+	 */
+	private readonly caseMethodNames = new Map<string, string>();
+	/**
+	 * caseItemId → имя группы (контейнера параметризованного теста).
+	 *
+	 * Различает одноимённые наборы значений разных процедур («[ibcmd]») при
+	 * сопоставлении с отчётом (по вложенному testsuite) и показывается подписью в дереве.
+	 */
+	private readonly caseGroupNames = new Map<string, string>();
 	private runCounter = 0;
 	/** Таймер дебаунса пересборки */
 	private rebuildTimer: ReturnType<typeof setTimeout> | undefined;
@@ -455,6 +470,20 @@ export class TestingController implements vscode.Disposable {
 				child.sortText = caseSortKey(fileKey, descriptor.sortText);
 				if (descriptor.tags) {
 					child.tags = descriptor.tags.map((tag) => new vscode.TestTag(tag));
+				}
+				// Параметризованный кейс: запоминаем имя процедуры для точечного запуска
+				if (descriptor.methodName && descriptor.methodName !== descriptor.name) {
+					this.caseMethodNames.set(descriptor.id, descriptor.methodName);
+				} else {
+					this.caseMethodNames.delete(descriptor.id);
+				}
+				// Имя контейнера — подписью в дереве (различает одноимённые «[ibcmd]»)
+				// и для сопоставления одноимённых кейсов по группе
+				if (descriptor.groupName) {
+					child.description = descriptor.groupName;
+					this.caseGroupNames.set(descriptor.id, descriptor.groupName);
+				} else {
+					this.caseGroupNames.delete(descriptor.id);
 				}
 				return child;
 			});
@@ -931,11 +960,12 @@ export class TestingController implements vscode.Disposable {
 				return;
 			}
 
-			// Кейс: родитель — файл
+			// Кейс: родитель — файл. Для параметризованных кейсов раннеру передаём
+			// имя процедуры (label — это отображаемое имя набора значений, напр. «[ibcmd]»)
 			if (item.parent) {
 				const parentEntry = this.files.get(item.parent.id);
 				if (parentEntry) {
-					addFile(parentEntry, [item.label]);
+					addFile(parentEntry, [this.caseMethodNames.get(item.id) ?? item.label]);
 					return;
 				}
 			}
@@ -1096,7 +1126,11 @@ export class TestingController implements vscode.Disposable {
 	 */
 	private applyResults(run: vscode.TestRun, entry: FileEntry, junitCases: JUnitCase[]): void {
 		const leaves = this.leafItems(entry.item);
-		const known: KnownCase[] = leaves.map((item) => ({ id: item.id, caseName: item.label }));
+		const known: KnownCase[] = leaves.map((item) => ({
+			id: item.id,
+			caseName: item.label,
+			suiteName: this.caseGroupNames.get(item.id)
+		}));
 		const { results, unmatched } = mapResults(junitCases, known);
 
 		for (const item of leaves) {

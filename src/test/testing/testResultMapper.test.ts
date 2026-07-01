@@ -130,4 +130,32 @@ suite('testResultMapper', () => {
 		assert.strictEqual(message.expected, undefined);
 		assert.strictEqual(message.actual, undefined);
 	});
+
+	test('одноимённые кейсы разных контейнеров различаются по группе (suiteName)', () => {
+		// Два «[ibcmd]» из разных параметризованных процедур одного файла
+		const paramKnown: KnownCase[] = [
+			{ id: 'decompile-ibcmd', caseName: '[ibcmd]', suiteName: 'ТестДолжен_Разобрать' },
+			{ id: 'unload-ibcmd', caseName: '[ibcmd]', suiteName: 'ТестДолжен_Выгрузить' }
+		];
+		const { results, unmatched } = mapResults(
+			[
+				junitCase('[ibcmd]', 'passed', { suiteName: 'ТестДолжен_Выгрузить' }),
+				junitCase('[ibcmd]', 'failed', { suiteName: 'ТестДолжен_Разобрать', message: 'Упал' })
+			],
+			paramKnown
+		);
+		assert.strictEqual(results.get('unload-ibcmd')?.status, 'passed');
+		assert.strictEqual(results.get('decompile-ibcmd')?.status, 'failed');
+		assert.strictEqual(unmatched.length, 0);
+	});
+
+	test('без suiteName одноимённые кейсы падают на первый (совместимость)', () => {
+		const dup: KnownCase[] = [
+			{ id: 'first', caseName: '[ibcmd]' },
+			{ id: 'second', caseName: '[ibcmd]' }
+		];
+		const { results } = mapResults([junitCase('[ibcmd]')], dup);
+		assert.strictEqual(results.get('first')?.status, 'passed');
+		assert.strictEqual(results.get('second'), undefined);
+	});
 });
