@@ -15,7 +15,7 @@ import {
 	caseSortKey
 } from './treeLayout';
 import { buildCaseDescriptors } from './caseResolver';
-import { mapResults, KnownCase } from './testResultMapper';
+import { mapResults, KnownCase, MappedResult } from './testResultMapper';
 import { parseJUnitXml, JUnitCase } from './parsers/junitParser';
 import { parseCucumberJson } from './parsers/cucumberParser';
 import { ReportTarget } from './projectTestConfig';
@@ -602,6 +602,10 @@ export class TestingController implements vscode.Disposable {
 				for (const item of this.leafItems(unit.entry.item)) {
 					run.enqueued(item);
 				}
+				const suite = this.suiteNode(unit.entry.item);
+				if (suite) {
+					run.enqueued(suite);
+				}
 			}
 
 			await this.queue.enqueue(async () => {
@@ -684,11 +688,14 @@ export class TestingController implements vscode.Disposable {
 		const adapter = units[0].entry.adapter;
 		const entries = units.map((unit) => unit.entry);
 		const allLeaves = entries.flatMap((entry) => this.leafItems(entry.item));
+		const allSuites = entries
+			.map((entry) => this.suiteNode(entry.item))
+			.filter((suite): suite is vscode.TestItem => suite !== undefined);
 
 		const runUnits: RunUnit[] = [];
 		for (const entry of entries) {
 			if (!entry.item.uri) {
-				this.markAll(run, allLeaves, 'errored', 'У элемента теста нет привязанного файла');
+				this.markAll(run, allLeaves, 'errored', 'У элемента теста нет привязанного файла', allSuites);
 				return true;
 			}
 			runUnits.push({ fileUri: entry.item.uri });
@@ -698,7 +705,7 @@ export class TestingController implements vscode.Disposable {
 		if (adapter.usesReportDir !== false) {
 			const created = await this.createReportDir(adapter.id);
 			if (!created) {
-				this.markAll(run, allLeaves, 'errored', 'Не удалось создать каталог отчёта прогона');
+				this.markAll(run, allLeaves, 'errored', 'Не удалось создать каталог отчёта прогона', allSuites);
 				return true;
 			}
 			reportDir = created;
@@ -724,6 +731,9 @@ export class TestingController implements vscode.Disposable {
 			for (const item of allLeaves) {
 				run.started(item);
 			}
+			for (const suite of allSuites) {
+				run.started(suite);
+			}
 
 			for (const step of plan.prepare ?? []) {
 				if (token.isCancellationRequested) {
@@ -742,7 +752,8 @@ export class TestingController implements vscode.Disposable {
 						run,
 						allLeaves,
 						'errored',
-						`Шаг «${step.title}» завершился с кодом ${stepResult.exitCode}.\n${tail}`
+						`Шаг «${step.title}» завершился с кодом ${stepResult.exitCode}.\n${tail}`,
+						allSuites
 					);
 					await this.cleanupReportDir(reportDir);
 					return true;
@@ -751,7 +762,7 @@ export class TestingController implements vscode.Disposable {
 
 			result = await this.executeStep(plan.tool, plan.args, plan.env, token, onOutput);
 		} catch (error) {
-			this.markAll(run, allLeaves, 'errored', `Ошибка запуска: ${(error as Error).message}`);
+			this.markAll(run, allLeaves, 'errored', `Ошибка запуска: ${(error as Error).message}`, allSuites);
 			await this.cleanupReportDir(reportDir);
 			return true;
 		}
@@ -782,7 +793,8 @@ export class TestingController implements vscode.Disposable {
 					allLeaves,
 					'errored',
 					`Батч-прогон завершился без jUnit-отчёта (код возврата ${result.exitCode}).` +
-						`${planHint}${runnerHint}${depHint}\n${tail}`
+						`${planHint}${runnerHint}${depHint}\n${tail}`,
+					allSuites
 				);
 				await this.cleanupReportDir(reportDir);
 				return true;
@@ -950,14 +962,18 @@ export class TestingController implements vscode.Disposable {
 		const { entry, caseNames } = unit;
 		const adapter = entry.adapter;
 		const leaves = this.leafItems(entry.item);
+		const suite = this.suiteNode(entry.item);
 
 		for (const item of leaves) {
 			run.started(item);
 		}
+		if (suite) {
+			run.started(suite);
+		}
 
 		const fileUri = entry.item.uri;
 		if (!fileUri) {
-			this.markAll(run, leaves, 'errored', 'У элемента теста нет привязанного файла');
+			this.markAll(run, leaves, 'errored', 'У элемента теста нет привязанного файла', suite ? [suite] : undefined);
 			return;
 		}
 
@@ -967,7 +983,7 @@ export class TestingController implements vscode.Disposable {
 		if (adapter.usesReportDir !== false) {
 			const created = await this.createReportDir(adapter.id);
 			if (!created) {
-				this.markAll(run, leaves, 'errored', 'Не удалось создать каталог отчёта прогона');
+				this.markAll(run, leaves, 'errored', 'Не удалось создать каталог отчёта прогона', suite ? [suite] : undefined);
 				return;
 			}
 			reportDir = created;
@@ -1008,7 +1024,8 @@ export class TestingController implements vscode.Disposable {
 						run,
 						leaves,
 						'errored',
-						`Шаг «${step.title}» завершился с кодом ${stepResult.exitCode}.\n${tail}`
+						`Шаг «${step.title}» завершился с кодом ${stepResult.exitCode}.\n${tail}`,
+						suite ? [suite] : undefined
 					);
 					await this.cleanupReportDir(reportDir);
 					return;
@@ -1017,7 +1034,7 @@ export class TestingController implements vscode.Disposable {
 
 			result = await this.executeStep(plan.tool, plan.args, plan.env, token, onOutput);
 		} catch (error) {
-			this.markAll(run, leaves, 'errored', `Ошибка запуска: ${(error as Error).message}`);
+			this.markAll(run, leaves, 'errored', `Ошибка запуска: ${(error as Error).message}`, suite ? [suite] : undefined);
 			await this.cleanupReportDir(reportDir);
 			return;
 		}
@@ -1042,7 +1059,8 @@ export class TestingController implements vscode.Disposable {
 				leaves,
 				'errored',
 				`Прогон завершился без jUnit-отчёта (код возврата ${result.exitCode}).` +
-					`${planHint}${missingRunnerHint(result)}${missingDependencyHint(result)}\n${tail}`
+					`${planHint}${missingRunnerHint(result)}${missingDependencyHint(result)}\n${tail}`,
+				suite ? [suite] : undefined
 			);
 			await this.cleanupReportDir(reportDir);
 			return;
@@ -1120,12 +1138,61 @@ export class TestingController implements vscode.Disposable {
 			}
 		}
 
+		this.markSuiteAggregate(run, entry.item, results);
+
 		for (const orphan of unmatched) {
 			run.appendOutput(
 				`\r\n[предупреждение] testcase «${orphan.name}» (${orphan.status}) не сопоставлен с деревом тестов\r\n`,
 				undefined,
 				entry.item
 			);
+		}
+	}
+
+	/**
+	 * Проставляет узлу-файлу (сьюту) агрегированный статус прогона
+	 *
+	 * В TEST RESULTS сьют показывается отдельной строкой; без явного статуса он
+	 * висит «Ожидали…» вровень с тестом. Итог сворачиваем из результатов кейсов:
+	 * error > failed > passed, и skipped, если ни один кейс не отработал.
+	 * Длительность — сумма длительностей кейсов. Узлы без детей пропускаем: там
+	 * файл сам лист и статус ему уже проставлен как кейсу.
+	 */
+	private markSuiteAggregate(
+		run: vscode.TestRun,
+		fileItem: vscode.TestItem,
+		results: Map<string, MappedResult>
+	): void {
+		const suite = this.suiteNode(fileItem);
+		if (!suite) {
+			return;
+		}
+
+		let anyError = false;
+		let anyFailed = false;
+		let anyPassed = false;
+		let duration: number | undefined;
+		for (const mapped of results.values()) {
+			if (mapped.status === 'error') {
+				anyError = true;
+			} else if (mapped.status === 'failed') {
+				anyFailed = true;
+			} else if (mapped.status === 'passed') {
+				anyPassed = true;
+			}
+			if (mapped.durationMs !== undefined) {
+				duration = (duration ?? 0) + mapped.durationMs;
+			}
+		}
+
+		if (anyError) {
+			run.errored(suite, [], duration);
+		} else if (anyFailed) {
+			run.failed(suite, [], duration);
+		} else if (anyPassed) {
+			run.passed(suite, duration);
+		} else {
+			run.skipped(suite);
 		}
 	}
 
@@ -1142,12 +1209,30 @@ export class TestingController implements vscode.Disposable {
 		run: vscode.TestRun,
 		items: vscode.TestItem[],
 		status: 'errored',
-		message: string
+		message: string,
+		suites?: vscode.TestItem[]
 	): void {
 		log.warn(message);
 		for (const item of items) {
 			run.errored(item, new vscode.TestMessage(message));
 		}
+		// Сьюты помечаем тем же статусом, чтобы в TEST RESULTS у узла-файла тоже
+		// стоял индекс, а не «Ожидали…» (иначе он висит нераскрытым)
+		for (const suite of suites ?? []) {
+			run.errored(suite, new vscode.TestMessage(message));
+		}
+	}
+
+	/**
+	 * Узел-сьют файла для разметки в панели результатов
+	 *
+	 * Возвращает сам узел-файл, только если у него есть дочерние кейсы: тогда в
+	 * TEST RESULTS сьют показывается отдельной строкой с индексом выполнения. Если
+	 * кейсов нет, файл сам выступает листом (его размечает leafItems) — отдельная
+	 * разметка сьюта не нужна, иначе один и тот же узел размечался бы дважды.
+	 */
+	private suiteNode(fileItem: vscode.TestItem): vscode.TestItem | undefined {
+		return fileItem.children.size > 0 ? fileItem : undefined;
 	}
 
 	/**
