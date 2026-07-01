@@ -298,7 +298,10 @@ function collectAnnotatedTests(lines: string[]): DiscoveredCase[] {
 				cases.push({
 					name: renderParameterizedName(block.template, displayName, valueSet),
 					line: i,
-					methodName
+					methodName,
+					// Контейнер параметризованного теста — отображаемое имя процедуры;
+					// различает одноимённые «[ibcmd]» разных процедур и поясняет их в дереве
+					groupName: displayName
 				});
 			}
 			continue;

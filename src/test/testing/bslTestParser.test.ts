@@ -164,8 +164,12 @@ suite('bslTestParser', () => {
 		assert.strictEqual(result.cases[1].line, 5);
 		assert.strictEqual(result.cases[0].methodName, 'ТестДолжен_СобратьКонфигурацию');
 		assert.strictEqual(result.cases[1].methodName, 'ТестДолжен_СобратьКонфигурацию');
-		// Обычный &Тест: methodName совпадает с именем, отдельный запуск не нужен
+		// groupName — контейнер (отображаемое имя процедуры) для различения одноимённых
+		assert.strictEqual(result.cases[0].groupName, 'ТестДолжен_СобратьКонфигурацию');
+		assert.strictEqual(result.cases[1].groupName, 'ТестДолжен_СобратьКонфигурацию');
+		// Обычный &Тест: methodName совпадает с именем, group не задаётся
 		assert.strictEqual(result.cases[2].name, 'ТестДолжен_СобратьИзБазы');
+		assert.strictEqual(result.cases[2].groupName, undefined);
 	});
 
 	test('xunit: шаблон имени и ОтображаемоеИмя параметризованного теста', () => {
