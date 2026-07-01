@@ -314,11 +314,8 @@ export function registerCommands(
 		vscode.commands.registerCommand('1c-platform-tools.setVersion.configuration', () => {
 			commands.setVersion.setVersionConfiguration();
 		}),
-		vscode.commands.registerCommand('1c-platform-tools.setVersion.allExtensions', () => {
-			commands.setVersion.setVersionAllExtensions();
-		}),
-		vscode.commands.registerCommand('1c-platform-tools.setVersion.extension', (extensionName: string) => {
-			commands.setVersion.setVersionExtension(extensionName);
+		vscode.commands.registerCommand('1c-platform-tools.setVersion.extension', () => {
+			commands.setVersion.setVersionExtension();
 		}),
 		vscode.commands.registerCommand('1c-platform-tools.setVersion.report', (reportName: string) => {
 			commands.setVersion.setVersionReport(reportName);

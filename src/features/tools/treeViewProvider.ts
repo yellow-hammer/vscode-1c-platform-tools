@@ -5,8 +5,6 @@ import { WorkspaceTasksCommands } from '../../commands/workspaceTasksCommands';
 import { OscriptTasksCommands } from '../../commands/oscriptTasksCommands';
 import { SERVICE_FILES } from '../serviceFiles/registry';
 import {
-	getSetVersionAllExtensionsCommandName,
-	getSetVersionExtensionCommandName,
 	getSetVersionReportCommandName,
 	getSetVersionProcessorCommandName
 } from './commandNames';
@@ -36,7 +34,6 @@ export enum TreeItemType {
 	Extension = 'extension',
 	ExternalFile = 'externalFile',
 	SetVersion = 'setVersion',
-	SetVersionExtensionsFolder = 'setVersionExtensionsFolder',
 	SetVersionReportsFolder = 'setVersionReportsFolder',
 	SetVersionProcessorsFolder = 'setVersionProcessorsFolder',
 	Favorites = 'favorites',
@@ -118,7 +115,6 @@ export class PlatformTreeItem extends vscode.TreeItem {
 			case TreeItemType.ExternalFile:
 				return new vscode.ThemeIcon('file-code');
 			case TreeItemType.SetVersion:
-			case TreeItemType.SetVersionExtensionsFolder:
 			case TreeItemType.SetVersionReportsFolder:
 			case TreeItemType.SetVersionProcessorsFolder:
 				return new vscode.ThemeIcon('tag');
@@ -261,10 +257,6 @@ export class PlatformTreeDataProvider implements vscode.TreeDataProvider<Platfor
 
 		if (element.type === TreeItemType.OscriptTasks) {
 			return this.getOscriptTasks();
-		}
-
-		if (element.type === TreeItemType.SetVersionExtensionsFolder) {
-			return this.getSetVersionExtensionItems();
 		}
 
 		if (element.type === TreeItemType.SetVersionReportsFolder) {
@@ -436,13 +428,6 @@ export class PlatformTreeDataProvider implements vscode.TreeDataProvider<Platfor
 
 			if (group.sectionType === 'setVersion') {
 				children.push(
-					this.createTreeItem(
-						'🏷️ Расширения',
-						TreeItemType.SetVersionExtensionsFolder,
-						vscode.TreeItemCollapsibleState.Collapsed,
-						undefined,
-						[]
-					),
 					this.createTreeItem(
 						'🏷️ Внешнего отчёта',
 						TreeItemType.SetVersionReportsFolder,
@@ -632,64 +617,6 @@ export class PlatformTreeDataProvider implements vscode.TreeDataProvider<Platfor
 		}
 
 		return items;
-	}
-
-	/**
-	 * Получает элементы дерева «Расширения»: пункт «Все» и список каталогов в src/cfe
-	 * @returns Промис, который разрешается массивом элементов дерева
-	 */
-	private async getSetVersionExtensionItems(): Promise<PlatformTreeItem[]> {
-		if (!this.setVersionCommands) {
-			return [];
-		}
-		try {
-			const items: PlatformTreeItem[] = [
-				this.createTreeItem(
-					'Все',
-					TreeItemType.Task,
-					vscode.TreeItemCollapsibleState.None,
-					{
-						command: '1c-platform-tools.setVersion.allExtensions',
-						title: getSetVersionAllExtensionsCommandName().title,
-					}
-				)
-			];
-			const names = await this.setVersionCommands.getExtensionFoldersForTree();
-			if (names.length === 0) {
-				items.push(
-					this.createTreeItem(
-						'Нет расширений в src/cfe',
-						TreeItemType.Info,
-						vscode.TreeItemCollapsibleState.None
-					)
-				);
-			} else {
-				for (const name of names) {
-					items.push(
-						this.createTreeItem(
-							name,
-							TreeItemType.Task,
-							vscode.TreeItemCollapsibleState.None,
-							{
-								command: '1c-platform-tools.setVersion.extension',
-								title: getSetVersionExtensionCommandName(name).title,
-								arguments: [name],
-							}
-						)
-					);
-				}
-			}
-			return items;
-		} catch (error) {
-			const errorMessage = error instanceof Error ? error.message : String(error);
-			return [
-				this.createTreeItem(
-					`Ошибка загрузки расширений: ${errorMessage}`,
-					TreeItemType.Info,
-					vscode.TreeItemCollapsibleState.None
-				)
-			];
-		}
 	}
 
 	/**

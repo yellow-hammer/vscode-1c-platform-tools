@@ -63,7 +63,6 @@
           "1c-platform-tools.service.installOneScript",
           "1c-platform-tools.service.setupGit",
           "1c-platform-tools.service.updateOpm",
-          "1c-platform-tools.setVersion.allExtensions",
           "1c-platform-tools.setVersion.configuration",
           "1c-platform-tools.setVersion.extension",
           "1c-platform-tools.setVersion.processor",
