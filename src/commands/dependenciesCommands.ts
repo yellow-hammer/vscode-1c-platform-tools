@@ -359,7 +359,7 @@ export class DependenciesCommands extends BaseCommand {
 		}
 
 		const isGlobal = scopeChoice.value === 'global';
-		const globalFlag = isGlobal ? ['--global'] : [];
+		const scopeArgs = isGlobal ? ['--global'] : [];
 		const cwd = isGlobal ? undefined : workspaceRoot;
 
 		const runGitConfig = (args: string[]): { ok: boolean; stderr: string } => {
@@ -374,7 +374,21 @@ export class DependenciesCommands extends BaseCommand {
 			};
 		};
 
-		const configs: [string, string][] = [
+		/** Применяет список настроек git config с заданными флагами области видимости. При ошибке показывает сообщение и возвращает false. */
+		const applyGitConfigs = (configs: [string, string][], args: string[]): boolean => {
+			for (const [key, value] of configs) {
+				const { ok, stderr } = runGitConfig([...args, 'config', key, value]);
+				if (!ok) {
+					log.error(`Git config ${args.join(' ') || '(local)'} ${key}=${value}: ${stderr}`);
+					vscode.window.showErrorMessage(`Ошибка настройки Git (${key}): ${stderr || 'неизвестная ошибка'}`);
+					return false;
+				}
+			}
+			return true;
+		};
+
+		// Настройки пользователя и репозитория — в область видимости, выбранную пользователем (проект или глобально)
+		const scopedConfigs: [string, string][] = [
 			['user.name', userName.trim()],
 			['user.email', userEmail.trim()],
 			['core.quotePath', 'false'],
@@ -388,19 +402,28 @@ export class DependenciesCommands extends BaseCommand {
 			['core.safecrlf', 'false'],
 			['http.postBuffer', '1048576000']
 		];
-
-		for (const [key, value] of configs) {
-			const { ok, stderr } = runGitConfig([...globalFlag, 'config', key, value]);
-			if (!ok) {
-				log.error(`Git config ${key}=${value}: ${stderr}`);
-				vscode.window.showErrorMessage(`Ошибка настройки Git (${key}): ${stderr || 'неизвестная ошибка'}`);
-				return;
-			}
+		if (!applyGitConfigs(scopedConfigs, scopeArgs)) {
+			return;
 		}
 
-		log.info(`Настройки Git применены (${isGlobal ? 'глобально' : 'для текущего проекта'})`);
+		// VS Code как merge/diff tool — настройка окружения разработчика (какой редактор запускать),
+		// а не свойство репозитория, поэтому пишется всегда глобально независимо от выбора области видимости выше
+		const vscodeToolConfigs: [string, string][] = [
+			['merge.tool', 'vscode'],
+			['mergetool.vscode.cmd', 'code --wait $MERGED'],
+			['diff.tool', 'vscode'],
+			['difftool.vscode.cmd', 'code --wait --diff $LOCAL $REMOTE']
+		];
+		if (!applyGitConfigs(vscodeToolConfigs, ['--global'])) {
+			return;
+		}
+
+		log.info(
+			`Настройки Git применены (${isGlobal ? 'глобально' : 'для текущего проекта'}); merge/diff tool (VS Code) настроен глобально`
+		);
 		vscode.window.showInformationMessage(
-			`Настройки Git успешно применены (${isGlobal ? 'глобально' : 'для текущего проекта'}).`
+			`Настройки Git успешно применены (${isGlobal ? 'глобально' : 'для текущего проекта'}). ` +
+				'VS Code настроен как merge/diff tool (всегда глобально).'
 		);
 
 		const doAdmin = await vscode.window.showInformationMessage(
