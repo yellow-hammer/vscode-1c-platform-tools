@@ -602,25 +602,13 @@ export function getSetVersionConfigurationCommandName(): CommandNameAndTitle {
 }
 
 /**
- * Получить название и заголовок для команды установки версии всем расширениям
+ * Получить название и заголовок для команды установки версии расширениям
  */
-export function getSetVersionAllExtensionsCommandName(): CommandNameAndTitle {
-	return {
-		id: '1c-platform-tools.setVersion.allExtensions',
-		name: 'Все',
-		title: 'Все'
-	};
-}
-
-/**
- * Получить название и заголовок для команды установки версии расширению
- * @param extensionName - Имя расширения для отображения
- */
-export function getSetVersionExtensionCommandName(extensionName: string): CommandNameAndTitle {
+export function getSetVersionExtensionCommandName(): CommandNameAndTitle {
 	return {
 		id: '1c-platform-tools.setVersion.extension',
-		name: extensionName,
-		title: extensionName
+		name: 'Расширения',
+		title: 'Расширения'
 	};
 }
 

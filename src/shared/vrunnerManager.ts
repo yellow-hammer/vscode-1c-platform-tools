@@ -144,6 +144,15 @@ export class VRunnerManager {
 	}
 
 	/**
+	 * Возвращает локальное workspace-хранилище состояния (не коммитится).
+	 *
+	 * @returns workspaceState или undefined вне контекста VS Code
+	 */
+	public getWorkspaceMemento(): vscode.Memento | undefined {
+		return this.memento;
+	}
+
+	/**
 	 * Получает путь к vrunner
 	 *
 	 * Ищет локальный бинарь в oscript_modules/bin/ в workspace: на Windows —

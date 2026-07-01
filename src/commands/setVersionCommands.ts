@@ -4,11 +4,11 @@ import * as fs from 'node:fs/promises';
 import { BaseCommand } from './baseCommand';
 import {
 	getSetVersionConfigurationCommandName,
-	getSetVersionAllExtensionsCommandName,
 	getSetVersionExtensionCommandName,
 	getSetVersionReportCommandName,
 	getSetVersionProcessorCommandName
 } from '../features/tools/commandNames';
+import { pickExtensions } from '../features/extensions/extensionPicker';
 import { logger } from '../shared/logger';
 
 const log = logger.scope('commands');
@@ -69,11 +69,16 @@ export class SetVersionCommands extends BaseCommand {
 	}
 
 	/**
-	 * Устанавливает версию всем расширениям (src/cfe)
-	 * Выполняет: vrunner set-version --src src/cfe --new-version &lt;версия&gt;
+	 * Устанавливает версию выбранным расширениям (src/cfe).
+	 *
+	 * Показывает quickpick с чекбоксами по каталогам src/cfe (та же логика и
+	 * сохранённый выбор, что у команд загрузки/выгрузки расширений) и для
+	 * каждого выбранного расширения выполняет:
+	 * vrunner set-version --src src/cfe/&lt;имя&gt; --new-version &lt;версия&gt;
+	 *
 	 * @returns Промис, который разрешается после запуска команды
 	 */
-	async setVersionAllExtensions(): Promise<void> {
+	async setVersionExtension(): Promise<void> {
 		const workspaceRoot = this.ensureWorkspace();
 		if (!workspaceRoot) {
 			return;
@@ -82,53 +87,21 @@ export class SetVersionCommands extends BaseCommand {
 			return;
 		}
 
-		const version = await this.askNewVersion('1.0.0');
-		if (!version) {
+		const extensions = await this.getExtensionFoldersForTree();
+		if (extensions.length === 0) {
+			log.info('В папке src/cfe не найдено расширений');
+			vscode.window.showInformationMessage('В папке src/cfe не найдено расширений');
 			return;
 		}
 
-		const cfePath = this.vrunner.getCfePath();
-		const args = ['set-version', '--src', cfePath, '--new-version', version];
-		const commandName = getSetVersionAllExtensionsCommandName();
-
-		await this.vrunner.executeVRunnerInTerminal(args, {
-			cwd: workspaceRoot,
-			name: commandName.title
-		});
-	}
-
-	/**
-	 * Устанавливает версию указанному расширению.
-	 * При вызове из палитры команд без аргумента показывает список расширений для выбора.
-	 * Выполняет: vrunner set-version --src src/cfe/&lt;имя&gt; --new-version &lt;версия&gt;
-	 * @param extensionName - Имя каталога расширения в src/cfe (если не указано — показывается выбор из списка)
-	 * @returns Промис, который разрешается после запуска команды
-	 */
-	async setVersionExtension(extensionName?: string): Promise<void> {
-		const workspaceRoot = this.ensureWorkspace();
-		if (!workspaceRoot) {
-			return;
-		}
-		if (!(await this.ensureOscriptAvailable())) {
-			return;
-		}
-
-		let selected = extensionName;
+		const selected = await pickExtensions(extensions, this.vrunner.getWorkspaceMemento());
 		if (selected === undefined) {
-			const extensions = await this.getExtensionFoldersForTree();
-			if (extensions.length === 0) {
-				log.info('В папке src/cfe не найдено расширений');
-				vscode.window.showInformationMessage('В папке src/cfe не найдено расширений');
-				return;
-			}
-			const picked = await vscode.window.showQuickPick(extensions, {
-				placeHolder: 'Выберите расширение',
-				title: 'Расширения'
-			});
-			if (picked === undefined) {
-				return;
-			}
-			selected = picked;
+			// Отмена quickpick — команда не выполняется
+			return;
+		}
+		if (selected.length === 0) {
+			vscode.window.showInformationMessage('Не выбрано ни одного расширения.');
+			return;
 		}
 
 		const version = await this.askNewVersion('1.0.0');
@@ -137,11 +110,12 @@ export class SetVersionCommands extends BaseCommand {
 		}
 
 		const cfePath = this.vrunner.getCfePath();
-		const srcPath = path.join(cfePath, selected);
-		const args = ['set-version', '--src', srcPath, '--new-version', version];
-		const commandName = getSetVersionExtensionCommandName(selected);
+		const argsList = selected.map((name) =>
+			['set-version', '--src', path.join(cfePath, name), '--new-version', version]
+		);
+		const commandName = getSetVersionExtensionCommandName();
 
-		await this.vrunner.executeVRunnerInTerminal(args, {
+		await this.vrunner.executeVRunnerCommandsInSequence(argsList, {
 			cwd: workspaceRoot,
 			name: commandName.title
 		});

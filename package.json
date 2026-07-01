@@ -1238,11 +1238,6 @@
         "category": "1C: Установить версию"
       },
       {
-        "command": "1c-platform-tools.setVersion.allExtensions",
-        "title": "Все",
-        "category": "1C: Установить версию"
-      },
-      {
         "command": "1c-platform-tools.setVersion.extension",
         "title": "Расширения",
         "category": "1C: Установить версию"
@@ -2386,6 +2381,14 @@
             "type": "string",
             "default": "src/cfe",
             "description": "Путь к исходному коду расширений"
+          },
+          "1c-platform-tools.extensions.selected": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "default": [],
+            "markdownDescription": "Список расширений (имена каталогов в `src/cfe`), с которыми работают команды группы «Расширения» и установка версии расширений. Если список задан — команды используют его без интерактивного выбора. Если пуст — при запуске команды показывается окно выбора с чекбоксами, а выбор запоминается для проекта."
           },
           "1c-platform-tools.paths.epf": {
             "type": "string",

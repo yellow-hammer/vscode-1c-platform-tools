@@ -51,6 +51,7 @@ import {
 	getBuildTestEpfCommandName,
 	getDecompileTestEpfCommandName,
 	getSetVersionConfigurationCommandName,
+	getSetVersionExtensionCommandName,
 	getUpdateCfgSupportCommandName,
 	getDisableCfgSupportCommandName,
 	getCreateTemplateListFileCommandName,
@@ -209,6 +210,7 @@ export const TREE_GROUPS: TreeGroup[] = [
 		defaultCollapsibleState: 'collapsed',
 		commands: [
 			{ command: '1c-platform-tools.setVersion.configuration', title: getSetVersionConfigurationCommandName().title, treeLabel: '🏷️ Конфигурации' },
+			{ command: '1c-platform-tools.setVersion.extension', title: getSetVersionExtensionCommandName().title, treeLabel: '🏷️ Расширения' },
 		],
 	},
 	{

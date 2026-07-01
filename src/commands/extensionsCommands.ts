@@ -14,6 +14,8 @@ import {
 } from '../features/tools/commandNames';
 import { vanessaRunnerEpf, EPF_NAMES, EPF_COMMANDS } from '../shared/constants';
 import { logger } from '../shared/logger';
+import { filterCfeFilesBySelection } from '../features/extensions/extensionSelection';
+import { pickExtensions } from '../features/extensions/extensionPicker';
 import type { CommandExecutionOptions, StructuredCommandResult } from '../shared/commandExecutionTypes';
 
 const log = logger.scope('commands');
@@ -66,7 +68,20 @@ export class ExtensionsCommands extends BaseCommand {
 			return;
 		}
 
-		const argsList = extensionFolders.map((folder) =>
+		const selectedFolders = await this.selectExtensions(extensionFolders, opts);
+		if (selectedFolders === undefined) {
+			// Отмена quickpick — команда не выполняется
+			return;
+		}
+		if (selectedFolders.length === 0) {
+			if (opts?.wait === true) {
+				return this.executionError('Не выбрано ни одного расширения');
+			}
+			vscode.window.showInformationMessage('Не выбрано ни одного расширения.');
+			return;
+		}
+
+		const argsList = selectedFolders.map((folder) =>
 			this.addIbcmdIfNeeded(buildArgs(folder))
 		);
 
@@ -101,6 +116,50 @@ export class ExtensionsCommands extends BaseCommand {
 		}
 
 		return extensionFolders;
+	}
+
+	/**
+	 * Выбор расширений, с которыми выполнить команду.
+	 *
+	 * В UI-режиме показывает quickpick с чекбоксами: изначально отмечены все
+	 * (либо ранее сохранённое подмножество). Выбор запоминается для проекта и
+	 * подставляется при следующем запуске любой команды расширений. Если
+	 * отмечены все — фильтр сбрасывается, чтобы новые расширения подхватывались
+	 * автоматически.
+	 *
+	 * В режиме wait (MCP) quickpick не показывается — применяется сохранённый
+	 * выбор (или все расширения, если выбор не задан).
+	 *
+	 * @param allNames - Все доступные имена расширений
+	 * @param opts - Параметры выполнения (режим wait)
+	 * @returns Выбранное подмножество, либо undefined при отмене quickpick
+	 */
+	private async selectExtensions(
+		allNames: string[],
+		opts?: CommandExecutionOptions
+	): Promise<string[] | undefined> {
+		return pickExtensions(allNames, this.vrunner.getWorkspaceMemento(), opts);
+	}
+
+	/**
+	 * Выбор файлов *.cfe по выбранным расширениям (см. {@link selectExtensions}).
+	 *
+	 * Имя расширения берётся из имени файла без `.cfe`.
+	 *
+	 * @param cfeFiles - Все доступные файлы *.cfe
+	 * @param opts - Параметры выполнения (режим wait)
+	 * @returns Отфильтрованный список файлов, либо undefined при отмене quickpick
+	 */
+	private async selectCfeFiles(
+		cfeFiles: string[],
+		opts?: CommandExecutionOptions
+	): Promise<string[] | undefined> {
+		const names = [...new Set(cfeFiles.map((file) => file.replace(/\.cfe$/i, '')))];
+		const selected = await this.selectExtensions(names, opts);
+		if (selected === undefined) {
+			return undefined;
+		}
+		return filterCfeFilesBySelection(cfeFiles, selected);
 	}
 
 	/** Группирует пути из objlist по расширениям (src/cfe/<имя>). Пути — полные или относительно workspace. */
@@ -187,7 +246,17 @@ export class ExtensionsCommands extends BaseCommand {
 			return;
 		}
 
-		const pathsByExtension = await this.getPathsByExtensionFromObjlist(workspaceRoot, extensionFolders);
+		const selectedFolders = await this.selectExtensions(extensionFolders, opts);
+		if (selectedFolders === undefined) {
+			// Отмена quickpick — команда не выполняется
+			return;
+		}
+		if (selectedFolders.length === 0) {
+			vscode.window.showInformationMessage('Не выбрано ни одного расширения.');
+			return;
+		}
+
+		const pathsByExtension = await this.getPathsByExtensionFromObjlist(workspaceRoot, selectedFolders);
 		if (pathsByExtension.size === 0) {
 			log.info('В objlist.txt нет путей в каталогах расширений (src/cfe/...)');
 			vscode.window.showInformationMessage(
@@ -332,10 +401,23 @@ export class ExtensionsCommands extends BaseCommand {
 			return;
 		}
 
+		const selectedCfeFiles = await this.selectCfeFiles(cfeFiles, opts);
+		if (selectedCfeFiles === undefined) {
+			// Отмена quickpick — команда не выполняется
+			return;
+		}
+		if (selectedCfeFiles.length === 0) {
+			if (opts?.wait === true) {
+				return this.executionError(`В каталоге ${buildPath}/cfe нет файлов .cfe выбранных расширений`);
+			}
+			vscode.window.showInformationMessage('Не выбрано ни одного расширения.');
+			return;
+		}
+
 		const ibConnectionParam = await this.vrunner.getIbConnectionParam();
 		const commandName = getLoadExtensionFromCfeCommandName();
 		const epfPath = vanessaRunnerEpf(EPF_NAMES.LOAD_EXTENSION);
-		const argsList = cfeFiles.map((cfeFile) => {
+		const argsList = selectedCfeFiles.map((cfeFile) => {
 			const cfeFilePath = path.join(buildPath, 'cfe', cfeFile);
 			const commandParam = EPF_COMMANDS.LOAD_EXTENSION(cfeFilePath);
 			return ['run', '--command', commandParam, '--execute', epfPath, ...ibConnectionParam];
@@ -540,10 +622,23 @@ export class ExtensionsCommands extends BaseCommand {
 			return;
 		}
 
+		const selectedCfeFiles = await this.selectCfeFiles(cfeFiles, opts);
+		if (selectedCfeFiles === undefined) {
+			// Отмена quickpick — команда не выполняется
+			return;
+		}
+		if (selectedCfeFiles.length === 0) {
+			if (opts?.wait === true) {
+				return this.executionError(`В каталоге ${buildPath}/cfe нет файлов .cfe выбранных расширений`);
+			}
+			vscode.window.showInformationMessage('Не выбрано ни одного расширения.');
+			return;
+		}
+
 		const ibConnectionParam = await this.vrunner.getIbConnectionParam();
 		const commandName = getDecompileExtensionCommandName();
 		const cfePath = this.vrunner.getCfePath();
-		const argsList = cfeFiles.map((cfeFile) => {
+		const argsList = selectedCfeFiles.map((cfeFile) => {
 			const extensionName = cfeFile.replace(/\.cfe$/i, '');
 			const outputPath = path.join(cfePath, extensionName);
 			return this.addIbcmdIfNeeded(['decompileext', extensionName, outputPath, ...ibConnectionParam]);

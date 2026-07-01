@@ -38,33 +38,6 @@ async function pushSetVersionDynamicItems(
 	favoriteKeys: Set<string>,
 	setVersionCommands: SetVersionCommands
 ): Promise<void> {
-	items.push(
-		{ label: '🏷️ Расширения', kind: vscode.QuickPickItemKind.Separator },
-		{
-			label: '🏷️ Все',
-			description: '1c-platform-tools.setVersion.allExtensions',
-			picked: favoriteKeys.has('1c-platform-tools.setVersion.allExtensions|[]'),
-			command: '1c-platform-tools.setVersion.allExtensions',
-			title: 'Все',
-			groupLabel: group.groupLabel,
-			sectionType: group.sectionType,
-		} as FavoritesSelectableItem
-	);
-	const extensions = await setVersionCommands.getExtensionFoldersForTree();
-	for (const name of extensions) {
-		const command = '1c-platform-tools.setVersion.extension';
-		const args = [name];
-		items.push({
-			label: `🏷️ ${name}`,
-			description: command,
-			picked: favoriteKeys.has(`${command}|${JSON.stringify(args)}`),
-			command,
-			title: name,
-			groupLabel: group.groupLabel,
-			sectionType: group.sectionType,
-			arguments: args,
-		} as FavoritesSelectableItem);
-	}
 	items.push({ label: '🏷️ Внешнего отчёта', kind: vscode.QuickPickItemKind.Separator });
 	const reports = await setVersionCommands.getReportFoldersForTree();
 	for (const name of reports) {
