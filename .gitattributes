@@ -1,0 +1,3 @@
+# Генерируемый скриптом файл: сравнивается с LF-выводом gen-hooks-schema,
+# поэтому фиксируем LF, чтобы --check не падал на Windows (autocrlf)
+resources/schemas/hooks.schema.json text eol=lf
