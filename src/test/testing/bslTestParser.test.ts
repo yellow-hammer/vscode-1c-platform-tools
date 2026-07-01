@@ -137,6 +137,107 @@ suite('bslTestParser', () => {
 		assert.strictEqual(result.cases[0].line, 5, 'Строка — объявление процедуры, не аннотация');
 	});
 
+	test('xunit: параметризованный тест разворачивается в кейс на каждый ИсточникЗначение', () => {
+		const content = [
+			'#Использовать asserts',
+			'',
+			'&ПараметризованныйТест',
+			'&ИсточникЗначение("ibcmd")',
+			'&ИсточникЗначение("designer")',
+			'Процедура ТестДолжен_СобратьКонфигурацию(Режим) Экспорт',
+			'КонецПроцедуры',
+			'',
+			'&Тест',
+			'Процедура ТестДолжен_СобратьИзБазы() Экспорт',
+			'КонецПроцедуры'
+		].join('\n');
+
+		const result = parseBslTestModule(content, 'xunit');
+		assert.ok(result, 'Модуль с &ПараметризованныйТест — тестовый');
+		assert.deepStrictEqual(
+			result.cases.map((c) => c.name),
+			['[ibcmd]', '[designer]', 'ТестДолжен_СобратьИзБазы'],
+			'Имена совпадают с jUnit-отчётом OneUnit ([значение])'
+		);
+		// Параметризованные кейсы указывают на объявление процедуры и несут её имя
+		assert.strictEqual(result.cases[0].line, 5);
+		assert.strictEqual(result.cases[1].line, 5);
+		assert.strictEqual(result.cases[0].methodName, 'ТестДолжен_СобратьКонфигурацию');
+		assert.strictEqual(result.cases[1].methodName, 'ТестДолжен_СобратьКонфигурацию');
+		// Обычный &Тест: methodName совпадает с именем, отдельный запуск не нужен
+		assert.strictEqual(result.cases[2].name, 'ТестДолжен_СобратьИзБазы');
+	});
+
+	test('xunit: шаблон имени и ОтображаемоеИмя параметризованного теста', () => {
+		const content = [
+			'&ПараметризованныйТест("{ОтображаемоеИмя}({Параметры})")',
+			'&ОтображаемоеИмя("Сложение")',
+			'&ИсточникЗначение(1, 2)',
+			'Процедура ТестСложения(А, Б) Экспорт',
+			'КонецПроцедуры'
+		].join('\n');
+
+		const result = parseBslTestModule(content, 'xunit');
+		assert.ok(result);
+		assert.deepStrictEqual(
+			result.cases.map((c) => c.name),
+			['Сложение([1, 2])']
+		);
+		assert.strictEqual(result.cases[0].methodName, 'ТестСложения');
+	});
+
+	test('xunit: файл только с параметризованными тестами распознаётся', () => {
+		const content = [
+			'&ПараметризованныйТест',
+			'&ИсточникЗначение("a")',
+			'Процедура Тест(Значение) Экспорт',
+			'КонецПроцедуры'
+		].join('\n');
+
+		assert.strictEqual(isBslTestModule(content, 'xunit'), true);
+		const result = parseBslTestModule(content, 'xunit');
+		assert.ok(result);
+		assert.deepStrictEqual(result.cases.map((c) => c.name), ['[a]']);
+	});
+
+	test('xunit: параметризованный тест без ИсточникЗначение — один кейс по имени метода', () => {
+		const content = [
+			'&ПараметризованныйТест',
+			'&ИсточникJSON("[[1],[2]]")',
+			'Процедура ТестИзJson(Значение) Экспорт',
+			'КонецПроцедуры'
+		].join('\n');
+
+		const result = parseBslTestModule(content, 'xunit');
+		assert.ok(result);
+		assert.deepStrictEqual(result.cases.map((c) => c.name), ['ТестИзJson']);
+	});
+
+	test('xunit: &ОтображаемоеИмя переопределяет имя обычного &Тест', () => {
+		const content = [
+			'&Тест',
+			'&ОтображаемоеИмя("Человекочитаемое имя")',
+			'Процедура ЯТест() Экспорт',
+			'КонецПроцедуры'
+		].join('\n');
+
+		const result = parseBslTestModule(content, 'xunit');
+		assert.ok(result);
+		assert.strictEqual(result.cases[0].name, 'Человекочитаемое имя');
+		assert.strictEqual(result.cases[0].methodName, 'ЯТест');
+	});
+
+	test('xunit: &ТестовыйНабор не принимается за &Тест', () => {
+		const content = [
+			'&ТестовыйНабор',
+			'Процедура НеТест() Экспорт',
+			'КонецПроцедуры'
+		].join('\n');
+
+		// Нет ни ИсполняемыеСценарии, ни &Тест/&ПараметризованныйТест — не тестовый модуль
+		assert.strictEqual(parseBslTestModule(content, 'xunit'), undefined);
+	});
+
 	test('xunit: регистрация через ПолучитьСписокТестов (новый стиль add)', () => {
 		const content = [
 			'Функция ПолучитьСписокТестов() Экспорт',

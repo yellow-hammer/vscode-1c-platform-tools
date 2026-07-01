@@ -56,6 +56,15 @@ suite('caseResolver.buildCaseDescriptors', () => {
 		assert.strictEqual(descriptors[0].name, descriptors[1].name);
 	});
 
+	test('methodName параметризованного кейса пробрасывается', () => {
+		const cases: DiscoveredCase[] = [
+			{ name: '[ibcmd]', line: 5, methodName: 'ТестДолжен_Собрать' }
+		];
+		const [descriptor] = buildCaseDescriptors('onescript', URI, cases);
+		assert.strictEqual(descriptor.name, '[ibcmd]');
+		assert.strictEqual(descriptor.methodName, 'ТестДолжен_Собрать');
+	});
+
 	test('ID учитывает фреймворк и URI', () => {
 		const cases: DiscoveredCase[] = [{ name: 'Тест', line: 1 }];
 		const vanessa = buildCaseDescriptors('vanessa', URI, cases)[0];
