@@ -18,7 +18,7 @@ import {
 import { logger } from './logger';
 import { runCancellableCommand, CancellableProcessResult } from './cancellableProcess';
 import { DEFAULT_PATHS, DEFAULT_VRUNNER, DEFAULT_ENV } from './pathDefaults';
-import { getOvmBinaryPath } from './ovmPaths';
+import { getOvmBinaryPath, getOvmBinDir, getOvmRootDir, getOpmBinaryCandidates, getOpmScriptPath } from './ovmPaths';
 import {
 	ACTIVE_ENV_PROFILE_KEY,
 	ACTIVE_ENV_OVERRIDES_KEY,
@@ -101,8 +101,12 @@ export class VRunnerManager {
 	 * и используется синхронными getOnescriptPath/исполнением.
 	 */
 	private resolvedOscriptPath: string | undefined = undefined;
-	/** Разрешённый путь к opm (по той же схеме, что и resolvedOscriptPath). */
-	private resolvedOpmPath: string | undefined = undefined;
+	/**
+	 * Разрешённый способ запуска opm: путь к запускаемому файлу и ведущие
+	 * аргументы. Для обёртки из PATH/bin аргументы пусты; если обёртки нет,
+	 * opm запускается через oscript со скриптом opm.os из установки OneScript.
+	 */
+	private resolvedOpm: { path: string; leadingArgs: string[] } | undefined = undefined;
 
 	/** Событие смены активного env-профиля (id в workspaceState) */
 	private readonly _onDidChangeActiveEnvProfile = new vscode.EventEmitter<void>();
@@ -200,8 +204,8 @@ export class VRunnerManager {
 	 *
 	 * @returns Имя команды для PATH или абсолютный путь к opm
 	 */
-	private getOpmPath(): string {
-		return this.resolvedOpmPath ?? 'opm';
+	private getOpmInvocation(): { path: string; leadingArgs: string[] } {
+		return this.resolvedOpm ?? { path: 'opm', leadingArgs: [] };
 	}
 
 	/**
@@ -367,13 +371,60 @@ export class VRunnerManager {
 	}
 
 	/**
-	 * Проверяет, доступен ли opm: сначала в PATH, затем в установке OVM.
+	 * Проверяет, доступен ли opm: в PATH, затем обёртка в bin установки OVM,
+	 * затем запуск скрипта opm.os через oscript.
+	 *
+	 * В дистрибутиве OneScript opm — обёртка (opm.bat на Windows, шелл-скрипт
+	 * на остальных ОС) над `oscript <корень>/lib/opm/src/cmd/opm.os`. В части
+	 * установок (OVM на Linux) обёртки в bin нет, при этом сам opm.os в lib
+	 * присутствует — тогда opm запускается напрямую через найденный oscript.
 	 *
 	 * @returns Промис, который разрешается true, если opm доступен, иначе false
 	 */
 	public async checkOpmAvailable(): Promise<boolean> {
-		this.resolvedOpmPath = await this.resolveBinaryPath('opm', '--version');
-		return this.resolvedOpmPath !== undefined;
+		this.resolvedOpm = await this.resolveOpmInvocation();
+		return this.resolvedOpm !== undefined;
+	}
+
+	/**
+	 * Разрешает способ запуска opm (см. {@link checkOpmAvailable}).
+	 *
+	 * @returns Инвокация opm или undefined, если opm недоступен
+	 */
+	private async resolveOpmInvocation(): Promise<{ path: string; leadingArgs: string[] } | undefined> {
+		if (await this.runCommandForCheck('opm', ['--version'])) {
+			return { path: 'opm', leadingArgs: [] };
+		}
+
+		for (const candidate of getOpmBinaryCandidates(getOvmBinDir())) {
+			if (fsSync.existsSync(candidate) && await this.runCommandForCheck(candidate, ['--version'])) {
+				log.info(`opm не найден в PATH, используется установка OVM: ${candidate}`);
+				return { path: candidate, leadingArgs: [] };
+			}
+		}
+
+		// Обёртки opm нет: пробуем запустить opm.os через oscript из тех же установок
+		if (this.resolvedOscriptPath === undefined) {
+			await this.checkOscriptAvailable();
+		}
+		const oscriptPath = this.resolvedOscriptPath;
+		if (oscriptPath !== undefined) {
+			const installRoots: string[] = [];
+			if (path.isAbsolute(oscriptPath)) {
+				installRoots.push(path.dirname(path.dirname(oscriptPath)));
+			}
+			installRoots.push(getOvmRootDir());
+			for (const root of new Set(installRoots)) {
+				const opmScript = getOpmScriptPath(root);
+				if (fsSync.existsSync(opmScript) && await this.runCommandForCheck(oscriptPath, [opmScript, '--version'])) {
+					log.info(`opm запускается через oscript: ${opmScript}`);
+					return { path: oscriptPath, leadingArgs: [opmScript] };
+				}
+			}
+		}
+
+		log.warn('opm не найден ни в PATH, ни в установке OVM, ни как opm.os в lib установки OneScript');
+		return undefined;
 	}
 
 	/**
@@ -1356,10 +1407,10 @@ export class VRunnerManager {
 		args: string[],
 		options?: { cwd?: string; env?: NodeJS.ProcessEnv; name?: string }
 	): Promise<void> {
-		const opmPath = this.getOpmPath();
+		const { path: opmPath, leadingArgs } = this.getOpmInvocation();
 		const cwd = options?.cwd || this.workspaceRoot || os.homedir();
 		const quotedPath = opmPath.includes(' ') ? `"${opmPath}"` : opmPath;
-		const command = `${quotedPath} ${escapeCommandArgs(args)}`;
+		const command = `${quotedPath} ${escapeCommandArgs([...leadingArgs, ...args])}`;
 		const task = createVRunnerTask({
 			name: options?.name || '1C: Platform Tools',
 			command,
@@ -1390,10 +1441,10 @@ export class VRunnerManager {
 			void this.executeOpmTask(args, options);
 			return;
 		}
-		const opmPath = this.getOpmPath();
+		const { path: opmPath, leadingArgs } = this.getOpmInvocation();
 		const shellType = options?.shellType || detectShellType();
 		const cwd = options?.cwd || this.workspaceRoot || os.homedir();
-		const processedArgs = this.processCommandArgs(args, cwd, shellType);
+		const processedArgs = this.processCommandArgs([...leadingArgs, ...args], cwd, shellType);
 		const command = buildCommand(opmPath, processedArgs, shellType);
 
 		const opmTerminalName = options?.name || '1C: Platform Tools';
@@ -1420,8 +1471,8 @@ export class VRunnerManager {
 		options?: { cwd?: string }
 	): Promise<VRunnerExecutionResult> {
 		return new Promise((resolve) => {
-			const opmPath = this.getOpmPath();
-			const argsString = escapeCommandArgs(args);
+			const { path: opmPath, leadingArgs } = this.getOpmInvocation();
+			const argsString = escapeCommandArgs([...leadingArgs, ...args]);
 			const quotedPath = opmPath.includes(' ') ? `"${opmPath}"` : opmPath;
 			const command = `${quotedPath} ${argsString}`;
 
