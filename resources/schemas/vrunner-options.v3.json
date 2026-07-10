@@ -1,0 +1,1678 @@
+{
+	"schema": "v3",
+	"source": "vanessa-runner SNAPSHOT (src/cli + docs/product/команды + схема 2.x)",
+	"generatedAt": "2026-07-09",
+	"sets": {
+		"НаборОпцийEDT": [
+			{
+				"key": "edt-version",
+				"type": "string",
+				"description": "Версия установленной EDT для выбора среди нескольких (например 2024.1). Не связана с --v8version"
+			},
+			{
+				"key": "edt-workspace",
+				"type": "string",
+				"description": "Базовый каталог рабочей области EDT (по умолчанию - временный)"
+			},
+			{
+				"key": "edt-timeout",
+				"type": "number",
+				"description": "Таймаут операций 1cedtcli в секундах (export/import/validate). По умолчанию 1cedtcli использует свой (60 минут) - на больших конфигурациях может потребоваться больше или меньше"
+			},
+			{
+				"key": "edt-vmargs",
+				"type": "array",
+				"description": "Дополнительный JVM-аргумент для 1cedtcli, например -Xmx8g для лимита ОЗУ (можно указать несколько раз). Значения с ведущим дефисом указывайте через '=': --edt-vmargs=-Xmx8g"
+			}
+		],
+		"НаборОпцийIbcmd": [
+			{
+				"key": "ibcmd",
+				"type": "boolean",
+				"description": "Использовать утилиту ibcmd вместо конфигуратора",
+				"default": false
+			}
+		],
+		"НаборОпцийАдминистрирования": [
+			{
+				"key": "cluster-admin",
+				"type": "string",
+				"description": "Имя администратора кластера серверов",
+				"default": ""
+			},
+			{
+				"key": "cluster-pwd",
+				"type": "string",
+				"description": "Пароль администратора кластера серверов",
+				"default": ""
+			}
+		],
+		"НаборОпцийАутентификацииИБ": [
+			{
+				"key": "db-user",
+				"type": "string",
+				"description": "Имя пользователя информационной базы",
+				"default": ""
+			},
+			{
+				"key": "db-pwd",
+				"type": "string",
+				"description": "Пароль пользователя информационной базы",
+				"default": ""
+			}
+		],
+		"НаборОпцийЗапуска": [
+			{
+				"key": "nocacheuse",
+				"type": "boolean",
+				"description": "Не использовать кеш платформы",
+				"default": false
+			},
+			{
+				"key": "ordinaryapp",
+				"type": "boolean",
+				"description": "Режим запуска клиента",
+				"default": ""
+			},
+			{
+				"key": "additional",
+				"type": "string",
+				"description": "Дополнительные параметры запуска платформы",
+				"default": ""
+			},
+			{
+				"key": "ibsrv",
+				"type": "boolean",
+				"description": "Запускать команду через автономный сервер ibsrv (только для файловых ИБ)",
+				"default": false
+			},
+			{
+				"key": "ibsrv-direct",
+				"type": "boolean",
+				"description": "Использовать прямое соединение с ibsrv (по умолчанию - через WS)"
+			},
+			{
+				"key": "ibsrv-debug",
+				"type": "boolean",
+				"description": "Включить порт отладки на запущенном ibsrv"
+			},
+			{
+				"key": "ibsrv-attach",
+				"type": "boolean",
+				"description": "Подключиться к уже запущенному автономному серверу вместо старта своего (требует --ibsrv-port)"
+			},
+			{
+				"key": "ibsrv-port",
+				"type": "number",
+				"description": "Порт ibsrv: при --ibsrv-attach - порт подключения; иначе - порт старта (занят -> ошибка, без перебора)"
+			}
+		],
+		"НаборОпцийИсходников": [
+			{
+				"key": "src-format",
+				"type": "boolean",
+				"description": "Формат каталога исходников"
+			}
+		],
+		"НаборОпцийКластера": [
+			{
+				"key": "ras",
+				"type": "string",
+				"description": "Сетевой адрес RAS (по умолчанию localhost:1545)",
+				"default": ""
+			},
+			{
+				"key": "rac",
+				"type": "string",
+				"description": "Путь к утилите rac",
+				"default": ""
+			},
+			{
+				"key": "db-name",
+				"type": "string",
+				"description": "Имя информационной базы в кластере",
+				"default": ""
+			},
+			{
+				"key": "cluster",
+				"type": "string",
+				"description": "Идентификатор кластера",
+				"default": ""
+			},
+			{
+				"key": "cluster-name",
+				"type": "string",
+				"description": "Имя кластера",
+				"default": ""
+			}
+		],
+		"НаборОпцийНастроек": [
+			{
+				"key": "settings",
+				"type": "string",
+				"description": "Путь к файлу настроек (JSON)",
+				"default": ""
+			}
+		],
+		"НаборОпцийОбновленияБД": [
+			{
+				"key": "rtype",
+				"type": "boolean",
+				"description": "Режим реструктуризации БД при обновлении (только конфигуратор). См. https://its.1c.ru/db/v8326doc#bookmark:dev:TI000002111"
+			},
+			{
+				"key": "dynamic",
+				"type": "boolean",
+				"description": "Разрешить динамическое обновление конфигурации БД",
+				"default": false
+			}
+		],
+		"НаборОпцийПлатформы": [
+			{
+				"key": "v8version",
+				"type": "string",
+				"description": "Версия платформы 1С",
+				"default": ""
+			},
+			{
+				"key": "uccode",
+				"type": "string",
+				"description": "Код разрешения",
+				"default": ""
+			},
+			{
+				"key": "language",
+				"type": "string",
+				"description": "Язык платформы",
+				"default": ""
+			},
+			{
+				"key": "locale",
+				"type": "string",
+				"description": "Язык сеанса (локаль)",
+				"default": ""
+			}
+		],
+		"НаборОпцийПодключения": [
+			{
+				"key": "ibconnection",
+				"type": "string",
+				"description": "Строка подключения к информационной базе (/F или /S)",
+				"default": ""
+			},
+			{
+				"key": "db-user",
+				"type": "string",
+				"description": "Имя пользователя информационной базы",
+				"default": ""
+			},
+			{
+				"key": "db-pwd",
+				"type": "string",
+				"description": "Пароль пользователя информационной базы",
+				"default": ""
+			}
+		],
+		"НаборОпцийПокрытия": [
+			{
+				"key": "coverage-report",
+				"type": "string",
+				"description": "Путь к файлу отчёта покрытия. Если задан - включается сбор покрытия (coveragebsl -> coverage)"
+			},
+			{
+				"key": "coverage-format",
+				"type": "boolean",
+				"description": "Формат отчёта покрытия"
+			},
+			{
+				"key": "coverage-src",
+				"type": "string",
+				"description": "Каталог исходников конфигурации для сопоставления модулей (по умолчанию ./src, рекурсивный поиск)"
+			},
+			{
+				"key": "coverage-ext",
+				"type": "array",
+				"description": "Каталог исходников расширения для покрытия (можно указать несколько раз)"
+			},
+			{
+				"key": "coverage-server",
+				"type": "string",
+				"description": "Сервер отладки [хост:]порт. Пусто/порт - поднять свой локально (по умолчанию 1550); хост:порт - подключиться к уже запущенному (в т.ч. на другом сервере)"
+			},
+			{
+				"key": "coverage-dbgs",
+				"type": "string",
+				"description": "Путь к исполняемому файлу сервера отладки dbgs (по умолчанию определяется автоматически)"
+			},
+			{
+				"key": "coverage-alias",
+				"type": "string",
+				"description": "Имя (алиас) информационной базы для сессии отладки (по умолчанию определяется из строки подключения)"
+			},
+			{
+				"key": "coverage-debug-pwd",
+				"type": "string",
+				"description": "Пароль сервера отладки (если задан)"
+			},
+			{
+				"key": "coverage-skip-lines",
+				"type": "boolean",
+				"description": "Не рассчитывать покрываемые строки и процент покрытия (собрать только исполненные строки)"
+			}
+		],
+		"НаборОпцийСУБД": [
+			{
+				"key": "dbms-type",
+				"type": "boolean",
+				"description": "Тип СУБД",
+				"default": ""
+			},
+			{
+				"key": "dbms-server",
+				"type": "string",
+				"description": "Адрес сервера СУБД",
+				"default": ""
+			},
+			{
+				"key": "dbms-base",
+				"type": "string",
+				"description": "Имя базы данных СУБД",
+				"default": ""
+			},
+			{
+				"key": "dbms-user",
+				"type": "string",
+				"description": "Пользователь СУБД",
+				"default": ""
+			},
+			{
+				"key": "dbms-pwd",
+				"type": "string",
+				"description": "Пароль СУБД",
+				"default": ""
+			}
+		],
+		"НаборОпцийХранилища": [
+			{
+				"key": "storage-name",
+				"type": "string",
+				"description": "Адрес хранилища конфигурации",
+				"default": ""
+			},
+			{
+				"key": "storage-user",
+				"type": "string",
+				"description": "Пользователь хранилища конфигурации",
+				"default": ""
+			},
+			{
+				"key": "storage-pwd",
+				"type": "string",
+				"description": "Пароль хранилища конфигурации",
+				"default": ""
+			},
+			{
+				"key": "storage-ver",
+				"type": "string",
+				"description": "Номер версии хранилища",
+				"default": ""
+			}
+		]
+	},
+	"commands": [
+		{
+			"path": "cf.compare",
+			"options": [
+				{
+					"key": "second-cf",
+					"type": "string",
+					"description": "Путь ко второму cf-файлу (с чем сравниваем)"
+				},
+				{
+					"key": "first-cf",
+					"type": "string",
+					"description": "Путь к первому cf-файлу; если не задан - сравнивается конфигурация базы"
+				},
+				{
+					"key": "report-dir",
+					"type": "string",
+					"description": "Каталог для сохранения отчёта (по умолчанию - текущий каталог)"
+				},
+				{
+					"key": "report-type",
+					"type": "boolean",
+					"description": "Тип отчёта"
+				},
+				{
+					"key": "report-format",
+					"type": "boolean",
+					"description": "Формат файла отчёта"
+				}
+			],
+			"sets": [
+				"НаборОпцийПодключения",
+				"НаборОпцийПлатформы",
+				"НаборОпцийСУБД",
+				"НаборОпцийНастроек"
+			]
+		},
+		{
+			"path": "cf.compile",
+			"options": [
+				{
+					"key": "s",
+					"type": "string",
+					"description": "Каталог исходников конфигурации (по умолчанию - текущий каталог)"
+				},
+				{
+					"key": "list",
+					"type": "string",
+					"description": "Список файлов для выборочной загрузки",
+					"default": ""
+				}
+			],
+			"sets": [
+				"НаборОпцийПодключения",
+				"НаборОпцийIbcmd",
+				"НаборОпцийПлатформы",
+				"НаборОпцийСУБД",
+				"НаборОпцийИсходников",
+				"НаборОпцийНастроек"
+			]
+		},
+		{
+			"path": "cf.convert",
+			"options": [
+				{
+					"key": "s",
+					"type": "string",
+					"description": "Каталог исходников для конвертации (по умолчанию - текущий каталог)"
+				}
+			],
+			"sets": [
+				"НаборОпцийEDT",
+				"НаборОпцийНастроек"
+			]
+		},
+		{
+			"path": "cf.decompile",
+			"options": [
+				{
+					"key": "cf-file",
+					"type": "string",
+					"description": "Путь к файлу (*.cf). Если не задан - исходники выгружаются из указанной базы"
+				}
+			],
+			"sets": [
+				"НаборОпцийПодключения",
+				"НаборОпцийIbcmd",
+				"НаборОпцийПлатформы",
+				"НаборОпцийСУБД",
+				"НаборОпцийИсходников",
+				"НаборОпцийНастроек"
+			]
+		},
+		{
+			"path": "cf.load",
+			"options": [
+				{
+					"key": "list",
+					"type": "string",
+					"description": "Список файлов для выборочной загрузки",
+					"default": ""
+				},
+				{
+					"key": "increment",
+					"type": "boolean",
+					"description": "Инкрементальная загрузка по индексу изменений"
+				},
+				{
+					"key": "update-db",
+					"type": "boolean",
+					"description": "После загрузки обновить конфигурацию БД (UpdateDBCfg / config apply)"
+				}
+			],
+			"sets": [
+				"НаборОпцийПодключения",
+				"НаборОпцийIbcmd",
+				"НаборОпцийПлатформы",
+				"НаборОпцийСУБД",
+				"НаборОпцийОбновленияБД",
+				"НаборОпцийИсходников"
+			]
+		},
+		{
+			"path": "cf.make-dist",
+			"options": [],
+			"sets": [
+				"НаборОпцийНастроек"
+			]
+		},
+		{
+			"path": "cf.merge",
+			"options": [
+				{
+					"key": "s",
+					"type": "string",
+					"description": "Путь к файлу конфигурации (cf)"
+				},
+				{
+					"key": "merge-settings",
+					"type": "string",
+					"description": "Путь к файлу настроек объединения",
+					"default": ""
+				},
+				{
+					"key": "enable-support",
+					"type": "boolean",
+					"description": "Поставить конфигурацию на поддержку",
+					"default": false
+				},
+				{
+					"key": "disable-support",
+					"type": "boolean",
+					"description": "Снять конфигурацию с поддержки",
+					"default": false
+				},
+				{
+					"key": "IncludeObjectsByUnresolvedRefs",
+					"type": "boolean",
+					"description": "Включить объекты с неразрешёнными ссылками в объединение",
+					"default": false
+				},
+				{
+					"key": "ClearUnresolvedRefs",
+					"type": "boolean",
+					"description": "Очищать ссылки на объекты с неразрешёнными ссылками",
+					"default": false
+				},
+				{
+					"key": "force",
+					"type": "boolean",
+					"description": "Принудительное объединение при наличии предупреждений",
+					"default": false
+				}
+			],
+			"sets": [
+				"НаборОпцийПодключения",
+				"НаборОпцийПлатформы",
+				"НаборОпцийСУБД",
+				"НаборОпцийНастроек"
+			]
+		},
+		{
+			"path": "cf.unload",
+			"options": [],
+			"sets": [
+				"НаборОпцийПодключения",
+				"НаборОпцийIbcmd",
+				"НаборОпцийПлатформы",
+				"НаборОпцийСУБД",
+				"НаборОпцийНастроек"
+			]
+		},
+		{
+			"path": "cfe.compare",
+			"options": [
+				{
+					"key": "extension-name",
+					"type": "string",
+					"description": "Имя расширения для сравнения"
+				},
+				{
+					"key": "first-cfe",
+					"type": "string",
+					"description": "Путь к первому файлу cfe. Если не указан - расширение из базы"
+				},
+				{
+					"key": "second-cfe",
+					"type": "string",
+					"description": "Путь ко второму файлу cfe для сравнения"
+				},
+				{
+					"key": "report-dir",
+					"type": "string",
+					"description": "Каталог для сохранения отчёта (по умолчанию - текущий каталог)"
+				},
+				{
+					"key": "report-type",
+					"type": "boolean",
+					"description": "Тип отчёта"
+				},
+				{
+					"key": "report-format",
+					"type": "boolean",
+					"description": "Формат файла отчёта"
+				}
+			],
+			"sets": [
+				"НаборОпцийПодключения",
+				"НаборОпцийПлатформы",
+				"НаборОпцийСУБД",
+				"НаборОпцийНастроек"
+			]
+		},
+		{
+			"path": "cfe.compile",
+			"options": [
+				{
+					"key": "s",
+					"type": "string",
+					"description": "Каталог XML-исходников расширения (по умолчанию - текущий каталог)"
+				},
+				{
+					"key": "extension-name",
+					"type": "string",
+					"description": "Имя расширения. Если не задано - берётся из имени каталога исходников"
+				}
+			],
+			"sets": [
+				"НаборОпцийПодключения",
+				"НаборОпцийIbcmd",
+				"НаборОпцийПлатформы",
+				"НаборОпцийСУБД",
+				"НаборОпцийИсходников",
+				"НаборОпцийНастроек"
+			]
+		},
+		{
+			"path": "cfe.convert",
+			"options": [
+				{
+					"key": "s",
+					"type": "string",
+					"description": "Каталог исходников для конвертации (по умолчанию - текущий каталог)"
+				}
+			],
+			"sets": [
+				"НаборОпцийEDT",
+				"НаборОпцийНастроек"
+			]
+		},
+		{
+			"path": "cfe.decompile",
+			"options": [
+				{
+					"key": "cfe-file",
+					"type": "string",
+					"description": "Путь к файлу (*.cfe). Если не задан - исходники выгружаются из указанной базы"
+				},
+				{
+					"key": "extension-name",
+					"type": "string",
+					"description": "Имя расширения"
+				}
+			],
+			"sets": [
+				"НаборОпцийПодключения",
+				"НаборОпцийIbcmd",
+				"НаборОпцийПлатформы",
+				"НаборОпцийСУБД",
+				"НаборОпцийИсходников",
+				"НаборОпцийНастроек"
+			]
+		},
+		{
+			"path": "cfe.load",
+			"options": [
+				{
+					"key": "extension-name",
+					"type": "string",
+					"description": "Имя расширения в базе. Если не задано - берётся из имени каталога или файла источника"
+				},
+				{
+					"key": "safe-mode",
+					"type": "boolean",
+					"description": "Включить безопасный режим расширения (после загрузки)"
+				},
+				{
+					"key": "active",
+					"type": "boolean",
+					"description": "Сделать расширение активным (после загрузки)"
+				},
+				{
+					"key": "unsafe-action-protection",
+					"type": "boolean",
+					"description": "Включить защиту от опасных действий (после загрузки)"
+				},
+				{
+					"key": "used-in-rib",
+					"type": "boolean",
+					"description": "Используется в РИБ (только ibcmd)"
+				},
+				{
+					"key": "scope-infobase",
+					"type": "boolean",
+					"description": "Область действия - ИБ, не разделитель данных (только ibcmd)"
+				},
+				{
+					"key": "increment",
+					"type": "boolean",
+					"description": "Инкрементальная загрузка по индексу изменений"
+				},
+				{
+					"key": "no-update-db",
+					"type": "boolean",
+					"description": "Не обновлять конфигурацию БД после загрузки (по умолчанию БД обновляется; при пропуске обновления свойства расширения не изменяются)"
+				}
+			],
+			"sets": [
+				"НаборОпцийПодключения",
+				"НаборОпцийIbcmd",
+				"НаборОпцийПлатформы",
+				"НаборОпцийСУБД",
+				"НаборОпцийОбновленияБД",
+				"НаборОпцийИсходников",
+				"НаборОпцийНастроек"
+			]
+		},
+		{
+			"path": "cfe.unload",
+			"options": [
+				{
+					"key": "extension-name",
+					"type": "string",
+					"description": "Имя расширения в базе"
+				}
+			],
+			"sets": [
+				"НаборОпцийПодключения",
+				"НаборОпцийIbcmd",
+				"НаборОпцийПлатформы",
+				"НаборОпцийСУБД",
+				"НаборОпцийНастроек"
+			]
+		},
+		{
+			"path": "cluster.create",
+			"options": [
+				{
+					"key": "ib-locale",
+					"type": "string",
+					"description": "Локализация ИБ"
+				},
+				{
+					"key": "no-create-db",
+					"type": "boolean",
+					"description": "Не создавать базу данных в СУБД"
+				},
+				{
+					"key": "lock-jobs",
+					"type": "boolean",
+					"description": "Блокировать регламентные задания при создании"
+				}
+			],
+			"sets": [
+				"НаборОпцийКластера",
+				"НаборОпцийАдминистрирования",
+				"НаборОпцийПлатформы",
+				"НаборОпцийСУБД",
+				"НаборОпцийНастроек"
+			]
+		},
+		{
+			"path": "cluster.info",
+			"options": [],
+			"sets": [
+				"НаборОпцийКластера",
+				"НаборОпцийАдминистрирования",
+				"НаборОпцийПлатформы",
+				"НаборОпцийАутентификацииИБ",
+				"НаборОпцийНастроек"
+			]
+		},
+		{
+			"path": "cluster.jobs",
+			"options": [],
+			"sets": [
+				"НаборОпцийНастроек"
+			]
+		},
+		{
+			"path": "cluster.jobs-lock",
+			"options": [],
+			"sets": [
+				"НаборОпцийКластера",
+				"НаборОпцийАдминистрирования",
+				"НаборОпцийПлатформы",
+				"НаборОпцийАутентификацииИБ",
+				"НаборОпцийНастроек"
+			]
+		},
+		{
+			"path": "cluster.jobs-unlock",
+			"options": [],
+			"sets": [
+				"НаборОпцийКластера",
+				"НаборОпцийАдминистрирования",
+				"НаборОпцийПлатформы",
+				"НаборОпцийАутентификацииИБ",
+				"НаборОпцийНастроек"
+			]
+		},
+		{
+			"path": "cluster.remove",
+			"options": [
+				{
+					"key": "drop-db",
+					"type": "boolean",
+					"description": "Удалить базу данных в СУБД"
+				},
+				{
+					"key": "clear-db",
+					"type": "boolean",
+					"description": "Очистить базу данных в СУБД"
+				}
+			],
+			"sets": [
+				"НаборОпцийКластера",
+				"НаборОпцийАдминистрирования",
+				"НаборОпцийПлатформы",
+				"НаборОпцийАутентификацииИБ",
+				"НаборОпцийНастроек"
+			]
+		},
+		{
+			"path": "cluster.session",
+			"options": [],
+			"sets": [
+				"НаборОпцийНастроек"
+			]
+		},
+		{
+			"path": "cluster.session-kill",
+			"options": [
+				{
+					"key": "no-lock",
+					"type": "boolean",
+					"description": "Не блокировать новые сеансы перед завершением"
+				}
+			],
+			"sets": [
+				"НаборОпцийКластера",
+				"НаборОпцийАдминистрирования",
+				"НаборОпцийПлатформы",
+				"НаборОпцийАутентификацииИБ",
+				"НаборОпцийНастроек"
+			]
+		},
+		{
+			"path": "cluster.session-lock",
+			"options": [
+				{
+					"key": "denied-message",
+					"type": "string",
+					"description": "Сообщение при попытке начать сеанс"
+				}
+			],
+			"sets": [
+				"НаборОпцийКластера",
+				"НаборОпцийАдминистрирования",
+				"НаборОпцийПлатформы",
+				"НаборОпцийАутентификацииИБ",
+				"НаборОпцийНастроек"
+			]
+		},
+		{
+			"path": "cluster.session-unlock",
+			"options": [],
+			"sets": [
+				"НаборОпцийКластера",
+				"НаборОпцийАдминистрирования",
+				"НаборОпцийПлатформы",
+				"НаборОпцийАутентификацииИБ",
+				"НаборОпцийНастроек"
+			]
+		},
+		{
+			"path": "epf.compile",
+			"options": [
+				{
+					"key": "R",
+					"type": "boolean",
+					"description": "Рекурсивный поиск обработок"
+				},
+				{
+					"key": "out",
+					"type": "string",
+					"description": "Каталог для сохранения собранных обработок",
+					"default": ""
+				}
+			],
+			"sets": [
+				"НаборОпцийПодключения",
+				"НаборОпцийIbcmd",
+				"НаборОпцийПлатформы",
+				"НаборОпцийСУБД",
+				"НаборОпцийИсходников",
+				"НаборОпцийНастроек"
+			]
+		},
+		{
+			"path": "epf.decompile",
+			"options": [
+				{
+					"key": "R",
+					"type": "boolean",
+					"description": "Рекурсивный поиск EPF-файлов (для каталога)"
+				},
+				{
+					"key": "out",
+					"type": "string",
+					"description": "Каталог для сохранения разобранных исходников",
+					"default": ""
+				}
+			],
+			"sets": [
+				"НаборОпцийПодключения",
+				"НаборОпцийIbcmd",
+				"НаборОпцийПлатформы",
+				"НаборОпцийСУБД",
+				"НаборОпцийИсходников",
+				"НаборОпцийНастроек"
+			]
+		},
+		{
+			"path": "infobase.create-user",
+			"options": [
+				{
+					"key": "role",
+					"type": "array",
+					"description": "Имя роли для назначения пользователю (можно указать несколько раз). По умолчанию: ПолныеПрава, АдминистраторСистемы"
+				}
+			],
+			"sets": [
+				"НаборОпцийПодключения",
+				"НаборОпцийПлатформы",
+				"НаборОпцийСУБД"
+			]
+		},
+		{
+			"path": "infobase.dump-dt",
+			"options": [],
+			"sets": [
+				"НаборОпцийПодключения",
+				"НаборОпцийIbcmd",
+				"НаборОпцийПлатформы",
+				"НаборОпцийСУБД",
+				"НаборОпцийНастроек"
+			]
+		},
+		{
+			"path": "infobase.extensions",
+			"options": [],
+			"sets": []
+		},
+		{
+			"path": "infobase.extensions-check",
+			"options": [],
+			"sets": [
+				"НаборОпцийПодключения",
+				"НаборОпцийПлатформы",
+				"НаборОпцийСУБД"
+			]
+		},
+		{
+			"path": "infobase.extensions-create",
+			"options": [
+				{
+					"key": "overwrite",
+					"type": "boolean",
+					"description": "Пересоздать расширение, если оно уже существует (иначе - ошибка)"
+				}
+			],
+			"sets": [
+				"НаборОпцийПодключения",
+				"НаборОпцийПлатформы",
+				"НаборОпцийСУБД"
+			]
+		},
+		{
+			"path": "infobase.extensions-delete",
+			"options": [],
+			"sets": [
+				"НаборОпцийПодключения",
+				"НаборОпцийПлатформы",
+				"НаборОпцийСУБД"
+			]
+		},
+		{
+			"path": "infobase.extensions-list",
+			"options": [
+				{
+					"key": "verbose",
+					"type": "boolean",
+					"description": "Подробный вывод: таблица с именем, синонимом, версией и параметрами расширений (по умолчанию - только имена)"
+				},
+				{
+					"key": "json",
+					"type": "boolean",
+					"description": "Вывод списка расширений в формате JSON (имя, синоним, версия, хэш, параметры). Имеет приоритет над --verbose"
+				}
+			],
+			"sets": [
+				"НаборОпцийПодключения",
+				"НаборОпцийПлатформы",
+				"НаборОпцийСУБД"
+			]
+		},
+		{
+			"path": "infobase.extensions-set-options",
+			"options": [
+				{
+					"key": "active",
+					"type": "boolean",
+					"description": "Активность расширения (если не указано - не меняется)"
+				},
+				{
+					"key": "safe-mode",
+					"type": "boolean",
+					"description": "Безопасный режим (если не указано - не меняется)"
+				},
+				{
+					"key": "unsafe-action-protection",
+					"type": "boolean",
+					"description": "Защита от опасных действий (если не указано - не меняется)"
+				},
+				{
+					"key": "main-roles-for-all",
+					"type": "boolean",
+					"description": "Использовать основные роли для всех пользователей, 8.3.15+ (если не указано - не меняется)"
+				}
+			],
+			"sets": [
+				"НаборОпцийПодключения",
+				"НаборОпцийПлатформы",
+				"НаборОпцийСУБД"
+			]
+		},
+		{
+			"path": "infobase.init",
+			"options": [
+				{
+					"key": "src",
+					"type": "string",
+					"description": "Источник конфигурации (каталог исходников, *.cf или *.dt файл)",
+					"default": ""
+				},
+				{
+					"key": "ext",
+					"type": "array",
+					"description": "Расширение для загрузки: .cfe-файл или каталог XML/EDT-исходников. Можно указать несколько раз"
+				},
+				{
+					"key": "recursive",
+					"type": "boolean",
+					"description": "Рекурсивно искать конфигурацию и расширения в каталогах --src и --ext (каждый путь - корень поиска)."
+				}
+			],
+			"sets": [
+				"НаборОпцийПодключения",
+				"НаборОпцийIbcmd",
+				"НаборОпцийПлатформы",
+				"НаборОпцийСУБД",
+				"НаборОпцийИсходников",
+				"НаборОпцийНастроек"
+			]
+		},
+		{
+			"path": "infobase.lock-resources",
+			"options": [
+				{
+					"key": "allow",
+					"type": "boolean",
+					"description": "Разрешить работу с внешними ресурсами"
+				},
+				{
+					"key": "deny",
+					"type": "boolean",
+					"description": "Запретить работу с внешними ресурсами"
+				}
+			],
+			"sets": [
+				"НаборОпцийПодключения",
+				"НаборОпцийПлатформы",
+				"НаборОпцийСУБД"
+			]
+		},
+		{
+			"path": "infobase.restore-dt",
+			"options": [],
+			"sets": [
+				"НаборОпцийПодключения",
+				"НаборОпцийIbcmd",
+				"НаборОпцийПлатформы",
+				"НаборОпцийСУБД",
+				"НаборОпцийНастроек"
+			]
+		},
+		{
+			"path": "infobase.scheduled-job",
+			"options": [],
+			"sets": []
+		},
+		{
+			"path": "infobase.scheduled-job-disable",
+			"options": [],
+			"sets": [
+				"НаборОпцийПодключения",
+				"НаборОпцийПлатформы",
+				"НаборОпцийСУБД"
+			]
+		},
+		{
+			"path": "infobase.scheduled-job-enable",
+			"options": [],
+			"sets": [
+				"НаборОпцийПодключения",
+				"НаборОпцийПлатформы",
+				"НаборОпцийСУБД"
+			]
+		},
+		{
+			"path": "infobase.update",
+			"options": [
+				{
+					"key": "src",
+					"type": "string",
+					"description": "Источник конфигурации (каталог исходников или *.cf файл)",
+					"default": ""
+				},
+				{
+					"key": "target",
+					"type": "string",
+					"description": "Цель обновления: main - основная конфигурация, <имя> - расширение, пусто - всё"
+				},
+				{
+					"key": "increment",
+					"type": "boolean",
+					"description": "Инкрементальная загрузка по индексу изменений"
+				}
+			],
+			"sets": [
+				"НаборОпцийПодключения",
+				"НаборОпцийIbcmd",
+				"НаборОпцийПлатформы",
+				"НаборОпцийСУБД",
+				"НаборОпцийОбновленияБД",
+				"НаборОпцийНастроек"
+			]
+		},
+		{
+			"path": "repo.bind",
+			"options": [
+				{
+					"key": "ignore-already-bound",
+					"type": "boolean",
+					"description": "Игнорировать наличие подключенного пользователя"
+				},
+				{
+					"key": "do-not-replace-cfg",
+					"type": "boolean",
+					"description": "Не заменять конфигурацию БД конфигурацией хранилища"
+				}
+			],
+			"sets": [
+				"НаборОпцийПодключения",
+				"НаборОпцийПлатформы",
+				"НаборОпцийСУБД",
+				"НаборОпцийХранилища",
+				"НаборОпцийНастроек"
+			]
+		},
+		{
+			"path": "repo.commit",
+			"options": [
+				{
+					"key": "objects",
+					"type": "string",
+					"description": "Путь к файлу XML со списком объектов",
+					"default": ""
+				},
+				{
+					"key": "comment",
+					"type": "string",
+					"description": "Комментарий к помещаемым объектам",
+					"default": ""
+				},
+				{
+					"key": "keep-locked",
+					"type": "boolean",
+					"description": "Оставить объекты захваченными после помещения"
+				},
+				{
+					"key": "force",
+					"type": "boolean",
+					"description": "Игнорировать удаленные объекты",
+					"default": false
+				}
+			],
+			"sets": [
+				"НаборОпцийПодключения",
+				"НаборОпцийПлатформы",
+				"НаборОпцийСУБД",
+				"НаборОпцийХранилища",
+				"НаборОпцийНастроек"
+			]
+		},
+		{
+			"path": "repo.copy-user",
+			"options": [
+				{
+					"key": "source-storage-name",
+					"type": "string",
+					"description": "Адрес хранилища-источника для копирования пользователей"
+				},
+				{
+					"key": "source-storage-user",
+					"type": "string",
+					"description": "Пользователь хранилища-источника"
+				},
+				{
+					"key": "source-storage-pwd",
+					"type": "string",
+					"description": "Пароль хранилища-источника"
+				},
+				{
+					"key": "restore-deleted",
+					"type": "boolean",
+					"description": "Восстановить удаленных пользователей"
+				}
+			],
+			"sets": [
+				"НаборОпцийПодключения",
+				"НаборОпцийПлатформы",
+				"НаборОпцийСУБД",
+				"НаборОпцийХранилища",
+				"НаборОпцийНастроек"
+			]
+		},
+		{
+			"path": "repo.create",
+			"options": [],
+			"sets": [
+				"НаборОпцийПодключения",
+				"НаборОпцийПлатформы",
+				"НаборОпцийСУБД",
+				"НаборОпцийХранилища",
+				"НаборОпцийНастроек"
+			]
+		},
+		{
+			"path": "repo.create-user",
+			"options": [
+				{
+					"key": "new-user-name",
+					"type": "string",
+					"description": "Логин нового пользователя хранилища"
+				},
+				{
+					"key": "new-user-pwd",
+					"type": "string",
+					"description": "Пароль нового пользователя хранилища"
+				},
+				{
+					"key": "new-user-role",
+					"type": "boolean",
+					"description": "Роль пользователя хранилища"
+				}
+			],
+			"sets": [
+				"НаборОпцийПодключения",
+				"НаборОпцийПлатформы",
+				"НаборОпцийСУБД",
+				"НаборОпцийХранилища",
+				"НаборОпцийНастроек"
+			]
+		},
+		{
+			"path": "repo.load",
+			"options": [],
+			"sets": [
+				"НаборОпцийПодключения",
+				"НаборОпцийПлатформы",
+				"НаборОпцийСУБД",
+				"НаборОпцийХранилища",
+				"НаборОпцийНастроек"
+			]
+		},
+		{
+			"path": "repo.lock",
+			"options": [
+				{
+					"key": "objects",
+					"type": "string",
+					"description": "Путь к файлу XML со списком объектов",
+					"default": ""
+				},
+				{
+					"key": "revised",
+					"type": "boolean",
+					"description": "Получать захваченные объекты",
+					"default": false
+				}
+			],
+			"sets": [
+				"НаборОпцийПодключения",
+				"НаборОпцийПлатформы",
+				"НаборОпцийСУБД",
+				"НаборОпцийХранилища",
+				"НаборОпцийНастроек"
+			]
+		},
+		{
+			"path": "repo.save-cf",
+			"options": [],
+			"sets": [
+				"НаборОпцийПодключения",
+				"НаборОпцийПлатформы",
+				"НаборОпцийСУБД",
+				"НаборОпцийХранилища",
+				"НаборОпцийНастроек"
+			]
+		},
+		{
+			"path": "repo.unbind",
+			"options": [],
+			"sets": [
+				"НаборОпцийПодключения",
+				"НаборОпцийПлатформы",
+				"НаборОпцийСУБД",
+				"НаборОпцийНастроек"
+			]
+		},
+		{
+			"path": "repo.unlock",
+			"options": [
+				{
+					"key": "objects",
+					"type": "string",
+					"description": "Путь к файлу XML со списком объектов",
+					"default": ""
+				},
+				{
+					"key": "force",
+					"type": "boolean",
+					"description": "Игнорировать локальные изменения",
+					"default": false
+				}
+			],
+			"sets": [
+				"НаборОпцийПодключения",
+				"НаборОпцийПлатформы",
+				"НаборОпцийСУБД",
+				"НаборОпцийХранилища",
+				"НаборОпцийНастроек"
+			]
+		},
+		{
+			"path": "run.designer",
+			"options": [
+				{
+					"key": "no-wait",
+					"type": "boolean",
+					"description": "Не ожидать завершения запущенной команды/действия",
+					"default": false
+				},
+				{
+					"key": "additional",
+					"type": "string",
+					"description": "Дополнительные параметры запуска конфигуратора",
+					"default": ""
+				}
+			],
+			"sets": [
+				"НаборОпцийПодключения",
+				"НаборОпцийПлатформы",
+				"НаборОпцийХранилища",
+				"НаборОпцийНастроек"
+			]
+		},
+		{
+			"path": "run.enterprise",
+			"options": [
+				{
+					"key": "command",
+					"type": "string",
+					"description": "Строка, передаваемая в параметр запуска /C",
+					"default": ""
+				},
+				{
+					"key": "execute",
+					"type": "string",
+					"description": "Путь к внешней обработке 1С для запуска в предприятии (поддерживается переменная $runnerRoot)",
+					"default": ""
+				},
+				{
+					"key": "url",
+					"type": "string",
+					"description": "Навигационная ссылка для перехода после старта 1С:Предприятия",
+					"default": ""
+				},
+				{
+					"key": "no-wait",
+					"type": "boolean",
+					"description": "Не ожидать завершения запущенной команды/действия",
+					"default": false
+				},
+				{
+					"key": "exitCodePath",
+					"type": "string",
+					"description": "Путь к файлу статуса выполнения (0=успех, 1=ошибка, 2=предупреждение)",
+					"default": ""
+				}
+			],
+			"sets": [
+				"НаборОпцийПодключения",
+				"НаборОпцийПлатформы",
+				"НаборОпцийЗапуска",
+				"НаборОпцийНастроек"
+			]
+		},
+		{
+			"path": "test.vanessa",
+			"options": [
+				{
+					"key": "feature-path",
+					"type": "string",
+					"description": "Путь к каталогу с фичами или к фиче. Поддерживается макрос $addRoot - каталог установки vanessa-add"
+				},
+				{
+					"key": "bddrunner-path",
+					"type": "string",
+					"description": "Путь к внешней обработке bddRunner.epf (по умолчанию из vanessa-add)"
+				},
+				{
+					"key": "vanessasettings",
+					"type": "string",
+					"description": "Путь к файлу настроек фреймворка тестирования",
+					"default": ""
+				},
+				{
+					"key": "workspace",
+					"type": "string",
+					"description": "Путь к папке проекта (для макросов $workspace, по умолчанию - текущий)",
+					"default": ""
+				},
+				{
+					"key": "tags-ignore",
+					"type": "string",
+					"description": "Теги игнорирования фича-файлов",
+					"default": ""
+				},
+				{
+					"key": "tags-filter",
+					"type": "string",
+					"description": "Теги фильтрации фича-файлов",
+					"default": ""
+				},
+				{
+					"key": "additional-keys",
+					"type": "string",
+					"description": "Дополнительные параметры, передаваемые в /C",
+					"default": ""
+				},
+				{
+					"key": "no-wait",
+					"type": "boolean",
+					"description": "Не ожидать завершения запущенной команды/действия",
+					"default": false
+				}
+			],
+			"sets": [
+				"НаборОпцийПодключения",
+				"НаборОпцийПлатформы",
+				"НаборОпцийЗапуска",
+				"НаборОпцийПокрытия",
+				"НаборОпцийНастроек"
+			]
+		},
+		{
+			"path": "test.xunit",
+			"options": [
+				{
+					"key": "workspace",
+					"type": "string",
+					"description": "Путь к папке проекта (для макросов $workspace, по умолчанию - текущий)",
+					"default": ""
+				},
+				{
+					"key": "pathxunit",
+					"type": "string",
+					"description": "Путь к внешней обработке xddTestRunner.epf (по умолчанию из vanessa-add)",
+					"default": ""
+				},
+				{
+					"key": "reportsxunit",
+					"type": "string",
+					"description": "Параметры формирования отчетов: ФорматВывода{Путь};ФорматВывода{Путь}",
+					"default": ""
+				},
+				{
+					"key": "reportxunit",
+					"type": "string",
+					"description": "Путь к каталогу с отчетом jUnit (устарел, используйте --reportsxunit)",
+					"default": ""
+				},
+				{
+					"key": "xddExitCodePath",
+					"type": "string",
+					"description": "Путь к файлу статуса тестирования (0=пройдены, 1=не пройдены)",
+					"default": ""
+				},
+				{
+					"key": "xddConfig",
+					"type": "string",
+					"description": "Путь к конфигурационному файлу xUnitFor1c",
+					"default": ""
+				},
+				{
+					"key": "testclient",
+					"type": "string",
+					"description": "Параметры тест-клиента: Пользователь:Пароль:Порт",
+					"default": ""
+				},
+				{
+					"key": "testclient-additional",
+					"type": "string",
+					"description": "Дополнительные параметры запуска тест-клиента",
+					"default": ""
+				},
+				{
+					"key": "config-tests",
+					"type": "boolean",
+					"description": "Загружать тесты, встроенные в конфигурацию",
+					"default": false
+				},
+				{
+					"key": "no-wait",
+					"type": "boolean",
+					"description": "Не ожидать завершения запущенной команды/действия",
+					"default": false
+				},
+				{
+					"key": "xdddebug",
+					"type": "boolean",
+					"description": "Выводить отладочные сообщения при прогоне тестов",
+					"default": false
+				},
+				{
+					"key": "no-shutdown",
+					"type": "boolean",
+					"description": "Не завершать 1С:Предприятие после выполнения тестов",
+					"default": false
+				},
+				{
+					"key": "clear-reports",
+					"type": "boolean",
+					"description": "Очищать каталоги отчетов перед запуском тестов",
+					"default": false
+				}
+			],
+			"sets": [
+				"НаборОпцийПодключения",
+				"НаборОпцийПлатформы",
+				"НаборОпцийЗапуска",
+				"НаборОпцийПокрытия",
+				"НаборОпцийНастроек"
+			]
+		},
+		{
+			"path": "test.yaxunit",
+			"options": [
+				{
+					"key": "yaxunit-config",
+					"type": "string",
+					"description": "Путь к готовому yaxunit.json (используется как есть)"
+				},
+				{
+					"key": "ext",
+					"type": "string",
+					"description": "Имена расширений с тестами через запятую (filter.extensions)"
+				},
+				{
+					"key": "modules",
+					"type": "string",
+					"description": "Имена модулей с тестами через запятую (filter.modules)"
+				},
+				{
+					"key": "tests",
+					"type": "string",
+					"description": "Полные пути тестов через запятую: Модуль.Тест (filter.tests)"
+				},
+				{
+					"key": "tags",
+					"type": "string",
+					"description": "Теги тестов через запятую (filter.tags)"
+				},
+				{
+					"key": "suites",
+					"type": "string",
+					"description": "Имена наборов тестов через запятую (filter.suites)"
+				},
+				{
+					"key": "report",
+					"type": "string",
+					"description": "Путь к файлу/каталогу отчёта (reportPath)"
+				},
+				{
+					"key": "report-format",
+					"type": "string",
+					"description": "Формат отчёта: jUnit (по умолчанию), JSON, allure"
+				},
+				{
+					"key": "exitcode",
+					"type": "string",
+					"description": "Путь к файлу кода возврата тестирования (0=пройдены, 1=есть ошибки)"
+				},
+				{
+					"key": "project-path",
+					"type": "string",
+					"description": "Каталог проекта для разрешения зависимостей ФайлыПроекта (projectPath)"
+				},
+				{
+					"key": "workspace",
+					"type": "string",
+					"description": "Каталог рабочего пространства YAxUnit (workspacePath)",
+					"default": ""
+				},
+				{
+					"key": "show-report",
+					"type": "boolean",
+					"description": "Открывать форму отчёта после тестов (по умолчанию выключено)"
+				},
+				{
+					"key": "no-close",
+					"type": "boolean",
+					"description": "Не закрывать 1С:Предприятие после выполнения тестов"
+				},
+				{
+					"key": "no-wait",
+					"type": "boolean",
+					"description": "Не ожидать завершения запущенной команды/действия",
+					"default": false
+				}
+			],
+			"sets": [
+				"НаборОпцийПодключения",
+				"НаборОпцийПлатформы",
+				"НаборОпцийЗапуска",
+				"НаборОпцийПокрытия",
+				"НаборОпцийНастроек"
+			]
+		},
+		{
+			"path": "validate.edt",
+			"options": [
+				{
+					"key": "s",
+					"type": "string",
+					"description": "Каталог EDT-проекта (по умолчанию - текущий каталог)"
+				},
+				{
+					"key": "min-severity",
+					"type": "boolean",
+					"description": "Минимальный уровень замечаний, при котором команда завершается с ошибкой"
+				},
+				{
+					"key": "junitpath",
+					"type": "string",
+					"description": "Путь к файлу отчёта в формате JUnit XML",
+					"default": ""
+				},
+				{
+					"key": "testsuitename",
+					"type": "string",
+					"description": "Имя тестового набора в отчёте JUnit",
+					"default": ""
+				}
+			],
+			"sets": [
+				"НаборОпцийИсходников",
+				"НаборОпцийНастроек"
+			]
+		},
+		{
+			"path": "validate.syntaxcheck",
+			"options": [
+				{
+					"key": "mode",
+					"type": "array",
+					"description": "Режимы проверки. Например: ThinClient Server WebClient.\r\n|Доступные режимы:\r\n|  ConfigLogIntegrity            - проверка логической целостности конфигурации\r\n|  IncorrectReferences           - поиск некорректных ссылок\r\n|  ThinClient                    - тонкий клиент\r\n|  WebClient                     - веб-клиент\r\n|  Server                        - сервер\r\n|  ExternalConnection            - внешнее соединение\r\n|  ExternalConnectionServer      - внешнее соединение (клиент-серверный)\r\n|  MobileClient                  - мобильный клиент\r\n|  MobileClientStandalone        - мобильный клиент (автономный)\r\n|  MobileAppClient               - мобильное приложение (клиент)\r\n|  MobileAppServer               - мобильное приложение (сервер)\r\n|  ThickClientManagedApplication - толстый клиент (управляемое приложение)\r\n|  ThickClientServerManagedApplication - толстый клиент (управляемое, клиент-серверный)\r\n|  ThickClientOrdinaryApplication     - толстый клиент (обычное приложение)\r\n|  ThickClientServerOrdinaryApplication - толстый клиент (обычное, клиент-серверный)\r\n|  DistributiveModules           - поставка модулей без исходных текстов\r\n|  UnreferenceProcedures         - поиск неиспользуемых процедур и функций\r\n|  HandlersExistence             - проверка существования назначенных обработчиков\r\n|  EmptyHandlers                 - поиск пустых обработчиков\r\n|  ExtendedModulesCheck          - расширенная проверка модулей\r\n|  CheckUseModality              - поиск использования модальности\r\n|  CheckUseSynchronousCalls      - поиск использования синхронных вызовов\r\n|  UnsupportedFunctional         - поиск неподдерживаемой функциональности\r\n|  AllExtensions                 - проверка всех расширений",
+					"default": ""
+				},
+				{
+					"key": "junitpath",
+					"type": "string",
+					"description": "Путь к файлу отчёта в формате JUnit XML",
+					"default": ""
+				},
+				{
+					"key": "exception-file",
+					"type": "string",
+					"description": "Путь к файлу с пропускаемыми исключениями (UTF-8, по строке на исключение)",
+					"default": ""
+				},
+				{
+					"key": "groupbymetadata",
+					"type": "boolean",
+					"description": "Группировать ошибки по метаданным конфигурации",
+					"default": false
+				},
+				{
+					"key": "testsuitename",
+					"type": "string",
+					"description": "Имя тестового набора в отчёте JUnit",
+					"default": ""
+				}
+			],
+			"sets": [
+				"НаборОпцийПодключения",
+				"НаборОпцийПлатформы",
+				"НаборОпцийСУБД",
+				"НаборОпцийХранилища",
+				"НаборОпцийНастроек"
+			]
+		}
+	]
+}

@@ -2,7 +2,7 @@ import * as assert from 'node:assert';
 import {
 	BASE_ENV_FILE,
 	DEFAULT_PROFILE_ID,
-	NOT_SELECTED_LABEL,
+	NO_SETTINGS_LABEL,
 	parseEnvFileName,
 	buildEnvProfiles,
 	resolveActiveEnvFileName,
@@ -12,6 +12,30 @@ import {
 } from '../../shared/envProfiles';
 
 suite('envProfiles', () => {
+	test('parseEnvFileName (v3): autumn-properties.json — базовый, именованные через .<id>.', () => {
+		const base = parseEnvFileName('autumn-properties.json', 'v3');
+		assert.ok(base);
+		assert.strictEqual(base.isBase, true);
+		assert.strictEqual(base.fileName, 'autumn-properties.json');
+
+		const dev = parseEnvFileName('autumn-properties.dev.json', 'v3');
+		assert.ok(dev);
+		assert.strictEqual(dev.id, 'dev');
+		assert.strictEqual(dev.isBase, false);
+
+		// файлы другой схемы не распознаются
+		assert.strictEqual(parseEnvFileName('env.json', 'v3'), undefined);
+		assert.strictEqual(parseEnvFileName('autumn-properties.json', 'v2'), undefined);
+	});
+
+	test('buildEnvProfiles (v3): собирает только autumn-профили', () => {
+		const profiles = buildEnvProfiles(
+			['env.json', 'autumn-properties.json', 'autumn-properties.ci.json', 'tools.json'],
+			'v3'
+		);
+		assert.deepStrictEqual(profiles.map((p) => p.fileName), ['autumn-properties.json', 'autumn-properties.ci.json']);
+	});
+
 	test('parseEnvFileName: env.json → профиль «По умолчанию»', () => {
 		const profile = parseEnvFileName('env.json');
 		assert.ok(profile);
@@ -71,13 +95,15 @@ suite('envProfiles', () => {
 		assert.strictEqual(resolveActiveEnvFileName(undefined, profiles), BASE_ENV_FILE);
 	});
 
-	test('activeProfileLabel: пустой/неизвестный id → «Не выбран», иначе подпись', () => {
+	test('activeProfileLabel: файла активного профиля нет → «Нет файла настроек», иначе подпись', () => {
 		const profiles = buildEnvProfiles(['env.json', 'env.dev.json']);
-		assert.strictEqual(activeProfileLabel('', profiles), NOT_SELECTED_LABEL);
-		assert.strictEqual(activeProfileLabel(undefined, profiles), NOT_SELECTED_LABEL);
-		assert.strictEqual(activeProfileLabel('prod', profiles), NOT_SELECTED_LABEL);
+		assert.strictEqual(activeProfileLabel('', profiles), NO_SETTINGS_LABEL);
+		assert.strictEqual(activeProfileLabel(undefined, profiles), NO_SETTINGS_LABEL);
+		assert.strictEqual(activeProfileLabel('prod', profiles), NO_SETTINGS_LABEL);
 		assert.strictEqual(activeProfileLabel('dev', profiles), 'dev');
 		assert.strictEqual(activeProfileLabel(DEFAULT_PROFILE_ID, profiles), 'По умолчанию');
+		// Базового файла нет — «По умолчанию» не среди профилей → нет файла настроек
+		assert.strictEqual(activeProfileLabel(DEFAULT_PROFILE_ID, buildEnvProfiles([])), NO_SETTINGS_LABEL);
 	});
 
 	test('buildOverrideArgs: только заданные поля', () => {

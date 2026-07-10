@@ -6,6 +6,8 @@ import {
 	TREE_GROUP_EXPANDED_STATE_KEY,
 } from './treeViewProvider';
 import { HelpAndSupportProvider } from '../projects/helpAndSupportProvider';
+import { LaunchProfileViewProvider } from '../launch/launchProfileViewProvider';
+import { VRunnerManager } from '../../shared/vrunnerManager';
 
 export interface MainTreeViewRegistration {
 	treeDataProvider: PlatformTreeDataProvider;
@@ -29,6 +31,13 @@ export function registerMainTreeView(
 		showCollapseAll: true,
 	});
 
+	// Плашка «Профиль запуска»: с чем работают команды vrunner
+	const launchProfileProvider = new LaunchProfileViewProvider(VRunnerManager.getInstance());
+	const profileTreeView = vscode.window.createTreeView('1c-platform-tools-profile', {
+		treeDataProvider: launchProfileProvider,
+		showCollapseAll: false,
+	});
+
 	// Отдельная плашка «Помощь и поддержка» под деревом команд
 	const helpTreeView = vscode.window.createTreeView('1c-platform-tools-help', {
 		treeDataProvider: new HelpAndSupportProvider(),
@@ -47,6 +56,8 @@ export function registerMainTreeView(
 
 	context.subscriptions.push(
 		treeView,
+		launchProfileProvider,
+		profileTreeView,
 		helpTreeView,
 		treeView.onDidExpandElement((event) =>
 			saveGroupExpandedState(event.element, true)

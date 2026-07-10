@@ -27,6 +27,7 @@ class VRunnerTaskProvider implements vscode.TaskProvider {
 		return this.vrunner.createVRunnerTaskFromArgs(args, {
 			name: task.name || definition.command,
 			appendOverrides: false,
+			translateRaw: true,
 			definition,
 		});
 	}

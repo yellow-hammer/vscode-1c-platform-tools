@@ -11,9 +11,9 @@ import * as path from 'node:path';
 import * as fs from 'node:fs/promises';
 import * as fsSync from 'node:fs';
 import { VRunnerManager } from '../../shared/vrunnerManager';
-import { EnvOverrides, NOT_SELECTED_LABEL } from '../../shared/envProfiles';
+import { EnvOverrides, DEFAULT_PROFILE_ID, SettingsSchema, baseSettingsFileName } from '../../shared/envProfiles';
 import { logger } from '../../shared/logger';
-import { ENV_DEFAULTS } from '../serviceFiles/envDefaults';
+import { ENV_DEFAULTS, AUTUMN_DEFAULTS } from '../serviceFiles/envDefaults';
 import { buildEnvJsonWithSections } from '../serviceFiles/envJsonBuilder';
 import {
 	ensureEnvProfileStatusBar,
@@ -45,19 +45,24 @@ const OVERRIDE_FIELDS: OverrideField[] = [
 ];
 
 /**
- * Содержимое для нового env-файла: копия базового env.json или канонический дефолт.
+ * Содержимое для нового файла профиля: копия базового файла настроек схемы
+ * (env.json / autumn-properties.json) или канонический дефолт.
  *
  * @param workspaceRoot - Корень рабочей области
+ * @param schema - Схема настроек установленного vrunner
  * @returns Текст файла (JSON)
  */
-async function buildNewEnvContent(workspaceRoot: string): Promise<string> {
-	const basePath = path.join(workspaceRoot, 'env.json');
+async function buildNewProfileContent(workspaceRoot: string, schema: SettingsSchema): Promise<string> {
+	const basePath = path.join(workspaceRoot, baseSettingsFileName(schema));
 	try {
 		const base = await fs.readFile(basePath, 'utf8');
 		JSON.parse(base); // валидируем, что это корректный JSON
 		return base;
 	} catch {
-		// базового env.json нет — используем канонический дефолт
+		// базового файла нет — используем канонический дефолт
+	}
+	if (schema === 'v3') {
+		return JSON.stringify(AUTUMN_DEFAULTS, null, 4) + '\n';
 	}
 	return JSON.stringify(ENV_DEFAULTS, null, 4) + '\n';
 }
@@ -76,8 +81,8 @@ async function openEnvFile(vrunner: VRunnerManager, fileName: string): Promise<v
 	}
 	const fullPath = path.join(workspaceRoot, fileName);
 	if (!fsSync.existsSync(fullPath)) {
-		await fs.writeFile(fullPath, await buildNewEnvContent(workspaceRoot), 'utf8');
-		log.info(`Создан env-файл: ${fileName}`);
+		await fs.writeFile(fullPath, await buildNewProfileContent(workspaceRoot, vrunner.getActiveSettingsSchema()), 'utf8');
+		log.info(`Создан файл профиля: ${fileName}`);
 	}
 	const doc = await vscode.workspace.openTextDocument(vscode.Uri.file(fullPath));
 	await vscode.window.showTextDocument(doc);
@@ -96,9 +101,12 @@ async function createProfile(vrunner: VRunnerManager, refresh: () => void): Prom
 		return;
 	}
 
+	await vrunner.getVRunnerVersion();
+	const schema = vrunner.getActiveSettingsSchema();
+	const namedPattern = schema === 'v3' ? 'autumn-properties.<id>.json' : 'env.<id>.json';
 	const id = await vscode.window.showInputBox({
-		title: 'Новый env-профиль',
-		prompt: 'Идентификатор профиля → файл env.<id>.json (например dev, prod, local)',
+		title: 'Новый профиль запуска',
+		prompt: `Идентификатор профиля → файл ${namedPattern} (например dev, prod, local)`,
 		placeHolder: 'dev',
 		ignoreFocusOut: true,
 		validateInput: (value) => {
@@ -117,15 +125,20 @@ async function createProfile(vrunner: VRunnerManager, refresh: () => void): Prom
 	}
 
 	const profileId = id.trim();
-	const fullPath = path.join(workspaceRoot, `env.${profileId}.json`);
+	const fileName = schema === 'v3' ? `autumn-properties.${profileId}.json` : `env.${profileId}.json`;
+	const fullPath = path.join(workspaceRoot, fileName);
 	let created = false;
 	if (!fsSync.existsSync(fullPath)) {
-		const content = await buildEnvJsonWithSections();
+		// Для 2.x состав секций выбирается флажками; для 3.x — копия базового
+		// autumn-properties.json или конвертированный дефолт
+		const content = schema === 'v3'
+			? await buildNewProfileContent(workspaceRoot, 'v3')
+			: await buildEnvJsonWithSections();
 		if (content === undefined) {
 			return;
 		}
 		await fs.writeFile(fullPath, content, 'utf8');
-		log.info(`Создан env-профиль: env.${profileId}.json`);
+		log.info(`Создан профиль запуска: ${fileName}`);
 		created = true;
 	}
 	const doc = await vscode.workspace.openTextDocument(vscode.Uri.file(fullPath));
@@ -291,44 +304,51 @@ async function clearOverrides(vrunner: VRunnerManager, refresh: () => void): Pro
  */
 async function selectProfile(vrunner: VRunnerManager, refresh: () => void): Promise<void> {
 	interface ProfileItem extends vscode.QuickPickItem {
-		action: 'select' | 'create' | 'open' | 'params' | 'clear';
+		action: 'select' | 'create' | 'ensure' | 'editor' | 'params' | 'clear' | 'redetect';
 		profileId?: string;
 	}
+
+	// профили и подписи зависят от схемы установленного vrunner
+	await vrunner.getVRunnerVersion();
 
 	for (;;) {
 		const profiles = vrunner.discoverEnvProfiles();
 		const activeId = vrunner.getActiveEnvProfileId();
 		const hasOverrides = vrunner.hasActiveEnvOverrides();
+		const versionLabel = vrunner.getCachedVRunnerVersionLabel();
+		const hasBase = profiles.some((profile) => profile.isBase);
 
-		const items: ProfileItem[] = [
-			{
-				label: `${!activeId ? '$(check)' : '$(blank)'} ${NOT_SELECTED_LABEL}`,
-				action: 'select',
-				profileId: '',
-			},
-			...profiles.map((profile) => ({
-				label: `${profile.id === activeId ? '$(check)' : '$(blank)'} ${profile.label}`,
-				description: profile.fileName,
-				action: 'select' as const,
-				profileId: profile.id,
-			})),
-		];
-		items.push(
-			{ label: '', kind: vscode.QuickPickItemKind.Separator, action: 'params' },
-			{ label: '$(edit) Временные параметры', description: hasOverrides ? 'заданы' : 'не заданы', action: 'params' }
-		);
+		const items: ProfileItem[] = profiles.map((profile) => ({
+			label: `${profile.id === activeId ? '$(check)' : '$(blank)'} ${profile.label}`,
+			description: profile.fileName,
+			action: 'select' as const,
+			profileId: profile.id,
+		}));
+		if (!hasBase) {
+			items.unshift({
+				label: '$(warning) Создать профиль запуска',
+				description: 'не создан, команды заблокированы',
+				action: 'ensure',
+			});
+		}
+
+		items.push({ label: 'Действия', kind: vscode.QuickPickItemKind.Separator, action: 'params' });
+		const hasActiveFile = Boolean(activeId) && profiles.some((profile) => profile.id === activeId);
+		if (hasActiveFile) {
+			items.push({ label: '$(go-to-file) Открыть редактор профиля', description: vrunner.getActiveEnvFile(), action: 'editor' });
+		}
+		items.push({ label: '$(settings-gear) Временные параметры', description: hasOverrides ? 'заданы' : 'не заданы', action: 'params' });
 		if (hasOverrides) {
 			items.push({ label: '$(clear-all) Сбросить параметры', action: 'clear' });
 		}
-		items.push({ label: '$(add) Создать профиль…', action: 'create' });
-		const hasActiveFile = Boolean(activeId) && profiles.some((profile) => profile.id === activeId);
-		if (hasActiveFile) {
-			items.push({ label: '$(go-to-file) Открыть файл активного профиля', action: 'open' });
-		}
+		items.push(
+			{ label: '$(add) Создать профиль…', action: 'create' },
+			{ label: '$(refresh) Определить версию заново', description: versionLabel, action: 'redetect' }
+		);
 
 		const picked = await vscode.window.showQuickPick(items, {
 			title: 'Профиль запуска 1С',
-			placeHolder: 'Профиль подставляется во все команды vanessa-runner через --settings',
+			placeHolder: 'Выберите профиль запуска',
 			ignoreFocusOut: true,
 		});
 		if (!picked) {
@@ -343,9 +363,16 @@ async function selectProfile(vrunner: VRunnerManager, refresh: () => void): Prom
 			case 'create':
 				await createProfile(vrunner, refresh);
 				return;
-			case 'open':
-				await openEnvFile(vrunner, vrunner.getActiveEnvFile());
+			case 'ensure':
+				await vscode.commands.executeCommand('1c-platform-tools.serviceFiles.ensure', 'launchProfile');
+				refresh();
 				return;
+			case 'editor':
+				await vscode.commands.executeCommand('1c-platform-tools.profile.openEditor');
+				return;
+			case 'redetect':
+				await vscode.commands.executeCommand('1c-platform-tools.vrunner.refreshVersion');
+				continue;
 			case 'params':
 				if (await editOverrides(vrunner, refresh, true)) {
 					continue;
@@ -377,10 +404,37 @@ export function registerLaunchFeature(
 
 	const disposables: vscode.Disposable[] = [
 		vscode.commands.registerCommand('1c-platform-tools.env.selectProfile', () => selectProfile(vrunner, refresh)),
+		vscode.commands.registerCommand('1c-platform-tools.profile.openEditor', async () => {
+			const workspaceRoot = vrunner.getWorkspaceRoot();
+			if (!workspaceRoot) {
+				vscode.window.showErrorMessage('Откройте рабочую область для работы с проектом');
+				return;
+			}
+			await vrunner.getVRunnerVersion();
+			const fileName = vrunner.getActiveEnvFile();
+			const fullPath = path.join(workspaceRoot, fileName);
+			if (!fsSync.existsSync(fullPath)) {
+				// файла нет — обычный поток создания через служебные файлы
+				await vscode.commands.executeCommand('1c-platform-tools.serviceFiles.ensure', 'launchProfile');
+				return;
+			}
+			await vscode.commands.executeCommand('vscode.openWith', vscode.Uri.file(fullPath), '1c-platform-tools.profileEditor');
+		}),
 		vscode.commands.registerCommand('1c-platform-tools.env.createProfile', () => createProfile(vrunner, refresh)),
 		vscode.commands.registerCommand('1c-platform-tools.env.setOverrides', () => editOverrides(vrunner, refresh)),
 		vscode.commands.registerCommand('1c-platform-tools.env.clearOverrides', () => clearOverrides(vrunner, refresh)),
 		vscode.commands.registerCommand('1c-platform-tools.env.statusBarRefresh', () => refresh()),
+		vscode.commands.registerCommand('1c-platform-tools.vrunner.refreshVersion', async () => {
+			const version = await vrunner.getVRunnerVersion(true);
+			refresh();
+			vscode.window.showInformationMessage(
+				version
+					? `vanessa-runner: ${version.raw}`
+					: 'Версия не определена. Проверьте установку vanessa-runner.'
+			);
+		}),
+		vrunner.onDidChangeVRunnerVersion(() => refresh()),
+		vrunner.watchVRunnerInstallation(),
 		vscode.workspace.onDidChangeWorkspaceFolders(() => refresh()),
 		vscode.workspace.onDidChangeConfiguration((event) => {
 			if (event.affectsConfiguration('1c-platform-tools.defaultEnvProfile')) {
@@ -400,11 +454,11 @@ export function registerLaunchFeature(
 			refresh();
 			void vscode.commands.executeCommand('1c-platform-tools.refresh').then(undefined, () => undefined);
 		};
-		// Если удалили файл активного профиля — сбрасываем выбор на «Не выбран»
+		// Удалили файл активного именованного профиля — возвращаемся к базовому
 		const onFsDelete = async () => {
 			const activeId = vrunner.getActiveEnvProfileId();
-			if (activeId && !vrunner.discoverEnvProfiles().some((profile) => profile.id === activeId)) {
-				await vrunner.setActiveEnvProfileId('');
+			if (activeId !== DEFAULT_PROFILE_ID && !vrunner.discoverEnvProfiles().some((profile) => profile.id === activeId)) {
+				await vrunner.setActiveEnvProfileId(DEFAULT_PROFILE_ID);
 			}
 			onFsChange();
 		};

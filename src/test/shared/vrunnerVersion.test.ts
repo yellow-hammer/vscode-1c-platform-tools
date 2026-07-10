@@ -27,6 +27,16 @@ suite('vrunnerVersion', () => {
 		assert.strictEqual(v.prerelease, 'rc3');
 	});
 
+	test('parseVRunnerVersion: реальный вывод rc8 `--version` (3.0.0_beta)', () => {
+		const v = parseVRunnerVersion('3.0.0_beta');
+		assert.ok(v);
+		assert.strictEqual(v.major, 3);
+		assert.strictEqual(v.minor, 0);
+		assert.strictEqual(v.patch, 0);
+		assert.strictEqual(v.prerelease, 'beta');
+		assert.strictEqual(isAtLeast(v, '3.0.0'), true);
+	});
+
 	test('parseVRunnerVersion: версия среди лишнего текста', () => {
 		const v = parseVRunnerVersion('vanessa-runner version 2.6.0\n');
 		assert.ok(v);

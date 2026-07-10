@@ -362,7 +362,7 @@ export function registerPlatformServerFeature(
 	const statusItem = vscode.window.createStatusBarItem(
 		'1c-platform-tools.server.status',
 		vscode.StatusBarAlignment.Left,
-		2
+		1
 	);
 	statusItem.name = 'Автономный сервер 1С';
 	statusItem.command = '1c-platform-tools.server.menu';
@@ -382,6 +382,10 @@ export function registerPlatformServerFeature(
 		manager,
 		statusItem,
 		manager.onDidChangeState(() => refresh()),
+		// Профиль задаёт адрес ИБ — при его смене сервер перегенерирует конфиг
+		// публикации и предложит перезапуск, если работает на другой базе
+		vrunner.onDidChangeActiveEnvProfile(() => void manager.onActiveProfileChanged()),
+		vrunner.onDidChangeVRunnerVersion(() => void manager.onActiveProfileChanged()),
 		vscode.commands.registerCommand('1c-platform-tools.server.menu', () => showServerMenu(manager)),
 		vscode.commands.registerCommand('1c-platform-tools.server.start', () => manager.start()),
 		vscode.commands.registerCommand('1c-platform-tools.server.stop', () => manager.stop()),

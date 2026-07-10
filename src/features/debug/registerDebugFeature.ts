@@ -12,6 +12,7 @@ import { logger } from '../../shared/logger';
 import { registerBslBreakpointNormalizer } from './bslBreakpoints';
 import { DEBUG_TYPE } from './debugConstants';
 import { registerMeasureFeature } from './measure';
+import { VRunnerManager } from '../../shared/vrunnerManager';
 
 const log = logger.scope('dap');
 
@@ -34,7 +35,7 @@ class OnecDebugAdapterDescriptorFactory implements vscode.DebugAdapterDescriptor
 export function registerDebugFeature(context: vscode.ExtensionContext): void {
 	vscode.debug.registerDebugConfigurationProvider(
 		DEBUG_TYPE,
-		new OnecDebugConfigurationProvoider()
+		new OnecDebugConfigurationProvoider(VRunnerManager.getInstance(context))
 	);
 	context.subscriptions.push(
 		vscode.debug.registerDebugAdapterDescriptorFactory(

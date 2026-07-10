@@ -32,7 +32,10 @@ export class TestCommands extends BaseCommand {
 	 */
 	async runXUnit(opts?: CommandExecutionOptions): Promise<StructuredCommandResult | void> {
 		const commandName = getXUnitTestsCommandName();
-		return this.runVRunner(['xunit', ...this.vrunner.getActiveSettingsParamIfExists()], opts, commandName.title, undefined, commandName.id);
+		return this.runIntent(
+			{ kind: 'test.xunit' },
+			opts, commandName.title, undefined, commandName.id
+		);
 	}
 
 	/**
@@ -50,7 +53,10 @@ export class TestCommands extends BaseCommand {
 	 */
 	async runSyntaxCheck(opts?: CommandExecutionOptions): Promise<StructuredCommandResult | void> {
 		const commandName = getSyntaxCheckCommandName();
-		return this.runVRunner(['syntax-check', ...this.vrunner.getActiveSettingsParamIfExists()], opts, commandName.title, undefined, commandName.id);
+		return this.runIntent(
+			{ kind: 'validate.syntaxCheck' },
+			opts, commandName.title, undefined, commandName.id
+		);
 	}
 
 	/**
@@ -67,7 +73,10 @@ export class TestCommands extends BaseCommand {
 		opts?: CommandExecutionOptions
 	): Promise<StructuredCommandResult | void> {
 		const commandName = getVanessaTestsCommandName(mode);
-		return this.runVRunner(['vanessa', ...this.vrunner.getActiveSettingsParamIfExists()], opts, commandName.title, undefined, commandName.id);
+		return this.runIntent(
+			{ kind: 'test.vanessa' },
+			opts, commandName.title, undefined, commandName.id
+		);
 	}
 
 	/**
@@ -94,14 +103,14 @@ export class TestCommands extends BaseCommand {
 
 		const config = vscode.workspace.getConfiguration('1c-platform-tools');
 		const configPath = config.get<string>('testing.yaxunitConfigPath', DEFAULT_TESTING.yaxunitConfigPath);
-		// Выбранный профиль подставляется через --settings; при «Не выбран» — адрес ИБ
-		const settingsParam = this.vrunner.getActiveSettingsParamIfExists();
-		const connectionArgs = settingsParam.length > 0
-			? settingsParam
-			: await this.vrunner.getIbConnectionParam(opts?.ibConnection);
-		const args = ['run', '--command', `RunUnitTests=${configPath}`, ...connectionArgs];
+		// --settings активного профиля подставляет planIntent; здесь — только явный
+		// адрес ИБ из вызова MCP (перекрывает ИБ профиля), иначе пусто.
+		const connectionArgs = await this.vrunner.getIbConnectionParam(opts?.ibConnection);
 		const yaxCmd = getYAxUnitTestsCommandName();
-		return this.runVRunner(args, opts, yaxCmd.title, undefined, yaxCmd.id);
+		return this.runIntent(
+			{ kind: 'run.enterprise', command: `RunUnitTests=${configPath}`, common: connectionArgs },
+			opts, yaxCmd.title, undefined, yaxCmd.id
+		);
 	}
 
 	/**
@@ -120,9 +129,11 @@ export class TestCommands extends BaseCommand {
 		const sourcesPath = this.vrunner.getTestsSrcPath();
 		const binariesPath = path.join(this.vrunner.getOutPath(), 'tests');
 		const ibConnectionParam = await this.vrunner.getIbConnectionParam();
-		const args = ['compileepf', sourcesPath, binariesPath, ...ibConnectionParam];
 		const buildEpfCmd = getBuildTestEpfCommandName();
-		return this.runVRunner(args, opts, buildEpfCmd.title, binariesPath, buildEpfCmd.id);
+		return this.runIntent(
+			{ kind: 'epf.build', src: sourcesPath, out: binariesPath, common: ibConnectionParam },
+			opts, buildEpfCmd.title, binariesPath, buildEpfCmd.id
+		);
 	}
 
 	/**
@@ -139,9 +150,11 @@ export class TestCommands extends BaseCommand {
 		const sourcesPath = this.vrunner.getTestsSrcPath();
 		const binariesPath = this.vrunner.getTestsPath();
 		const ibConnectionParam = await this.vrunner.getIbConnectionParam();
-		const args = ['decompileepf', binariesPath, sourcesPath, ...ibConnectionParam];
 		const decompileEpfCmd = getDecompileTestEpfCommandName();
-		return this.runVRunner(args, opts, decompileEpfCmd.title, sourcesPath, decompileEpfCmd.id);
+		return this.runIntent(
+			{ kind: 'epf.decompile', input: binariesPath, out: sourcesPath, common: ibConnectionParam },
+			opts, decompileEpfCmd.title, sourcesPath, decompileEpfCmd.id
+		);
 	}
 
 	/**

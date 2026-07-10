@@ -17,7 +17,10 @@ export function vanessaRunnerEpf(epfName: string): string {
 export const EPF_NAMES = {
 	CLOSE_ENTERPRISE: 'ЗакрытьПредприятие.epf',
 	BLOCK_EXTERNAL_RESOURCES: 'БлокировкаРаботыСВнешнимиРесурсами.epf',
-	LOAD_EXTENSION: 'ЗагрузитьРасширениеВРежимеПредприятия.epf'
+	/** Загрузка .cfe в режиме предприятия, vanessa-runner 2.x */
+	LOAD_EXTENSION: 'ЗагрузитьРасширениеВРежимеПредприятия.epf',
+	/** То же в 3.x — обработка переименована (параметр Путь= прежний) */
+	LOAD_EXTENSION_V3: 'РаботаСРасширениями.epf'
 } as const;
 
 /**

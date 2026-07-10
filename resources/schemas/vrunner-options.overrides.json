@@ -1,0 +1,211 @@
+{
+	"$comment": "Кураторский слой поверх сгенерированных каталогов опций vanessa-runner (vrunner-options.v2/v3.json): смысловые группы формы, порядок важности, уточнения типов и подписи значений. Файл правится вручную и НЕ перезаписывается генератором. Ключи без префикса --; для схемы 2.x применяются к опциям с --.",
+	"groups": [
+		{
+			"id": "connection",
+			"label": "Подключение к ИБ",
+			"keys": [
+				"ibconnection",
+				"db-user",
+				"db-pwd"
+			]
+		},
+		{
+			"id": "platform",
+			"label": "Платформа",
+			"keys": [
+				"v8version",
+				"ordinaryapp",
+				"language",
+				"locale",
+				"additional",
+				"nocacheuse",
+				"uccode"
+			]
+		},
+		{
+			"id": "ibcmd",
+			"label": "ibcmd и СУБД",
+			"keys": [
+				"ibcmd",
+				"dbms-type",
+				"dbms-server",
+				"dbms-base",
+				"dbms-user",
+				"dbms-pwd"
+			]
+		},
+		{
+			"id": "ibsrv",
+			"label": "Автономный сервер (ibsrv)",
+			"keys": [
+				"ibsrv",
+				"ibsrv-direct",
+				"ibsrv-debug",
+				"ibsrv-attach",
+				"ibsrv-port"
+			]
+		},
+		{
+			"id": "edt",
+			"label": "Исходники 1С:EDT",
+			"keys": [
+				"src-format",
+				"edt-version",
+				"edt-workspace",
+				"edt-timeout",
+				"edt-vmargs"
+			]
+		},
+		{
+			"id": "storage",
+			"label": "Хранилище конфигурации",
+			"keys": [
+				"storage-name",
+				"storage-user",
+				"storage-pwd",
+				"storage-ver"
+			]
+		},
+		{
+			"id": "cluster",
+			"label": "Кластер серверов",
+			"keys": [
+				"cluster",
+				"cluster-name",
+				"cluster-admin",
+				"cluster-pwd",
+				"ras",
+				"rac",
+				"db-name"
+			]
+		},
+		{
+			"id": "vanessa",
+			"label": "Тесты Vanessa (BDD)",
+			"keys": [
+				"vanessasettings",
+				"pathvanessa",
+				"bddrunner-path",
+				"feature-path",
+				"tags-filter",
+				"tags-ignore",
+				"additional-keys",
+				"workspace"
+			]
+		},
+		{
+			"id": "xunit",
+			"label": "Тесты xUnit",
+			"keys": [
+				"pathxunit",
+				"reportsxunit",
+				"reportxunit",
+				"xddConfig",
+				"xddExitCodePath",
+				"xdddebug",
+				"testclient",
+				"testclient-additional",
+				"config-tests",
+				"clear-reports",
+				"no-shutdown"
+			]
+		},
+		{
+			"id": "syntax",
+			"label": "Синтаксический контроль",
+			"keys": [
+				"mode",
+				"junitpath",
+				"exception-file",
+				"groupbymetadata",
+				"testsuitename",
+				"allure-results2"
+			]
+		},
+		{
+			"id": "run",
+			"label": "Запуск 1С",
+			"keys": [
+				"command",
+				"execute",
+				"url",
+				"no-wait",
+				"exitCodePath",
+				"root"
+			]
+		}
+	],
+	"priority": [
+		"ibconnection",
+		"db-user",
+		"db-pwd",
+		"v8version",
+		"ibcmd",
+		"ordinaryapp",
+		"additional"
+	],
+	"options": {
+		"ordinaryapp": {
+			"type": "string",
+			"enum": [
+				"-1",
+				"0",
+				"1"
+			],
+			"enumLabels": {
+				"-1": "Авто",
+				"0": "Тонкий клиент",
+				"1": "Толстый клиент"
+			}
+		},
+		"rtype": {
+			"enum": [
+				"v1",
+				"v2"
+			],
+			"enumLabels": {
+				"v1": "Обычная реструктуризация",
+				"v2": "Оптимизированная реструктуризация"
+			}
+		},
+		"dbms-type": {
+			"enum": [
+				"MSSQLServer",
+				"PostgreSQL",
+				"IBMDB2",
+				"OracleDatabase"
+			]
+		},
+		"src-format": {
+			"enum": [
+				"auto",
+				"edt",
+				"xml"
+			],
+			"enumLabels": {
+				"auto": "Автоопределение",
+				"edt": "1С:EDT",
+				"xml": "XML-дамп Конфигуратора"
+			}
+		}
+	},
+	"v2Sections": [
+		"default",
+		"vanessa",
+		"xunit",
+		"syntax-check",
+		"run",
+		"designer",
+		"updatedb",
+		"init-dev",
+		"update-dev",
+		"loadrepo",
+		"compile",
+		"decompile",
+		"compileepf",
+		"decompileepf",
+		"compileext",
+		"decompileext"
+	]
+}

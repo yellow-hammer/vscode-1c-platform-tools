@@ -39,14 +39,20 @@ export class RunCommands extends BaseCommand {
 		if (!(await this.ensureOscriptAvailable())) {
 			return;
 		}
+		if (!(await this.vrunner.ensureProfileSettingsFile(true))) {
+			return;
+		}
 
 		const connectionArgs = await this.buildConnectionArgs();
 		const commandName = getRunEnterpriseCommandName();
-		const args = ['run', '--no-wait', ...connectionArgs];
+		const [args] = await this.vrunner.planIntent(
+			{ kind: 'run.enterprise', noWait: true, common: connectionArgs }
+		);
 
 		this.vrunner.executeVRunnerInTerminal(args, {
 			cwd: workspaceRoot,
-			name: commandName.title
+			name: commandName.title,
+			appendOverrides: false
 		});
 	}
 
@@ -67,14 +73,20 @@ export class RunCommands extends BaseCommand {
 		if (!(await this.ensureOscriptAvailable())) {
 			return;
 		}
+		if (!(await this.vrunner.ensureProfileSettingsFile(true))) {
+			return;
+		}
 
 		const connectionArgs = await this.buildConnectionArgs();
 		const commandName = getRunDesignerCommandName();
-		const args = ['designer', '--no-wait', ...connectionArgs];
+		const [args] = await this.vrunner.planIntent(
+			{ kind: 'run.designer', noWait: true, common: connectionArgs }
+		);
 
 		this.vrunner.executeVRunnerInTerminal(args, {
 			cwd: workspaceRoot,
-			name: commandName.title
+			name: commandName.title,
+			appendOverrides: false
 		});
 	}
 }

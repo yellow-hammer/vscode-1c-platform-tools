@@ -79,8 +79,10 @@ export class ExternalFilesCommands extends BaseCommand {
 			: getBuildExternalReportCommandName();
 		const outputPath = path.join(buildPath, outputFolder);
 		const ibConnectionParam = await this.vrunner.getIbConnectionParam();
-		const args = ['compileepf', srcFolder, outputPath, ...ibConnectionParam];
-		return this.runVRunner(args, opts, commandName.title, outputPath, commandName.id);
+		return this.runIntent(
+			{ kind: 'epf.build', src: srcFolder, out: outputPath, common: ibConnectionParam },
+			opts, commandName.title, outputPath, commandName.id
+		);
 	}
 
 	async decompile(
@@ -127,8 +129,10 @@ export class ExternalFilesCommands extends BaseCommand {
 		const commandName = fileType === 'processor'
 			? getDecompileExternalProcessorCommandName()
 			: getDecompileExternalReportCommandName();
-		const args = ['decompileepf', inputPath, outputPath, ...ibConnectionParam];
-		return this.runVRunner(args, opts, commandName.title, undefined, commandName.id);
+		return this.runIntent(
+			{ kind: 'epf.decompile', input: inputPath, out: outputPath, common: ibConnectionParam },
+			opts, commandName.title, undefined, commandName.id
+		);
 	}
 
 	async clearCache(opts?: CommandExecutionOptions): Promise<StructuredCommandResult | void> {

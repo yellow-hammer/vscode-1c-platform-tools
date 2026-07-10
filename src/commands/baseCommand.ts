@@ -2,6 +2,7 @@ import * as path from 'node:path';
 import * as vscode from 'vscode';
 import * as fs from 'node:fs/promises';
 import { VRunnerManager, type VRunnerExecutionResult } from '../shared/vrunnerManager';
+import type { VRunnerIntent } from '../shared/vrunnerCli';
 import { logger } from '../shared/logger';
 import { runWithHooks, runHooksAroundTerminalTask } from '../shared/commandHooks';
 import type { CommandExecutionOptions, StructuredCommandResult } from '../shared/commandExecutionTypes';
@@ -195,21 +196,6 @@ export abstract class BaseCommand {
 	}
 
 	/**
-	 * Добавляет параметр --ibcmd к аргументам команды, если это необходимо
-	 * 
-	 * Проверяет, нужно ли использовать ibcmd и поддерживает ли команда этот параметр.
-	 * 
-	 * @param args - Массив аргументов команды
-	 * @returns Массив аргументов с добавленным --ibcmd (если нужно)
-	 */
-	protected addIbcmdIfNeeded(args: string[]): string[] {
-		if (this.vrunner.getUseIbcmd() && this.vrunner.supportsIbcmd(args)) {
-			args.push('--ibcmd');
-		}
-		return args;
-	}
-
-	/**
 	 * Структурированная ошибка для режима wait: true (без UI-диалогов).
 	 */
 	protected executionError(message: string): StructuredCommandResult {
@@ -294,14 +280,81 @@ export abstract class BaseCommand {
 	}
 
 	/**
+	 * Гейт файла настроек vanessa-runner: без пригодного файла команды не
+	 * выполняются (настройки — единственный источник параметров подключения,
+	 * расширение их в CLI не дублирует).
+	 *
+	 * @returns undefined — можно выполнять; StructuredCommandResult — блокировка
+	 *          в режиме wait; 'blocked' — блокировка в UI-режиме (диалог показан)
+	 */
+	protected async settingsGate(
+		opts: CommandExecutionOptions | undefined
+	): Promise<StructuredCommandResult | 'blocked' | undefined> {
+		if (await this.vrunner.ensureProfileSettingsFile(opts?.wait !== true)) {
+			return undefined;
+		}
+		if (opts?.wait === true) {
+			return this.executionError(
+				'Профиль запуска не создан. Создайте его через «Служебные файлы».'
+			);
+		}
+		return 'blocked';
+	}
+
+	/**
+	 * Запуск одного намерения vrunner (см. {@link VRunnerIntent}).
+	 *
+	 * План строится адаптером установленной версии vrunner (2.x/3.x); намерение
+	 * может развернуться в несколько команд (например, разборка .cfe на 2.x).
+	 */
+	protected async runIntent(
+		intent: VRunnerIntent,
+		opts: CommandExecutionOptions | undefined,
+		terminalName: string,
+		artifact?: string,
+		commandId?: string
+	): Promise<StructuredCommandResult | void> {
+		const gate = await this.settingsGate(opts);
+		if (gate) {
+			return gate === 'blocked' ? undefined : gate;
+		}
+		const steps = await this.vrunner.planIntent(intent);
+		if (steps.length === 1) {
+			return this.runVRunner(steps[0], opts, terminalName, artifact, commandId, true);
+		}
+		return this.runVRunnerSequential(steps, opts, terminalName, commandId, true);
+	}
+
+	/**
+	 * Последовательный запуск нескольких намерений vrunner одной цепочкой.
+	 */
+	protected async runIntentsSequential(
+		intents: VRunnerIntent[],
+		opts: CommandExecutionOptions | undefined,
+		terminalName: string,
+		commandId?: string
+	): Promise<StructuredCommandResult | void> {
+		const gate = await this.settingsGate(opts);
+		if (gate) {
+			return gate === 'blocked' ? undefined : gate;
+		}
+		const steps = await this.vrunner.planIntents(intents);
+		return this.runVRunnerSequential(steps, opts, terminalName, commandId, true);
+	}
+
+	/**
 	 * Универсальный запуск vrunner с поддержкой режимов wait: false (терминал) и wait: true (sync).
+	 *
+	 * @param planned - true, если args — финальный план интента (параметры
+	 *                  профиля уже добавлены адаптером, повторно не дописывать)
 	 */
 	protected async runVRunner(
 		args: string[],
 		opts: CommandExecutionOptions | undefined,
 		terminalName: string,
 		artifact?: string,
-		commandId?: string
+		commandId?: string,
+		planned = false
 	): Promise<StructuredCommandResult | void> {
 		const cwd = this.getExecutionCwd(opts);
 		if (!cwd) {
@@ -321,6 +374,7 @@ export abstract class BaseCommand {
 		}
 
 		const workspaceRoot = this.vrunner.getWorkspaceRoot() ?? cwd;
+		const appendOverrides = planned ? false : undefined;
 
 		if (opts?.wait === true) {
 			const execute = async (): Promise<StructuredCommandResult> => {
@@ -336,11 +390,11 @@ export abstract class BaseCommand {
 		if (commandId) {
 			void runHooksAroundTerminalTask({
 				commandId, cwd, args, workspaceRoot,
-				runTracked: () => this.vrunner.executeVRunnerTaskAndWait(args, { cwd, name: terminalName }),
-				runUntracked: () => this.vrunner.executeVRunnerInTerminal(args, { cwd, name: terminalName }),
+				runTracked: () => this.vrunner.executeVRunnerTaskAndWait(args, { cwd, name: terminalName, appendOverrides }),
+				runUntracked: () => this.vrunner.executeVRunnerInTerminal(args, { cwd, name: terminalName, appendOverrides }),
 			}).catch((err) => log.error(`Ошибка хуков команды: ${(err as Error).message}`));
 		} else {
-			this.vrunner.executeVRunnerInTerminal(args, { cwd, name: terminalName });
+			this.vrunner.executeVRunnerInTerminal(args, { cwd, name: terminalName, appendOverrides });
 		}
 	}
 
@@ -352,7 +406,8 @@ export abstract class BaseCommand {
 		argsList: string[][],
 		opts: CommandExecutionOptions | undefined,
 		terminalName: string,
-		commandId?: string
+		commandId?: string,
+		planned = false
 	): Promise<StructuredCommandResult | void> {
 		const cwd = this.getExecutionCwd(opts);
 		if (!cwd) {
@@ -373,6 +428,7 @@ export abstract class BaseCommand {
 
 		const workspaceRoot = this.vrunner.getWorkspaceRoot() ?? cwd;
 		const flatArgs = argsList.flat();
+		const appendOverrides = planned ? false : undefined;
 
 		if (opts?.wait === true) {
 			const execute = async (): Promise<StructuredCommandResult> => {
@@ -404,11 +460,11 @@ export abstract class BaseCommand {
 		if (commandId) {
 			void runHooksAroundTerminalTask({
 				commandId, cwd, args: flatArgs, workspaceRoot,
-				runTracked: () => this.vrunner.executeVRunnerTaskSequenceAndWait(argsList, { cwd, name: terminalName }),
-				runUntracked: () => this.vrunner.executeVRunnerCommandsInSequence(argsList, { cwd, name: terminalName }),
+				runTracked: () => this.vrunner.executeVRunnerTaskSequenceAndWait(argsList, { cwd, name: terminalName, appendOverrides }),
+				runUntracked: () => this.vrunner.executeVRunnerCommandsInSequence(argsList, { cwd, name: terminalName, appendOverrides }),
 			}).catch((err) => log.error(`Ошибка хуков команды: ${(err as Error).message}`));
 		} else {
-			await this.vrunner.executeVRunnerCommandsInSequence(argsList, { cwd, name: terminalName });
+			await this.vrunner.executeVRunnerCommandsInSequence(argsList, { cwd, name: terminalName, appendOverrides });
 		}
 	}
 }

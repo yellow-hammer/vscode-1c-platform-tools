@@ -75,6 +75,24 @@
 				"panel": "shared"
 			},
 			"group": "build"
+		},
+		{
+			"label": "Обновить каталоги опций vrunner (схемы 2 и 3)",
+			"type": "shell",
+			"command": "node scripts/gen-vrunner-options.mjs --v3-ref ${input:vrunnerV3Ref}",
+			"problemMatcher": [],
+			"presentation": {
+				"reveal": "always",
+				"panel": "new"
+			}
+		}
+	],
+	"inputs": [
+		{
+			"id": "vrunnerV3Ref",
+			"type": "promptString",
+			"description": "Тег vanessa-runner 3 для каталога опций (пусто — обновить только 2.x)",
+			"default": "v3.0.0_rc8"
 		}
 	]
 }

@@ -103,12 +103,10 @@ export class YaxunitAdapter implements TestFrameworkAdapter {
 			'(yaxunit.cfe с https://github.com/bia-technologies/yaxunit/releases) и тестовое расширение ' +
 			'с вашими тестами. У обоих отключите «Безопасный режим» и «Защиту от опасных действий».';
 
-		// Выбранный профиль подставляется через --settings; при «Не выбран» — адрес ИБ
-		const settingsParam = this.vrunner.getActiveSettingsParamIfExists();
-		const connectionArgs = settingsParam.length > 0
-			? settingsParam
-			: await this.vrunner.getIbConnectionParam();
-		const args = ['run', '--command', `RunUnitTests=${configPath}`, ...connectionArgs];
+		// --settings активного профиля подставляет planIntent централизованно.
+		const [args] = await this.vrunner.planIntent(
+			{ kind: 'run.enterprise', command: `RunUnitTests=${configPath}` }
+		);
 		return {
 			tool: 'vrunner',
 			args,

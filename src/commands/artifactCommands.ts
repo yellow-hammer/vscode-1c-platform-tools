@@ -6,6 +6,7 @@
 import * as path from 'node:path';
 import * as vscode from 'vscode';
 import { BaseCommand } from './baseCommand';
+import { resolveExtensionNameFromSrc } from '../features/extensions/extensionNames';
 
 function getRelativePath(uri: vscode.Uri): string {
 	const folders = vscode.workspace.workspaceFolders;
@@ -99,6 +100,9 @@ export class ArtifactCommands extends BaseCommand {
 		if (!workspaceRoot || !(await this.ensureOscriptAvailable())) {
 			return;
 		}
+		if (!(await this.vrunner.ensureProfileSettingsFile(true))) {
+			return;
+		}
 		const defaultDir = this.vrunner.getOutPath();
 		const outFile = await this.pickOutputFile(
 			defaultDir,
@@ -110,10 +114,11 @@ export class ArtifactCommands extends BaseCommand {
 			return;
 		}
 		const srcRel = getRelativePath(artifactUri);
-		const args = this.addIbcmdIfNeeded(['compile', '--src', srcRel, '--out', outFile]);
+		const [args] = await this.vrunner.planIntent({ kind: 'cf.build', src: srcRel, out: outFile });
 		this.vrunner.executeVRunnerInTerminal(args, {
 			cwd: workspaceRoot,
 			name: `Собрать конфигурацию: ${path.basename(artifactUri.fsPath)}`,
+			appendOverrides: false,
 		});
 	}
 
@@ -123,16 +128,20 @@ export class ArtifactCommands extends BaseCommand {
 		if (!workspaceRoot || !(await this.ensureOscriptAvailable())) {
 			return;
 		}
+		if (!(await this.vrunner.ensureProfileSettingsFile(true))) {
+			return;
+		}
 		const defaultPath = this.vrunner.getCfPath();
 		const outDir = await this.pickOutputPath(defaultPath, 'Каталог для разборки конфигурации');
 		if (!outDir) {
 			return;
 		}
 		const inRel = getRelativePath(artifactUri);
-		const args = this.addIbcmdIfNeeded(['decompile', '--in', inRel, '--out', outDir]);
+		const [args] = await this.vrunner.planIntent({ kind: 'cf.decompileFile', file: inRel, out: outDir });
 		this.vrunner.executeVRunnerInTerminal(args, {
 			cwd: workspaceRoot,
 			name: `Разобрать конфигурацию: ${path.basename(artifactUri.fsPath)}`,
+			appendOverrides: false,
 		});
 	}
 
@@ -140,6 +149,9 @@ export class ArtifactCommands extends BaseCommand {
 	async buildExtension(artifactUri: vscode.Uri): Promise<void> {
 		const workspaceRoot = this.ensureWorkspace();
 		if (!workspaceRoot || !(await this.ensureOscriptAvailable())) {
+			return;
+		}
+		if (!(await this.vrunner.ensureProfileSettingsFile(true))) {
 			return;
 		}
 		const defaultPath = path.join(this.vrunner.getOutPath(), 'cfe');
@@ -150,28 +162,32 @@ export class ArtifactCommands extends BaseCommand {
 		const srcRel = getRelativePath(artifactUri);
 		const name = path.basename(artifactUri.fsPath);
 		const outFile = path.join(outPath, `${name}.cfe`);
-		const args = this.addIbcmdIfNeeded(['compileexttocfe', '--src', srcRel, '--out', outFile]);
+		const extensionName = await resolveExtensionNameFromSrc(artifactUri.fsPath);
+		const [args] = await this.vrunner.planIntent({ kind: 'cfe.buildCfe', src: srcRel, out: outFile, extensionName });
 		this.vrunner.executeVRunnerInTerminal(args, {
 			cwd: workspaceRoot,
 			name: `Собрать расширение: ${name}`,
+			appendOverrides: false,
 		});
 	}
 
 	/**
 	 * Разобрать .cfe в исходники.
 	 *
-	 * vanessa-runner не умеет разбирать .cfe напрямую: `decompileext` выгружает
-	 * расширение ИЗ информационной базы, а не из файла. Поэтому сначала загружаем
-	 * .cfe в ИБ (`loadext --file <cfe> --extension <имя>`), затем выгружаем его
-	 * из ИБ в исходники (`decompileext <имя> <каталог>`). Обе команды выполняются
-	 * по цепочке в одном терминале.
+	 * План зависит от версии vrunner: 2.x не умеет разбирать .cfe напрямую,
+	 * поэтому файл сначала загружается в рабочую ИБ и выгружается из неё
+	 * (loadext + decompileext по цепочке); 3.x разбирает файл одной командой
+	 * `cfe decompile --cfe-file` во временной ИБ, не затрагивая рабочую.
 	 *
 	 * Расширение раскладывается в подкаталог <выбранный каталог>/<имя расширения>
-	 * (формат src/cfe/<имя>), как в `vrunner decompileext`.
+	 * (формат src/cfe/<имя>).
 	 */
 	async decompileExtension(artifactUri: vscode.Uri): Promise<void> {
 		const workspaceRoot = this.ensureWorkspace();
 		if (!workspaceRoot || !(await this.ensureOscriptAvailable())) {
+			return;
+		}
+		if (!(await this.vrunner.ensureProfileSettingsFile(true))) {
 			return;
 		}
 		const defaultPath = this.vrunner.getCfePath();
@@ -180,20 +196,26 @@ export class ArtifactCommands extends BaseCommand {
 			return;
 		}
 		const cfeName = path.basename(artifactUri.fsPath);
-		const extensionName = cfeName.replace(/\.cfe$/i, '');
+		const folderName = cfeName.replace(/\.cfe$/i, '');
+		// Файл .cfe собирается из каталога с тем же именем; имя расширения внутри
+		// может отличаться от имени файла — берём его из метаданных исходников
+		const extensionName = await resolveExtensionNameFromSrc(
+			path.join(workspaceRoot, this.vrunner.getCfePath(), folderName)
+		);
 		const cfeRel = getRelativePath(artifactUri);
-		const targetDir = this.pathForCmd(path.join(outDir, extensionName));
+		const targetDir = this.pathForCmd(path.join(outDir, folderName));
 		const ibConnectionParam = await this.vrunner.getIbConnectionParam();
-		const loadArgs = ['loadext', '--file', cfeRel, '--extension', extensionName, ...ibConnectionParam];
-		const decompileArgs = this.addIbcmdIfNeeded([
-			'decompileext',
+		const steps = await this.vrunner.planIntent({
+			kind: 'cfe.decompileCfeFile',
+			file: cfeRel,
 			extensionName,
-			targetDir,
-			...ibConnectionParam,
-		]);
-		await this.vrunner.executeVRunnerCommandsInSequence([loadArgs, decompileArgs], {
+			out: targetDir,
+			common: ibConnectionParam,
+		});
+		await this.vrunner.executeVRunnerCommandsInSequence(steps, {
 			cwd: workspaceRoot,
 			name: `Разобрать расширение: ${cfeName}`,
+			appendOverrides: false,
 		});
 	}
 
@@ -203,6 +225,9 @@ export class ArtifactCommands extends BaseCommand {
 		if (!workspaceRoot || !(await this.ensureOscriptAvailable())) {
 			return;
 		}
+		if (!(await this.vrunner.ensureProfileSettingsFile(true))) {
+			return;
+		}
 		const defaultPath = path.join(this.vrunner.getOutPath(), 'epf');
 		const outDir = await this.pickOutputPath(defaultPath, 'Каталог для сборки обработки');
 		if (!outDir) {
@@ -210,10 +235,13 @@ export class ArtifactCommands extends BaseCommand {
 		}
 		const srcRel = getRelativePath(artifactUri);
 		const ibConnectionParam = await this.vrunner.getIbConnectionParam();
-		const args = ['compileepf', srcRel, outDir, ...ibConnectionParam];
+		const [args] = await this.vrunner.planIntent(
+			{ kind: 'epf.build', src: srcRel, out: outDir, common: ibConnectionParam }
+		);
 		this.vrunner.executeVRunnerInTerminal(args, {
 			cwd: workspaceRoot,
 			name: `Собрать обработку: ${path.basename(artifactUri.fsPath)}`,
+			appendOverrides: false,
 		});
 	}
 
@@ -223,6 +251,9 @@ export class ArtifactCommands extends BaseCommand {
 		if (!workspaceRoot || !(await this.ensureOscriptAvailable())) {
 			return;
 		}
+		if (!(await this.vrunner.ensureProfileSettingsFile(true))) {
+			return;
+		}
 		const defaultPath = this.vrunner.getEpfPath();
 		const epfPath = await this.pickOutputPath(defaultPath, 'Каталог для разборки обработки');
 		if (!epfPath) {
@@ -230,10 +261,13 @@ export class ArtifactCommands extends BaseCommand {
 		}
 		const inRel = getRelativePath(artifactUri);
 		const ibConnectionParam = await this.vrunner.getIbConnectionParam();
-		const args = ['decompileepf', inRel, epfPath, ...ibConnectionParam];
+		const [args] = await this.vrunner.planIntent(
+			{ kind: 'epf.decompile', input: inRel, out: epfPath, common: ibConnectionParam }
+		);
 		this.vrunner.executeVRunnerInTerminal(args, {
 			cwd: workspaceRoot,
 			name: `Разобрать обработку: ${path.basename(artifactUri.fsPath)}`,
+			appendOverrides: false,
 		});
 	}
 
@@ -243,6 +277,9 @@ export class ArtifactCommands extends BaseCommand {
 		if (!workspaceRoot || !(await this.ensureOscriptAvailable())) {
 			return;
 		}
+		if (!(await this.vrunner.ensureProfileSettingsFile(true))) {
+			return;
+		}
 		const defaultPath = path.join(this.vrunner.getOutPath(), 'erf');
 		const outDir = await this.pickOutputPath(defaultPath, 'Каталог для сборки отчёта');
 		if (!outDir) {
@@ -250,10 +287,13 @@ export class ArtifactCommands extends BaseCommand {
 		}
 		const srcRel = getRelativePath(artifactUri);
 		const ibConnectionParam = await this.vrunner.getIbConnectionParam();
-		const args = ['compileepf', srcRel, outDir, ...ibConnectionParam];
+		const [args] = await this.vrunner.planIntent(
+			{ kind: 'epf.build', src: srcRel, out: outDir, common: ibConnectionParam }
+		);
 		this.vrunner.executeVRunnerInTerminal(args, {
 			cwd: workspaceRoot,
 			name: `Собрать отчёт: ${path.basename(artifactUri.fsPath)}`,
+			appendOverrides: false,
 		});
 	}
 
@@ -263,6 +303,9 @@ export class ArtifactCommands extends BaseCommand {
 		if (!workspaceRoot || !(await this.ensureOscriptAvailable())) {
 			return;
 		}
+		if (!(await this.vrunner.ensureProfileSettingsFile(true))) {
+			return;
+		}
 		const defaultPath = this.vrunner.getErfPath();
 		const erfPath = await this.pickOutputPath(defaultPath, 'Каталог для разборки отчёта');
 		if (!erfPath) {
@@ -270,10 +313,13 @@ export class ArtifactCommands extends BaseCommand {
 		}
 		const inRel = getRelativePath(artifactUri);
 		const ibConnectionParam = await this.vrunner.getIbConnectionParam();
-		const args = ['decompileepf', inRel, erfPath, ...ibConnectionParam];
+		const [args] = await this.vrunner.planIntent(
+			{ kind: 'epf.decompile', input: inRel, out: erfPath, common: ibConnectionParam }
+		);
 		this.vrunner.executeVRunnerInTerminal(args, {
 			cwd: workspaceRoot,
 			name: `Разобрать отчёт: ${path.basename(artifactUri.fsPath)}`,
+			appendOverrides: false,
 		});
 	}
 

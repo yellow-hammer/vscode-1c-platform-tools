@@ -25,54 +25,53 @@ export class InfobaseCommands extends BaseCommand {
 
 	async createEmptyInfobase(opts?: CommandExecutionOptions): Promise<StructuredCommandResult | void> {
 		const ibConnectionParam = await this.vrunner.getIbConnectionParam();
-		const args = this.addIbcmdIfNeeded(['init-dev', ...ibConnectionParam]);
 		const cmd = getCreateEmptyInfobaseCommandName();
-		return this.runVRunner(args, opts, cmd.title, undefined, cmd.id);
+		return this.runIntent(
+			{ kind: 'infobase.init', common: ibConnectionParam },
+			opts, cmd.title, undefined, cmd.id
+		);
 	}
 
 	async updateInfobase(opts?: CommandExecutionOptions): Promise<StructuredCommandResult | void> {
 		const ibConnectionParam = await this.vrunner.getIbConnectionParam();
-		const args = this.addIbcmdIfNeeded(['updatedb', ...ibConnectionParam]);
 		const cmd = getUpdateConfigurationInInfobaseCommandName();
-		return this.runVRunner(args, opts, cmd.title, undefined, cmd.id);
+		return this.runIntent(
+			{ kind: 'infobase.updateDb', common: ibConnectionParam },
+			opts, cmd.title, undefined, cmd.id
+		);
 	}
 
 	async updateDatabase(opts?: CommandExecutionOptions): Promise<StructuredCommandResult | void> {
 		const ibConnectionParam = await this.vrunner.getIbConnectionParam();
 		const epfPath = vanessaRunnerEpf(EPF_NAMES.CLOSE_ENTERPRISE);
-		const args = [
-			'run',
-			'--command',
-			EPF_COMMANDS.UPDATE_DATABASE,
-			'--execute',
-			epfPath,
-			...ibConnectionParam
-		];
 		const cmd = getUpdateDatabaseCommandName();
-		return this.runVRunner(args, opts, cmd.title, undefined, cmd.id);
+		return this.runIntent(
+			{ kind: 'run.enterprise', command: EPF_COMMANDS.UPDATE_DATABASE, execute: epfPath, common: ibConnectionParam },
+			opts, cmd.title, undefined, cmd.id
+		);
 	}
 
 	async blockExternalResources(opts?: CommandExecutionOptions): Promise<StructuredCommandResult | void> {
 		const ibConnectionParam = await this.vrunner.getIbConnectionParam();
 		const epfPath = vanessaRunnerEpf(EPF_NAMES.BLOCK_EXTERNAL_RESOURCES);
-		const args = [
-			'run',
-			'--command',
-			EPF_COMMANDS.BLOCK_EXTERNAL_RESOURCES,
-			'--execute',
-			epfPath,
-			...ibConnectionParam
-		];
 		const cmd = getBlockExternalResourcesCommandName();
-		return this.runVRunner(args, opts, cmd.title, undefined, cmd.id);
+		return this.runIntent(
+			{ kind: 'run.enterprise', command: EPF_COMMANDS.BLOCK_EXTERNAL_RESOURCES, execute: epfPath, common: ibConnectionParam },
+			opts, cmd.title, undefined, cmd.id
+		);
 	}
 
 	async initialize(opts?: CommandExecutionOptions): Promise<StructuredCommandResult | void> {
-		const ibConnectionParam = await this.vrunner.getIbConnectionParam();
-		const settingsPath = this.vrunner.getVRunnerInitSettingsPath();
-		const args = ['vanessa', '--settings', settingsPath, ...ibConnectionParam];
+		// Инициализация отличается от обычного прогона Vanessa только сценарием:
+		// его подставляем через --vanessasettings, а ИБ, путь к VA и остальное
+		// берутся из активного профиля (planIntents добавит его --settings). Так
+		// работает и на v2, и на v3, где файл init формата 2.x не передаётся.
+		const vanessaSettings = this.vrunner.getInitVanessaSettingsPath();
 		const cmd = getInitializeCommandName();
-		return this.runVRunner(args, opts, cmd.title, undefined, cmd.id);
+		return this.runIntent(
+			{ kind: 'test.vanessa', vanessaSettings },
+			opts, cmd.title, undefined, cmd.id
+		);
 	}
 
 	async dumpToDt(opts?: CommandExecutionOptions): Promise<StructuredCommandResult | void> {
@@ -112,9 +111,11 @@ export class InfobaseCommands extends BaseCommand {
 		const fileName = `1Cv8_${formatDateForDtFileName()}.dt`;
 		const dtPath = path.join(dtFolder, fileName);
 		const ibConnectionParam = await this.vrunner.getIbConnectionParam();
-		const args = this.addIbcmdIfNeeded(['dump', dtPath, ...ibConnectionParam]);
 		const cmd = getDumpInfobaseToDtCommandName();
-		return this.runVRunner(args, opts, cmd.title, dtPath, cmd.id);
+		return this.runIntent(
+			{ kind: 'infobase.dumpDt', out: dtPath, common: ibConnectionParam },
+			opts, cmd.title, dtPath, cmd.id
+		);
 	}
 
 	async loadFromDt(opts?: CommandExecutionOptions): Promise<StructuredCommandResult | void> {
@@ -150,8 +151,10 @@ export class InfobaseCommands extends BaseCommand {
 		const selectedFilePath = fileUri[0].fsPath;
 		const relativePath = path.relative(workspaceRoot, selectedFilePath);
 		const ibConnectionParam = await this.vrunner.getIbConnectionParam();
-		const args = this.addIbcmdIfNeeded(['restore', relativePath, ...ibConnectionParam]);
 		const cmd = getLoadInfobaseFromDtCommandName();
-		return this.runVRunner(args, opts, cmd.title, undefined, cmd.id);
+		return this.runIntent(
+			{ kind: 'infobase.restoreDt', file: relativePath, common: ibConnectionParam },
+			opts, cmd.title, undefined, cmd.id
+		);
 	}
 }

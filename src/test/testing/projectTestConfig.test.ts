@@ -95,6 +95,26 @@ suite('projectTestConfig', () => {
 		assert.strictEqual(reportsXunitFromEnv({}), undefined);
 	});
 
+	test('схема v3: читатели берут значения из autumn-properties (vrunner.test/validate.*)', () => {
+		const autumn = {
+			vrunner: {
+				test: {
+					vanessa: { vanessasettings: './tools/VAParams.json' },
+					xunit: { reportsxunit: 'jUnit{build/junit.xml}' }
+				},
+				validate: {
+					'syntax-check': { junitpath: 'build/out/sc/junit.xml', groupbymetadata: false }
+				}
+			}
+		};
+		assert.strictEqual(vanessaSettingsPathFromEnv(autumn, 'v3'), './tools/VAParams.json');
+		assert.strictEqual(reportsXunitFromEnv(autumn, 'v3'), 'jUnit{build/junit.xml}');
+		assert.strictEqual(syntaxCheckJUnitPathFromEnv(autumn, 'v3'), 'build/out/sc/junit.xml');
+		assert.strictEqual(syntaxCheckGroupByMetadataFromEnv(autumn, 'v3'), false);
+		// v2-читатель не находит значения в autumn-структуре
+		assert.strictEqual(reportsXunitFromEnv(autumn, 'v2'), undefined);
+	});
+
 	test('syntaxCheckJUnitPathFromEnv читает --junitpath секции syntax-check', () => {
 		const envJson = {
 			'syntax-check': {

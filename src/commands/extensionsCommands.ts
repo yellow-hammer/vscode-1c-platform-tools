@@ -15,8 +15,10 @@ import {
 import { vanessaRunnerEpf, EPF_NAMES, EPF_COMMANDS } from '../shared/constants';
 import { logger } from '../shared/logger';
 import { filterCfeFilesBySelection } from '../features/extensions/extensionSelection';
+import { resolveExtensionNameFromSrc } from '../features/extensions/extensionNames';
 import { pickExtensions } from '../features/extensions/extensionPicker';
 import type { CommandExecutionOptions, StructuredCommandResult } from '../shared/commandExecutionTypes';
+import type { VRunnerIntent } from '../shared/vrunnerCli';
 
 const log = logger.scope('commands');
 
@@ -33,12 +35,13 @@ export class ExtensionsCommands extends BaseCommand {
 	 * Команды для всех расширений выполняются одной последовательной задачей
 	 * через executeVRunnerCommandsInSequence (с учётом Docker и режима задач/терминала).
 	 *
-	 * @param buildArgs - Функция, которая строит аргументы команды для одного расширения
+	 * @param buildIntent - Функция, которая строит намерение vrunner для одного расширения
+	 *                      (получает имя каталога исходников и имя расширения из метаданных)
 	 * @param commandName - Название команды для отображения
 	 * @returns Промис, который разрешается после запуска всех команд
 	 */
 	private async executeForAllExtensions(
-		buildArgs: (extensionFolder: string) => string[],
+		buildIntent: (extensionFolder: string, extensionName: string) => VRunnerIntent,
 		commandName: string,
 		opts?: CommandExecutionOptions,
 		commandId?: string
@@ -58,6 +61,12 @@ export class ExtensionsCommands extends BaseCommand {
 				return this.executionError('OneScript (oscript) или opm не найдены');
 			}
 			return;
+		}
+		{
+			const gate = await this.settingsGate(opts);
+			if (gate) {
+				return gate === 'blocked' ? undefined : gate;
+			}
 		}
 
 		const extensionFolders = await this.getExtensionFoldersFromSrc(workspaceRoot);
@@ -81,17 +90,22 @@ export class ExtensionsCommands extends BaseCommand {
 			return;
 		}
 
-		const argsList = selectedFolders.map((folder) =>
-			this.addIbcmdIfNeeded(buildArgs(folder))
-		);
+		// Имя расширения берётся из метаданных исходников: оно может отличаться
+		// от имени каталога (например, каталог yaxunit-test с расширением «Тесты»)
+		const cfeRoot = path.join(workspaceRoot, this.vrunner.getCfePath());
+		const intents = await Promise.all(selectedFolders.map(async (folder) =>
+			buildIntent(folder, await resolveExtensionNameFromSrc(path.join(cfeRoot, folder)))
+		));
+		const steps = await this.vrunner.planIntents(intents);
 
 		if (opts?.wait === true) {
-			return this.runVRunnerSequential(argsList, opts, commandName, commandId);
+			return this.runVRunnerSequential(steps, opts, commandName, commandId, true);
 		}
 
-		await this.vrunner.executeVRunnerCommandsInSequence(argsList, {
+		await this.vrunner.executeVRunnerCommandsInSequence(steps, {
 			cwd: workspaceRoot,
 			name: commandName,
+			appendOverrides: false,
 		});
 	}
 
@@ -225,6 +239,9 @@ export class ExtensionsCommands extends BaseCommand {
 		if (!workspaceRoot || !(await this.ensureOscriptAvailable())) {
 			return;
 		}
+		if (!(await this.vrunner.ensureProfileSettingsFile(true))) {
+			return;
+		}
 
 		const buildPath = this.vrunner.getOutPath();
 		const buildFullPath = path.join(workspaceRoot, buildPath);
@@ -274,35 +291,39 @@ export class ExtensionsCommands extends BaseCommand {
 		const commandName = getLoadExtensionFromFilesByListCommandName();
 		const listFilePrefix = this.pathForCmd(buildPath) + '/';
 
-		const designerArgsList: string[][] = [];
+		const intents: VRunnerIntent[] = [];
 		const loadedExtensionNames: string[] = [];
-		for (const [extensionName, relativePaths] of pathsByExtension) {
-			const listFileName = `extension-partial-load-${extensionName}.txt`;
+		for (const [extensionFolder, relativePaths] of pathsByExtension) {
+			const listFileName = `extension-partial-load-${extensionFolder}.txt`;
 			const listFilePath = path.join(buildFullPath, listFileName);
-			if (!(await this.writeListFile(listFilePath, relativePaths, `Список расширения ${extensionName}`))) {
+			if (!(await this.writeListFile(listFilePath, relativePaths, `Список расширения ${extensionFolder}`))) {
 				continue;
 			}
-			const extensionRelativePath = path.join(cfePath, extensionName);
+			const extensionRelativePath = path.join(cfePath, extensionFolder);
+			// Конфигуратору и обновлению БД нужно имя расширения из метаданных,
+			// а не имя каталога исходников
+			const extensionName = await resolveExtensionNameFromSrc(path.join(workspaceRoot, extensionRelativePath));
 			const additionalParam = `/LoadConfigFromFiles ${this.pathForCmd(extensionRelativePath)} -Extension ${extensionName} -listFile ${listFilePrefix}${listFileName} -Format Hierarchical -partial`;
-			designerArgsList.push(this.addIbcmdIfNeeded(['designer', '--additional', additionalParam, ...ibConnectionParam]));
+			intents.push({ kind: 'run.designer', additional: additionalParam, common: ibConnectionParam });
 			loadedExtensionNames.push(extensionName);
 		}
 
-		if (designerArgsList.length === 0) {
+		if (intents.length === 0) {
 			return;
 		}
 
 		// После загрузки файлов расширения необходимо отдельной командой обновить
 		// БД для каждого расширения — vrunner updatedb обновляет только основную
 		// конфигурацию, для расширений предназначена команда updateext <имя>.
-		const allArgsList: string[][] = [...designerArgsList];
 		for (const extensionName of loadedExtensionNames) {
-			allArgsList.push(this.addIbcmdIfNeeded(['updateext', extensionName, ...ibConnectionParam]));
+			intents.push({ kind: 'infobase.updateExtension', extensionName, common: ibConnectionParam });
 		}
 
-		await this.vrunner.executeVRunnerCommandsInSequence(allArgsList, {
+		const steps = await this.vrunner.planIntents(intents);
+		await this.vrunner.executeVRunnerCommandsInSequence(steps, {
 			cwd: workspaceRoot,
 			name: commandName.title,
+			appendOverrides: false,
 		});
 	}
 
@@ -320,12 +341,15 @@ export class ExtensionsCommands extends BaseCommand {
 		const cfePath = this.vrunner.getCfePath();
 
 		return this.executeForAllExtensions(
-			(extensionFolder) => {
-				const inputPath = path.join(cfePath, extensionFolder);
-				// --updatedb обновляет БД расширения сразу после компиляции, иначе
-				// изменения не применяются к ИБ
-				return ['compileext', inputPath, extensionFolder, '--updatedb', ...ibConnectionParam];
-			},
+			(extensionFolder, extensionName) => ({
+				kind: 'cfe.loadFromSrc',
+				src: path.join(cfePath, extensionFolder),
+				extensionName,
+				// обновление БД расширения сразу после загрузки, иначе изменения
+				// не применяются к ИБ
+				updateDb: true,
+				common: ibConnectionParam,
+			}),
 			commandName.title,
 			opts,
 			commandName.id
@@ -342,7 +366,7 @@ export class ExtensionsCommands extends BaseCommand {
 		const commandName = getUpdateExtensionsInInfobaseCommandName();
 
 		return this.executeForAllExtensions(
-			(extensionFolder) => ['updateext', extensionFolder, ...ibConnectionParam],
+			(_extensionFolder, extensionName) => ({ kind: 'infobase.updateExtension', extensionName, common: ibConnectionParam }),
 			commandName.title,
 			opts,
 			commandName.id
@@ -373,6 +397,12 @@ export class ExtensionsCommands extends BaseCommand {
 				return this.executionError('OneScript (oscript) или opm не найдены');
 			}
 			return;
+		}
+		{
+			const gate = await this.settingsGate(opts);
+			if (gate) {
+				return gate === 'blocked' ? undefined : gate;
+			}
 		}
 
 		const buildPath = this.vrunner.getOutPath();
@@ -416,18 +446,24 @@ export class ExtensionsCommands extends BaseCommand {
 
 		const ibConnectionParam = await this.vrunner.getIbConnectionParam();
 		const commandName = getLoadExtensionFromCfeCommandName();
-		const epfPath = vanessaRunnerEpf(EPF_NAMES.LOAD_EXTENSION);
-		const argsList = selectedCfeFiles.map((cfeFile) => {
+		// В 3.x обработка загрузки расширения переименована (параметр Путь= прежний).
+		await this.vrunner.getVRunnerVersion();
+		const epfPath = vanessaRunnerEpf(
+			this.vrunner.getActiveSettingsSchema() === 'v3'
+				? EPF_NAMES.LOAD_EXTENSION_V3
+				: EPF_NAMES.LOAD_EXTENSION
+		);
+		const steps = await this.vrunner.planIntents(selectedCfeFiles.map((cfeFile) => {
 			const cfeFilePath = path.join(buildPath, 'cfe', cfeFile);
 			const commandParam = EPF_COMMANDS.LOAD_EXTENSION(cfeFilePath);
-			return ['run', '--command', commandParam, '--execute', epfPath, ...ibConnectionParam];
-		});
+			return { kind: 'run.enterprise' as const, command: commandParam, execute: epfPath, common: ibConnectionParam };
+		}));
 
 		if (opts?.wait === true) {
-			return this.runVRunnerSequential(argsList, opts, commandName.title, commandName.id);
+			return this.runVRunnerSequential(steps, opts, commandName.title, commandName.id, true);
 		}
 
-		await this.vrunner.executeVRunnerCommandsInSequence(argsList, {
+		await this.vrunner.executeVRunnerCommandsInSequence(steps, {
 			cwd,
 			name: commandName.title,
 		});
@@ -447,10 +483,12 @@ export class ExtensionsCommands extends BaseCommand {
 		const cfePath = this.vrunner.getCfePath();
 
 		return this.executeForAllExtensions(
-			(extensionFolder) => {
-				const outputPath = path.join(cfePath, extensionFolder);
-				return ['decompileext', extensionFolder, outputPath, ...ibConnectionParam];
-			},
+			(extensionFolder, extensionName) => ({
+				kind: 'cfe.dumpIbToSrc',
+				extensionName,
+				out: path.join(cfePath, extensionFolder),
+				common: ibConnectionParam,
+			}),
 			commandName.title,
 			opts,
 			commandName.id
@@ -502,11 +540,12 @@ export class ExtensionsCommands extends BaseCommand {
 		const commandName = getDumpExtensionToCfeCommandName();
 
 		return this.executeForAllExtensions(
-			(extensionFolder) => {
-				const extensionFileName = `${extensionFolder}.cfe`;
-				const cfepath = path.join(buildPath, 'cfe', extensionFileName);
-				return ['unloadext', cfepath, extensionFolder, ...ibConnectionParam];
-			},
+			(extensionFolder, extensionName) => ({
+				kind: 'cfe.unloadIbToCfe',
+				extensionName,
+				out: path.join(buildPath, 'cfe', `${extensionFolder}.cfe`),
+				common: ibConnectionParam,
+			}),
 			commandName.title,
 			opts,
 			commandName.id
@@ -558,12 +597,12 @@ export class ExtensionsCommands extends BaseCommand {
 		const cfePath = this.vrunner.getCfePath();
 
 		return this.executeForAllExtensions(
-			(extensionFolder) => {
-				const extensionFileName = `${extensionFolder}.cfe`;
-				const srcPath = path.join(cfePath, extensionFolder);
-				const outPath = path.join(buildPath, 'cfe', extensionFileName);
-				return ['compileexttocfe', '--src', srcPath, '--out', outPath];
-			},
+			(extensionFolder, extensionName) => ({
+				kind: 'cfe.buildCfe',
+				src: path.join(cfePath, extensionFolder),
+				out: path.join(buildPath, 'cfe', `${extensionFolder}.cfe`),
+				extensionName,
+			}),
 			commandName.title,
 			opts,
 			commandName.id
@@ -594,6 +633,12 @@ export class ExtensionsCommands extends BaseCommand {
 				return this.executionError('OneScript (oscript) или opm не найдены');
 			}
 			return;
+		}
+		{
+			const gate = await this.settingsGate(opts);
+			if (gate) {
+				return gate === 'blocked' ? undefined : gate;
+			}
 		}
 
 		const buildPath = this.vrunner.getOutPath();
@@ -638,17 +683,22 @@ export class ExtensionsCommands extends BaseCommand {
 		const ibConnectionParam = await this.vrunner.getIbConnectionParam();
 		const commandName = getDecompileExtensionCommandName();
 		const cfePath = this.vrunner.getCfePath();
-		const argsList = selectedCfeFiles.map((cfeFile) => {
-			const extensionName = cfeFile.replace(/\.cfe$/i, '');
-			const outputPath = path.join(cfePath, extensionName);
-			return this.addIbcmdIfNeeded(['decompileext', extensionName, outputPath, ...ibConnectionParam]);
-		});
+		const steps = await this.vrunner.planIntents(await Promise.all(selectedCfeFiles.map(async (cfeFile) => {
+			const folderName = cfeFile.replace(/\.cfe$/i, '');
+			const extensionName = await resolveExtensionNameFromSrc(path.join(cwd, cfePath, folderName));
+			return {
+				kind: 'cfe.dumpIbToSrc' as const,
+				extensionName,
+				out: path.join(cfePath, folderName),
+				common: ibConnectionParam,
+			};
+		})));
 
 		if (opts?.wait === true) {
-			return this.runVRunnerSequential(argsList, opts, commandName.title, commandName.id);
+			return this.runVRunnerSequential(steps, opts, commandName.title, commandName.id, true);
 		}
 
-		await this.vrunner.executeVRunnerCommandsInSequence(argsList, {
+		await this.vrunner.executeVRunnerCommandsInSequence(steps, {
 			cwd,
 			name: commandName.title,
 		});

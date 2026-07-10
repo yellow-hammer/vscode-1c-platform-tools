@@ -6,8 +6,10 @@
  */
 
 import * as vscode from 'vscode';
+import * as path from 'node:path';
+import * as fsSync from 'node:fs';
 import { VRunnerManager } from '../../shared/vrunnerManager';
-import { activeProfileLabel, NOT_SELECTED_LABEL } from '../../shared/envProfiles';
+import { activeProfileLabel } from '../../shared/envProfiles';
 
 let statusItem: vscode.StatusBarItem | undefined;
 
@@ -18,11 +20,11 @@ let statusItem: vscode.StatusBarItem | undefined;
  */
 export function ensureEnvProfileStatusBar(): vscode.StatusBarItem {
 	if (!statusItem) {
-		// Приоритет на 1 выше «Проектов 1С» (priority 0) — профиль встаёт вплотную перед ними
+		// Левее автономного сервера (priority 1) и «Проектов 1С» (priority 0)
 		statusItem = vscode.window.createStatusBarItem(
 			'1c-platform-tools.env.profile',
 			vscode.StatusBarAlignment.Left,
-			1
+			2
 		);
 		statusItem.name = 'Профиль запуска 1С';
 		statusItem.command = '1c-platform-tools.env.selectProfile';
@@ -45,14 +47,29 @@ export function refreshEnvProfileStatusBar(visible: boolean): void {
 	}
 
 	const label = activeProfileLabel(vrunner.getActiveEnvProfileId(), vrunner.discoverEnvProfiles());
+	const versionLabel = vrunner.getCachedVRunnerVersionLabel();
+	const settingsFile = vrunner.getActiveEnvFile();
+	const workspaceRoot = vrunner.getWorkspaceRoot();
+	const settingsExists = workspaceRoot
+		? fsSync.existsSync(path.isAbsolute(settingsFile) ? settingsFile : path.join(workspaceRoot, settingsFile))
+		: false;
 
 	const overrides = vrunner.getActiveEnvOverrides();
-	item.text = `$(variable-group) ${label}${overrides ? ' $(pencil)' : ''}`;
-	// «Не выбран» подсвечиваем жёлтым/оранжевым (warning-фон), чтобы было заметно
-	item.backgroundColor = label === NOT_SELECTED_LABEL
-		? new vscode.ThemeColor('statusBarItem.warningBackground')
-		: undefined;
-	item.tooltip = 'Активный профиль запуска 1С';
+	item.text = `$(rocket) ${label}${overrides ? ' *' : ''}`;
+	// Предупреждаем, когда команды заблокированы отсутствием файла настроек
+	item.backgroundColor = settingsExists
+		? undefined
+		: new vscode.ThemeColor('statusBarItem.warningBackground');
+	item.tooltip = new vscode.MarkdownString(
+		[
+			`**Профиль запуска 1С:** ${label}`,
+			`vanessa-runner: ${versionLabel ?? 'версия не определена'}`,
+			settingsExists
+				? `Файл настроек: ${settingsFile}`
+				: '⚠ Профиль запуска не создан, команды заблокированы',
+			overrides ? 'Заданы временные параметры' : '',
+		].filter(Boolean).join('\n\n')
+	);
 	item.show();
 }
 

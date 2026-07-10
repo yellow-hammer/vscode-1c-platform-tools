@@ -93,6 +93,44 @@ export function pickPlatformVersion(versions: string[], requested?: string): str
 	return sortedDesc[0];
 }
 
+/**
+ * Разворачивает `${env:NAME}` в пути каталога установки платформы.
+ *
+ * VS Code подставляет переменные конфигурации отладки уже после
+ * resolveDebugConfiguration, поэтому для чтения каталога версий раскрываем
+ * `${env:PROGRAMFILES}` и подобные самостоятельно.
+ *
+ * @param dir - Путь, возможно содержащий `${env:NAME}`
+ * @returns Путь с раскрытыми переменными окружения
+ */
+export function expandEnvPlaceholders(dir: string): string {
+	return dir.replace(/\$\{env:([^}]+)\}/g, (_match, name: string) => process.env[name] ?? '');
+}
+
+/**
+ * Выбирает конкретную версию платформы (каталог `8.3.27.1936`) в каталоге
+ * установки, учитывая запрошенную версию или её префикс.
+ *
+ * В отличие от {@link resolvePlatformBinary} не проверяет наличие бинаря —
+ * нужен просто выбор версии (например, для поля `platformVersion` отладчика).
+ *
+ * @param baseDir - Каталог с версиями платформ (может содержать `${env:NAME}`)
+ * @param requested - Запрошенная версия или префикс (опционально)
+ * @returns Конкретная версия или undefined, если каталог недоступен/пуст
+ */
+export function resolvePlatformVersion(baseDir: string, requested?: string): string | undefined {
+	let entries: fsSync.Dirent[];
+	try {
+		entries = fsSync.readdirSync(expandEnvPlaceholders(baseDir), { withFileTypes: true });
+	} catch {
+		return undefined;
+	}
+	const available = entries
+		.filter((e) => e.isDirectory() && is1cVersionDir(e.name))
+		.map((e) => e.name);
+	return pickPlatformVersion(available, requested);
+}
+
 /** Опции поиска бинаря платформы. */
 export interface ResolvePlatformBinaryOptions {
 	/** Запрошенная версия платформы или её префикс (пусто — наибольшая доступная). */

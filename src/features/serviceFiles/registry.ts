@@ -5,6 +5,8 @@
  * командами создания и деревом (отображение наличия файла).
  */
 
+import { SettingsSchema, baseSettingsFileName } from '../../shared/envProfiles';
+
 /** Описание служебного файла */
 export interface ServiceFileSpec {
 	/** Стабильный идентификатор */
@@ -40,10 +42,10 @@ export const SERVICE_FILES: ServiceFileSpec[] = [
 		recommended: true,
 	},
 	{
-		id: 'env',
+		id: 'launchProfile',
 		relPath: 'env.json',
-		label: 'env.json',
-		description: 'базовый профиль запуска',
+		label: 'Профиль запуска',
+		description: 'настройки vanessa-runner: env.json (2.x) или autumn-properties.json (3.x)',
 		recommended: true,
 	},
 	{
@@ -119,4 +121,24 @@ export const SERVICE_FILES: ServiceFileSpec[] = [
  */
 export function getServiceFileSpec(id: string): ServiceFileSpec | undefined {
 	return SERVICE_FILES.find((spec) => spec.id === id);
+}
+
+/**
+ * Спецификация «Профиля запуска» под схему установленного vanessa-runner.
+ *
+ * Пункт один, а файл зависит от версии: env.json для 2.x,
+ * autumn-properties.json для 3.x (оба раннер читает из корня сам).
+ *
+ * @param schema - Схема настроек по версии vrunner
+ * @returns Спецификация с фактическим файлом
+ */
+export function resolveLaunchProfileSpec(schema: SettingsSchema): ServiceFileSpec {
+	const fileName = baseSettingsFileName(schema);
+	return {
+		id: 'launchProfile',
+		relPath: fileName,
+		label: 'Профиль запуска',
+		description: schema === 'v3' ? 'настройки vanessa-runner 3' : 'настройки vanessa-runner 2',
+		recommended: true,
+	};
 }

@@ -7,7 +7,7 @@ import { logger } from '../shared/logger';
 import { readTemplate } from '../features/serviceFiles/templates';
 import { SERVICE_FILES, getServiceFileSpec, type ServiceFileSpec } from '../features/serviceFiles/registry';
 import { buildEnvJsonWithSections } from '../features/serviceFiles/envJsonBuilder';
-import { ENV_DEFAULTS, VRUNNER_DEFAULTS, VRUNNER_INIT_DEFAULTS, HOOKS_DEFAULTS } from '../features/serviceFiles/envDefaults';
+import { ENV_DEFAULTS, AUTUMN_DEFAULTS, VRUNNER_DEFAULTS, VRUNNER_INIT_DEFAULTS, HOOKS_DEFAULTS } from '../features/serviceFiles/envDefaults';
 import { DEFAULT_PROFILE_ID } from '../shared/envProfiles';
 
 const log = logger.scope('serviceFiles');
@@ -86,14 +86,28 @@ export class ServiceFilesCommands extends BaseCommand {
 	 * @param specId - Идентификатор файла из реестра
 	 */
 	async ensure(specId: string): Promise<void> {
+		// «Профиль запуска» и его конкретные формы обрабатываются до реестра:
+		// файл зависит от схемы установленного vanessa-runner.
+		if (specId === 'launchProfile') {
+			await this.vrunner.getVRunnerVersion();
+			if (this.vrunner.getActiveSettingsSchema() === 'v3') {
+				await this.ensureAutumnProperties();
+			} else {
+				await this.ensureEnv();
+			}
+			return;
+		}
+		if (specId === 'env') {
+			await this.ensureEnv();
+			return;
+		}
+		if (specId === 'autumnProperties') {
+			await this.ensureAutumnProperties();
+			return;
+		}
 		const spec = getServiceFileSpec(specId);
 		if (!spec) {
 			log.warn(`Неизвестный служебный файл: ${specId}`);
-			return;
-		}
-		// env.json создаётся с выбором секций команд (флажки), остальные без шаблона — из кода
-		if (spec.id === 'env') {
-			await this.ensureEnv();
 			return;
 		}
 		if (spec.id === 'vrunner' || spec.id === 'vrunnerInit') {
@@ -133,6 +147,35 @@ export class ServiceFilesCommands extends BaseCommand {
 	}
 
 	/**
+	 * Открывает autumn-properties.json (настройки vanessa-runner 3), либо создаёт его.
+	 *
+	 * vrunner 3 — другой инструмент с другим форматом настроек: env.json он не
+	 * читает, а `autumn-properties.json` подхватывает из корня проекта
+	 * автоматически. Файл создаётся из рукописного v3-дефолта. Перенос настроек
+	 * из env.json — осознанное действие пользователя официальным инструментом
+	 * `tools/migrate26to30.os` из состава vanessa-runner (расширение не тащит
+	 * копию логики миграции).
+	 */
+	private async ensureAutumnProperties(): Promise<void> {
+		const workspaceRoot = this.ensureWorkspace();
+		if (!workspaceRoot) {
+			return;
+		}
+		const relPath = 'autumn-properties.json';
+		const fullPath = path.join(workspaceRoot, relPath);
+		if (!fsSync.existsSync(fullPath)) {
+			await fs.writeFile(fullPath, `${JSON.stringify(AUTUMN_DEFAULTS, null, 4)}\n`, 'utf8');
+			log.info(`Создан служебный файл ${relPath} из v3-дефолта`);
+			vscode.window.showInformationMessage(
+				`Создан ${relPath} (шаблон vanessa-runner 3). Перенести настройки из env.json: oscript tools/migrate26to30.os.`
+			);
+			this.refreshTree();
+		}
+		const doc = await vscode.workspace.openTextDocument(vscode.Uri.file(fullPath));
+		await vscode.window.showTextDocument(doc);
+	}
+
+	/**
 	 * Открывает env.json, либо создаёт его с выбором секций команд (vanessa/xunit/...)
 	 */
 	private async ensureEnv(): Promise<void> {
@@ -151,6 +194,29 @@ export class ServiceFilesCommands extends BaseCommand {
 			this.refreshTree();
 			this.refreshProfileStatusBar();
 		}
+	}
+
+	/**
+	 * Создаёт файл настроек профиля запуска по схеме установленного vanessa-runner
+	 * (без диалогов): env.json для 2.x, autumn-properties.json для 3.x.
+	 *
+	 * @param workspaceRoot - Корень рабочей области
+	 * @returns true, если файл создан
+	 */
+	private async createLaunchProfileDefault(workspaceRoot: string): Promise<boolean> {
+		await this.vrunner.getVRunnerVersion();
+		if (this.vrunner.getActiveSettingsSchema() !== 'v3') {
+			return this.createEnvDefault(path.join(workspaceRoot, 'env.json'));
+		}
+		const fullPath = path.join(workspaceRoot, 'autumn-properties.json');
+		if (fsSync.existsSync(fullPath)) {
+			vscode.window.showInformationMessage('autumn-properties.json уже существует');
+			return false;
+		}
+		await fs.writeFile(fullPath, `${JSON.stringify(AUTUMN_DEFAULTS, null, 4)}\n`, 'utf8');
+		log.info('Создан autumn-properties.json');
+		vscode.window.showInformationMessage('Создан autumn-properties.json');
+		return true;
 	}
 
 	/**
@@ -221,8 +287,8 @@ export class ServiceFilesCommands extends BaseCommand {
 		let envCreated = false;
 		for (const spec of SERVICE_FILES.filter((s) => s.recommended)) {
 			let created: boolean;
-			if (spec.id === 'env') {
-				created = await this.createEnvDefault(path.join(workspaceRoot, spec.relPath));
+			if (spec.id === 'launchProfile') {
+				created = await this.createLaunchProfileDefault(workspaceRoot);
 				envCreated = created || envCreated;
 			} else {
 				created = await this.createFromSpec(spec, false);
