@@ -121,6 +121,14 @@ suite('vrunnerCli: адаптеры v2/v3', () => {
 		);
 	});
 
+	test('cf.makeDist (OUT позиционно в обеих версиях)', () => {
+		check(
+			{ kind: 'cf.makeDist', out: 'build/out/1Cv8dist.cf', common: conn },
+			[['make-dist', 'build/out/1Cv8dist.cf', ...conn]],
+			[['cf', 'make-dist', ...conn, 'build/out/1Cv8dist.cf']]
+		);
+	});
+
 	// ---- Расширения ----
 	test('cfe.buildCfe: v3 выводит --extension-name из каталога', () => {
 		check(

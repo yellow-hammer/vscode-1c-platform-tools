@@ -77,10 +77,10 @@ export class V3CliAdapter implements VRunnerCliAdapter {
 			case 'cf.unloadIbToCf':
 				return [cmd(['cf', 'unload'], common(intent), [intent.out])];
 			case 'cf.makeDist':
-				// В 3.x у make-dist нет позиционного аргумента (out игнорируется);
-				// на текущих сборках vrunner сам отвечает «ещё не реализована».
-				return [cmd(['cf', 'make-dist'], common(intent), [])];
+				// cf make-dist OUT — путь к файлу поставки конфигурации (.cf) позиционно.
+				return [cmd(['cf', 'make-dist'], common(intent), [intent.out])];
 			case 'cf.loadFileToIb':
+				// cf load обновляет БД по умолчанию; отдельный флаг не передаём.
 				return [cmd(['cf', 'load'], common(intent), [intent.file])];
 
 			// ---- Расширения ----
