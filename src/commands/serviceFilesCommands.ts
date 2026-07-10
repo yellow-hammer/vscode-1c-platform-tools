@@ -5,9 +5,17 @@ import * as vscode from 'vscode';
 import { BaseCommand } from './baseCommand';
 import { logger } from '../shared/logger';
 import { readTemplate } from '../features/serviceFiles/templates';
-import { SERVICE_FILES, getServiceFileSpec, type ServiceFileSpec } from '../features/serviceFiles/registry';
-import { buildEnvJsonWithSections } from '../features/serviceFiles/envJsonBuilder';
-import { ENV_DEFAULTS, AUTUMN_DEFAULTS, VRUNNER_DEFAULTS, VRUNNER_INIT_DEFAULTS, HOOKS_DEFAULTS } from '../features/serviceFiles/envDefaults';
+import { SERVICE_FILES, getServiceFileSpec, resolveLaunchProfileSpec, type ServiceFileSpec } from '../features/serviceFiles/registry';
+import { buildEnvJsonWithSections, buildAutumnPropertiesWithSections } from '../features/serviceFiles/envJsonBuilder';
+import {
+	ENV_DEFAULTS,
+	AUTUMN_DEFAULTS,
+	VRUNNER_DEFAULTS,
+	VRUNNER_INIT_DEFAULTS,
+	VRUNNER_DEFAULTS_V3,
+	VRUNNER_INIT_DEFAULTS_V3,
+	HOOKS_DEFAULTS,
+} from '../features/serviceFiles/envDefaults';
 import { DEFAULT_PROFILE_ID } from '../shared/envProfiles';
 
 const log = logger.scope('serviceFiles');
@@ -111,7 +119,14 @@ export class ServiceFilesCommands extends BaseCommand {
 			return;
 		}
 		if (spec.id === 'vrunner' || spec.id === 'vrunnerInit') {
-			await this.ensureFromDefaults(spec, spec.id === 'vrunner' ? VRUNNER_DEFAULTS : VRUNNER_INIT_DEFAULTS);
+			// Формат CI-файла зависит от установленного vanessa-runner: 2.x — env-формат,
+			// 3.x — autumn (каскад vrunner.test.vanessa.*).
+			await this.vrunner.getVRunnerVersion();
+			const v3 = this.vrunner.getActiveSettingsSchema() === 'v3';
+			const defaults = spec.id === 'vrunner'
+				? (v3 ? VRUNNER_DEFAULTS_V3 : VRUNNER_DEFAULTS)
+				: (v3 ? VRUNNER_INIT_DEFAULTS_V3 : VRUNNER_INIT_DEFAULTS);
+			await this.ensureFromDefaults(spec, defaults);
 			return;
 		}
 		if (spec.id === 'hooks') {
@@ -161,18 +176,37 @@ export class ServiceFilesCommands extends BaseCommand {
 		if (!workspaceRoot) {
 			return;
 		}
-		const relPath = 'autumn-properties.json';
-		const fullPath = path.join(workspaceRoot, relPath);
-		if (!fsSync.existsSync(fullPath)) {
-			await fs.writeFile(fullPath, `${JSON.stringify(AUTUMN_DEFAULTS, null, 4)}\n`, 'utf8');
-			log.info(`Создан служебный файл ${relPath} из v3-дефолта`);
-			vscode.window.showInformationMessage(
-				`Создан ${relPath} (шаблон vanessa-runner 3). Перенести настройки из env.json: oscript tools/migrate26to30.os.`
-			);
-			this.refreshTree();
+		const fullPath = path.join(workspaceRoot, 'autumn-properties.json');
+		if (fsSync.existsSync(fullPath)) {
+			const doc = await vscode.workspace.openTextDocument(vscode.Uri.file(fullPath));
+			await vscode.window.showTextDocument(doc);
+			return;
 		}
-		const doc = await vscode.workspace.openTextDocument(vscode.Uri.file(fullPath));
-		await vscode.window.showTextDocument(doc);
+		if (await this.createAutumnWithSections(fullPath)) {
+			await this.vrunner.setActiveEnvProfileId(DEFAULT_PROFILE_ID);
+			this.refreshTree();
+			this.refreshProfileStatusBar();
+		}
+	}
+
+	/**
+	 * Создаёт autumn-properties.json: базовые настройки + выбранные флажками
+	 * секции команд (vanessa/xunit/syntax-check) в формате vanessa-runner 3.0.
+	 *
+	 * @param fullPath - Абсолютный путь к создаваемому файлу
+	 * @returns true, если файл создан
+	 */
+	private async createAutumnWithSections(fullPath: string): Promise<boolean> {
+		const content = await buildAutumnPropertiesWithSections();
+		if (content === undefined) {
+			return false;
+		}
+		await fs.writeFile(fullPath, content, 'utf8');
+		log.info('Создан autumn-properties.json');
+		vscode.window.showInformationMessage(
+			'Создан autumn-properties.json. Перенести настройки из env.json: oscript tools/migrate26to30.os.'
+		);
+		return true;
 	}
 
 	/**
@@ -316,10 +350,14 @@ export class ServiceFilesCommands extends BaseCommand {
 		interface FileItem extends vscode.QuickPickItem {
 			action: string;
 		}
+		// «Осн. профиль запуска» зависит от версии vrunner (env.json / autumn-properties.json)
+		await this.vrunner.getVRunnerVersion();
+		const schema = this.vrunner.getActiveSettingsSchema();
 		const items: FileItem[] = [
-			{ label: '$(checklist) Базовый набор', description: '.gitignore + .gitattributes + env.json', action: 'recommended' },
+			{ label: '$(checklist) Базовый набор', description: '.gitignore, .gitattributes, профиль запуска', action: 'recommended' },
 		];
-		for (const spec of SERVICE_FILES) {
+		for (const staticSpec of SERVICE_FILES) {
+			const spec = staticSpec.id === 'launchProfile' ? resolveLaunchProfileSpec(schema) : staticSpec;
 			const exists = fsSync.existsSync(path.join(workspaceRoot, spec.relPath));
 			items.push({
 				label: `${exists ? '$(check)' : '$(add)'} ${spec.label}`,

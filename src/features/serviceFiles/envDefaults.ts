@@ -75,6 +75,41 @@ export const VRUNNER_INIT_DEFAULTS = {
 	},
 };
 
+/** Пинованная обработка Vanessa (проектный single-файл) для CI-прогонов. */
+const CI_BDDRUNNER_PATH = './oscript_modules/vanessa-automation-single/vanessa-automation-single.epf';
+
+/**
+ * CI-файлы vanessa-runner 3 повторяют формат основного профиля (autumn): та же
+ * база `AUTUMN_DEFAULTS.vrunner` + секция `test.vanessa` со своим файлом
+ * параметров VA. Отличие vrunner.json / vrunner.init.json — только vanessasettings.
+ */
+export const VRUNNER_DEFAULTS_V3 = {
+	vrunner: {
+		...AUTUMN_DEFAULTS.vrunner,
+		test: {
+			vanessa: {
+				vanessasettings: './tools/VAParams.json',
+				'bddrunner-path': CI_BDDRUNNER_PATH,
+				additional: VANESSA_ADDITIONAL,
+			},
+		},
+	},
+};
+
+/** Канонический дефолт tools/vrunner.init.json (формат vanessa-runner 3.0) */
+export const VRUNNER_INIT_DEFAULTS_V3 = {
+	vrunner: {
+		...AUTUMN_DEFAULTS.vrunner,
+		test: {
+			vanessa: {
+				vanessasettings: './tools/VAParams.init.json',
+				'bddrunner-path': CI_BDDRUNNER_PATH,
+				additional: VANESSA_ADDITIONAL,
+			},
+		},
+	},
+};
+
 
 export const HOOKS_DEFAULTS = {
 	$schema: HOOKS_SCHEMA,
