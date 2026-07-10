@@ -109,6 +109,8 @@ function findServerBinary(
 export class PlatformServerManager {
 	private child: ChildProcess | undefined;
 	private _state: ServerState = 'stopped';
+	/** Каталог ИБ, с которым сервер реально запущен (для детекта смены профиля). */
+	private runningIbPath: string | undefined;
 	private readonly output: vscode.OutputChannel;
 	private readonly stateEmitter = new vscode.EventEmitter<ServerState>();
 	private currentUrls: ServerUrls | undefined;
@@ -198,6 +200,7 @@ export class PlatformServerManager {
 		if (!ibPath) {
 			return;
 		}
+		this.runningIbPath = ibPath;
 
 		this.setState('starting');
 		this.output.show(true);
@@ -277,6 +280,7 @@ export class PlatformServerManager {
 			this.setState('stopped');
 			this.currentUrls = undefined;
 			this.activeConfig = undefined;
+			this.runningIbPath = undefined;
 			return;
 		}
 
@@ -299,6 +303,7 @@ export class PlatformServerManager {
 		}
 		this.activeConfig = undefined;
 		this.exitPromise = undefined;
+		this.runningIbPath = undefined;
 	}
 
 	/**
@@ -423,6 +428,39 @@ export class PlatformServerManager {
 	}
 
 	/**
+	 * Реакция на смену активного профиля запуска.
+	 *
+	 * Профиль задаёт строку подключения к ИБ (`--ibconnection`), а автономный
+	 * сервер публикует именно её каталог. При смене профиля конфиг публикации
+	 * перегенерируется под новую ИБ; если сервер уже запущен на другой базе —
+	 * пользователю предлагается перезапуск.
+	 */
+	public async onActiveProfileChanged(): Promise<void> {
+		const workspaceRoot = this.vrunner.getWorkspaceRoot();
+		if (!workspaceRoot) {
+			return;
+		}
+		await this.regeneratePublicationConfig();
+		this.setState(this._state); // обновить панель/статус под новый профиль
+
+		if (this._state !== 'running') {
+			return;
+		}
+		const currentIbPath = await this.resolveFileInfobasePath(workspaceRoot, true);
+		if (currentIbPath && this.runningIbPath && currentIbPath !== this.runningIbPath) {
+			const restart = 'Перезапустить сервер';
+			const action = await vscode.window.showWarningMessage(
+				'Профиль запуска сменил информационную базу, а автономный сервер публикует прежнюю. ' +
+				'Перезапустите сервер, чтобы опубликовать базу нового профиля.',
+				restart
+			);
+			if (action === restart) {
+				await this.restart();
+			}
+		}
+	}
+
+	/**
 	 * Перегенерирует файл конфига публикации под текущий выбор сервисов.
 	 *
 	 * Серверные параметры сохраняются из существующего файла; путь к ИБ берётся из
@@ -497,8 +535,8 @@ export class PlatformServerManager {
 	 * @returns Абсолютный путь к каталогу ИБ или undefined при ошибке
 	 */
 	private async resolveFileInfobasePath(workspaceRoot: string, silent = false): Promise<string | undefined> {
-		const [, connection] = await this.vrunner.getIbConnectionParam();
-		const trimmed = (connection ?? '').trim();
+		const connection = await this.vrunner.getActiveIbConnectionValue();
+		const trimmed = connection.trim();
 
 		if (!trimmed.startsWith('/F')) {
 			if (!silent) {

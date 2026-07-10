@@ -93,15 +93,17 @@ export class XUnitAdapter implements TestFrameworkAdapter {
 		// ранее бинарник. Собрать вручную можно командой «Собрать unit тесты».
 		if (epfInfo) {
 			const binariesPath = path.join(this.vrunner.getOutPath(), 'tests');
-			const ibConnectionParam = await this.vrunner.getIbConnectionParam();
 			const builtEpf = path.join(binariesPath, `${epfInfo.processorName}.epf`);
 			const basePlan = await this.buildXunitPlan(builtEpf, reportDir);
+			const [buildArgs] = await this.vrunner.planIntent(
+				{ kind: 'epf.build', src: epfInfo.processorDir, out: binariesPath }
+			);
 			return {
 				...basePlan,
 				prepare: [
 					{
 						tool: 'vrunner',
-						args: ['compileepf', epfInfo.processorDir, binariesPath, ...ibConnectionParam],
+						args: buildArgs,
 						title: `Сборка обработки ${epfInfo.processorName}`
 					}
 				]
@@ -116,13 +118,16 @@ export class XUnitAdapter implements TestFrameworkAdapter {
 	 */
 	private async buildXunitPlan(targetPath: string, reportDir: string): Promise<AdapterRunPlan> {
 		const workspaceRoot = this.vrunner.getWorkspaceRoot();
-		const baseArgs = ['xunit', targetPath, ...this.vrunner.getSettingsParam()];
+		// --settings активного профиля подставляет planIntent централизованно.
+		const [baseArgs] = await this.vrunner.planIntent(
+			{ kind: 'test.xunit', testsPath: targetPath }
+		);
 
 		// Путь jUnit из конфигурации проекта (env.json, секция xunit)
 		if (workspaceRoot) {
 			try {
-				const envJson = (await this.vrunner.readEnvJson()) as Record<string, unknown>;
-				const reportsXunit = reportsXunitFromEnv(envJson);
+				const { settings, schema } = await this.vrunner.readActiveSettings();
+				const reportsXunit = reportsXunitFromEnv(settings, schema);
 				const junitRel = reportsXunit ? extractJUnitPathFromReportsXunit(reportsXunit) : undefined;
 				if (junitRel) {
 					return {
@@ -133,7 +138,7 @@ export class XUnitAdapter implements TestFrameworkAdapter {
 					};
 				}
 			} catch (error) {
-				log.debug(`Не удалось прочитать env.json для xunit: ${(error as Error).message}`);
+				log.debug(`Не удалось прочитать файл настроек для xunit: ${(error as Error).message}`);
 			}
 		}
 

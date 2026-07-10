@@ -32,25 +32,27 @@ export class ConfigurationCommands extends BaseCommand {
 		mode: 'init' | 'update' = 'update',
 		opts?: CommandExecutionOptions
 	): Promise<StructuredCommandResult | void> {
-		const command = mode === 'init' ? 'init-dev' : 'update-dev';
 		const srcPath = this.vrunner.getCfPath();
 		const ibConnectionParam = await this.vrunner.getIbConnectionParam();
-		const args = this.addIbcmdIfNeeded([command, '--src', srcPath, ...ibConnectionParam]);
 		const commandName = getLoadConfigurationFromSrcCommandName(mode);
-		return this.runVRunner(args, opts, commandName.title, undefined, commandName.id);
+		const intent = mode === 'init'
+			? { kind: 'infobase.init' as const, src: srcPath, common: ibConnectionParam }
+			: { kind: 'infobase.updateFromSrc' as const, src: srcPath, common: ibConnectionParam };
+		return this.runIntent(intent, opts, commandName.title, undefined, commandName.id);
 	}
 
 	async loadFromCf(opts?: CommandExecutionOptions): Promise<StructuredCommandResult | void> {
 		const buildPath = this.vrunner.getOutPath();
 		const cfFilePath = path.join(buildPath, '1Cv8.cf');
 		const ibConnectionParam = await this.vrunner.getIbConnectionParam();
-		// `vrunner load` загружает .cf в конфигурацию, но не обновляет БД —
-		// цепляем updatedb, иначе изменения не применяются к ИБ.
-		const loadArgs = this.addIbcmdIfNeeded(['load', '--src', cfFilePath, ...ibConnectionParam]);
-		const updateDbArgs = this.addIbcmdIfNeeded(['updatedb', ...ibConnectionParam]);
+		// Загрузка .cf не обновляет БД — цепляем обновление отдельным намерением,
+		// иначе изменения не применяются к ИБ.
 		const loadFromCfCmd = getLoadConfigurationFromCfCommandName();
-		return this.runVRunnerSequential(
-			[loadArgs, updateDbArgs],
+		return this.runIntentsSequential(
+			[
+				{ kind: 'cf.loadFileToIb', file: cfFilePath, common: ibConnectionParam },
+				{ kind: 'infobase.updateDb', common: ibConnectionParam },
+			],
 			opts,
 			loadFromCfCmd.title,
 			loadFromCfCmd.id
@@ -60,9 +62,11 @@ export class ConfigurationCommands extends BaseCommand {
 	async dumpToSrc(opts?: CommandExecutionOptions): Promise<StructuredCommandResult | void> {
 		const srcPath = this.vrunner.getCfPath();
 		const ibConnectionParam = await this.vrunner.getIbConnectionParam();
-		const args = this.addIbcmdIfNeeded(['decompile', '--current', '--out', srcPath, ...ibConnectionParam]);
 		const dumpToSrcCmd = getDumpConfigurationToSrcCommandName();
-		return this.runVRunner(args, opts, dumpToSrcCmd.title, undefined, dumpToSrcCmd.id);
+		return this.runIntent(
+			{ kind: 'cf.dumpIbToSrc', out: srcPath, common: ibConnectionParam },
+			opts, dumpToSrcCmd.title, undefined, dumpToSrcCmd.id
+		);
 	}
 
 	async dumpIncrementToSrc(opts?: CommandExecutionOptions): Promise<StructuredCommandResult | void> {
@@ -100,13 +104,14 @@ export class ConfigurationCommands extends BaseCommand {
 		}
 
 		const ibConnectionParam = await this.vrunner.getIbConnectionParam();
-		const args: string[] = ['decompile', '--current', '--out', srcPath, ...ibConnectionParam];
-		if (versionFileExists) {
-			args.push('--versions', path.join(srcPath, 'ConfigDumpInfo.xml'));
-		}
 		const dumpIncrCmd = getDumpConfigurationIncrementToSrcCommandName();
-		return this.runVRunner(
-			this.addIbcmdIfNeeded(args),
+		return this.runIntent(
+			{
+				kind: 'cf.dumpIbToSrc',
+				out: srcPath,
+				versionsFile: versionFileExists ? path.join(srcPath, 'ConfigDumpInfo.xml') : undefined,
+				common: ibConnectionParam,
+			},
 			opts,
 			dumpIncrCmd.title,
 			undefined,
@@ -141,10 +146,9 @@ export class ConfigurationCommands extends BaseCommand {
 
 		const outputPath = path.join(buildPath, '1Cv8.cf');
 		const ibConnectionParam = await this.vrunner.getIbConnectionParam();
-		const args = this.addIbcmdIfNeeded(['unload', outputPath, ...ibConnectionParam]);
 		const dumpToCfCmd = getDumpConfigurationToCfCommandName();
-		return this.runVRunner(
-			args,
+		return this.runIntent(
+			{ kind: 'cf.unloadIbToCf', out: outputPath, common: ibConnectionParam },
 			opts,
 			dumpToCfCmd.title,
 			outputPath,
@@ -179,10 +183,9 @@ export class ConfigurationCommands extends BaseCommand {
 
 		const outputPath = path.join(buildPath, '1Cv8dist.cf');
 		const ibConnectionParam = await this.vrunner.getIbConnectionParam();
-		const args = ['make-dist', outputPath, ...ibConnectionParam];
 		const dumpToDistCmd = getDumpConfigurationToDistCommandName();
-		return this.runVRunner(
-			args,
+		return this.runIntent(
+			{ kind: 'cf.makeDist', out: outputPath, common: ibConnectionParam },
 			opts,
 			dumpToDistCmd.title,
 			outputPath,
@@ -217,18 +220,22 @@ export class ConfigurationCommands extends BaseCommand {
 		}
 
 		const outputPath = path.join(buildPath, '1Cv8.cf');
-		const args = this.addIbcmdIfNeeded(['compile', '--src', srcPath, '--out', outputPath]);
 		const buildCmd = getBuildConfigurationCommandName();
-		return this.runVRunner(args, opts, buildCmd.title, outputPath, buildCmd.id);
+		return this.runIntent(
+			{ kind: 'cf.build', src: srcPath, out: outputPath },
+			opts, buildCmd.title, outputPath, buildCmd.id
+		);
 	}
 
 	async decompile(opts?: CommandExecutionOptions): Promise<StructuredCommandResult | void> {
 		const buildPath = this.vrunner.getOutPath();
 		const inputPath = path.join(buildPath, '1Cv8.cf');
 		const srcPath = this.vrunner.getCfPath();
-		const args = this.addIbcmdIfNeeded(['decompile', '--in', inputPath, '--out', srcPath]);
 		const decompileCmd = getDecompileConfigurationCommandName();
-		return this.runVRunner(args, opts, decompileCmd.title, undefined, decompileCmd.id);
+		return this.runIntent(
+			{ kind: 'cf.decompileFile', file: inputPath, out: srcPath },
+			opts, decompileCmd.title, undefined, decompileCmd.id
+		);
 	}
 
 	async loadIncrementFromSrc(opts?: CommandExecutionOptions): Promise<StructuredCommandResult | void> {
@@ -283,15 +290,11 @@ export class ConfigurationCommands extends BaseCommand {
 		}
 
 		const ibConnectionParam = await this.vrunner.getIbConnectionParam();
-		const args = this.addIbcmdIfNeeded([
-			'update-dev',
-			'--src',
-			srcPath,
-			'--git-increment',
-			...ibConnectionParam
-		]);
 		const loadIncrCmd = getLoadConfigurationIncrementFromSrcCommandName();
-		return this.runVRunner(args, opts, loadIncrCmd.title, undefined, loadIncrCmd.id);
+		return this.runIntent(
+			{ kind: 'infobase.updateFromSrc', src: srcPath, gitIncrement: true, common: ibConnectionParam },
+			opts, loadIncrCmd.title, undefined, loadIncrCmd.id
+		);
 	}
 
 	async loadFromFilesByList(opts?: CommandExecutionOptions): Promise<StructuredCommandResult | void> {
@@ -357,14 +360,14 @@ export class ConfigurationCommands extends BaseCommand {
 		const listFileForCmd = this.pathForCmd(buildPath) + '/' + listFileName;
 		const ibConnectionParam = await this.vrunner.getIbConnectionParam();
 		const additionalParam = `/LoadConfigFromFiles ${this.pathForCmd(srcPath)} -listFile ${listFileForCmd}`;
-		// Частичная загрузка через designer /LoadConfigFromFiles не обновляет БД,
-		// поэтому отдельно цепляем updatedb.
-		const designerArgs = this.addIbcmdIfNeeded(['designer', '--additional', additionalParam, ...ibConnectionParam]);
-		const updateDbArgs = this.addIbcmdIfNeeded(['updatedb', ...ibConnectionParam]);
-
+		// Частичная загрузка через конфигуратор /LoadConfigFromFiles не обновляет БД,
+		// поэтому отдельно цепляем обновление.
 		const loadByListCmd = getLoadConfigurationFromFilesByListCommandName();
-		return this.runVRunnerSequential(
-			[designerArgs, updateDbArgs],
+		return this.runIntentsSequential(
+			[
+				{ kind: 'run.designer', additional: additionalParam, common: ibConnectionParam },
+				{ kind: 'infobase.updateDb', common: ibConnectionParam },
+			],
 			opts,
 			loadByListCmd.title,
 			loadByListCmd.id

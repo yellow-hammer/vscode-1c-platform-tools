@@ -65,17 +65,12 @@ export class VanessaAdapter implements TestFrameworkAdapter {
 	}
 
 	public async buildRunPlan(unit: RunUnit, reportDir: string): Promise<AdapterRunPlan> {
-		const ibConnectionParam = await this.vrunner.getIbConnectionParam();
-		const args = [
-			'vanessa',
-			...this.vrunner.getSettingsParam(),
-			...ibConnectionParam,
-			'--path',
-			unit.fileUri.fsPath
-		];
-
+		// --settings активного профиля подставляет planIntent централизованно.
 		const reportTarget = await this.findProjectReportTarget();
 		if (reportTarget) {
+			const [args] = await this.vrunner.planIntent(
+				{ kind: 'test.vanessa', featurePath: unit.fileUri.fsPath }
+			);
 			return { tool: 'vrunner', args, reportTarget };
 		}
 
@@ -91,10 +86,12 @@ export class VanessaAdapter implements TestFrameworkAdapter {
 		const settingsPath = path.join(reportDir, 'vanessasettings.json');
 		await fs.writeFile(settingsPath, JSON.stringify(vanessaSettings, null, 2), 'utf8');
 
-		return {
-			tool: 'vrunner',
-			args: [...args, '--vanessasettings', settingsPath]
-		};
+		const [args] = await this.vrunner.planIntent({
+			kind: 'test.vanessa',
+			featurePath: unit.fileUri.fsPath,
+			vanessaSettings: settingsPath,
+		});
+		return { tool: 'vrunner', args };
 	}
 
 	/**
@@ -109,8 +106,8 @@ export class VanessaAdapter implements TestFrameworkAdapter {
 		}
 
 		try {
-			const envJson = (await this.vrunner.readEnvJson()) as Record<string, unknown>;
-			const vaSettingsRel = vanessaSettingsPathFromEnv(envJson) ?? './tools/VAParams.json';
+			const { settings, schema } = await this.vrunner.readActiveSettings();
+			const vaSettingsRel = vanessaSettingsPathFromEnv(settings, schema) ?? './tools/VAParams.json';
 			const vaSettingsPath = resolveConfigPath(vaSettingsRel, workspaceRoot);
 			const vaParams = JSON.parse(await fs.readFile(vaSettingsPath, 'utf8')) as Record<string, unknown>;
 			return vanessaReportTarget(vaParams, workspaceRoot);

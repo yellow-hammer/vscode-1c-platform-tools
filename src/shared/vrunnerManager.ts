@@ -23,8 +23,9 @@ import {
 	ACTIVE_ENV_PROFILE_KEY,
 	ACTIVE_ENV_OVERRIDES_KEY,
 	BASE_ENV_FILE,
+	SettingsSchema,
+	baseSettingsFileName,
 	DEFAULT_PROFILE_ID,
-	NONE_PROFILE_ID,
 	EnvProfile,
 	EnvOverrides,
 	buildEnvProfiles,
@@ -38,7 +39,11 @@ import {
 	parseVRunnerVersion,
 	parseVRunnerVersionFromOpmMetadata,
 	supportsFeature,
+	isAtLeast,
+	VRUNNER_FEATURES,
 } from './vrunnerVersion';
+import { selectCliAdapter, VRunnerIntent } from './vrunnerCli';
+import { translateArgsToV3 } from './vrunnerCommandMap';
 import { createVRunnerTask } from '../features/tasks/vrunnerTask';
 
 /**
@@ -112,6 +117,11 @@ export class VRunnerManager {
 	private readonly _onDidChangeActiveEnvProfile = new vscode.EventEmitter<void>();
 	/** Срабатывает при выборе другого env-профиля запуска */
 	public readonly onDidChangeActiveEnvProfile = this._onDidChangeActiveEnvProfile.event;
+
+	/** Событие смены определённой версии vrunner (после переустановки/обновления) */
+	private readonly _onDidChangeVRunnerVersion = new vscode.EventEmitter<VRunnerVersion | undefined>();
+	/** Срабатывает, когда повторный детект версии vrunner дал другой результат */
+	public readonly onDidChangeVRunnerVersion = this._onDidChangeVRunnerVersion.event;
 
 	private constructor(context?: vscode.ExtensionContext) {
 		const workspaceFolders = vscode.workspace.workspaceFolders;
@@ -194,6 +204,43 @@ export class VRunnerManager {
 	public getVRunnerInitSettingsPath(): string {
 		const config = vscode.workspace.getConfiguration('1c-platform-tools');
 		return config.get<string>('vrunner.initSettingsPath', DEFAULT_VRUNNER.initSettingsPath);
+	}
+
+	/**
+	 * Путь к файлу сценария Vanessa для инициализации данных (VAParams).
+	 *
+	 * Значение читается из vanessasettings файла инициализации (vrunner.init.json),
+	 * чтобы уважать конвенцию проекта и jenkins-lib; при отсутствии — дефолт
+	 * `tools/VAParams.init.json`. Подставляется как `--vanessasettings` поверх
+	 * активного профиля: ИБ и путь к VA берутся из профиля, отличается только
+	 * сценарий. Так инициализация работает и на v2, и на v3 (файл init формата
+	 * 2.x как `--settings` на v3 не передаётся).
+	 *
+	 * Путь возвращается как есть (относительный от корня проекта) — канонически
+	 * правильная форма. На v3 относительный `--vanessasettings` временно не
+	 * резолвится от проекта (баг vanessa-runner #725); после его фикса код готов
+	 * без изменений.
+	 *
+	 * @returns Путь к файлу сценария VA относительно корня проекта
+	 */
+	public getInitVanessaSettingsPath(): string {
+		const fallback = 'tools/VAParams.init.json';
+		const root = this.workspaceRoot;
+		if (!root) {
+			return fallback;
+		}
+		const initFile = path.join(root, this.getVRunnerInitSettingsPath());
+		try {
+			const parsed = JSON.parse(fsSync.readFileSync(initFile, 'utf8'));
+			const value = parsed?.vanessa?.['--vanessasettings']
+				?? parsed?.vrunner?.test?.vanessa?.vanessasettings;
+			if (typeof value === 'string' && value.trim()) {
+				return value.trim();
+			}
+		} catch {
+			// файла инициализации нет — используем дефолт
+		}
+		return fallback;
 	}
 
 	/**
@@ -325,37 +372,9 @@ export class VRunnerManager {
 		return config.get<string>('paths.tests', DEFAULT_PATHS.tests);
 	}
 
-	/**
-	 * Проверяет, нужно ли использовать ibcmd
-	 * 
-	 * Логика определения:
-	 * 1. Если настройка useIbcmd = true, всегда использовать ibcmd
-	 * 2. Если используется Docker (docker.enabled = true), автоматически использовать ibcmd
-	 *    (так как в Docker нет GUI, ibcmd - это правильный выбор)
-	 * 3. Иначе - не использовать ibcmd
-	 * 
-	 * ibcmd - это утилита командной строки платформы 1С:Предприятие,
-	 * которая позволяет выполнять операции с конфигурацией без запуска
-	 * графического интерфейса Конфигуратора. Использование ibcmd ускоряет
-	 * выполнение операций и удобно для автоматизации процессов разработки.
-	 * 
-	 * @returns true, если нужно использовать ibcmd, иначе false
-	 */
-	public getUseIbcmd(): boolean {
-		const config = vscode.workspace.getConfiguration('1c-platform-tools');
-		const useIbcmdSetting = config.get<boolean>('useIbcmd', false);
-		
-		if (useIbcmdSetting) {
-			return true;
-		}
-		
-		const dockerEnabled = config.get<boolean>('docker.enabled', false);
-		if (dockerEnabled) {
-			return true;
-		}
-		
-		return false;
-	}
+	// ibcmd — настройка проекта: задаётся пользователем в файле настроек
+	// vanessa-runner («--ibcmd» в env.json, vrunner.ibcmd в
+	// autumn-properties.json). Расширение флаг не добавляет.
 
 	/**
 	 * Проверяет, доступен ли oscript: сначала в PATH, затем в установке OVM.
@@ -471,33 +490,52 @@ export class VRunnerManager {
 
 	/**
 	 * Проверяет, установлен ли vrunner и доступен ли он для выполнения
-	 * 
-	 * Выполняет команду `vrunner version` для проверки доступности.
-	 * 
+	 *
 	 * @returns Промис, который разрешается true, если vrunner установлен и доступен, иначе false
 	 */
 	public async checkVRunnerInstalled(): Promise<boolean> {
-		try {
-			const result = await this.executeVRunner(['version']);
-			return result.success && result.exitCode === 0;
-		} catch {
-			return false;
+		const version = await this.detectVRunnerVersionFromCli();
+		return version !== undefined;
+	}
+
+	/**
+	 * Определяет версию vrunner через CLI, пробуя оба способа вывода версии.
+	 *
+	 * В vrunner 2.x работает подкоманда `vrunner version` (а `--version` падает
+	 * с «Неизвестный параметр»), в vrunner 3.x — наоборот: подкоманда удалена,
+	 * версия выводится флагом `--version`. Пробуем оба варианта и берём первый,
+	 * из вывода которого удалось разобрать semver.
+	 *
+	 * @returns Разобранная версия или undefined, если ни один способ не сработал
+	 */
+	private async detectVRunnerVersionFromCli(): Promise<VRunnerVersion | undefined> {
+		for (const versionArgs of [['--version'], ['version']]) {
+			try {
+				const result = await this.executeVRunnerRaw(versionArgs);
+				if (!result.success) {
+					continue;
+				}
+				const parsed = parseVRunnerVersion(result.stdout);
+				if (parsed) {
+					return parsed;
+				}
+			} catch {
+				// пробуем следующий способ
+			}
 		}
+		return undefined;
 	}
 
 	/**
 	 * Определяет версию vrunner (vanessa-runner).
 	 *
-	 * Основной источник — команда `vrunner version` (печатает чистую строку
-	 * версии, например `2.6.0` или `3.0.0-rc3`). Если её не удалось выполнить
-	 * или разобрать, выполняется запасное чтение `opm-metadata.xml` из
-	 * `oscript_modules/vanessa-runner` в корне workspace.
+	 * Основной источник — CLI: в 2.x версию печатает подкоманда `vrunner version`,
+	 * в 3.x — флаг `vrunner --version` (подкоманда в 3.x удалена); пробуются оба
+	 * способа. Если ни один не сработал, выполняется запасное чтение
+	 * `opm-metadata.xml` из `oscript_modules/vanessa-runner` в корне workspace.
 	 *
 	 * Результат кэшируется на время сессии; используйте forceRefresh для
 	 * принудительного повторного определения (например, после переустановки).
-	 *
-	 * ВАЖНО: НЕ использовать `vrunner --version` — этот флаг не поддерживается
-	 * и приводит к ошибке «Неизвестный параметр».
 	 *
 	 * @param forceRefresh - Игнорировать кэш и определить версию заново
 	 * @returns Разобранная версия или undefined, если определить не удалось
@@ -507,15 +545,7 @@ export class VRunnerManager {
 			return this.vrunnerVersionCache ?? undefined;
 		}
 
-		let version: VRunnerVersion | undefined;
-		try {
-			const result = await this.executeVRunner(['version']);
-			if (result.success) {
-				version = parseVRunnerVersion(result.stdout);
-			}
-		} catch {
-			version = undefined;
-		}
+		let version = await this.detectVRunnerVersionFromCli();
 
 		if (!version) {
 			version = await this.readVRunnerVersionFromOpmMetadata();
@@ -527,8 +557,45 @@ export class VRunnerManager {
 			log.warn('Не удалось определить версию vrunner');
 		}
 
+		const previous = this.vrunnerVersionCache;
 		this.vrunnerVersionCache = version ?? null;
+		if (previous !== undefined && (previous?.raw ?? null) !== (version?.raw ?? null)) {
+			log.info(`Версия vrunner изменилась: ${previous?.raw ?? 'не определена'} -> ${version?.raw ?? 'не определена'}`);
+			this._onDidChangeVRunnerVersion.fire(version);
+		}
 		return version;
+	}
+
+	/**
+	 * Следит за установкой vanessa-runner в workspace и при её изменении
+	 * (переустановка через opm, смена версии) заново определяет версию.
+	 *
+	 * Без этого кэш версии живёт всю сессию, и после `opm install` панель
+	 * и команды продолжают работать со старой схемой.
+	 *
+	 * @returns Disposable наблюдателя
+	 */
+	public watchVRunnerInstallation(): vscode.Disposable {
+		if (!this.workspaceRoot) {
+			return new vscode.Disposable(() => undefined);
+		}
+		const watcher = vscode.workspace.createFileSystemWatcher(
+			new vscode.RelativePattern(this.workspaceRoot, 'oscript_modules/vanessa-runner/opm-metadata.xml')
+		);
+		let timer: NodeJS.Timeout | undefined;
+		const redetect = (): void => {
+			// установка идёт пакетно — детектим после паузы, одним вызовом
+			if (timer) {
+				clearTimeout(timer);
+			}
+			timer = setTimeout(() => {
+				void this.getVRunnerVersion(true);
+			}, 1500);
+		};
+		watcher.onDidCreate(redetect);
+		watcher.onDidChange(redetect);
+		watcher.onDidDelete(redetect);
+		return watcher;
 	}
 
 	/**
@@ -574,6 +641,288 @@ export class VRunnerManager {
 	public async supportsVRunnerFeature(feature: VRunnerFeature): Promise<boolean> {
 		const version = await this.getVRunnerVersion();
 		return version ? supportsFeature(version, feature) : false;
+	}
+
+	/**
+	 * Синхронная проверка «установлен vrunner 3.x» по кэшу версии.
+	 *
+	 * Версия прогревается в planIntents/публичных методах выполнения; если она
+	 * ещё не определена — консервативно считаем, что установлен 2.x.
+	 *
+	 * @returns true, если установлен vrunner >= 3.0.0
+	 */
+	private isCli3(): boolean {
+		const cached = this.vrunnerVersionCache;
+		return cached ? isAtLeast(cached, VRUNNER_FEATURES.cli3) : false;
+	}
+
+	/**
+	 * Схема файлов настроек установленного vrunner: 2.x читает env.json,
+	 * 3.x — autumn-properties.json (оба из корня проекта автоматически).
+	 *
+	 * @returns Схема настроек по кэшу версии (консервативно 2.x)
+	 */
+	private activeSettingsSchema(): SettingsSchema {
+		return this.isCli3() ? 'v3' : 'v2';
+	}
+
+	/**
+	 * Публичная схема настроек установленного vrunner (для UI: дерево, служебные файлы).
+	 *
+	 * @returns 'v2' (env.json) или 'v3' (autumn-properties.json)
+	 */
+	public getActiveSettingsSchema(): SettingsSchema {
+		return this.activeSettingsSchema();
+	}
+
+	/**
+	 * Версия vrunner из кэша детекта (для отображения в UI без ожидания).
+	 *
+	 * @returns Строка версии (например '3.0.0_beta') или undefined
+	 */
+	public getCachedVRunnerVersionLabel(): string | undefined {
+		return this.vrunnerVersionCache?.raw;
+	}
+
+	/**
+	 * Синхронное чтение опции активного профиля (для узлов дерева).
+	 * Семантика как у readActiveProfileSetting, но без await.
+	 *
+	 * @param option - Имя опции без префикса (например 'ibconnection')
+	 * @returns Значение опции или undefined
+	 */
+	public readActiveProfileSettingSync(option: string): string | undefined {
+		if (!this.workspaceRoot) {
+			return undefined;
+		}
+		const settingsFile = this.getActiveEnvFile();
+		const absolutePath = path.isAbsolute(settingsFile)
+			? settingsFile
+			: path.join(this.workspaceRoot, settingsFile);
+		try {
+			const parsed = JSON.parse(fsSync.readFileSync(absolutePath, 'utf8'));
+			const value = this.activeSettingsSchema() === 'v3'
+				? parsed?.vrunner?.[option]
+				: parsed?.default?.[`--${option}`];
+			if (typeof value === 'string' && value.trim()) {
+				return value.trim();
+			}
+		} catch {
+			// файл недоступен или не JSON
+		}
+		return undefined;
+	}
+
+	/**
+	 * Строит план выполнения для семантических намерений.
+	 *
+	 * Единственная точка, где намерение превращается в аргументы CLI: адаптер
+	 * выбирается по установленной версии vrunner (2.x/3.x), временные параметры
+	 * активного профиля добавляются в зону сквозных опций (в 3.x они обязаны
+	 * стоять перед позиционными аргументами), решение про `--ibcmd` принимает
+	 * адаптер по-шагово. Для 3.x файл `--settings` формата 2.x не передаётся —
+	 * пользователю подсвечивается, что vrunner 3 использует другой формат
+	 * настроек (см. handleV3SettingsArg).
+	 *
+	 * Полученные шаги — финальные аргументы: исполнительные методы вызываются
+	 * с `appendOverrides: false`, чтобы не дописывать параметры повторно.
+	 *
+	 * @param intents - Намерения (каждое может развернуться в несколько команд)
+	 * @returns Список команд vrunner (каждая — массив аргументов)
+	 */
+	public async planIntents(intents: VRunnerIntent[]): Promise<string[][]> {
+		const version = await this.getVRunnerVersion();
+		const adapter = selectCliAdapter(version);
+		const cli3 = version !== undefined && isAtLeast(version, VRUNNER_FEATURES.cli3);
+		const overrides = this.getActiveEnvOverrideArgs();
+		// Именованный профиль подставляется во ВСЕ команды через --settings; для
+		// базового профиля параметр пустой (vrunner читает env.json сам).
+		const settingsParam = this.getActiveSettingsParamIfExists();
+
+		const steps: string[][] = [];
+		for (const intent of intents) {
+			const base = intent.common ?? [];
+			const extra = [
+				// не дублируем --settings, если он уже задан в намерении
+				...(settingsParam.length > 0 && !base.includes('--settings') ? settingsParam : []),
+				...overrides,
+			];
+			const merged: VRunnerIntent = extra.length > 0
+				? { ...intent, common: [...base, ...extra] }
+				: intent;
+			for (const step of adapter.plan(merged)) {
+				steps.push(cli3 ? this.handleV3SettingsArg(step) : step);
+			}
+		}
+		return steps;
+	}
+
+	/**
+	 * План одного намерения (см. {@link planIntents}).
+	 */
+	public async planIntent(intent: VRunnerIntent): Promise<string[][]> {
+		return this.planIntents([intent]);
+	}
+
+	/**
+	 * Приводит «сырые» аргументы к синтаксису установленного vrunner.
+	 *
+	 * Применяется ТОЛЬКО к аргументам, которые расширение не строило само:
+	 * задачи пользователя из tasks.json (тип 1c-vrunner). Для vrunner 3.x
+	 * аргументы в синтаксисе 2.x транслируются (см. translateArgsToV3),
+	 * записанные в синтаксисе 3.x — не изменяются (трансляция идемпотентна);
+	 * значение `--settings` при необходимости переписывается на файл
+	 * autumn-properties.
+	 *
+	 * @param args - Аргументы команды vrunner
+	 * @returns Аргументы под установленную версию vrunner
+	 */
+	private toCliArgs(args: string[]): string[] {
+		if (!this.isCli3()) {
+			return args;
+		}
+		// Пользовательские args из tasks.json не редактируются — только трансляция
+		// синтаксиса; о формате настроек пользователь заботится сам.
+		return translateArgsToV3(args);
+	}
+
+	/** Спецификация служебного файла настроек по схеме (для гейта и кнопки создания). */
+	private settingsServiceFileId(schema: SettingsSchema): string {
+		return schema === 'v3' ? 'autumnProperties' : 'env';
+	}
+
+	/**
+	 * Проверяет, что файл настроек активного профиля существует и соответствует
+	 * формату установленного vanessa-runner; иначе команда блокируется.
+	 *
+	 * Настройки — единственный источник параметров подключения и опций команд
+	 * (расширение их в CLI не дублирует), поэтому без файла настроек команды не
+	 * выполняются: в интерактивном режиме показывается предложение создать файл
+	 * через «Служебные файлы».
+	 *
+	 * @param interactive - Показывать ли предложение создать файл
+	 * @returns true, если файл настроек пригоден и команду можно выполнять
+	 */
+	public async ensureProfileSettingsFile(interactive: boolean): Promise<boolean> {
+		await this.getVRunnerVersion();
+		if (!this.workspaceRoot) {
+			return true;
+		}
+		const schema = this.activeSettingsSchema();
+		const fileName = this.getActiveEnvFile();
+		const absolutePath = path.isAbsolute(fileName)
+			? fileName
+			: path.join(this.workspaceRoot, fileName);
+
+		let suitable = false;
+		try {
+			const parsed = JSON.parse(fsSync.readFileSync(absolutePath, 'utf8'));
+			const isObject = typeof parsed === 'object' && parsed !== null && !Array.isArray(parsed);
+			suitable = isObject && (schema === 'v3' ? 'vrunner' in parsed : !('vrunner' in parsed));
+		} catch {
+			suitable = false;
+		}
+		if (suitable) {
+			return true;
+		}
+
+		log.warn(`Нет подходящего файла настроек: ${fileName}`);
+		if (interactive) {
+			const createAction = 'Создать профиль запуска';
+			void vscode.window
+				.showWarningMessage(
+					'Профиль запуска не создан. Создайте его и повторите команду.',
+					createAction
+				)
+				.then((action) => {
+					if (action === createAction) {
+						void vscode.commands.executeCommand('1c-platform-tools.serviceFiles.ensure', this.settingsServiceFileId(schema));
+					}
+				});
+		}
+		return false;
+	}
+
+	/**
+	 * Обрабатывает `--settings` в плане команды для vrunner 3.x.
+	 *
+	 * vanessa-runner 3 — другой инструмент с другим форматом настроек
+	 * (`autumn-properties.json`): файлы env.json формата 2.x он не понимает,
+	 * а расширение их НЕ конвертирует автоматически. Если активный профиль
+	 * указывает на файл формата 2.x, пара `--settings <файл>` из команды
+	 * убирается (иначе она перекрыла бы каскад vrunner и занулила настройки
+	 * из autumn-properties.json в корне проекта), а пользователю показывается
+	 * предупреждение с предложением создать файл настроек vrunner 3 через
+	 * «Служебные файлы». Файлы уже в формате 3.0 передаются без изменений.
+	 *
+	 * @param args - Аргументы команды (в синтаксисе 3.x)
+	 * @returns Аргументы без `--settings` формата 2.x (или те же)
+	 */
+	private handleV3SettingsArg(args: string[]): string[] {
+		const idx = args.indexOf('--settings');
+		if (idx === -1 || idx + 1 >= args.length) {
+			return args;
+		}
+		const settingsFile = args[idx + 1];
+		if (!this.isSettingsFileV2Format(settingsFile)) {
+			return args;
+		}
+
+		this.warnV2SettingsOnCli3(settingsFile);
+		const copy = [...args];
+		copy.splice(idx, 2);
+		return copy;
+	}
+
+	/**
+	 * Проверяет, что файл настроек в формате 2.x (плоские секции, без корневого
+	 * ключа `vrunner`). Нечитаемый файл или не-объект форматом 2.x не считается.
+	 *
+	 * @param settingsFile - Путь к файлу (абсолютный или от корня workspace)
+	 * @returns true, если файл в формате 2.x
+	 */
+	private isSettingsFileV2Format(settingsFile: string): boolean {
+		if (!this.workspaceRoot) {
+			return false;
+		}
+		const absolutePath = path.isAbsolute(settingsFile)
+			? settingsFile
+			: path.join(this.workspaceRoot, settingsFile);
+		try {
+			const parsed = JSON.parse(fsSync.readFileSync(absolutePath, 'utf8'));
+			return typeof parsed === 'object' && parsed !== null && !Array.isArray(parsed) && !('vrunner' in parsed);
+		} catch {
+			return false;
+		}
+	}
+
+	/** Файлы настроек 2.x, о которых предупреждение уже показано (раз за сессию). */
+	private readonly warnedV2SettingsFiles = new Set<string>();
+
+	/**
+	 * Предупреждает, что файл настроек в формате 2.x не подходит для vrunner 3.
+	 * Показывается один раз за сессию для каждого файла; кнопка создаёт
+	 * autumn-properties.json через служебные файлы.
+	 *
+	 * @param settingsFile - Путь файла настроек формата 2.x
+	 */
+	private warnV2SettingsOnCli3(settingsFile: string): void {
+		if (this.warnedV2SettingsFiles.has(settingsFile)) {
+			return;
+		}
+		this.warnedV2SettingsFiles.add(settingsFile);
+		log.warn(`Файл настроек ${settingsFile} в старом формате, параметр --settings не передан`);
+		const createAction = 'Создать профиль запуска';
+		void vscode.window
+			.showWarningMessage(
+				'Профиль запуска в другом формате и не применяется. Создайте его заново.',
+				createAction
+			)
+			.then((action) => {
+				if (action === createAction) {
+					void vscode.commands.executeCommand('1c-platform-tools.serviceFiles.ensure', 'autumnProperties');
+				}
+			});
 	}
 
 	/**
@@ -861,10 +1210,13 @@ export class VRunnerManager {
 			env?: NodeJS.ProcessEnv;
 			name?: string;
 			appendOverrides?: boolean;
+			/** true — «сырые» аргументы пользователя (tasks.json): транслировать под установленный vrunner */
+			translateRaw?: boolean;
 			definition?: vscode.TaskDefinition;
 			exitCallback?: (exitCode: number) => void;
 		}
 	): Promise<vscode.Task | undefined> {
+		await this.getVRunnerVersion();
 		const finalArgs = options?.appendOverrides === false ? args : this.appendActiveOverrides(args);
 		const cwd = options?.cwd || this.workspaceRoot || os.homedir();
 		const useDocker = await this.shouldUseDocker();
@@ -880,7 +1232,7 @@ export class VRunnerManager {
 			}
 		}
 
-		const built = this.buildExecCommand(finalArgs, useDocker);
+		const built = this.buildExecCommand(finalArgs, useDocker, options?.translateRaw === true);
 		if ('error' in built) {
 			log.error(`Ошибка при подготовке команды: ${built.error}`);
 			vscode.window.showErrorMessage(built.error);
@@ -908,7 +1260,7 @@ export class VRunnerManager {
 	 */
 	public async executeVRunnerTask(
 		args: string[],
-		options?: { cwd?: string; env?: NodeJS.ProcessEnv; name?: string }
+		options?: { cwd?: string; env?: NodeJS.ProcessEnv; name?: string; appendOverrides?: boolean }
 	): Promise<void> {
 		const task = await this.createVRunnerTaskFromArgs(args, options);
 		if (task) {
@@ -923,7 +1275,7 @@ export class VRunnerManager {
 	 */
 	public async executeVRunnerTaskAndWait(
 		args: string[],
-		options?: { cwd?: string; env?: NodeJS.ProcessEnv; name?: string }
+		options?: { cwd?: string; env?: NodeJS.ProcessEnv; name?: string; appendOverrides?: boolean }
 	): Promise<number> {
 		let resolveExit!: (exitCode: number) => void;
 		const exitPromise = new Promise<number>((resolve) => {
@@ -952,7 +1304,7 @@ export class VRunnerManager {
 	 */
 	public async executeVRunnerTaskSequence(
 		argsArray: string[][],
-		options?: { cwd?: string; env?: NodeJS.ProcessEnv; name?: string }
+		options?: { cwd?: string; env?: NodeJS.ProcessEnv; name?: string; appendOverrides?: boolean }
 	): Promise<void> {
 		if (argsArray.length === 0) {
 			return;
@@ -962,7 +1314,9 @@ export class VRunnerManager {
 			return;
 		}
 
-		const finalArgsArray = argsArray.map((args) => this.appendActiveOverrides(args));
+		const finalArgsArray = options?.appendOverrides === false
+			? argsArray
+			: argsArray.map((args) => this.appendActiveOverrides(args));
 		const cwd = options?.cwd || this.workspaceRoot || os.homedir();
 		const useDocker = await this.shouldUseDocker();
 		let command: string;
@@ -1017,7 +1371,7 @@ export class VRunnerManager {
 	 */
 	public async executeVRunnerTaskSequenceAndWait(
 		argsArray: string[][],
-		options?: { cwd?: string; env?: NodeJS.ProcessEnv; name?: string }
+		options?: { cwd?: string; env?: NodeJS.ProcessEnv; name?: string; appendOverrides?: boolean }
 	): Promise<number> {
 		if (argsArray.length === 0) {
 			return 0;
@@ -1026,7 +1380,9 @@ export class VRunnerManager {
 			return this.executeVRunnerTaskAndWait(argsArray[0], options);
 		}
 
-		const finalArgsArray = argsArray.map((args) => this.appendActiveOverrides(args));
+		const finalArgsArray = options?.appendOverrides === false
+			? argsArray
+			: argsArray.map((args) => this.appendActiveOverrides(args));
 		const cwd = options?.cwd || this.workspaceRoot || os.homedir();
 		const useDocker = await this.shouldUseDocker();
 		let command: string;
@@ -1101,15 +1457,18 @@ export class VRunnerManager {
 	 */
 	public async executeVRunnerInTerminal(
 		args: string[],
-		options?: { cwd?: string; env?: NodeJS.ProcessEnv; name?: string; shellType?: ShellType }
+		options?: { cwd?: string; env?: NodeJS.ProcessEnv; name?: string; shellType?: ShellType; appendOverrides?: boolean }
 	): Promise<void> {
+		await this.getVRunnerVersion();
 		// По умолчанию команды идут как задачи VS Code (Rerun, список задач).
 		// Сырой терминал остаётся опцией (настройка execution.useTasks).
 		if (this.shouldUseTasks()) {
 			await this.executeVRunnerTask(args, options);
 			return;
 		}
-		args = this.appendActiveOverrides(args);
+		if (options?.appendOverrides !== false) {
+			args = this.appendActiveOverrides(args);
+		}
 		const cwd = options?.cwd || this.workspaceRoot || os.homedir();
 		const shellType = options?.shellType || detectShellType();
 
@@ -1181,11 +1540,12 @@ export class VRunnerManager {
 	 */
 	public async executeVRunnerCommandsInSequence(
 		argsArray: string[][],
-		options?: { cwd?: string; env?: NodeJS.ProcessEnv; name?: string; shellType?: ShellType }
+		options?: { cwd?: string; env?: NodeJS.ProcessEnv; name?: string; shellType?: ShellType; appendOverrides?: boolean }
 	): Promise<void> {
 		if (argsArray.length === 0) {
 			return;
 		}
+		await this.getVRunnerVersion();
 		// По умолчанию — как задача VS Code; сырой терминал остаётся опцией.
 		if (this.shouldUseTasks()) {
 			await this.executeVRunnerTaskSequence(argsArray, options);
@@ -1196,7 +1556,9 @@ export class VRunnerManager {
 			return;
 		}
 
-		argsArray = argsArray.map((args) => this.appendActiveOverrides(args));
+		if (options?.appendOverrides !== false) {
+			argsArray = argsArray.map((args) => this.appendActiveOverrides(args));
+		}
 
 		const cwd = options?.cwd || this.workspaceRoot || os.homedir();
 		const shellType = options?.shellType || detectShellType();
@@ -1274,7 +1636,13 @@ export class VRunnerManager {
 	 * @param args - Аргументы команды vrunner
 	 * @returns Объект с командой либо с текстом ошибки подготовки
 	 */
-	private buildExecCommand(args: string[], useDocker: boolean): { command: string } | { error: string } {
+	private buildExecCommand(args: string[], useDocker: boolean, translateRaw = false): { command: string } | { error: string } {
+		// Трансляция синтаксиса применяется ТОЛЬКО к «сырым» аргументам задач
+		// пользователя из tasks.json. Планы интентов уже финальные — повторная
+		// обработка недопустима (парсер шима не обязан понимать синтаксис 3.x).
+		if (translateRaw) {
+			args = this.toCliArgs(args);
+		}
 		if (useDocker) {
 			if (!this.workspaceRoot) {
 				return { error: 'Для использования Docker необходимо открыть рабочую область' };
@@ -1312,6 +1680,23 @@ export class VRunnerManager {
 	 * @returns Промис, который разрешается результатом выполнения команды
 	 */
 	public async executeVRunner(
+		args: string[],
+		options?: { cwd?: string; env?: NodeJS.ProcessEnv }
+	): Promise<VRunnerExecutionResult> {
+		// Прогреваем версию: синхронная адаптация «сырых» аргументов в
+		// buildExecCommand должна знать про 3.x. Детект версии зовёт
+		// executeVRunnerRaw (минуя прогрев), поэтому рекурсии нет.
+		await this.getVRunnerVersion();
+		return this.executeVRunnerRaw(args, options);
+	}
+
+	/**
+	 * Низкоуровневое синхронное выполнение vrunner без прогрева версии.
+	 *
+	 * Используется детектом версии (чтобы избежать рекурсии) и публичным
+	 * {@link executeVRunner}.
+	 */
+	private async executeVRunnerRaw(
 		args: string[],
 		options?: { cwd?: string; env?: NodeJS.ProcessEnv }
 	): Promise<VRunnerExecutionResult> {
@@ -1371,9 +1756,14 @@ export class VRunnerManager {
 			env?: NodeJS.ProcessEnv;
 			token?: vscode.CancellationToken;
 			onOutput?: (chunk: string) => void;
+			/** false — аргументы финальные (план интента), параметры профиля не дописывать */
+			appendOverrides?: boolean;
 		}
 	): Promise<CancellableProcessResult> {
-		args = this.appendActiveOverrides(args);
+		await this.getVRunnerVersion();
+		if (options?.appendOverrides !== false) {
+			args = this.appendActiveOverrides(args);
+		}
 		const useDocker = await this.shouldUseDocker();
 		const built = this.buildExecCommand(args, useDocker);
 		if ('error' in built) {
@@ -1576,6 +1966,22 @@ export class VRunnerManager {
 	 * @returns Промис, который разрешается содержимым файла или пустым объектом при ошибке
 	 * @throws {Error} Если рабочая область не открыта
 	 */
+	/**
+	 * Читает файл настроек активного профиля и возвращает его вместе со схемой.
+	 *
+	 * Схема определяется по установленной версии vrunner: env.json (2.x) или
+	 * autumn-properties.json (3.x). Значения опций внутри читаются с учётом
+	 * схемы (см. settingValue в projectTestConfig).
+	 *
+	 * @returns Разобранное содержимое (пустой объект при ошибке) и схема
+	 */
+	public async readActiveSettings(): Promise<{ settings: Record<string, unknown>; schema: SettingsSchema }> {
+		await this.getVRunnerVersion();
+		const schema = this.activeSettingsSchema();
+		const settings = (await this.readEnvJson(this.getActiveEnvFile())) as Record<string, unknown>;
+		return { settings, schema };
+	}
+
 	public async readEnvJson(fileName: string = BASE_ENV_FILE): Promise<any> {
 		if (!this.workspaceRoot) {
 			throw new Error('Рабочая область не открыта');
@@ -1613,19 +2019,16 @@ export class VRunnerManager {
 	/**
 	 * Возвращает id активного env-профиля.
 	 *
-	 * Порядок определения:
-	 * 1. Локальный выбор из workspaceState (не коммитится). Сюда же относится
-	 *    осознанный выбор «Не выбран» — он хранится как пустая строка.
-	 * 2. Командное значение по умолчанию из настройки `defaultEnvProfile`.
-	 * 3. Если явного выбора нет и есть базовый `env.json` — он считается активным
-	 *    по умолчанию (а не «Не выбран»), чтобы открытый проект с env.json сразу
-	 *    работал предсказуемо.
+	 * Базовый файл настроек (env.json / autumn-properties.json) vanessa-runner
+	 * читает из корня проекта всегда, поэтому «запуска без профиля» не бывает:
+	 * при отсутствии явного выбора активен базовый профиль. Пустое значение из
+	 * прежних версий приводится к базовому профилю.
 	 *
-	 * @returns Идентификатор профиля (пустая строка — «Не выбран»)
+	 * @returns Идентификатор профиля (никогда не пустой)
 	 */
 	public getActiveEnvProfileId(): string {
 		const fromState = this.memento?.get<string>(ACTIVE_ENV_PROFILE_KEY);
-		if (typeof fromState === 'string') {
+		if (typeof fromState === 'string' && fromState) {
 			return fromState;
 		}
 		const config = vscode.workspace.getConfiguration('1c-platform-tools');
@@ -1633,10 +2036,7 @@ export class VRunnerManager {
 		if (configured) {
 			return configured;
 		}
-		// Нет явного выбора и не задан командный дефолт: базовый env.json,
-		// если он существует, активен по умолчанию.
-		const hasBase = this.discoverEnvProfiles().some((profile) => profile.isBase);
-		return hasBase ? DEFAULT_PROFILE_ID : NONE_PROFILE_ID;
+		return DEFAULT_PROFILE_ID;
 	}
 
 	/**
@@ -1669,7 +2069,7 @@ export class VRunnerManager {
 				fileNames = [];
 			}
 		}
-		return buildEnvProfiles(fileNames);
+		return buildEnvProfiles(fileNames, this.activeSettingsSchema());
 	}
 
 	/**
@@ -1734,36 +2134,39 @@ export class VRunnerManager {
 	 * @returns Имя файла env-профиля (например 'env.json' или 'env.dev.json')
 	 */
 	public getActiveEnvFile(): string {
+		const schema = this.activeSettingsSchema();
 		const activeId = this.getActiveEnvProfileId();
 		if (!activeId) {
-			return BASE_ENV_FILE;
+			return baseSettingsFileName(schema);
 		}
-		return resolveActiveEnvFileName(activeId, this.discoverEnvProfiles());
+		return resolveActiveEnvFileName(activeId, this.discoverEnvProfiles(), schema);
 	}
 
 	/**
 	 * Возвращает параметр --settings выбранного env-профиля.
 	 *
-	 * Если профиль не выбран («Не выбран») — параметр не добавляется, команда
-	 * выполняется без профиля (как было до профилей). Параметр возвращается только
-	 * для реально выбранного и существующего профиля.
+	 * Базовый профиль (env.json / autumn-properties.json) параметр не требует:
+	 * vanessa-runner сам читает свой файл настроек из корня проекта. `--settings`
+	 * возвращается только для именованного профиля (env.<id>.json /
+	 * autumn-properties.<id>.json), и только если файл существует.
 	 *
 	 * @returns Массив ['--settings', файл] или пустой массив
 	 */
 	public getActiveSettingsParamIfExists(): string[] {
 		const activeId = this.getActiveEnvProfileId();
-		if (!activeId) {
+		const profile = this.discoverEnvProfiles().find((p) => p.id === activeId);
+		if (!profile || profile.isBase) {
 			return [];
 		}
-		const profile = this.discoverEnvProfiles().find((p) => p.id === activeId);
-		return profile ? ['--settings', profile.fileName] : [];
+		return ['--settings', profile.fileName];
 	}
 
 	/**
 	 * Получает параметр --settings для команды vrunner
 	 *
-	 * Без явного файла используется выбранный env-профиль; при «Не выбран»
-	 * параметр не добавляется (vrunner сам читает env.json по умолчанию).
+	 * Без явного файла используется активный env-профиль: для именованного —
+	 * `--settings <файл>`, для базового параметр не нужен (vrunner сам читает
+	 * env.json / autumn-properties.json из корня проекта).
 	 *
 	 * @param settingsFile - Путь к файлу настроек (относительно workspace), опционально
 	 * @returns Массив ['--settings', 'путь_к_файлу'] или пустой массив
@@ -1785,30 +2188,64 @@ export class VRunnerManager {
 	 *                        По умолчанию — активный env-профиль
 	 * @returns Промис, который разрешается массивом параметров ['--ibconnection', 'строка_подключения']
 	 */
-	public async getIbConnectionParam(ibConnection?: string, settingsFile?: string): Promise<string[]> {
+	public async getIbConnectionParam(ibConnection?: string): Promise<string[]> {
+		// Значения из файла настроек в командную строку не дублируются:
+		// vanessa-runner сам читает свой файл (env.json / autumn-properties.json)
+		// из корня проекта, а CLI-аргумент перекрыл бы его каскад. Флаг
+		// добавляется только для явно заданной строки подключения (например,
+		// из вызова MCP или временных параметров профиля).
 		if (ibConnection) {
 			return ['--ibconnection', ibConnection];
 		}
+		return [];
+	}
 
-		const resolvedSettingsFile = settingsFile ?? this.getActiveEnvFile();
-
-		if (this.workspaceRoot) {
-			const absoluteSettingsPath = path.isAbsolute(resolvedSettingsFile)
-				? resolvedSettingsFile
-				: path.join(this.workspaceRoot, resolvedSettingsFile);
-
-			try {
-				const content = await fs.readFile(absoluteSettingsPath, 'utf8');
-				const env = JSON.parse(content);
-				
-				if (env.default && typeof env.default['--ibconnection'] === 'string') {
-					return ['--ibconnection', env.default['--ibconnection']];
-				}
-			} catch {
-			}
+	/**
+	 * Читает значение опции из файла настроек активного профиля с учётом схемы:
+	 * `default["--<опция>"]` в env.json (2.x) или `vrunner.<опция>` в
+	 * autumn-properties.json (3.x).
+	 *
+	 * Для собственных нужд расширения (автономный сервер, подбор платформы) —
+	 * в команды vrunner эти значения не пробрасываются.
+	 *
+	 * @param option - Имя опции без префикса (например 'ibconnection')
+	 * @returns Значение опции или undefined
+	 */
+	private async readActiveProfileSetting(option: string): Promise<string | undefined> {
+		if (!this.workspaceRoot) {
+			return undefined;
 		}
+		const settingsFile = this.getActiveEnvFile();
+		const absolutePath = path.isAbsolute(settingsFile)
+			? settingsFile
+			: path.join(this.workspaceRoot, settingsFile);
+		try {
+			const content = await fs.readFile(absolutePath, 'utf8');
+			const parsed = JSON.parse(content);
+			const value = this.activeSettingsSchema() === 'v3'
+				? parsed?.vrunner?.[option]
+				: parsed?.default?.[`--${option}`];
+			if (typeof value === 'string' && value.trim()) {
+				return value.trim();
+			}
+		} catch {
+			// файл недоступен или не JSON — значение не определено
+		}
+		return undefined;
+	}
 
-		return ['--ibconnection', '/F./build/ib'];
+	/**
+	 * Строка подключения к ИБ активного профиля: временный параметр либо значение
+	 * из файла настроек; по умолчанию — файловая ИБ build/ib (как у vanessa-runner).
+	 *
+	 * @returns Строка подключения (например '/F./build/ib')
+	 */
+	public async getActiveIbConnectionValue(): Promise<string> {
+		const override = this.getActiveEnvOverrides()?.ibConnection;
+		if (override) {
+			return override;
+		}
+		return (await this.readActiveProfileSetting('ibconnection')) ?? '/F./build/ib';
 	}
 
 	/**
@@ -1824,25 +2261,7 @@ export class VRunnerManager {
 		if (override) {
 			return override;
 		}
-
-		if (this.workspaceRoot) {
-			const settingsFile = this.getActiveEnvFile();
-			const absoluteSettingsPath = path.isAbsolute(settingsFile)
-				? settingsFile
-				: path.join(this.workspaceRoot, settingsFile);
-			try {
-				const content = await fs.readFile(absoluteSettingsPath, 'utf8');
-				const env = JSON.parse(content);
-				const value = env.default?.['--v8version'];
-				if (typeof value === 'string' && value.trim()) {
-					return value.trim();
-				}
-			} catch {
-				// файл недоступен или не JSON — версия не определена из профиля
-			}
-		}
-
-		return undefined;
+		return this.readActiveProfileSetting('v8version');
 	}
 
 	/**

@@ -135,6 +135,12 @@
           "when": "1c-platform-tools.is1CProject == true"
         },
         {
+          "id": "1c-platform-tools-profile",
+          "name": "Профиль запуска",
+          "contextualTitle": "Профиль запуска",
+          "when": "1c-platform-tools.is1CProject == true"
+        },
+        {
           "id": "1c-platform-tools-help",
           "name": "Помощь и поддержка",
           "contextualTitle": "Помощь",
@@ -437,7 +443,22 @@
         ]
       }
     ],
+    "customEditors": [
+      {
+        "viewType": "1c-platform-tools.profileEditor",
+        "displayName": "Профиль запуска 1С",
+        "selector": [
+          { "filenamePattern": "env*.json" },
+          { "filenamePattern": "autumn-properties*.json" }
+        ],
+        "priority": "option"
+      }
+    ],
     "commands": [
+      {
+        "command": "1c-platform-tools.profile.openEditor",
+        "title": "1С: Открыть редактор профиля запуска"
+      },
       {
         "command": "1c-platform-tools.refresh",
         "title": "Обновить",
@@ -2373,11 +2394,6 @@
             "default": true,
             "description": "Запускать команды vrunner как задачи VS Code: ошибки прогона попадают в панель Problems (с переходом к строке), доступна команда «Rerun Last Task», команды видны в списке задач. Отключите, чтобы выполнять команды в обычном интерактивном терминале."
           },
-          "1c-platform-tools.useIbcmd": {
-            "type": "boolean",
-            "default": false,
-            "description": "Использовать утилиту ibcmd вместо конфигуратора для выполнения операций с информационной базой. ibcmd - утилита командной строки, которая ускоряет выполнение операций (загрузка, выгрузка, сборка, разбор конфигурации и расширений) без запуска графического интерфейса Конфигуратора. Примечание: при использовании Docker (docker.enabled = true) ibcmd используется автоматически, так как в Docker нет GUI."
-          },
           "1c-platform-tools.vrunner.initSettingsPath": {
             "type": "string",
             "default": "tools/vrunner.init.json",
@@ -2893,6 +2909,7 @@
     "compile": "node esbuild.config.mjs",
     "watch": "node esbuild.config.mjs --watch",
     "gen:hooks-schema": "node scripts/gen-hooks-schema.mjs",
+    "gen:vrunner-options": "node scripts/gen-vrunner-options.mjs",
     "pretest": "node scripts/gen-hooks-schema.mjs --check && npm run compile && npm run lint",
     "lint": "eslint src",
     "test": "vscode-test",
@@ -2913,6 +2930,7 @@
     "extract-zip": "^2.0.1",
     "fast-xml-parser": "^5.8.0",
     "glob": "^10.5.0",
+    "jsonc-parser": "^3.3.1",
     "minimatch": "^9.0.9"
   },
   "devDependencies": {

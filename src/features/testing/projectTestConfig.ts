@@ -1,4 +1,50 @@
 import * as path from 'node:path';
+import { SettingsSchema } from '../../shared/envProfiles';
+
+/** Путь секции команды 2.x в иерархии autumn-properties (3.x). */
+const V3_SECTION_PATH: Record<string, string[]> = {
+	default: [],
+	vanessa: ['test', 'vanessa'],
+	xunit: ['test', 'xunit'],
+	'syntax-check': ['validate', 'syntax-check'],
+};
+
+/**
+ * Читает значение опции команды из файла настроек с учётом схемы vanessa-runner.
+ *
+ * В 2.x (env.json) опции лежат плоско: `<секция>["--<опция>"]`. В 3.x
+ * (autumn-properties.json) — вложенно: `vrunner.<путь секции>.<опция>` без
+ * префикса `--`. Возвращает значение как оно записано в файле.
+ *
+ * @param settings - Разобранное содержимое файла настроек
+ * @param schema - Схема настроек (по версии vrunner)
+ * @param section - Имя секции команды 2.x (vanessa/xunit/syntax-check/default)
+ * @param option - Имя опции без префикса (vanessasettings/reportsxunit/…)
+ * @returns Значение опции или undefined
+ */
+export function settingValue(
+	settings: Record<string, unknown>,
+	schema: SettingsSchema,
+	section: string,
+	option: string
+): unknown {
+	if (schema === 'v3') {
+		let current: unknown = settings['vrunner'];
+		for (const segment of V3_SECTION_PATH[section] ?? [section]) {
+			if (typeof current !== 'object' || current === null) {
+				return undefined;
+			}
+			current = (current as Record<string, unknown>)[segment];
+		}
+		return typeof current === 'object' && current !== null
+			? (current as Record<string, unknown>)[option]
+			: undefined;
+	}
+	const sectionValue = settings[section];
+	return typeof sectionValue === 'object' && sectionValue !== null
+		? (sectionValue as Record<string, unknown>)[`--${option}`]
+		: undefined;
+}
 
 /**
  * Чтение тестовой конфигурации проекта (env.json + tools/*)
@@ -103,15 +149,12 @@ export function vanessaReportTarget(
  * @param envJson - Разобранное содержимое env.json
  * @returns Путь из --vanessasettings или undefined
  */
-export function vanessaSettingsPathFromEnv(envJson: Record<string, unknown>): string | undefined {
-	const vanessaSection = envJson['vanessa'];
-	if (vanessaSection && typeof vanessaSection === 'object') {
-		const value = (vanessaSection as Record<string, unknown>)['--vanessasettings'];
-		if (typeof value === 'string' && value.length > 0) {
-			return value;
-		}
-	}
-	return undefined;
+export function vanessaSettingsPathFromEnv(
+	settings: Record<string, unknown>,
+	schema: SettingsSchema = 'v2'
+): string | undefined {
+	const value = settingValue(settings, schema, 'vanessa', 'vanessasettings');
+	return typeof value === 'string' && value.length > 0 ? value : undefined;
 }
 
 /**
@@ -120,36 +163,29 @@ export function vanessaSettingsPathFromEnv(envJson: Record<string, unknown>): st
  * @param envJson - Разобранное содержимое env.json
  * @returns Значение параметра или undefined
  */
-export function reportsXunitFromEnv(envJson: Record<string, unknown>): string | undefined {
-	const xunitSection = envJson['xunit'];
-	if (xunitSection && typeof xunitSection === 'object') {
-		const value = (xunitSection as Record<string, unknown>)['--reportsxunit'];
-		if (typeof value === 'string' && value.length > 0) {
-			return value;
-		}
-	}
-	return undefined;
+export function reportsXunitFromEnv(
+	settings: Record<string, unknown>,
+	schema: SettingsSchema = 'v2'
+): string | undefined {
+	const value = settingValue(settings, schema, 'xunit', 'reportsxunit');
+	return typeof value === 'string' && value.length > 0 ? value : undefined;
 }
 
 /**
  * Извлекает путь jUnit-отчёта синтаксического контроля из env.json (секция syntax-check)
  *
- * Формат vanessa-runner v2: `syntax-check.--junitpath` (см. envSections.ts).
- * В vanessa-runner v3 структура env.json иная (`vrunner.<путь>.<опция>`) —
- * не поддерживается, пока миграция на v3 не реализована (issue #118).
+ * Схемо-зависимо: 2.x — `syntax-check["--junitpath"]`, 3.x —
+ * `vrunner.validate.syntax-check.junitpath` (см. settingValue).
  *
  * @param envJson - Разобранное содержимое env.json
  * @returns Путь как записан в конфиге (относительный/с $workspaceRoot) или undefined
  */
-export function syntaxCheckJUnitPathFromEnv(envJson: Record<string, unknown>): string | undefined {
-	const section = envJson['syntax-check'];
-	if (section && typeof section === 'object') {
-		const value = (section as Record<string, unknown>)['--junitpath'];
-		if (typeof value === 'string' && value.length > 0) {
-			return value;
-		}
-	}
-	return undefined;
+export function syntaxCheckJUnitPathFromEnv(
+	settings: Record<string, unknown>,
+	schema: SettingsSchema = 'v2'
+): string | undefined {
+	const value = settingValue(settings, schema, 'syntax-check', 'junitpath');
+	return typeof value === 'string' && value.length > 0 ? value : undefined;
 }
 
 /**
@@ -163,14 +199,9 @@ export function syntaxCheckJUnitPathFromEnv(envJson: Record<string, unknown>): s
  * @returns true/false как задано в конфиге; undefined, если опции нет
  */
 export function syntaxCheckGroupByMetadataFromEnv(
-	envJson: Record<string, unknown>
+	settings: Record<string, unknown>,
+	schema: SettingsSchema = 'v2'
 ): boolean | undefined {
-	const section = envJson['syntax-check'];
-	if (section && typeof section === 'object') {
-		const value = (section as Record<string, unknown>)['--groupbymetadata'];
-		if (typeof value === 'boolean') {
-			return value;
-		}
-	}
-	return undefined;
+	const value = settingValue(settings, schema, 'syntax-check', 'groupbymetadata');
+	return typeof value === 'boolean' ? value : undefined;
 }

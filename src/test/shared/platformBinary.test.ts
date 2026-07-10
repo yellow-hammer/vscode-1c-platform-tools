@@ -7,6 +7,8 @@ import {
 	compare1cVersions,
 	platformBinaryFileName,
 	pickPlatformVersion,
+	expandEnvPlaceholders,
+	resolvePlatformVersion,
 	resolvePlatformBinary,
 	defaultPlatformBasePaths,
 } from '../../shared/platformBinary';
@@ -52,6 +54,37 @@ suite('platformBinary', () => {
 	test('pickPlatformVersion: нет подходящих → undefined', () => {
 		assert.strictEqual(pickPlatformVersion(['common', 'conf']), undefined);
 		assert.strictEqual(pickPlatformVersion(['8.3.27.1936'], '8.4'), undefined);
+	});
+
+	test('expandEnvPlaceholders: раскрывает ${env:NAME}', () => {
+		process.env.__TEST_1CV8_BASE = path.join('X', '1cv8');
+		assert.strictEqual(
+			expandEnvPlaceholders('${env:__TEST_1CV8_BASE}/bin'),
+			`${path.join('X', '1cv8')}/bin`
+		);
+		delete process.env.__TEST_1CV8_BASE;
+	});
+
+	test('resolvePlatformVersion: сводит префикс профиля к конкретной сборке', () => {
+		const base = fs.mkdtempSync(path.join(os.tmpdir(), '1cv8-'));
+		for (const name of ['8.3.23.2040', '8.3.27.1859', '8.3.27.1936', 'common']) {
+			fs.mkdirSync(path.join(base, name));
+		}
+		try {
+			assert.strictEqual(resolvePlatformVersion(base, '8.3.27'), '8.3.27.1936');
+			assert.strictEqual(resolvePlatformVersion(base), '8.3.27.1936');
+			assert.strictEqual(resolvePlatformVersion(base, '8.3.27.1859'), '8.3.27.1859');
+			assert.strictEqual(resolvePlatformVersion(base, '8.9'), undefined);
+		} finally {
+			fs.rmSync(base, { recursive: true, force: true });
+		}
+	});
+
+	test('resolvePlatformVersion: каталог недоступен → undefined', () => {
+		assert.strictEqual(
+			resolvePlatformVersion(path.join(os.tmpdir(), 'no-such-1cv8-dir-xyz'), '8.3'),
+			undefined
+		);
 	});
 
 	test('defaultPlatformBasePaths: кандидаты по ОС', () => {

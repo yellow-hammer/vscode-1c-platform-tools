@@ -9,20 +9,36 @@
  * Модуль чистый (без vscode/fs).
  */
 
-/** Имя файла профиля «По умолчанию» */
+/**
+ * Схема файлов настроек по мажорной версии vanessa-runner: 2.x читает env.json,
+ * 3.x — autumn-properties.json (оба — из корня проекта автоматически).
+ */
+export type SettingsSchema = 'v2' | 'v3';
+
+/** Имя файла профиля «По умолчанию» (vanessa-runner 2.x) */
 export const BASE_ENV_FILE = 'env.json';
+
+/** Имя файла профиля «По умолчанию» (vanessa-runner 3.x) */
+export const BASE_AUTUMN_FILE = 'autumn-properties.json';
+
+/**
+ * Имя базового файла настроек для схемы.
+ *
+ * @param schema - Схема настроек (по версии vrunner)
+ * @returns Имя базового файла в корне проекта
+ */
+export function baseSettingsFileName(schema: SettingsSchema): string {
+	return schema === 'v3' ? BASE_AUTUMN_FILE : BASE_ENV_FILE;
+}
 
 /** id профиля «По умолчанию» (файл env.json) */
 export const DEFAULT_PROFILE_ID = 'default';
 
-/** id состояния «профиль не выбран» */
-export const NONE_PROFILE_ID = '';
-
 /** Подпись профиля env.json */
 export const DEFAULT_PROFILE_LABEL = 'По умолчанию';
 
-/** Подпись состояния «профиль не выбран» */
-export const NOT_SELECTED_LABEL = 'Не выбран';
+/** Подпись состояния «базовый файл настроек ещё не создан» */
+export const NO_SETTINGS_LABEL = 'Нет файла настроек';
 
 /** Ключ хранения id активного профиля в workspaceState */
 export const ACTIVE_ENV_PROFILE_KEY = '1c-platform-tools.activeEnvProfile';
@@ -63,21 +79,27 @@ export interface EnvOverrides {
 }
 
 const ENV_FILE_RE = /^env(?:\.([A-Za-z0-9_.-]+))?\.json$/;
+const AUTUMN_FILE_RE = /^autumn-properties(?:\.([A-Za-z0-9_.-]+))?\.json$/;
 
 /**
- * Разбирает имя файла в env-профиль
+ * Разбирает имя файла в профиль запуска.
  *
- * @param fileName - Имя файла (например `env.json` или `env.dev.json`)
- * @returns Профиль или undefined, если имя не соответствует шаблону env-файла
+ * Шаблон зависит от схемы: `env[.<id>].json` для vanessa-runner 2.x,
+ * `autumn-properties[.<id>].json` для 3.x.
+ *
+ * @param fileName - Имя файла (например `env.dev.json` или `autumn-properties.ci.json`)
+ * @param schema - Схема настроек (по умолчанию 2.x)
+ * @returns Профиль или undefined, если имя не соответствует шаблону
  */
-export function parseEnvFileName(fileName: string): EnvProfile | undefined {
-	const match = ENV_FILE_RE.exec(fileName.trim());
+export function parseEnvFileName(fileName: string, schema: SettingsSchema = 'v2'): EnvProfile | undefined {
+	const pattern = schema === 'v3' ? AUTUMN_FILE_RE : ENV_FILE_RE;
+	const match = pattern.exec(fileName.trim());
 	if (!match) {
 		return undefined;
 	}
 	const id = match[1];
 	if (id === undefined) {
-		return { id: DEFAULT_PROFILE_ID, fileName: BASE_ENV_FILE, label: DEFAULT_PROFILE_LABEL, isBase: true };
+		return { id: DEFAULT_PROFILE_ID, fileName: baseSettingsFileName(schema), label: DEFAULT_PROFILE_LABEL, isBase: true };
 	}
 	return { id, fileName, label: id, isBase: false };
 }
@@ -92,10 +114,10 @@ export function parseEnvFileName(fileName: string): EnvProfile | undefined {
  * @param fileNames - Имена файлов в корне проекта
  * @returns Отсортированный список профилей
  */
-export function buildEnvProfiles(fileNames: string[]): EnvProfile[] {
+export function buildEnvProfiles(fileNames: string[], schema: SettingsSchema = 'v2'): EnvProfile[] {
 	const byId = new Map<string, EnvProfile>();
 	for (const name of fileNames) {
-		const profile = parseEnvFileName(name);
+		const profile = parseEnvFileName(name, schema);
 		if (profile && !byId.has(profile.id)) {
 			byId.set(profile.id, profile);
 		}
@@ -123,7 +145,8 @@ export function buildEnvProfiles(fileNames: string[]): EnvProfile[] {
  */
 export function resolveActiveEnvFileName(
 	activeId: string | undefined,
-	profiles: EnvProfile[]
+	profiles: EnvProfile[],
+	schema: SettingsSchema = 'v2'
 ): string {
 	if (activeId) {
 		const found = profiles.find((profile) => profile.id === activeId);
@@ -131,15 +154,15 @@ export function resolveActiveEnvFileName(
 			return found.fileName;
 		}
 	}
-	return BASE_ENV_FILE;
+	return baseSettingsFileName(schema);
 }
 
 /**
  * Подпись активного профиля для UI
  *
- * @param activeId - id активного профиля (пустая строка — профиль не выбран)
- * @param profiles - Доступные профили
- * @returns Подпись профиля или «Не выбран»
+ * @param activeId - id активного профиля
+ * @param profiles - Доступные профили (только для существующих файлов настроек)
+ * @returns Подпись профиля; если файла активного профиля нет — «Нет файла настроек»
  */
 export function activeProfileLabel(activeId: string | undefined, profiles: EnvProfile[]): string {
 	if (activeId) {
@@ -148,7 +171,7 @@ export function activeProfileLabel(activeId: string | undefined, profiles: EnvPr
 			return found.label;
 		}
 	}
-	return NOT_SELECTED_LABEL;
+	return NO_SETTINGS_LABEL;
 }
 
 /**

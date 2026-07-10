@@ -1111,7 +1111,8 @@ export class TestingController implements vscode.Disposable {
 		onOutput: (chunk: string) => void
 	): Promise<CancellableProcessResult> {
 		if (tool === 'vrunner') {
-			return this.vrunner.executeVRunnerCancellable(args, { env, token, onOutput });
+			// Планы адаптеров тестирования финальные (параметры профиля уже в них)
+			return this.vrunner.executeVRunnerCancellable(args, { env, token, onOutput, appendOverrides: false });
 		}
 		return runCancellableCommand(args[0], {
 			cwd: this.vrunner.getWorkspaceRoot(),

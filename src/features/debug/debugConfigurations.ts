@@ -5,6 +5,8 @@ import { DEBUG_TYPE } from './debugConstants';
 import { resolveFileIbConnectionString } from '../../shared/ibConnectionPath';
 import { DEFAULT_PATHS } from '../../shared/pathDefaults';
 import { logger } from '../../shared/logger';
+import { VRunnerManager } from '../../shared/vrunnerManager';
+import { resolvePlatformVersion } from '../../shared/platformBinary';
 
 const platformBasePath =
 	process.platform === 'win32' ? '${env:PROGRAMFILES}/1cv8' : '/opt/1C/v8.3/x86_64';
@@ -19,23 +21,9 @@ const launchConfig: vscode.DebugConfiguration = {
 	autoAttachTypes: ['ManagedClient', 'Server'],
 };
 
-interface EnvDefault {
-	'--ibconnection'?: string;
-	'--db-user'?: string;
-	'--db-pwd'?: string;
-}
-
-function readEnvDefault(workspaceRoot: string): EnvDefault | undefined {
-	const envPath = path.join(workspaceRoot, 'env.json');
-	try {
-		const content = fs.readFileSync(envPath, 'utf8');
-		return (JSON.parse(content) as { default?: EnvDefault }).default;
-	} catch {
-		return undefined;
-	}
-}
-
 export class OnecDebugConfigurationProvoider implements vscode.DebugConfigurationProvider {
+	constructor(private readonly vrunner: VRunnerManager) {}
+
 	provideDebugConfigurations(
 		folder: vscode.WorkspaceFolder | undefined,
 		_token?: vscode.CancellationToken
@@ -129,16 +117,18 @@ export class OnecDebugConfigurationProvoider implements vscode.DebugConfiguratio
 		const workspaceRoot = folder?.uri.fsPath;
 		if (!workspaceRoot) {
 			void vscode.window.showErrorMessage(
-				'Укажите default["--ibconnection"] в env.json в корне проекта (формат /F или /S). Открытая папка не определена.'
+				'Укажите строку подключения к ИБ (формат /F или /S) в файле настроек активного профиля запуска. Открытая папка не определена.'
 			);
 			return undefined;
 		}
 
-		const envDefault = readEnvDefault(workspaceRoot);
-		const connectionString = envDefault?.['--ibconnection'];
+		// Строка подключения и учётные данные берутся из активного профиля запуска
+		// (env.json/env.<id>.json для vrunner 2 или autumn-properties.* для vrunner 3),
+		// а не напрямую из env.json — иначе смена профиля не влияла бы на отладку.
+		const connectionString = this.vrunner.readActiveProfileSettingSync('ibconnection');
 		if (typeof connectionString !== 'string' || connectionString.trim() === '') {
 			void vscode.window.showErrorMessage(
-				'Укажите default["--ibconnection"] в env.json в корне проекта (формат /F или /S).'
+				'Укажите строку подключения к ИБ (формат /F или /S) в файле настроек активного профиля запуска.'
 			);
 			return undefined;
 		}
@@ -146,7 +136,7 @@ export class OnecDebugConfigurationProvoider implements vscode.DebugConfiguratio
 		const trimmed = connectionString.trim();
 		if (!trimmed.startsWith('/F') && !trimmed.startsWith('/S')) {
 			void vscode.window.showErrorMessage(
-				`Строка подключения в env.json должна начинаться с /F (файловая ИБ) или /S (серверная ИБ). Получено: ${trimmed.slice(0, 20)}…`
+				`Строка подключения к ИБ должна начинаться с /F (файловая ИБ) или /S (серверная ИБ). Получено: ${trimmed.slice(0, 20)}…`
 			);
 			return undefined;
 		}
@@ -157,11 +147,30 @@ export class OnecDebugConfigurationProvoider implements vscode.DebugConfiguratio
 		// (нейтральный флаг trace в конфигурации запуска).
 		const trace = logger.isDebugEnabled();
 
-		// Учётные данные автовхода: из конфигурации запуска либо env.json.
-		const user = (config.user as string | undefined) ?? envDefault?.['--db-user'] ?? '';
-		const password = (config.password as string | undefined) ?? envDefault?.['--db-pwd'] ?? '';
+		// Учётные данные автовхода: из конфигурации запуска либо активного профиля.
+		const user = (config.user as string | undefined)
+			?? this.vrunner.readActiveProfileSettingSync('db-user') ?? '';
+		const password = (config.password as string | undefined)
+			?? this.vrunner.readActiveProfileSettingSync('db-pwd') ?? '';
 
-		return { ...config, connectionString: resolvedConnectionString, trace, user, password };
+		// Версию платформы (`platformPath` — база каталогов версий, `platformVersion`
+		// — выбор конкретной сборки) подставляем из --v8version активного профиля,
+		// если она не задана явно в конфигурации: профиль может пинить версию.
+		// Запрос профиля (например, префикс «8.3») сводим к конкретной сборке из
+		// каталога установки, чтобы адаптер получил существующую версию.
+		const requestedVersion = (config.platformVersion as string | undefined)
+			?? (await this.vrunner.getActiveV8Version());
+		const basePath = typeof config.platformPath === 'string' ? config.platformPath : platformBasePath;
+		const platformVersion = resolvePlatformVersion(basePath, requestedVersion) ?? requestedVersion;
+
+		return {
+			...config,
+			connectionString: resolvedConnectionString,
+			trace,
+			user,
+			password,
+			...(platformVersion ? { platformVersion } : {}),
+		};
 	}
 }
 

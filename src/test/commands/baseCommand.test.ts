@@ -46,9 +46,6 @@ class TestCommand extends BaseCommand {
 	/**
 	 * Публичный метод для тестирования addIbcmdIfNeeded
 	 */
-	public testAddIbcmdIfNeeded(args: string[]): string[] {
-		return this.addIbcmdIfNeeded(args);
-	}
 }
 
 suite('BaseCommand', () => {
@@ -125,14 +122,6 @@ suite('BaseCommand', () => {
 	test('ensureDirectoryExists возвращает true для существующей директории', async () => {
 		const exists = await testCommand.testEnsureDirectoryExists(testContext.workspacePath);
 		assert.strictEqual(exists, true, 'Существующая директория должна возвращать true');
-	});
-
-	test('addIbcmdIfNeeded возвращает массив аргументов', () => {
-		const args = ['init-dev', '--ibconnection', '/F./build/ib'];
-		const result = testCommand.testAddIbcmdIfNeeded(args);
-		assert.ok(Array.isArray(result), 'addIbcmdIfNeeded должен возвращать массив');
-		// Проверка зависит от настроек, но структура должна быть правильной
-		assert.ok(result.length >= args.length, 'Результат должен содержать как минимум исходные аргументы');
 	});
 });
 

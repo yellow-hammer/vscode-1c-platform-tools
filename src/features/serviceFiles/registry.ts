@@ -5,6 +5,8 @@
  * командами создания и деревом (отображение наличия файла).
  */
 
+import { SettingsSchema, baseSettingsFileName } from '../../shared/envProfiles';
+
 /** Описание служебного файла */
 export interface ServiceFileSpec {
 	/** Стабильный идентификатор */
@@ -40,71 +42,71 @@ export const SERVICE_FILES: ServiceFileSpec[] = [
 		recommended: true,
 	},
 	{
-		id: 'env',
+		id: 'launchProfile',
 		relPath: 'env.json',
-		label: 'env.json',
-		description: 'базовый профиль запуска',
+		label: 'Осн. профиль запуска',
+		description: 'настройки vanessa-runner: env.json (2.x) или autumn-properties.json (3.x)',
 		recommended: true,
 	},
 	{
 		id: 'vrunner',
 		relPath: 'tools/vrunner.json',
-		label: 'vrunner.json',
-		description: 'настройки vanessa-runner (пакетный прогон)',
+		label: 'CI: прогон тестов',
+		description: 'tools/vrunner.json — настройки прогона тестов в CI (BDD, дымовые)',
 		recommended: false,
 	},
 	{
 		id: 'vrunnerInit',
 		relPath: 'tools/vrunner.init.json',
-		label: 'vrunner.init.json',
-		description: 'настройки vanessa-runner (интерактивное открытие VA)',
+		label: 'CI: инициализация данных',
+		description: 'tools/vrunner.init.json — настройки шага инициализации данных в CI',
 		recommended: false,
 	},
 	{
 		id: 'vaParams',
 		relPath: 'tools/VAParams.json',
 		templateName: 'tools/VAParams.json.template',
-		label: 'VAParams.json',
-		description: 'параметры Vanessa Automation (пакетный прогон)',
+		label: 'VA: параметры тестов',
+		description: 'tools/VAParams.json — параметры Vanessa Automation для прогона тестов',
 		recommended: false,
 	},
 	{
 		id: 'vaParamsInit',
 		relPath: 'tools/VAParams.init.json',
 		templateName: 'tools/VAParams.init.json.template',
-		label: 'VAParams.init.json',
-		description: 'параметры Vanessa Automation (интерактивно)',
+		label: 'VA: параметры инициализации',
+		description: 'tools/VAParams.init.json — параметры Vanessa Automation для инициализации данных',
 		recommended: false,
 	},
 	{
 		id: 'xunit',
 		relPath: 'tools/xUnitParams.json',
 		templateName: 'tools/xUnitParams.json.template',
-		label: 'xUnitParams.json',
-		description: 'параметры дымовых тестов xUnit',
+		label: 'xUnit: параметры',
+		description: 'tools/xUnitParams.json — параметры дымовых тестов xUnit',
 		recommended: false,
 	},
 	{
 		id: 'yaxunit',
 		relPath: 'tools/yaxunit.json',
 		templateName: 'tools/yaxunit.json.template',
-		label: 'yaxunit.json',
-		description: 'конфигурация YAxUnit',
+		label: 'YaXunit: параметры',
+		description: 'tools/yaxunit.json — конфигурация YAxUnit',
 		recommended: false,
 	},
 	{
 		id: 'syntaxExcludes',
 		relPath: 'tools/syntax-check-excludes.txt',
 		templateName: 'tools/syntax-check-excludes.txt.template',
-		label: 'syntax-check-excludes.txt',
-		description: 'исключения синтаксического контроля',
+		label: 'Syntax: исключения',
+		description: 'tools/syntax-check-excludes.txt — исключения синтаксического контроля',
 		recommended: false,
 	},
 	{
 		id: 'hooks',
 		relPath: '.1cpt/hooks.json',
-		label: 'hooks.json',
-		description: 'хуки pre/post/onError на команды расширения',
+		label: '1cpt: hooks',
+		description: '.1cpt/hooks.json — хуки pre/post/onError на команды расширения',
 		recommended: false,
 	},
 	// tools/README.md создаётся командой «Инициализировать структуру проекта»
@@ -119,4 +121,24 @@ export const SERVICE_FILES: ServiceFileSpec[] = [
  */
 export function getServiceFileSpec(id: string): ServiceFileSpec | undefined {
 	return SERVICE_FILES.find((spec) => spec.id === id);
+}
+
+/**
+ * Спецификация «Профиля запуска» под схему установленного vanessa-runner.
+ *
+ * Пункт один, а файл зависит от версии: env.json для 2.x,
+ * autumn-properties.json для 3.x (оба раннер читает из корня сам).
+ *
+ * @param schema - Схема настроек по версии vrunner
+ * @returns Спецификация с фактическим файлом
+ */
+export function resolveLaunchProfileSpec(schema: SettingsSchema): ServiceFileSpec {
+	const fileName = baseSettingsFileName(schema);
+	return {
+		id: 'launchProfile',
+		relPath: fileName,
+		label: 'Осн. профиль запуска',
+		description: schema === 'v3' ? 'настройки vanessa-runner 3' : 'настройки vanessa-runner 2',
+		recommended: true,
+	};
 }

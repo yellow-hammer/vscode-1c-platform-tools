@@ -109,12 +109,12 @@ export class SyntaxCheckDiagnostics implements vscode.Disposable {
 		let rel = DEFAULT_JUNIT_REL;
 		const envFile = this.vrunner.getActiveEnvFile();
 		try {
-			const envJson = (await this.vrunner.readEnvJson(envFile)) as Record<string, unknown>;
-			const configured = syntaxCheckJUnitPathFromEnv(envJson);
+			const { settings, schema } = await this.vrunner.readActiveSettings();
+			const configured = syntaxCheckJUnitPathFromEnv(settings, schema);
 			if (configured) {
 				rel = configured;
 			}
-			if (syntaxCheckGroupByMetadataFromEnv(envJson) === false) {
+			if (syntaxCheckGroupByMetadataFromEnv(settings, schema) === false) {
 				log.debug(
 					'syntax-check.--groupbymetadata=false: имена testcase не по метаданным, ' +
 						'диагностика уйдёт на fallback-файл'

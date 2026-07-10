@@ -1,0 +1,2334 @@
+{
+	"schema": "v2",
+	"source": "https://raw.githubusercontent.com/vanessa-opensource/vanessa-runner/refs/heads/release/2.6/vanessa-runner-schema.json",
+	"generatedAt": "2026-07-10",
+	"options": {
+		"--template": {
+			"type": "string",
+			"description": "Ссылка на шаблон, из которого будет клонироваться проект",
+			"default": ""
+		},
+		"--ibconnection": {
+			"type": "string",
+			"description": "Строка подключения к БД (/FfilePath или /SserverPath)\n\tНапример, для файловых баз --ibconnection /FC:\\base1 или --ibconnection /F./base1 или --ibconnection /Fbase1\n\tИли для серверных баз --ibconnection /Sservername\\basename",
+			"default": ""
+		},
+		"--db-user": {
+			"type": "string",
+			"description": "Пользователь БД",
+			"default": ""
+		},
+		"--db-pwd": {
+			"type": "string",
+			"description": "Пароль БД",
+			"default": ""
+		},
+		"--v8version": {
+			"type": "string",
+			"description": "Версия платформы",
+			"default": ""
+		},
+		"--bitness": {
+			"type": "string",
+			"description": "Разрядность платформы 1С. Варианты: x64,x86,x64x86,x86x64",
+			"default": ""
+		},
+		"--additional": {
+			"type": "string",
+			"description": "Дополнительные параметры для передачи в 1С:Предприятие или Конфигуратор. Не для всех команд.",
+			"default": ""
+		},
+		"--root": {
+			"type": "string",
+			"description": "Полный путь к проекту",
+			"default": ""
+		},
+		"--ordinaryapp": {
+			"type": "string",
+			"description": "Запуск толстого клиента (1 = толстый, 0 = тонкий клиент, -1 = без указания клиента). По умолчанию используется значение 0 (тонкий клиент). Значение -1 может применяться в случаях, когда нужно прочитать лог работы 1С в режиме Предприятие в управляемом интерфейсе.",
+			"default": ""
+		},
+		"--nocacheuse": {
+			"type": "boolean",
+			"description": "Признак - не использовать кэш платформы для ускорения операций с базой,\nа также не надо добавлять базу в список баз 1C пользователя",
+			"default": false
+		},
+		"--ibname": {
+			"type": "string",
+			"description": "(устарело) Строка подключения к БД",
+			"default": ""
+		},
+		"--language": {
+			"type": "string",
+			"description": "Код языка запуска платформы",
+			"default": ""
+		},
+		"--locale": {
+			"type": "string",
+			"description": "Код локализации сеанса платформы",
+			"default": ""
+		},
+		"--uccode": {
+			"type": "string",
+			"description": "Ключ разрешения запуска",
+			"default": ""
+		},
+		"--settings": {
+			"type": "string",
+			"description": "Путь к файлу настроек Vanessa-runner в формате json. По умолчанию имя файла env.json",
+			"default": ""
+		},
+		"--debuglogfile": {
+			"type": "string",
+			"description": "Вывод отладочных файлов в указанный лог-файл",
+			"default": ""
+		},
+		"--debuglog": {
+			"type": "boolean",
+			"description": "Вывод отладочных файлов в лог-файл 'vrunner-XXX.log' во временном каталоге пользователя. ",
+			"default": false
+		},
+		"--src": {
+			"type": "string",
+			"description": "Путь к папке исходников\n\nСхема работы:\n\t\tУказываем путь к исходникам с конфигурацией,\n\t\tуказываем версию платформы, которую хотим использовать,\n\t\tи получаем по пути build\\ib готовую базу для тестирования.",
+			"default": ""
+		},
+		"--dt": {
+			"type": "string",
+			"description": "Путь к файлу с dt выгрузкой",
+			"default": ""
+		},
+		"--cf": {
+			"type": "string",
+			"description": "Путь к cf-файлу конфигурации\n       В пути файла можно указать шаблонную переменную $version для подстановки в нее версии конфигурации\n       Пример: 1Cv8_$version.cf выгрузит файл вида 1Cv8_1.2.3.4.cf",
+			"default": ""
+		},
+		"--dev": {
+			"type": "boolean",
+			"description": "Признак dev режима, создаем и загружаем автоматом структуру конфигурации",
+			"default": false
+		},
+		"--storage": {
+			"type": "boolean",
+			"description": "Признак обновления из хранилища",
+			"default": false
+		},
+		"--storage-name": {
+			"type": "string",
+			"description": "Строка подключения к хранилищу",
+			"default": ""
+		},
+		"--storage-user": {
+			"type": "string",
+			"description": "Пользователь хранилища",
+			"default": ""
+		},
+		"--storage-pwd": {
+			"type": "string",
+			"description": "Пароль",
+			"default": ""
+		},
+		"--storage-ver": {
+			"type": "string",
+			"description": "Номер версии, по умолчанию берем последнюю",
+			"default": ""
+		},
+		"--v1": {
+			"type": "boolean",
+			"description": "Поддержка режима реструктуризации -v1 на сервере",
+			"default": false
+		},
+		"--v2": {
+			"type": "boolean",
+			"description": "Поддержка режима реструктуризации -v2 на сервере",
+			"default": false
+		},
+		"--ibcmd": {
+			"type": "boolean",
+			"description": "Использовать утилиту ibcmd вместо конфигуратора",
+			"default": false
+		},
+		"--dbms-type": {
+			"type": "string",
+			"description": "Тип СУБД. Разрешенные значения: MSSQLServer, PostgreSQL, IBMDB2, OracleDatabase \n\tили их сокращенные варианты: mssql, postgresql, db2, oracle соответственно.",
+			"default": ""
+		},
+		"--dbms-server": {
+			"type": "string",
+			"description": "Сервер СУБД",
+			"default": ""
+		},
+		"--dbms-base": {
+			"type": "string",
+			"description": "Имя базы на сервере СУБД",
+			"default": ""
+		},
+		"--dbms-user": {
+			"type": "string",
+			"description": "Пользователь СУБД",
+			"default": ""
+		},
+		"--dbms-pwd": {
+			"type": "string",
+			"description": "Пароль пользователя СУБД",
+			"default": ""
+		},
+		"--disable-support": {
+			"type": "boolean",
+			"description": "Снимает конфигурации с поддержки перед загрузкой исходников",
+			"default": false
+		},
+		"--git-increment": {
+			"type": "boolean",
+			"description": "Инкременальная загрузка по git diff\n\tСхема работы\n \t\tПри загрузке в каталоге исходников (--src) ищется файл\n \t\tlastUploadedCommit.txt (необходимо добавить в .gitignore).\n \t\tЕсли файл найден, получается дифф изменений относительно\n \t\tпоследнего загруженного коммиту к HEAD.\n \t\tЕсли файл не найден, происходит полная загрузка.\n \t\tПосле загрузки создается\\обновляется файл lastUploadedCommit.txt\n",
+			"default": false
+		},
+		"testsPath": {
+			"type": "string",
+			"description": "[env RUNNER_TESTSPATH] или Путь 1) к каталогу или к файлу с тестами - tests\\ТестыПродаж или tests\\ТестыПродаж\\ТестОптовойПродажи.epf\n   Можно использовать переменную $addRoot, означающую каталог установки библиотеки Vanessa-ADD. Например, $addRoot/tests/smoke для запуска дымовых тестов.\nили 2) к встроенным тестам (общие модули из тестовых расширений или подсистемы\\обработки из конфигурации), если явно указан ключ --config-tests.\nЕсли тесты в виде общих клиентских или серверных модулей в расширениях\\конфигурации, то указать просто имя расширения или имя конфигурации. например, Тесты_Продажи или ADD_TDD.\nВозможные варианты указания подсистемы или конкретного теста:\n\tМетаданные.Подсистемы.Тестовая или Метаданные.Подсистемы.Тестовая.Подсистемы.Подсистема1 или Метаданные.Обработки.Тест",
+			"default": ""
+		},
+		"--workspace": {
+			"type": "string",
+			"description": "[env RUNNER_WORKSPACE] путь к папке, относительно которой будут определяться макросы $workspace. по умолчанию текущий.",
+			"default": ""
+		},
+		"--config-tests": {
+			"type": "boolean",
+			"description": "[env RUNNER_CONFIG_TESTS] загружать тесты, встроенные в конфигурации в указанную подсистему в виде обработок",
+			"default": false
+		},
+		"--pathxunit": {
+			"type": "string",
+			"description": "[env RUNNER_PATHXUNIT] путь к внешней обработке, по умолчанию ищу в пакете vanessa-add",
+			"default": ""
+		},
+		"--reportsxunit": {
+			"type": "string",
+			"description": "    --reportsxunit параметры формирования отчетов в формате вида:      ФорматВыводаОтчета{Путь к файлу отчета};ФорматВыводаОтчета{Путь к файлу отчета}...      Пример:\t\t\t\t\t\t\tГенераторОтчетаJUnitXML{build/junit.xml};ГенераторОтчетаAllureXML{build/allure.xml}      Пример (англоязычный вариант):\tGenerateReportJUnitXML{build/junit.xml};GenerateReportAllureXML{build/allure.xml}",
+			"default": ""
+		},
+		"--clear-reports": {
+			"type": "boolean",
+			"description": "Очищать каталоги отчетов перед запуском тестов",
+			"default": false
+		},
+		"--xddExitCodePath": {
+			"type": "string",
+			"description": "путь к текстовому файлу, обозначающему статус выполнению.    Внутри файла строка-значение 0 (тесты пройдены), 1 (тесты не пройдены)",
+			"default": ""
+		},
+		"--xddConfig": {
+			"type": "string",
+			"description": "Путь к конфигурационному файлу xUnitFor1c",
+			"default": ""
+		},
+		"--testclient": {
+			"type": "string",
+			"description": "Параметры подключения к тест-клиенту вида --testclient ИмяПользователя:Пароль:Порт    Пример 1: --testclient Администратор:пароль:1538    Пример 2: --testclient ::1538 (клиент тестирования будет запущен с реквизитами менеджера тестирования)",
+			"default": ""
+		},
+		"--testclient-additional": {
+			"type": "string",
+			"description": "Дополнительные параметры, передаваемые приложению 1С при запуске тест-клиента",
+			"default": ""
+		},
+		"--reportxunit": {
+			"type": "string",
+			"description": "путь к каталогу с отчетом jUnit (устарел)",
+			"default": ""
+		},
+		"--no-wait": {
+			"type": "boolean",
+			"description": "Не ожидать завершения запущенной команды/действия",
+			"default": false
+		},
+		"--xdddebug": {
+			"type": "boolean",
+			"description": "Выводить отладочные сообщения при прогоне тестов",
+			"default": false
+		},
+		"--no-shutdown": {
+			"type": "boolean",
+			"description": "Не завершать работу 1С:Предприятие после выполнения тестов",
+			"default": false
+		},
+		"--ibsrv": {
+			"type": "boolean",
+			"description": "Запуск команды с использованием утилиты ibsrv",
+			"default": false
+		},
+		"--path": {
+			"type": "string",
+			"description": "Путь для запуска тестов\nМожно указывать как каталог с фичами, так и конкретную фичу",
+			"default": ""
+		},
+		"--pathvanessa": {
+			"type": "string",
+			"description": "[env RUNNER_PATHVANESSA] путь к внешней обработке, по умолчанию <OneScript>/lib/add/bddRunner.epf\n           или переменная окружения RUNNER_PATHVANESSA",
+			"default": ""
+		},
+		"--vanessasettings": {
+			"type": "string",
+			"description": "[env RUNNER_VANESSASETTINGS] путь к файлу настроек фреймворка тестирования",
+			"default": ""
+		},
+		"--tags-ignore": {
+			"type": "string",
+			"description": "Теги игнорирования фича-файлов",
+			"default": ""
+		},
+		"--tags-filter": {
+			"type": "string",
+			"description": "Теги отбор фича-файлов",
+			"default": ""
+		},
+		"--additional-keys": {
+			"type": "string",
+			"description": "Дополнительные параметры, передаваемые в параметр /С.",
+			"default": ""
+		},
+		"--command": {
+			"type": "string",
+			"description": "Строка, передаваемая в ПараметрыЗапуска /C''",
+			"default": ""
+		},
+		"--execute": {
+			"type": "string",
+			"description": "Путь внешней обработки 1С для запуска в предприятии\n  Разрешено использовать переменную $runnerRoot для указания пути к каталогу vanessa-runner.\n  В этом случае можно использовать обработки из vanessa-runner.\n  vrunner run --command \"Путь=МойКаталог;ЗавершитьРаботуСистемы\" --execute $runnerRoot/epf/ЗагрузитьРасширениеВРежимеПредприятия.epf",
+			"default": ""
+		},
+		"--url": {
+			"type": "string",
+			"description": "Навигационная ссылка для перехода после старта 1С:Предприятия",
+			"default": ""
+		},
+		"--online-file": {
+			"type": "string",
+			"description": "Путь к файлу с online-записью выполнения",
+			"default": ""
+		},
+		"--exitCodePath": {
+			"type": "string",
+			"description": "Путь к текстовому файлу, обозначающему статус выполнения.\n  Отсутствие файла после выполнения задания означает ошибку запуска.\n  Значение \"0\" означает успешное выполнение запуска.\n  Значение \"1\" означает ошибку при выполнении запуска.\n  Значение \"2\" означает выполнение запуска с предупреждением.\n  Любое другое значение эквивалентно отсутствию файла.",
+			"default": ""
+		},
+		"inputPath": {
+			"type": "string",
+			"description": "Путь к исходникам расширения",
+			"default": ""
+		},
+		"extensionName": {
+			"type": "string",
+			"description": "Имя расширения, под которым оно будет зарегистрировано в списке расширений",
+			"default": ""
+		},
+		"--updatedb": {
+			"type": "boolean",
+			"description": "Признак обновления расширения",
+			"default": false
+		},
+		"--file": {
+			"type": "string",
+			"description": "Путь к cfe-файлу расширения, например: --file=./1Cv8.cfe",
+			"default": ""
+		},
+		"-f": {
+			"type": "string",
+			"description": "Краткая команда 'путь к cfe --file', пример: -f ./1Cv8.cfe\n       В пути файла можно указать шаблонную переменную $version для подстановки в нее версии конфигурации\n       Пример: 1Cv8_$version.cfе выгрузит файл вида 1Cv8_1.2.3.4.cfе",
+			"default": ""
+		},
+		"--extension": {
+			"type": "string",
+			"description": "Имя расширения. Обязательный параметр.",
+			"default": ""
+		},
+		"-s": {
+			"type": "string",
+			"description": "Краткая команда 'путь к исходникам --src', пример: -s ./cfe",
+			"default": ""
+		},
+		"--out": {
+			"type": "string",
+			"description": "Путь к файлу cf (*.cf), --out=./Extension.cfe\nВ пути файла можно указать шаблонную переменную $version для подстановки в нее версии расширения\nПример: --out=1Cv8_$version.cfe выгрузит файл вида 1Cv8_1.2.3.4.cfe",
+			"default": ""
+		},
+		"-o": {
+			"type": "string",
+			"description": "Краткая команда 'Путь к файлу cf --out', пример: -o ./Extension.cfe",
+			"default": ""
+		},
+		"--current": {
+			"type": "boolean",
+			"description": "Флаг загрузки в указанную базу или -с",
+			"default": false
+		},
+		"-c": {
+			"type": "boolean",
+			"description": "Флаг загрузки в указанную базу, краткая форма от --current",
+			"default": false
+		},
+		"--noupdate": {
+			"type": "boolean",
+			"description": "Флаг обновления СonfigDumpInfo.xml",
+			"default": false
+		},
+		"--build-number": {
+			"type": "string",
+			"description": "Номер сборки для установки в последний разряд номера версии",
+			"default": ""
+		},
+		"outputPath": {
+			"type": "string",
+			"description": "Путь к исходникам расширения",
+			"default": ""
+		},
+		"cfepath": {
+			"type": "string",
+			"description": "Путь к результату - выгружаемому файлу расширения (*.cfe)",
+			"default": ""
+		},
+		"extname": {
+			"type": "string",
+			"description": "Имя расширения",
+			"default": ""
+		},
+		"--cachekey": {
+			"type": "string",
+			"description": "Ключ кэшированных значений файлов, default: compileepfrunner",
+			"default": ""
+		},
+		"--onlycopy": {
+			"type": "boolean",
+			"description": "Флаг, только копировать. Без сборки обработки, даже если выглядит как обработка",
+			"default": false
+		},
+		"--dynamic": {
+			"type": "boolean",
+			"description": "Динамическое обновление конфигурации",
+			"default": false
+		},
+		"cfpath": {
+			"type": "string",
+			"description": "Путь к результату - выгружаемому файлу конфигурации (*.cf)",
+			"default": ""
+		},
+		"dtpath": {
+			"type": "string",
+			"description": "Путь к результату - выгружаемому файлу с данными (*.dt)",
+			"default": ""
+		},
+		"--JobsCount ": {
+			"type": "string",
+			"description": "Количество заданий для загрузки информационной базы. Значение по умолчанию ‑ 0, что означает, будет столько заданий, сколько и процессоров.\n Работает только для клиент-серверной ИБ.",
+			"default": ""
+		},
+		"--ras": {
+			"type": "string",
+			"description": "Сетевой адрес RAS. Необязательный. По умолчанию localhost:1545",
+			"default": ""
+		},
+		"--rac": {
+			"type": "string",
+			"description": "Команда запуска RAC. Необязательный. По умолчанию находим в каталоге установки 1с",
+			"default": ""
+		},
+		"--name": {
+			"type": "string",
+			"description": "Имя информационной базы. Обязательный.",
+			"default": ""
+		},
+		"--dbms": {
+			"type": "string",
+			"description": "тип СУБД, в которой размещается информационная база. Обязательный. MSSQLServer|PostgreSQL|IBMDB2|OracleDatabase",
+			"default": ""
+		},
+		"--db-server": {
+			"type": "string",
+			"description": "Имя сервера БД. Обязательный.",
+			"default": ""
+		},
+		"--db-name": {
+			"type": "string",
+			"description": "Имя базы данных. Необязательный. По умолчанию устанавливается в имя ИБ из --name.",
+			"default": ""
+		},
+		"--db-admin": {
+			"type": "string",
+			"description": "Пользователь БД. Обязательный.",
+			"default": ""
+		},
+		"--db-admin-pwd": {
+			"type": "string",
+			"description": "Пароль пользователя БД. Обязательный.",
+			"default": ""
+		},
+		"--descr": {
+			"type": "string",
+			"description": "Описание ИБ",
+			"default": ""
+		},
+		"--db-locale": {
+			"type": "string",
+			"description": "Идентификатор национальных настроек информационной базы. По умолчанию ru",
+			"default": ""
+		},
+		"--cluster-admin": {
+			"type": "string",
+			"description": "Администратор кластера",
+			"default": ""
+		},
+		"--cluster-pwd": {
+			"type": "string",
+			"description": "Пароль администратора кластера",
+			"default": ""
+		},
+		"--cluster": {
+			"type": "string",
+			"description": "Идентификатор кластера",
+			"default": ""
+		},
+		"--cluster-name": {
+			"type": "string",
+			"description": "Имя кластера",
+			"default": ""
+		},
+		"--create-database-deny": {
+			"type": "boolean",
+			"description": "При создании информационной базы не создавать БД. По умолчанию БД создается",
+			"default": false
+		},
+		"--date-offset": {
+			"type": "string",
+			"description": "Смещение дат в ИБ. По умолчанию 2000.",
+			"default": ""
+		},
+		"--security-level": {
+			"type": "string",
+			"description": "Уровень безопасности установки соединений с ИБ",
+			"default": ""
+		},
+		"--scheduled-jobs-deny": {
+			"type": "boolean",
+			"description": "Выполнение регламентных заданий запрещено. По умолчанию регламентные задания разрешены",
+			"default": false
+		},
+		"--license-distribution-deny": {
+			"type": "boolean",
+			"description": "Выдача лицензий сервером 1С запрещена. По умолчанию выдача лицензий разрешена.",
+			"default": false
+		},
+		"--drop-database": {
+			"type": "boolean",
+			"description": "Удалить базу данных при удалении информационной базы. По умолчанию БД не удаляется.",
+			"default": false
+		},
+		"--clear-database": {
+			"type": "boolean",
+			"description": "Очистить базу данных при удалении информационной базы. По умолчанию не очищается",
+			"default": false
+		},
+		"ПутьСоздаваемогоХранилища": {
+			"type": "string",
+			"description": "Строка подключения к хранилищу\n\t(возможно указание как файлового пути, так и пути через http или tcp)",
+			"default": ""
+		},
+		"ЛогинАдминистратора": {
+			"type": "string",
+			"description": "Логин администратора хранилища 1С",
+			"default": ""
+		},
+		"ПарольАдминистратора": {
+			"type": "string",
+			"description": "Пароль администратора хранилища 1С",
+			"default": ""
+		},
+		"ПутьПодключаемогоХранилища": {
+			"type": "string",
+			"description": "Строка подключения к хранилищу\n\t(возможно указание как файлового пути, так и пути через http или tcp)",
+			"default": ""
+		},
+		"Логин": {
+			"type": "string",
+			"description": "Логин пользователя хранилища 1С",
+			"default": ""
+		},
+		"Пароль": {
+			"type": "string",
+			"description": "Пароль пользователя хранилища 1С",
+			"default": ""
+		},
+		"--BindAlreadyBindedUser": {
+			"type": "boolean",
+			"description": " Флаг игнорирования наличия уже у пользователя уже подключенной базы данных.",
+			"default": false
+		},
+		"--NotReplaceCfg": {
+			"type": "boolean",
+			"description": "Флаг запрета замены конфигурации БД на конфигурацию хранилища.",
+			"default": false
+		},
+		"--storage-role": {
+			"type": "string",
+			"description": "Назначаемая роль. Возможные варианты:\n\tReadOnly - право на просмотр,\n\tLockObjects - право на захват объектов,\n\tManageConfigurationVersions - право на изменение состава версий,\n\tAdministration - право на административные функции.\n\nОбязательный параметр",
+			"default": ""
+		},
+		"ПутьПодключаемогоХранилищаДляКопирования": {
+			"type": "string",
+			"description": "Строка подключения к хранилищу, из которого копируются пользователи\n\t(возможно указание как файлового пути, так и пути через http или tcp)",
+			"default": ""
+		},
+		"--storage-user-copy": {
+			"type": "string",
+			"description": "Пользователь хранилища, из которого идет копирование.\n\tОбязательный параметр",
+			"default": ""
+		},
+		"--storage-pwd-copy": {
+			"type": "string",
+			"description": "Пароль этого пользователя.\n\tОбязательный параметр",
+			"default": ""
+		},
+		"--objects": {
+			"type": "string",
+			"description": "Имя файла со списком объектов.\n              Путь к файлу формата XML со списком объектов.\n              Если опция используется, будет выполнена попытка захватить только объекты, указанные в файле.\n              Если опция не используется, будут захвачены все объекты конфигурации.\n              Если в списке указаны объекты, захваченные другим пользователем, эти объекты не будут захвачены и будет выдана ошибка. При этом доступные для захвата объекта будут захвачены.\n              Подробнее о формате файла см в документации http://its.1c.ru/db/v8310doc#bookmark:adm:TI000000564 .",
+			"default": ""
+		},
+		"--revised": {
+			"type": "boolean",
+			"description": "Получать захваченные объекты",
+			"default": false
+		},
+		"--comment": {
+			"type": "string",
+			"description": "Текст комментария",
+			"default": ""
+		},
+		"--keepLocked": {
+			"type": "boolean",
+			"description": "Оставлять захват для помещенных объектов",
+			"default": false
+		},
+		"--force": {
+			"type": "boolean",
+			"description": "Если опция используется, при обнаружении ссылок на удаленные объекты будет выполнена попытка их очистить.\n               Если опция не указана, при обнаружении ссылок на удаленные объекты будет выдана ошибка",
+			"default": false
+		},
+		"--do-not-update": {
+			"type": "boolean",
+			"description": "Не обновлять конфигурацию из хранилища.\n              Значительно ускоряет процесс отмены захвата объектов хранилища. Может вызывать ошибки при использовании \n              --objects со списком объектов",
+			"default": false
+		},
+		"--list": {
+			"type": "string",
+			"description": "Список файлов для загрузки",
+			"default": ""
+		},
+		"--in": {
+			"type": "string",
+			"description": "Путь к файлу cf (*.cf), --in=./1Cv8.cf",
+			"default": ""
+		},
+		"-i": {
+			"type": "string",
+			"description": "Краткая команда 'Путь к файлу cf --in', пример: -i ./1Cv8.cf",
+			"default": ""
+		},
+		"--userenames": {
+			"type": "boolean",
+			"description": "Использовать файл переименований renames",
+			"default": false
+		},
+		"-v": {
+			"type": "string",
+			"description": "Путь к файлу версии (ConfigDumpInfo.xml или его копия), краткая от --versions",
+			"default": ""
+		},
+		"--versions": {
+			"type": "string",
+			"description": "Путь к файлу версии (ConfigDumpInfo.xml или его копия) или -v",
+			"default": ""
+		},
+		"--merge-settings": {
+			"type": "string",
+			"description": "Файл с настройками объединения конфигураций (обязательный параметр)",
+			"default": ""
+		},
+		"--enable-support": {
+			"type": "boolean",
+			"description": "Флаг необходимости установки конфигурации на поддержку, если есть возможность поставки на поддержку",
+			"default": false
+		},
+		"--IncludeObjectsByUnresolvedRefs": {
+			"type": "boolean",
+			"description": "Флаг небходимости включения в объединение объектов,\nне включенных в список объединяемых и отсутствующих в основной конфигурации",
+			"default": false
+		},
+		"--ClearUnresolvedRefs": {
+			"type": "boolean",
+			"description": "Флаг очистки ссылок на объекты, не включенные в список объединяемых",
+			"default": false
+		},
+		"--update-settings": {
+			"type": "string",
+			"description": "Файл с настройками объединения конфигураций (обязательный параметр)",
+			"default": ""
+		},
+		"--DumpListOfTwiceChangedProperties": {
+			"type": "boolean",
+			"description": "Флаг вывода списка всех дважды измененных свойств в файл служебных сообщений 1С.",
+			"default": false
+		},
+		"--secondFile": {
+			"type": "string",
+			"description": "Путь к файлу cf/cfe, с которым идёт сравнение конфигурации. Обязательный параметр.",
+			"default": ""
+		},
+		"--reportFile": {
+			"type": "string",
+			"description": "Путь к файлу, где должен быть сохранён отчет. Обязательный параметр.",
+			"default": ""
+		},
+		"--reportType": {
+			"type": "string",
+			"description": "Тип отчёта о сравнении: по-умолчанию Full (полный) или указать Brief (краткий)",
+			"default": ""
+		},
+		"--reportFormat": {
+			"type": "string",
+			"description": "Формат файла отчета: по-умолчанию txt или указать mxl",
+			"default": ""
+		},
+		"--extensionName": {
+			"type": "string",
+			"description": "Имя расширения, если надо сравнить его вместо основной конфигурации",
+			"default": ""
+		},
+		"--firstFile": {
+			"type": "string",
+			"description": "Путь к первому файлу cf/cfe: если не указать - используется основная конфигурация (расширение)",
+			"default": ""
+		},
+		"Действие": {
+			"type": "string",
+			"description": "lock|unlock|kill|closed\nДействие kill по умолчанию также устанавливает блокировку начала сеансов пользователей. Для подавления этого эффекта используется ключ -with-nolock.\nДействие closed предназначено для проверки отсутствия сеансов. Например, может применяться для проверки того, что после блокировки, все регламенты завершили свою работу.\nЕсли сеансы оказались найдены, то происходит завершение работы скрипта с ошибкой.",
+			"default": ""
+		},
+		"--db": {
+			"type": "string",
+			"description": "Имя информационной базы",
+			"default": ""
+		},
+		"--try": {
+			"type": "string",
+			"description": "Число попыток обращения по протоколу rac/ras",
+			"default": ""
+		},
+		"--lockmessage": {
+			"type": "string",
+			"description": "Сообщение блокировки",
+			"default": ""
+		},
+		"--lockstart": {
+			"type": "string",
+			"description": "Время старта блокировки пользователей, время указываем как '2040-12-31T23:59:59'",
+			"default": ""
+		},
+		"--lockend": {
+			"type": "string",
+			"description": "Время окончания блокировки пользователей, время указываем как '2040-12-31T23:59:59'",
+			"default": ""
+		},
+		"--lockstartat": {
+			"type": "string",
+			"description": "Время старта блокировки через n сек",
+			"default": ""
+		},
+		"--with-nolock": {
+			"type": "boolean",
+			"description": "Не блокировать сеансы (y/n). Может применяться для действия kill, т.к. по умолчанию, при его выполнении автоматически блокируется начало сеансов.\nПример: ... kill --with-nolock ...",
+			"default": false
+		},
+		"--lockendclear": {
+			"type": "boolean",
+			"description": "Очищать дату окончания блокировки (y/n). Может применяться для действия lock.\nПример: ... lock --with-nolock ...",
+			"default": false
+		},
+		"--filter": {
+			"type": "string",
+			"description": "Фильтр поиска сеансов. Предполагает возможность указания множественных вариантов фильтрации. Задается в формате '[filter1]|[filter2]|...|[filterN]'.\nСоставляющая фильтра задается в формате [[appid=приложение1[;приложение2]][[name=username1[;username2]]'.\nПока предусмотрено только два фильтра - по имени приложения (appid) и по имени пользователя 1С (name).\nДля фильтра по приложению доступны следующие имена: 1CV8 1CV8C WebClient Designer COMConnection WSConnection BackgroundJob WebServerExtension.\nИспользование wildchar/regex пока не предусмотрено. Регистронезависимо. Параметры должны разделяться через |.\nДействует для команд kill и closed.\nПример: ... kill -filter appid=Designer|name=регламент;администратор ...",
+			"default": ""
+		},
+		"--mode": {
+			"type": "string",
+			"description": "Настройка для управления режимом фильтра поиска сеансов '--filter'. Возможные варианты:\n* ONLY - Только указанные фильтры считаются включенными. Используется по умолчанию.\nOFF - Все фильтры считаются выключенными, вне зависимости от их заполнения.\nEXCEPT - Все фильтры, кроме указанных, считаются включенными. Режим пропуска сеансов по фильтру.\nDEFAULT - Все фильтры, включенные по умолчанию (встроенные настройки vanessa-runner, в текущем релизе их нет, фильтрации просто не будет! ) считаются включенными, остальные - игнорируются.\nALL - Все фильтры (и пользовательские, и встроенные) считаются включенными.\nЕсли режим не указан, применяется режим ONLY. Если не задана строка фильтра, то фильтр не применяется!\nПример: ... kill -filter appid=Designer --mode EXCEPT...",
+			"default": ""
+		},
+		"--junitpath": {
+			"type": "string",
+			"description": "Путь отчета в формате JUnit",
+			"default": ""
+		},
+		"--allure-results": {
+			"type": "string",
+			"description": "Путь к каталогу сохранения результатов тестирования в формате Allure (xml)",
+			"default": ""
+		},
+		"--allure-results2": {
+			"type": "string",
+			"description": "Путь к каталогу сохранения результатов тестирования в формате Allure2 (json)",
+			"default": ""
+		},
+		"--testsuitename": {
+			"type": "string",
+			"description": "Указать имя тестового набора в отчете JUnit для раздельной проверки в различных режимах",
+			"default": ""
+		},
+		"--groupbymetadata": {
+			"type": "boolean",
+			"description": "Группировать проверки по метаданным конфигурации",
+			"default": false
+		},
+		"--exception-file": {
+			"type": "string",
+			"description": "Путь файла с указанием пропускаемых исключений\n\tФормат файла: в каждой строке файла указан текст пропускаемого исключения или его часть\n\tКодировка: UTF-8",
+			"default": ""
+		},
+		"--hide-exception": {
+			"type": "boolean",
+			"description": "Не показывать исключения в отчетах",
+			"default": false
+		},
+		"--validation-result": {
+			"type": "string",
+			"description": "Путь к файлу, в который будут записаны результаты проверки проекта. Необязательный аргумент, если выбрана выгрузка в junit или allure.",
+			"default": ""
+		},
+		"--prev-validation-result": {
+			"type": "string",
+			"description": "Путь к файлу с предыдущими результатами проверки проекта. Необязательный аргумент.\n\tЕсли заполнен, то результат будет записан как разность новых ошибок и старых.\n\tОшибки и предупреждения, которые есть в предыдущем файле, но которых нет в новом - будут помечены как passed (Исправлено).\n\tОшибки и предупреждения, которые есть только в новом файле результатов - будут помечены как failed (Ошибки) и broken (Предупреждения).\n\tВсе остальные ошибки и предупреждения, которые есть в обоих файлах, будут помечены как skipped (Пропущено).",
+			"default": ""
+		},
+		"--project-url": {
+			"type": "string",
+			"description": "Путь к файлам проекта. Необязательный аргумент.\n\tЕсли заполнен, то в отчетах аллюр будут ссылки на конкретные строки с ошибками.\n\tПример: --project-url https://github.com/1C-Company/GitConverter/tree/master/GitConverter/src ",
+			"default": ""
+		},
+		"--EDTversion": {
+			"type": "string",
+			"description": "Используемая версия EDT. Необязательный аргумент при указании --alwaysUseLastVersion.\n\tНеобходима, если зарегистрировано одновременно несколько версий.\n\tУзнать доступные версии можно командой \"ring help\"\n\tПример: --EDTversion 1.9.1",
+			"default": ""
+		},
+		"--alwaysUseLastVersion": {
+			"type": "boolean",
+			"description": "Всегда использовать последнюю версию EDT. Необязательный аргумент.",
+			"default": false
+		},
+		"--workspace-location": {
+			"type": "string",
+			"description": "Расположение рабочей области. Необязательный аргумент.\n\tЕсли не указан, то проверка выполняться не будет. Актуально для создания отчетов по существующему файлу результатов.",
+			"default": ""
+		},
+		"--project-list": {
+			"type": "string",
+			"description": "Список папок, откуда загрузить проекты в формате EDT для проверки. Необязательный аргумент.\n\tОдновременно можно использовать только один аргумент: project-list или project-name-list",
+			"default": ""
+		},
+		"--project-name-list": {
+			"type": "string",
+			"description": "Список имен проектов в текущей рабочей области, откуда загрузить проекты в формате EDT для проверки. Необязательный аргумент.\n\tОдновременно можно использовать только один аргумент: project-list или project-name-list.\n\n\tПримеры выполнения:\n\t\tvanessa-runner edt-validate --project-list D:/project-1 D:/project-2 --workspace-location D:/workspace\n\t\trunner edt-validate --allure-results \"D:/allure-results/\" ^\n\t\t\t--workspace-location \"D:/workspace\" ^\n\t\t\t--project-list \"D:/GIT_Repo/GitConverter/\" ^\n\t\t\t--exception-file \"D:/WORKDIR%excp.txt\" ^\n\t\t\t--validation-result \"D:/validation-result.txt\" ^\n\t\t\t--prev-validation-result \"D:/validation-result.txt\" ^\n\t\t\t--project-url https://github.com/1C-Company/GitConverter/tree/master/GitConverter/src\n\n\tВНИМАНИЕ! Параметры, которые перечислены далее, не используются.\n\n",
+			"default": ""
+		},
+		"--new-version": {
+			"type": "string",
+			"description": "Номер версии, который нужно установить",
+			"default": ""
+		},
+		"--check-module": {
+			"type": "boolean",
+			"description": "Исправление версии в модулях объектов внешних обработок\\отчетов 1С (Ext/ObjectModule.bsl) или в общих модулях (Ext/Module.bsl)\n\tФормат версии в коде нужно задать в виде отдельной строки Версия = \"1.2.3.4\"; // или \"1.2.3\"",
+			"default": false
+		},
+		"Команда": {
+			"type": "string",
+			"description": "Имя команды, для которой выводится справка",
+			"default": ""
+		}
+	},
+	"sections": [
+		{
+			"id": "init-project",
+			"keys": [
+				"--template",
+				"--ibconnection",
+				"--db-user",
+				"--db-pwd",
+				"--v8version",
+				"--bitness",
+				"--additional",
+				"--root",
+				"--ordinaryapp",
+				"--nocacheuse",
+				"--ibname",
+				"--language",
+				"--locale",
+				"--uccode",
+				"--settings",
+				"--debuglogfile",
+				"--debuglog"
+			]
+		},
+		{
+			"id": "init-dev",
+			"keys": [
+				"--src",
+				"--dt",
+				"--cf",
+				"--dev",
+				"--storage",
+				"--storage-name",
+				"--storage-user",
+				"--storage-pwd",
+				"--storage-ver",
+				"--v1",
+				"--v2",
+				"--ibcmd",
+				"--dbms-type",
+				"--dbms-server",
+				"--dbms-base",
+				"--dbms-user",
+				"--dbms-pwd",
+				"--ibconnection",
+				"--db-user",
+				"--db-pwd",
+				"--v8version",
+				"--bitness",
+				"--additional",
+				"--root",
+				"--ordinaryapp",
+				"--nocacheuse",
+				"--ibname",
+				"--language",
+				"--locale",
+				"--uccode",
+				"--settings",
+				"--debuglogfile",
+				"--debuglog"
+			]
+		},
+		{
+			"id": "update-dev",
+			"keys": [
+				"--src",
+				"--dt",
+				"--dev",
+				"--disable-support",
+				"--git-increment",
+				"--storage",
+				"--storage-name",
+				"--storage-user",
+				"--storage-pwd",
+				"--storage-ver",
+				"--v1",
+				"--v2",
+				"--ibcmd",
+				"--dbms-type",
+				"--dbms-server",
+				"--dbms-base",
+				"--dbms-user",
+				"--dbms-pwd",
+				"--ibconnection",
+				"--db-user",
+				"--db-pwd",
+				"--v8version",
+				"--bitness",
+				"--additional",
+				"--root",
+				"--ordinaryapp",
+				"--nocacheuse",
+				"--ibname",
+				"--language",
+				"--locale",
+				"--uccode",
+				"--settings",
+				"--debuglogfile",
+				"--debuglog"
+			]
+		},
+		{
+			"id": "xunit",
+			"keys": [
+				"testsPath",
+				"--workspace",
+				"--config-tests",
+				"--pathxunit",
+				"--reportsxunit",
+				"--clear-reports",
+				"--xddExitCodePath",
+				"--xddConfig",
+				"--testclient",
+				"--testclient-additional",
+				"--reportxunit",
+				"--no-wait",
+				"--xdddebug",
+				"--no-shutdown",
+				"--ibsrv",
+				"--ibconnection",
+				"--db-user",
+				"--db-pwd",
+				"--v8version",
+				"--bitness",
+				"--additional",
+				"--root",
+				"--ordinaryapp",
+				"--nocacheuse",
+				"--ibname",
+				"--language",
+				"--locale",
+				"--uccode",
+				"--settings",
+				"--debuglogfile",
+				"--debuglog"
+			]
+		},
+		{
+			"id": "vanessa",
+			"keys": [
+				"--path",
+				"--pathvanessa",
+				"--vanessasettings",
+				"--workspace",
+				"--tags-ignore",
+				"--tags-filter",
+				"--additional-keys",
+				"--no-wait",
+				"--ibsrv",
+				"--ibconnection",
+				"--db-user",
+				"--db-pwd",
+				"--v8version",
+				"--bitness",
+				"--additional",
+				"--root",
+				"--ordinaryapp",
+				"--nocacheuse",
+				"--ibname",
+				"--language",
+				"--locale",
+				"--uccode",
+				"--settings",
+				"--debuglogfile",
+				"--debuglog"
+			]
+		},
+		{
+			"id": "run",
+			"keys": [
+				"--command",
+				"--execute",
+				"--url",
+				"--no-wait",
+				"--online-file",
+				"--exitCodePath",
+				"--ibsrv",
+				"--ibconnection",
+				"--db-user",
+				"--db-pwd",
+				"--v8version",
+				"--bitness",
+				"--additional",
+				"--root",
+				"--ordinaryapp",
+				"--nocacheuse",
+				"--ibname",
+				"--language",
+				"--locale",
+				"--uccode",
+				"--settings",
+				"--debuglogfile",
+				"--debuglog"
+			]
+		},
+		{
+			"id": "designer",
+			"keys": [
+				"--no-wait",
+				"--storage-name",
+				"--storage-user",
+				"--storage-pwd",
+				"--ibsrv",
+				"--ibconnection",
+				"--db-user",
+				"--db-pwd",
+				"--v8version",
+				"--bitness",
+				"--additional",
+				"--root",
+				"--ordinaryapp",
+				"--nocacheuse",
+				"--ibname",
+				"--language",
+				"--locale",
+				"--uccode",
+				"--settings",
+				"--debuglogfile",
+				"--debuglog"
+			]
+		},
+		{
+			"id": "compileext",
+			"keys": [
+				"inputPath",
+				"extensionName",
+				"--updatedb",
+				"--ibcmd",
+				"--dbms-type",
+				"--dbms-server",
+				"--dbms-base",
+				"--dbms-user",
+				"--dbms-pwd",
+				"--ibconnection",
+				"--db-user",
+				"--db-pwd",
+				"--v8version",
+				"--bitness",
+				"--additional",
+				"--root",
+				"--ordinaryapp",
+				"--nocacheuse",
+				"--ibname",
+				"--language",
+				"--locale",
+				"--uccode",
+				"--settings",
+				"--debuglogfile",
+				"--debuglog"
+			]
+		},
+		{
+			"id": "loadext",
+			"keys": [
+				"--file",
+				"-f",
+				"--extension",
+				"--updatedb",
+				"--ibcmd",
+				"--dbms-type",
+				"--dbms-server",
+				"--dbms-base",
+				"--dbms-user",
+				"--dbms-pwd",
+				"--ibconnection",
+				"--db-user",
+				"--db-pwd",
+				"--v8version",
+				"--bitness",
+				"--additional",
+				"--root",
+				"--ordinaryapp",
+				"--nocacheuse",
+				"--ibname",
+				"--language",
+				"--locale",
+				"--uccode",
+				"--settings",
+				"--debuglogfile",
+				"--debuglog"
+			]
+		},
+		{
+			"id": "updateext",
+			"keys": [
+				"extensionName",
+				"--ibcmd",
+				"--dbms-type",
+				"--dbms-server",
+				"--dbms-base",
+				"--dbms-user",
+				"--dbms-pwd",
+				"--ibconnection",
+				"--db-user",
+				"--db-pwd",
+				"--v8version",
+				"--bitness",
+				"--additional",
+				"--root",
+				"--ordinaryapp",
+				"--nocacheuse",
+				"--ibname",
+				"--language",
+				"--locale",
+				"--uccode",
+				"--settings",
+				"--debuglogfile",
+				"--debuglog"
+			]
+		},
+		{
+			"id": "compileexttocfe",
+			"keys": [
+				"--src",
+				"-s",
+				"--out",
+				"-o",
+				"--current",
+				"-c",
+				"--noupdate",
+				"--build-number",
+				"--ibcmd",
+				"--dbms-type",
+				"--dbms-server",
+				"--dbms-base",
+				"--dbms-user",
+				"--dbms-pwd",
+				"--ibconnection",
+				"--db-user",
+				"--db-pwd",
+				"--v8version",
+				"--bitness",
+				"--additional",
+				"--root",
+				"--ordinaryapp",
+				"--nocacheuse",
+				"--ibname",
+				"--language",
+				"--locale",
+				"--uccode",
+				"--settings",
+				"--debuglogfile",
+				"--debuglog"
+			]
+		},
+		{
+			"id": "decompileext",
+			"keys": [
+				"extensionName",
+				"outputPath",
+				"--ibcmd",
+				"--dbms-type",
+				"--dbms-server",
+				"--dbms-base",
+				"--dbms-user",
+				"--dbms-pwd",
+				"--ibconnection",
+				"--db-user",
+				"--db-pwd",
+				"--v8version",
+				"--bitness",
+				"--additional",
+				"--root",
+				"--ordinaryapp",
+				"--nocacheuse",
+				"--ibname",
+				"--language",
+				"--locale",
+				"--uccode",
+				"--settings",
+				"--debuglogfile",
+				"--debuglog"
+			]
+		},
+		{
+			"id": "unloadext",
+			"keys": [
+				"cfepath",
+				"extname",
+				"--ibcmd",
+				"--dbms-type",
+				"--dbms-server",
+				"--dbms-base",
+				"--dbms-user",
+				"--dbms-pwd",
+				"--ibconnection",
+				"--db-user",
+				"--db-pwd",
+				"--v8version",
+				"--bitness",
+				"--additional",
+				"--root",
+				"--ordinaryapp",
+				"--nocacheuse",
+				"--ibname",
+				"--language",
+				"--locale",
+				"--uccode",
+				"--settings",
+				"--debuglogfile",
+				"--debuglog"
+			]
+		},
+		{
+			"id": "compileepf",
+			"keys": [
+				"inputPath",
+				"outputPath",
+				"--cachekey",
+				"--onlycopy",
+				"--ibconnection",
+				"--db-user",
+				"--db-pwd",
+				"--v8version",
+				"--bitness",
+				"--additional",
+				"--root",
+				"--ordinaryapp",
+				"--nocacheuse",
+				"--ibname",
+				"--language",
+				"--locale",
+				"--uccode",
+				"--settings",
+				"--debuglogfile",
+				"--debuglog"
+			]
+		},
+		{
+			"id": "decompileepf",
+			"keys": [
+				"inputPath",
+				"outputPath",
+				"--cachekey",
+				"--ibconnection",
+				"--db-user",
+				"--db-pwd",
+				"--v8version",
+				"--bitness",
+				"--additional",
+				"--root",
+				"--ordinaryapp",
+				"--nocacheuse",
+				"--ibname",
+				"--language",
+				"--locale",
+				"--uccode",
+				"--settings",
+				"--debuglogfile",
+				"--debuglog"
+			]
+		},
+		{
+			"id": "updatedb",
+			"keys": [
+				"--v1",
+				"--v2",
+				"--dynamic",
+				"--ibcmd",
+				"--dbms-type",
+				"--dbms-server",
+				"--dbms-base",
+				"--dbms-user",
+				"--dbms-pwd",
+				"--ibconnection",
+				"--db-user",
+				"--db-pwd",
+				"--v8version",
+				"--bitness",
+				"--additional",
+				"--root",
+				"--ordinaryapp",
+				"--nocacheuse",
+				"--ibname",
+				"--language",
+				"--locale",
+				"--uccode",
+				"--settings",
+				"--debuglogfile",
+				"--debuglog"
+			]
+		},
+		{
+			"id": "unload",
+			"keys": [
+				"cfpath",
+				"--ibcmd",
+				"--dbms-type",
+				"--dbms-server",
+				"--dbms-base",
+				"--dbms-user",
+				"--dbms-pwd",
+				"--ibconnection",
+				"--db-user",
+				"--db-pwd",
+				"--v8version",
+				"--bitness",
+				"--additional",
+				"--root",
+				"--ordinaryapp",
+				"--nocacheuse",
+				"--ibname",
+				"--language",
+				"--locale",
+				"--uccode",
+				"--settings",
+				"--debuglogfile",
+				"--debuglog"
+			]
+		},
+		{
+			"id": "make-dist",
+			"keys": [
+				"cfpath",
+				"--src",
+				"--build-number",
+				"--current",
+				"-c",
+				"--ibconnection",
+				"--db-user",
+				"--db-pwd",
+				"--v8version",
+				"--bitness",
+				"--additional",
+				"--root",
+				"--ordinaryapp",
+				"--nocacheuse",
+				"--ibname",
+				"--language",
+				"--locale",
+				"--uccode",
+				"--settings",
+				"--debuglogfile",
+				"--debuglog"
+			]
+		},
+		{
+			"id": "dump",
+			"keys": [
+				"dtpath",
+				"--ibcmd",
+				"--dbms-type",
+				"--dbms-server",
+				"--dbms-base",
+				"--dbms-user",
+				"--dbms-pwd",
+				"--ibconnection",
+				"--db-user",
+				"--db-pwd",
+				"--v8version",
+				"--bitness",
+				"--additional",
+				"--root",
+				"--ordinaryapp",
+				"--nocacheuse",
+				"--ibname",
+				"--language",
+				"--locale",
+				"--uccode",
+				"--settings",
+				"--debuglogfile",
+				"--debuglog"
+			]
+		},
+		{
+			"id": "restore",
+			"keys": [
+				"dtpath",
+				"--ibcmd",
+				"--dbms-type",
+				"--dbms-server",
+				"--dbms-base",
+				"--dbms-user",
+				"--dbms-pwd",
+				"--JobsCount ",
+				"--ibconnection",
+				"--db-user",
+				"--db-pwd",
+				"--v8version",
+				"--bitness",
+				"--additional",
+				"--root",
+				"--ordinaryapp",
+				"--nocacheuse",
+				"--ibname",
+				"--language",
+				"--locale",
+				"--uccode",
+				"--settings",
+				"--debuglogfile",
+				"--debuglog"
+			]
+		},
+		{
+			"id": "create",
+			"keys": [
+				"--ras",
+				"--rac",
+				"--name",
+				"--dbms",
+				"--db-server",
+				"--db-name",
+				"--db-admin",
+				"--db-admin-pwd",
+				"--descr",
+				"--db-locale",
+				"--cluster-admin",
+				"--cluster-pwd",
+				"--cluster",
+				"--cluster-name",
+				"--create-database-deny",
+				"--date-offset",
+				"--security-level",
+				"--scheduled-jobs-deny",
+				"--license-distribution-deny",
+				"--ibconnection",
+				"--db-user",
+				"--db-pwd",
+				"--v8version",
+				"--bitness",
+				"--additional",
+				"--root",
+				"--ordinaryapp",
+				"--nocacheuse",
+				"--ibname",
+				"--language",
+				"--locale",
+				"--uccode",
+				"--settings",
+				"--debuglogfile",
+				"--debuglog"
+			]
+		},
+		{
+			"id": "remove",
+			"keys": [
+				"--ras",
+				"--rac",
+				"--name",
+				"--cluster-admin",
+				"--cluster-pwd",
+				"--cluster",
+				"--cluster-name",
+				"--drop-database",
+				"--clear-database",
+				"--ibconnection",
+				"--db-user",
+				"--db-pwd",
+				"--v8version",
+				"--bitness",
+				"--additional",
+				"--root",
+				"--ordinaryapp",
+				"--nocacheuse",
+				"--ibname",
+				"--language",
+				"--locale",
+				"--uccode",
+				"--settings",
+				"--debuglogfile",
+				"--debuglog"
+			]
+		},
+		{
+			"id": "loadrepo",
+			"keys": [
+				"--storage-name",
+				"--storage-user",
+				"--storage-pwd",
+				"--storage-ver",
+				"--extension",
+				"--ibconnection",
+				"--db-user",
+				"--db-pwd",
+				"--v8version",
+				"--bitness",
+				"--additional",
+				"--root",
+				"--ordinaryapp",
+				"--nocacheuse",
+				"--ibname",
+				"--language",
+				"--locale",
+				"--uccode",
+				"--settings",
+				"--debuglogfile",
+				"--debuglog"
+			]
+		},
+		{
+			"id": "createrepo",
+			"keys": [
+				"ПутьСоздаваемогоХранилища",
+				"ЛогинАдминистратора",
+				"ПарольАдминистратора",
+				"--ibconnection",
+				"--db-user",
+				"--db-pwd",
+				"--v8version",
+				"--bitness",
+				"--additional",
+				"--root",
+				"--ordinaryapp",
+				"--nocacheuse",
+				"--ibname",
+				"--language",
+				"--locale",
+				"--uccode",
+				"--settings",
+				"--debuglogfile",
+				"--debuglog"
+			]
+		},
+		{
+			"id": "bindrepo",
+			"keys": [
+				"ПутьПодключаемогоХранилища",
+				"Логин",
+				"Пароль",
+				"--BindAlreadyBindedUser",
+				"--NotReplaceCfg",
+				"--ibconnection",
+				"--db-user",
+				"--db-pwd",
+				"--v8version",
+				"--bitness",
+				"--additional",
+				"--root",
+				"--ordinaryapp",
+				"--nocacheuse",
+				"--ibname",
+				"--language",
+				"--locale",
+				"--uccode",
+				"--settings",
+				"--debuglogfile",
+				"--debuglog"
+			]
+		},
+		{
+			"id": "createrepouser",
+			"keys": [
+				"ПутьПодключаемогоХранилища",
+				"ЛогинАдминистратора",
+				"ПарольАдминистратора",
+				"--storage-user",
+				"--storage-pwd",
+				"--storage-role",
+				"--ibconnection",
+				"--db-user",
+				"--db-pwd",
+				"--v8version",
+				"--bitness",
+				"--additional",
+				"--root",
+				"--ordinaryapp",
+				"--nocacheuse",
+				"--ibname",
+				"--language",
+				"--locale",
+				"--uccode",
+				"--settings",
+				"--debuglogfile",
+				"--debuglog"
+			]
+		},
+		{
+			"id": "copyrepouser",
+			"keys": [
+				"ПутьПодключаемогоХранилища",
+				"ПутьПодключаемогоХранилищаДляКопирования",
+				"--storage-user",
+				"--storage-pwd",
+				"--storage-user-copy",
+				"--storage-pwd-copy",
+				"--ibconnection",
+				"--db-user",
+				"--db-pwd",
+				"--v8version",
+				"--bitness",
+				"--additional",
+				"--root",
+				"--ordinaryapp",
+				"--nocacheuse",
+				"--ibname",
+				"--language",
+				"--locale",
+				"--uccode",
+				"--settings",
+				"--debuglogfile",
+				"--debuglog"
+			]
+		},
+		{
+			"id": "unloadcfrepo",
+			"keys": [
+				"--storage-name",
+				"--storage-user",
+				"--storage-pwd",
+				"--storage-ver",
+				"--out",
+				"-o",
+				"--ibconnection",
+				"--db-user",
+				"--db-pwd",
+				"--v8version",
+				"--bitness",
+				"--additional",
+				"--root",
+				"--ordinaryapp",
+				"--nocacheuse",
+				"--ibname",
+				"--language",
+				"--locale",
+				"--uccode",
+				"--settings",
+				"--debuglogfile",
+				"--debuglog"
+			]
+		},
+		{
+			"id": "lockrepo",
+			"keys": [
+				"--storage-name",
+				"--storage-user",
+				"--storage-pwd",
+				"--objects",
+				"--revised",
+				"--ibconnection",
+				"--db-user",
+				"--db-pwd",
+				"--v8version",
+				"--bitness",
+				"--additional",
+				"--root",
+				"--ordinaryapp",
+				"--nocacheuse",
+				"--ibname",
+				"--language",
+				"--locale",
+				"--uccode",
+				"--settings",
+				"--debuglogfile",
+				"--debuglog"
+			]
+		},
+		{
+			"id": "commit",
+			"keys": [
+				"--storage-name",
+				"--storage-user",
+				"--storage-pwd",
+				"--objects",
+				"--comment",
+				"--keepLocked",
+				"--force",
+				"--ibconnection",
+				"--db-user",
+				"--db-pwd",
+				"--v8version",
+				"--bitness",
+				"--additional",
+				"--root",
+				"--ordinaryapp",
+				"--nocacheuse",
+				"--ibname",
+				"--language",
+				"--locale",
+				"--uccode",
+				"--settings",
+				"--debuglogfile",
+				"--debuglog"
+			]
+		},
+		{
+			"id": "unbindrepo",
+			"keys": [
+				"--ibconnection",
+				"--db-user",
+				"--db-pwd",
+				"--v8version",
+				"--bitness",
+				"--additional",
+				"--root",
+				"--ordinaryapp",
+				"--nocacheuse",
+				"--ibname",
+				"--language",
+				"--locale",
+				"--uccode",
+				"--settings",
+				"--debuglogfile",
+				"--debuglog"
+			]
+		},
+		{
+			"id": "unlockrepo",
+			"keys": [
+				"--storage-name",
+				"--storage-user",
+				"--storage-pwd",
+				"--objects",
+				"--force",
+				"--do-not-update",
+				"--ibconnection",
+				"--db-user",
+				"--db-pwd",
+				"--v8version",
+				"--bitness",
+				"--additional",
+				"--root",
+				"--ordinaryapp",
+				"--nocacheuse",
+				"--ibname",
+				"--language",
+				"--locale",
+				"--uccode",
+				"--settings",
+				"--debuglogfile",
+				"--debuglog"
+			]
+		},
+		{
+			"id": "compile",
+			"keys": [
+				"--src",
+				"-s",
+				"--out",
+				"-o",
+				"--current",
+				"-c",
+				"--list",
+				"--noupdate",
+				"--build-number",
+				"--ibcmd",
+				"--dbms-type",
+				"--dbms-server",
+				"--dbms-base",
+				"--dbms-user",
+				"--dbms-pwd",
+				"--ibconnection",
+				"--db-user",
+				"--db-pwd",
+				"--v8version",
+				"--bitness",
+				"--additional",
+				"--root",
+				"--ordinaryapp",
+				"--nocacheuse",
+				"--ibname",
+				"--language",
+				"--locale",
+				"--uccode",
+				"--settings",
+				"--debuglogfile",
+				"--debuglog"
+			]
+		},
+		{
+			"id": "decompile",
+			"keys": [
+				"--out",
+				"-o",
+				"--in",
+				"-i",
+				"--current",
+				"-c",
+				"--userenames",
+				"-v",
+				"--versions",
+				"--ibcmd",
+				"--dbms-type",
+				"--dbms-server",
+				"--dbms-base",
+				"--dbms-user",
+				"--dbms-pwd",
+				"--ibconnection",
+				"--db-user",
+				"--db-pwd",
+				"--v8version",
+				"--bitness",
+				"--additional",
+				"--root",
+				"--ordinaryapp",
+				"--nocacheuse",
+				"--ibname",
+				"--language",
+				"--locale",
+				"--uccode",
+				"--settings",
+				"--debuglogfile",
+				"--debuglog"
+			]
+		},
+		{
+			"id": "load",
+			"keys": [
+				"--src",
+				"-s",
+				"--ibcmd",
+				"--dbms-type",
+				"--dbms-server",
+				"--dbms-base",
+				"--dbms-user",
+				"--dbms-pwd",
+				"--ibconnection",
+				"--db-user",
+				"--db-pwd",
+				"--v8version",
+				"--bitness",
+				"--additional",
+				"--root",
+				"--ordinaryapp",
+				"--nocacheuse",
+				"--ibname",
+				"--language",
+				"--locale",
+				"--uccode",
+				"--settings",
+				"--debuglogfile",
+				"--debuglog"
+			]
+		},
+		{
+			"id": "merge",
+			"keys": [
+				"--src",
+				"-s",
+				"--storage-name",
+				"--storage-user",
+				"--storage-pwd",
+				"--merge-settings",
+				"--enable-support",
+				"--disable-support",
+				"--IncludeObjectsByUnresolvedRefs",
+				"--ClearUnresolvedRefs",
+				"--force",
+				"--ibconnection",
+				"--db-user",
+				"--db-pwd",
+				"--v8version",
+				"--bitness",
+				"--additional",
+				"--root",
+				"--ordinaryapp",
+				"--nocacheuse",
+				"--ibname",
+				"--language",
+				"--locale",
+				"--uccode",
+				"--settings",
+				"--debuglogfile",
+				"--debuglog"
+			]
+		},
+		{
+			"id": "update",
+			"keys": [
+				"--src",
+				"-s",
+				"--update-settings",
+				"--IncludeObjectsByUnresolvedRefs",
+				"--ClearUnresolvedRefs",
+				"--DumpListOfTwiceChangedProperties",
+				"--force",
+				"--ibconnection",
+				"--db-user",
+				"--db-pwd",
+				"--v8version",
+				"--bitness",
+				"--additional",
+				"--root",
+				"--ordinaryapp",
+				"--nocacheuse",
+				"--ibname",
+				"--language",
+				"--locale",
+				"--uccode",
+				"--settings",
+				"--debuglogfile",
+				"--debuglog"
+			]
+		},
+		{
+			"id": "compare",
+			"keys": [
+				"--secondFile",
+				"--reportFile",
+				"--reportType",
+				"--reportFormat",
+				"--extensionName",
+				"--firstFile",
+				"--ibconnection",
+				"--db-user",
+				"--db-pwd",
+				"--v8version",
+				"--bitness",
+				"--additional",
+				"--root",
+				"--ordinaryapp",
+				"--nocacheuse",
+				"--ibname",
+				"--language",
+				"--locale",
+				"--uccode",
+				"--settings",
+				"--debuglogfile",
+				"--debuglog"
+			]
+		},
+		{
+			"id": "session",
+			"keys": [
+				"Действие",
+				"--ras",
+				"--rac",
+				"--db",
+				"--cluster-admin",
+				"--cluster-pwd",
+				"--cluster",
+				"--cluster-name",
+				"--try",
+				"--uccode",
+				"--lockmessage",
+				"--lockstart",
+				"--lockend",
+				"--lockstartat",
+				"--with-nolock",
+				"--lockendclear",
+				"--filter",
+				"--mode",
+				"--ibconnection",
+				"--db-user",
+				"--db-pwd",
+				"--v8version",
+				"--bitness",
+				"--additional",
+				"--root",
+				"--ordinaryapp",
+				"--nocacheuse",
+				"--ibname",
+				"--language",
+				"--locale",
+				"--settings",
+				"--debuglogfile",
+				"--debuglog"
+			]
+		},
+		{
+			"id": "scheduledjobs",
+			"keys": [
+				"Действие",
+				"--ras",
+				"--rac",
+				"--db",
+				"--cluster-admin",
+				"--cluster-pwd",
+				"--cluster",
+				"--cluster-name",
+				"--try",
+				"--ibconnection",
+				"--db-user",
+				"--db-pwd",
+				"--v8version",
+				"--bitness",
+				"--additional",
+				"--root",
+				"--ordinaryapp",
+				"--nocacheuse",
+				"--ibname",
+				"--language",
+				"--locale",
+				"--uccode",
+				"--settings",
+				"--debuglogfile",
+				"--debuglog"
+			]
+		},
+		{
+			"id": "dbinfo",
+			"keys": [
+				"--ras",
+				"--rac",
+				"--db",
+				"--cluster-admin",
+				"--cluster-pwd",
+				"--cluster",
+				"--cluster-name",
+				"--try",
+				"--ibconnection",
+				"--db-user",
+				"--db-pwd",
+				"--v8version",
+				"--bitness",
+				"--additional",
+				"--root",
+				"--ordinaryapp",
+				"--nocacheuse",
+				"--ibname",
+				"--language",
+				"--locale",
+				"--uccode",
+				"--settings",
+				"--debuglogfile",
+				"--debuglog"
+			]
+		},
+		{
+			"id": "syntax-check",
+			"keys": [
+				"--storage-name",
+				"--storage-user",
+				"--storage-pwd",
+				"--junitpath",
+				"--allure-results",
+				"--allure-results2",
+				"--clear-reports",
+				"--testsuitename",
+				"--groupbymetadata",
+				"--exception-file",
+				"--hide-exception",
+				"--ibconnection",
+				"--db-user",
+				"--db-pwd",
+				"--v8version",
+				"--bitness",
+				"--additional",
+				"--root",
+				"--ordinaryapp",
+				"--nocacheuse",
+				"--ibname",
+				"--language",
+				"--locale",
+				"--uccode",
+				"--settings",
+				"--debuglogfile",
+				"--debuglog",
+				"--mode"
+			]
+		},
+		{
+			"id": "edt-validate",
+			"keys": [
+				"--junitpath",
+				"--allure-results",
+				"--allure-results2",
+				"--clear-reports",
+				"--exception-file",
+				"--validation-result",
+				"--prev-validation-result",
+				"--project-url",
+				"--EDTversion",
+				"--alwaysUseLastVersion",
+				"--workspace-location",
+				"--project-list",
+				"--project-name-list",
+				"--ibconnection",
+				"--db-user",
+				"--db-pwd",
+				"--v8version",
+				"--bitness",
+				"--additional",
+				"--root",
+				"--ordinaryapp",
+				"--nocacheuse",
+				"--ibname",
+				"--language",
+				"--locale",
+				"--uccode",
+				"--settings",
+				"--debuglogfile",
+				"--debuglog"
+			]
+		},
+		{
+			"id": "set-version",
+			"keys": [
+				"--new-version",
+				"--check-module",
+				"--src",
+				"--ibconnection",
+				"--db-user",
+				"--db-pwd",
+				"--v8version",
+				"--bitness",
+				"--additional",
+				"--root",
+				"--ordinaryapp",
+				"--nocacheuse",
+				"--ibname",
+				"--language",
+				"--locale",
+				"--uccode",
+				"--settings",
+				"--debuglogfile",
+				"--debuglog"
+			]
+		},
+		{
+			"id": "default",
+			"keys": [
+				"Команда",
+				"--ibconnection",
+				"--db-user",
+				"--db-pwd",
+				"--v8version",
+				"--bitness",
+				"--additional",
+				"--root",
+				"--ordinaryapp",
+				"--nocacheuse",
+				"--ibname",
+				"--language",
+				"--locale",
+				"--uccode",
+				"--settings",
+				"--debuglogfile",
+				"--debuglog",
+				"--template",
+				"--src",
+				"--dt",
+				"--cf",
+				"--dev",
+				"--storage",
+				"--storage-name",
+				"--storage-user",
+				"--storage-pwd",
+				"--storage-ver",
+				"--v1",
+				"--v2",
+				"--ibcmd",
+				"--dbms-type",
+				"--dbms-server",
+				"--dbms-base",
+				"--dbms-user",
+				"--dbms-pwd",
+				"--disable-support",
+				"--git-increment",
+				"testsPath",
+				"--workspace",
+				"--config-tests",
+				"--pathxunit",
+				"--reportsxunit",
+				"--clear-reports",
+				"--xddExitCodePath",
+				"--xddConfig",
+				"--testclient",
+				"--testclient-additional",
+				"--reportxunit",
+				"--no-wait",
+				"--xdddebug",
+				"--no-shutdown",
+				"--ibsrv",
+				"--path",
+				"--pathvanessa",
+				"--vanessasettings",
+				"--tags-ignore",
+				"--tags-filter",
+				"--additional-keys",
+				"--command",
+				"--execute",
+				"--url",
+				"--online-file",
+				"--exitCodePath",
+				"inputPath",
+				"extensionName",
+				"--updatedb",
+				"--file",
+				"-f",
+				"--extension",
+				"-s",
+				"--out",
+				"-o",
+				"--current",
+				"-c",
+				"--noupdate",
+				"--build-number",
+				"outputPath",
+				"cfepath",
+				"extname",
+				"--cachekey",
+				"--onlycopy",
+				"--dynamic",
+				"cfpath",
+				"dtpath",
+				"--JobsCount ",
+				"--ras",
+				"--rac",
+				"--name",
+				"--dbms",
+				"--db-server",
+				"--db-name",
+				"--db-admin",
+				"--db-admin-pwd",
+				"--descr",
+				"--db-locale",
+				"--cluster-admin",
+				"--cluster-pwd",
+				"--cluster",
+				"--cluster-name",
+				"--create-database-deny",
+				"--date-offset",
+				"--security-level",
+				"--scheduled-jobs-deny",
+				"--license-distribution-deny",
+				"--drop-database",
+				"--clear-database",
+				"ПутьСоздаваемогоХранилища",
+				"ЛогинАдминистратора",
+				"ПарольАдминистратора",
+				"ПутьПодключаемогоХранилища",
+				"Логин",
+				"Пароль",
+				"--BindAlreadyBindedUser",
+				"--NotReplaceCfg",
+				"--storage-role",
+				"ПутьПодключаемогоХранилищаДляКопирования",
+				"--storage-user-copy",
+				"--storage-pwd-copy",
+				"--objects",
+				"--revised",
+				"--comment",
+				"--keepLocked",
+				"--force",
+				"--do-not-update",
+				"--list",
+				"--in",
+				"-i",
+				"--userenames",
+				"-v",
+				"--versions",
+				"--merge-settings",
+				"--enable-support",
+				"--IncludeObjectsByUnresolvedRefs",
+				"--ClearUnresolvedRefs",
+				"--update-settings",
+				"--DumpListOfTwiceChangedProperties",
+				"--secondFile",
+				"--reportFile",
+				"--reportType",
+				"--reportFormat",
+				"--extensionName",
+				"--firstFile",
+				"Действие",
+				"--db",
+				"--try",
+				"--lockmessage",
+				"--lockstart",
+				"--lockend",
+				"--lockstartat",
+				"--with-nolock",
+				"--lockendclear",
+				"--filter",
+				"--mode",
+				"--junitpath",
+				"--allure-results",
+				"--allure-results2",
+				"--testsuitename",
+				"--groupbymetadata",
+				"--exception-file",
+				"--hide-exception",
+				"--validation-result",
+				"--prev-validation-result",
+				"--project-url",
+				"--EDTversion",
+				"--alwaysUseLastVersion",
+				"--workspace-location",
+				"--project-list",
+				"--project-name-list",
+				"--new-version",
+				"--check-module"
+			]
+		},
+		{
+			"id": "$schema",
+			"keys": []
+		}
+	]
+}

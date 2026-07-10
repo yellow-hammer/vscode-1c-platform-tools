@@ -29,6 +29,9 @@ const extensionOptions = {
 	sourcemap: true,
 	// Предпочтение CJS-сборок зависимостей для корректного бандлинга в format: 'cjs'
 	mainFields: ['main', 'module'],
+	// UMD-сборка jsonc-parser использует динамические require('./impl/…'),
+	// которые esbuild не разворачивает — бандлим её ESM-вариант
+	alias: { 'jsonc-parser': 'jsonc-parser/lib/esm/main.js' },
 };
 
 const testOptions = {
@@ -42,6 +45,7 @@ const testOptions = {
 	external: ['vscode'],
 	sourcemap: true,
 	mainFields: ['main', 'module'],
+	alias: { 'jsonc-parser': 'jsonc-parser/lib/esm/main.js' },
 };
 
 const erCanvasOptions = {

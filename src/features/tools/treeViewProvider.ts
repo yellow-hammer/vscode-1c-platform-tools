@@ -3,7 +3,8 @@ import * as path from 'node:path';
 import * as fsSync from 'node:fs';
 import { WorkspaceTasksCommands } from '../../commands/workspaceTasksCommands';
 import { OscriptTasksCommands } from '../../commands/oscriptTasksCommands';
-import { SERVICE_FILES } from '../serviceFiles/registry';
+import { SERVICE_FILES, resolveLaunchProfileSpec } from '../serviceFiles/registry';
+import { VRunnerManager } from '../../shared/vrunnerManager';
 import {
 	getSetVersionReportCommandName,
 	getSetVersionProcessorCommandName
@@ -268,6 +269,13 @@ export class PlatformTreeDataProvider implements vscode.TreeDataProvider<Platfor
 			return this.getSetVersionProcessorItems();
 		}
 
+		// Служебные файлы строим лениво: состав («Осн. профиль запуска» →
+		// env.json / autumn-properties.json, CI-файлы) зависит от версии vrunner,
+		// которая могла определиться уже после первого построения дерева.
+		if (element.groupId === 'serviceFiles') {
+			return Promise.resolve(this.buildServiceFilesChildren());
+		}
+
 		return Promise.resolve(element.children || []);
 	}
 
@@ -369,7 +377,10 @@ export class PlatformTreeDataProvider implements vscode.TreeDataProvider<Platfor
 			),
 		];
 
-		for (const spec of SERVICE_FILES) {
+		const schema = VRunnerManager.getInstance().getActiveSettingsSchema();
+		for (const staticSpec of SERVICE_FILES) {
+			// «Профиль запуска» указывает на файл схемы установленного vrunner
+			const spec = staticSpec.id === 'launchProfile' ? resolveLaunchProfileSpec(schema) : staticSpec;
 			const exists = workspaceRoot
 				? fsSync.existsSync(path.join(workspaceRoot, spec.relPath))
 				: false;
