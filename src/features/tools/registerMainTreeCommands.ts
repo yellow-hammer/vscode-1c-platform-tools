@@ -11,6 +11,12 @@ import {
 	type FavoriteEntry,
 	type PickableCommandGroup,
 } from './favorites';
+import {
+	getHideableToolGroups,
+	getHiddenToolGroups,
+	setHiddenToolGroups,
+	syncHiddenToolGroupsContext,
+} from './toolsGroupVisibility';
 
 const log = logger.scope('ui');
 
@@ -20,6 +26,10 @@ type FavoritesSelectableItem = vscode.QuickPickItem & {
 	groupLabel: string;
 	sectionType: string;
 	arguments?: unknown[];
+};
+
+type GroupVisibilityItem = vscode.QuickPickItem & {
+	sectionType: string;
 };
 
 export interface RegisterMainTreeCommandsParams {
@@ -310,6 +320,48 @@ export function registerMainTreeCommands(
 		}
 	);
 
+	const configureGroupVisibility = async (): Promise<void> => {
+		if (!isProjectRef.current) {
+			showNot1CProjectMessage();
+			return;
+		}
+		const groups = getHideableToolGroups();
+		const hidden = getHiddenToolGroups(context);
+		const items: GroupVisibilityItem[] = groups.map((group) => ({
+			label: group.label,
+			picked: !hidden.has(group.sectionType),
+			sectionType: group.sectionType,
+		}));
+
+		const selected = await vscode.window.showQuickPick(items, {
+			canPickMany: true,
+			placeHolder: 'Отмеченные группы отображаются в панели «Команды»',
+		});
+		if (selected === undefined) {
+			return;
+		}
+		const visible = new Set((selected as GroupVisibilityItem[]).map((item) => item.sectionType));
+		const newHidden = groups
+			.map((group) => group.sectionType)
+			.filter((sectionType) => !visible.has(sectionType));
+		await setHiddenToolGroups(context, newHidden);
+		await syncHiddenToolGroupsContext(context);
+		treeDataProvider.refresh();
+		log.info(`Видимость групп обновлена: скрыто ${newHidden.length}`);
+	};
+
+	// Кнопка в тулбаре: тот же обработчик под двумя id ради смены иконки
+	// (обычный «глаз» / перечёркнутый «глаз» при наличии скрытых групп).
+	const configureGroupVisibilityCommand = vscode.commands.registerCommand(
+		'1c-platform-tools.tools.configureGroupVisibility',
+		configureGroupVisibility
+	);
+	const configureGroupVisibilityActiveCommand = vscode.commands.registerCommand(
+		'1c-platform-tools.tools.configureGroupVisibilityActive',
+		configureGroupVisibility
+	);
+	void syncHiddenToolGroupsContext(context);
+
 	return [
 		refreshCommand,
 		launchViewCommand,
@@ -321,5 +373,7 @@ export function registerMainTreeCommands(
 		launchEditConfigurationsCommand,
 		onWorkspaceTasksSave,
 		favoritesConfigureCommand,
+		configureGroupVisibilityCommand,
+		configureGroupVisibilityActiveCommand,
 	];
 }

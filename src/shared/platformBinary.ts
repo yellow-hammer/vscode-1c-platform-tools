@@ -4,9 +4,16 @@ import * as path from 'node:path';
 /**
  * Поиск исполняемых файлов платформы 1С:Предприятие (ibsrv, ibcmd).
  *
- * Бинарь живёт в `<база>/<версия>/bin/<имя>`, где база — каталог установки
- * платформы (по умолчанию `%PROGRAMFILES%/1cv8` на Windows,
- * `/opt/1C/v8.3/x86_64` на Linux), а `<версия>` — каталог вида `8.3.27.1936`.
+ * Раскладка бинарей зависит от ОС и способа установки:
+ *
+ * - Windows: `<база>/<версия>/bin/<имя>` (например `C:/Program Files/1cv8/8.3.27.1936/bin/ibsrv.exe`);
+ * - Linux (.deb-пакеты): `<база>/<версия>/<имя>` без каталога `bin`
+ *   (например `/opt/1cv8/x86_64/8.5.1.1343/ibsrv`);
+ * - Linux (.run-инсталлятор): `<база>/<имя>` — бинарь прямо в каталоге установки,
+ *   без подкаталога версии (например `/opt/1C/v8.3/x86_64/ibsrv`).
+ *
+ * Поэтому резолвер проверяет и `bin/<имя>`, и `<имя>` в каждом каталоге версии,
+ * а если каталогов версий нет — ищет бинарь прямо в базе.
  *
  * Чистая логика (разбор/сравнение версий, выбор) вынесена отдельно и покрыта
  * тестами; файловый резолвер {@link resolvePlatformBinary} — тонкая обёртка.
@@ -131,6 +138,43 @@ export function resolvePlatformVersion(baseDir: string, requested?: string): str
 	return pickPlatformVersion(available, requested);
 }
 
+/**
+ * Каталоги установки платформы по умолчанию (перебираются по порядку).
+ *
+ * На Linux раскладка зависит от способа установки, поэтому кандидатов несколько:
+ * `/opt/1cv8/x86_64` (.deb-пакеты, версии подкаталогами) и
+ * `/opt/1C/v8.3/x86_64` (.run-инсталлятор, бинари прямо в каталоге).
+ *
+ * @param platform - Платформа ОС (по умолчанию process.platform)
+ * @returns Список каталогов-кандидатов
+ */
+export function defaultPlatformBasePaths(platform: NodeJS.Platform = process.platform): string[] {
+	if (platform === 'win32') {
+		const programFiles = process.env.PROGRAMFILES || 'C:\\Program Files';
+		return [path.join(programFiles, '1cv8')];
+	}
+	return ['/opt/1cv8/x86_64', '/opt/1C/v8.3/x86_64'];
+}
+
+/**
+ * Ищет бинарь в конкретном каталоге, учитывая опциональный подкаталог `bin`.
+ *
+ * @param dir - Каталог (базовый или версии)
+ * @param fileName - Имя файла бинаря
+ * @returns Полный путь или undefined
+ */
+function binaryInDir(dir: string, fileName: string): string | undefined {
+	const withBin = path.join(dir, 'bin', fileName);
+	if (fsSync.existsSync(withBin)) {
+		return withBin;
+	}
+	const direct = path.join(dir, fileName);
+	if (fsSync.existsSync(direct)) {
+		return direct;
+	}
+	return undefined;
+}
+
 /** Опции поиска бинаря платформы. */
 export interface ResolvePlatformBinaryOptions {
 	/** Запрошенная версия платформы или её префикс (пусто — наибольшая доступная). */
@@ -142,8 +186,10 @@ export interface ResolvePlatformBinaryOptions {
 /**
  * Находит путь к исполняемому файлу платформы в каталоге установки.
  *
- * Перебирает каталоги версий, у которых реально присутствует нужный бинарь,
- * и выбирает версию через {@link pickPlatformVersion}.
+ * Сначала перебирает каталоги версий (у которых реально присутствует нужный
+ * бинарь — в `bin/` или напрямую) и выбирает версию через
+ * {@link pickPlatformVersion}. Если каталогов версий нет, ищет бинарь прямо в
+ * базе (раскладка .run-инсталлятора на Linux, где версия из пути не читается).
  *
  * @param baseDir - Каталог установки платформы (например, `C:\Program Files\1cv8`)
  * @param tool - Инструмент платформы (ibsrv/ibcmd)
@@ -165,16 +211,24 @@ export function resolvePlatformBinary(
 		return undefined;
 	}
 
-	// Версии, у которых бинарь реально на месте.
-	const available = entries
-		.filter((e) => e.isDirectory() && is1cVersionDir(e.name))
-		.map((e) => e.name)
-		.filter((name) => fsSync.existsSync(path.join(baseDir, name, 'bin', fileName)));
-
-	const version = pickPlatformVersion(available, options.requestedVersion);
-	if (!version) {
-		return undefined;
+	// Версии, у которых бинарь реально на месте (в `bin/` или напрямую).
+	const byVersion = new Map<string, string>();
+	for (const e of entries) {
+		if (!e.isDirectory() || !is1cVersionDir(e.name)) {
+			continue;
+		}
+		const found = binaryInDir(path.join(baseDir, e.name), fileName);
+		if (found) {
+			byVersion.set(e.name, found);
+		}
 	}
 
-	return path.join(baseDir, version, 'bin', fileName);
+	const version = pickPlatformVersion([...byVersion.keys()], options.requestedVersion);
+	if (version) {
+		return byVersion.get(version);
+	}
+
+	// Нет каталогов версий с бинарём — раскладка без подкаталога версии
+	// (.run-инсталлятор: `/opt/1C/v8.3/x86_64/ibsrv`).
+	return binaryInDir(baseDir, fileName);
 }

@@ -20,7 +20,7 @@ import * as fs from 'node:fs/promises';
 import { VRunnerManager } from '../../shared/vrunnerManager';
 import { resolveFileIbAbsolutePath } from '../../shared/ibConnectionPath';
 import { logger } from '../../shared/logger';
-import { resolvePlatformBinary } from '../../shared/platformBinary';
+import { resolvePlatformBinary, defaultPlatformBasePaths } from '../../shared/platformBinary';
 import {
 	PublicationOptions,
 	ServerUrls,
@@ -80,16 +80,30 @@ const STOP_EXIT_TIMEOUT_MS = 8_000;
 const STOP_PORT_TIMEOUT_MS = 8_000;
 
 /**
- * Базовый каталог установки платформы по умолчанию (если не задан в настройках).
+ * Находит ibsrv в настроенном каталоге либо в каталогах установки по умолчанию.
  *
- * @returns Путь к каталогу версий платформы 1С
+ * Возвращает найденный путь к бинарю и перебранные базовые каталоги (для
+ * сообщения об ошибке).
+ *
+ * @param platformPath - Значение настройки `server.platformPath` (пусто — автоопределение)
+ * @param requestedVersion - Запрошенная версия или её префикс
+ * @returns Путь к ibsrv (или undefined) и список проверенных каталогов
  */
-function defaultPlatformBasePath(): string {
-	if (process.platform === 'win32') {
-		const programFiles = process.env.PROGRAMFILES || 'C:\\Program Files';
-		return path.join(programFiles, '1cv8');
+function findServerBinary(
+	platformPath: string,
+	requestedVersion: string
+): { binary: string | undefined; bases: string[] } {
+	const configured = platformPath.trim();
+	const bases = configured ? [configured] : defaultPlatformBasePaths();
+	for (const base of bases) {
+		const binary = resolvePlatformBinary(base, 'ibsrv', {
+			requestedVersion: requestedVersion || undefined,
+		});
+		if (binary) {
+			return { binary, bases };
+		}
 	}
-	return '/opt/1C/v8.3/x86_64';
+	return { binary: undefined, bases };
 }
 
 export class PlatformServerManager {
@@ -173,14 +187,10 @@ export class PlatformServerManager {
 		// Версия платформы: настройка сервера → --v8version активного профиля → наибольшая.
 		const requestedVersion = settings.platformVersion || (await this.vrunner.getActiveV8Version()) || '';
 
-		const binary = resolvePlatformBinary(
-			settings.platformPath || defaultPlatformBasePath(),
-			'ibsrv',
-			{ requestedVersion: requestedVersion || undefined }
-		);
+		const { binary, bases } = findServerBinary(settings.platformPath, requestedVersion);
 		if (!binary) {
 			vscode.window.showErrorMessage(
-				`Не найден ibsrv. Проверьте настройку «server.platformPath» (текущая база: ${settings.platformPath || defaultPlatformBasePath()})` +
+				`Не найден ibsrv. Проверьте настройку «server.platformPath» (проверены: ${bases.join(', ')})` +
 				`${requestedVersion ? ` и версию «${requestedVersion}»` : ''}.`
 			);
 			return;

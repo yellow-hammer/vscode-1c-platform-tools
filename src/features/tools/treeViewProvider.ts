@@ -11,6 +11,7 @@ import {
 } from './commandNames';
 import type { SetVersionCommands } from '../../commands/setVersionCommands';
 import { getFavorites, type FavoriteEntry } from './favorites';
+import { getHiddenToolGroups } from './toolsGroupVisibility';
 import { TREE_GROUPS } from './treeStructure';
 
 /** Ключ в globalState для сохранения состояния раскрытия групп дерева (кроме «Избранное») */
@@ -403,9 +404,15 @@ export class PlatformTreeDataProvider implements vscode.TreeDataProvider<Platfor
 	 */
 	private getRootItems(): PlatformTreeItem[] {
 		const allSections: PlatformTreeItem[] = [];
+		const hiddenGroups = this.extensionContext
+			? getHiddenToolGroups(this.extensionContext)
+			: new Set<string>();
 
 		for (const group of TREE_GROUPS) {
 			if (group.sectionType === 'helpAndSupport') {
+				continue;
+			}
+			if (hiddenGroups.has(group.sectionType)) {
 				continue;
 			}
 			const groupType = this.sectionTypeToRootType(group.sectionType);
@@ -462,28 +469,34 @@ export class PlatformTreeDataProvider implements vscode.TreeDataProvider<Platfor
 			);
 		}
 
-		const oscriptExpanded = this.resolveGroupCollapsibleState('oscriptTasks', false) === vscode.TreeItemCollapsibleState.Expanded;
-		const launchExpanded = this.resolveGroupCollapsibleState('launch', false) === vscode.TreeItemCollapsibleState.Expanded;
-		allSections.push(
-			this.createTreeItem(
-				'Задачи (oscript)',
-				TreeItemType.OscriptTasks,
-				oscriptExpanded ? vscode.TreeItemCollapsibleState.Expanded : vscode.TreeItemCollapsibleState.Collapsed,
-				undefined,
-				[],
-				undefined,
-				'oscriptTasks'
-			),
-			this.createTreeItem(
-				'Задачи (workspace)',
-				TreeItemType.Launch,
-				launchExpanded ? vscode.TreeItemCollapsibleState.Expanded : vscode.TreeItemCollapsibleState.Collapsed,
-				undefined,
-				[],
-				undefined,
-				'launch'
-			)
-		);
+		if (!hiddenGroups.has('oscriptTasks')) {
+			const oscriptExpanded = this.resolveGroupCollapsibleState('oscriptTasks', false) === vscode.TreeItemCollapsibleState.Expanded;
+			allSections.push(
+				this.createTreeItem(
+					'Задачи (oscript)',
+					TreeItemType.OscriptTasks,
+					oscriptExpanded ? vscode.TreeItemCollapsibleState.Expanded : vscode.TreeItemCollapsibleState.Collapsed,
+					undefined,
+					[],
+					undefined,
+					'oscriptTasks'
+				)
+			);
+		}
+		if (!hiddenGroups.has('launch')) {
+			const launchExpanded = this.resolveGroupCollapsibleState('launch', false) === vscode.TreeItemCollapsibleState.Expanded;
+			allSections.push(
+				this.createTreeItem(
+					'Задачи (workspace)',
+					TreeItemType.Launch,
+					launchExpanded ? vscode.TreeItemCollapsibleState.Expanded : vscode.TreeItemCollapsibleState.Collapsed,
+					undefined,
+					[],
+					undefined,
+					'launch'
+				)
+			);
+		}
 
 		// Группа «Помощь и поддержка» вынесена в отдельную плашку (view
 		// 1c-platform-tools-help), данные даёт HelpAndSupportProvider.

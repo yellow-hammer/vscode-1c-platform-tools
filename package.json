@@ -821,6 +821,18 @@
         "category": "1C: Дерево"
       },
       {
+        "command": "1c-platform-tools.tools.configureGroupVisibility",
+        "title": "Настроить видимость групп",
+        "icon": "$(eye)",
+        "category": "1C: Дерево"
+      },
+      {
+        "command": "1c-platform-tools.tools.configureGroupVisibilityActive",
+        "title": "Настроить видимость групп",
+        "icon": "$(eye-closed)",
+        "category": "1C: Дерево"
+      },
+      {
         "command": "1c-platform-tools.infobase.createEmpty",
         "title": "Создать пустую ИБ",
         "category": "1C: Информационная база"
@@ -1547,6 +1559,10 @@
           "when": "false"
         },
         {
+          "command": "1c-platform-tools.tools.configureGroupVisibilityActive",
+          "when": "false"
+        },
+        {
           "command": "1c-platform-tools.debug.measure.stop",
           "when": "onecPlatformTools.debug.measureActive"
         }
@@ -1589,14 +1605,24 @@
           "group": "navigation@1"
         },
         {
+          "command": "1c-platform-tools.tools.configureGroupVisibility",
+          "when": "view == 1c-platform-tools && !1c-platform-tools.hasHiddenToolGroups",
+          "group": "navigation@2"
+        },
+        {
+          "command": "1c-platform-tools.tools.configureGroupVisibilityActive",
+          "when": "view == 1c-platform-tools && 1c-platform-tools.hasHiddenToolGroups",
+          "group": "navigation@2"
+        },
+        {
           "command": "1c-platform-tools.settings.openTools",
           "when": "view == 1c-platform-tools",
-          "group": "navigation@2"
+          "group": "navigation@3"
         },
         {
           "command": "1c-platform-tools.todo.showPanel",
           "when": "view == 1c-platform-tools",
-          "group": "navigation@3"
+          "group": "navigation@4"
         },
         {
           "command": "1c-platform-tools.refresh",
@@ -2806,7 +2832,7 @@
           "1c-platform-tools.server.platformPath": {
             "type": "string",
             "default": "",
-            "description": "Каталог установки платформы 1С для поиска ibsrv (автономный сервер). Пусто — определяется автоматически (%PROGRAMFILES%\\1cv8 в Windows, /opt/1C/v8.3/x86_64 в Linux)."
+            "description": "Каталог установки платформы 1С для поиска ibsrv (автономный сервер). Пусто — определяется автоматически (%PROGRAMFILES%\\1cv8 в Windows, /opt/1cv8/x86_64 и /opt/1C/v8.3/x86_64 в Linux). Бинарь ищется в bin/, напрямую в каталоге версии и в самой базе."
           },
           "1c-platform-tools.server.platformVersion": {
             "type": "string",

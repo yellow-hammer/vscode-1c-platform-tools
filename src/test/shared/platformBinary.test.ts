@@ -9,6 +9,8 @@ import {
 	pickPlatformVersion,
 	expandEnvPlaceholders,
 	resolvePlatformVersion,
+	resolvePlatformBinary,
+	defaultPlatformBasePaths,
 } from '../../shared/platformBinary';
 
 suite('platformBinary', () => {
@@ -83,5 +85,96 @@ suite('platformBinary', () => {
 			resolvePlatformVersion(path.join(os.tmpdir(), 'no-such-1cv8-dir-xyz'), '8.3'),
 			undefined
 		);
+	});
+
+	test('defaultPlatformBasePaths: кандидаты по ОС', () => {
+		assert.deepStrictEqual(defaultPlatformBasePaths('linux'), [
+			'/opt/1cv8/x86_64',
+			'/opt/1C/v8.3/x86_64',
+		]);
+		const win = defaultPlatformBasePaths('win32');
+		assert.strictEqual(win.length, 1);
+		assert.ok(win[0].endsWith(path.join('', '1cv8')));
+	});
+
+	suite('resolvePlatformBinary (файловые раскладки)', () => {
+		let baseDir: string;
+
+		setup(() => {
+			baseDir = fs.mkdtempSync(path.join(os.tmpdir(), '1c-platform-'));
+		});
+
+		teardown(() => {
+			fs.rmSync(baseDir, { recursive: true, force: true });
+		});
+
+		const touch = (...segments: string[]): string => {
+			const full = path.join(baseDir, ...segments);
+			fs.mkdirSync(path.dirname(full), { recursive: true });
+			fs.writeFileSync(full, '');
+			return full;
+		};
+
+		test('Windows-раскладка: <версия>/bin/ibsrv.exe', () => {
+			const expected = touch('8.3.27.1936', 'bin', 'ibsrv.exe');
+			touch('8.3.23.2040', 'bin', 'ibsrv.exe');
+			assert.strictEqual(
+				resolvePlatformBinary(baseDir, 'ibsrv', { platform: 'win32' }),
+				expected
+			);
+		});
+
+		test('Linux .deb-раскладка: <версия>/ibsrv без bin', () => {
+			touch('8.3.27.1936', 'ibsrv');
+			const expected = touch('8.5.1.1343', 'ibsrv');
+			assert.strictEqual(
+				resolvePlatformBinary(baseDir, 'ibsrv', { platform: 'linux' }),
+				expected
+			);
+		});
+
+		test('Linux .run-раскладка: ibsrv прямо в базе без каталога версии', () => {
+			const expected = touch('ibsrv');
+			assert.strictEqual(
+				resolvePlatformBinary(baseDir, 'ibsrv', { platform: 'linux' }),
+				expected
+			);
+		});
+
+		test('запрошенная версия выбирается среди каталогов без bin', () => {
+			const expected = touch('8.3.27.1936', 'ibsrv');
+			touch('8.5.1.1343', 'ibsrv');
+			assert.strictEqual(
+				resolvePlatformBinary(baseDir, 'ibsrv', {
+					platform: 'linux',
+					requestedVersion: '8.3.27',
+				}),
+				expected
+			);
+		});
+
+		test('каталог версии без бинаря игнорируется', () => {
+			fs.mkdirSync(path.join(baseDir, '8.5.1.1343'), { recursive: true });
+			const expected = touch('8.3.27.1936', 'ibsrv');
+			assert.strictEqual(
+				resolvePlatformBinary(baseDir, 'ibsrv', { platform: 'linux' }),
+				expected
+			);
+		});
+
+		test('нет бинаря → undefined', () => {
+			fs.mkdirSync(path.join(baseDir, '8.5.1.1343'), { recursive: true });
+			assert.strictEqual(
+				resolvePlatformBinary(baseDir, 'ibsrv', { platform: 'linux' }),
+				undefined
+			);
+		});
+
+		test('несуществующая база → undefined', () => {
+			assert.strictEqual(
+				resolvePlatformBinary(path.join(baseDir, 'нет'), 'ibsrv', { platform: 'linux' }),
+				undefined
+			);
+		});
 	});
 });
