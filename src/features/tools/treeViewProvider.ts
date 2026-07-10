@@ -269,6 +269,13 @@ export class PlatformTreeDataProvider implements vscode.TreeDataProvider<Platfor
 			return this.getSetVersionProcessorItems();
 		}
 
+		// Служебные файлы строим лениво: состав («Осн. профиль запуска» →
+		// env.json / autumn-properties.json, CI-файлы) зависит от версии vrunner,
+		// которая могла определиться уже после первого построения дерева.
+		if (element.groupId === 'serviceFiles') {
+			return Promise.resolve(this.buildServiceFilesChildren());
+		}
+
 		return Promise.resolve(element.children || []);
 	}
 

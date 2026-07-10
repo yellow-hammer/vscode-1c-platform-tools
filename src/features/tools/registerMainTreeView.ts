@@ -54,11 +54,18 @@ export function registerMainTreeView(
 		void context.globalState.update(TREE_GROUP_EXPANDED_STATE_KEY, state);
 	};
 
+	// Схема служебных файлов («Профиль запуска», CI-настройки) зависит от версии
+	// vrunner: пока она не определена, дерево показывало бы v2-файлы. Прогреваем
+	// детект и перерисовываем дерево, когда версия установится или сменится.
+	const vrunner = VRunnerManager.getInstance();
+	void vrunner.getVRunnerVersion().then(() => treeDataProvider.refresh());
+
 	context.subscriptions.push(
 		treeView,
 		launchProfileProvider,
 		profileTreeView,
 		helpTreeView,
+		vrunner.onDidChangeVRunnerVersion(() => treeDataProvider.refresh()),
 		treeView.onDidExpandElement((event) =>
 			saveGroupExpandedState(event.element, true)
 		),
