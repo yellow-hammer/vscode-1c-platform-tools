@@ -10,7 +10,7 @@
     "1с предприятие",
     "bsl"
   ],
-  "version": "0.7.14",
+  "version": "0.7.20",
   "publisher": "yellow-hammer",
   "repository": {
     "type": "git",
@@ -448,8 +448,12 @@
         "viewType": "1c-platform-tools.profileEditor",
         "displayName": "Профиль запуска 1С",
         "selector": [
-          { "filenamePattern": "env*.json" },
-          { "filenamePattern": "autumn-properties*.json" }
+          {
+            "filenamePattern": "env*.json"
+          },
+          {
+            "filenamePattern": "autumn-properties*.json"
+          }
         ],
         "priority": "option"
       }
