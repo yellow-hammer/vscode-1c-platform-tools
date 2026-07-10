@@ -1,7 +1,7 @@
 {
 	"schema": "v2",
 	"source": "https://raw.githubusercontent.com/vanessa-opensource/vanessa-runner/refs/heads/release/2.6/vanessa-runner-schema.json",
-	"generatedAt": "2026-07-09",
+	"generatedAt": "2026-07-10",
 	"options": {
 		"--template": {
 			"type": "string",
