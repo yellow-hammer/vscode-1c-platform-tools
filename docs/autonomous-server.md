@@ -61,7 +61,7 @@
 
 | Настройка | По умолчанию | Назначение |
 | --- | --- | --- |
-| `1c-platform-tools.server.platformPath` | пусто | Каталог установки платформы для поиска `ibsrv`. Пусто — автоопределение (`%PROGRAMFILES%\1cv8` в Windows, `/opt/1C/v8.3/x86_64` в Linux). |
+| `1c-platform-tools.server.platformPath` | пусто | Каталог установки платформы для поиска `ibsrv`. Пусто — автоопределение (`%PROGRAMFILES%\1cv8` в Windows, `/opt/1cv8/x86_64` и `/opt/1C/v8.3/x86_64` в Linux). `ibsrv` ищется в `bin/`, напрямую в каталоге версии и в самой базе — каталог `bin` в Linux-раскладке не обязателен. |
 | `1c-platform-tools.server.platformVersion` | пусто | Версия платформы (`8.3.27.1936` или префикс `8.3.27`). Пусто — наибольшая установленная. |
 | `1c-platform-tools.server.host` | `localhost` | Сетевой интерфейс (`localhost` / `any` / IP). |
 | `1c-platform-tools.server.port` | `8314` | HTTP-порт. |
