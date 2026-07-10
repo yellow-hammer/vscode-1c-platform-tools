@@ -2816,7 +2816,7 @@
           "1c-platform-tools.server.platformPath": {
             "type": "string",
             "default": "",
-            "description": "Каталог установки платформы 1С для поиска ibsrv (автономный сервер). Пусто — определяется автоматически (%PROGRAMFILES%\\1cv8 в Windows, /opt/1C/v8.3/x86_64 в Linux)."
+            "description": "Каталог установки платформы 1С для поиска ibsrv (автономный сервер). Пусто — определяется автоматически (%PROGRAMFILES%\\1cv8 в Windows, /opt/1cv8/x86_64 и /opt/1C/v8.3/x86_64 в Linux). Бинарь ищется в bin/, напрямую в каталоге версии и в самой базе."
           },
           "1c-platform-tools.server.platformVersion": {
             "type": "string",
