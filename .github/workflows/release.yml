@@ -181,6 +181,46 @@ jobs:
       - name: Собрать VSIX
         run: npm run package
 
+      - name: Определить путь к VSIX
+        id: vsix
+        run: |
+          VSIX=$(ls -1 *.vsix | head -n1)
+          echo "path=$VSIX" >> "$GITHUB_OUTPUT"
+          echo "Собран VSIX: $VSIX"
+
+      # Подпись кода через SignPath Foundation.
+      # Шаги выполняются, только если в репозитории заданы переменные SignPath
+      # (Settings → Secrets and variables → Actions → Variables):
+      #   SIGNPATH_ORGANIZATION_ID, SIGNPATH_PROJECT_SLUG, SIGNPATH_SIGNING_POLICY_SLUG
+      # и секрет SIGNPATH_API_TOKEN. Пока они не заданы — релиз идёт без подписи, как раньше.
+      - name: Загрузить неподписанный VSIX (для SignPath)
+        if: vars.SIGNPATH_ORGANIZATION_ID != ''
+        id: upload-unsigned
+        uses: actions/upload-artifact@v4
+        with:
+          name: vsix-unsigned
+          path: ${{ steps.vsix.outputs.path }}
+
+      - name: Подписать VSIX (SignPath Foundation)
+        if: vars.SIGNPATH_ORGANIZATION_ID != ''
+        uses: signpath/github-action-submit-signing-request@v1
+        with:
+          api-token: ${{ secrets.SIGNPATH_API_TOKEN }}
+          organization-id: ${{ vars.SIGNPATH_ORGANIZATION_ID }}
+          project-slug: ${{ vars.SIGNPATH_PROJECT_SLUG }}
+          signing-policy-slug: ${{ vars.SIGNPATH_SIGNING_POLICY_SLUG }}
+          github-artifact-id: ${{ steps.upload-unsigned.outputs.artifact-id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          wait-for-completion: true
+          output-artifact-directory: signed
+
+      - name: Заменить VSIX подписанным
+        if: vars.SIGNPATH_ORGANIZATION_ID != ''
+        run: |
+          SIGNED=$(ls -1 signed/*.vsix | head -n1)
+          cp "$SIGNED" "${{ steps.vsix.outputs.path }}"
+          echo "Подписанный VSIX: $SIGNED -> ${{ steps.vsix.outputs.path }}"
+
       - name: Создать GitHub Release
         uses: softprops/action-gh-release@v2
         with:
@@ -205,6 +245,7 @@ jobs:
         id: publishToOpenVSX
         with:
           pat: ${{ env.OVSX_TOKEN }}
+          extensionFile: ${{ steps.vsix.outputs.path }}
           skipDuplicate: true
 
       - name: Опубликовать в VS Code Marketplace

@@ -196,8 +196,8 @@ export function getAdd1cptSkillsCommandName(): CommandNameAndTitle {
 export function getUpdateOpmCommandName(): CommandNameAndTitle {
 	return {
 		id: '1c-platform-tools.service.updateOpm',
-		name: 'Установить пакетный менеджер OneScript',
-		title: 'Установить пакетный менеджер OneScript'
+		name: 'Установить пакетный менеджер',
+		title: 'Установить пакетный менеджер'
 	};
 }
 
