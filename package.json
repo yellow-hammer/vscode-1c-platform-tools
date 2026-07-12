@@ -1043,7 +1043,7 @@
       },
       {
         "command": "1c-platform-tools.dependencies.updateOpm",
-        "title": "Установить пакетный менеджер OneScript",
+        "title": "Установить пакетный менеджер",
         "category": "1C: Зависимости"
       },
       {
@@ -2286,7 +2286,7 @@
           {
             "id": "step2-dependencies",
             "title": "Установите зависимости",
-            "description": "Git, OneScript, OPM и пакеты из packagedef нужны для скриптов, vrunner и тестов. Выполните команды по порядку.\n\n[Настроить Git](command:1c-platform-tools.dependencies.setupGit)\n[Установить OneScript](command:1c-platform-tools.dependencies.installOscript)\n[Установить пакетный менеджер OneScript](command:1c-platform-tools.dependencies.updateOpm)\n[Установить зависимости](command:1c-platform-tools.dependencies.install)",
+            "description": "Git, OneScript, OPM и пакеты из packagedef нужны для скриптов, vrunner и тестов. Выполните команды по порядку.\n\n[Настроить Git](command:1c-platform-tools.dependencies.setupGit)\n[Установить OneScript](command:1c-platform-tools.dependencies.installOscript)\n[Установить пакетный менеджер](command:1c-platform-tools.dependencies.updateOpm)\n[Установить зависимости](command:1c-platform-tools.dependencies.install)",
             "media": {
               "markdown": "walkthrough/step2-dependencies.md"
             }

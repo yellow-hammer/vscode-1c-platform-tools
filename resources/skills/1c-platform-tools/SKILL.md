@@ -77,7 +77,7 @@ description: Операции с платформой 1С в этом проек
 | Инициализировать структуру проекта     | `1c-platform-tools.dependencies.initializeProjectStructure` |
 | Настроить Git                          | `1c-platform-tools.dependencies.setupGit`                   |
 | Установить OneScript                   | `1c-platform-tools.dependencies.installOscript`             |
-| Установить пакетный менеджер OneScript | `1c-platform-tools.dependencies.updateOpm`                  |
+| Установить пакетный менеджер | `1c-platform-tools.dependencies.updateOpm`                  |
 | Установить зависимости                 | `1c-platform-tools.dependencies.install`                    |
 | Удалить зависимости                    | `1c-platform-tools.dependencies.remove`                     |
 
