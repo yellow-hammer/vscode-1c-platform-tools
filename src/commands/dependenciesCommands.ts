@@ -14,6 +14,7 @@ import { logger } from '../shared/logger';
 import { notifyProjectCreated } from '../shared/projectContext';
 import { PROJECT_STRUCTURE } from '../shared/projectStructure';
 import { getOvmBinaryPath } from '../shared/ovmPaths';
+import { streamDownload } from '../shared/githubReleaseLoader';
 
 const log = logger.scope('commands');
 
@@ -164,59 +165,40 @@ async function waitForOvmInstallComplete(initialMtimeMs: number): Promise<boolea
 	return false;
 }
 
+/** Команды, требующие прав администратора: core.longpaths для системы, LC_ALL для всех пользователей */
+const GIT_ADMIN_COMMANDS = ['git config --system core.longpaths true', 'setx LC_ALL C.UTF-8 /M'];
+
 /**
- * Запускает настройки Git с правами администратора (Windows): core.longpaths true, LC_ALL C.UTF-8.
- * Создаёт временный .cmd, запускает его через Start-Process -Verb RunAs, удаляет файл.
+ * Показывает системные команды (core.longpaths true, LC_ALL C.UTF-8) и предлагает
+ * скопировать их для ручного запуска в терминале, открытом от имени администратора.
  *
- * @returns true при успешном запуске (или после попытки), false при ошибке создания скрипта
+ * Расширение намеренно не повышает права само: запись временного скрипта и его запуск
+ * через Start-Process -Verb RunAs антивирусы распознают как эвристику trojan-downloader.
  */
-async function runGitAdminElevated(): Promise<boolean> {
-	const adminScript = [
-		'@chcp 65001 >nul',
-		'git config --system core.longpaths true',
-		'setx LC_ALL C.UTF-8 /M'
-	].join('\r\n');
-
-	let tempFile: string;
-	try {
-		tempFile = path.join(os.tmpdir(), `1c-platform-tools-git-admin-${Date.now()}.cmd`);
-		await fs.writeFile(tempFile, adminScript, 'utf-8');
-	} catch (error) {
-		const errMsg = (error as Error).message;
-		log.error(`Не удалось создать скрипт для админ-настроек: ${errMsg}`);
-		vscode.window.showErrorMessage(`Не удалось создать временный скрипт: ${errMsg}`);
-		return false;
+async function showGitAdminCommands(): Promise<void> {
+	const commandsText = GIT_ADMIN_COMMANDS.join('\r\n');
+	const action = await vscode.window.showInformationMessage(
+		'Эти настройки требуют прав администратора. Откройте терминал от имени администратора и выполните команды. Скопировать их в буфер обмена?',
+		'Скопировать команды',
+		'Отмена'
+	);
+	if (action !== 'Скопировать команды') {
+		return;
 	}
 
 	try {
-		const psRun = spawnSync(
-			'powershell.exe',
-			[
-				'-NoProfile',
-				'-ExecutionPolicy',
-				'Bypass',
-				'-Command',
-				`Start-Process -FilePath "cmd.exe" -ArgumentList '/c','${tempFile.replaceAll("'", "''")}' -Verb RunAs -Wait`
-			],
-			{ encoding: 'utf8', shell: false }
+		await vscode.env.clipboard.writeText(commandsText);
+		log.info('Команды для настройки с правами администратора скопированы в буфер обмена');
+		vscode.window.showInformationMessage(
+			'Команды скопированы. Вставьте их в терминал, запущенный от имени администратора.'
 		);
-		if (psRun.status !== 0) {
-			log.warn(`Запуск с правами администратора завершился с кодом ${psRun.status}`);
-		}
 	} catch (error) {
 		const errMsg = (error as Error).message;
-		log.error(`Ошибка запуска с правами администратора: ${errMsg}`);
+		log.error(`Не удалось скопировать команды в буфер обмена: ${errMsg}`);
 		vscode.window.showWarningMessage(
-			'Не удалось запустить настройки с правами администратора. Выполните вручную от имени администратора: git config --system core.longpaths true и setx LC_ALL C.UTF-8 /M'
+			`Не удалось скопировать команды. Выполните вручную от имени администратора: ${GIT_ADMIN_COMMANDS.join(' и ')}`
 		);
-	} finally {
-		try {
-			await fs.unlink(tempFile);
-		} catch {
-			// игнорируем ошибку удаления временного файла
-		}
 	}
-	return true;
 }
 
 /**
@@ -427,7 +409,7 @@ export class DependenciesCommands extends BaseCommand {
 		);
 
 		const doAdmin = await vscode.window.showInformationMessage(
-			'Выполнить настройки с правами администратора? (core.longpaths true, LC_ALL C.UTF-8 для системы)',
+			'Показать команды для настроек с правами администратора? (core.longpaths true, LC_ALL C.UTF-8 для системы)',
 			'Да',
 			'Нет'
 		);
@@ -442,10 +424,7 @@ export class DependenciesCommands extends BaseCommand {
 			return;
 		}
 
-		await runGitAdminElevated();
-		vscode.window.showInformationMessage(
-			'Команда с правами администратора выполнена. При запросе UAC было открыто отдельное окно.'
-		);
+		await showGitAdminCommands();
 	}
 
 	/**
@@ -830,22 +809,37 @@ export class DependenciesCommands extends BaseCommand {
 		const { mtimeMs: ovmOscriptMtimeBefore } = getOvmOscriptPathAndMtime();
 
 		if (process.platform === 'win32') {
-			const tempOvm = String.raw`$env:TEMP\ovm.exe`;
+			const tempOvm = path.join(os.tmpdir(), 'ovm.exe');
 			const ovmBinHint = String.raw`$env:LOCALAPPDATA\ovm\current\bin`;
+
+			// OVM скачиваем средствами Node, а не Invoke-WebRequest в PowerShell.
+			// Связку «скачать .exe в оболочке и запустить» антивирусы метят как trojan-downloader.
+			try {
+				await vscode.window.withProgress(
+					{ location: vscode.ProgressLocation.Notification, title: `Загрузка OVM (${ovmVersion})…` },
+					() => streamDownload(OVM_DOWNLOAD_URL, tempOvm, {})
+				);
+			} catch (error) {
+				const errMsg = (error as Error).message;
+				log.error(`Не удалось скачать OVM: ${errMsg}. URL: ${OVM_DOWNLOAD_URL}`);
+				logger.show();
+				vscode.window.showErrorMessage(`Не удалось скачать OVM: ${errMsg}`);
+				return;
+			}
+
+			const ovmQuoted = `'${tempOvm.replaceAll("'", "''")}'`;
 			const psScript = [
 				'$ErrorActionPreference = "Stop"',
-				`Write-Host "Загрузка OVM из ${OVM_DOWNLOAD_URL}..."`,
-				`Invoke-WebRequest -Uri '${OVM_DOWNLOAD_URL}' -OutFile ${tempOvm} -UseBasicParsing`,
 				`Write-Host "Установка OneScript (${ovmVersion})..."`,
-				`& ${tempOvm} install ${ovmVersion}`,
-				`& ${tempOvm} use ${ovmVersion}`,
+				`& ${ovmQuoted} install ${ovmVersion}`,
+				`& ${ovmQuoted} use ${ovmVersion}`,
 				`Write-Host "Готово. Путь OVM: ${ovmBinHint}" -ForegroundColor Green`
 			].join('; ');
 
 			const terminal = vscode.window.createTerminal({
 				name: commandName.title,
 				shellPath: 'powershell.exe',
-				shellArgs: ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-Command', psScript],
+				shellArgs: ['-NoProfile', '-Command', psScript],
 				cwd: workspaceRoot
 			});
 			terminal.show();
