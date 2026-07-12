@@ -2928,17 +2928,17 @@
   },
   "dependencies": {
     "@vscode/debugadapter": "^1.67.0",
-    "cytoscape": "^3.33.2",
+    "cytoscape": "^3.34.0",
     "cytoscape-elk": "^2.3.0",
     "elkjs": "^0.11.1",
     "extract-zip": "^2.0.1",
-    "fast-xml-parser": "^5.8.0",
-    "glob": "^10.5.0",
+    "fast-xml-parser": "^5.10.0",
+    "glob": "^13.0.6",
     "jsonc-parser": "^3.3.1",
-    "minimatch": "^9.0.9"
+    "minimatch": "^10.2.5"
   },
   "devDependencies": {
-    "@types/cytoscape": "^3.21.9",
+    "@types/cytoscape": "^3.31.0",
     "@types/minimatch": "^3.0.5",
     "@types/node": "22.x",
     "@types/vscode": "^1.103.0",
