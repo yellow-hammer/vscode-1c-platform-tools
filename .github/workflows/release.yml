@@ -241,7 +241,7 @@ jobs:
 
       - name: Опубликовать в Open VSX Registry
         if: github.event_name != 'workflow_dispatch' || github.event.inputs.skip_publish != 'true'
-        uses: HaaLeo/publish-vscode-extension@v1
+        uses: HaaLeo/publish-vscode-extension@v2
         id: publishToOpenVSX
         with:
           pat: ${{ env.OVSX_TOKEN }}
@@ -250,7 +250,7 @@ jobs:
 
       - name: Опубликовать в VS Code Marketplace
         if: github.event_name != 'workflow_dispatch' || github.event.inputs.skip_publish != 'true'
-        uses: HaaLeo/publish-vscode-extension@v1
+        uses: HaaLeo/publish-vscode-extension@v2
         with:
           pat: ${{ env.VSCE_PAT }}
           registryUrl: https://marketplace.visualstudio.com
