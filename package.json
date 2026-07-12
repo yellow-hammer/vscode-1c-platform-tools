@@ -2939,15 +2939,15 @@
   },
   "devDependencies": {
     "@types/cytoscape": "^3.31.0",
-    "@types/minimatch": "^3.0.5",
-    "@types/node": "22.x",
-    "@types/vscode": "^1.103.0",
-    "@vscode/test-cli": "^0.0.12",
-    "@vscode/test-electron": "^2.5.2",
-    "@vscode/vsce": "^3.9.1",
+    "@types/minimatch": "^6.0.0",
+    "@types/node": "26.x",
+    "@types/vscode": "^1.125.0",
+    "@vscode/test-cli": "^0.0.15",
+    "@vscode/test-electron": "^3.0.0",
+    "@vscode/vsce": "^3.9.2",
     "esbuild": "^0.28.1",
-    "eslint": "^10.0.1",
+    "eslint": "^10.7.0",
     "typescript": "^5.9.3",
-    "typescript-eslint": "^8.48.1"
+    "typescript-eslint": "^8.63.0"
   }
 }
