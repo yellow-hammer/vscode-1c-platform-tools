@@ -355,12 +355,12 @@ export function normalizeArgForShell(arg: string, shellType: ShellType): string 
 
 /**
  * Формирует префикс команды для установки кодировки UTF-8 в зависимости от оболочки
- * 
+ *
  * Для Windows:
  * - PowerShell: использует [Console]::OutputEncoding
  * - cmd: использует chcp 65001
- * - bash: кодировка обычно уже настроена, префикс не нужен
- * 
+ * - bash (Git Bash/MSYS): использует chcp.com 65001 — консоль общая с Windows
+ *
  * Для Unix-систем: кодировка обычно уже настроена, префикс не нужен
  * 
  * @param shellType - Тип оболочки терминала
@@ -379,9 +379,11 @@ function getEncodingPrefix(shellType: ShellType): string {
 		// В cmd используем chcp для установки кодировки UTF-8
 		return 'chcp 65001 >nul && ';
 	}
-	
-	// Для bash и других оболочек на Windows (Git Bash, WSL) кодировка обычно уже настроена
-	return '';
+
+	// Git Bash/MSYS работают поверх той же Windows-консоли: без chcp oscript выводит кириллицу
+	// в OEM-кодировке. Builtin chcp из bash недоступен — только chcp.com; ошибки глушим,
+	// чтобы отсутствие chcp.com в PATH (например, WSL без interop) не ломало команду.
+	return 'chcp.com 65001 >/dev/null 2>&1; ';
 }
 
 /**

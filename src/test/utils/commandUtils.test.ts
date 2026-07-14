@@ -72,9 +72,9 @@ suite('commandUtils', () => {
 		assert.ok(result.includes('vrunner.bat'), 'Команда должна содержать путь к исполняемому файлу');
 	});
 
-	test('buildCommand формирует команду для bash без кодировки', () => {
+	winTest('buildCommand формирует команду для bash с кодировкой chcp.com', () => {
 		const result = buildCommand('vrunner', ['init-dev'], 'bash');
-		assert.ok(!result.includes('chcp'), 'Команда для bash не должна содержать chcp');
+		assert.ok(result.includes('chcp.com 65001 >/dev/null'), 'Команда для bash должна содержать chcp.com: консоль общая с Windows');
 		assert.ok(!result.includes('[Console]::OutputEncoding'), 'Команда для bash не должна содержать установку кодировки PowerShell');
 		assert.ok(result.includes('vrunner'), 'Команда должна содержать путь к исполняемому файлу');
 	});

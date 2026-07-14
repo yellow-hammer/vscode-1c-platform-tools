@@ -1661,7 +1661,10 @@ export class VRunnerManager {
 		const vrunnerPath = this.getVRunnerPath();
 		const argsString = escapeCommandArgs(args);
 		const quotedPath = vrunnerPath.includes(' ') ? `"${vrunnerPath}"` : vrunnerPath;
-		return { command: `${quotedPath} ${argsString}` };
+		// Задачи выполняются дочерним процессом через cmd (spawn shell:true) независимо от
+		// профиля терминала: без chcp oscript выводит кириллицу в OEM-кодировке.
+		const encodingPrefix = process.platform === 'win32' ? 'chcp 65001 >nul && ' : '';
+		return { command: `${encodingPrefix}${quotedPath} ${argsString}` };
 	}
 
 	/**
