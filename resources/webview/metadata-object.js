@@ -502,7 +502,7 @@
 				const rows = selected
 					.map(
 						(item, itemIdx) => `<div class="edit-ref-item">
-							<span class="edit-ref-item-label">${escapeHtml(labelByValue[item] || toDisplayText(item))}</span>
+							<span class="edit-ref-item-label" title="${escapeHtml(toDisplayText(item))}">${escapeHtml(labelByValue[item] || toDisplayText(item))}</span>
 							<span class="edit-ref-item-actions">
 								<button type="button" class="edit-ref-move" data-ref-move-path="${escapeHtml(field.path)}" data-ref-move-index="${itemIdx}" data-ref-move-dir="-1" title="Вверх"${itemIdx === 0 ? ' disabled' : disabled}>↑</button>
 								<button type="button" class="edit-ref-move" data-ref-move-path="${escapeHtml(field.path)}" data-ref-move-index="${itemIdx}" data-ref-move-dir="1" title="Вниз"${itemIdx === selected.length - 1 ? ' disabled' : disabled}>↓</button>

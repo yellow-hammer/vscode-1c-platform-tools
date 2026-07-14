@@ -358,10 +358,15 @@ body {
 
 .edit-row {
 	display: grid;
-	grid-template-columns: minmax(160px, 220px) 1fr;
+	grid-template-columns: minmax(160px, 220px) minmax(0, 1fr);
 	align-items: center;
 	gap: 8px;
 	min-height: 28px;
+}
+
+/* Без min-width колонка растягивалась под самую длинную опцию select. */
+.edit-control {
+	min-width: 0;
 }
 
 .edit-row:has(.edit-ref-list) {
@@ -510,8 +515,11 @@ body {
 }
 
 .edit-ref-item-label {
-	overflow-wrap: anywhere;
 	min-width: 0;
+	flex: 1 1 auto;
+	overflow: hidden;
+	white-space: nowrap;
+	text-overflow: ellipsis;
 }
 
 .edit-ref-remove {
