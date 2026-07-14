@@ -110,12 +110,12 @@
 			return;
 		}
 		for (const row of editedStructure.attributes) {
-			fn(row, null);
+			fn(row);
 		}
 		for (const ts of editedStructure.tabularSections) {
-			fn(ts, null);
+			fn(ts);
 			for (const row of ts.attributes) {
-				fn(row, ts);
+				fn(row);
 			}
 		}
 	}
