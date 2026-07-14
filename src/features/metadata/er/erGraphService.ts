@@ -14,6 +14,7 @@ import * as fssync from 'node:fs';
 import * as path from 'node:path';
 import * as vscode from 'vscode';
 import { logger } from '../../../shared/logger';
+import { configuredSourceDirs } from '../../../shared/sourcePaths';
 import { ensureMdSparrowRuntime } from '../mdSparrowBootstrap';
 import { isMdSparrowUnknownCommandError, MdSparrowOutdatedError } from '../mdSparrowErrors';
 import { runMdSparrowParamsRead } from '../mdSparrowParams';
@@ -47,16 +48,17 @@ function resolveCacheFile(context: vscode.ExtensionContext): string {
 	return path.join(storageUri.fsPath, 'er-cache', 'er-graph.json');
 }
 
-/** Список «интересных» каталогов: src/cf, src/cfe/*, src/erf/*, src/epf/*. */
+/** Список «интересных» каталогов по настройкам paths.*: cf, cfe/*, erf/*, epf/*. */
 async function collectGraphRoots(workspaceRoot: string): Promise<string[]> {
+	const dirs = configuredSourceDirs();
 	const roots: string[] = [];
-	const cfRoot = path.join(workspaceRoot, 'src', 'cf');
+	const cfRoot = path.join(workspaceRoot, ...dirs.cf.split('/'));
 	if (fssync.existsSync(cfRoot)) {
 		roots.push(cfRoot);
 	}
-	const subRoots = ['cfe', 'erf', 'epf'];
+	const subRoots = [dirs.cfe, dirs.erf, dirs.epf];
 	for (const seg of subRoots) {
-		const dir = path.join(workspaceRoot, 'src', seg);
+		const dir = path.join(workspaceRoot, ...seg.split('/'));
 		if (!fssync.existsSync(dir)) {
 			continue;
 		}
@@ -220,9 +222,17 @@ export async function loadErGraph(
 		return { graph: cached, fromCache: true, fingerprint };
 	}
 	options.progress?.report({ message: 'ER: построение графа (md-sparrow cf-md-graph)' });
+	const graphDirs = configuredSourceDirs();
 	const res = await runMdSparrowParamsRead(
 		runtime,
-		{ op: 'cf-md-graph', projectRoot: workspaceRoot },
+		{
+			op: 'cf-md-graph',
+			projectRoot: workspaceRoot,
+			cfDir: graphDirs.cf,
+			cfeDir: graphDirs.cfe,
+			epfDir: graphDirs.epf,
+			erfDir: graphDirs.erf,
+		},
 		{ cwd: workspaceRoot, token: options.token }
 	);
 	if (res.exitCode !== 0) {

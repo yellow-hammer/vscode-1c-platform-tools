@@ -469,7 +469,9 @@ export function registerMetadataFeature(
 		for (;;) {
 			const candidate = `${prefix}${nextIndex}`;
 			if (!existingNames.includes(candidate)) {
-				const schema = await pickSchemaFlagInitEmptyCf(path.join(workspaceRoot, 'src', 'cf', 'Configuration.xml'));
+				const schema = await pickSchemaFlagInitEmptyCf(
+					metadataTreeProvider.configurationXml ?? path.join(workspaceRoot, 'src', 'cf', 'Configuration.xml')
+				);
 				if (!schema) {
 					return;
 				}
@@ -1837,6 +1839,7 @@ export function registerMetadataFeature(
 						schemaFlag: schemaFlagFallback,
 						cwd: node.metadataRootAbs ?? path.dirname(node.resourceUri.fsPath),
 						objectType: node.objectType,
+						enqueueMutation: runMdSparrowMutation,
 					}
 				);
 			}

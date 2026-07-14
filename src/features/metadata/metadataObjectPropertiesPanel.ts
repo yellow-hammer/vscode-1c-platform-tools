@@ -1,5 +1,6 @@
 /**
- * Панель свойств объекта метаданных (webview): только чтение через md-sparrow.
+ * Панель свойств объекта метаданных (webview): чтение через md-sparrow,
+ * для справочника — редактирование скалярных свойств с записью `cf-md-object-set`.
  * @module metadataObjectPropertiesPanel
  */
 
@@ -8,7 +9,8 @@ import * as vscode from 'vscode';
 import { ensureMdSparrowRuntime } from './mdSparrowBootstrap';
 import { logger } from '../../shared/logger';
 import { mdSparrowSchemaFlagFromConfigurationXml } from './mdSparrowSchemaVersion';
-import { runMdSparrowParamsRead, type MdSparrowParams } from './mdSparrowParams';
+import { runMdSparrowParamsMutation, runMdSparrowParamsRead, type MdSparrowParams } from './mdSparrowParams';
+import { applyEditedScalars, buildCatalogEditTabs, type MetadataEditTabSpec } from './metadataObjectEditSpec';
 import {
 	metadataObjectPropertyProfileByType,
 	type MetadataObjectPropertyProfile,
@@ -60,8 +62,19 @@ interface MetadataPanelTab {
 	id: string;
 	title: string;
 	count?: number;
-	render: 'overview' | 'named' | 'tabular' | 'list' | 'kv' | 'json' | 'subsystemContent';
+	render: 'overview' | 'named' | 'tabular' | 'list' | 'kv' | 'json' | 'subsystemContent' | 'edit';
 	data?: unknown;
+}
+
+interface MetadataPanelEditableModel {
+	props: MdObjectPropertiesDto;
+	tabs: MetadataEditTabSpec[];
+}
+
+/** Списки структуры для вкладки «Данные» (реквизиты и табличные части с операциями). */
+interface MetadataPanelStructureLists {
+	attributes: MetadataNamedRow[];
+	tabularSections: MetadataTabularSectionRow[];
 }
 
 interface MetadataNamedRow {
@@ -93,6 +106,8 @@ interface MetadataPanelViewModel {
 	warnings: string[];
 	tabs: MetadataPanelTab[];
 	technicalJson: string;
+	editable?: MetadataPanelEditableModel;
+	structureLists?: MetadataPanelStructureLists;
 }
 
 interface OpenMetadataObjectPropertiesParams {
@@ -101,6 +116,8 @@ interface OpenMetadataObjectPropertiesParams {
 	cfgPath?: string;
 	schemaFlag?: string;
 	objectType?: string;
+	/** Общая очередь мутаций md-sparrow; без неё сохранение выполняется вне очереди. */
+	enqueueMutation?: <T>(fn: () => Promise<T>) => Promise<T>;
 }
 
 const OBJECT_TYPE_ALIASES: Record<string, string> = {
@@ -945,12 +962,76 @@ function buildProfileTabs(
 	return tabs;
 }
 
+/** Вкладки профиля, замещённые редактируемыми (формы, команды, реквизиты и ТЧ уходят в edit-вкладки). */
+const TAB_IDS_REPLACED_BY_EDIT = new Set<string>([
+	'overview',
+	'section_forms',
+	'section_commands',
+	'attributes',
+	'tabularSections',
+]);
+
 function buildTabs(
 	props: MdObjectPropertiesDto | null,
 	structure: MdObjectStructureDto | null,
-	objectType: string
+	objectType: string,
+	editable?: MetadataPanelEditableModel
 ): MetadataPanelTab[] {
-	return buildProfileTabs(objectType, props, structure);
+	const profileTabs = buildProfileTabs(objectType, props, structure);
+	if (!editable) {
+		return profileTabs;
+	}
+	const editTabs: MetadataPanelTab[] = editable.tabs.map((tab) => ({
+		id: tab.id,
+		title: tab.title,
+		render: 'edit',
+	}));
+	return [...editTabs, ...profileTabs.filter((tab) => !TAB_IDS_REPLACED_BY_EDIT.has(tab.id))];
+}
+
+function rawNameList(value: unknown): string[] {
+	if (!Array.isArray(value)) {
+		return [];
+	}
+	const out: string[] = [];
+	for (const item of value) {
+		if (typeof item === 'string' && item.trim().length > 0) {
+			out.push(item.trim());
+		} else if (isRecord(item) && typeof item.name === 'string' && item.name.trim().length > 0) {
+			out.push(item.name.trim());
+		}
+	}
+	return Array.from(new Set(out));
+}
+
+function buildEditableModel(
+	props: MdObjectPropertiesDto | null,
+	structure: MdObjectStructureDto | null,
+	internalName: string,
+	catalogNames: readonly string[] = [],
+	documentNames: readonly string[] = []
+): MetadataPanelEditableModel | undefined {
+	if (!props || props.kind !== 'catalog' || !isRecord(props.catalog)) {
+		return undefined;
+	}
+	const catalog = props.catalog as Record<string, unknown>;
+	if (catalog.objectBelonging === 'ADOPTED') {
+		// Заимствованные объекты расширений: свои правила состава XML, редактирование пока не включаем.
+		return undefined;
+	}
+	return {
+		props,
+		tabs: buildCatalogEditTabs({
+			internalName,
+			formNames: rawNameList(structure?.forms),
+			commandNames: rawNameList(structure?.commands),
+			catalogNames,
+			documentNames,
+			attributeNames: rawNameList(props.attributes),
+			hasOwners: Array.isArray(catalog.owners) && catalog.owners.length > 0,
+			hierarchical: catalog.hierarchical === true,
+		}),
+	};
 }
 
 /**
@@ -962,18 +1043,19 @@ export function buildMetadataObjectPropertiesTabsForTest(
 	structure: unknown
 ): MetadataPanelTab[] {
 	const normalizedType = normalizeObjectType(objectType);
-	return buildTabs(
-		(isRecord(props) ? (props as unknown as MdObjectPropertiesDto) : null),
-		(isRecord(structure) ? (structure as unknown as MdObjectStructureDto) : null),
-		normalizedType
-	);
+	const propsDto = isRecord(props) ? (props as unknown as MdObjectPropertiesDto) : null;
+	const structureDto = isRecord(structure) ? (structure as unknown as MdObjectStructureDto) : null;
+	const editable = buildEditableModel(propsDto, structureDto, propsDto?.internalName ?? '');
+	return buildTabs(propsDto, structureDto, normalizedType, editable);
 }
 
 function buildViewModel(
 	params: OpenMetadataObjectPropertiesParams,
 	props: MdObjectPropertiesDto | null,
 	structure: MdObjectStructureDto | null,
-	warnings: string[]
+	warnings: string[],
+	catalogNames: readonly string[] = [],
+	documentNames: readonly string[] = []
 ): MetadataPanelViewModel {
 	const declaredObjectType = normalizeObjectType(params.objectType ?? '');
 	const internalName = props?.internalName || structure?.internalName || path.parse(params.objectXmlFsPath).name;
@@ -983,6 +1065,13 @@ function buildViewModel(
 		properties: props,
 		structure,
 	};
+	const editable = buildEditableModel(props, structure, internalName, catalogNames, documentNames);
+	const structureLists = editable
+		? {
+				attributes: props?.attributes ? asNamedRows(props.attributes) : asNamedRows(structure?.attributes),
+				tabularSections: mergeTabularSections(props?.tabularSections, structure?.tabularSections),
+			}
+		: undefined;
 	return {
 		objectKind,
 		objectKindLabel: kindLabel(objectKind, objectType),
@@ -992,8 +1081,10 @@ function buildViewModel(
 		comment: props?.comment ?? '',
 		objectXmlPath: params.objectXmlFsPath,
 		warnings,
-		tabs: buildTabs(props, structure, objectType),
+		tabs: buildTabs(props, structure, objectType, editable),
 		technicalJson: JSON.stringify(technicalPayload, null, 2),
+		editable,
+		structureLists,
 	};
 }
 
@@ -1014,7 +1105,10 @@ export async function openMetadataObjectPropertiesEditor(
 	}
 
 	const runtime = await ensureMdSparrowRuntime(context);
-	const [propsResult, structureResult] = await Promise.all([
+	const wantsCatalogCandidates =
+		Boolean(params.cfgPath) && normalizeObjectType(params.objectType ?? '') === 'Catalog';
+	const noCandidates = Promise.resolve({ ok: false as const, error: '' });
+	const [propsResult, structureResult, catalogNamesResult, documentNamesResult] = await Promise.all([
 		runMdSparrowJson<MdObjectPropertiesDto>(
 			runtime,
 			{ op: 'cf-md-object-get', objectXml: params.objectXmlFsPath, schemaVersion: schema },
@@ -1025,6 +1119,20 @@ export async function openMetadataObjectPropertiesEditor(
 			{ op: 'cf-md-object-structure-get', objectXml: params.objectXmlFsPath, schemaVersion: schema },
 			params.cwd
 		),
+		wantsCatalogCandidates
+			? runMdSparrowJson<string[]>(
+					runtime,
+					{ op: 'cf-list-catalogs', configurationXml: params.cfgPath, schemaVersion: schema },
+					params.cwd
+				)
+			: noCandidates,
+		wantsCatalogCandidates
+			? runMdSparrowJson<string[]>(
+					runtime,
+					{ op: 'cf-list-child-objects', configurationXml: params.cfgPath, tag: 'Document', schemaVersion: schema },
+					params.cwd
+				)
+			: noCandidates,
 	]);
 
 	const { propsDto, structureDto, warnings, fatalReason } = collectMetadataReadState(propsResult, structureResult);
@@ -1035,7 +1143,10 @@ export async function openMetadataObjectPropertiesEditor(
 		return;
 	}
 
-	const viewModel = buildViewModel(params, propsDto, structureDto, warnings);
+	const catalogNames = catalogNamesResult.ok && Array.isArray(catalogNamesResult.value) ? catalogNamesResult.value : [];
+	const documentNames =
+		documentNamesResult.ok && Array.isArray(documentNamesResult.value) ? documentNamesResult.value : [];
+	const viewModel = buildViewModel(params, propsDto, structureDto, warnings, catalogNames, documentNames);
 	const title = panelTitleForKind(viewModel.objectKind, viewModel.internalName);
 	const webviewRoot = vscode.Uri.joinPath(context.extensionUri, 'resources', 'webview');
 	const panel = vscode.window.createWebviewPanel('1cMetadataObjectProperties', title, vscode.ViewColumn.Active, {
@@ -1044,6 +1155,10 @@ export async function openMetadataObjectPropertiesEditor(
 		localResourceRoots: [webviewRoot],
 	});
 
+	if (viewModel.editable) {
+		registerEditableSaveHandler(context, panel, params, runtime, schema, viewModel.editable, catalogNames, documentNames);
+	}
+
 	try {
 		panel.webview.html = await loadMetadataObjectHtml(panel.webview, context.extensionUri, viewModel);
 	} catch (e) {
@@ -1051,6 +1166,411 @@ export async function openMetadataObjectPropertiesEditor(
 		void vscode.window.showErrorMessage('Не удалось загрузить панель свойств.');
 		panel.dispose();
 	}
+}
+
+interface MetadataPanelSaveMessage {
+	type?: string;
+	payload?: unknown;
+	structure?: unknown;
+	module?: string;
+}
+
+const IDENTIFIER_RE = /^[A-Za-zА-ЯЁа-яё_][A-Za-zА-ЯЁа-яё0-9_]*$/;
+
+/** Правка одной строки структуры из webview: originalName нет — строка новая. */
+interface MetadataStructRowEdit {
+	originalName?: string;
+	name: string;
+	synonymRu: string;
+	deleted: boolean;
+}
+
+interface MetadataTabularSectionEdit extends MetadataStructRowEdit {
+	attributes: MetadataStructRowEdit[];
+}
+
+interface MetadataStructureEdits {
+	attributes: MetadataStructRowEdit[];
+	tabularSections: MetadataTabularSectionEdit[];
+}
+
+function parseStructRow(value: unknown): MetadataStructRowEdit | null {
+	if (!isRecord(value)) {
+		return null;
+	}
+	const originalName =
+		typeof value.originalName === 'string' && value.originalName.length > 0 ? value.originalName : undefined;
+	return {
+		originalName,
+		name: typeof value.name === 'string' ? value.name.trim() : '',
+		synonymRu: typeof value.synonymRu === 'string' ? value.synonymRu : '',
+		deleted: value.deleted === true,
+	};
+}
+
+export function parseStructureEdits(value: unknown): MetadataStructureEdits | null {
+	if (!isRecord(value)) {
+		return null;
+	}
+	const attributes: MetadataStructRowEdit[] = [];
+	if (Array.isArray(value.attributes)) {
+		for (const raw of value.attributes) {
+			const row = parseStructRow(raw);
+			if (row) {
+				attributes.push(row);
+			}
+		}
+	}
+	const tabularSections: MetadataTabularSectionEdit[] = [];
+	if (Array.isArray(value.tabularSections)) {
+		for (const raw of value.tabularSections) {
+			const row = parseStructRow(raw);
+			if (!row) {
+				continue;
+			}
+			const nested: MetadataStructRowEdit[] = [];
+			if (isRecord(raw) && Array.isArray(raw.attributes)) {
+				for (const rawAttr of raw.attributes) {
+					const attr = parseStructRow(rawAttr);
+					if (attr) {
+						nested.push(attr);
+					}
+				}
+			}
+			tabularSections.push({ ...row, attributes: nested });
+		}
+	}
+	return { attributes, tabularSections };
+}
+
+/** @returns текст первой ошибки валидации имён; null — правки корректны. */
+export function validateStructureEdits(edits: MetadataStructureEdits): string | null {
+	const topSeen = new Set<string>();
+	for (const row of [...edits.attributes, ...edits.tabularSections]) {
+		if (row.deleted) {
+			continue;
+		}
+		if (!IDENTIFIER_RE.test(row.name)) {
+			return `Некорректное имя: «${row.name || '(пусто)'}»`;
+		}
+		const key = row.name.toLowerCase();
+		if (topSeen.has(key)) {
+			return `Дублируется имя «${row.name}»`;
+		}
+		topSeen.add(key);
+	}
+	for (const ts of edits.tabularSections) {
+		if (ts.deleted) {
+			continue;
+		}
+		const nestedSeen = new Set<string>();
+		for (const row of ts.attributes) {
+			if (row.deleted) {
+				continue;
+			}
+			if (!IDENTIFIER_RE.test(row.name)) {
+				return `Некорректное имя реквизита ТЧ «${ts.name}»: «${row.name || '(пусто)'}»`;
+			}
+			const key = row.name.toLowerCase();
+			if (nestedSeen.has(key)) {
+				return `Дублируется имя «${row.name}» в ТЧ «${ts.name}»`;
+			}
+			nestedSeen.add(key);
+		}
+	}
+	return null;
+}
+
+/** Операции структуры из правок: переименования, затем удаления, затем добавления. */
+export function structOpsFromEdits(edits: MetadataStructureEdits, objectXml: string, schema: string): MdSparrowParams[] {
+	const ops: MdSparrowParams[] = [];
+	const base = { objectXml, schemaVersion: schema };
+	for (const ts of edits.tabularSections) {
+		if (!ts.deleted && ts.originalName && ts.name !== ts.originalName) {
+			ops.push({ op: 'cf-md-tabular-section-rename', ...base, oldName: ts.originalName, newName: ts.name });
+		}
+	}
+	for (const row of edits.attributes) {
+		if (!row.deleted && row.originalName && row.name !== row.originalName) {
+			ops.push({ op: 'cf-md-attribute-rename', ...base, oldName: row.originalName, newName: row.name });
+		}
+	}
+	for (const ts of edits.tabularSections) {
+		if (ts.deleted) {
+			continue;
+		}
+		for (const row of ts.attributes) {
+			if (!row.deleted && row.originalName && row.name !== row.originalName) {
+				ops.push({
+					op: 'cf-md-tabular-attribute-rename',
+					...base,
+					tabularSection: ts.name,
+					oldName: row.originalName,
+					newName: row.name,
+				});
+			}
+		}
+	}
+	for (const row of edits.attributes) {
+		if (row.deleted && row.originalName) {
+			ops.push({ op: 'cf-md-attribute-delete', ...base, name: row.originalName });
+		}
+	}
+	for (const ts of edits.tabularSections) {
+		if (ts.deleted) {
+			if (ts.originalName) {
+				ops.push({ op: 'cf-md-tabular-section-delete', ...base, name: ts.originalName });
+			}
+			continue;
+		}
+		for (const row of ts.attributes) {
+			if (row.deleted && row.originalName) {
+				ops.push({ op: 'cf-md-tabular-attribute-delete', ...base, tabularSection: ts.name, name: row.originalName });
+			}
+		}
+	}
+	for (const row of edits.attributes) {
+		if (!row.deleted && !row.originalName) {
+			ops.push({ op: 'cf-md-attribute-add', ...base, name: row.name });
+		}
+	}
+	for (const ts of edits.tabularSections) {
+		if (ts.deleted) {
+			continue;
+		}
+		if (!ts.originalName) {
+			ops.push({ op: 'cf-md-tabular-section-add', ...base, name: ts.name });
+		}
+		for (const row of ts.attributes) {
+			if (!row.deleted && !row.originalName) {
+				ops.push({ op: 'cf-md-tabular-attribute-add', ...base, tabularSection: ts.name, name: row.name });
+			}
+		}
+	}
+	// Порядок: блоки переставляются между собой по финальным именам (после rename/add/delete).
+	const attrOrder = edits.attributes.filter((row) => !row.deleted).map((row) => row.name);
+	if (attrOrder.length > 1) {
+		ops.push({ op: 'cf-md-attribute-reorder', ...base, payloadJson: JSON.stringify(attrOrder) });
+	}
+	const tsOrder = edits.tabularSections.filter((ts) => !ts.deleted).map((ts) => ts.name);
+	if (tsOrder.length > 1) {
+		ops.push({ op: 'cf-md-tabular-section-reorder', ...base, payloadJson: JSON.stringify(tsOrder) });
+	}
+	for (const ts of edits.tabularSections) {
+		if (ts.deleted) {
+			continue;
+		}
+		const nestedOrder = ts.attributes.filter((row) => !row.deleted).map((row) => row.name);
+		if (nestedOrder.length > 1) {
+			ops.push({
+				op: 'cf-md-tabular-attribute-reorder',
+				...base,
+				tabularSection: ts.name,
+				payloadJson: JSON.stringify(nestedOrder),
+			});
+		}
+	}
+	return ops;
+}
+
+/** Переносит синонимы реквизитов и ТЧ из правок в DTO (перечитанный после операций структуры). */
+export function applySynonymEdits(dto: Record<string, unknown>, edits: MetadataStructureEdits): void {
+	const attrSyn = new Map<string, string>();
+	for (const row of edits.attributes) {
+		if (!row.deleted && row.name) {
+			attrSyn.set(row.name, row.synonymRu);
+		}
+	}
+	if (Array.isArray(dto.attributes)) {
+		for (const raw of dto.attributes) {
+			if (isRecord(raw) && typeof raw.name === 'string' && attrSyn.has(raw.name)) {
+				raw.synonymRu = attrSyn.get(raw.name);
+			}
+		}
+	}
+	const tsSyn = new Map<string, string>();
+	for (const ts of edits.tabularSections) {
+		if (!ts.deleted && ts.name) {
+			tsSyn.set(ts.name, ts.synonymRu);
+		}
+	}
+	if (Array.isArray(dto.tabularSections)) {
+		for (const raw of dto.tabularSections) {
+			if (isRecord(raw) && typeof raw.name === 'string' && tsSyn.has(raw.name)) {
+				raw.synonymRu = tsSyn.get(raw.name);
+			}
+		}
+	}
+}
+
+const MODULE_FILE_BY_KIND: Record<string, string> = {
+	object: 'ObjectModule.bsl',
+	manager: 'ManagerModule.bsl',
+};
+
+async function openObjectModuleFromPanel(objectXmlFsPath: string, internalName: string, moduleKind: string): Promise<void> {
+	const fileName = MODULE_FILE_BY_KIND[moduleKind];
+	if (!fileName) {
+		return;
+	}
+	const modulePath = path.join(path.dirname(objectXmlFsPath), internalName, 'Ext', fileName);
+	const uri = vscode.Uri.file(modulePath);
+	try {
+		await vscode.workspace.fs.stat(uri);
+	} catch {
+		await vscode.workspace.fs.createDirectory(vscode.Uri.file(path.dirname(modulePath)));
+		await vscode.workspace.fs.writeFile(uri, new Uint8Array());
+		void vscode.window.showInformationMessage(`Создан пустой модуль: ${fileName}`);
+	}
+	const doc = await vscode.workspace.openTextDocument(uri);
+	await vscode.window.showTextDocument(doc, { preview: false });
+}
+
+function registerEditableSaveHandler(
+	context: vscode.ExtensionContext,
+	panel: vscode.WebviewPanel,
+	params: OpenMetadataObjectPropertiesParams,
+	runtime: Awaited<ReturnType<typeof ensureMdSparrowRuntime>>,
+	schema: string,
+	editable: MetadataPanelEditableModel,
+	catalogNames: readonly string[],
+	documentNames: readonly string[]
+): void {
+	const enqueue = params.enqueueMutation ?? (<T,>(fn: () => Promise<T>): Promise<T> => fn());
+	let saving = false;
+
+	async function rereadAndPushModel(): Promise<void> {
+		const [propsResult, structureResult] = await Promise.all([
+			runMdSparrowJson<MdObjectPropertiesDto>(
+				runtime,
+				{ op: 'cf-md-object-get', objectXml: params.objectXmlFsPath, schemaVersion: schema },
+				params.cwd
+			),
+			runMdSparrowJson<MdObjectStructureDto>(
+				runtime,
+				{ op: 'cf-md-object-structure-get', objectXml: params.objectXmlFsPath, schemaVersion: schema },
+				params.cwd
+			),
+		]);
+		if (!propsResult.ok) {
+			return;
+		}
+		const vm = buildViewModel(
+			params,
+			propsResult.value,
+			structureResult.ok ? structureResult.value : null,
+			[],
+			catalogNames,
+			documentNames
+		);
+		if (vm.editable) {
+			editable.props = vm.editable.props;
+			editable.tabs = vm.editable.tabs;
+		}
+		void panel.webview.postMessage({
+			type: 'modelUpdated',
+			tabs: vm.tabs,
+			props: editable.props,
+			editableTabs: editable.tabs,
+			structureLists: vm.structureLists,
+		});
+	}
+
+	async function runOneMutation(opParams: MdSparrowParams): Promise<string | null> {
+		const res = await enqueue(() => runMdSparrowParamsMutation(runtime, opParams, { cwd: params.cwd }));
+		if (res.exitCode !== 0) {
+			const errText = (res.stderr.trim() || res.stdout.trim() || `код ${res.exitCode}`).slice(0, ERR_PREVIEW);
+			log.error(`${opParams.op}: ${errText}`);
+			return errText;
+		}
+		return null;
+	}
+
+	async function handleSave(msg: MetadataPanelSaveMessage): Promise<void> {
+		const structureEdits = parseStructureEdits(msg.structure);
+		if (structureEdits) {
+			const validationError = validateStructureEdits(structureEdits);
+			if (validationError) {
+				void panel.webview.postMessage({ type: 'saved', ok: false, error: validationError });
+				return;
+			}
+		}
+		const ops = structureEdits ? structOpsFromEdits(structureEdits, params.objectXmlFsPath, schema) : [];
+		let structApplied = false;
+		for (const opParams of ops) {
+			const error = await runOneMutation(opParams);
+			if (error) {
+				void panel.webview.postMessage({ type: 'saved', ok: false, error: `${opParams.op}: ${error}` });
+				if (structApplied) {
+					await rereadAndPushModel();
+					void vscode.commands.executeCommand('1c-platform-tools.metadata.refresh');
+				}
+				return;
+			}
+			structApplied = true;
+		}
+
+		let baseProps = editable.props;
+		if (ops.length > 0) {
+			const reread = await runMdSparrowJson<MdObjectPropertiesDto>(
+				runtime,
+				{ op: 'cf-md-object-get', objectXml: params.objectXmlFsPath, schemaVersion: schema },
+				params.cwd
+			);
+			if (reread.ok) {
+				baseProps = reread.value;
+			}
+		}
+		const dto = applyEditedScalars(baseProps as unknown as Record<string, unknown>, msg.payload, editable.tabs);
+		if (structureEdits) {
+			applySynonymEdits(dto, structureEdits);
+		}
+		const error = await runOneMutation({
+			op: 'cf-md-object-set',
+			objectXml: params.objectXmlFsPath,
+			schemaVersion: schema,
+			payloadJson: JSON.stringify(dto),
+		});
+		if (error) {
+			void panel.webview.postMessage({ type: 'saved', ok: false, error });
+			if (structApplied) {
+				await rereadAndPushModel();
+				void vscode.commands.executeCommand('1c-platform-tools.metadata.refresh');
+			}
+			return;
+		}
+		void panel.webview.postMessage({ type: 'saved', ok: true });
+		await rereadAndPushModel();
+		void vscode.commands.executeCommand('1c-platform-tools.metadata.refresh');
+	}
+
+	panel.webview.onDidReceiveMessage(
+		async (msg: MetadataPanelSaveMessage) => {
+			if (!msg) {
+				return;
+			}
+			if (msg.type === 'openModule' && typeof msg.module === 'string') {
+				try {
+					await openObjectModuleFromPanel(params.objectXmlFsPath, editable.props.internalName, msg.module);
+				} catch (e) {
+					const errMsg = e instanceof Error ? e.message : String(e);
+					void vscode.window.showErrorMessage(`Не удалось открыть модуль: ${errMsg}`.slice(0, ERR_PREVIEW));
+				}
+				return;
+			}
+			if (msg.type !== 'save' || saving) {
+				return;
+			}
+			saving = true;
+			try {
+				await handleSave(msg);
+			} finally {
+				saving = false;
+			}
+		},
+		undefined,
+		context.subscriptions
+	);
 }
 
 async function loadMetadataObjectHtml(
