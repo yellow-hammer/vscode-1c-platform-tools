@@ -28,6 +28,266 @@
 	const tabs = Array.isArray(model.tabs) ? model.tabs : [];
 	let activeTabId = tabs[0] ? tabs[0].id : '';
 	let technicalVisible = false;
+
+	const vscodeApi = typeof acquireVsCodeApi === 'function' ? acquireVsCodeApi() : null;
+	const editable = model.editable && typeof model.editable === 'object' ? model.editable : null;
+	let editedProps = editable ? deepClone(editable.props) : null;
+	let editedStructure = model.structureLists ? structureEditsFromLists(model.structureLists) : null;
+	let editFilter = '';
+
+	/** Синоним из имени по правилу 1С: «ВалютаБанка» → «Валюта банка», «БИКБанка» → «БИК банка». */
+	function synonymFromName(name) {
+		const text = String(name || '').trim();
+		if (!text) {
+			return '';
+		}
+		const words = [];
+		let current = '';
+		const isUpper = (ch) => ch !== ch.toLowerCase() && ch === ch.toUpperCase();
+		const isLower = (ch) => ch !== ch.toUpperCase() && ch === ch.toLowerCase();
+		const isDigit = (ch) => ch >= '0' && ch <= '9';
+		for (let i = 0; i < text.length; i++) {
+			const ch = text[i];
+			if (ch === '_') {
+				if (current) {
+					words.push(current);
+					current = '';
+				}
+				continue;
+			}
+			if (current) {
+				const prev = current[current.length - 1];
+				const next = i + 1 < text.length ? text[i + 1] : '';
+				const boundary =
+					(isUpper(ch) && isLower(prev)) ||
+					(isDigit(ch) !== isDigit(prev)) ||
+					(isUpper(ch) && isUpper(prev) && next && isLower(next));
+				if (boundary) {
+					words.push(current);
+					current = '';
+				}
+			}
+			current += ch;
+		}
+		if (current) {
+			words.push(current);
+		}
+		return words
+			.map((word, idx) => {
+				if (idx === 0) {
+					return word;
+				}
+				const isAbbrev = word.length > 1 && word === word.toUpperCase() && !isDigit(word[0]);
+				return isAbbrev ? word : word.toLowerCase();
+			})
+			.join(' ');
+	}
+
+	function structureEditsFromLists(lists) {
+		const rowFrom = function (r) {
+			const item = typeof r === 'object' && r !== null ? r : {};
+			return {
+				originalName: typeof item.name === 'string' ? item.name : '',
+				name: typeof item.name === 'string' ? item.name : '',
+				synonymRu: typeof item.synonymRu === 'string' ? item.synonymRu : '',
+				baselineSynonymRu: typeof item.synonymRu === 'string' ? item.synonymRu : '',
+				comment: typeof item.comment === 'string' ? item.comment : '',
+				deleted: false,
+			};
+		};
+		return {
+			attributes: (Array.isArray(lists.attributes) ? lists.attributes : []).map(rowFrom),
+			tabularSections: (Array.isArray(lists.tabularSections) ? lists.tabularSections : []).map(function (t) {
+				const row = rowFrom(t);
+				row.attributes = (Array.isArray(t.attributes) ? t.attributes : []).map(rowFrom);
+				return row;
+			}),
+		};
+	}
+
+	function eachStructRow(fn) {
+		if (!editedStructure) {
+			return;
+		}
+		for (const row of editedStructure.attributes) {
+			fn(row, null);
+		}
+		for (const ts of editedStructure.tabularSections) {
+			fn(ts, null);
+			for (const row of ts.attributes) {
+				fn(row, ts);
+			}
+		}
+	}
+
+	function structRowDirty(row) {
+		return row.deleted || !row.originalName || row.name !== row.originalName || row.synonymRu !== row.baselineSynonymRu;
+	}
+
+	function structOrderKey(structure) {
+		if (!structure) {
+			return '';
+		}
+		const attr = structure.attributes.map((row) => row.originalName || '+').join('|');
+		const ts = structure.tabularSections
+			.map((t) => (t.originalName || '+') + ':' + t.attributes.map((row) => row.originalName || '+').join(','))
+			.join('|');
+		return attr + '#' + ts;
+	}
+
+	let structBaselineOrderKey = structOrderKey(editedStructure);
+
+	function isStructDirty() {
+		let dirty = false;
+		eachStructRow(function (row) {
+			if (structRowDirty(row)) {
+				dirty = true;
+			}
+		});
+		return dirty || structOrderKey(editedStructure) !== structBaselineOrderKey;
+	}
+
+	const STRUCT_NAME_RE = /^[A-Za-zА-ЯЁа-яё_][A-Za-zА-ЯЁа-яё0-9_]*$/;
+
+	function structNameValid(name) {
+		return STRUCT_NAME_RE.test(String(name || '').trim());
+	}
+
+	/** Первая ошибка имён структуры или пустая строка. */
+	function structValidationError() {
+		if (!editedStructure) {
+			return '';
+		}
+		const topSeen = new Set();
+		for (const row of [...editedStructure.attributes, ...editedStructure.tabularSections]) {
+			if (row.deleted) {
+				continue;
+			}
+			if (!structNameValid(row.name)) {
+				return 'Исправьте некорректные имена';
+			}
+			const key = row.name.trim().toLowerCase();
+			if (topSeen.has(key)) {
+				return `Дублируется имя «${row.name.trim()}»`;
+			}
+			topSeen.add(key);
+		}
+		for (const ts of editedStructure.tabularSections) {
+			if (ts.deleted) {
+				continue;
+			}
+			const nestedSeen = new Set();
+			for (const row of ts.attributes) {
+				if (row.deleted) {
+					continue;
+				}
+				if (!structNameValid(row.name)) {
+					return 'Исправьте некорректные имена';
+				}
+				const key = row.name.trim().toLowerCase();
+				if (nestedSeen.has(key)) {
+					return `Дублируется имя «${row.name.trim()}» в ТЧ «${ts.name}»`;
+				}
+				nestedSeen.add(key);
+			}
+		}
+		return '';
+	}
+
+	function serializeStructureEdits() {
+		if (!editedStructure || !isStructDirty()) {
+			return null;
+		}
+		const rowOut = function (row) {
+			return {
+				originalName: row.originalName || undefined,
+				name: String(row.name || '').trim(),
+				synonymRu: row.synonymRu,
+				deleted: Boolean(row.deleted),
+			};
+		};
+		return {
+			attributes: editedStructure.attributes.map(rowOut),
+			tabularSections: editedStructure.tabularSections.map(function (ts) {
+				const out = rowOut(ts);
+				out.attributes = ts.attributes.map(rowOut);
+				return out;
+			}),
+		};
+	}
+	let saving = false;
+	let saveError = '';
+	let savedFlash = false;
+
+	function deepClone(value) {
+		return JSON.parse(JSON.stringify(value ?? null));
+	}
+
+	function getPath(source, path) {
+		let current = source;
+		for (const part of String(path).split('.')) {
+			if (typeof current !== 'object' || current === null) {
+				return undefined;
+			}
+			current = current[part];
+		}
+		return current;
+	}
+
+	function setPath(target, path, value) {
+		const parts = String(path).split('.');
+		let current = target;
+		for (const part of parts.slice(0, -1)) {
+			if (typeof current[part] !== 'object' || current[part] === null) {
+				return;
+			}
+			current = current[part];
+		}
+		current[parts[parts.length - 1]] = value;
+	}
+
+	function editableFields() {
+		const out = [];
+		if (!editable || !Array.isArray(editable.tabs)) {
+			return out;
+		}
+		for (const tab of editable.tabs) {
+			for (const group of tab.groups || []) {
+				for (const field of group.fields || []) {
+					if (!field.readonly && field.control !== 'staticList' && field.path) {
+						out.push(field);
+					}
+				}
+			}
+		}
+		return out;
+	}
+
+	function normalizeForCompare(value) {
+		if (Array.isArray(value)) {
+			return JSON.stringify(value);
+		}
+		return value === undefined || value === '' ? null : value;
+	}
+
+	function isDirty() {
+		if (!editable || !editedProps) {
+			return false;
+		}
+		for (const field of editableFields()) {
+			if (normalizeForCompare(getPath(editedProps, field.path)) !== normalizeForCompare(getPath(editable.props, field.path))) {
+				return true;
+			}
+		}
+		return isStructDirty();
+	}
+
+	function fieldEnabled(field) {
+		if (!Array.isArray(field.enabledWhen)) {
+			return true;
+		}
+		return field.enabledWhen.every((cond) => getPath(editedProps, cond.path) === cond.equals);
+	}
 	const genericValueLabels = {
 		Use: 'Использовать',
 		DontUse: 'Не использовать',
@@ -142,11 +402,14 @@
 			case 'overview':
 				renderOverview();
 				return;
+			case 'edit':
+				renderEditTab(tab.id);
+				return;
 			case 'named':
-				renderNamed(tab.data);
+				renderNamed(tab);
 				return;
 			case 'tabular':
-				renderTabular(tab.data);
+				renderTabular(tab);
 				return;
 			case 'list':
 				renderList(tab.data);
@@ -197,103 +460,628 @@
 				.join('')}</div>`;
 	}
 
-	function renderNamed(data) {
-		if (!contentRoot) {
-			return;
-		}
-		const items = Array.isArray(data) ? data : [];
-		if (items.length === 0) {
-			contentRoot.innerHTML = '<div class="empty">Нет данных.</div>';
-			return;
-		}
-		contentRoot.innerHTML = `<div class="named-list">${items
-			.map((raw) => {
-				const item = asObject(raw);
-				const name = toDisplayText(item.name);
-				const synonym = toDisplayText(item.synonymRu);
-				const comment = toDisplayText(item.comment);
-				return `<div class="named-item">
-						<div class="item-title">${escapeHtml(name)}</div>
-						<div class="item-grid">
-							<div>
-								<div class="field-label">Синоним</div>
-								<div class="field-value">${escapeHtml(synonym)}</div>
-							</div>
-							<div>
-								<div class="field-label">Комментарий</div>
-								<div class="field-value">${escapeHtml(comment)}</div>
-							</div>
-						</div>
+	function editControlHtml(field, index) {
+		const value = field.path ? getPath(editedProps, field.path) : undefined;
+		const disabled = field.readonly || !fieldEnabled(field) ? ' disabled' : '';
+		const id = `editField_${index}`;
+		switch (field.control) {
+			case 'check': {
+				const checked = value === true ? ' checked' : '';
+				return `<input id="${id}" class="edit-check" type="checkbox" data-path="${escapeHtml(field.path)}" data-control="check"${checked}${disabled} />`;
+			}
+			case 'number':
+				return `<input id="${id}" class="edit-input" type="number" min="0" data-path="${escapeHtml(field.path)}" data-control="number" value="${escapeHtml(value === null || value === undefined ? '' : String(value))}"${disabled} />`;
+			case 'textarea':
+				return `<textarea id="${id}" class="edit-input edit-textarea" data-path="${escapeHtml(field.path)}" data-control="textarea" rows="3"${disabled}>${escapeHtml(typeof value === 'string' ? value : '')}</textarea>`;
+			case 'select': {
+				const current = value === null || value === undefined ? '' : String(value);
+				const options = Array.isArray(field.options) ? field.options.slice() : [];
+				if (current && !options.some((option) => option.value === current)) {
+					options.push({ value: current, label: current });
+				}
+				if (!current && !options.some((option) => option.value === '')) {
+					options.unshift({ value: '', label: '(по умолчанию)' });
+				}
+				const optionsHtml = options
+					.map(
+						(option) =>
+							`<option value="${escapeHtml(option.value)}"${option.value === current ? ' selected' : ''}>${escapeHtml(option.label)}</option>`
+					)
+					.join('');
+				return `<select id="${id}" class="edit-input" data-path="${escapeHtml(field.path)}" data-control="select"${disabled}>${optionsHtml}</select>`;
+			}
+			case 'moduleLink':
+				return `<button type="button" class="edit-module-link" data-module-kind="${escapeHtml(field.path)}">Открыть</button>`;
+			case 'refList': {
+				const selected = Array.isArray(value) ? value : [];
+				const options = Array.isArray(field.options) ? field.options : [];
+				const labelByValue = {};
+				for (const option of options) {
+					labelByValue[option.value] = option.label;
+				}
+				const rows = selected
+					.map(
+						(item, itemIdx) => `<div class="edit-ref-item">
+							<span class="edit-ref-item-label">${escapeHtml(labelByValue[item] || toDisplayText(item))}</span>
+							<span class="edit-ref-item-actions">
+								<button type="button" class="edit-ref-move" data-ref-move-path="${escapeHtml(field.path)}" data-ref-move-index="${itemIdx}" data-ref-move-dir="-1" title="Вверх"${itemIdx === 0 ? ' disabled' : disabled}>↑</button>
+								<button type="button" class="edit-ref-move" data-ref-move-path="${escapeHtml(field.path)}" data-ref-move-index="${itemIdx}" data-ref-move-dir="1" title="Вниз"${itemIdx === selected.length - 1 ? ' disabled' : disabled}>↓</button>
+								<button type="button" class="edit-ref-remove" data-ref-path="${escapeHtml(field.path)}" data-ref-index="${itemIdx}" title="Убрать"${disabled}>×</button>
+							</span>
+						</div>`
+					)
+					.join('');
+				const available = options.filter((option) => !selected.includes(option.value));
+				const addControl = available.length > 0
+					? `<select class="edit-ref-add-select" data-ref-add-select="${escapeHtml(field.path)}"${disabled}>
+							<option value="" selected>+ Добавить…</option>
+							${available
+								.map((option) => `<option value="${escapeHtml(option.value)}">${escapeHtml(option.label)}</option>`)
+								.join('')}
+						</select>`
+					: '';
+				return `<div class="edit-ref-list">
+						<div class="edit-ref-items">${rows || '<div class="edit-ref-empty">(пусто)</div>'}</div>
+						${addControl}
 					</div>`;
-			})
-			.join('')}</div>`;
+			}
+			case 'staticList': {
+				const items = Array.isArray(field.items) && field.items.length > 0
+					? field.items
+					: (Array.isArray(value) ? value : []);
+				if (items.length === 0) {
+					return '<div class="edit-static-empty">(пусто)</div>';
+				}
+				return `<div class="edit-chips">${items
+					.map((item) => `<span class="edit-chip">${escapeHtml(toDisplayText(item))}</span>`)
+					.join('')}</div>`;
+			}
+			default:
+				return `<input id="${id}" class="edit-input" type="text" data-path="${escapeHtml(field.path)}" data-control="text" value="${escapeHtml(typeof value === 'string' ? value : '')}"${disabled} />`;
+		}
 	}
 
-	function renderTabular(data) {
-		if (!contentRoot) {
+	function renderEditTab(tabId) {
+		if (!contentRoot || !editable || !editedProps) {
 			return;
 		}
-		const items = Array.isArray(data) ? data : [];
-		if (items.length === 0) {
+		const spec = (editable.tabs || []).find((tab) => tab.id === tabId);
+		if (!spec) {
 			contentRoot.innerHTML = '<div class="empty">Нет данных.</div>';
 			return;
 		}
-		contentRoot.innerHTML = `<div class="tabular-list">${items
-			.map((raw) => {
-				const item = asObject(raw);
-				const name = toDisplayText(item.name);
-				const synonym = toDisplayText(item.synonymRu);
-				const comment = toDisplayText(item.comment);
-				const attrs = Array.isArray(item.attributes) ? item.attributes.map((x) => asObject(x)).filter(Boolean) : [];
-				const attrsHtml =
-					attrs.length > 0
-						? `<div class="nested-list">${attrs
-								.map((attr) => {
-									const attrName = toDisplayText(attr.name);
-									const attrSynonym = toDisplayText(attr.synonymRu);
-									const attrComment = toDisplayText(attr.comment);
-									return `<div class="nested-item">
-										<div class="nested-title">${escapeHtml(attrName)}</div>
-										<div class="item-grid">
-											<div>
-												<div class="field-label">Синоним</div>
-												<div class="field-value">${escapeHtml(attrSynonym)}</div>
-											</div>
-											<div>
-												<div class="field-label">Комментарий</div>
-												<div class="field-value">${escapeHtml(attrComment)}</div>
-											</div>
-										</div>
-									</div>`;
-								})
-								.join('')}</div>`
-						: '<div class="empty">Реквизитов нет.</div>';
-				return `<div class="tabular-item">
-						<details class="tabular-details">
-							<summary class="tabular-summary">
-								<span class="item-title">${escapeHtml(name)}</span>
-								<span class="tabular-meta">${escapeHtml(synonym)}</span>
-							</summary>
-							<div class="tabular-details-content">
-						<div class="item-grid">
-							<div>
-								<div class="field-label">Синоним</div>
-								<div class="field-value">${escapeHtml(synonym)}</div>
-							</div>
-							<div>
-								<div class="field-label">Комментарий</div>
-								<div class="field-value">${escapeHtml(comment)}</div>
-							</div>
-							<div>
-								<div class="field-label">Реквизиты табличной части</div>
-								${attrsHtml}
-							</div>
-						</div>
-							</div>
-						</details>
+		let fieldIndex = 0;
+		const groupsHtml = (spec.groups || [])
+			.map((group) => {
+				const rows = (group.fields || [])
+					.map((field) => {
+						const control = editControlHtml(field, fieldIndex);
+						fieldIndex += 1;
+						return `<div class="edit-row">
+							<label class="edit-label">${escapeHtml(field.label)}</label>
+							<div class="edit-control">${control}</div>
+						</div>`;
+					})
+					.join('');
+				return `<div class="edit-group">
+						<div class="section-title">${escapeHtml(group.title)}</div>
+						<div class="edit-fields">${rows}</div>
 					</div>`;
 			})
-			.join('')}</div>`;
+			.join('');
+		const filterHtml = tabId === 'edit_main'
+			? `<div class="edit-filter-row">
+				<span class="edit-filter-wrap">
+					<input id="editFilterInput" class="edit-input edit-filter" type="text" placeholder="Поиск свойства..." value="${escapeHtml(editFilter)}" />
+					<button id="editFilterClear" class="edit-filter-clear${editFilter ? '' : ' hidden'}" type="button" title="Очистить">×</button>
+				</span>
+			</div>`
+			: '';
+		if (tabId === 'edit_data') {
+			// Раскладка EDT: слева редактируемые реквизиты и табличные части, справа группы свойств.
+			contentRoot.innerHTML = `${filterHtml}<div class="edit-data-layout">
+					<div class="edit-data-structure">
+						<div class="section-title">Реквизиты</div>
+						${structEditListHtml()}
+						<div class="section-title section-title-spaced">Табличные части</div>
+						${structEditTsHtml()}
+					</div>
+					<div class="edit-data-props">${groupsHtml}</div>
+				</div>`;
+			bindEditInputs(spec);
+			bindStructEditInputs(spec);
+			bindEditFilter();
+			return;
+		}
+		contentRoot.innerHTML = `${filterHtml}<div class="edit-columns">${groupsHtml}</div>`;
+		bindEditInputs(spec);
+		bindEditFilter();
+	}
+
+	function bindEditFilter() {
+		const input = /** @type {HTMLInputElement | null} */ (document.getElementById('editFilterInput'));
+		if (!input) {
+			return;
+		}
+		const clearBtn = document.getElementById('editFilterClear');
+		const sync = function () {
+			editFilter = input.value;
+			if (clearBtn) {
+				clearBtn.classList.toggle('hidden', editFilter.length === 0);
+			}
+			applyEditFilter();
+		};
+		input.addEventListener('input', sync);
+		if (clearBtn) {
+			clearBtn.addEventListener('click', function () {
+				input.value = '';
+				sync();
+				input.focus();
+			});
+		}
+		applyEditFilter();
+	}
+
+	function applyEditFilter() {
+		if (!contentRoot) {
+			return;
+		}
+		const query = editFilter.trim().toLowerCase();
+		for (const group of contentRoot.querySelectorAll('.edit-group')) {
+			let visibleRows = 0;
+			for (const row of group.querySelectorAll('.edit-row')) {
+				const label = row.querySelector('.edit-label');
+				const text = label && label.textContent ? label.textContent.toLowerCase() : '';
+				const show = query.length === 0 || text.includes(query);
+				row.classList.toggle('hidden', !show);
+				if (show) {
+					visibleRows++;
+				}
+			}
+			group.classList.toggle('hidden', visibleRows === 0);
+		}
+	}
+
+	function fieldByPath(spec, path) {
+		for (const group of spec.groups || []) {
+			for (const field of group.fields || []) {
+				if (field.path === path) {
+					return field;
+				}
+			}
+		}
+		return null;
+	}
+
+	function bindEditInputs(spec) {
+		if (!contentRoot) {
+			return;
+		}
+		const inputs = contentRoot.querySelectorAll('[data-path]');
+		for (const input of inputs) {
+			const path = input.getAttribute('data-path');
+			const control = input.getAttribute('data-control');
+			if (!path || !control) {
+				continue;
+			}
+			const handler = function () {
+				if (!editedProps) {
+					return;
+				}
+				if (control === 'check') {
+					setPath(editedProps, path, Boolean(input.checked));
+				} else if (control === 'select') {
+					setPath(editedProps, path, input.value === '' ? null : input.value);
+				} else {
+					setPath(editedProps, path, input.value);
+				}
+				const field = fieldByPath(spec, path);
+				if (control === 'check' || control === 'select') {
+					// Возможна смена доступности зависимых полей.
+					renderEditTab(spec.id);
+				}
+				void field;
+				renderSaveBar();
+			};
+			input.addEventListener(control === 'check' || control === 'select' ? 'change' : 'input', handler);
+		}
+		bindRefListButtons(spec);
+	}
+
+	function bindRefListButtons(spec) {
+		if (!contentRoot || !editedProps) {
+			return;
+		}
+		for (const btn of contentRoot.querySelectorAll('[data-ref-index]')) {
+			btn.addEventListener('click', function () {
+				const path = btn.getAttribute('data-ref-path');
+				const index = Number(btn.getAttribute('data-ref-index'));
+				const list = getPath(editedProps, path);
+				if (!Array.isArray(list) || Number.isNaN(index)) {
+					return;
+				}
+				list.splice(index, 1);
+				renderEditTab(spec.id);
+				renderSaveBar();
+			});
+		}
+		for (const select of contentRoot.querySelectorAll('[data-ref-add-select]')) {
+			select.addEventListener('change', function () {
+				const path = select.getAttribute('data-ref-add-select');
+				if (!select.value) {
+					return;
+				}
+				const list = getPath(editedProps, path);
+				if (!Array.isArray(list) || list.includes(select.value)) {
+					select.value = '';
+					return;
+				}
+				list.push(select.value);
+				renderEditTab(spec.id);
+				renderSaveBar();
+			});
+		}
+		for (const btn of contentRoot.querySelectorAll('[data-ref-move-path]')) {
+			btn.addEventListener('click', function () {
+				const path = btn.getAttribute('data-ref-move-path');
+				const index = Number(btn.getAttribute('data-ref-move-index'));
+				const dir = Number(btn.getAttribute('data-ref-move-dir'));
+				const list = getPath(editedProps, path);
+				const target = index + dir;
+				if (!Array.isArray(list) || Number.isNaN(index) || target < 0 || target >= list.length) {
+					return;
+				}
+				const moved = list.splice(index, 1)[0];
+				list.splice(target, 0, moved);
+				renderEditTab(spec.id);
+				renderSaveBar();
+			});
+		}
+		for (const btn of contentRoot.querySelectorAll('[data-module-kind]')) {
+			btn.addEventListener('click', function () {
+				if (vscodeApi) {
+					vscodeApi.postMessage({ type: 'openModule', module: btn.getAttribute('data-module-kind') });
+				}
+			});
+		}
+	}
+
+	function renderSaveBar() {
+		const bar = document.getElementById('saveBar');
+		const status = document.getElementById('saveStatus');
+		const saveBtn = /** @type {HTMLButtonElement | null} */ (document.getElementById('saveBtn'));
+		const resetBtn = /** @type {HTMLButtonElement | null} */ (document.getElementById('resetBtn'));
+		if (!bar || !status || !saveBtn || !resetBtn) {
+			return;
+		}
+		const dirty = isDirty();
+		const structError = structValidationError();
+		const visible = Boolean(editable) && (dirty || saving || Boolean(saveError) || savedFlash);
+		bar.classList.toggle('hidden', !visible);
+		if (!visible) {
+			return;
+		}
+		saveBtn.disabled = saving || !dirty || Boolean(structError);
+		resetBtn.disabled = saving || !dirty;
+		status.classList.toggle('save-status-error', Boolean(saveError) || Boolean(structError));
+		if (saving) {
+			status.textContent = 'Сохранение...';
+		} else if (dirty && structError) {
+			status.textContent = structError;
+		} else if (saveError) {
+			status.textContent = saveError;
+		} else if (dirty) {
+			status.textContent = 'Есть несохраненные изменения';
+		} else if (savedFlash) {
+			status.textContent = 'Сохранено';
+		} else {
+			status.textContent = '';
+		}
+	}
+
+	function currentTabIsEdit() {
+		const tab = tabs.find((item) => item.id === activeTabId);
+		return Boolean(tab && tab.render === 'edit');
+	}
+
+	function initSaveBar() {
+		const saveBtn = document.getElementById('saveBtn');
+		const resetBtn = document.getElementById('resetBtn');
+		if (!editable || !vscodeApi || !saveBtn || !resetBtn) {
+			return;
+		}
+		saveBtn.addEventListener('click', function () {
+			if (saving || !isDirty() || structValidationError()) {
+				return;
+			}
+			saving = true;
+			saveError = '';
+			savedFlash = false;
+			renderSaveBar();
+			vscodeApi.postMessage({ type: 'save', payload: editedProps, structure: serializeStructureEdits() });
+		});
+		resetBtn.addEventListener('click', function () {
+			if (saving || !editable) {
+				return;
+			}
+			editedProps = deepClone(editable.props);
+			editedStructure = model.structureLists ? structureEditsFromLists(model.structureLists) : null;
+			structBaselineOrderKey = structOrderKey(editedStructure);
+			saveError = '';
+			savedFlash = false;
+			if (currentTabIsEdit()) {
+				renderContent();
+			}
+			renderSaveBar();
+		});
+		window.addEventListener('message', function (event) {
+			const msg = event.data;
+			if (msg && msg.type === 'modelUpdated') {
+				if (msg.structureLists && typeof msg.structureLists === 'object') {
+					model.structureLists = msg.structureLists;
+				}
+				editedStructure = model.structureLists ? structureEditsFromLists(model.structureLists) : null;
+				structBaselineOrderKey = structOrderKey(editedStructure);
+				if (Array.isArray(msg.tabs)) {
+					tabs.length = 0;
+					for (const tab of msg.tabs) {
+						tabs.push(tab);
+					}
+					if (!tabs.some((tab) => tab.id === activeTabId)) {
+						activeTabId = tabs[0] ? tabs[0].id : '';
+					}
+				}
+				if (editable && msg.props && typeof msg.props === 'object') {
+					editable.props = msg.props;
+					if (Array.isArray(msg.editableTabs)) {
+						editable.tabs = msg.editableTabs;
+					}
+					editedProps = deepClone(editable.props);
+				}
+				renderTabs();
+				renderContent();
+				renderSaveBar();
+				return;
+			}
+			if (!msg || msg.type !== 'saved') {
+				return;
+			}
+			saving = false;
+			if (msg.ok) {
+				if (msg.props && typeof msg.props === 'object') {
+					editable.props = msg.props;
+					editedProps = deepClone(editable.props);
+				}
+				saveError = '';
+				savedFlash = true;
+				setTimeout(function () {
+					savedFlash = false;
+					renderSaveBar();
+				}, 4000);
+				if (currentTabIsEdit()) {
+					renderContent();
+				}
+			} else {
+				saveError = String(msg.error || 'Не удалось сохранить изменения.');
+			}
+			renderSaveBar();
+		});
+	}
+
+	function structRowByPath(spath) {
+		if (!editedStructure) {
+			return null;
+		}
+		const parts = String(spath).split('.');
+		if (parts[0] === 'a') {
+			return editedStructure.attributes[Number(parts[1])] || null;
+		}
+		const ts = editedStructure.tabularSections[Number(parts[1])] || null;
+		if (!ts) {
+			return null;
+		}
+		if (parts[2] === 'a') {
+			return ts.attributes[Number(parts[3])] || null;
+		}
+		return ts;
+	}
+
+	function structEditRowHtml(row, spath) {
+		const deleted = row.deleted;
+		const invalid = !deleted && !structNameValid(row.name) ? ' struct-input-invalid' : '';
+		const dis = deleted ? ' disabled' : '';
+		return `<div class="struct-item${deleted ? ' struct-item-deleted' : ''}"${row.comment ? ` title="${escapeHtml(row.comment)}"` : ''}>
+			<input class="edit-input struct-input struct-input-name${invalid}" data-spath="${spath}" data-sfield="name" value="${escapeHtml(row.name)}" placeholder="Имя" spellcheck="false"${dis} />
+			<input class="edit-input struct-input" data-spath="${spath}" data-sfield="synonymRu" value="${escapeHtml(row.synonymRu)}" placeholder="Синоним"${dis} />
+			<span class="struct-actions-inline">
+				<button type="button" class="struct-btn" data-smove="${spath}" data-smove-dir="-1" title="Вверх"${dis}>↑</button>
+				<button type="button" class="struct-btn" data-smove="${spath}" data-smove-dir="1" title="Вниз"${dis}>↓</button>
+				<button type="button" class="struct-btn${deleted ? '' : ' struct-btn-danger'}" data-sdel="${spath}" title="${deleted ? 'Вернуть' : 'Удалить'}">${deleted ? '↩' : '×'}</button>
+			</span>
+		</div>`;
+	}
+
+	function structEditListHtml() {
+		if (!editedStructure) {
+			return '<div class="edit-ref-empty">(нет данных)</div>';
+		}
+		const rows = editedStructure.attributes.map((row, idx) => structEditRowHtml(row, `a.${idx}`)).join('');
+		return `<div class="struct-list">${rows || '<div class="edit-ref-empty">(пусто)</div>'}</div>
+			<div class="struct-add-row"><button type="button" class="struct-add-btn" data-sadd="a">+ Реквизит…</button></div>`;
+	}
+
+	function structEditTsHtml() {
+		if (!editedStructure) {
+			return '<div class="edit-ref-empty">(нет данных)</div>';
+		}
+		const blocks = editedStructure.tabularSections
+			.map((ts, idx) => {
+				const nested = ts.attributes.map((row, j) => structEditRowHtml(row, `t.${idx}.a.${j}`)).join('');
+				const body = ts.deleted
+					? ''
+					: `<div class="struct-ts-body">
+						<div class="struct-list">${nested || '<div class="edit-ref-empty">(пусто)</div>'}</div>
+						<div class="struct-add-row"><button type="button" class="struct-add-btn" data-sadd="t.${idx}">+ Реквизит…</button></div>
+					</div>`;
+				return `<div class="struct-ts-block">${structEditRowHtml(ts, `t.${idx}`)}${body}</div>`;
+			})
+			.join('');
+		return `${blocks || '<div class="struct-list"><div class="edit-ref-empty">(пусто)</div></div>'}
+			<div class="struct-add-row"><button type="button" class="struct-add-btn" data-sadd="t">+ Табличная часть…</button></div>`;
+	}
+
+	function bindStructEditInputs(spec) {
+		if (!contentRoot || !editedStructure) {
+			return;
+		}
+		for (const input of contentRoot.querySelectorAll('[data-spath]')) {
+			input.addEventListener('input', function () {
+				const spath = input.getAttribute('data-spath');
+				const row = structRowByPath(spath);
+				const field = input.getAttribute('data-sfield');
+				if (!row || !field) {
+					return;
+				}
+				if (field === 'name') {
+					// Синоним следует за именем, пока пользователь не задал его вручную.
+					const followsName = row.synonymRu === '' || row.synonymRu === synonymFromName(row.name);
+					row.name = input.value;
+					input.classList.toggle('struct-input-invalid', !row.deleted && !structNameValid(input.value));
+					if (followsName) {
+						row.synonymRu = synonymFromName(input.value);
+						const synInput = contentRoot.querySelector(
+							`[data-spath="${CSS.escape(spath)}"][data-sfield="synonymRu"]`
+						);
+						if (synInput) {
+							synInput.value = row.synonymRu;
+						}
+					}
+				} else {
+					row[field] = input.value;
+				}
+				renderSaveBar();
+			});
+		}
+		for (const btn of contentRoot.querySelectorAll('[data-sdel]')) {
+			btn.addEventListener('click', function () {
+				const spath = btn.getAttribute('data-sdel');
+				const row = structRowByPath(spath);
+				if (!row) {
+					return;
+				}
+				if (!row.originalName && !row.deleted) {
+					// Новая строка: удаляем совсем.
+					const parts = spath.split('.');
+					if (parts[0] === 'a') {
+						editedStructure.attributes.splice(Number(parts[1]), 1);
+					} else if (parts[2] === 'a') {
+						editedStructure.tabularSections[Number(parts[1])].attributes.splice(Number(parts[3]), 1);
+					} else {
+						editedStructure.tabularSections.splice(Number(parts[1]), 1);
+					}
+				} else {
+					row.deleted = !row.deleted;
+				}
+				renderEditTab(spec.id);
+				renderSaveBar();
+			});
+		}
+		for (const btn of contentRoot.querySelectorAll('[data-smove]')) {
+			btn.addEventListener('click', function () {
+				const spath = btn.getAttribute('data-smove');
+				const dir = Number(btn.getAttribute('data-smove-dir'));
+				const parts = String(spath).split('.');
+				let list = null;
+				let index = -1;
+				if (parts[0] === 'a') {
+					list = editedStructure.attributes;
+					index = Number(parts[1]);
+				} else if (parts[2] === 'a') {
+					list = editedStructure.tabularSections[Number(parts[1])]
+						? editedStructure.tabularSections[Number(parts[1])].attributes
+						: null;
+					index = Number(parts[3]);
+				} else {
+					list = editedStructure.tabularSections;
+					index = Number(parts[1]);
+				}
+				const target = index + dir;
+				if (!list || Number.isNaN(index) || target < 0 || target >= list.length) {
+					return;
+				}
+				const moved = list.splice(index, 1)[0];
+				list.splice(target, 0, moved);
+				renderEditTab(spec.id);
+				renderSaveBar();
+			});
+		}
+		for (const btn of contentRoot.querySelectorAll('[data-sadd]')) {
+			btn.addEventListener('click', function () {
+				const target = btn.getAttribute('data-sadd');
+				const emptyRow = { originalName: '', name: '', synonymRu: '', baselineSynonymRu: '', comment: '', deleted: false };
+				let newSpath = '';
+				if (target === 'a') {
+					editedStructure.attributes.push({ ...emptyRow });
+					newSpath = `a.${editedStructure.attributes.length - 1}`;
+				} else if (target === 't') {
+					editedStructure.tabularSections.push({ ...emptyRow, attributes: [] });
+					newSpath = `t.${editedStructure.tabularSections.length - 1}`;
+				} else {
+					const idx = Number(target.split('.')[1]);
+					if (editedStructure.tabularSections[idx]) {
+						editedStructure.tabularSections[idx].attributes.push({ ...emptyRow });
+						newSpath = `t.${idx}.a.${editedStructure.tabularSections[idx].attributes.length - 1}`;
+					}
+				}
+				renderEditTab(spec.id);
+				if (newSpath) {
+					const added = contentRoot.querySelector(
+						`[data-spath="${CSS.escape(newSpath)}"][data-sfield="name"]`
+					);
+					if (added) {
+						added.focus();
+					}
+				}
+				renderSaveBar();
+			});
+		}
+	}
+
+	function readonlyStructRowHtml(item) {
+		const name = toDisplayText(item.name);
+		const synonymRaw = typeof item.synonymRu === 'string' ? item.synonymRu.trim() : '';
+		const synonym = synonymRaw && synonymRaw !== item.name ? synonymRaw : '';
+		const comment = typeof item.comment === 'string' ? item.comment.trim() : '';
+		return `<div class="struct-item"${comment ? ` title="${escapeHtml(comment)}"` : ''}>
+			<span class="struct-item-name">${escapeHtml(name)}</span>
+			<span class="struct-item-syn">${escapeHtml(synonym)}</span>
+		</div>`;
+	}
+
+	function renderNamed(tab) {
+		if (!contentRoot) {
+			return;
+		}
+		const items = Array.isArray(tab.data) ? tab.data.map((x) => asObject(x)).filter((x) => x.name) : [];
+		const rows = items.map((item) => readonlyStructRowHtml(item)).join('');
+		contentRoot.innerHTML = `<div class="struct-list">${rows || '<div class="edit-ref-empty">(пусто)</div>'}</div>`;
+	}
+
+	function renderTabular(tab) {
+		if (!contentRoot) {
+			return;
+		}
+		const items = Array.isArray(tab.data) ? tab.data.map((x) => asObject(x)).filter((x) => x.name) : [];
+		const blocks = items
+			.map((item) => {
+				const attrs = Array.isArray(item.attributes) ? item.attributes.map((x) => asObject(x)).filter((x) => x.name) : [];
+				const nested = attrs.map((attr) => readonlyStructRowHtml(attr)).join('');
+				return `<div class="struct-ts-block">${readonlyStructRowHtml(item)}
+					<div class="struct-ts-body"><div class="struct-list">${nested || '<div class="edit-ref-empty">(пусто)</div>'}</div></div>
+				</div>`;
+			})
+			.join('');
+		contentRoot.innerHTML = blocks || '<div class="empty">Нет данных.</div>';
 	}
 
 	function renderSubsystemContent(data) {
@@ -489,4 +1277,6 @@
 	renderTabs();
 	renderContent();
 	renderTechnical();
+	initSaveBar();
+	renderSaveBar();
 })();

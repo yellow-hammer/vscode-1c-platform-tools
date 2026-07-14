@@ -39,11 +39,15 @@ export type MdSparrowOp =
 	| 'cf-md-tabular-attribute-rename'
 	| 'cf-md-tabular-attribute-delete'
 	| 'cf-md-tabular-attribute-duplicate'
+	| 'cf-md-attribute-reorder'
+	| 'cf-md-tabular-section-reorder'
+	| 'cf-md-tabular-attribute-reorder'
 	| 'external-artifact-rename'
 	| 'external-artifact-delete'
 	| 'external-artifact-duplicate'
 	| 'external-artifact-add'
 	| 'external-artifact-properties-set'
+	| 'cf-md-object-set'
 	| 'cf-configuration-properties-set'
 	| 'init-empty-cf'
 	| 'add-md-object'
@@ -53,6 +57,7 @@ export type MdSparrowOp =
 	| 'external-artifact-properties-get'
 	| 'cf-configuration-properties-get'
 	| 'cf-list-child-objects'
+	| 'cf-list-catalogs'
 	| 'project-metadata-tree'
 	| 'cf-md-graph';
 
@@ -64,6 +69,11 @@ export interface MdSparrowParams {
 	artifactsRoot?: string;
 	targetCfRoot?: string;
 	projectRoot?: string;
+	/** Каталоги исходников относительно projectRoot; пусто — стандартные src/cf, src/cfe, src/epf, src/erf. */
+	cfDir?: string;
+	cfeDir?: string;
+	epfDir?: string;
+	erfDir?: string;
 	tag?: string;
 	name?: string;
 	oldName?: string;
@@ -81,6 +91,9 @@ export interface MdSparrowParams {
 	payloadJson?: string;
 }
 
+/** Сквозной счётчик имён params-файлов: параллельные вызовы в одну миллисекунду не должны делить файл. */
+let paramsFileSeq = 0;
+
 async function writeParamsAndRun(
 	runtime: MdSparrowRuntime,
 	command: 'apply-mutation' | 'read-json',
@@ -90,7 +103,8 @@ async function writeParamsAndRun(
 		token?: vscode.CancellationToken;
 	}
 ): Promise<MdSparrowRunResult> {
-	const tmpPath = path.join(os.tmpdir(), `md-sparrow-${command}-${Date.now()}-${process.pid}.json`);
+	paramsFileSeq += 1;
+	const tmpPath = path.join(os.tmpdir(), `md-sparrow-${command}-${Date.now()}-${process.pid}-${paramsFileSeq}.json`);
 	await fs.writeFile(tmpPath, JSON.stringify(params), 'utf8');
 	try {
 		return await runMdSparrow(runtime, [command, '--params', tmpPath], options);
