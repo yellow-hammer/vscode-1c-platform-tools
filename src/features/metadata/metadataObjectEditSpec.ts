@@ -461,6 +461,347 @@ export function buildCatalogEditTabs(input: CatalogEditSpecInput): MetadataEditT
 	];
 }
 
+export interface DocumentEditSpecInput {
+	internalName: string;
+	formNames: readonly string[];
+	commandNames: readonly string[];
+	/** Имена справочников — кандидаты в основания. */
+	catalogNames?: readonly string[];
+	/** Имена документов — кандидаты в основания. */
+	documentNames?: readonly string[];
+	/** Имена реквизитов объекта — кандидаты для ввода по строке и полей блокировки. */
+	attributeNames?: readonly string[];
+	/** Имена нумераторов. */
+	numeratorNames?: readonly string[];
+	/** Кандидаты состава движений: полные ссылки на регистры с подписями. */
+	registerOptions?: readonly MetadataEditOption[];
+}
+
+function documentFormOptions(internalName: string, formNames: readonly string[]): MetadataEditOption[] {
+	return [
+		{ value: '', label: '(не задана)' },
+		...formNames.map((name) => ({ value: `Document.${internalName}.Form.${name}`, label: name })),
+	];
+}
+
+function documentInputByStringOptions(internalName: string, attributeNames: readonly string[]): MetadataEditOption[] {
+	const base = `Document.${internalName}`;
+	return [
+		{ value: `${base}.StandardAttribute.Number`, label: 'Номер' },
+		...attributeNames.map((name) => ({ value: `${base}.Attribute.${name}`, label: name })),
+	];
+}
+
+function documentDataLockFieldsOptions(input: DocumentEditSpecInput): MetadataEditOption[] {
+	const base = `Document.${input.internalName}`;
+	return [
+		{ value: `${base}.StandardAttribute.Number`, label: 'Номер' },
+		{ value: `${base}.StandardAttribute.Date`, label: 'Дата' },
+		...(input.attributeNames ?? []).map((name) => ({ value: `${base}.Attribute.${name}`, label: name })),
+	];
+}
+
+/**
+ * Вкладки редактирования документа: раскладка повторяет редактор EDT
+ * (Основные, Данные, Движения, Формы, Команды, Ввод на основании).
+ */
+export function buildDocumentEditTabs(input: DocumentEditSpecInput): MetadataEditTabSpec[] {
+	const forms = documentFormOptions(input.internalName, input.formNames);
+	const inputByString = documentInputByStringOptions(input.internalName, input.attributeNames ?? []);
+	const dataLockFields = documentDataLockFieldsOptions(input);
+	const basedOn = basedOnOptions({
+		internalName: input.internalName,
+		formNames: [],
+		commandNames: [],
+		catalogNames: input.catalogNames,
+		documentNames: input.documentNames,
+	});
+	const numerators: MetadataEditOption[] = [
+		{ value: '', label: '(не задан)' },
+		...(input.numeratorNames ?? []).map((name) => ({ value: `DocumentNumerator.${name}`, label: name })),
+	];
+	return [
+		{
+			id: 'edit_main',
+			title: 'Основные',
+			groups: [
+				{
+					title: 'Основные',
+					fields: [
+						{ path: 'internalName', label: 'Имя', control: 'text', readonly: true },
+						{ path: 'synonymRu', label: 'Синоним', control: 'text' },
+						{ path: 'comment', label: 'Комментарий', control: 'text' },
+						{ path: 'object', label: 'Модуль объекта', control: 'moduleLink' },
+						{ path: 'manager', label: 'Модуль менеджера', control: 'moduleLink' },
+					],
+				},
+				{
+					title: 'Представление',
+					fields: [
+						{ path: 'document.objectPresentationRu', label: 'Представление объекта', control: 'text' },
+						{
+							path: 'document.extendedObjectPresentationRu',
+							label: 'Расширенное представление объекта',
+							control: 'text',
+						},
+						{ path: 'document.listPresentationRu', label: 'Представление списка', control: 'text' },
+						{
+							path: 'document.extendedListPresentationRu',
+							label: 'Расширенное представление списка',
+							control: 'text',
+						},
+						{ path: 'document.explanationRu', label: 'Пояснение', control: 'textarea' },
+					],
+				},
+				{
+					title: 'Нумерация',
+					fields: [
+						{
+							path: 'document.numberType',
+							label: 'Тип номера',
+							control: 'select',
+							options: opts(['STRING', 'Строка'], ['NUMBER', 'Число']),
+						},
+						{ path: 'document.numberLength', label: 'Длина номера', control: 'number' },
+						{
+							path: 'document.numberAllowedLength',
+							label: 'Допустимая длина номера',
+							control: 'select',
+							options: opts(['VARIABLE', 'Переменная'], ['FIXED', 'Фиксированная']),
+						},
+						{ path: 'document.autonumbering', label: 'Автонумерация', control: 'check' },
+						{ path: 'document.checkUnique', label: 'Контроль уникальности', control: 'check' },
+						{
+							path: 'document.numberPeriodicity',
+							label: 'Периодичность',
+							control: 'select',
+							options: opts(
+								['NONPERIODICAL', 'Непериодический'],
+								['YEAR', 'В пределах года'],
+								['QUARTER', 'В пределах квартала'],
+								['MONTH', 'В пределах месяца'],
+								['DAY', 'В пределах дня']
+							),
+						},
+						{ path: 'document.numerator', label: 'Нумератор', control: 'select', options: numerators, clearable: true },
+					],
+				},
+				{
+					title: 'Поле ввода',
+					fields: [
+						{
+							path: 'document.createOnInput',
+							label: 'Создание при вводе',
+							control: 'select',
+							options: opts(['AUTO', 'Авто'], ['USE', 'Использовать'], ['DONT_USE', 'Не использовать']),
+						},
+						{ path: 'document.inputByString', label: 'Ввод по строке', control: 'refList', options: inputByString },
+						{
+							path: 'document.searchStringModeOnInputByString',
+							label: 'Способ поиска строки при вводе',
+							control: 'select',
+							options: opts(['BEGIN', 'Начало'], ['ANY_PART', 'Любая часть']),
+						},
+						{
+							path: 'document.fullTextSearchOnInputByString',
+							label: 'Полнотекстовый поиск при вводе',
+							control: 'select',
+							options: USE_DONT_USE,
+						},
+						{
+							path: 'document.choiceDataGetModeOnInputByString',
+							label: 'Режим получения данных выбора',
+							control: 'select',
+							options: opts(['DIRECTLY', 'Непосредственно'], ['BACKGROUND', 'Фоновым заданием']),
+						},
+						{
+							path: 'document.choiceHistoryOnInput',
+							label: 'История выбора при вводе',
+							control: 'select',
+							options: opts(['AUTO', 'Авто'], ['DONT_USE', 'Не использовать']),
+						},
+					],
+				},
+				{
+					title: 'Прочее',
+					fields: [
+						{
+							path: 'document.dataLockFields',
+							label: 'Поля блокировки данных',
+							control: 'refList',
+							options: dataLockFields,
+						},
+						{
+							path: 'document.dataLockControlMode',
+							label: 'Режим управления блокировкой данных',
+							control: 'select',
+							options: opts(
+								['AUTOMATIC', 'Автоматический'],
+								['MANAGED', 'Управляемый'],
+								['AUTOMATIC_AND_MANAGED', 'Автоматический и управляемый']
+							),
+						},
+						{
+							path: 'document.fullTextSearch',
+							label: 'Полнотекстовый поиск',
+							control: 'select',
+							options: USE_DONT_USE,
+						},
+						{
+							path: 'document.dataHistory',
+							label: 'История данных',
+							control: 'select',
+							options: USE_DONT_USE,
+						},
+						{
+							path: 'document.updateDataHistoryImmediatelyAfterWrite',
+							label: 'Обновлять историю данных сразу после записи',
+							control: 'check',
+							enabledWhen: [{ path: 'document.dataHistory', equals: 'USE' }],
+						},
+						{
+							path: 'document.executeAfterWriteDataHistoryVersionProcessing',
+							label: 'Выполнять обработку версий истории данных после записи',
+							control: 'check',
+							enabledWhen: [{ path: 'document.dataHistory', equals: 'USE' }],
+						},
+						{ path: 'document.includeHelpInContents', label: 'Включать в содержание справки', control: 'check' },
+					],
+				},
+			],
+		},
+		{
+			id: 'edit_data',
+			title: 'Данные',
+			groups: [],
+		},
+		{
+			id: 'edit_movements',
+			title: 'Движения',
+			groups: [
+				{
+					title: 'Проведение',
+					fields: [
+						{
+							path: 'document.posting',
+							label: 'Проведение',
+							control: 'select',
+							options: opts(['ALLOW', 'Разрешить'], ['DENY', 'Запретить']),
+						},
+						{
+							path: 'document.realTimePosting',
+							label: 'Оперативное проведение',
+							control: 'select',
+							options: opts(['ALLOW', 'Разрешить'], ['DENY', 'Запретить']),
+						},
+						{
+							path: 'document.registerRecordsDeletion',
+							label: 'Удаление движений',
+							control: 'select',
+							options: opts(
+								['AUTO_DELETE_ON_UNPOST', 'Удалять автоматически при отмене проведения'],
+								['AUTO_DELETE', 'Удалять автоматически'],
+								['AUTO_DELETE_OFF', 'Не удалять автоматически']
+							),
+						},
+						{
+							path: 'document.registerRecordsWritingOnPost',
+							label: 'Запись движений при проведении',
+							control: 'select',
+							options: opts(
+								['WRITE_SELECTED', 'Записывать выбранные'],
+								['WRITE_MODIFIED', 'Записывать модифицированные']
+							),
+						},
+						{
+							path: 'document.sequenceFilling',
+							label: 'Заполнение последовательностей',
+							control: 'select',
+							options: opts(['AUTO_FILL', 'Заполнять автоматически'], ['AUTO_FILL_OFF', 'Не заполнять автоматически']),
+						},
+						{ path: 'document.postInPrivilegedMode', label: 'Проведение в привилегированном режиме', control: 'check' },
+						{
+							path: 'document.unpostInPrivilegedMode',
+							label: 'Отмена проведения в привилегированном режиме',
+							control: 'check',
+						},
+					],
+				},
+				{
+					title: 'Движения',
+					fields: [
+						{
+							path: 'document.registerRecords',
+							label: 'Регистры',
+							control: 'refList',
+							options: input.registerOptions ?? [],
+						},
+					],
+				},
+			],
+		},
+		{
+			id: 'edit_forms',
+			title: 'Формы',
+			groups: [
+				{
+					title: 'Основные формы',
+					fields: [
+						{
+							path: 'document.defaultObjectForm',
+							label: 'Основная форма объекта',
+							control: 'select',
+							options: forms,
+							clearable: true,
+						},
+						{
+							path: 'document.defaultListForm',
+							label: 'Основная форма списка',
+							control: 'select',
+							options: forms,
+							clearable: true,
+						},
+						{
+							path: 'document.defaultChoiceForm',
+							label: 'Основная форма выбора',
+							control: 'select',
+							options: forms,
+							clearable: true,
+						},
+					],
+				},
+				{
+					title: 'Формы',
+					fields: [{ path: '', label: 'Формы объекта', control: 'staticList', items: input.formNames }],
+				},
+			],
+		},
+		{
+			id: 'edit_commands',
+			title: 'Команды',
+			groups: [
+				{
+					title: 'Команды',
+					fields: [
+						{ path: 'document.useStandardCommands', label: 'Использовать стандартные команды', control: 'check' },
+						{ path: '', label: 'Команды объекта', control: 'staticList', items: input.commandNames },
+					],
+				},
+			],
+		},
+		{
+			id: 'edit_basedon',
+			title: 'Ввод на основании',
+			groups: [
+				{
+					title: 'Ввод на основании',
+					fields: [{ path: 'document.basedOn', label: 'Вводится на основании', control: 'refList', options: basedOn }],
+				},
+			],
+		},
+	];
+}
+
 function isEditableField(field: MetadataEditField): boolean {
 	return !field.readonly && field.control !== 'staticList' && field.control !== 'moduleLink' && field.path.length > 0;
 }
