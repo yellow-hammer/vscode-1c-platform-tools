@@ -157,6 +157,14 @@
           "initialSize": 1
         },
         {
+          "id": "1c-platform-tools-metadata-filters",
+          "name": "Фильтры",
+          "contextualTitle": "Фильтры метаданных",
+          "when": "1c-platform-tools.is1CProject == true",
+          "visibility": "collapsed",
+          "initialSize": 8
+        },
+        {
           "id": "1c-platform-tools-metadata-tree",
           "name": "Дерево метаданных",
           "contextualTitle": "Метаданные выгрузки",
@@ -484,16 +492,22 @@
         "category": "1C: Метаданные"
       },
       {
+        "command": "1c-platform-tools.metadata.filters.apply",
+        "title": "Установить фильтр",
+        "category": "1C: Метаданные",
+        "icon": "$(check)"
+      },
+      {
+        "command": "1c-platform-tools.metadata.filters.reset",
+        "title": "Сбросить фильтр",
+        "category": "1C: Метаданные",
+        "icon": "$(clear-all)"
+      },
+      {
         "command": "1c-platform-tools.metadata.find",
         "title": "Поиск",
         "category": "1C: Метаданные",
         "icon": "$(search)"
-      },
-      {
-        "command": "1c-platform-tools.metadata.pickSubsystemFilter",
-        "title": "Фильтр по подсистемам",
-        "category": "1C: Метаданные",
-        "icon": "$(filter)"
       },
       {
         "command": "1c-platform-tools.metadata.addDocument",
@@ -1779,14 +1793,19 @@
           "group": "navigation@2"
         },
         {
-          "command": "1c-platform-tools.metadata.pickSubsystemFilter",
-          "when": "view == 1c-platform-tools-metadata-tree",
-          "group": "navigation@3"
-        },
-        {
           "submenu": "1c-platform-tools.metadata.overflowMenu",
           "when": "view == 1c-platform-tools-metadata-tree",
           "group": "navigation@6"
+        },
+        {
+          "command": "1c-platform-tools.metadata.filters.apply",
+          "when": "view == 1c-platform-tools-metadata-filters",
+          "group": "navigation@1"
+        },
+        {
+          "command": "1c-platform-tools.metadata.filters.reset",
+          "when": "view == 1c-platform-tools-metadata-filters",
+          "group": "navigation@2"
         }
       ],
       "view/item/context": [

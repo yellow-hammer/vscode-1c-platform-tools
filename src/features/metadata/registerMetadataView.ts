@@ -4,11 +4,17 @@ import {
 	MetadataTreeDataProvider,
 } from './metadataTreeView';
 import { METADATA_SEARCH_VIEW_ID, MetadataSearchViewProvider } from './metadataSearchView';
+import {
+	METADATA_FILTERS_VIEW_ID,
+	MetadataFilterTreeDataProvider,
+	type MetadataFilterTreeItem,
+} from './metadataFilterView';
 
 export interface MetadataViewRegistration {
 	metadataTreeProvider: MetadataTreeDataProvider;
 	metadataTreeView: vscode.TreeView<vscode.TreeItem>;
 	metadataSearchProvider: MetadataSearchViewProvider;
+	metadataFilterProvider: MetadataFilterTreeDataProvider;
 }
 
 /**
@@ -29,6 +35,21 @@ export function registerMetadataView(
 	});
 	context.subscriptions.push(
 		vscode.window.registerWebviewViewProvider(METADATA_SEARCH_VIEW_ID, metadataSearchProvider)
+	);
+
+	const metadataFilterProvider = new MetadataFilterTreeDataProvider(metadataTreeProvider);
+	const metadataFilterView = vscode.window.createTreeView<MetadataFilterTreeItem>(METADATA_FILTERS_VIEW_ID, {
+		treeDataProvider: metadataFilterProvider,
+		// Флажками управляем сами: охват подчинённых и родительских задают переключатели, а не иерархия.
+		manageCheckboxStateManually: true,
+	});
+	context.subscriptions.push(
+		metadataFilterView,
+		metadataFilterView.onDidChangeCheckboxState((event) => {
+			for (const [item, state] of event.items) {
+				metadataFilterProvider.setChecked(item, state === vscode.TreeItemCheckboxState.Checked);
+			}
+		})
 	);
 
 	const syncMetadataCatalogSelectionContext = (): void => {
@@ -75,5 +96,5 @@ export function registerMetadataView(
 		metadataTreeView.onDidChangeSelection(syncMetadataCatalogSelectionContext)
 	);
 
-	return { metadataTreeProvider, metadataTreeView, metadataSearchProvider };
+	return { metadataTreeProvider, metadataTreeView, metadataSearchProvider, metadataFilterProvider };
 }
