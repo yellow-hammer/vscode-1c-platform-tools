@@ -7,6 +7,7 @@
  * для проверки.
  * @module ovmComponent
  */
+import * as fssync from 'node:fs';
 import * as vscode from 'vscode';
 import {
 	cachedReleaseTag,
@@ -28,12 +29,28 @@ const OVM_SPEC: ReleaseComponentSpec = {
 };
 
 /**
- * Путь к `ovm.exe` из кэша; при необходимости загружает или обновляет его.
+ * Путь к `ovm.exe`: своя сборка из настроек либо кэш, который при необходимости загружается и обновляется.
  *
  * @param context контекст расширения (кэш живёт в globalStorage)
  * @returns абсолютный путь к файлу
+ * @throws Error если автозагрузка выключена и не задан components.ovmFile, либо файл не найден.
  */
 export async function ensureOvm(context: vscode.ExtensionContext): Promise<string> {
+	const cfg = vscode.workspace.getConfiguration('1c-platform-tools');
+	const override = cfg.get<string>('components.ovmFile', '').trim();
+	if (override) {
+		if (override.includes('${')) {
+			throw new Error('components.ovmFile: укажите полный путь к ovm.exe.');
+		}
+		if (!fssync.existsSync(override)) {
+			throw new Error(`components.ovmFile не найден: ${override}.`);
+		}
+		return override;
+	}
+	if (!cfg.get<boolean>('components.ovmAutoload', true)) {
+		throw new Error('Укажите components.ovmFile или включите components.ovmAutoload.');
+	}
+
 	const ensured = await ensureReleaseComponent(installBaseDir(context), OVM_SPEC, resolveGithubToken());
 	return ensured.assetPath;
 }
