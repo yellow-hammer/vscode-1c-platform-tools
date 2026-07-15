@@ -9,11 +9,19 @@ import * as vscode from 'vscode';
 import { ensureMdSparrowRuntime } from './mdSparrowBootstrap';
 import { logger } from '../../shared/logger';
 import { mdSparrowSchemaFlagFromConfigurationXml } from './mdSparrowSchemaVersion';
-import { runMdSparrowParamsMutation, runMdSparrowParamsRead, type MdSparrowParams } from './mdSparrowParams';
+import {
+	runMdSparrowParamsMutation,
+	runMdSparrowParamsRead,
+	type MdSparrowOp,
+	type MdSparrowParams,
+} from './mdSparrowParams';
 import {
 	applyEditedScalars,
 	buildCatalogEditTabs,
+	buildCommonModuleEditTabs,
+	buildConstantEditTabs,
 	buildDocumentEditTabs,
+	buildEnumEditTabs,
 	type MetadataEditOption,
 	type MetadataEditTabSpec,
 } from './metadataObjectEditSpec';
@@ -80,8 +88,14 @@ interface MetadataPanelEditableModel {
 
 /** Списки структуры для вкладки «Данные» (реквизиты и табличные части с операциями). */
 interface MetadataPanelStructureLists {
+	/** Заголовок основного списка: у справочника «Реквизиты», у перечисления «Значения». */
+	title: string;
+	/** Подпись кнопки добавления строки основного списка. */
+	addLabel: string;
 	attributes: MetadataNamedRow[];
 	tabularSections: MetadataTabularSectionRow[];
+	/** Есть ли у вида объекта табличные части. */
+	supportsTabularSections: boolean;
 }
 
 interface MetadataNamedRow {
@@ -976,6 +990,7 @@ const TAB_IDS_REPLACED_BY_EDIT = new Set<string>([
 	'section_commands',
 	'attributes',
 	'tabularSections',
+	'section_values',
 ]);
 
 function buildTabs(
@@ -1074,7 +1089,48 @@ function buildEditableModel(
 			}),
 		};
 	}
+	const simpleTabs = buildSimpleEditableTabs(props, structure, internalName);
+	if (simpleTabs) {
+		return { props, tabs: simpleTabs };
+	}
 	return undefined;
+}
+
+/** Виды с плоским набором свойств: перечисление, константа, общий модуль. */
+function buildSimpleEditableTabs(
+	props: MdObjectPropertiesDto,
+	structure: MdObjectStructureDto | null,
+	internalName: string
+): MetadataEditTabSpec[] | undefined {
+	const kindProps = simpleKindProps(props);
+	if (!kindProps || kindProps.objectBelonging === 'ADOPTED') {
+		return undefined;
+	}
+	const input = {
+		internalName,
+		formNames: rawNameList(structure?.forms),
+		commandNames: rawNameList(structure?.commands),
+	};
+	switch (props.kind) {
+		case 'enum':
+			return buildEnumEditTabs(input);
+		case 'constant':
+			return buildConstantEditTabs(input);
+		case 'commonModule':
+			return buildCommonModuleEditTabs();
+		default:
+			return undefined;
+	}
+}
+
+function simpleKindProps(props: MdObjectPropertiesDto): Record<string, unknown> | undefined {
+	const byKind: Record<string, unknown> = {
+		enum: (props as unknown as Record<string, unknown>).enumeration,
+		constant: (props as unknown as Record<string, unknown>).constant,
+		commonModule: (props as unknown as Record<string, unknown>).commonModule,
+	};
+	const value = props.kind ? byKind[props.kind] : undefined;
+	return isRecord(value) ? (value as Record<string, unknown>) : undefined;
 }
 
 /**
@@ -1108,12 +1164,7 @@ function buildViewModel(
 		structure,
 	};
 	const editable = buildEditableModel(props, structure, internalName, candidates);
-	const structureLists = editable
-		? {
-				attributes: props?.attributes ? asNamedRows(props.attributes) : asNamedRows(structure?.attributes),
-				tabularSections: mergeTabularSections(props?.tabularSections, structure?.tabularSections),
-			}
-		: undefined;
+	const structureLists = editable ? buildStructureLists(props, structure) : undefined;
 	return {
 		objectKind,
 		objectKindLabel: kindLabel(objectKind, objectType),
@@ -1127,6 +1178,41 @@ function buildViewModel(
 		technicalJson: JSON.stringify(technicalPayload, null, 2),
 		editable,
 		structureLists,
+	};
+}
+
+/** Тестовый хелпер: списки структуры без запуска webview. */
+export function buildStructureListsForTest(props: unknown, structure: unknown): MetadataPanelStructureLists {
+	return buildStructureLists(
+		isRecord(props) ? (props as unknown as MdObjectPropertiesDto) : null,
+		isRecord(structure) ? (structure as unknown as MdObjectStructureDto) : null
+	);
+}
+
+function structListKind(props: MdObjectPropertiesDto): MetadataStructListKind {
+	return props.kind === 'enum' ? 'enumValues' : 'attributes';
+}
+
+function buildStructureLists(
+	props: MdObjectPropertiesDto | null,
+	structure: MdObjectStructureDto | null
+): MetadataPanelStructureLists {
+	if (props?.kind === 'enum') {
+		const values = (props as unknown as Record<string, unknown>).enumValues;
+		return {
+			title: 'Значения',
+			addLabel: '+ Значение…',
+			attributes: asNamedRows(Array.isArray(values) ? values : structure?.values),
+			tabularSections: [],
+			supportsTabularSections: false,
+		};
+	}
+	return {
+		title: 'Реквизиты',
+		addLabel: '+ Реквизит…',
+		attributes: props?.attributes ? asNamedRows(props.attributes) : asNamedRows(structure?.attributes),
+		tabularSections: mergeTabularSections(props?.tabularSections, structure?.tabularSections),
+		supportsTabularSections: true,
 	};
 }
 
@@ -1256,10 +1342,29 @@ interface MetadataTabularSectionEdit extends MetadataStructRowEdit {
 	attributes: MetadataStructRowEdit[];
 }
 
+/** Вид основного списка структуры: реквизиты объекта либо значения перечисления. */
+export type MetadataStructListKind = 'attributes' | 'enumValues';
+
 interface MetadataStructureEdits {
+	listKind: MetadataStructListKind;
 	attributes: MetadataStructRowEdit[];
 	tabularSections: MetadataTabularSectionEdit[];
 }
+
+const STRUCT_OPS: Record<MetadataStructListKind, { add: MdSparrowOp; rename: MdSparrowOp; del: MdSparrowOp; reorder: MdSparrowOp }> = {
+	attributes: {
+		add: 'cf-md-attribute-add',
+		rename: 'cf-md-attribute-rename',
+		del: 'cf-md-attribute-delete',
+		reorder: 'cf-md-attribute-reorder',
+	},
+	enumValues: {
+		add: 'cf-md-enum-value-add',
+		rename: 'cf-md-enum-value-rename',
+		del: 'cf-md-enum-value-delete',
+		reorder: 'cf-md-enum-value-reorder',
+	},
+};
 
 function parseStructRow(value: unknown): MetadataStructRowEdit | null {
 	if (!isRecord(value)) {
@@ -1275,7 +1380,10 @@ function parseStructRow(value: unknown): MetadataStructRowEdit | null {
 	};
 }
 
-export function parseStructureEdits(value: unknown): MetadataStructureEdits | null {
+export function parseStructureEdits(
+	value: unknown,
+	listKind: MetadataStructListKind = 'attributes'
+): MetadataStructureEdits | null {
 	if (!isRecord(value)) {
 		return null;
 	}
@@ -1307,7 +1415,7 @@ export function parseStructureEdits(value: unknown): MetadataStructureEdits | nu
 			tabularSections.push({ ...row, attributes: nested });
 		}
 	}
-	return { attributes, tabularSections };
+	return { listKind, attributes, tabularSections };
 }
 
 /** @returns текст первой ошибки валидации имён; null — правки корректны. */
@@ -1352,6 +1460,7 @@ export function validateStructureEdits(edits: MetadataStructureEdits): string | 
 export function structOpsFromEdits(edits: MetadataStructureEdits, objectXml: string, schema: string): MdSparrowParams[] {
 	const ops: MdSparrowParams[] = [];
 	const base = { objectXml, schemaVersion: schema };
+	const listOps = STRUCT_OPS[edits.listKind];
 	for (const ts of edits.tabularSections) {
 		if (!ts.deleted && ts.originalName && ts.name !== ts.originalName) {
 			ops.push({ op: 'cf-md-tabular-section-rename', ...base, oldName: ts.originalName, newName: ts.name });
@@ -1359,7 +1468,7 @@ export function structOpsFromEdits(edits: MetadataStructureEdits, objectXml: str
 	}
 	for (const row of edits.attributes) {
 		if (!row.deleted && row.originalName && row.name !== row.originalName) {
-			ops.push({ op: 'cf-md-attribute-rename', ...base, oldName: row.originalName, newName: row.name });
+			ops.push({ op: listOps.rename, ...base, oldName: row.originalName, newName: row.name });
 		}
 	}
 	for (const ts of edits.tabularSections) {
@@ -1380,7 +1489,7 @@ export function structOpsFromEdits(edits: MetadataStructureEdits, objectXml: str
 	}
 	for (const row of edits.attributes) {
 		if (row.deleted && row.originalName) {
-			ops.push({ op: 'cf-md-attribute-delete', ...base, name: row.originalName });
+			ops.push({ op: listOps.del, ...base, name: row.originalName });
 		}
 	}
 	for (const ts of edits.tabularSections) {
@@ -1398,7 +1507,7 @@ export function structOpsFromEdits(edits: MetadataStructureEdits, objectXml: str
 	}
 	for (const row of edits.attributes) {
 		if (!row.deleted && !row.originalName) {
-			ops.push({ op: 'cf-md-attribute-add', ...base, name: row.name });
+			ops.push({ op: listOps.add, ...base, name: row.name });
 		}
 	}
 	for (const ts of edits.tabularSections) {
@@ -1417,7 +1526,7 @@ export function structOpsFromEdits(edits: MetadataStructureEdits, objectXml: str
 	// Порядок: блоки переставляются между собой по финальным именам (после rename/add/delete).
 	const attrOrder = edits.attributes.filter((row) => !row.deleted).map((row) => row.name);
 	if (attrOrder.length > 1) {
-		ops.push({ op: 'cf-md-attribute-reorder', ...base, payloadJson: JSON.stringify(attrOrder) });
+		ops.push({ op: listOps.reorder, ...base, payloadJson: JSON.stringify(attrOrder) });
 	}
 	const tsOrder = edits.tabularSections.filter((ts) => !ts.deleted).map((ts) => ts.name);
 	if (tsOrder.length > 1) {
@@ -1440,7 +1549,7 @@ export function structOpsFromEdits(edits: MetadataStructureEdits, objectXml: str
 	return ops;
 }
 
-/** Переносит синонимы реквизитов и ТЧ из правок в DTO (перечитанный после операций структуры). */
+/** Переносит синонимы строк структуры из правок в DTO (перечитанный после операций структуры). */
 export function applySynonymEdits(dto: Record<string, unknown>, edits: MetadataStructureEdits): void {
 	const attrSyn = new Map<string, string>();
 	for (const row of edits.attributes) {
@@ -1448,8 +1557,9 @@ export function applySynonymEdits(dto: Record<string, unknown>, edits: MetadataS
 			attrSyn.set(row.name, row.synonymRu);
 		}
 	}
-	if (Array.isArray(dto.attributes)) {
-		for (const raw of dto.attributes) {
+	const primaryList = dto[edits.listKind];
+	if (Array.isArray(primaryList)) {
+		for (const raw of primaryList) {
 			if (isRecord(raw) && typeof raw.name === 'string' && attrSyn.has(raw.name)) {
 				raw.synonymRu = attrSyn.get(raw.name);
 			}
@@ -1473,6 +1583,8 @@ export function applySynonymEdits(dto: Record<string, unknown>, edits: MetadataS
 const MODULE_FILE_BY_KIND: Record<string, string> = {
 	object: 'ObjectModule.bsl',
 	manager: 'ManagerModule.bsl',
+	module: 'Module.bsl',
+	valueManager: 'ValueManagerModule.bsl',
 };
 
 async function openObjectModuleFromPanel(objectXmlFsPath: string, internalName: string, moduleKind: string): Promise<void> {
@@ -1552,7 +1664,7 @@ function registerEditableSaveHandler(
 	}
 
 	async function handleSave(msg: MetadataPanelSaveMessage): Promise<void> {
-		const structureEdits = parseStructureEdits(msg.structure);
+		const structureEdits = parseStructureEdits(msg.structure, structListKind(editable.props));
 		if (structureEdits) {
 			const validationError = validateStructureEdits(structureEdits);
 			if (validationError) {
