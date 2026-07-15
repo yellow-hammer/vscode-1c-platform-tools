@@ -1055,6 +1055,8 @@ export class MetadataTreeDataProvider implements vscode.TreeDataProvider<vscode.
 				readonly allowedSubsystemNames?: ReadonlySet<string>;
 		  }
 		| undefined;
+	/** Поиск по дереву: строка в нижнем регистре либо undefined. */
+	private _textFilter: string | undefined;
 
 	/** Кэш последнего успешного дерева (для API). */
 	private _sourceItems: MetadataSourceTreeItem[] = [];
@@ -1143,6 +1145,21 @@ export class MetadataTreeDataProvider implements vscode.TreeDataProvider<vscode.
 	): void {
 		this._subsystemFilter = { subsystemName, allowedObjectNames, allowedObjectKeys, allowedSubsystemNames };
 		this._onDidChange.fire(undefined);
+	}
+
+	/** Поиск по имени объекта: пустая строка снимает фильтр. */
+	setTextFilter(query: string): void {
+		const normalized = query.trim().toLowerCase();
+		const next = normalized.length > 0 ? normalized : undefined;
+		if (next === this._textFilter) {
+			return;
+		}
+		this._textFilter = next;
+		this._onDidChange.fire(undefined);
+	}
+
+	getTextFilter(): string | undefined {
+		return this._textFilter;
 	}
 
 	clearSubsystemFilter(): void {
@@ -1345,6 +1362,14 @@ export class MetadataTreeDataProvider implements vscode.TreeDataProvider<vscode.
 			return [errItem];
 		}
 		if (!element) {
+			if (this._textFilter && !this.anySourceHasMatches()) {
+				const empty = new vscode.TreeItem(
+					`Ничего не найдено: «${this._textFilter}»`,
+					vscode.TreeItemCollapsibleState.None
+				);
+				empty.iconPath = new vscode.ThemeIcon('search');
+				return [empty];
+			}
 			return [...this._sourceItems];
 		}
 		if (element instanceof MetadataSourceTreeItem) {
@@ -1387,7 +1412,7 @@ export class MetadataTreeDataProvider implements vscode.TreeDataProvider<vscode.
 	}
 
 	private filterGroups(groups: MetadataMdGroupTreeItem[]): MetadataMdGroupTreeItem[] {
-		if (!this._subsystemFilter) {
+		if (!this._subsystemFilter && !this._textFilter) {
 			return groups;
 		}
 		const filtered: MetadataMdGroupTreeItem[] = [];
@@ -1396,6 +1421,7 @@ export class MetadataTreeDataProvider implements vscode.TreeDataProvider<vscode.
 			const leaves = this.filterLeaves(this._leavesByGroup.get(key) ?? []);
 			const subgroups = this.filterSubgroups(this._subgroupsByGroup.get(key) ?? []);
 			if (leaves.length > 0 || subgroups.length > 0) {
+				this.expandWhenSearching(group);
 				filtered.push(group);
 			}
 		}
@@ -1403,7 +1429,7 @@ export class MetadataTreeDataProvider implements vscode.TreeDataProvider<vscode.
 	}
 
 	private filterSubgroups(subgroups: MetadataMdSubgroupTreeItem[]): MetadataMdSubgroupTreeItem[] {
-		if (!this._subsystemFilter) {
+		if (!this._subsystemFilter && !this._textFilter) {
 			return subgroups;
 		}
 		const filtered: MetadataMdSubgroupTreeItem[] = [];
@@ -1414,17 +1440,50 @@ export class MetadataTreeDataProvider implements vscode.TreeDataProvider<vscode.
 				) ?? []
 			);
 			if (leaves.length > 0) {
+				this.expandWhenSearching(subgroup);
 				filtered.push(subgroup);
 			}
 		}
 		return filtered;
 	}
 
+	/** При поиске ветки с совпадениями раскрыты: иначе результат надо разворачивать руками. */
+	private expandWhenSearching(item: vscode.TreeItem): void {
+		if (item.collapsibleState === vscode.TreeItemCollapsibleState.None) {
+			return;
+		}
+		item.collapsibleState = this._textFilter
+			? vscode.TreeItemCollapsibleState.Expanded
+			: vscode.TreeItemCollapsibleState.Collapsed;
+	}
+
 	private filterLeaves(leaves: MetadataLeafTreeItem[]): MetadataLeafTreeItem[] {
-		if (!this._subsystemFilter) {
+		if (!this._subsystemFilter && !this._textFilter) {
 			return leaves;
 		}
-		return leaves.filter((leaf) => this.isLeafAllowedBySubsystemFilter(leaf));
+		return leaves.filter(
+			(leaf) => this.isLeafAllowedBySubsystemFilter(leaf) && this.isLeafAllowedByTextFilter(leaf)
+		);
+	}
+
+	private isLeafAllowedByTextFilter(leaf: MetadataLeafTreeItem): boolean {
+		if (!this._textFilter) {
+			return true;
+		}
+		return leaf.name.toLowerCase().includes(this._textFilter);
+	}
+
+	private anySourceHasMatches(): boolean {
+		for (const source of this._sourceItems) {
+			const flat = this._flatLeavesBySource.get(source.sourceId);
+			if (flat && this.filterLeaves(flat).length > 0) {
+				return true;
+			}
+			if (this.filterGroups(this._groupsBySource.get(source.sourceId) ?? []).length > 0) {
+				return true;
+			}
+		}
+		return false;
 	}
 
 	private isLeafAllowedBySubsystemFilter(leaf: MetadataLeafTreeItem): boolean {

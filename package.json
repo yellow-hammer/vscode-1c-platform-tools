@@ -150,6 +150,12 @@
       ],
       "1c-platform-tools-metadata": [
         {
+          "type": "webview",
+          "id": "1c-platform-tools-metadata-search",
+          "name": "Поиск",
+          "when": "1c-platform-tools.is1CProject == true"
+        },
+        {
           "id": "1c-platform-tools-metadata-tree",
           "name": "Дерево метаданных",
           "contextualTitle": "Метаданные выгрузки",
