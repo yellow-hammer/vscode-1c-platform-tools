@@ -990,6 +990,7 @@ const TAB_IDS_REPLACED_BY_EDIT = new Set<string>([
 	'section_commands',
 	'attributes',
 	'tabularSections',
+	'values',
 ]);
 
 function buildTabs(
