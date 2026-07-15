@@ -48,6 +48,11 @@ export interface ReleaseComponentSpec {
 	label: string;
 	/** Распаковать архив (true) или сохранить файл как есть (false). */
 	extract: boolean;
+	/**
+	 * Минимальная версия компонента (`0.4.0`). Кэш старее переcкачиваем: без этого расширение
+	 * продолжало бы работать со старым JAR, где нужных операций ещё нет.
+	 */
+	minVersion?: string;
 }
 
 /** Результат загрузки: путь к файлу (extract=false) или к каталогу распаковки (extract=true). */
@@ -69,6 +74,19 @@ interface StampInfo {
  * Строго ли тег {@code candidate} новее {@code current} (теги стабильных релизов вида `v1.2.3`/`1.2.3`).
  * Сравнение посегментно по числам; нечисловые теги — по строковому неравенству (консервативно).
  */
+/**
+ * Версия тега ниже минимально требуемой.
+ *
+ * @param tag тег релиза (`v0.3.2`)
+ * @param minVersion минимальная версия (`0.4.0`); пусто — требования нет
+ */
+export function isBelowMinVersion(tag: string, minVersion?: string): boolean {
+	if (!minVersion) {
+		return false;
+	}
+	return isNewerTag(minVersion, tag);
+}
+
 export function isNewerTag(candidate: string, current: string): boolean {
 	const parts = (t: string): number[] =>
 		t
@@ -249,8 +267,11 @@ export async function ensureReleaseComponent(
 	const cached = await readStamp(baseDir, spec);
 	const cachedPath = cached?.assetPath ?? cached?.jarPath;
 	if (cached?.tag && cachedPath && fssync.existsSync(cachedPath)) {
-		log.debug(`${spec.label} из кэша: ${cachedPath} (${cached.tag})`);
-		return { tag: cached.tag, assetPath: cachedPath };
+		if (!isBelowMinVersion(cached.tag, spec.minVersion)) {
+			log.debug(`${spec.label} из кэша: ${cachedPath} (${cached.tag})`);
+			return { tag: cached.tag, assetPath: cachedPath };
+		}
+		log.info(`${spec.label} в кэше ${cached.tag} старее ${spec.minVersion}: загружаем новый`);
 	}
 
 	const { owner, repo } = parseRepoSlug(spec.repoSlug);
@@ -284,6 +305,11 @@ export async function ensureReleaseComponent(
 
 		await writeStamp(baseDir, spec, { tag: rel.tag_name, assetPath, lastCheckMs: Date.now() });
 		log.info(`${spec.label}: ${assetPath} (${rel.tag_name})`);
+		if (isBelowMinVersion(rel.tag_name, spec.minVersion)) {
+			void vscode.window.showWarningMessage(
+				`${spec.label} ${rel.tag_name} старее требуемой версии ${spec.minVersion}: часть возможностей не будет работать.`
+			);
+		}
 		return { tag: rel.tag_name, assetPath };
 	} finally {
 		status.dispose();

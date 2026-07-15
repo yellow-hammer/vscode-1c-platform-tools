@@ -24,6 +24,7 @@ import {
 } from '../../shared/githubReleaseLoader';
 import {
 	MD_SPARROW_DEFAULT_REPO,
+	MD_SPARROW_MIN_VERSION,
 	MD_SPARROW_JAR_REGEX,
 	adoptiumBinaryUrl,
 } from './mdSparrowConstants';
@@ -45,6 +46,7 @@ const MD_SPARROW_SPEC: ReleaseComponentSpec = {
 	stampName: '.jar-info.json',
 	assetRegex: MD_SPARROW_JAR_REGEX,
 	label: 'md-sparrow',
+	minVersion: MD_SPARROW_MIN_VERSION,
 	extract: false,
 };
 
