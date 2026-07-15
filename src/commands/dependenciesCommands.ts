@@ -1,4 +1,5 @@
 import * as vscode from 'vscode';
+import { ensureOvm } from '../shared/ovmComponent';
 import * as path from 'node:path';
 import * as os from 'node:os';
 import * as fs from 'node:fs/promises';
@@ -19,7 +20,7 @@ import { streamDownload } from '../shared/githubReleaseLoader';
 const log = logger.scope('commands');
 
 /** URL для скачивания OVM (OneScript Version Manager) */
-const OVM_DOWNLOAD_URL = 'https://github.com/oscript-library/ovm/releases/latest/download/ovm.exe';
+
 
 /** Регулярное выражение для извлечения ВерсияСреды из packagedef (например .ВерсияСреды("2.0.0")) */
 const PACKAGEDEF_VERSIYA_SREDY = /\.ВерсияСреды\s*\(\s*["']([^"']+)["']\s*\)/;
@@ -205,6 +206,11 @@ async function showGitAdminCommands(): Promise<void> {
  * Команды для управления зависимостями проекта
  */
 export class DependenciesCommands extends BaseCommand {
+	/** Контекст нужен для кэша компонентов: OVM берём оттуда. */
+	constructor(private readonly context: vscode.ExtensionContext) {
+		super();
+	}
+
 	/**
 	 * Предлагает перезапустить окно после инициализации проекта, чтобы гарантированно
 	 * обновились контейнеры и команды, зависящие от контекста проекта.
@@ -808,26 +814,22 @@ export class DependenciesCommands extends BaseCommand {
 		const commandName = getInstallOneScriptCommandName();
 		const { mtimeMs: ovmOscriptMtimeBefore } = getOvmOscriptPathAndMtime();
 
+		// OVM берём из кэша компонентов: качаем средствами Node, а не оболочкой.
+		// Связку «скачать .exe в оболочке и запустить» антивирусы метят как trojan-downloader.
+		let ovmPath: string;
+		try {
+			ovmPath = await ensureOvm(this.context);
+		} catch (error) {
+			const errMsg = (error as Error).message;
+			log.error(`Не удалось получить OVM: ${errMsg}`);
+			logger.show();
+			vscode.window.showErrorMessage(`Не удалось получить OVM: ${errMsg}`);
+			return;
+		}
+
 		if (process.platform === 'win32') {
-			const tempOvm = path.join(os.tmpdir(), 'ovm.exe');
 			const ovmBinHint = String.raw`$env:LOCALAPPDATA\ovm\current\bin`;
-
-			// OVM скачиваем средствами Node, а не Invoke-WebRequest в PowerShell.
-			// Связку «скачать .exe в оболочке и запустить» антивирусы метят как trojan-downloader.
-			try {
-				await vscode.window.withProgress(
-					{ location: vscode.ProgressLocation.Notification, title: `Загрузка OVM (${ovmVersion})…` },
-					() => streamDownload(OVM_DOWNLOAD_URL, tempOvm, {})
-				);
-			} catch (error) {
-				const errMsg = (error as Error).message;
-				log.error(`Не удалось скачать OVM: ${errMsg}. URL: ${OVM_DOWNLOAD_URL}`);
-				logger.show();
-				vscode.window.showErrorMessage(`Не удалось скачать OVM: ${errMsg}`);
-				return;
-			}
-
-			const ovmQuoted = `'${tempOvm.replaceAll("'", "''")}'`;
+			const ovmQuoted = `'${ovmPath.replaceAll("'", "''")}'`;
 			const psScript = [
 				'$ErrorActionPreference = "Stop"',
 				`Write-Host "Установка OneScript (${ovmVersion})..."`,
@@ -844,13 +846,10 @@ export class DependenciesCommands extends BaseCommand {
 			});
 			terminal.show();
 		} else {
-			const tmpOvm = path.join(os.tmpdir(), 'ovm.exe');
 			const shScript = [
-				`echo "Загрузка OVM из ${OVM_DOWNLOAD_URL}..."`,
-				`curl -L -o ${JSON.stringify(tmpOvm)} ${JSON.stringify(OVM_DOWNLOAD_URL)}`,
 				`echo "Установка OneScript (${ovmVersion})..."`,
-				`mono ${JSON.stringify(tmpOvm)} install ${ovmVersion}`,
-				`mono ${JSON.stringify(tmpOvm)} use ${ovmVersion}`,
+				`mono ${JSON.stringify(ovmPath)} install ${ovmVersion}`,
+				`mono ${JSON.stringify(ovmPath)} use ${ovmVersion}`,
 				`echo "Готово. Путь OVM: $HOME/.local/share/ovm/current/bin"`
 			].join(' && ');
 

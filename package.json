@@ -2777,6 +2777,16 @@
             "type": "string",
             "default": "",
             "description": "Java: полный путь к java или javaw для дерева метаданных. Пусто — portable JRE из кэша либо java из PATH."
+          },
+          "1c-platform-tools.components.ovmAutoload": {
+            "type": "boolean",
+            "default": true,
+            "description": "Загружать OVM с GitHub Releases и обновлять его автоматически. Выключите, если используете локальный ovm.exe из «OVM: путь к файлу»."
+          },
+          "1c-platform-tools.components.ovmFile": {
+            "type": "string",
+            "default": "",
+            "description": "OVM: полный путь к локальному ovm.exe. Пусто — используется загруженный с GitHub."
           }
         }
       },

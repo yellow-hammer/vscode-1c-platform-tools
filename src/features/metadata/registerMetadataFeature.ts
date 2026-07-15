@@ -16,6 +16,7 @@ import {
 	openExternalArtifactPropertiesPanel,
 	type ExternalArtifactPropertiesDto,
 } from './metadataExternalArtifactPropertiesPanel';
+import { cachedOvmTag, clearOvmCache } from '../../shared/ovmComponent';
 import { createMdSparrowMutationRunner } from './mdSparrowMutationQueue';
 import type { MetadataFilterViewProvider } from './metadataFilterView';
 import { MetadataSearchViewProvider } from './metadataSearchView';
@@ -1698,14 +1699,16 @@ export function registerMetadataFeature(
 			return loadProjectMetadataTree(context, root);
 		}),
 		vscode.commands.registerCommand('1c-platform-tools.components.update', async () => {
-			const [adapterTag, jarTag] = await Promise.all([
+			const [adapterTag, jarTag, ovmTag] = await Promise.all([
 				cachedOnecDebugAdapterTag(context),
 				cachedMdSparrowTag(context),
+				cachedOvmTag(context),
 			]);
 			const picked = await vscode.window.showQuickPick(
 				[
 					{ label: 'Отладчик', description: adapterTag ?? 'не загружен', value: 'adapter' as const, picked: true },
 					{ label: 'Дерево метаданных', description: jarTag ?? 'не загружен', value: 'jar' as const, picked: true },
+					{ label: 'OVM', description: ovmTag ?? 'не загружен', value: 'ovm' as const, picked: false },
 					{
 						label: 'Portable JRE',
 						description: portableJreCached(context) ? 'загружена' : 'не загружена',
@@ -1728,6 +1731,9 @@ export function registerMetadataFeature(
 			}
 			if (values.has('jar')) {
 				await clearMdSparrowJarCache(context);
+			}
+			if (values.has('ovm')) {
+				await clearOvmCache(context);
 			}
 			if (values.has('jre')) {
 				await clearPortableJreCache(context);
