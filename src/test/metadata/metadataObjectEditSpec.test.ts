@@ -195,10 +195,15 @@ suite('metadataObjectPropertiesPanel structure edits', () => {
 
 	test('structOpsFromEdits: переименования, удаления, добавления в правильном порядке', () => {
 		const edits = panel.parseStructureEdits({
-			attributes: [
-				{ originalName: 'Старый', name: 'Новый', synonymRu: '', deleted: false },
-				{ originalName: 'Лишний', name: 'Лишний', synonymRu: '', deleted: true },
-				{ name: 'Добавленный', synonymRu: 'Синоним', deleted: false },
+			lists: [
+				{
+					kind: 'attributes',
+					rows: [
+						{ originalName: 'Старый', name: 'Новый', synonymRu: '', deleted: false },
+						{ originalName: 'Лишний', name: 'Лишний', synonymRu: '', deleted: true },
+						{ name: 'Добавленный', synonymRu: 'Синоним', deleted: false },
+					],
+				},
 			],
 			tabularSections: [
 				{
@@ -235,16 +240,19 @@ suite('metadataObjectPropertiesPanel structure edits', () => {
 
 	test('validateStructureEdits ловит дубли и мусорные имена', () => {
 		const bad = panel.parseStructureEdits({
-			attributes: [
-				{ name: '1Плохое', synonymRu: '', deleted: false },
-			],
+			lists: [{ kind: 'attributes', rows: [{ name: '1Плохое', synonymRu: '', deleted: false }] }],
 			tabularSections: [],
 		});
 		assert.ok(panel.validateStructureEdits(bad));
 		const dup = panel.parseStructureEdits({
-			attributes: [
-				{ originalName: 'А', name: 'Имя', synonymRu: '', deleted: false },
-				{ originalName: 'Б', name: 'имя', synonymRu: '', deleted: false },
+			lists: [
+				{
+					kind: 'attributes',
+					rows: [
+						{ originalName: 'А', name: 'Имя', synonymRu: '', deleted: false },
+						{ originalName: 'Б', name: 'имя', synonymRu: '', deleted: false },
+					],
+				},
 			],
 			tabularSections: [],
 		});
@@ -260,7 +268,9 @@ suite('metadataObjectPropertiesPanel structure edits', () => {
 			tabularSections: [{ name: 'Позиции', synonymRu: '', comment: '' }],
 		};
 		const edits = panel.parseStructureEdits({
-			attributes: [{ originalName: 'Старый', name: 'Новый', synonymRu: 'Свежий', deleted: false }],
+			lists: [
+				{ kind: 'attributes', rows: [{ originalName: 'Старый', name: 'Новый', synonymRu: 'Свежий', deleted: false }] },
+			],
 			tabularSections: [{ originalName: 'Товары', name: 'Позиции', synonymRu: 'Позиции заказа', deleted: false, attributes: [] }],
 		});
 		panel.applySynonymEdits(dto, edits);
@@ -485,7 +495,7 @@ suite('metadataObjectEditSpec: значения перечисления', () =>
 	const panel = require('../../features/metadata/metadataObjectPropertiesPanel');
 
 	function enumEdits(rows: Array<Record<string, unknown>>) {
-		return panel.parseStructureEdits({ attributes: rows, tabularSections: [] }, 'enumValues');
+		return panel.parseStructureEdits({ lists: [{ kind: 'enumValues', rows }], tabularSections: [] });
 	}
 
 	test('правки значений дают операции значений перечисления', () => {
@@ -543,7 +553,7 @@ suite('metadataObjectEditSpec: значения перечисления', () =>
 		);
 		assert.strictEqual(lists.supportsTabularSections, false);
 		assert.deepStrictEqual(
-			lists.attributes.map((row: { name: string }) => row.name),
+			lists.lists[0].rows.map((row: { name: string }) => row.name),
 			['Закрыт']
 		);
 	});
@@ -571,11 +581,11 @@ suite('metadataObjectEditSpec: значения перечисления', () =>
 		assert.deepStrictEqual(
 			lists.lists.map((list: { title: string; editable: boolean }) => [list.title, list.editable]),
 			[
-				['Измерения', false],
-				['Ресурсы', false],
-				['Реквизиты', false],
+				['Измерения', true],
+				['Ресурсы', true],
+				['Реквизиты', true],
 			],
-			'состав регистра показываем, но пока не правим'
+			'состав регистра правится, как реквизиты справочника'
 		);
 		assert.strictEqual(lists.supportsTabularSections, false, 'табличных частей у регистров нет');
 		assert.deepStrictEqual(
@@ -754,5 +764,63 @@ suite('metadataObjectEditSpec: регистры', () => {
 			commands: [],
 		});
 		assert.ok(!tabs.some((tab) => tab.render === 'edit'));
+	});
+});
+
+suite('metadataObjectEditSpec: состав регистра', () => {
+	const panel = require('../../features/metadata/metadataObjectPropertiesPanel');
+
+	test('правки измерений и ресурсов дают свои операции', () => {
+		const edits = panel.parseStructureEdits({
+			lists: [
+				{
+					kind: 'dimensions',
+					rows: [
+						{ originalName: 'Дата', name: 'ДатаГрафика', synonymRu: 'Дата графика', deleted: false },
+						{ name: 'Склад', synonymRu: 'Склад', deleted: false },
+					],
+				},
+				{ kind: 'resources', rows: [{ originalName: 'Значение', name: 'Значение', synonymRu: '', deleted: true }] },
+				{ kind: 'attributes', rows: [{ name: 'Комментарий', synonymRu: 'Комментарий', deleted: false }] },
+			],
+			tabularSections: [],
+		});
+		const ops = panel.structOpsFromEdits(edits, 'C:/cf/InformationRegisters/Графики.xml', 'V2_20');
+		assert.deepStrictEqual(
+			ops.map((op: { op: string }) => op.op),
+			[
+				'cf-md-dimension-rename',
+				'cf-md-resource-delete',
+				'cf-md-dimension-add',
+				'cf-md-attribute-add',
+				'cf-md-dimension-reorder',
+			],
+			'у каждого списка свои операции, порядок общий: переименования, удаления, добавления, порядок'
+		);
+		assert.deepStrictEqual(JSON.parse(ops[4].payloadJson), ['ДатаГрафика', 'Склад']);
+	});
+
+	test('синонимы состава пишутся каждый в своё поле DTO', () => {
+		const edits = panel.parseStructureEdits({
+			lists: [
+				{ kind: 'dimensions', rows: [{ originalName: 'Дата', name: 'Дата', synonymRu: 'Дата графика', deleted: false }] },
+				{ kind: 'resources', rows: [{ originalName: 'Значение', name: 'Значение', synonymRu: 'Часы', deleted: false }] },
+			],
+			tabularSections: [],
+		});
+		const dto: Record<string, unknown> = {
+			kind: 'informationRegister',
+			dimensions: [{ name: 'Дата', synonymRu: 'Дата', comment: '' }],
+			resources: [{ name: 'Значение', synonymRu: 'Значение', comment: '' }],
+			attributes: [{ name: 'Дата', synonymRu: 'Реквизит', comment: '' }],
+		};
+		panel.applySynonymEdits(dto, edits);
+		assert.strictEqual((dto.dimensions as Array<Record<string, unknown>>)[0].synonymRu, 'Дата графика');
+		assert.strictEqual((dto.resources as Array<Record<string, unknown>>)[0].synonymRu, 'Часы');
+		assert.strictEqual(
+			(dto.attributes as Array<Record<string, unknown>>)[0].synonymRu,
+			'Реквизит',
+			'реквизит с тем же именем не задет'
+		);
 	});
 });

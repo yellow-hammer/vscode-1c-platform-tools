@@ -103,8 +103,6 @@ interface MetadataPanelStructureList {
 interface MetadataPanelStructureLists {
 	/** Списки состава сверху вниз: у справочника «Реквизиты», у регистра — измерения, ресурсы, реквизиты. */
 	lists: MetadataPanelStructureList[];
-	/** Строки редактируемого списка: их правит webview. */
-	attributes: MetadataNamedRow[];
 	tabularSections: MetadataTabularSectionRow[];
 	/** Есть ли у вида объекта табличные части. */
 	supportsTabularSections: boolean;
@@ -1231,7 +1229,6 @@ function buildStructureLists(
 		const rows = asNamedRows(Array.isArray(values) ? values : structure?.values);
 		return {
 			lists: [{ key: 'enumValues', title: 'Значения', addLabel: '+ Значение…', editable: true, rows }],
-			attributes: rows,
 			tabularSections: [],
 			supportsTabularSections: false,
 		};
@@ -1239,13 +1236,35 @@ function buildStructureLists(
 	if (isRegisterKind(props?.kind)) {
 		// Состав регистра: измерения, ресурсы и реквизиты — всё на «Данных», как в EDT.
 		const structureRecord = isRecord(structure) ? (structure as unknown as Record<string, unknown>) : {};
+		const raw = props as unknown as Record<string, unknown>;
+		const rowsOf = (fromProps: unknown, fromStructure: unknown): MetadataNamedRow[] => {
+			const rows = asNamedRows(fromProps);
+			return rows.length > 0 ? rows : asNamedRows(fromStructure);
+		};
 		return {
 			lists: [
-				{ key: 'dimensions', title: 'Измерения', addLabel: '', editable: false, rows: asNamedRows(structureRecord.dimensions) },
-				{ key: 'resources', title: 'Ресурсы', addLabel: '', editable: false, rows: asNamedRows(structureRecord.resources) },
-				{ key: 'attributes', title: 'Реквизиты', addLabel: '', editable: false, rows: asNamedRows(structureRecord.attributes) },
+				{
+					key: 'dimensions',
+					title: 'Измерения',
+					addLabel: '+ Измерение…',
+					editable: true,
+					rows: rowsOf(raw.dimensions, structureRecord.dimensions),
+				},
+				{
+					key: 'resources',
+					title: 'Ресурсы',
+					addLabel: '+ Ресурс…',
+					editable: true,
+					rows: rowsOf(raw.resources, structureRecord.resources),
+				},
+				{
+					key: 'attributes',
+					title: 'Реквизиты',
+					addLabel: '+ Реквизит…',
+					editable: true,
+					rows: rowsOf(raw.attributes, structureRecord.attributes),
+				},
 			],
-			attributes: [],
 			tabularSections: [],
 			supportsTabularSections: false,
 		};
@@ -1253,7 +1272,6 @@ function buildStructureLists(
 	const attributes = props?.attributes ? asNamedRows(props.attributes) : asNamedRows(structure?.attributes);
 	return {
 		lists: [{ key: 'attributes', title: 'Реквизиты', addLabel: '+ Реквизит…', editable: true, rows: attributes }],
-		attributes,
 		tabularSections: mergeTabularSections(props?.tabularSections, structure?.tabularSections),
 		supportsTabularSections: true,
 	};
@@ -1389,16 +1407,23 @@ interface MetadataTabularSectionEdit extends MetadataStructRowEdit {
 	attributes: MetadataStructRowEdit[];
 }
 
-/** Вид основного списка структуры: реквизиты объекта либо значения перечисления. */
-export type MetadataStructListKind = 'attributes' | 'enumValues';
+/** Вид списка состава: поле DTO, в которое пишутся синонимы, и набор операций. */
+export type MetadataStructListKind = 'attributes' | 'enumValues' | 'dimensions' | 'resources';
+
+interface MetadataStructListEdit {
+	kind: MetadataStructListKind;
+	rows: MetadataStructRowEdit[];
+}
 
 interface MetadataStructureEdits {
-	listKind: MetadataStructListKind;
-	attributes: MetadataStructRowEdit[];
+	lists: MetadataStructListEdit[];
 	tabularSections: MetadataTabularSectionEdit[];
 }
 
-const STRUCT_OPS: Record<MetadataStructListKind, { add: MdSparrowOp; rename: MdSparrowOp; del: MdSparrowOp; reorder: MdSparrowOp }> = {
+const STRUCT_OPS: Record<
+	MetadataStructListKind,
+	{ add: MdSparrowOp; rename: MdSparrowOp; del: MdSparrowOp; reorder: MdSparrowOp }
+> = {
 	attributes: {
 		add: 'cf-md-attribute-add',
 		rename: 'cf-md-attribute-rename',
@@ -1411,7 +1436,25 @@ const STRUCT_OPS: Record<MetadataStructListKind, { add: MdSparrowOp; rename: MdS
 		del: 'cf-md-enum-value-delete',
 		reorder: 'cf-md-enum-value-reorder',
 	},
+	dimensions: {
+		add: 'cf-md-dimension-add',
+		rename: 'cf-md-dimension-rename',
+		del: 'cf-md-dimension-delete',
+		reorder: 'cf-md-dimension-reorder',
+	},
+	resources: {
+		add: 'cf-md-resource-add',
+		rename: 'cf-md-resource-rename',
+		del: 'cf-md-resource-delete',
+		reorder: 'cf-md-resource-reorder',
+	},
 };
+
+const STRUCT_LIST_KINDS: readonly MetadataStructListKind[] = ['attributes', 'enumValues', 'dimensions', 'resources'];
+
+function asStructListKind(value: unknown): MetadataStructListKind | undefined {
+	return STRUCT_LIST_KINDS.find((kind) => kind === value);
+}
 
 function parseStructRow(value: unknown): MetadataStructRowEdit | null {
 	if (!isRecord(value)) {
@@ -1427,20 +1470,30 @@ function parseStructRow(value: unknown): MetadataStructRowEdit | null {
 	};
 }
 
-export function parseStructureEdits(
-	value: unknown,
-	listKind: MetadataStructListKind = 'attributes'
-): MetadataStructureEdits | null {
+export function parseStructureEdits(value: unknown): MetadataStructureEdits | null {
 	if (!isRecord(value)) {
 		return null;
 	}
-	const attributes: MetadataStructRowEdit[] = [];
-	if (Array.isArray(value.attributes)) {
-		for (const raw of value.attributes) {
-			const row = parseStructRow(raw);
-			if (row) {
-				attributes.push(row);
+	const lists: MetadataStructListEdit[] = [];
+	if (Array.isArray(value.lists)) {
+		for (const rawList of value.lists) {
+			if (!isRecord(rawList)) {
+				continue;
 			}
+			const kind = asStructListKind(rawList.kind);
+			if (!kind) {
+				continue;
+			}
+			const rows: MetadataStructRowEdit[] = [];
+			if (Array.isArray(rawList.rows)) {
+				for (const raw of rawList.rows) {
+					const row = parseStructRow(raw);
+					if (row) {
+						rows.push(row);
+					}
+				}
+			}
+			lists.push({ kind, rows });
 		}
 	}
 	const tabularSections: MetadataTabularSectionEdit[] = [];
@@ -1462,13 +1515,18 @@ export function parseStructureEdits(
 			tabularSections.push({ ...row, attributes: nested });
 		}
 	}
-	return { listKind, attributes, tabularSections };
+	return { lists, tabularSections };
+}
+
+/** Строки всех списков состава: проверки имён общие для реквизитов, значений, измерений и ресурсов. */
+function allStructRows(edits: MetadataStructureEdits): MetadataStructRowEdit[] {
+	return edits.lists.flatMap((list) => list.rows);
 }
 
 /** @returns текст первой ошибки валидации имён; null — правки корректны. */
 export function validateStructureEdits(edits: MetadataStructureEdits): string | null {
 	const topSeen = new Set<string>();
-	for (const row of [...edits.attributes, ...edits.tabularSections]) {
+	for (const row of [...allStructRows(edits), ...edits.tabularSections]) {
 		if (row.deleted) {
 			continue;
 		}
@@ -1507,15 +1565,16 @@ export function validateStructureEdits(edits: MetadataStructureEdits): string | 
 export function structOpsFromEdits(edits: MetadataStructureEdits, objectXml: string, schema: string): MdSparrowParams[] {
 	const ops: MdSparrowParams[] = [];
 	const base = { objectXml, schemaVersion: schema };
-	const listOps = STRUCT_OPS[edits.listKind];
 	for (const ts of edits.tabularSections) {
 		if (!ts.deleted && ts.originalName && ts.name !== ts.originalName) {
 			ops.push({ op: 'cf-md-tabular-section-rename', ...base, oldName: ts.originalName, newName: ts.name });
 		}
 	}
-	for (const row of edits.attributes) {
-		if (!row.deleted && row.originalName && row.name !== row.originalName) {
-			ops.push({ op: listOps.rename, ...base, oldName: row.originalName, newName: row.name });
+	for (const list of edits.lists) {
+		for (const row of list.rows) {
+			if (!row.deleted && row.originalName && row.name !== row.originalName) {
+				ops.push({ op: STRUCT_OPS[list.kind].rename, ...base, oldName: row.originalName, newName: row.name });
+			}
 		}
 	}
 	for (const ts of edits.tabularSections) {
@@ -1534,9 +1593,11 @@ export function structOpsFromEdits(edits: MetadataStructureEdits, objectXml: str
 			}
 		}
 	}
-	for (const row of edits.attributes) {
-		if (row.deleted && row.originalName) {
-			ops.push({ op: listOps.del, ...base, name: row.originalName });
+	for (const list of edits.lists) {
+		for (const row of list.rows) {
+			if (row.deleted && row.originalName) {
+				ops.push({ op: STRUCT_OPS[list.kind].del, ...base, name: row.originalName });
+			}
 		}
 	}
 	for (const ts of edits.tabularSections) {
@@ -1552,9 +1613,11 @@ export function structOpsFromEdits(edits: MetadataStructureEdits, objectXml: str
 			}
 		}
 	}
-	for (const row of edits.attributes) {
-		if (!row.deleted && !row.originalName) {
-			ops.push({ op: listOps.add, ...base, name: row.name });
+	for (const list of edits.lists) {
+		for (const row of list.rows) {
+			if (!row.deleted && !row.originalName) {
+				ops.push({ op: STRUCT_OPS[list.kind].add, ...base, name: row.name });
+			}
 		}
 	}
 	for (const ts of edits.tabularSections) {
@@ -1571,9 +1634,11 @@ export function structOpsFromEdits(edits: MetadataStructureEdits, objectXml: str
 		}
 	}
 	// Порядок: блоки переставляются между собой по финальным именам (после rename/add/delete).
-	const attrOrder = edits.attributes.filter((row) => !row.deleted).map((row) => row.name);
-	if (attrOrder.length > 1) {
-		ops.push({ op: listOps.reorder, ...base, payloadJson: JSON.stringify(attrOrder) });
+	for (const list of edits.lists) {
+		const order = list.rows.filter((row) => !row.deleted).map((row) => row.name);
+		if (order.length > 1) {
+			ops.push({ op: STRUCT_OPS[list.kind].reorder, ...base, payloadJson: JSON.stringify(order) });
+		}
 	}
 	const tsOrder = edits.tabularSections.filter((ts) => !ts.deleted).map((ts) => ts.name);
 	if (tsOrder.length > 1) {
@@ -1598,17 +1663,20 @@ export function structOpsFromEdits(edits: MetadataStructureEdits, objectXml: str
 
 /** Переносит синонимы строк структуры из правок в DTO (перечитанный после операций структуры). */
 export function applySynonymEdits(dto: Record<string, unknown>, edits: MetadataStructureEdits): void {
-	const attrSyn = new Map<string, string>();
-	for (const row of edits.attributes) {
-		if (!row.deleted && row.name) {
-			attrSyn.set(row.name, row.synonymRu);
+	for (const list of edits.lists) {
+		const synonyms = new Map<string, string>();
+		for (const row of list.rows) {
+			if (!row.deleted && row.name) {
+				synonyms.set(row.name, row.synonymRu);
+			}
 		}
-	}
-	const primaryList = dto[edits.listKind];
-	if (Array.isArray(primaryList)) {
-		for (const raw of primaryList) {
-			if (isRecord(raw) && typeof raw.name === 'string' && attrSyn.has(raw.name)) {
-				raw.synonymRu = attrSyn.get(raw.name);
+		const dtoList = dto[list.kind];
+		if (!Array.isArray(dtoList)) {
+			continue;
+		}
+		for (const raw of dtoList) {
+			if (isRecord(raw) && typeof raw.name === 'string' && synonyms.has(raw.name)) {
+				raw.synonymRu = synonyms.get(raw.name);
 			}
 		}
 	}
@@ -1712,7 +1780,7 @@ function registerEditableSaveHandler(
 	}
 
 	async function handleSave(msg: MetadataPanelSaveMessage): Promise<void> {
-		const structureEdits = parseStructureEdits(msg.structure, structListKind(editable.props));
+		const structureEdits = parseStructureEdits(msg.structure);
 		if (structureEdits) {
 			const validationError = validateStructureEdits(structureEdits);
 			if (validationError) {
