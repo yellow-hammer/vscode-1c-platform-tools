@@ -13,7 +13,10 @@ import { runMdSparrowParamsMutation, runMdSparrowParamsRead, type MdSparrowParam
 import {
 	applyEditedScalars,
 	buildCatalogEditTabs,
+	buildCommonModuleEditTabs,
+	buildConstantEditTabs,
 	buildDocumentEditTabs,
+	buildEnumEditTabs,
 	type MetadataEditOption,
 	type MetadataEditTabSpec,
 } from './metadataObjectEditSpec';
@@ -1074,7 +1077,48 @@ function buildEditableModel(
 			}),
 		};
 	}
+	const simpleTabs = buildSimpleEditableTabs(props, structure, internalName);
+	if (simpleTabs) {
+		return { props, tabs: simpleTabs };
+	}
 	return undefined;
+}
+
+/** Виды с плоским набором свойств: перечисление, константа, общий модуль. */
+function buildSimpleEditableTabs(
+	props: MdObjectPropertiesDto,
+	structure: MdObjectStructureDto | null,
+	internalName: string
+): MetadataEditTabSpec[] | undefined {
+	const kindProps = simpleKindProps(props);
+	if (!kindProps || kindProps.objectBelonging === 'ADOPTED') {
+		return undefined;
+	}
+	const input = {
+		internalName,
+		formNames: rawNameList(structure?.forms),
+		commandNames: rawNameList(structure?.commands),
+	};
+	switch (props.kind) {
+		case 'enum':
+			return buildEnumEditTabs(input);
+		case 'constant':
+			return buildConstantEditTabs(input);
+		case 'commonModule':
+			return buildCommonModuleEditTabs();
+		default:
+			return undefined;
+	}
+}
+
+function simpleKindProps(props: MdObjectPropertiesDto): Record<string, unknown> | undefined {
+	const byKind: Record<string, unknown> = {
+		enum: (props as unknown as Record<string, unknown>).enumeration,
+		constant: (props as unknown as Record<string, unknown>).constant,
+		commonModule: (props as unknown as Record<string, unknown>).commonModule,
+	};
+	const value = props.kind ? byKind[props.kind] : undefined;
+	return isRecord(value) ? (value as Record<string, unknown>) : undefined;
 }
 
 /**
@@ -1473,6 +1517,8 @@ export function applySynonymEdits(dto: Record<string, unknown>, edits: MetadataS
 const MODULE_FILE_BY_KIND: Record<string, string> = {
 	object: 'ObjectModule.bsl',
 	manager: 'ManagerModule.bsl',
+	module: 'Module.bsl',
+	valueManager: 'ValueManagerModule.bsl',
 };
 
 async function openObjectModuleFromPanel(objectXmlFsPath: string, internalName: string, moduleKind: string): Promise<void> {

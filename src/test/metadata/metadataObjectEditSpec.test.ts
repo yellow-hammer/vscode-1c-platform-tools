@@ -327,3 +327,123 @@ suite('metadataObjectEditSpec: документ', () => {
 		assert.ok(!tabs.some((tab) => tab.id === 'overview'));
 	});
 });
+
+suite('metadataObjectEditSpec: перечисление, константа, общий модуль', () => {
+	const {
+		buildCommonModuleEditTabs,
+		buildConstantEditTabs,
+		buildEnumEditTabs,
+	} = require('../../features/metadata/metadataObjectEditSpec');
+
+	function titles(tabs: Array<{ title: string }>): string[] {
+		return tabs.map((tab) => tab.title);
+	}
+
+	function fieldByPath(tabs: Array<{ groups: Array<{ fields: Array<Record<string, unknown>> }> }>, path: string) {
+		return tabs
+			.flatMap((tab) => tab.groups)
+			.flatMap((group) => group.fields)
+			.find((field) => field.path === path);
+	}
+
+	test('вкладки перечисления в раскладке EDT', () => {
+		const tabs = buildEnumEditTabs({
+			internalName: 'СтатусыЗаказов',
+			formNames: ['ФормаСписка'],
+			commandNames: ['Открыть'],
+		});
+		assert.deepStrictEqual(titles(tabs), ['Основные', 'Формы', 'Команды']);
+		const choiceMode = fieldByPath(tabs, 'enumeration.choiceMode');
+		assert.strictEqual(choiceMode?.control, 'select');
+		const listForm = fieldByPath(tabs, 'enumeration.defaultListForm');
+		assert.strictEqual(listForm?.clearable, true, 'основную форму можно очистить');
+		assert.ok(
+			(listForm?.options as Array<{ value: string }>).some(
+				(option) => option.value === 'Enum.СтатусыЗаказов.Form.ФормаСписка'
+			)
+		);
+	});
+
+	test('вкладки константы: тип значения не редактируется', () => {
+		const tabs = buildConstantEditTabs({ internalName: 'ВалютаУчета', formNames: [], commandNames: [] });
+		assert.deepStrictEqual(titles(tabs), ['Основные', 'Формы', 'Команды']);
+		assert.ok(fieldByPath(tabs, 'constant.passwordMode'), 'режим пароля есть');
+		assert.strictEqual(fieldByPath(tabs, 'constant.type'), undefined, 'тип значения правится палитрой типов');
+		const updateHistory = fieldByPath(tabs, 'constant.updateDataHistoryImmediatelyAfterWrite');
+		assert.deepStrictEqual(updateHistory?.enabledWhen, [{ path: 'constant.dataHistory', equals: 'USE' }]);
+	});
+
+	test('вкладка общего модуля: флаги контекста', () => {
+		const tabs = buildCommonModuleEditTabs();
+		assert.deepStrictEqual(titles(tabs), ['Основные']);
+		assert.strictEqual(fieldByPath(tabs, 'commonModule.serverCall')?.control, 'check');
+		assert.strictEqual(fieldByPath(tabs, 'commonModule.returnValuesReuse')?.control, 'select');
+	});
+
+	function commonModuleProps(): Record<string, unknown> {
+		return {
+			kind: 'commonModule',
+			internalName: 'ОбщегоНазначения',
+			synonymRu: 'Общего назначения',
+			comment: '',
+			attributes: [],
+			tabularSections: [],
+			commonModule: {
+				objectBelonging: 'NATIVE',
+				global: false,
+				server: true,
+				serverCall: false,
+				privileged: false,
+				returnValuesReuse: 'DONT_USE',
+			},
+		};
+	}
+
+	test('у общего модуля сохраняются только поля из спеки', () => {
+		const tabs = buildCommonModuleEditTabs();
+		const edited = commonModuleProps();
+		const editedModule = edited.commonModule as Record<string, unknown>;
+		editedModule.serverCall = true;
+		editedModule.returnValuesReuse = 'DURING_SESSION';
+		editedModule.global = 'да';
+		edited.internalName = 'Взлом';
+
+		const dto = applyEditedScalars(commonModuleProps(), edited, tabs);
+
+		const commonModule = dto.commonModule as Record<string, unknown>;
+		assert.strictEqual(commonModule.serverCall, true);
+		assert.strictEqual(commonModule.returnValuesReuse, 'DURING_SESSION');
+		assert.strictEqual(commonModule.global, false, 'нелогическое значение флага игнорируется');
+		assert.strictEqual(dto.internalName, 'ОбщегоНазначения', 'имя не редактируется из панели');
+	});
+
+	test('панель перечисления начинается с редактируемых вкладок', () => {
+		const props = {
+			kind: 'enum',
+			internalName: 'СтатусыЗаказов',
+			synonymRu: 'Статусы заказов',
+			comment: '',
+			attributes: [],
+			tabularSections: [],
+			enumeration: { choiceMode: 'BOTH_WAYS', quickChoice: true, objectBelonging: 'NATIVE' },
+		};
+		const structure = { kind: 'enum', internalName: 'СтатусыЗаказов', forms: ['ФормаСписка'], commands: [] };
+		const tabs = buildMetadataObjectPropertiesTabsForTest('Enum', props, structure);
+		assert.strictEqual(tabs[0]?.id, 'edit_main');
+		assert.strictEqual(tabs[0]?.render, 'edit');
+	});
+
+	test('заимствованное перечисление расширения не редактируется', () => {
+		const props = {
+			kind: 'enum',
+			internalName: 'СтатусыЗаказов',
+			synonymRu: 'Статусы заказов',
+			comment: '',
+			attributes: [],
+			tabularSections: [],
+			enumeration: { objectBelonging: 'ADOPTED' },
+		};
+		const tabs = buildMetadataObjectPropertiesTabsForTest('Enum', props, { kind: 'enum', forms: [], commands: [] });
+		assert.ok(!tabs.some((tab) => tab.render === 'edit'));
+	});
+});

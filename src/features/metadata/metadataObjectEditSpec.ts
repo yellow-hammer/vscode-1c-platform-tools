@@ -119,8 +119,8 @@ function dataLockFieldsOptions(input: CatalogEditSpecInput): MetadataEditOption[
 
 function basedOnOptions(input: CatalogEditSpecInput): MetadataEditOption[] {
 	return [
-		...(input.catalogNames ?? []).map((name) => ({ value: `Catalog.${name}`, label: `Справочник: ${name}` })),
-		...(input.documentNames ?? []).map((name) => ({ value: `Document.${name}`, label: `Документ: ${name}` })),
+		...(input.catalogNames ?? []).map((name) => ({ value: `Catalog.${name}`, label: name, hint: 'Справочник' })),
+		...(input.documentNames ?? []).map((name) => ({ value: `Document.${name}`, label: name, hint: 'Документ' })),
 	];
 }
 
@@ -798,6 +798,333 @@ export function buildDocumentEditTabs(input: DocumentEditSpecInput): MetadataEdi
 				{
 					title: 'Ввод на основании',
 					fields: [{ path: 'document.basedOn', label: 'Вводится на основании', control: 'refList', options: basedOn }],
+				},
+			],
+		},
+	];
+}
+
+export interface SimpleObjectEditSpecInput {
+	internalName: string;
+	formNames: readonly string[];
+	commandNames: readonly string[];
+}
+
+const CHOICE_HISTORY = opts(['AUTO', 'Авто'], ['DONT_USE', 'Не использовать']);
+
+function enumFormOptions(internalName: string, formNames: readonly string[]): MetadataEditOption[] {
+	return [
+		{ value: '', label: '(не задана)' },
+		...formNames.map((name) => ({ value: `Enum.${internalName}.Form.${name}`, label: name })),
+	];
+}
+
+/**
+ * Вкладки редактирования перечисления: раскладка повторяет редактор EDT.
+ * Значения перечисления правятся отдельно.
+ */
+export function buildEnumEditTabs(input: SimpleObjectEditSpecInput): MetadataEditTabSpec[] {
+	const forms = enumFormOptions(input.internalName, input.formNames);
+	return [
+		{
+			id: 'edit_main',
+			title: 'Основные',
+			groups: [
+				{
+					title: 'Основные',
+					fields: [
+						{ path: 'internalName', label: 'Имя', control: 'text', readonly: true },
+						{ path: 'synonymRu', label: 'Синоним', control: 'text' },
+						{ path: 'comment', label: 'Комментарий', control: 'text' },
+						{ path: 'manager', label: 'Модуль менеджера', control: 'moduleLink' },
+					],
+				},
+				{
+					title: 'Представление',
+					fields: [
+						{ path: 'enumeration.listPresentationRu', label: 'Представление списка', control: 'text' },
+						{
+							path: 'enumeration.extendedListPresentationRu',
+							label: 'Расширенное представление списка',
+							control: 'text',
+						},
+						{ path: 'enumeration.explanationRu', label: 'Пояснение', control: 'textarea' },
+					],
+				},
+				{
+					title: 'Поле ввода',
+					fields: [
+						{ path: 'enumeration.quickChoice', label: 'Быстрый выбор', control: 'check' },
+						{
+							path: 'enumeration.choiceMode',
+							label: 'Способ выбора',
+							control: 'select',
+							options: opts(
+								['BOTH_WAYS', 'Обоими способами'],
+								['FROM_FORM', 'Из формы'],
+								['QUICK_CHOICE', 'Быстрый выбор']
+							),
+						},
+						{
+							path: 'enumeration.choiceHistoryOnInput',
+							label: 'История выбора при вводе',
+							control: 'select',
+							options: CHOICE_HISTORY,
+						},
+					],
+				},
+			],
+		},
+		{
+			id: 'edit_forms',
+			title: 'Формы',
+			groups: [
+				{
+					title: 'Основные формы',
+					fields: [
+						{
+							path: 'enumeration.defaultListForm',
+							label: 'Основная форма списка',
+							control: 'select',
+							options: forms,
+							clearable: true,
+						},
+						{
+							path: 'enumeration.defaultChoiceForm',
+							label: 'Основная форма выбора',
+							control: 'select',
+							options: forms,
+							clearable: true,
+						},
+					],
+				},
+				{
+					title: 'Формы',
+					fields: [{ path: '', label: 'Формы объекта', control: 'staticList', items: input.formNames }],
+				},
+			],
+		},
+		{
+			id: 'edit_commands',
+			title: 'Команды',
+			groups: [
+				{
+					title: 'Команды',
+					fields: [
+						{ path: 'enumeration.useStandardCommands', label: 'Использовать стандартные команды', control: 'check' },
+						{ path: '', label: 'Команды объекта', control: 'staticList', items: input.commandNames },
+					],
+				},
+			],
+		},
+	];
+}
+
+function constantFormOptions(internalName: string, formNames: readonly string[]): MetadataEditOption[] {
+	return [
+		{ value: '', label: '(не задана)' },
+		...formNames.map((name) => ({ value: `Constant.${internalName}.Form.${name}`, label: name })),
+	];
+}
+
+/**
+ * Вкладки редактирования константы: раскладка повторяет редактор EDT.
+ * Тип значения правится палитрой типов.
+ */
+export function buildConstantEditTabs(input: SimpleObjectEditSpecInput): MetadataEditTabSpec[] {
+	const forms = constantFormOptions(input.internalName, input.formNames);
+	return [
+		{
+			id: 'edit_main',
+			title: 'Основные',
+			groups: [
+				{
+					title: 'Основные',
+					fields: [
+						{ path: 'internalName', label: 'Имя', control: 'text', readonly: true },
+						{ path: 'synonymRu', label: 'Синоним', control: 'text' },
+						{ path: 'comment', label: 'Комментарий', control: 'text' },
+						{ path: 'valueManager', label: 'Модуль менеджера значения', control: 'moduleLink' },
+						{ path: 'manager', label: 'Модуль менеджера', control: 'moduleLink' },
+					],
+				},
+				{
+					title: 'Представление',
+					fields: [
+						{ path: 'constant.extendedPresentationRu', label: 'Расширенное представление', control: 'text' },
+						{ path: 'constant.toolTipRu', label: 'Подсказка', control: 'text' },
+						{ path: 'constant.explanationRu', label: 'Пояснение', control: 'textarea' },
+					],
+				},
+				{
+					title: 'Представление значения',
+					fields: [
+						{ path: 'constant.formatRu', label: 'Формат', control: 'text' },
+						{ path: 'constant.editFormatRu', label: 'Формат редактирования', control: 'text' },
+						{ path: 'constant.mask', label: 'Маска', control: 'text' },
+						{ path: 'constant.markNegatives', label: 'Выделять отрицательные', control: 'check' },
+						{ path: 'constant.passwordMode', label: 'Режим пароля', control: 'check' },
+						{ path: 'constant.multiLine', label: 'Многострочный режим', control: 'check' },
+						{ path: 'constant.extendedEdit', label: 'Расширенное редактирование', control: 'check' },
+					],
+				},
+				{
+					title: 'Поле ввода',
+					fields: [
+						{
+							path: 'constant.fillChecking',
+							label: 'Проверка заполнения',
+							control: 'select',
+							options: opts(['DONT_CHECK', 'Не проверять'], ['SHOW_ERROR', 'Выдавать ошибку']),
+						},
+						{
+							path: 'constant.choiceFoldersAndItems',
+							label: 'Выбор групп и элементов',
+							control: 'select',
+							options: opts(['ITEMS', 'Элементы'], ['FOLDERS', 'Группы'], ['FOLDERS_AND_ITEMS', 'Группы и элементы']),
+						},
+						{
+							path: 'constant.quickChoice',
+							label: 'Быстрый выбор',
+							control: 'select',
+							options: opts(['AUTO', 'Авто'], ['USE', 'Использовать'], ['DONT_USE', 'Не использовать']),
+						},
+						{
+							path: 'constant.choiceHistoryOnInput',
+							label: 'История выбора при вводе',
+							control: 'select',
+							options: CHOICE_HISTORY,
+						},
+					],
+				},
+				{
+					title: 'Прочее',
+					fields: [
+						{
+							path: 'constant.dataLockControlMode',
+							label: 'Режим управления блокировкой данных',
+							control: 'select',
+							options: opts(
+								['AUTOMATIC', 'Автоматический'],
+								['MANAGED', 'Управляемый'],
+								['AUTOMATIC_AND_MANAGED', 'Автоматический и управляемый']
+							),
+						},
+						{ path: 'constant.dataHistory', label: 'История данных', control: 'select', options: USE_DONT_USE },
+						{
+							path: 'constant.updateDataHistoryImmediatelyAfterWrite',
+							label: 'Обновлять историю данных сразу после записи',
+							control: 'check',
+							enabledWhen: [{ path: 'constant.dataHistory', equals: 'USE' }],
+						},
+						{
+							path: 'constant.executeAfterWriteDataHistoryVersionProcessing',
+							label: 'Выполнять обработку версий истории данных после записи',
+							control: 'check',
+							enabledWhen: [{ path: 'constant.dataHistory', equals: 'USE' }],
+						},
+					],
+				},
+			],
+		},
+		{
+			id: 'edit_forms',
+			title: 'Формы',
+			groups: [
+				{
+					title: 'Основные формы',
+					fields: [
+						{
+							path: 'constant.defaultForm',
+							label: 'Основная форма',
+							control: 'select',
+							options: forms,
+							clearable: true,
+						},
+						{
+							path: 'constant.choiceForm',
+							label: 'Форма выбора',
+							control: 'select',
+							options: forms,
+							clearable: true,
+						},
+					],
+				},
+				{
+					title: 'Формы',
+					fields: [{ path: '', label: 'Формы объекта', control: 'staticList', items: input.formNames }],
+				},
+			],
+		},
+		{
+			id: 'edit_commands',
+			title: 'Команды',
+			groups: [
+				{
+					title: 'Команды',
+					fields: [
+						{ path: 'constant.useStandardCommands', label: 'Использовать стандартные команды', control: 'check' },
+						{ path: '', label: 'Команды объекта', control: 'staticList', items: input.commandNames },
+					],
+				},
+			],
+		},
+	];
+}
+
+/**
+ * Вкладки редактирования общего модуля: контекст исполнения одной группой, как в EDT.
+ */
+export function buildCommonModuleEditTabs(): MetadataEditTabSpec[] {
+	return [
+		{
+			id: 'edit_main',
+			title: 'Основные',
+			groups: [
+				{
+					title: 'Основные',
+					fields: [
+						{ path: 'internalName', label: 'Имя', control: 'text', readonly: true },
+						{ path: 'synonymRu', label: 'Синоним', control: 'text' },
+						{ path: 'comment', label: 'Комментарий', control: 'text' },
+						{ path: 'module', label: 'Модуль', control: 'moduleLink' },
+					],
+				},
+				{
+					title: 'Контекст исполнения',
+					fields: [
+						{ path: 'commonModule.global', label: 'Глобальный', control: 'check' },
+						{ path: 'commonModule.server', label: 'Сервер', control: 'check' },
+						{ path: 'commonModule.serverCall', label: 'Вызов сервера', control: 'check' },
+						{ path: 'commonModule.externalConnection', label: 'Внешнее соединение', control: 'check' },
+						{ path: 'commonModule.client', label: 'Клиент (обычное приложение)', control: 'check' },
+						{
+							path: 'commonModule.clientManagedApplication',
+							label: 'Клиент (управляемое приложение)',
+							control: 'check',
+						},
+						{
+							path: 'commonModule.clientOrdinaryApplication',
+							label: 'Клиент (обычное приложение, толстый клиент)',
+							control: 'check',
+						},
+					],
+				},
+				{
+					title: 'Прочее',
+					fields: [
+						{ path: 'commonModule.privileged', label: 'Привилегированный', control: 'check' },
+						{
+							path: 'commonModule.returnValuesReuse',
+							label: 'Повторное использование возвращаемых значений',
+							control: 'select',
+							options: opts(
+								['DONT_USE', 'Не использовать'],
+								['DURING_REQUEST', 'На время вызова'],
+								['DURING_SESSION', 'На время сеанса']
+							),
+						},
+					],
 				},
 			],
 		},
