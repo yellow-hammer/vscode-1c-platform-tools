@@ -318,7 +318,7 @@ export abstract class BaseCommand {
 		if (gate) {
 			return gate === 'blocked' ? undefined : gate;
 		}
-		const steps = await this.vrunner.planIntent(intent);
+		const steps = await this.vrunner.planIntent(intent, opts?.settingsFile);
 		if (steps.length === 1) {
 			return this.runVRunner(steps[0], opts, terminalName, artifact, commandId, true);
 		}
@@ -338,7 +338,7 @@ export abstract class BaseCommand {
 		if (gate) {
 			return gate === 'blocked' ? undefined : gate;
 		}
-		const steps = await this.vrunner.planIntents(intents);
+		const steps = await this.vrunner.planIntents(intents, opts?.settingsFile);
 		return this.runVRunnerSequential(steps, opts, terminalName, commandId, true);
 	}
 

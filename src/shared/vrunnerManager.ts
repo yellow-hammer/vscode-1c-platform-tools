@@ -728,16 +728,18 @@ export class VRunnerManager {
 	 * с `appendOverrides: false`, чтобы не дописывать параметры повторно.
 	 *
 	 * @param intents - Намерения (каждое может развернуться в несколько команд)
+	 * @param settingsFile - Явный файл настроек; без него берётся активный профиль
 	 * @returns Список команд vrunner (каждая — массив аргументов)
 	 */
-	public async planIntents(intents: VRunnerIntent[]): Promise<string[][]> {
+	public async planIntents(intents: VRunnerIntent[], settingsFile?: string): Promise<string[][]> {
 		const version = await this.getVRunnerVersion();
 		const adapter = selectCliAdapter(version);
 		const cli3 = version !== undefined && isAtLeast(version, VRUNNER_FEATURES.cli3);
 		const overrides = this.getActiveEnvOverrideArgs();
 		// Именованный профиль подставляется во ВСЕ команды через --settings; для
 		// базового профиля параметр пустой (vrunner читает env.json сам).
-		const settingsParam = this.getActiveSettingsParamIfExists();
+		// Явно переданный файл настроек имеет приоритет над активным профилем.
+		const settingsParam = this.getSettingsParam(settingsFile);
 
 		const steps: string[][] = [];
 		for (const intent of intents) {
@@ -760,8 +762,8 @@ export class VRunnerManager {
 	/**
 	 * План одного намерения (см. {@link planIntents}).
 	 */
-	public async planIntent(intent: VRunnerIntent): Promise<string[][]> {
-		return this.planIntents([intent]);
+	public async planIntent(intent: VRunnerIntent, settingsFile?: string): Promise<string[][]> {
+		return this.planIntents([intent], settingsFile);
 	}
 
 	/**
