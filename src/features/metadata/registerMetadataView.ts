@@ -52,9 +52,13 @@ export function registerMetadataView(
 		vscode.window.registerWebviewViewProvider(METADATA_SEARCH_VIEW_ID, metadataSearchProvider)
 	);
 
-	const metadataFilterProvider = new MetadataFilterViewProvider(metadataTreeProvider, (selection) => {
-		void applyFilterSelection(context, metadataTreeProvider, selection);
-	});
+	const metadataFilterProvider = new MetadataFilterViewProvider(
+		context.extensionUri,
+		metadataTreeProvider,
+		(selection) => {
+			void applyFilterSelection(context, metadataTreeProvider, selection);
+		}
+	);
 	context.subscriptions.push(
 		vscode.window.registerWebviewViewProvider(METADATA_FILTERS_VIEW_ID, metadataFilterProvider)
 	);

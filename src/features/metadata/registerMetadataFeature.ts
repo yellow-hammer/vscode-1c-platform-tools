@@ -765,6 +765,18 @@ export function registerMetadataFeature(
 		vscode.commands.registerCommand('1c-platform-tools.metadata.filters.collapseAll', () => {
 			metadataFilterProvider.collapseAll();
 		}),
+		vscode.commands.registerCommand('1c-platform-tools.metadata.filters.includeNested.on', () => {
+			metadataFilterProvider.setOption('includeNested', true);
+		}),
+		vscode.commands.registerCommand('1c-platform-tools.metadata.filters.includeNested.off', () => {
+			metadataFilterProvider.setOption('includeNested', false);
+		}),
+		vscode.commands.registerCommand('1c-platform-tools.metadata.filters.includeParents.on', () => {
+			metadataFilterProvider.setOption('includeParents', true);
+		}),
+		vscode.commands.registerCommand('1c-platform-tools.metadata.filters.includeParents.off', () => {
+			metadataFilterProvider.setOption('includeParents', false);
+		}),
 		vscode.commands.registerCommand('1c-platform-tools.metadata.addDocument', async () => {
 			await vscode.commands.executeCommand('1c-platform-tools.metadata.addMdObject', 'DOCUMENT');
 		}),

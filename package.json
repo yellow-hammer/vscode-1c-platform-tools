@@ -499,6 +499,30 @@
         "icon": "$(collapse-all)"
       },
       {
+        "command": "1c-platform-tools.metadata.filters.includeNested.on",
+        "title": "Включать объекты из подчинённых подсистем",
+        "category": "1C: Метаданные",
+        "icon": "$(list-flat)"
+      },
+      {
+        "command": "1c-platform-tools.metadata.filters.includeNested.off",
+        "title": "Не включать объекты из подчинённых подсистем",
+        "category": "1C: Метаданные",
+        "icon": "$(list-tree)"
+      },
+      {
+        "command": "1c-platform-tools.metadata.filters.includeParents.on",
+        "title": "Включать объекты из родительских подсистем",
+        "category": "1C: Метаданные",
+        "icon": "$(type-hierarchy)"
+      },
+      {
+        "command": "1c-platform-tools.metadata.filters.includeParents.off",
+        "title": "Не включать объекты из родительских подсистем",
+        "category": "1C: Метаданные",
+        "icon": "$(type-hierarchy-super)"
+      },
+      {
         "command": "1c-platform-tools.metadata.filters.reset",
         "title": "Очистить фильтр",
         "category": "1C: Метаданные",
@@ -1788,14 +1812,34 @@
           "group": "navigation@6"
         },
         {
+          "command": "1c-platform-tools.metadata.filters.includeNested.on",
+          "when": "view == 1c-platform-tools-metadata-filters && !1c-platform-tools.metadata.filters.includeNested",
+          "group": "navigation@1"
+        },
+        {
+          "command": "1c-platform-tools.metadata.filters.includeNested.off",
+          "when": "view == 1c-platform-tools-metadata-filters && 1c-platform-tools.metadata.filters.includeNested",
+          "group": "navigation@1"
+        },
+        {
+          "command": "1c-platform-tools.metadata.filters.includeParents.on",
+          "when": "view == 1c-platform-tools-metadata-filters && !1c-platform-tools.metadata.filters.includeParents",
+          "group": "navigation@2"
+        },
+        {
+          "command": "1c-platform-tools.metadata.filters.includeParents.off",
+          "when": "view == 1c-platform-tools-metadata-filters && 1c-platform-tools.metadata.filters.includeParents",
+          "group": "navigation@2"
+        },
+        {
           "command": "1c-platform-tools.metadata.filters.reset",
           "when": "view == 1c-platform-tools-metadata-filters",
-          "group": "navigation@2"
+          "group": "navigation@3"
         },
         {
           "command": "1c-platform-tools.metadata.filters.collapseAll",
           "when": "view == 1c-platform-tools-metadata-filters",
-          "group": "navigation@1"
+          "group": "navigation@9"
         }
       ],
       "view/item/context": [
