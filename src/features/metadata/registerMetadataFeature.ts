@@ -17,6 +17,9 @@ import {
 	type ExternalArtifactPropertiesDto,
 } from './metadataExternalArtifactPropertiesPanel';
 import { createMdSparrowMutationRunner } from './mdSparrowMutationQueue';
+import type { MetadataFilterViewProvider } from './metadataFilterView';
+import { MetadataSearchViewProvider } from './metadataSearchView';
+import { computeSubsystemFilter, findSubsystemByName, loadSubsystemTrees } from './metadataSubsystemFilter';
 import { openMetadataObjectPropertiesEditor } from './metadataObjectPropertiesPanel';
 import {
 	openMetadataSourcePropertiesPanel,
@@ -49,6 +52,8 @@ export interface RegisterMetadataFeatureParams {
 	context: vscode.ExtensionContext;
 	metadataTreeProvider: MetadataTreeDataProvider;
 	metadataTreeView: vscode.TreeView<vscode.TreeItem>;
+	metadataSearchProvider: MetadataSearchViewProvider;
+	metadataFilterProvider: MetadataFilterViewProvider;
 }
 
 /**
@@ -57,7 +62,7 @@ export interface RegisterMetadataFeatureParams {
 export function registerMetadataFeature(
 	params: RegisterMetadataFeatureParams
 ): vscode.Disposable[] {
-	const { context, metadataTreeProvider, metadataTreeView } = params;
+	const { context, metadataTreeProvider, metadataTreeView, metadataSearchProvider, metadataFilterProvider } = params;
 
 	const MD_SPARROW_CLI_ERR_PREVIEW = 500;
 
@@ -507,72 +512,6 @@ export function registerMetadataFeature(
 		}
 	}
 
-	function parseContentRefsToObjectNames(contentRefs: string[]): Set<string> {
-		const out = new Set<string>();
-		for (const raw of contentRefs) {
-			const trimmed = raw.trim();
-			if (!trimmed) {
-				continue;
-			}
-			const slashParts = trimmed.split(/[\\/]/g).filter((x) => x.length > 0);
-			const dotParts = trimmed.split('.').filter((x) => x.length > 0);
-			const candidateFromSlash = slashParts[slashParts.length - 1] ?? '';
-			const candidateFromDot = dotParts[dotParts.length - 1] ?? '';
-			const candidate = candidateFromDot.length >= candidateFromSlash.length ? candidateFromDot : candidateFromSlash;
-			if (candidate) {
-				out.add(candidate);
-			}
-		}
-		return out;
-	}
-
-	function parseContentRefsToObjectKeys(contentRefs: string[]): Set<string> {
-		const out = new Set<string>();
-		for (const raw of contentRefs) {
-			const trimmed = raw.trim();
-			if (!trimmed) {
-				continue;
-			}
-			const parts = trimmed.split('.');
-			if (parts.length >= 2) {
-				const objectType = normalizeMdObjectTypeFromRefPrefix(parts[0] ?? '');
-				const objectName = parts.slice(1).join('.').trim();
-				if (objectType && objectName) {
-					out.add(`${objectType}.${objectName}`);
-				}
-			}
-		}
-		return out;
-	}
-
-	function normalizeMdObjectTypeFromRefPrefix(prefix: string): string {
-		const p = prefix.trim();
-		switch (p) {
-			case 'Catalog':
-			case 'Constant':
-			case 'Enum':
-			case 'Document':
-			case 'Report':
-			case 'DataProcessor':
-			case 'Task':
-			case 'ChartOfAccounts':
-			case 'ChartOfCharacteristicTypes':
-			case 'ChartOfCalculationTypes':
-			case 'CommonModule':
-			case 'Subsystem':
-			case 'SessionParameter':
-			case 'ExchangePlan':
-			case 'CommonAttribute':
-			case 'CommonPicture':
-			case 'DocumentNumerator':
-			case 'ExternalDataSource':
-			case 'Role':
-				return p;
-			default:
-				return '';
-		}
-	}
-
 	function parseExternalArtifactSourceKindFromArgs(
 		args: readonly unknown[]
 	): 'externalErf' | 'externalEpf' | undefined {
@@ -819,6 +758,12 @@ export function registerMetadataFeature(
 		}),
 		vscode.commands.registerCommand('1c-platform-tools.metadata.refresh', () => {
 			void metadataTreeProvider.refresh();
+		}),
+		vscode.commands.registerCommand('1c-platform-tools.metadata.filters.reset', () => {
+			metadataFilterProvider.clear();
+		}),
+		vscode.commands.registerCommand('1c-platform-tools.metadata.filters.collapseAll', () => {
+			metadataFilterProvider.collapseAll();
 		}),
 		vscode.commands.registerCommand('1c-platform-tools.metadata.addDocument', async () => {
 			await vscode.commands.executeCommand('1c-platform-tools.metadata.addMdObject', 'DOCUMENT');
@@ -1381,120 +1326,17 @@ export function registerMetadataFeature(
 					void vscode.window.showInformationMessage('Выберите подсистему в дереве метаданных.');
 					return;
 				}
-				const cfgPath = node.configurationXmlAbs;
-				const cfRoot = node.metadataRootAbs;
-				if (!cfgPath || !cfRoot) {
-					void vscode.window.showInformationMessage('Нет выгрузки CF или Configuration.xml.');
+				const roots = await loadSubsystemTrees(context, metadataTreeProvider);
+				const subsystem = findSubsystemByName(roots, node.name);
+				if (!subsystem) {
+					void vscode.window.showInformationMessage(`Не удалось прочитать подсистему: ${node.name}`);
 					return;
 				}
-				const schema = await mdSparrowSchemaFlagFromConfigurationXml(cfgPath);
-				const runtime = await ensureMdSparrowRuntime(context);
-				const workspaceRoot = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
-				if (!workspaceRoot) {
-					void vscode.window.showInformationMessage('Нет открытой папки workspace.');
-					return;
-				}
-				type SubsystemDto = { contentRefs?: unknown[]; nestedSubsystems?: unknown[] };
-				const readSubsystemDto = async (subsystemNode: MetadataLeafTreeItem): Promise<SubsystemDto | undefined> => {
-					if (!subsystemNode.resourceUri) {
-						return undefined;
-					}
-					const getRes = await runMdSparrowParamsRead(
-						runtime,
-						{ op: 'cf-md-object-get', objectXml: subsystemNode.resourceUri.fsPath, schemaVersion: schema },
-						{ cwd: cfRoot }
-					);
-					if (getRes.exitCode !== 0) {
-						const errText = (getRes.stderr.trim() || getRes.stdout.trim() || `код ${getRes.exitCode}`).slice(
-							0,
-							MD_SPARROW_CLI_ERR_PREVIEW
-						);
-						void vscode.window.showErrorMessage(errText);
-						return undefined;
-					}
-					try {
-						return JSON.parse(getRes.stdout.trim()) as SubsystemDto;
-					} catch {
-						void vscode.window.showErrorMessage('Не удалось разобрать состав подсистемы.');
-						return undefined;
-					}
-				};
-
-				const tree = metadataTreeProvider.getCachedTree();
-				const subsystemNameToLeaf = new Map<string, MetadataLeafTreeItem>();
-				if (tree) {
-					for (const src of tree.sources) {
-						for (const group of src.groups) {
-							for (const subgroup of group.subgroups ?? []) {
-								for (const mdItem of subgroup.items) {
-									if (mdItem.objectType !== 'Subsystem') {
-										continue;
-									}
-									const rel = mdItem.relativePath?.length ? mdItem.relativePath : undefined;
-									const leafNode = new MetadataLeafTreeItem(
-										src.id,
-										group.id,
-										subgroup.id,
-										mdItem.objectType,
-										mdItem.name,
-										rel,
-										workspaceRoot,
-										context.extensionUri,
-										src.configurationXmlRelativePath ? path.join(workspaceRoot, src.configurationXmlRelativePath) : undefined,
-										src.metadataRootRelativePath ? path.join(workspaceRoot, src.metadataRootRelativePath) : undefined
-									);
-									subsystemNameToLeaf.set(mdItem.name, leafNode);
-								}
-							}
-						}
-					}
-				}
-				subsystemNameToLeaf.set(node.name, node);
-
-				const visitedSubsystems = new Set<string>();
-				const allowedSubsystemNames = new Set<string>();
-				const allowedNames = new Set<string>();
-				const allowedKeys = new Set<string>();
-
-				const walkSubsystem = async (subsystemLeaf: MetadataLeafTreeItem): Promise<void> => {
-					if (visitedSubsystems.has(subsystemLeaf.name)) {
-						return;
-					}
-					visitedSubsystems.add(subsystemLeaf.name);
-					allowedSubsystemNames.add(subsystemLeaf.name);
-					allowedNames.add(subsystemLeaf.name);
-					allowedKeys.add(`Subsystem.${subsystemLeaf.name}`);
-
-					const dto = await readSubsystemDto(subsystemLeaf);
-					if (!dto) {
-						return;
-					}
-					const refs = Array.isArray(dto.contentRefs)
-						? dto.contentRefs.filter((x): x is string => typeof x === 'string')
-						: [];
-					for (const name of parseContentRefsToObjectNames(refs)) {
-						allowedNames.add(name);
-					}
-					for (const key of parseContentRefsToObjectKeys(refs)) {
-						allowedKeys.add(key);
-					}
-					const nestedSubsystems = Array.isArray(dto.nestedSubsystems)
-						? dto.nestedSubsystems.filter((x): x is string => typeof x === 'string')
-						: [];
-					for (const nestedName of nestedSubsystems) {
-						const nestedLeaf = subsystemNameToLeaf.get(nestedName);
-						if (nestedLeaf) {
-							await walkSubsystem(nestedLeaf);
-						} else {
-							allowedSubsystemNames.add(nestedName);
-							allowedNames.add(nestedName);
-							allowedKeys.add(`Subsystem.${nestedName}`);
-						}
-					}
-				};
-
-				await walkSubsystem(node);
-				metadataTreeProvider.setSubsystemFilter(node.name, allowedNames, allowedKeys, allowedSubsystemNames);
+				const result = computeSubsystemFilter(roots, new Set([subsystem.xmlPath]), {
+					includeNested: true,
+					includeParents: false,
+				});
+				metadataTreeProvider.setSubsystemFilter(node.name, result.names, result.keys, result.subsystemNames);
 				void vscode.commands.executeCommand(
 					'setContext',
 					'1c-platform-tools.metadata.subsystemFilterActive',

@@ -63,6 +63,7 @@ export type MdSparrowOp =
 	| 'cf-configuration-properties-get'
 	| 'cf-list-child-objects'
 	| 'cf-list-catalogs'
+	| 'cf-md-subsystem-tree'
 	| 'project-metadata-tree'
 	| 'cf-md-graph';
 

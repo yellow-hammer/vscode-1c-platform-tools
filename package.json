@@ -154,7 +154,17 @@
           "id": "1c-platform-tools-metadata-search",
           "name": "Поиск",
           "when": "1c-platform-tools.is1CProject == true",
-          "initialSize": 1
+          "initialSize": 1,
+          "visibility": "collapsed"
+        },
+        {
+          "id": "1c-platform-tools-metadata-filters",
+          "name": "Фильтры",
+          "contextualTitle": "Фильтры метаданных",
+          "when": "1c-platform-tools.is1CProject == true",
+          "visibility": "collapsed",
+          "initialSize": 6,
+          "type": "webview"
         },
         {
           "id": "1c-platform-tools-metadata-tree",
@@ -482,6 +492,18 @@
         "title": "Обновить",
         "icon": "$(refresh)",
         "category": "1C: Метаданные"
+      },
+      {
+        "command": "1c-platform-tools.metadata.filters.collapseAll",
+        "title": "Свернуть",
+        "category": "1C: Метаданные",
+        "icon": "$(collapse-all)"
+      },
+      {
+        "command": "1c-platform-tools.metadata.filters.reset",
+        "title": "Очистить фильтр",
+        "category": "1C: Метаданные",
+        "icon": "$(clear-all)"
       },
       {
         "command": "1c-platform-tools.metadata.addDocument",
@@ -1754,17 +1776,27 @@
         {
           "command": "1c-platform-tools.metadata.er.openCanvas",
           "when": "view == 1c-platform-tools-metadata-tree",
-          "group": "navigation@2"
+          "group": "navigation@4"
         },
         {
           "command": "1c-platform-tools.metadata.clearSubsystemFilter",
           "when": "view == 1c-platform-tools-metadata-tree && 1c-platform-tools.metadata.subsystemFilterActive",
-          "group": "navigation@4"
+          "group": "navigation@5"
         },
         {
           "submenu": "1c-platform-tools.metadata.overflowMenu",
           "when": "view == 1c-platform-tools-metadata-tree",
-          "group": "navigation@5"
+          "group": "navigation@6"
+        },
+        {
+          "command": "1c-platform-tools.metadata.filters.reset",
+          "when": "view == 1c-platform-tools-metadata-filters",
+          "group": "navigation@1"
+        },
+        {
+          "command": "1c-platform-tools.metadata.filters.collapseAll",
+          "when": "view == 1c-platform-tools-metadata-filters",
+          "group": "navigation@9"
         }
       ],
       "view/item/context": [
