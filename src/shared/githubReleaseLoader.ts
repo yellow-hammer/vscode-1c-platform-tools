@@ -48,11 +48,6 @@ export interface ReleaseComponentSpec {
 	label: string;
 	/** Распаковать архив (true) или сохранить файл как есть (false). */
 	extract: boolean;
-	/**
-	 * Минимальная версия компонента (`0.4.0`). Кэш старее переcкачиваем: без этого расширение
-	 * продолжало бы работать со старым JAR, где нужных операций ещё нет.
-	 */
-	minVersion?: string;
 }
 
 /** Результат загрузки: путь к файлу (extract=false) или к каталогу распаковки (extract=true). */
@@ -75,16 +70,21 @@ interface StampInfo {
  * Сравнение посегментно по числам; нечисловые теги — по строковому неравенству (консервативно).
  */
 /**
- * Версия тега ниже минимально требуемой.
- *
- * @param tag тег релиза (`v0.3.2`)
- * @param minVersion минимальная версия (`0.4.0`); пусто — требования нет
+ * Как часто спрашиваем GitHub о новой версии компонента: между проверками отдаём кэш.
+ * Столько же ждёт vsc-language-1c-bsl, на который мы ориентируемся.
  */
-export function isBelowMinVersion(tag: string, minVersion?: string): boolean {
-	if (!minVersion) {
-		return false;
+const UPDATE_CHECK_TTL_MS = 8 * 60 * 1000;
+
+/**
+ * Пора ли спрашивать GitHub о новой версии.
+ *
+ * @param lastCheckMs время последней проверки из штампа; пусто — не проверяли ни разу
+ */
+export function updateCheckDue(lastCheckMs: number | undefined, nowMs: number = Date.now()): boolean {
+	if (!lastCheckMs) {
+		return true;
 	}
-	return isNewerTag(minVersion, tag);
+	return nowMs - lastCheckMs >= UPDATE_CHECK_TTL_MS;
 }
 
 export function isNewerTag(candidate: string, current: string): boolean {
@@ -266,20 +266,42 @@ export async function ensureReleaseComponent(
 ): Promise<EnsuredComponent> {
 	const cached = await readStamp(baseDir, spec);
 	const cachedPath = cached?.assetPath ?? cached?.jarPath;
-	if (cached?.tag && cachedPath && fssync.existsSync(cachedPath)) {
-		if (!isBelowMinVersion(cached.tag, spec.minVersion)) {
-			log.debug(`${spec.label} из кэша: ${cachedPath} (${cached.tag})`);
-			return { tag: cached.tag, assetPath: cachedPath };
-		}
-		log.info(`${spec.label} в кэше ${cached.tag} старее ${spec.minVersion}: загружаем новый`);
+	const inCache =
+		cached?.tag && cachedPath && fssync.existsSync(cachedPath)
+			? { tag: cached.tag, assetPath: cachedPath }
+			: undefined;
+	if (inCache && !updateCheckDue(cached?.lastCheckMs)) {
+		log.debug(`${spec.label} из кэша: ${inCache.assetPath} (${inCache.tag})`);
+		return inCache;
 	}
 
 	const { owner, repo } = parseRepoSlug(spec.repoSlug);
 	const headers = githubHeaders(token);
-	log.info(`Загрузка ${spec.label} с GitHub (${owner}/${repo})…`);
-	const status = showStatus(`${spec.label}: загрузка…`);
+	let status = showStatus(`${spec.label}: проверка обновлений…`);
 	try {
-		const rel = await fetchLatestStableRelease(owner, repo, headers);
+		let rel: GithubRelease;
+		try {
+			rel = await fetchLatestStableRelease(owner, repo, headers);
+		} catch (e) {
+			if (!inCache) {
+				throw e;
+			}
+			// Без сети работаем на том, что уже загружено.
+			log.warn(`${spec.label}: не удалось проверить обновление: ${e instanceof Error ? e.message : String(e)}`);
+			return inCache;
+		}
+		if (inCache && !isNewerTag(rel.tag_name, inCache.tag)) {
+			await writeStamp(baseDir, spec, {
+				tag: inCache.tag,
+				assetPath: inCache.assetPath,
+				lastCheckMs: Date.now(),
+			});
+			log.debug(`${spec.label} актуален: ${inCache.tag}`);
+			return inCache;
+		}
+		log.info(`Загрузка ${spec.label} ${rel.tag_name} с GitHub (${owner}/${repo})…`);
+		status.dispose();
+		status = showStatus(`${spec.label}: загрузка…`);
 		const asset = pickAsset(rel, spec);
 		const destDir = path.join(baseDir, spec.cacheSubdir, rel.tag_name.replace(/[^\w.-]+/g, '_'));
 		await fs.rm(destDir, { recursive: true, force: true }).catch(() => undefined);
@@ -305,11 +327,6 @@ export async function ensureReleaseComponent(
 
 		await writeStamp(baseDir, spec, { tag: rel.tag_name, assetPath, lastCheckMs: Date.now() });
 		log.info(`${spec.label}: ${assetPath} (${rel.tag_name})`);
-		if (isBelowMinVersion(rel.tag_name, spec.minVersion)) {
-			void vscode.window.showWarningMessage(
-				`${spec.label} ${rel.tag_name} старее требуемой версии ${spec.minVersion}: часть возможностей не будет работать.`
-			);
-		}
 		return { tag: rel.tag_name, assetPath };
 	} finally {
 		status.dispose();

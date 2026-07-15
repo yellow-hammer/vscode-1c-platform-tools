@@ -1,5 +1,5 @@
 import * as assert from 'node:assert';
-import { isBelowMinVersion, isNewerTag } from '../../shared/githubReleaseLoader';
+import { isNewerTag, updateCheckDue } from '../../shared/githubReleaseLoader';
 
 suite('githubReleaseLoader.isNewerTag', () => {
 	test('новее по patch/minor/major', () => {
@@ -24,19 +24,19 @@ suite('githubReleaseLoader.isNewerTag', () => {
 	});
 });
 
-suite('githubReleaseLoader: минимальная версия компонента', () => {
-	test('кэш старее требуемой версии считается негодным', () => {
-		assert.strictEqual(isBelowMinVersion('v0.3.2', '0.4.0'), true);
-		assert.strictEqual(isBelowMinVersion('0.3.9', '0.4.0'), true);
+suite('githubReleaseLoader: проверка обновлений', () => {
+	const now = 1_000_000_000_000;
+
+	test('без штампа проверяем сразу', () => {
+		assert.strictEqual(updateCheckDue(undefined, now), true);
 	});
 
-	test('кэш нужной версии и новее годится', () => {
-		assert.strictEqual(isBelowMinVersion('v0.4.0', '0.4.0'), false);
-		assert.strictEqual(isBelowMinVersion('v0.4.1', '0.4.0'), false);
-		assert.strictEqual(isBelowMinVersion('v1.0.0', '0.4.0'), false);
+	test('сразу после проверки отдаём кэш', () => {
+		assert.strictEqual(updateCheckDue(now - 60_000, now), false);
 	});
 
-	test('без требования подходит любой тег', () => {
-		assert.strictEqual(isBelowMinVersion('v0.0.1', undefined), false);
+	test('через восемь минут проверяем снова', () => {
+		assert.strictEqual(updateCheckDue(now - 8 * 60_000, now), true);
+		assert.strictEqual(updateCheckDue(now - 60 * 60_000, now), true);
 	});
 });

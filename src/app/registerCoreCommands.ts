@@ -40,7 +40,7 @@ export function registerCoreCommands(
 		artifact: new ArtifactCommands(),
 		externalFiles: new ExternalFilesCommands(),
 		support: new SupportCommands(),
-		dependencies: new DependenciesCommands(),
+		dependencies: new DependenciesCommands(context),
 		run: new RunCommands(),
 		test: new TestCommands(),
 		setVersion: new SetVersionCommands(),

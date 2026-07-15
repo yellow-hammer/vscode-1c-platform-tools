@@ -9,12 +9,6 @@ export const MD_SPARROW_DEFAULT_REPO = 'yellow-hammer/md-sparrow';
 /** Паттерн имени fat-JAR в релизе GitHub */
 export const MD_SPARROW_JAR_REGEX = /md-sparrow-.*-all\.jar$/i;
 
-/**
- * Минимальная версия md-sparrow: панели свойств зовут операции, которых в более старых JAR нет
- * (чтение и запись свойств документов, перечислений, констант, регистров, дерево подсистем).
- * Кэш старее этой версии загрузчик перекачивает.
- */
-export const MD_SPARROW_MIN_VERSION = '0.4.0';
 
 /** API Temurin JRE 21 (ga) — редирект на архив */
 export function adoptiumBinaryUrl(): string {
