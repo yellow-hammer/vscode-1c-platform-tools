@@ -10,7 +10,13 @@ import { ensureMdSparrowRuntime } from './mdSparrowBootstrap';
 import { logger } from '../../shared/logger';
 import { mdSparrowSchemaFlagFromConfigurationXml } from './mdSparrowSchemaVersion';
 import { runMdSparrowParamsMutation, runMdSparrowParamsRead, type MdSparrowParams } from './mdSparrowParams';
-import { applyEditedScalars, buildCatalogEditTabs, type MetadataEditTabSpec } from './metadataObjectEditSpec';
+import {
+	applyEditedScalars,
+	buildCatalogEditTabs,
+	buildDocumentEditTabs,
+	type MetadataEditOption,
+	type MetadataEditTabSpec,
+} from './metadataObjectEditSpec';
 import {
 	metadataObjectPropertyProfileByType,
 	type MetadataObjectPropertyProfile,
@@ -32,6 +38,7 @@ interface MdObjectPropertiesDto {
 	nestedSubsystems?: string[];
 	contentRefs?: string[];
 	catalog?: Record<string, unknown>;
+	document?: Record<string, unknown>;
 }
 
 interface MdObjectStructureDto {
@@ -1004,34 +1011,70 @@ function rawNameList(value: unknown): string[] {
 	return Array.from(new Set(out));
 }
 
+/** Кандидаты для подбора в редактируемых списках (читаются из конфигурации). */
+export interface MetadataEditCandidates {
+	catalogNames: readonly string[];
+	documentNames: readonly string[];
+	numeratorNames: readonly string[];
+	registerOptions: readonly MetadataEditOption[];
+}
+
+const EMPTY_CANDIDATES: MetadataEditCandidates = {
+	catalogNames: [],
+	documentNames: [],
+	numeratorNames: [],
+	registerOptions: [],
+};
+
 function buildEditableModel(
 	props: MdObjectPropertiesDto | null,
 	structure: MdObjectStructureDto | null,
 	internalName: string,
-	catalogNames: readonly string[] = [],
-	documentNames: readonly string[] = []
+	candidates: MetadataEditCandidates = EMPTY_CANDIDATES
 ): MetadataPanelEditableModel | undefined {
-	if (!props || props.kind !== 'catalog' || !isRecord(props.catalog)) {
+	if (!props) {
 		return undefined;
 	}
-	const catalog = props.catalog as Record<string, unknown>;
-	if (catalog.objectBelonging === 'ADOPTED') {
-		// Заимствованные объекты расширений: свои правила состава XML, редактирование пока не включаем.
-		return undefined;
+	if (props.kind === 'catalog' && isRecord(props.catalog)) {
+		const catalog = props.catalog as Record<string, unknown>;
+		if (catalog.objectBelonging === 'ADOPTED') {
+			// Заимствованные объекты расширений: свои правила состава XML, редактирование пока не включаем.
+			return undefined;
+		}
+		return {
+			props,
+			tabs: buildCatalogEditTabs({
+				internalName,
+				formNames: rawNameList(structure?.forms),
+				commandNames: rawNameList(structure?.commands),
+				catalogNames: candidates.catalogNames,
+				documentNames: candidates.documentNames,
+				attributeNames: rawNameList(props.attributes),
+				hasOwners: Array.isArray(catalog.owners) && catalog.owners.length > 0,
+				hierarchical: catalog.hierarchical === true,
+			}),
+		};
 	}
-	return {
-		props,
-		tabs: buildCatalogEditTabs({
-			internalName,
-			formNames: rawNameList(structure?.forms),
-			commandNames: rawNameList(structure?.commands),
-			catalogNames,
-			documentNames,
-			attributeNames: rawNameList(props.attributes),
-			hasOwners: Array.isArray(catalog.owners) && catalog.owners.length > 0,
-			hierarchical: catalog.hierarchical === true,
-		}),
-	};
+	if (props.kind === 'document' && isRecord(props.document)) {
+		const document = props.document as Record<string, unknown>;
+		if (document.objectBelonging === 'ADOPTED') {
+			return undefined;
+		}
+		return {
+			props,
+			tabs: buildDocumentEditTabs({
+				internalName,
+				formNames: rawNameList(structure?.forms),
+				commandNames: rawNameList(structure?.commands),
+				catalogNames: candidates.catalogNames,
+				documentNames: candidates.documentNames,
+				attributeNames: rawNameList(props.attributes),
+				numeratorNames: candidates.numeratorNames,
+				registerOptions: candidates.registerOptions,
+			}),
+		};
+	}
+	return undefined;
 }
 
 /**
@@ -1054,8 +1097,7 @@ function buildViewModel(
 	props: MdObjectPropertiesDto | null,
 	structure: MdObjectStructureDto | null,
 	warnings: string[],
-	catalogNames: readonly string[] = [],
-	documentNames: readonly string[] = []
+	candidates: MetadataEditCandidates = EMPTY_CANDIDATES
 ): MetadataPanelViewModel {
 	const declaredObjectType = normalizeObjectType(params.objectType ?? '');
 	const internalName = props?.internalName || structure?.internalName || path.parse(params.objectXmlFsPath).name;
@@ -1065,7 +1107,7 @@ function buildViewModel(
 		properties: props,
 		structure,
 	};
-	const editable = buildEditableModel(props, structure, internalName, catalogNames, documentNames);
+	const editable = buildEditableModel(props, structure, internalName, candidates);
 	const structureLists = editable
 		? {
 				attributes: props?.attributes ? asNamedRows(props.attributes) : asNamedRows(structure?.attributes),
@@ -1105,10 +1147,9 @@ export async function openMetadataObjectPropertiesEditor(
 	}
 
 	const runtime = await ensureMdSparrowRuntime(context);
-	const wantsCatalogCandidates =
-		Boolean(params.cfgPath) && normalizeObjectType(params.objectType ?? '') === 'Catalog';
-	const noCandidates = Promise.resolve({ ok: false as const, error: '' });
-	const [propsResult, structureResult, catalogNamesResult, documentNamesResult] = await Promise.all([
+	const editableType = normalizeObjectType(params.objectType ?? '');
+	const wantsCandidates = Boolean(params.cfgPath) && (editableType === 'Catalog' || editableType === 'Document');
+	const [propsResult, structureResult, candidates] = await Promise.all([
 		runMdSparrowJson<MdObjectPropertiesDto>(
 			runtime,
 			{ op: 'cf-md-object-get', objectXml: params.objectXmlFsPath, schemaVersion: schema },
@@ -1119,20 +1160,9 @@ export async function openMetadataObjectPropertiesEditor(
 			{ op: 'cf-md-object-structure-get', objectXml: params.objectXmlFsPath, schemaVersion: schema },
 			params.cwd
 		),
-		wantsCatalogCandidates
-			? runMdSparrowJson<string[]>(
-					runtime,
-					{ op: 'cf-list-catalogs', configurationXml: params.cfgPath, schemaVersion: schema },
-					params.cwd
-				)
-			: noCandidates,
-		wantsCatalogCandidates
-			? runMdSparrowJson<string[]>(
-					runtime,
-					{ op: 'cf-list-child-objects', configurationXml: params.cfgPath, tag: 'Document', schemaVersion: schema },
-					params.cwd
-				)
-			: noCandidates,
+		wantsCandidates
+			? loadEditCandidates(runtime, params, schema, editableType)
+			: Promise.resolve(EMPTY_CANDIDATES),
 	]);
 
 	const { propsDto, structureDto, warnings, fatalReason } = collectMetadataReadState(propsResult, structureResult);
@@ -1143,10 +1173,7 @@ export async function openMetadataObjectPropertiesEditor(
 		return;
 	}
 
-	const catalogNames = catalogNamesResult.ok && Array.isArray(catalogNamesResult.value) ? catalogNamesResult.value : [];
-	const documentNames =
-		documentNamesResult.ok && Array.isArray(documentNamesResult.value) ? documentNamesResult.value : [];
-	const viewModel = buildViewModel(params, propsDto, structureDto, warnings, catalogNames, documentNames);
+	const viewModel = buildViewModel(params, propsDto, structureDto, warnings, candidates);
 	const title = panelTitleForKind(viewModel.objectKind, viewModel.internalName);
 	const webviewRoot = vscode.Uri.joinPath(context.extensionUri, 'resources', 'webview');
 	const panel = vscode.window.createWebviewPanel('1cMetadataObjectProperties', title, vscode.ViewColumn.Active, {
@@ -1156,7 +1183,7 @@ export async function openMetadataObjectPropertiesEditor(
 	});
 
 	if (viewModel.editable) {
-		registerEditableSaveHandler(context, panel, params, runtime, schema, viewModel.editable, catalogNames, documentNames);
+		registerEditableSaveHandler(context, panel, params, runtime, schema, viewModel.editable, candidates);
 	}
 
 	try {
@@ -1166,6 +1193,46 @@ export async function openMetadataObjectPropertiesEditor(
 		void vscode.window.showErrorMessage('Не удалось загрузить панель свойств.');
 		panel.dispose();
 	}
+}
+
+const REGISTER_TAG_LABEL: Record<string, string> = {
+	InformationRegister: 'Регистр сведений',
+	AccumulationRegister: 'Регистр накопления',
+	AccountingRegister: 'Регистр бухгалтерии',
+	CalculationRegister: 'Регистр расчета',
+};
+
+/** Читает списки конфигурации для подбора в редактируемых полях панели. */
+async function loadEditCandidates(
+	runtime: Awaited<ReturnType<typeof ensureMdSparrowRuntime>>,
+	params: OpenMetadataObjectPropertiesParams,
+	schema: string,
+	editableType: string
+): Promise<MetadataEditCandidates> {
+	const listByTag = async (tag: string): Promise<string[]> => {
+		const res = await runMdSparrowJson<string[]>(
+			runtime,
+			{ op: 'cf-list-child-objects', configurationXml: params.cfgPath, tag, schemaVersion: schema },
+			params.cwd
+		);
+		return res.ok && Array.isArray(res.value) ? res.value : [];
+	};
+	const wantsRegisters = editableType === 'Document';
+	const [catalogNames, documentNames, numeratorNames, ...registers] = await Promise.all([
+		listByTag('Catalog'),
+		listByTag('Document'),
+		wantsRegisters ? listByTag('DocumentNumerator') : Promise.resolve([]),
+		...(wantsRegisters ? Object.keys(REGISTER_TAG_LABEL).map((tag) => listByTag(tag)) : []),
+	]);
+	const registerOptions: MetadataEditOption[] = [];
+	if (wantsRegisters) {
+		Object.keys(REGISTER_TAG_LABEL).forEach((tag, index) => {
+			for (const name of registers[index] ?? []) {
+				registerOptions.push({ value: `${tag}.${name}`, label: name, hint: REGISTER_TAG_LABEL[tag] });
+			}
+		});
+	}
+	return { catalogNames, documentNames, numeratorNames, registerOptions };
 }
 
 interface MetadataPanelSaveMessage {
@@ -1433,8 +1500,7 @@ function registerEditableSaveHandler(
 	runtime: Awaited<ReturnType<typeof ensureMdSparrowRuntime>>,
 	schema: string,
 	editable: MetadataPanelEditableModel,
-	catalogNames: readonly string[],
-	documentNames: readonly string[]
+	candidates: MetadataEditCandidates
 ): void {
 	const enqueue = params.enqueueMutation ?? (<T,>(fn: () => Promise<T>): Promise<T> => fn());
 	let saving = false;
@@ -1460,8 +1526,7 @@ function registerEditableSaveHandler(
 			propsResult.value,
 			structureResult.ok ? structureResult.value : null,
 			[],
-			catalogNames,
-			documentNames
+			candidates
 		);
 		if (vm.editable) {
 			editable.props = vm.editable.props;

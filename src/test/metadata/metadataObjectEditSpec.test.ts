@@ -271,3 +271,59 @@ suite('metadataObjectPropertiesPanel structure edits', () => {
 		assert.strictEqual((dto.tabularSections as Array<Record<string, unknown>>)[0].synonymRu, 'Позиции заказа');
 	});
 });
+
+suite('metadataObjectEditSpec: документ', () => {
+	const { buildDocumentEditTabs } = require('../../features/metadata/metadataObjectEditSpec');
+
+	function documentProps(): Record<string, unknown> {
+		return {
+			kind: 'document',
+			internalName: 'ЗаказПокупателя',
+			synonymRu: 'Заказ покупателя',
+			comment: '',
+			attributes: [{ name: 'Контрагент', synonymRu: 'Контрагент', comment: '' }],
+			tabularSections: [],
+			document: {
+				posting: 'ALLOW',
+				numberType: 'STRING',
+				numberLength: '11',
+				registerRecords: ['AccumulationRegister.Остатки'],
+				autonumbering: true,
+				checkUnique: true,
+			},
+		};
+	}
+
+	test('вкладки документа в раскладке EDT', () => {
+		const tabs = buildDocumentEditTabs({
+			internalName: 'ЗаказПокупателя',
+			formNames: ['ФормаДокумента'],
+			commandNames: [],
+			numeratorNames: ['ОбщийНумератор'],
+			registerOptions: [{ value: 'AccumulationRegister.Остатки', label: 'Остатки', hint: 'Регистр накопления' }],
+		});
+		assert.deepStrictEqual(
+			tabs.map((tab: { title: string }) => tab.title),
+			['Основные', 'Данные', 'Движения', 'Формы', 'Команды', 'Ввод на основании']
+		);
+		const movements = tabs.find((tab: { id: string }) => tab.id === 'edit_movements');
+		const rr = movements?.groups
+			.flatMap((g: { fields: unknown[] }) => g.fields)
+			.find((f: { path: string }) => f.path === 'document.registerRecords');
+		assert.strictEqual(rr?.control, 'refList');
+		assert.ok(rr?.options?.some((o: { value: string }) => o.value === 'AccumulationRegister.Остатки'));
+		const numerator = tabs
+			.flatMap((tab: { groups: Array<{ fields: unknown[] }> }) => tab.groups)
+			.flatMap((g: { fields: Array<{ path: string }> }) => g.fields)
+			.find((f: { path: string }) => f.path === 'document.numerator');
+		assert.ok(numerator?.options?.some((o: { value: string }) => o.value === 'DocumentNumerator.ОбщийНумератор'));
+	});
+
+	test('панель документа начинается с редактируемых вкладок', () => {
+		const structure = { kind: 'document', internalName: 'ЗаказПокупателя', forms: ['ФормаДокумента'], commands: [] };
+		const tabs = buildMetadataObjectPropertiesTabsForTest('Document', documentProps(), structure);
+		assert.strictEqual(tabs[0]?.id, 'edit_main');
+		assert.strictEqual(tabs[0]?.render, 'edit');
+		assert.ok(!tabs.some((tab) => tab.id === 'overview'));
+	});
+});

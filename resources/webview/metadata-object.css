@@ -8,7 +8,7 @@ body {
 }
 
 .page {
-	max-width: 1240px;
+	max-width: 1600px;
 	margin: 0 auto;
 	padding: 16px 16px 56px 16px;
 	box-sizing: border-box;
@@ -339,10 +339,9 @@ body {
 
 /* Группы полей текут в колонки последовательно (первая заполняется сверху вниз, хвост уходит во вторую). */
 .edit-columns {
-	column-width: 430px;
+	column-width: 520px;
 	column-count: 2;
 	column-gap: 40px;
-	max-width: 960px;
 }
 
 .edit-group {
@@ -358,10 +357,15 @@ body {
 
 .edit-row {
 	display: grid;
-	grid-template-columns: minmax(160px, 220px) 1fr;
+	grid-template-columns: minmax(160px, 220px) minmax(0, 1fr);
 	align-items: center;
 	gap: 8px;
 	min-height: 28px;
+}
+
+/* Без min-width колонка растягивалась под самую длинную опцию select. */
+.edit-control {
+	min-width: 0;
 }
 
 .edit-row:has(.edit-ref-list) {
@@ -510,8 +514,15 @@ body {
 }
 
 .edit-ref-item-label {
-	overflow-wrap: anywhere;
 	min-width: 0;
+	flex: 1 1 auto;
+	overflow-wrap: anywhere;
+}
+
+.edit-ref-item-hint {
+	color: var(--vscode-descriptionForeground);
+	font-size: 11px;
+	white-space: nowrap;
 }
 
 .edit-ref-remove {
