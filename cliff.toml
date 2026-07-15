@@ -42,6 +42,8 @@ commit_parsers = [
     { message = "^test", group = "<!-- 6 -->Тестирование" },
     { message = "^chore\\(release\\)", skip = true },
     { message = "^chore\\(deps.*\\)", skip = true },
+    { message = "^build\\(deps.*\\)", skip = true },
+    { message = "^ci\\(deps.*\\)", skip = true },
     { message = "^chore\\(pr\\)", skip = true },
     { message = "^chore\\(pull\\)", skip = true },
     { message = "^chore|^ci", group = "<!-- 7 -->Обслуживание" },
