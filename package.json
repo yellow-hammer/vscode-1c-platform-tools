@@ -484,6 +484,18 @@
         "category": "1C: Метаданные"
       },
       {
+        "command": "1c-platform-tools.metadata.find",
+        "title": "Поиск",
+        "category": "1C: Метаданные",
+        "icon": "$(search)"
+      },
+      {
+        "command": "1c-platform-tools.metadata.pickSubsystemFilter",
+        "title": "Фильтр по подсистемам",
+        "category": "1C: Метаданные",
+        "icon": "$(filter)"
+      },
+      {
         "command": "1c-platform-tools.metadata.addDocument",
         "title": "Добавить документ",
         "category": "1C: Метаданные"
@@ -1754,17 +1766,27 @@
         {
           "command": "1c-platform-tools.metadata.er.openCanvas",
           "when": "view == 1c-platform-tools-metadata-tree",
-          "group": "navigation@2"
+          "group": "navigation@4"
         },
         {
           "command": "1c-platform-tools.metadata.clearSubsystemFilter",
           "when": "view == 1c-platform-tools-metadata-tree && 1c-platform-tools.metadata.subsystemFilterActive",
-          "group": "navigation@4"
+          "group": "navigation@5"
+        },
+        {
+          "command": "1c-platform-tools.metadata.find",
+          "when": "view == 1c-platform-tools-metadata-tree",
+          "group": "navigation@2"
+        },
+        {
+          "command": "1c-platform-tools.metadata.pickSubsystemFilter",
+          "when": "view == 1c-platform-tools-metadata-tree",
+          "group": "navigation@3"
         },
         {
           "submenu": "1c-platform-tools.metadata.overflowMenu",
           "when": "view == 1c-platform-tools-metadata-tree",
-          "group": "navigation@5"
+          "group": "navigation@6"
         }
       ],
       "view/item/context": [

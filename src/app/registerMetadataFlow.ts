@@ -14,12 +14,13 @@ export function registerMetadataFlow(
 	context: vscode.ExtensionContext,
 	isProject: boolean
 ): MetadataFlow {
-	const { metadataTreeProvider, metadataTreeView } = registerMetadataView(context);
+	const { metadataTreeProvider, metadataTreeView, metadataSearchProvider } = registerMetadataView(context);
 
 	const metadataFeatureDisposables = registerMetadataFeature({
 		context,
 		metadataTreeProvider,
 		metadataTreeView,
+		metadataSearchProvider,
 	});
 	context.subscriptions.push(...metadataFeatureDisposables);
 

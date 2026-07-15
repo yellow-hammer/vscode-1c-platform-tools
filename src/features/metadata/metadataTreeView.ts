@@ -1169,6 +1169,15 @@ export class MetadataTreeDataProvider implements vscode.TreeDataProvider<vscode.
 		return this._textFilter?.query;
 	}
 
+	/** Подсистемы всех источников — кандидаты для фильтра по подсистеме. */
+	listSubsystemLeaves(): MetadataLeafTreeItem[] {
+		const out: MetadataLeafTreeItem[] = [];
+		for (const bySource of this._subsystemsBySource.values()) {
+			out.push(...bySource.values());
+		}
+		return out;
+	}
+
 	clearSubsystemFilter(): void {
 		if (!this._subsystemFilter) {
 			return;

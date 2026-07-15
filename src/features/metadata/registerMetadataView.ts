@@ -8,6 +8,7 @@ import { METADATA_SEARCH_VIEW_ID, MetadataSearchViewProvider } from './metadataS
 export interface MetadataViewRegistration {
 	metadataTreeProvider: MetadataTreeDataProvider;
 	metadataTreeView: vscode.TreeView<vscode.TreeItem>;
+	metadataSearchProvider: MetadataSearchViewProvider;
 }
 
 /**
@@ -74,5 +75,5 @@ export function registerMetadataView(
 		metadataTreeView.onDidChangeSelection(syncMetadataCatalogSelectionContext)
 	);
 
-	return { metadataTreeProvider, metadataTreeView };
+	return { metadataTreeProvider, metadataTreeView, metadataSearchProvider };
 }

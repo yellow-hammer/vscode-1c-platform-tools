@@ -39,6 +39,11 @@ export class MetadataSearchViewProvider implements vscode.WebviewViewProvider {
 		this._onQueryChanged('');
 	}
 
+	/** Показывает в поле запрос, введённый другим способом: поле и кнопка-лупа ищут одно и то же. */
+	showQuery(query: string): void {
+		this._view?.webview.postMessage({ type: 'setQuery', query });
+	}
+
 	private html(): string {
 		return `<!DOCTYPE html>
 <html lang="ru">
@@ -126,9 +131,16 @@ export class MetadataSearchViewProvider implements vscode.WebviewViewProvider {
 			send();
 		});
 		window.addEventListener('message', function (event) {
-			if (event.data && event.data.type === 'clear') {
+			if (!event.data) {
+				return;
+			}
+			if (event.data.type === 'clear') {
 				input.value = '';
 				clearBtn.classList.add('hidden');
+			}
+			if (event.data.type === 'setQuery') {
+				input.value = event.data.query || '';
+				clearBtn.classList.toggle('hidden', input.value.length === 0);
 			}
 		});
 	</script>

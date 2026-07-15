@@ -17,6 +17,7 @@ import {
 	type ExternalArtifactPropertiesDto,
 } from './metadataExternalArtifactPropertiesPanel';
 import { createMdSparrowMutationRunner } from './mdSparrowMutationQueue';
+import { MetadataSearchViewProvider } from './metadataSearchView';
 import { openMetadataObjectPropertiesEditor } from './metadataObjectPropertiesPanel';
 import {
 	openMetadataSourcePropertiesPanel,
@@ -49,6 +50,7 @@ export interface RegisterMetadataFeatureParams {
 	context: vscode.ExtensionContext;
 	metadataTreeProvider: MetadataTreeDataProvider;
 	metadataTreeView: vscode.TreeView<vscode.TreeItem>;
+	metadataSearchProvider: MetadataSearchViewProvider;
 }
 
 /**
@@ -57,7 +59,7 @@ export interface RegisterMetadataFeatureParams {
 export function registerMetadataFeature(
 	params: RegisterMetadataFeatureParams
 ): vscode.Disposable[] {
-	const { context, metadataTreeProvider, metadataTreeView } = params;
+	const { context, metadataTreeProvider, metadataTreeView, metadataSearchProvider } = params;
 
 	const MD_SPARROW_CLI_ERR_PREVIEW = 500;
 
@@ -819,6 +821,39 @@ export function registerMetadataFeature(
 		}),
 		vscode.commands.registerCommand('1c-platform-tools.metadata.refresh', () => {
 			void metadataTreeProvider.refresh();
+		}),
+		vscode.commands.registerCommand('1c-platform-tools.metadata.find', () => {
+			// Тот же фильтр, что и у поля над деревом: ищем по всей конфигурации, а не по раскрытым веткам.
+			const box = vscode.window.createInputBox();
+			box.title = 'Поиск по метаданным';
+			box.placeholder = 'Часть имени; несколько слов — должны встречаться все';
+			box.value = metadataTreeProvider.getTextFilter() ?? '';
+			box.onDidChangeValue((value) => {
+				metadataTreeProvider.setTextFilter(value);
+				metadataSearchProvider.showQuery(value);
+			});
+			box.onDidAccept(() => box.hide());
+			box.onDidHide(() => box.dispose());
+			box.show();
+		}),
+		vscode.commands.registerCommand('1c-platform-tools.metadata.pickSubsystemFilter', async () => {
+			const subsystems = metadataTreeProvider.listSubsystemLeaves();
+			if (subsystems.length === 0) {
+				void vscode.window.showInformationMessage('В дереве метаданных нет подсистем.');
+				return;
+			}
+			const items = subsystems
+				.map((leaf) => ({ label: leaf.name, description: leaf.sourceId, leaf }))
+				.sort((a, b) => a.label.localeCompare(b.label, 'ru'));
+			const picked = await vscode.window.showQuickPick(items, {
+				title: 'Фильтр по подсистемам',
+				placeHolder: 'Выберите подсистему',
+				matchOnDescription: true,
+			});
+			if (!picked) {
+				return;
+			}
+			await vscode.commands.executeCommand('1c-platform-tools.metadata.filterBySubsystem', picked.leaf);
 		}),
 		vscode.commands.registerCommand('1c-platform-tools.metadata.addDocument', async () => {
 			await vscode.commands.executeCommand('1c-platform-tools.metadata.addMdObject', 'DOCUMENT');
