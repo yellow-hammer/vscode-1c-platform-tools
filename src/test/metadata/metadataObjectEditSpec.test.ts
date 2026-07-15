@@ -824,3 +824,52 @@ suite('metadataObjectEditSpec: состав регистра', () => {
 		);
 	});
 });
+
+suite('metadataObjectEditSpec: палитра строки состава', () => {
+	const panel = require('../../features/metadata/metadataObjectPropertiesPanel');
+
+	function editsWithType(type: unknown) {
+		return panel.parseStructureEdits({
+			lists: [{ kind: 'attributes', rows: [{ originalName: 'Валюта', name: 'Валюта', synonymRu: 'Валюта', type }] }],
+			tabularSections: [],
+		});
+	}
+
+	function dtoWith(type: unknown): Record<string, unknown> {
+		return {
+			kind: 'catalog',
+			attributes: [{ name: 'Валюта', synonymRu: 'Валюта', comment: '', type }],
+		};
+	}
+
+	test('тип строки сохраняется вместе с синонимом', () => {
+		const dto = dtoWith({ types: ['xs:string'], stringQualifiers: { length: '10', allowedLength: 'VARIABLE' } });
+		panel.applySynonymEdits(
+			dto,
+			editsWithType({ types: ['xs:string'], stringQualifiers: { length: '50', allowedLength: 'FIXED' } })
+		);
+		const attribute = (dto.attributes as Array<Record<string, unknown>>)[0];
+		assert.deepStrictEqual(attribute.type, {
+			types: ['xs:string'],
+			stringQualifiers: { length: '50', allowedLength: 'FIXED' },
+		});
+	});
+
+	test('ссылочный тип строки из палитры не переписывается', () => {
+		const ref = { types: ['cfg:CatalogRef.Валюты'] };
+		const dto = dtoWith(ref);
+		panel.applySynonymEdits(dto, editsWithType({ types: ['xs:string'] }));
+		assert.deepStrictEqual(
+			(dto.attributes as Array<Record<string, unknown>>)[0].type,
+			ref,
+			'ссылочный тип правит пикер типов, а не палитра'
+		);
+	});
+
+	test('строка без правки типа оставляет тип как на диске', () => {
+		const type = { types: ['xs:decimal'], numberQualifiers: { digits: '15', fractionDigits: '2', allowedSign: 'ANY' } };
+		const dto = dtoWith(type);
+		panel.applySynonymEdits(dto, editsWithType(undefined));
+		assert.deepStrictEqual((dto.attributes as Array<Record<string, unknown>>)[0].type, type);
+	});
+});

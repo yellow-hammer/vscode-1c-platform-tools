@@ -23,6 +23,7 @@ import {
 	buildDocumentEditTabs,
 	buildEnumEditTabs,
 	buildRegisterEditTabs,
+	normalizeTypeValue,
 	type MetadataEditOption,
 	type MetadataEditTabSpec,
 } from './metadataObjectEditSpec';
@@ -109,6 +110,8 @@ interface MetadataPanelStructureLists {
 }
 
 interface MetadataNamedRow {
+	/** Описание типа как его отдаёт md-sparrow; у ТЧ и значений перечисления его нет. */
+	type?: unknown;
 	name: string;
 	synonymRu: string;
 	comment: string;
@@ -722,6 +725,7 @@ function asNamedRows(value: unknown): MetadataNamedRow[] {
 			name,
 			synonymRu: typeof record.synonymRu === 'string' ? record.synonymRu : '',
 			comment: typeof record.comment === 'string' ? record.comment : '',
+			type: record.type ?? undefined,
 		});
 	}
 	return out;
@@ -1401,6 +1405,8 @@ interface MetadataStructRowEdit {
 	name: string;
 	synonymRu: string;
 	deleted: boolean;
+	/** Описание типа из палитры; undefined — тип не правили. */
+	type?: unknown;
 }
 
 interface MetadataTabularSectionEdit extends MetadataStructRowEdit {
@@ -1467,6 +1473,7 @@ function parseStructRow(value: unknown): MetadataStructRowEdit | null {
 		name: typeof value.name === 'string' ? value.name.trim() : '',
 		synonymRu: typeof value.synonymRu === 'string' ? value.synonymRu : '',
 		deleted: value.deleted === true,
+		type: isRecord(value.type) ? value.type : undefined,
 	};
 }
 
@@ -1661,13 +1668,22 @@ export function structOpsFromEdits(edits: MetadataStructureEdits, objectXml: str
 	return ops;
 }
 
-/** Переносит синонимы строк структуры из правок в DTO (перечитанный после операций структуры). */
+/** Тип строки состава: правило то же, что у свойств объекта — ссылочный и составной не переписываем. */
+function normalizeStructRowType(edited: unknown, raw: unknown): unknown {
+	const normalized = normalizeTypeValue(edited, raw);
+	return normalized.ok ? normalized.value : undefined;
+}
+
+/**
+ * Переносит правки строк структуры (синоним, тип) в DTO, перечитанный после операций структуры.
+ * Тип нормализуется тем же правилом, что и у свойств объекта: ссылочный и составной не переписываем.
+ */
 export function applySynonymEdits(dto: Record<string, unknown>, edits: MetadataStructureEdits): void {
 	for (const list of edits.lists) {
-		const synonyms = new Map<string, string>();
+		const edited = new Map<string, MetadataStructRowEdit>();
 		for (const row of list.rows) {
 			if (!row.deleted && row.name) {
-				synonyms.set(row.name, row.synonymRu);
+				edited.set(row.name, row);
 			}
 		}
 		const dtoList = dto[list.kind];
@@ -1675,8 +1691,19 @@ export function applySynonymEdits(dto: Record<string, unknown>, edits: MetadataS
 			continue;
 		}
 		for (const raw of dtoList) {
-			if (isRecord(raw) && typeof raw.name === 'string' && synonyms.has(raw.name)) {
-				raw.synonymRu = synonyms.get(raw.name);
+			if (!isRecord(raw) || typeof raw.name !== 'string') {
+				continue;
+			}
+			const row = edited.get(raw.name);
+			if (!row) {
+				continue;
+			}
+			raw.synonymRu = row.synonymRu;
+			if (row.type !== undefined) {
+				const normalized = normalizeStructRowType(row.type, raw.type);
+				if (normalized !== undefined) {
+					raw.type = normalized;
+				}
 			}
 		}
 	}

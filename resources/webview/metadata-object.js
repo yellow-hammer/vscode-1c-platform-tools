@@ -37,6 +37,8 @@
 			? structureEditsFromLists(model.structureLists)
 			: null;
 	let editFilter = '';
+	/** Путь выбранной строки состава: по нему показываем палитру свойств. */
+	let selectedStructPath = '';
 
 	/** Синоним из имени по правилу 1С: «ВалютаБанка» → «Валюта банка», «БИКБанка» → «БИК банка». */
 	function synonymFromName(name) {
@@ -94,12 +96,15 @@
 
 	function structRowFrom(r) {
 		const item = typeof r === 'object' && r !== null ? r : {};
+		const type = item.type && typeof item.type === 'object' ? item.type : null;
 		return {
 			originalName: typeof item.name === 'string' ? item.name : '',
 			name: typeof item.name === 'string' ? item.name : '',
 			synonymRu: typeof item.synonymRu === 'string' ? item.synonymRu : '',
 			baselineSynonymRu: typeof item.synonymRu === 'string' ? item.synonymRu : '',
 			comment: typeof item.comment === 'string' ? item.comment : '',
+			type: type ? deepClone(type) : null,
+			baselineTypeKey: type ? JSON.stringify(type) : '',
 			deleted: false,
 		};
 	}
@@ -141,7 +146,14 @@
 	}
 
 	function structRowDirty(row) {
-		return row.deleted || !row.originalName || row.name !== row.originalName || row.synonymRu !== row.baselineSynonymRu;
+		const typeKey = row.type ? JSON.stringify(row.type) : '';
+		return (
+			row.deleted ||
+			!row.originalName ||
+			row.name !== row.originalName ||
+			row.synonymRu !== row.baselineSynonymRu ||
+			typeKey !== row.baselineTypeKey
+		);
 	}
 
 	function structOrderKey(structure) {
@@ -226,6 +238,7 @@
 				originalName: row.originalName || undefined,
 				name: String(row.name || '').trim(),
 				synonymRu: row.synonymRu,
+				type: row.type || undefined,
 				deleted: Boolean(row.deleted),
 			};
 		};
@@ -550,15 +563,16 @@
 		return value.types[0];
 	}
 
-	function typeQualifierRows(field, value, type, disabled) {
+	function typeQualifierRows(field, value, type, disabled, attr) {
+		const pathAttr = attr || 'data-type-path';
 		const row = (label, html) =>
 			`<div class="type-row"><span class="type-label">${escapeHtml(label)}</span>${html}</div>`;
 		const num = (qualifier, key, current) =>
 			`<input class="edit-input type-input" type="text" inputmode="numeric" value="${escapeHtml(
 				current == null ? '' : String(current)
-			)}" data-type-path="${escapeHtml(field.path)}" data-type-qualifier="${qualifier}" data-type-key="${key}"${disabled} />`;
+			)}" ${pathAttr}="${escapeHtml(field.path)}" data-type-qualifier="${qualifier}" data-type-key="${key}"${disabled} />`;
 		const select = (qualifier, key, current, options) =>
-			`<select class="edit-input type-input" data-type-path="${escapeHtml(
+			`<select class="edit-input type-input" ${pathAttr}="${escapeHtml(
 				field.path
 			)}" data-type-qualifier="${qualifier}" data-type-key="${key}"${disabled}>${options
 				.map(
@@ -609,7 +623,8 @@
 		return '';
 	}
 
-	function typeControlHtml(field, value, disabled) {
+	function typeControlHtml(field, value, disabled, forStructRow) {
+		const attr = forStructRow ? 'data-type-spath' : 'data-type-path';
 		const type = primitiveTypeOf(value);
 		if (!type) {
 			// Ссылочный или составной тип: показываем как есть, менять пока нечем.
@@ -622,8 +637,8 @@
 				`<option value="${option.value}"${option.value === type ? ' selected' : ''}>${escapeHtml(option.label)}</option>`
 		).join('');
 		return `<div class="type-control">
-				<select class="edit-input" data-type-path="${escapeHtml(field.path)}" data-type-primary="1"${disabled}>${options}</select>
-				${typeQualifierRows(field, value, type, disabled)}
+				<select class="edit-input" ${attr}="${escapeHtml(field.path)}" data-type-primary="1"${disabled}>${options}</select>
+				${typeQualifierRows(field, value, type, disabled, attr)}
 			</div>`;
 	}
 
@@ -747,16 +762,17 @@
 			</div>`
 			: '';
 		if (tabId === 'edit_data') {
-			// Раскладка EDT: слева состав объекта, справа группы свойств.
+			// Раскладка EDT: слева состав объекта, справа палитра выбранной строки либо свойства объекта.
 			const tsHtml = structSupportsTabularSections()
 				? `<div class="section-title section-title-spaced">Табличные части</div>${structEditTsHtml()}`
 				: '';
+			const paletteHtml = structPaletteHtml();
 			contentRoot.innerHTML = `${filterHtml}<div class="edit-data-layout">
 					<div class="edit-data-structure">
 						${structListsHtml()}
 						${tsHtml}
 					</div>
-					<div class="edit-data-props">${groupsHtml}</div>
+					<div class="edit-data-props">${paletteHtml || groupsHtml}</div>
 				</div>`;
 			bindEditInputs(spec);
 			bindStructEditInputs(spec);
@@ -857,6 +873,53 @@
 		}
 		bindRefListButtons(spec);
 		bindTypeInputs(spec);
+		bindStructTypeInputs(spec);
+		bindStructSelection(spec);
+	}
+
+	function bindStructSelection(spec) {
+		if (!contentRoot) {
+			return;
+		}
+		for (const item of contentRoot.querySelectorAll('[data-sselect]')) {
+			item.addEventListener('mousedown', function () {
+				const spath = item.getAttribute('data-sselect');
+				if (selectedStructPath === spath) {
+					return;
+				}
+				selectedStructPath = spath;
+				renderEditTab(spec.id);
+			});
+		}
+	}
+
+	/** Тип строки состава: значение живёт в правках структуры, а не в свойствах объекта. */
+	function bindStructTypeInputs(spec) {
+		if (!contentRoot || !editedStructure) {
+			return;
+		}
+		for (const input of contentRoot.querySelectorAll('[data-type-spath]')) {
+			const spath = input.getAttribute('data-type-spath');
+			const isPrimary = input.hasAttribute('data-type-primary');
+			input.addEventListener('change', function () {
+				const row = structRowByPath(spath);
+				if (!row) {
+					return;
+				}
+				if (isPrimary) {
+					row.type = Object.assign({ types: [input.value] }, TYPE_DEFAULT_QUALIFIERS[input.value] || {});
+					renderEditTab(spec.id);
+					renderSaveBar();
+					return;
+				}
+				const qualifier = input.getAttribute('data-type-qualifier');
+				const key = input.getAttribute('data-type-key');
+				const next = Object.assign({}, row.type);
+				next[qualifier] = Object.assign({}, next[qualifier] || {}, { [key]: input.value });
+				row.type = next;
+				renderSaveBar();
+			});
+		}
 	}
 
 	function bindTypeInputs(spec) {
@@ -1093,7 +1156,8 @@
 		const deleted = row.deleted;
 		const invalid = !deleted && !structNameValid(row.name) ? ' struct-input-invalid' : '';
 		const dis = deleted ? ' disabled' : '';
-		return `<div class="struct-item${deleted ? ' struct-item-deleted' : ''}"${row.comment ? ` title="${escapeHtml(row.comment)}"` : ''}>
+		const selected = selectedStructPath === spath ? ' struct-item-selected' : '';
+		return `<div class="struct-item${deleted ? ' struct-item-deleted' : ''}${selected}" data-sselect="${spath}"${row.comment ? ` title="${escapeHtml(row.comment)}"` : ''}>
 			<input class="edit-input struct-input struct-input-name${invalid}" data-spath="${spath}" data-sfield="name" value="${escapeHtml(row.name)}" placeholder="Имя" spellcheck="false"${dis} />
 			<input class="edit-input struct-input" data-spath="${spath}" data-sfield="synonymRu" value="${escapeHtml(row.synonymRu)}" placeholder="Синоним"${dis} />
 			<span class="struct-actions-inline">
@@ -1124,6 +1188,39 @@
 				return title + structEditListHtml(editableIdx);
 			})
 			.join('');
+	}
+
+	/** Палитра свойств выбранной строки: пусто, если строка не выбрана — тогда показываем свойства объекта. */
+	function structPaletteHtml() {
+		const row = selectedStructPath ? structRowByPath(selectedStructPath) : null;
+		if (!row) {
+			return '';
+		}
+		const spath = selectedStructPath;
+		const typeRow = row.type
+			? `<div class="edit-row"><label class="edit-label">Тип</label><div class="edit-control">${typeControlHtml(
+					{ path: spath },
+					row.type,
+					row.deleted ? ' disabled' : '',
+					true
+				)}</div></div>`
+			: '';
+		return `<div class="edit-group">
+				<div class="section-title">Свойства: ${escapeHtml(row.name || '(без имени)')}</div>
+				<div class="edit-fields">
+					<div class="edit-row"><label class="edit-label">Имя</label><div class="edit-control">
+						<input class="edit-input" data-spath="${spath}" data-sfield="name" value="${escapeHtml(row.name)}" spellcheck="false" />
+					</div></div>
+					<div class="edit-row"><label class="edit-label">Синоним</label><div class="edit-control">
+						<input class="edit-input" data-spath="${spath}" data-sfield="synonymRu" value="${escapeHtml(row.synonymRu)}" />
+					</div></div>
+					<div class="edit-row"><label class="edit-label">Комментарий</label><div class="edit-control">
+						<input class="edit-input" data-spath="${spath}" data-sfield="comment" value="${escapeHtml(row.comment || '')}" />
+					</div></div>
+					${typeRow}
+				</div>
+			</div>
+			<div class="palette-note">Свойства объекта — снимите выделение строки</div>`;
 	}
 
 	function structReadonlyListHtml(list) {

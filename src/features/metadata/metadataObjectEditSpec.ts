@@ -1449,7 +1449,7 @@ function normalizeFieldValue(
  * Описание типа из webview: правим только примитивные типы с квалификаторами.
  * Ссылочный и составной тип отдаём как есть с диска — их правит пикер типов.
  */
-function normalizeTypeValue(value: unknown, rawValue: unknown): { ok: boolean; value?: unknown } {
+export function normalizeTypeValue(value: unknown, rawValue: unknown): { ok: boolean; value?: unknown } {
 	if (!isRecord(value) || !Array.isArray(value.types)) {
 		return { ok: false };
 	}

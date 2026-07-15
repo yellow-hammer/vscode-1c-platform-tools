@@ -907,3 +907,15 @@ select.edit-input {
 	gap: 2px;
 	align-items: center;
 }
+
+/* Палитра: выбранная строка состава и подсказка о снятии выделения. */
+.struct-item-selected {
+	background: var(--vscode-list-activeSelectionBackground);
+	color: var(--vscode-list-activeSelectionForeground);
+}
+
+.palette-note {
+	margin-top: 8px;
+	color: var(--vscode-descriptionForeground);
+	font-size: 12px;
+}
