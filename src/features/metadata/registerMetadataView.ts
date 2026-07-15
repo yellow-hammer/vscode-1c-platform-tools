@@ -4,17 +4,32 @@ import {
 	MetadataTreeDataProvider,
 } from './metadataTreeView';
 import { METADATA_SEARCH_VIEW_ID, MetadataSearchViewProvider } from './metadataSearchView';
-import {
-	METADATA_FILTERS_VIEW_ID,
-	MetadataFilterTreeDataProvider,
-	type MetadataFilterTreeItem,
-} from './metadataFilterView';
+import { METADATA_FILTERS_VIEW_ID, MetadataFilterViewProvider, type FilterSelection } from './metadataFilterView';
+import { applySubsystemFilter } from './metadataSubsystemFilter';
+
+/** Отмеченные подсистемы применяются сразу: пустой набор снимает отбор. */
+async function applyFilterSelection(
+	context: vscode.ExtensionContext,
+	metadataTreeProvider: MetadataTreeDataProvider,
+	selection: FilterSelection
+): Promise<void> {
+	if (selection.subsystems.length === 0) {
+		metadataTreeProvider.clearSubsystemFilter();
+		void vscode.commands.executeCommand('setContext', '1c-platform-tools.metadata.subsystemFilterActive', false);
+		return;
+	}
+	const label =
+		selection.subsystems.length === 1
+			? selection.subsystems[0].name
+			: `подсистем: ${selection.subsystems.length}`;
+	await applySubsystemFilter(context, metadataTreeProvider, selection.subsystems, selection, label);
+}
 
 export interface MetadataViewRegistration {
 	metadataTreeProvider: MetadataTreeDataProvider;
 	metadataTreeView: vscode.TreeView<vscode.TreeItem>;
 	metadataSearchProvider: MetadataSearchViewProvider;
-	metadataFilterProvider: MetadataFilterTreeDataProvider;
+	metadataFilterProvider: MetadataFilterViewProvider;
 }
 
 /**
@@ -37,19 +52,11 @@ export function registerMetadataView(
 		vscode.window.registerWebviewViewProvider(METADATA_SEARCH_VIEW_ID, metadataSearchProvider)
 	);
 
-	const metadataFilterProvider = new MetadataFilterTreeDataProvider(metadataTreeProvider);
-	const metadataFilterView = vscode.window.createTreeView<MetadataFilterTreeItem>(METADATA_FILTERS_VIEW_ID, {
-		treeDataProvider: metadataFilterProvider,
-		// Флажками управляем сами: охват подчинённых и родительских задают переключатели, а не иерархия.
-		manageCheckboxStateManually: true,
+	const metadataFilterProvider = new MetadataFilterViewProvider(metadataTreeProvider, (selection) => {
+		void applyFilterSelection(context, metadataTreeProvider, selection);
 	});
 	context.subscriptions.push(
-		metadataFilterView,
-		metadataFilterView.onDidChangeCheckboxState((event) => {
-			for (const [item, state] of event.items) {
-				metadataFilterProvider.setChecked(item, state === vscode.TreeItemCheckboxState.Checked);
-			}
-		})
+		vscode.window.registerWebviewViewProvider(METADATA_FILTERS_VIEW_ID, metadataFilterProvider)
 	);
 
 	const syncMetadataCatalogSelectionContext = (): void => {

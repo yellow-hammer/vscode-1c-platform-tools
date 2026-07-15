@@ -17,7 +17,7 @@ import {
 	type ExternalArtifactPropertiesDto,
 } from './metadataExternalArtifactPropertiesPanel';
 import { createMdSparrowMutationRunner } from './mdSparrowMutationQueue';
-import type { MetadataFilterTreeDataProvider } from './metadataFilterView';
+import type { MetadataFilterViewProvider } from './metadataFilterView';
 import { MetadataSearchViewProvider } from './metadataSearchView';
 import { applySubsystemFilter } from './metadataSubsystemFilter';
 import { openMetadataObjectPropertiesEditor } from './metadataObjectPropertiesPanel';
@@ -53,7 +53,7 @@ export interface RegisterMetadataFeatureParams {
 	metadataTreeProvider: MetadataTreeDataProvider;
 	metadataTreeView: vscode.TreeView<vscode.TreeItem>;
 	metadataSearchProvider: MetadataSearchViewProvider;
-	metadataFilterProvider: MetadataFilterTreeDataProvider;
+	metadataFilterProvider: MetadataFilterViewProvider;
 }
 
 /**
@@ -759,40 +759,11 @@ export function registerMetadataFeature(
 		vscode.commands.registerCommand('1c-platform-tools.metadata.refresh', () => {
 			void metadataTreeProvider.refresh();
 		}),
-		vscode.commands.registerCommand('1c-platform-tools.metadata.find', async () => {
-			// Штатный виджет поиска ищет только по загруженным узлам, поэтому сперва раскрываем группы:
-			// объекты уже в кэше дерева, повторных чтений не будет.
-			for (const group of metadataTreeProvider.listGroupItems()) {
-				try {
-					await metadataTreeView.reveal(group, { expand: true, select: false, focus: false });
-				} catch {
-					// Узел мог исчезнуть после обновления дерева — остальные всё равно раскрываем.
-				}
-			}
-			await vscode.commands.executeCommand('1c-platform-tools-metadata-tree.focus');
-			await vscode.commands.executeCommand('list.find');
-		}),
-		vscode.commands.registerCommand('1c-platform-tools.metadata.filters.apply', async () => {
-			const checked = metadataFilterProvider.checkedSubsystems;
-			if (checked.length === 0) {
-				void vscode.window.showInformationMessage('Отметьте подсистемы в панели «Фильтры».');
-				return;
-			}
-			const label = checked.length === 1 ? checked[0].name : `подсистем: ${checked.length}`;
-			const applied = await applySubsystemFilter(
-				context,
-				metadataTreeProvider,
-				checked,
-				metadataFilterProvider.options,
-				label
-			);
-			if (applied) {
-				void vscode.window.showInformationMessage(`Фильтр по подсистемам: ${label}`);
-			}
-		}),
 		vscode.commands.registerCommand('1c-platform-tools.metadata.filters.reset', () => {
-			metadataFilterProvider.clearChecked();
-			void vscode.commands.executeCommand('1c-platform-tools.metadata.clearSubsystemFilter');
+			metadataFilterProvider.clear();
+		}),
+		vscode.commands.registerCommand('1c-platform-tools.metadata.filters.collapseAll', () => {
+			metadataFilterProvider.collapseAll();
 		}),
 		vscode.commands.registerCommand('1c-platform-tools.metadata.addDocument', async () => {
 			await vscode.commands.executeCommand('1c-platform-tools.metadata.addMdObject', 'DOCUMENT');
