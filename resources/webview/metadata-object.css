@@ -908,14 +908,46 @@ select.edit-input {
 	align-items: center;
 }
 
-/* Палитра: выбранная строка состава и подсказка о снятии выделения. */
+/* Палитра свойств строки: третья колонка вкладки «Данные», как в EDT. */
+.edit-data-layout-palette {
+	grid-template-columns: minmax(240px, 1fr) minmax(280px, 1.1fr) minmax(260px, 1fr);
+}
+
+.edit-data-palette {
+	min-width: 0;
+	border-left: 1px solid var(--vscode-panel-border);
+	padding-left: 16px;
+}
+
+.palette-head {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 8px;
+	margin-bottom: 10px;
+}
+
+.palette-head .section-title {
+	margin: 0;
+	overflow-wrap: anywhere;
+}
+
+.palette-close {
+	flex: 0 0 auto;
+	border: none;
+	background: transparent;
+	color: var(--vscode-descriptionForeground);
+	cursor: pointer;
+	font-size: 14px;
+	line-height: 1;
+	padding: 0 4px;
+}
+
+.palette-close:hover {
+	color: var(--vscode-foreground);
+}
+
 .struct-item-selected {
 	background: var(--vscode-list-activeSelectionBackground);
 	color: var(--vscode-list-activeSelectionForeground);
-}
-
-.palette-note {
-	margin-top: 8px;
-	color: var(--vscode-descriptionForeground);
-	font-size: 12px;
 }

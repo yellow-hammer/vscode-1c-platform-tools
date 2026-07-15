@@ -767,12 +767,15 @@
 				? `<div class="section-title section-title-spaced">Табличные части</div>${structEditTsHtml()}`
 				: '';
 			const paletteHtml = structPaletteHtml();
-			contentRoot.innerHTML = `${filterHtml}<div class="edit-data-layout">
+			contentRoot.innerHTML = `${filterHtml}<div class="edit-data-layout${
+				paletteHtml ? ' edit-data-layout-palette' : ''
+			}">
 					<div class="edit-data-structure">
 						${structListsHtml()}
 						${tsHtml}
 					</div>
-					<div class="edit-data-props">${paletteHtml || groupsHtml}</div>
+					<div class="edit-data-props">${groupsHtml}</div>
+					${paletteHtml}
 				</div>`;
 			bindEditInputs(spec);
 			bindStructEditInputs(spec);
@@ -882,12 +885,19 @@
 			return;
 		}
 		for (const item of contentRoot.querySelectorAll('[data-sselect]')) {
-			item.addEventListener('mousedown', function () {
-				const spath = item.getAttribute('data-sselect');
-				if (selectedStructPath === spath) {
+			item.addEventListener('mousedown', function (event) {
+				// Клик по полю ввода внутри строки не должен переключать выделение.
+				if (event.target && event.target.closest('input, button, select')) {
 					return;
 				}
-				selectedStructPath = spath;
+				const spath = item.getAttribute('data-sselect');
+				selectedStructPath = selectedStructPath === spath ? '' : spath;
+				renderEditTab(spec.id);
+			});
+		}
+		for (const btn of contentRoot.querySelectorAll('[data-spalette-close]')) {
+			btn.addEventListener('click', function () {
+				selectedStructPath = '';
 				renderEditTab(spec.id);
 			});
 		}
@@ -1190,7 +1200,7 @@
 			.join('');
 	}
 
-	/** Палитра свойств выбранной строки: пусто, если строка не выбрана — тогда показываем свойства объекта. */
+	/** Свойства выбранной строки состава: отдельная колонка рядом со свойствами объекта, как в EDT. */
 	function structPaletteHtml() {
 		const row = selectedStructPath ? structRowByPath(selectedStructPath) : null;
 		if (!row) {
@@ -1205,8 +1215,11 @@
 					true
 				)}</div></div>`
 			: '';
-		return `<div class="edit-group">
-				<div class="section-title">Свойства: ${escapeHtml(row.name || '(без имени)')}</div>
+		return `<div class="edit-data-palette">
+				<div class="palette-head">
+					<span class="section-title">Свойства: ${escapeHtml(row.name || '(без имени)')}</span>
+					<button type="button" class="palette-close" data-spalette-close="1" title="Закрыть">×</button>
+				</div>
 				<div class="edit-fields">
 					<div class="edit-row"><label class="edit-label">Имя</label><div class="edit-control">
 						<input class="edit-input" data-spath="${spath}" data-sfield="name" value="${escapeHtml(row.name)}" spellcheck="false" />
@@ -1219,8 +1232,7 @@
 					</div></div>
 					${typeRow}
 				</div>
-			</div>
-			<div class="palette-note">Свойства объекта — снимите выделение строки</div>`;
+			</div>`;
 	}
 
 	function structReadonlyListHtml(list) {
