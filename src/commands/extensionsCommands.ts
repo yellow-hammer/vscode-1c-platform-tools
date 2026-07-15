@@ -96,7 +96,7 @@ export class ExtensionsCommands extends BaseCommand {
 		const intents = await Promise.all(selectedFolders.map(async (folder) =>
 			buildIntent(folder, await resolveExtensionNameFromSrc(path.join(cfeRoot, folder)))
 		));
-		const steps = await this.vrunner.planIntents(intents);
+		const steps = await this.vrunner.planIntents(intents, opts?.settingsFile);
 
 		if (opts?.wait === true) {
 			return this.runVRunnerSequential(steps, opts, commandName, commandId, true);
@@ -319,7 +319,7 @@ export class ExtensionsCommands extends BaseCommand {
 			intents.push({ kind: 'infobase.updateExtension', extensionName, common: ibConnectionParam });
 		}
 
-		const steps = await this.vrunner.planIntents(intents);
+		const steps = await this.vrunner.planIntents(intents, opts?.settingsFile);
 		await this.vrunner.executeVRunnerCommandsInSequence(steps, {
 			cwd: workspaceRoot,
 			name: commandName.title,
@@ -457,7 +457,7 @@ export class ExtensionsCommands extends BaseCommand {
 			const cfeFilePath = path.join(buildPath, 'cfe', cfeFile);
 			const commandParam = EPF_COMMANDS.LOAD_EXTENSION(cfeFilePath);
 			return { kind: 'run.enterprise' as const, command: commandParam, execute: epfPath, common: ibConnectionParam };
-		}));
+		}), opts?.settingsFile);
 
 		if (opts?.wait === true) {
 			return this.runVRunnerSequential(steps, opts, commandName.title, commandName.id, true);
@@ -692,7 +692,7 @@ export class ExtensionsCommands extends BaseCommand {
 				out: path.join(cfePath, folderName),
 				common: ibConnectionParam,
 			};
-		})));
+		})), opts?.settingsFile);
 
 		if (opts?.wait === true) {
 			return this.runVRunnerSequential(steps, opts, commandName.title, commandName.id, true);
