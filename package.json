@@ -484,6 +484,12 @@
         "category": "1C: Метаданные"
       },
       {
+        "command": "1c-platform-tools.metadata.collapseAll",
+        "title": "Свернуть",
+        "category": "1C: Метаданные",
+        "icon": "$(collapse-all)"
+      },
+      {
         "command": "1c-platform-tools.metadata.addDocument",
         "title": "Добавить документ",
         "category": "1C: Метаданные"
@@ -1767,9 +1773,14 @@
           "group": "navigation@4"
         },
         {
-          "submenu": "1c-platform-tools.metadata.overflowMenu",
+          "command": "1c-platform-tools.metadata.collapseAll",
           "when": "view == 1c-platform-tools-metadata-tree",
           "group": "navigation@5"
+        },
+        {
+          "submenu": "1c-platform-tools.metadata.overflowMenu",
+          "when": "view == 1c-platform-tools-metadata-tree",
+          "group": "navigation@6"
         }
       ],
       "view/item/context": [

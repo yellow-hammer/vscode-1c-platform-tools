@@ -1148,6 +1148,39 @@ export class MetadataTreeDataProvider implements vscode.TreeDataProvider<vscode.
 	}
 
 	/**
+	 * Сворачивает все раскрытые узлы дерева: состояние узлов задаём сами, потому что
+	 * собственная кнопка стоит на фиксированном месте в шапке панели.
+	 */
+	collapseAll(): void {
+		for (const item of this.expandableItems()) {
+			item.collapsibleState = vscode.TreeItemCollapsibleState.Collapsed;
+		}
+		this._onDidChange.fire(undefined);
+	}
+
+	private *expandableItems(): Generator<vscode.TreeItem> {
+		const buckets: Iterable<vscode.TreeItem>[] = [
+			this._sourceItems,
+			...this._groupsBySource.values(),
+			...this._subgroupsByGroup.values(),
+			...this._leavesByGroup.values(),
+			...this._leavesBySubgroup.values(),
+			...this._flatLeavesBySource.values(),
+			...this._objectSectionsByLeaf.values(),
+			...this._objectNodesBySection.values(),
+			...this._tabularAttrsByNode.values(),
+			...this._nestedSubsystemChildrenByLeaf.values(),
+		];
+		for (const bucket of buckets) {
+			for (const item of bucket) {
+				if (item.collapsibleState !== vscode.TreeItemCollapsibleState.None) {
+					yield item;
+				}
+			}
+		}
+	}
+
+	/**
 	 * Поиск по имени объекта: пустая строка снимает фильтр. Запрос из нескольких слов
 	 * ищет объекты, где встречается каждое слово («демо замет» находит «_ДемоЗаметки»).
 	 */
