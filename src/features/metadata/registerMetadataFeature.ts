@@ -820,9 +820,6 @@ export function registerMetadataFeature(
 		vscode.commands.registerCommand('1c-platform-tools.metadata.refresh', () => {
 			void metadataTreeProvider.refresh();
 		}),
-		vscode.commands.registerCommand('1c-platform-tools.metadata.collapseAll', () => {
-			metadataTreeProvider.collapseAll();
-		}),
 		vscode.commands.registerCommand('1c-platform-tools.metadata.addDocument', async () => {
 			await vscode.commands.executeCommand('1c-platform-tools.metadata.addMdObject', 'DOCUMENT');
 		}),

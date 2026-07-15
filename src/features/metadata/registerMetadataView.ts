@@ -19,8 +19,7 @@ export function registerMetadataView(
 	const metadataTreeProvider = new MetadataTreeDataProvider(context);
 	const metadataTreeView = vscode.window.createTreeView('1c-platform-tools-metadata-tree', {
 		treeDataProvider: metadataTreeProvider,
-		// Своя кнопка «Свернуть»: встроенная встаёт последней и в узкой панели уходит в переполнение.
-		showCollapseAll: false,
+		showCollapseAll: true,
 	});
 	context.subscriptions.push(metadataTreeView);
 

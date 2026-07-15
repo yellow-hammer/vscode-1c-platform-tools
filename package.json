@@ -484,12 +484,6 @@
         "category": "1C: Метаданные"
       },
       {
-        "command": "1c-platform-tools.metadata.collapseAll",
-        "title": "Свернуть",
-        "category": "1C: Метаданные",
-        "icon": "$(collapse-all)"
-      },
-      {
         "command": "1c-platform-tools.metadata.addDocument",
         "title": "Добавить документ",
         "category": "1C: Метаданные"
@@ -1758,14 +1752,9 @@
           "group": "navigation@1"
         },
         {
-          "command": "1c-platform-tools.metadata.initEmptyCf",
-          "when": "view == 1c-platform-tools-metadata-tree",
-          "group": "navigation@2"
-        },
-        {
           "command": "1c-platform-tools.metadata.er.openCanvas",
           "when": "view == 1c-platform-tools-metadata-tree",
-          "group": "navigation@3"
+          "group": "navigation@2"
         },
         {
           "command": "1c-platform-tools.metadata.clearSubsystemFilter",
@@ -1773,14 +1762,9 @@
           "group": "navigation@4"
         },
         {
-          "command": "1c-platform-tools.metadata.collapseAll",
-          "when": "view == 1c-platform-tools-metadata-tree",
-          "group": "navigation@5"
-        },
-        {
           "submenu": "1c-platform-tools.metadata.overflowMenu",
           "when": "view == 1c-platform-tools-metadata-tree",
-          "group": "navigation@6"
+          "group": "navigation@5"
         }
       ],
       "view/item/context": [
@@ -2253,6 +2237,10 @@
         }
       ],
       "1c-platform-tools.metadata.overflowMenu": [
+        {
+          "command": "1c-platform-tools.metadata.initEmptyCf",
+          "group": "1_md_overflow@0"
+        },
         {
           "command": "1c-platform-tools.settings.openMetadata",
           "group": "1_md_overflow@1"

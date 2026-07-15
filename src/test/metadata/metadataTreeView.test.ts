@@ -222,21 +222,6 @@ suite('metadataTreeView поиск по имени', () => {
 		assert.ok(String(rootLevel[0].label).startsWith('Ничего не найдено'), 'видно, что ничего не нашлось');
 	});
 
-	test('«Свернуть» складывает раскрытые узлы', async () => {
-		const { provider, root, group } = createProvider();
-		// Поиск раскрывает группу с совпадениями — после сворачивания она должна закрыться.
-		provider.setTextFilter('заметки');
-		await provider.getChildren(root);
-		assert.strictEqual(group.collapsibleState, vscode.TreeItemCollapsibleState.Expanded);
-
-		provider.setTextFilter('');
-		provider.collapseAll();
-
-		assert.strictEqual(group.collapsibleState, vscode.TreeItemCollapsibleState.Collapsed);
-		const leaves = await provider.getChildren(group);
-		assert.strictEqual(leaves.length, 3, 'состав дерева не меняется');
-	});
-
 	test('пустая строка снимает фильтр', async () => {
 		const { provider, group } = createProvider();
 		provider.setTextFilter('заметки');
