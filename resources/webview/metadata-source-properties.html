@@ -5,64 +5,159 @@
 	<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src {{CSP_SOURCE}}; script-src 'nonce-{{NONCE}}';">
 	<meta name="viewport" content="width=device-width, initial-scale=1.0">
 	<title>Свойства конфигурации</title>
+	<link rel="stylesheet" href="{{BASE_CSS_URI}}">
 	<link rel="stylesheet" href="{{CSS_URI}}">
 </head>
 <body>
-	<div id="root">
-		<h1>Свойства</h1>
-		<div class="source-kind">{{SOURCE_KIND_LABEL}}</div>
-
-		<section class="section">
-			<h2>Модули</h2>
-			<div id="modulesSection" class="modules-row">
-				<button id="openExternalConnectionModule" class="link-btn" type="button">Модуль внешнего соединения</button>
-				<button id="openApplicationModule" class="link-btn" type="button">Модуль приложения</button>
-				<button id="openSessionModule" class="link-btn" type="button">Модуль сеанса</button>
+	<div class="page">
+		<header class="page-header">
+			<div class="header-main">
+				<div class="kind-badge">{{SOURCE_KIND_LABEL}}</div>
+				<h1 class="title">{{SOURCE_LABEL}}</h1>
 			</div>
-		</section>
+		</header>
 
-		<section class="section">
-			<h2>Основные</h2>
-			<div class="field"><label for="name">Имя</label><input id="name" type="text"></div>
-			<div class="field"><label for="synonymRu">Синоним</label><input id="synonymRu" type="text"></div>
-			<div class="field"><label for="comment">Комментарий</label><textarea id="comment" rows="2"></textarea></div>
-			<div class="field"><label for="defaultRunMode">Основной режим запуска</label><select id="defaultRunMode"></select></div>
-			<div class="field"><label for="usePurposes">Назначение использования (через запятую)</label><input id="usePurposes" type="text"></div>
-			<div class="field"><label for="scriptVariant">Вариант встроенного языка</label><select id="scriptVariant"></select></div>
-			<div class="field"><label for="defaultRoles">Основные роли (через запятую)</label><textarea id="defaultRoles" rows="2"></textarea></div>
-		</section>
+		<div class="content">
+			<div class="edit-columns">
+				<div class="edit-group" id="modulesSection">
+					<div class="section-title">Модули</div>
+					<div class="edit-fields">
+						<div class="edit-row">
+							<label class="edit-label">Модуль приложения</label>
+							<div class="edit-control">
+								<button id="openApplicationModule" class="edit-module-link" type="button">Открыть</button>
+							</div>
+						</div>
+						<div class="edit-row">
+							<label class="edit-label">Модуль сеанса</label>
+							<div class="edit-control">
+								<button id="openSessionModule" class="edit-module-link" type="button">Открыть</button>
+							</div>
+						</div>
+						<div class="edit-row">
+							<label class="edit-label">Модуль внешнего соединения</label>
+							<div class="edit-control">
+								<button id="openExternalConnectionModule" class="edit-module-link" type="button">Открыть</button>
+							</div>
+						</div>
+					</div>
+				</div>
 
-		<section class="section">
-			<h2>Представление</h2>
-			<div class="field"><label for="briefInformationRu">Краткая информация</label><textarea id="briefInformationRu" rows="2"></textarea></div>
-			<div class="field"><label for="detailedInformationRu">Подробная информация</label><textarea id="detailedInformationRu" rows="3"></textarea></div>
-			<div class="field"><label for="copyrightRu">Авторские права</label><textarea id="copyrightRu" rows="2"></textarea></div>
-			<div class="field"><label for="vendorInformationAddressRu">Адрес информации о поставщике</label><input id="vendorInformationAddressRu" type="text"></div>
-			<div class="field"><label for="configurationInformationAddressRu">Адрес информации о конфигурации</label><input id="configurationInformationAddressRu" type="text"></div>
-		</section>
+				<div class="edit-group">
+					<div class="section-title">Основные</div>
+					<div class="edit-fields">
+						<div class="edit-row">
+							<label class="edit-label" for="name">Имя</label>
+							<div class="edit-control"><input id="name" class="edit-input" type="text"></div>
+						</div>
+						<div class="edit-row">
+							<label class="edit-label" for="synonymRu">Синоним</label>
+							<div class="edit-control"><input id="synonymRu" class="edit-input" type="text"></div>
+						</div>
+						<div class="edit-row">
+							<label class="edit-label" for="comment">Комментарий</label>
+							<div class="edit-control"><textarea id="comment" class="edit-input" rows="2"></textarea></div>
+						</div>
+						<div class="edit-row">
+							<label class="edit-label" for="defaultRunMode">Основной режим запуска</label>
+							<div class="edit-control"><select id="defaultRunMode" class="edit-input"></select></div>
+						</div>
+						<div class="edit-row">
+							<label class="edit-label" for="usePurposes">Назначение использования</label>
+							<div class="edit-control"><input id="usePurposes" class="edit-input" type="text" placeholder="через запятую"></div>
+						</div>
+						<div class="edit-row">
+							<label class="edit-label" for="scriptVariant">Вариант встроенного языка</label>
+							<div class="edit-control"><select id="scriptVariant" class="edit-input"></select></div>
+						</div>
+						<div class="edit-row">
+							<label class="edit-label" for="defaultRoles">Основные роли</label>
+							<div class="edit-control"><textarea id="defaultRoles" class="edit-input" rows="2" placeholder="через запятую"></textarea></div>
+						</div>
+					</div>
+				</div>
 
-		<section class="section">
-			<h2>Разработка</h2>
-			<div class="field"><label for="vendor">Поставщик</label><input id="vendor" type="text"></div>
-			<div class="field"><label for="version">Версия</label><input id="version" type="text"></div>
-			<div class="field"><label for="updateCatalogAddress">Адрес каталога обновлений</label><input id="updateCatalogAddress" type="text"></div>
-		</section>
+				<div class="edit-group">
+					<div class="section-title">Представление</div>
+					<div class="edit-fields">
+						<div class="edit-row">
+							<label class="edit-label" for="briefInformationRu">Краткая информация</label>
+							<div class="edit-control"><textarea id="briefInformationRu" class="edit-input" rows="2"></textarea></div>
+						</div>
+						<div class="edit-row">
+							<label class="edit-label" for="detailedInformationRu">Подробная информация</label>
+							<div class="edit-control"><textarea id="detailedInformationRu" class="edit-input" rows="3"></textarea></div>
+						</div>
+						<div class="edit-row">
+							<label class="edit-label" for="copyrightRu">Авторские права</label>
+							<div class="edit-control"><textarea id="copyrightRu" class="edit-input" rows="2"></textarea></div>
+						</div>
+						<div class="edit-row">
+							<label class="edit-label" for="vendorInformationAddressRu">Адрес информации о поставщике</label>
+							<div class="edit-control"><input id="vendorInformationAddressRu" class="edit-input" type="text"></div>
+						</div>
+						<div class="edit-row">
+							<label class="edit-label" for="configurationInformationAddressRu">Адрес информации о конфигурации</label>
+							<div class="edit-control"><input id="configurationInformationAddressRu" class="edit-input" type="text"></div>
+						</div>
+					</div>
+				</div>
 
-		<section class="section">
-			<h2>Совместимость</h2>
-			<div class="field"><label for="dataLockControlMode">Режим управления блокировкой данных</label><select id="dataLockControlMode"></select></div>
-			<div class="field"><label for="objectAutonumerationMode">Режим автонумерации объектов</label><select id="objectAutonumerationMode"></select></div>
-			<div class="field"><label for="modalityUseMode">Режим использования модальности</label><select id="modalityUseMode"></select></div>
-			<div class="field"><label for="synchronousPlatformExtensionAndAddInCallUseMode">Режим использования синхронных вызовов расширений</label><select id="synchronousPlatformExtensionAndAddInCallUseMode"></select></div>
-			<div class="field"><label for="interfaceCompatibilityMode">Режим совместимости интерфейса</label><select id="interfaceCompatibilityMode"></select></div>
-			<div class="field"><label for="compatibilityMode">Режим совместимости</label><select id="compatibilityMode"></select></div>
-		</section>
+				<div class="edit-group">
+					<div class="section-title">Разработка</div>
+					<div class="edit-fields">
+						<div class="edit-row">
+							<label class="edit-label" for="vendor">Поставщик</label>
+							<div class="edit-control"><input id="vendor" class="edit-input" type="text"></div>
+						</div>
+						<div class="edit-row">
+							<label class="edit-label" for="version">Версия</label>
+							<div class="edit-control"><input id="version" class="edit-input" type="text"></div>
+						</div>
+						<div class="edit-row">
+							<label class="edit-label" for="updateCatalogAddress">Адрес каталога обновлений</label>
+							<div class="edit-control"><input id="updateCatalogAddress" class="edit-input" type="text"></div>
+						</div>
+					</div>
+				</div>
 
-		<div class="footer">
-			<button id="saveBtn" type="button">Сохранить</button>
-			<span id="status"></span>
+				<div class="edit-group">
+					<div class="section-title">Совместимость</div>
+					<div class="edit-fields">
+						<div class="edit-row">
+							<label class="edit-label" for="dataLockControlMode">Режим управления блокировкой данных</label>
+							<div class="edit-control"><select id="dataLockControlMode" class="edit-input"></select></div>
+						</div>
+						<div class="edit-row">
+							<label class="edit-label" for="objectAutonumerationMode">Режим автонумерации объектов</label>
+							<div class="edit-control"><select id="objectAutonumerationMode" class="edit-input"></select></div>
+						</div>
+						<div class="edit-row">
+							<label class="edit-label" for="modalityUseMode">Режим использования модальности</label>
+							<div class="edit-control"><select id="modalityUseMode" class="edit-input"></select></div>
+						</div>
+						<div class="edit-row">
+							<label class="edit-label" for="synchronousPlatformExtensionAndAddInCallUseMode">Режим использования синхронных вызовов расширений</label>
+							<div class="edit-control"><select id="synchronousPlatformExtensionAndAddInCallUseMode" class="edit-input"></select></div>
+						</div>
+						<div class="edit-row">
+							<label class="edit-label" for="interfaceCompatibilityMode">Режим совместимости интерфейса</label>
+							<div class="edit-control"><select id="interfaceCompatibilityMode" class="edit-input"></select></div>
+						</div>
+						<div class="edit-row">
+							<label class="edit-label" for="compatibilityMode">Режим совместимости</label>
+							<div class="edit-control"><select id="compatibilityMode" class="edit-input"></select></div>
+						</div>
+					</div>
+				</div>
+			</div>
 		</div>
 	</div>
+
+	<footer class="save-bar">
+		<span id="status" class="save-status"></span>
+		<button id="saveBtn" class="primary-btn" type="button">Сохранить</button>
+	</footer>
 	<script nonce="{{NONCE}}">
 		window.__INITIAL_DATA__ = {{INITIAL_JSON}};
 		window.__SOURCE_KIND__ = "{{SOURCE_KIND}}";

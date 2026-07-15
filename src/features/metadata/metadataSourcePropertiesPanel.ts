@@ -88,7 +88,8 @@ export async function openMetadataSourcePropertiesPanel(
 		dto,
 		nonce,
 		input.sourceKind,
-		sourceKindLabel(input.sourceKind)
+		sourceKindLabel(input.sourceKind),
+		input.label
 	);
 
 	panel.webview.onDidReceiveMessage(
@@ -120,11 +121,16 @@ async function loadMetadataSourceHtml(
 	dto: SourcePropertiesDto,
 	nonce: string,
 	sourceKind: string,
-	sourceKindLabelValue: string
+	sourceKindLabelValue: string,
+	sourceLabel: string
 ): Promise<string> {
 	const templateUri = vscode.Uri.joinPath(extensionUri, 'resources', 'webview', 'metadata-source-properties.html');
 	const bytes = await vscode.workspace.fs.readFile(templateUri);
 	const template = new TextDecoder('utf-8').decode(bytes);
+	// Общая вёрстка панелей свойств: одна и та же для объекта и конфигурации.
+	const baseCssUri = webview.asWebviewUri(
+		vscode.Uri.joinPath(extensionUri, 'resources', 'webview', 'metadata-object.css')
+	);
 	const cssUri = webview.asWebviewUri(
 		vscode.Uri.joinPath(extensionUri, 'resources', 'webview', 'metadata-source-properties.css')
 	);
@@ -135,9 +141,11 @@ async function loadMetadataSourceHtml(
 	return template
 		.replaceAll('{{CSP_SOURCE}}', webview.cspSource)
 		.replaceAll('{{NONCE}}', nonce)
+		.replaceAll('{{BASE_CSS_URI}}', baseCssUri.toString())
 		.replaceAll('{{CSS_URI}}', cssUri.toString())
 		.replaceAll('{{JS_URI}}', jsUri.toString())
 		.replaceAll('{{SOURCE_KIND}}', escapeHtml(sourceKind))
 		.replaceAll('{{SOURCE_KIND_LABEL}}', escapeHtml(sourceKindLabelValue))
+		.replaceAll('{{SOURCE_LABEL}}', escapeHtml(sourceLabel))
 		.replaceAll('{{INITIAL_JSON}}', initialJson);
 }
