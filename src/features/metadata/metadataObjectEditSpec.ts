@@ -1163,6 +1163,195 @@ export function buildCommonModuleEditTabs(): MetadataEditTabSpec[] {
 	];
 }
 
+export interface RegisterEditSpecInput {
+	internalName: string;
+	formNames: readonly string[];
+	commandNames: readonly string[];
+	/** Регистр сведений или накопления: наборы свойств у них разные. */
+	information: boolean;
+}
+
+const DATA_LOCK_CONTROL_MODE = opts(
+	['AUTOMATIC', 'Автоматический'],
+	['MANAGED', 'Управляемый'],
+	['AUTOMATIC_AND_MANAGED', 'Автоматический и управляемый']
+);
+
+function registerFormOptions(input: RegisterEditSpecInput, kind: 'Record' | 'List'): MetadataEditOption[] {
+	const prefix = input.information ? 'InformationRegister' : 'AccumulationRegister';
+	void kind;
+	return [
+		{ value: '', label: '(не задана)' },
+		...input.formNames.map((name) => ({ value: `${prefix}.${input.internalName}.Form.${name}`, label: name })),
+	];
+}
+
+/**
+ * Вкладки редактирования регистра сведений и накопления: раскладка повторяет редактор EDT
+ * (Основные, Данные, Формы, Команды).
+ */
+export function buildRegisterEditTabs(input: RegisterEditSpecInput): MetadataEditTabSpec[] {
+	const recordForms = registerFormOptions(input, 'Record');
+	const listForms = registerFormOptions(input, 'List');
+	const dataFields: MetadataEditField[] = input.information
+		? [
+				{
+					path: 'register.informationRegisterPeriodicity',
+					label: 'Периодичность',
+					control: 'select',
+					options: opts(
+						['NONPERIODICAL', 'Непериодический'],
+						['RECORDER_POSITION', 'По позиции регистратора'],
+						['SECOND', 'В пределах секунды'],
+						['DAY', 'В пределах дня'],
+						['MONTH', 'В пределах месяца'],
+						['QUARTER', 'В пределах квартала'],
+						['YEAR', 'В пределах года']
+					),
+				},
+				{
+					path: 'register.writeMode',
+					label: 'Режим записи',
+					control: 'select',
+					options: opts(['INDEPENDENT', 'Независимый'], ['RECORDER_SUBORDINATE', 'Подчинение регистратору']),
+				},
+				{ path: 'register.mainFilterOnPeriod', label: 'Основной отбор по периоду', control: 'check' },
+				{ path: 'register.enableTotalsSliceFirst', label: 'Разрешить итоги: срез первых', control: 'check' },
+				{ path: 'register.enableTotalsSliceLast', label: 'Разрешить итоги: срез последних', control: 'check' },
+				{ path: 'register.dataHistory', label: 'История данных', control: 'select', options: USE_DONT_USE },
+				{
+					path: 'register.updateDataHistoryImmediatelyAfterWrite',
+					label: 'Обновлять историю данных сразу после записи',
+					control: 'check',
+					enabledWhen: [{ path: 'register.dataHistory', equals: 'USE' }],
+				},
+				{
+					path: 'register.executeAfterWriteDataHistoryVersionProcessing',
+					label: 'Выполнять обработку версий истории данных после записи',
+					control: 'check',
+					enabledWhen: [{ path: 'register.dataHistory', equals: 'USE' }],
+				},
+			]
+		: [
+				{
+					path: 'register.registerType',
+					label: 'Вид регистра',
+					control: 'select',
+					options: opts(['BALANCE', 'Остатки'], ['TURNOVERS', 'Обороты']),
+				},
+				{ path: 'register.enableTotalsSplitting', label: 'Разделение итогов', control: 'check' },
+			];
+	return [
+		{
+			id: 'edit_main',
+			title: 'Основные',
+			groups: [
+				{
+					title: 'Основные',
+					fields: [
+						{ path: 'internalName', label: 'Имя', control: 'text', readonly: true },
+						{ path: 'synonymRu', label: 'Синоним', control: 'text' },
+						{ path: 'comment', label: 'Комментарий', control: 'text' },
+						{ path: 'recordSet', label: 'Модуль набора записей', control: 'moduleLink' },
+						{ path: 'manager', label: 'Модуль менеджера', control: 'moduleLink' },
+					],
+				},
+				{
+					title: 'Представление',
+					fields: [
+						...(input.information
+							? [
+									{ path: 'register.recordPresentationRu', label: 'Представление записи', control: 'text' as const },
+									{
+										path: 'register.extendedRecordPresentationRu',
+										label: 'Расширенное представление записи',
+										control: 'text' as const,
+									},
+								]
+							: []),
+						{ path: 'register.listPresentationRu', label: 'Представление списка', control: 'text' },
+						{
+							path: 'register.extendedListPresentationRu',
+							label: 'Расширенное представление списка',
+							control: 'text',
+						},
+						{ path: 'register.explanationRu', label: 'Пояснение', control: 'textarea' },
+					],
+				},
+				{
+					title: 'Прочее',
+					fields: [
+						{
+							path: 'register.dataLockControlMode',
+							label: 'Режим управления блокировкой данных',
+							control: 'select',
+							options: DATA_LOCK_CONTROL_MODE,
+						},
+						{
+							path: 'register.fullTextSearch',
+							label: 'Полнотекстовый поиск',
+							control: 'select',
+							options: USE_DONT_USE,
+						},
+						{ path: 'register.includeHelpInContents', label: 'Включать в содержание справки', control: 'check' },
+					],
+				},
+			],
+		},
+		{
+			id: 'edit_data',
+			title: 'Данные',
+			groups: [{ title: input.information ? 'Данные' : 'Итоги', fields: dataFields }],
+		},
+		{
+			id: 'edit_forms',
+			title: 'Формы',
+			groups: [
+				{
+					title: 'Основные формы',
+					fields: [
+						...(input.information
+							? [
+									{
+										path: 'register.defaultRecordForm',
+										label: 'Основная форма записи',
+										control: 'select' as const,
+										options: recordForms,
+										clearable: true,
+									},
+								]
+							: []),
+						{
+							path: 'register.defaultListForm',
+							label: 'Основная форма списка',
+							control: 'select',
+							options: listForms,
+							clearable: true,
+						},
+					],
+				},
+				{
+					title: 'Формы',
+					fields: [{ path: '', label: 'Формы объекта', control: 'staticList', items: input.formNames }],
+				},
+			],
+		},
+		{
+			id: 'edit_commands',
+			title: 'Команды',
+			groups: [
+				{
+					title: 'Команды',
+					fields: [
+						{ path: 'register.useStandardCommands', label: 'Использовать стандартные команды', control: 'check' },
+						{ path: '', label: 'Команды объекта', control: 'staticList', items: input.commandNames },
+					],
+				},
+			],
+		},
+	];
+}
+
 function isEditableField(field: MetadataEditField): boolean {
 	return !field.readonly && field.control !== 'staticList' && field.control !== 'moduleLink' && field.path.length > 0;
 }

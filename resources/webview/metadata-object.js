@@ -32,7 +32,10 @@
 	const vscodeApi = typeof acquireVsCodeApi === 'function' ? acquireVsCodeApi() : null;
 	const editable = model.editable && typeof model.editable === 'object' ? model.editable : null;
 	let editedProps = editable ? deepClone(editable.props) : null;
-	let editedStructure = model.structureLists ? structureEditsFromLists(model.structureLists) : null;
+	let editedStructure =
+		model.structureLists && structureEditable(model.structureLists)
+			? structureEditsFromLists(model.structureLists)
+			: null;
 	let editFilter = '';
 
 	/** Синоним из имени по правилу 1С: «ВалютаБанка» → «Валюта банка», «БИКБанка» → «БИК банка». */
@@ -83,23 +86,38 @@
 			.join(' ');
 	}
 
-	function structureEditsFromLists(lists) {
-		const rowFrom = function (r) {
-			const item = typeof r === 'object' && r !== null ? r : {};
-			return {
-				originalName: typeof item.name === 'string' ? item.name : '',
-				name: typeof item.name === 'string' ? item.name : '',
-				synonymRu: typeof item.synonymRu === 'string' ? item.synonymRu : '',
-				baselineSynonymRu: typeof item.synonymRu === 'string' ? item.synonymRu : '',
-				comment: typeof item.comment === 'string' ? item.comment : '',
-				deleted: false,
-			};
-		};
+	/** Правится хотя бы один список состава. */
+	function structureEditable(lists) {
+		const items = lists && Array.isArray(lists.lists) ? lists.lists : [];
+		return items.some((list) => list.editable);
+	}
+
+	function structRowFrom(r) {
+		const item = typeof r === 'object' && r !== null ? r : {};
 		return {
-			attributes: (Array.isArray(lists.attributes) ? lists.attributes : []).map(rowFrom),
+			originalName: typeof item.name === 'string' ? item.name : '',
+			name: typeof item.name === 'string' ? item.name : '',
+			synonymRu: typeof item.synonymRu === 'string' ? item.synonymRu : '',
+			baselineSynonymRu: typeof item.synonymRu === 'string' ? item.synonymRu : '',
+			comment: typeof item.comment === 'string' ? item.comment : '',
+			deleted: false,
+		};
+	}
+
+	function structureEditsFromLists(lists) {
+		const items = Array.isArray(lists.lists) ? lists.lists : [];
+		return {
+			lists: items
+				.filter((list) => list.editable)
+				.map((list) => ({
+					kind: list.key,
+					title: list.title,
+					addLabel: list.addLabel,
+					rows: (Array.isArray(list.rows) ? list.rows : []).map(structRowFrom),
+				})),
 			tabularSections: (Array.isArray(lists.tabularSections) ? lists.tabularSections : []).map(function (t) {
-				const row = rowFrom(t);
-				row.attributes = (Array.isArray(t.attributes) ? t.attributes : []).map(rowFrom);
+				const row = structRowFrom(t);
+				row.attributes = (Array.isArray(t.attributes) ? t.attributes : []).map(structRowFrom);
 				return row;
 			}),
 		};
@@ -109,8 +127,10 @@
 		if (!editedStructure) {
 			return;
 		}
-		for (const row of editedStructure.attributes) {
-			fn(row);
+		for (const list of editedStructure.lists) {
+			for (const row of list.rows) {
+				fn(row);
+			}
 		}
 		for (const ts of editedStructure.tabularSections) {
 			fn(ts);
@@ -128,7 +148,9 @@
 		if (!structure) {
 			return '';
 		}
-		const attr = structure.attributes.map((row) => row.originalName || '+').join('|');
+		const attr = structure.lists
+			.map((list) => list.kind + ':' + list.rows.map((row) => row.originalName || '+').join(','))
+			.join('|');
 		const ts = structure.tabularSections
 			.map((t) => (t.originalName || '+') + ':' + t.attributes.map((row) => row.originalName || '+').join(','))
 			.join('|');
@@ -159,7 +181,8 @@
 			return '';
 		}
 		const topSeen = new Set();
-		for (const row of [...editedStructure.attributes, ...editedStructure.tabularSections]) {
+		const listRows = editedStructure.lists.flatMap((list) => list.rows);
+		for (const row of [...listRows, ...editedStructure.tabularSections]) {
 			if (row.deleted) {
 				continue;
 			}
@@ -207,7 +230,7 @@
 			};
 		};
 		return {
-			attributes: editedStructure.attributes.map(rowOut),
+			lists: editedStructure.lists.map((list) => ({ kind: list.kind, rows: list.rows.map(rowOut) })),
 			tabularSections: editedStructure.tabularSections.map(function (ts) {
 				const out = rowOut(ts);
 				out.attributes = ts.attributes.map(rowOut);
@@ -724,14 +747,13 @@
 			</div>`
 			: '';
 		if (tabId === 'edit_data') {
-			// Раскладка EDT: слева редактируемый состав объекта, справа группы свойств.
+			// Раскладка EDT: слева состав объекта, справа группы свойств.
 			const tsHtml = structSupportsTabularSections()
 				? `<div class="section-title section-title-spaced">Табличные части</div>${structEditTsHtml()}`
 				: '';
 			contentRoot.innerHTML = `${filterHtml}<div class="edit-data-layout">
 					<div class="edit-data-structure">
-						<div class="section-title">${escapeHtml(structListTitle())}</div>
-						${structEditListHtml()}
+						${structListsHtml()}
 						${tsHtml}
 					</div>
 					<div class="edit-data-props">${groupsHtml}</div>
@@ -1052,8 +1074,10 @@
 			return null;
 		}
 		const parts = String(spath).split('.');
-		if (parts[0] === 'a') {
-			return editedStructure.attributes[Number(parts[1])] || null;
+		if (parts[0] === 'l') {
+			// l.<индекс списка>.<индекс строки>: списки состава идут в порядке модели.
+			const list = editedStructure.lists[Number(parts[1])];
+			return (list && list.rows[Number(parts[2])]) || null;
 		}
 		const ts = editedStructure.tabularSections[Number(parts[1])] || null;
 		if (!ts) {
@@ -1080,26 +1104,53 @@
 		</div>`;
 	}
 
-	function structListTitle() {
-		return (model.structureLists && model.structureLists.title) || 'Реквизиты';
+	function structLists() {
+		const lists = model.structureLists && model.structureLists.lists;
+		return Array.isArray(lists) ? lists : [];
 	}
 
-	function structAddLabel() {
-		return (model.structureLists && model.structureLists.addLabel) || '+ Реквизит…';
+	/** Списки состава сверху вниз: правится тот, что описан как редактируемый. */
+	function structListsHtml() {
+		let editableIdx = -1;
+		return structLists()
+			.map(function (list, idx) {
+				const title = `<div class="section-title${idx > 0 ? ' section-title-spaced' : ''}">${escapeHtml(
+					list.title
+				)}</div>`;
+				if (!list.editable) {
+					return title + structReadonlyListHtml(list);
+				}
+				editableIdx += 1;
+				return title + structEditListHtml(editableIdx);
+			})
+			.join('');
+	}
+
+	function structReadonlyListHtml(list) {
+		const rows = (list.rows || [])
+			.map(function (row) {
+				const synonym = row.synonymRu && row.synonymRu !== row.name
+					? `<span class="struct-item-syn">${escapeHtml(row.synonymRu)}</span>`
+					: '';
+				return `<div class="struct-item"><span class="struct-item-name">${escapeHtml(row.name)}</span>${synonym}</div>`;
+			})
+			.join('');
+		return `<div class="struct-list">${rows || '<div class="edit-ref-empty">(пусто)</div>'}</div>`;
 	}
 
 	function structSupportsTabularSections() {
 		return !model.structureLists || model.structureLists.supportsTabularSections !== false;
 	}
 
-	function structEditListHtml() {
-		if (!editedStructure) {
+	function structEditListHtml(listIdx) {
+		if (!editedStructure || !editedStructure.lists[listIdx]) {
 			return '<div class="edit-ref-empty">(нет данных)</div>';
 		}
-		const rows = editedStructure.attributes.map((row, idx) => structEditRowHtml(row, `a.${idx}`)).join('');
+		const list = editedStructure.lists[listIdx];
+		const rows = list.rows.map((row, idx) => structEditRowHtml(row, `l.${listIdx}.${idx}`)).join('');
 		return `<div class="struct-list">${rows || '<div class="edit-ref-empty">(пусто)</div>'}</div>
-			<div class="struct-add-row"><button type="button" class="struct-add-btn" data-sadd="a">${escapeHtml(
-				structAddLabel()
+			<div class="struct-add-row"><button type="button" class="struct-add-btn" data-sadd="l.${listIdx}">${escapeHtml(
+				list.addLabel || '+ Строка…'
 			)}</button></div>`;
 	}
 
@@ -1165,8 +1216,11 @@
 				if (!row.originalName && !row.deleted) {
 					// Новая строка: удаляем совсем.
 					const parts = spath.split('.');
-					if (parts[0] === 'a') {
-						editedStructure.attributes.splice(Number(parts[1]), 1);
+					if (parts[0] === 'l') {
+						const list = editedStructure.lists[Number(parts[1])];
+						if (list) {
+							list.rows.splice(Number(parts[2]), 1);
+						}
 					} else if (parts[2] === 'a') {
 						editedStructure.tabularSections[Number(parts[1])].attributes.splice(Number(parts[3]), 1);
 					} else {
@@ -1186,9 +1240,10 @@
 				const parts = String(spath).split('.');
 				let list = null;
 				let index = -1;
-				if (parts[0] === 'a') {
-					list = editedStructure.attributes;
-					index = Number(parts[1]);
+				if (parts[0] === 'l') {
+					const structList = editedStructure.lists[Number(parts[1])];
+					list = structList ? structList.rows : null;
+					index = Number(parts[2]);
 				} else if (parts[2] === 'a') {
 					list = editedStructure.tabularSections[Number(parts[1])]
 						? editedStructure.tabularSections[Number(parts[1])].attributes
@@ -1213,9 +1268,13 @@
 				const target = btn.getAttribute('data-sadd');
 				const emptyRow = { originalName: '', name: '', synonymRu: '', baselineSynonymRu: '', comment: '', deleted: false };
 				let newSpath = '';
-				if (target === 'a') {
-					editedStructure.attributes.push({ ...emptyRow });
-					newSpath = `a.${editedStructure.attributes.length - 1}`;
+				if (target.startsWith('l.')) {
+					const listIdx = Number(target.split('.')[1]);
+					const list = editedStructure.lists[listIdx];
+					if (list) {
+						list.rows.push({ ...emptyRow });
+						newSpath = `l.${listIdx}.${list.rows.length - 1}`;
+					}
 				} else if (target === 't') {
 					editedStructure.tabularSections.push({ ...emptyRow, attributes: [] });
 					newSpath = `t.${editedStructure.tabularSections.length - 1}`;

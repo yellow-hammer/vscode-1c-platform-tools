@@ -195,10 +195,15 @@ suite('metadataObjectPropertiesPanel structure edits', () => {
 
 	test('structOpsFromEdits: переименования, удаления, добавления в правильном порядке', () => {
 		const edits = panel.parseStructureEdits({
-			attributes: [
-				{ originalName: 'Старый', name: 'Новый', synonymRu: '', deleted: false },
-				{ originalName: 'Лишний', name: 'Лишний', synonymRu: '', deleted: true },
-				{ name: 'Добавленный', synonymRu: 'Синоним', deleted: false },
+			lists: [
+				{
+					kind: 'attributes',
+					rows: [
+						{ originalName: 'Старый', name: 'Новый', synonymRu: '', deleted: false },
+						{ originalName: 'Лишний', name: 'Лишний', synonymRu: '', deleted: true },
+						{ name: 'Добавленный', synonymRu: 'Синоним', deleted: false },
+					],
+				},
 			],
 			tabularSections: [
 				{
@@ -235,16 +240,19 @@ suite('metadataObjectPropertiesPanel structure edits', () => {
 
 	test('validateStructureEdits ловит дубли и мусорные имена', () => {
 		const bad = panel.parseStructureEdits({
-			attributes: [
-				{ name: '1Плохое', synonymRu: '', deleted: false },
-			],
+			lists: [{ kind: 'attributes', rows: [{ name: '1Плохое', synonymRu: '', deleted: false }] }],
 			tabularSections: [],
 		});
 		assert.ok(panel.validateStructureEdits(bad));
 		const dup = panel.parseStructureEdits({
-			attributes: [
-				{ originalName: 'А', name: 'Имя', synonymRu: '', deleted: false },
-				{ originalName: 'Б', name: 'имя', synonymRu: '', deleted: false },
+			lists: [
+				{
+					kind: 'attributes',
+					rows: [
+						{ originalName: 'А', name: 'Имя', synonymRu: '', deleted: false },
+						{ originalName: 'Б', name: 'имя', synonymRu: '', deleted: false },
+					],
+				},
 			],
 			tabularSections: [],
 		});
@@ -260,7 +268,9 @@ suite('metadataObjectPropertiesPanel structure edits', () => {
 			tabularSections: [{ name: 'Позиции', synonymRu: '', comment: '' }],
 		};
 		const edits = panel.parseStructureEdits({
-			attributes: [{ originalName: 'Старый', name: 'Новый', synonymRu: 'Свежий', deleted: false }],
+			lists: [
+				{ kind: 'attributes', rows: [{ originalName: 'Старый', name: 'Новый', synonymRu: 'Свежий', deleted: false }] },
+			],
 			tabularSections: [{ originalName: 'Товары', name: 'Позиции', synonymRu: 'Позиции заказа', deleted: false, attributes: [] }],
 		});
 		panel.applySynonymEdits(dto, edits);
@@ -485,7 +495,7 @@ suite('metadataObjectEditSpec: значения перечисления', () =>
 	const panel = require('../../features/metadata/metadataObjectPropertiesPanel');
 
 	function enumEdits(rows: Array<Record<string, unknown>>) {
-		return panel.parseStructureEdits({ attributes: rows, tabularSections: [] }, 'enumValues');
+		return panel.parseStructureEdits({ lists: [{ kind: 'enumValues', rows }], tabularSections: [] });
 	}
 
 	test('правки значений дают операции значений перечисления', () => {
@@ -537,12 +547,76 @@ suite('metadataObjectEditSpec: значения перечисления', () =>
 			enumeration: { objectBelonging: 'NATIVE', choiceMode: 'BOTH_WAYS' },
 		};
 		const lists = panel.buildStructureListsForTest(props, { kind: 'enum', forms: [], commands: [] });
-		assert.strictEqual(lists.title, 'Значения');
+		assert.deepStrictEqual(
+			lists.lists.map((list: { title: string; editable: boolean }) => [list.title, list.editable]),
+			[['Значения', true]]
+		);
 		assert.strictEqual(lists.supportsTabularSections, false);
 		assert.deepStrictEqual(
-			lists.attributes.map((row: { name: string }) => row.name),
+			lists.lists[0].rows.map((row: { name: string }) => row.name),
 			['Закрыт']
 		);
+	});
+
+	test('у регистра состав — измерения, ресурсы и реквизиты, без табличных частей', () => {
+		const props = {
+			kind: 'informationRegister',
+			internalName: 'ГрафикиРаботы',
+			synonymRu: 'Графики работы',
+			comment: '',
+			attributes: [],
+			tabularSections: [],
+			register: { objectBelonging: 'NATIVE' },
+		};
+		const structure = {
+			kind: 'informationRegister',
+			internalName: 'ГрафикиРаботы',
+			forms: [],
+			commands: [],
+			dimensions: ['Дата'],
+			resources: ['Значение'],
+			attributes: [],
+		};
+		const lists = panel.buildStructureListsForTest(props, structure);
+		assert.deepStrictEqual(
+			lists.lists.map((list: { title: string; editable: boolean }) => [list.title, list.editable]),
+			[
+				['Измерения', true],
+				['Ресурсы', true],
+				['Реквизиты', true],
+			],
+			'состав регистра правится, как реквизиты справочника'
+		);
+		assert.strictEqual(lists.supportsTabularSections, false, 'табличных частей у регистров нет');
+		assert.deepStrictEqual(
+			lists.lists[0].rows.map((row: { name: string }) => row.name),
+			['Дата']
+		);
+	});
+
+	test('у регистра нет отдельных вкладок измерений и ресурсов', () => {
+		const props = {
+			kind: 'informationRegister',
+			internalName: 'ГрафикиРаботы',
+			synonymRu: 'Графики работы',
+			comment: '',
+			attributes: [],
+			tabularSections: [],
+			register: { objectBelonging: 'NATIVE' },
+		};
+		const structure = {
+			kind: 'informationRegister',
+			forms: [],
+			commands: [],
+			dimensions: ['Дата'],
+			resources: ['Значение'],
+		};
+		const tabs = buildMetadataObjectPropertiesTabsForTest('InformationRegister', props, structure);
+		assert.ok(
+			!tabs.some((tab) => tab.id === 'section_dimensions' || tab.id === 'section_resources'),
+			'измерения и ресурсы живут на вкладке «Данные»'
+		);
+		assert.ok(tabs.some((tab) => tab.id === 'edit_data'));
 	});
 });
 
@@ -608,6 +682,145 @@ suite('metadataObjectEditSpec: тип значения константы', () =
 			editType(composite, { types: ['xs:string'] }),
 			composite,
 			'составной тип правит пикер типов, а не панель'
+		);
+	});
+});
+
+suite('metadataObjectEditSpec: регистры', () => {
+	const { buildRegisterEditTabs } = require('../../features/metadata/metadataObjectEditSpec');
+
+	function fields(tabs: Array<{ groups: Array<{ fields: Array<Record<string, unknown>> }> }>) {
+		return tabs.flatMap((tab) => tab.groups).flatMap((group) => group.fields);
+	}
+
+	function fieldByPath(tabs: Array<{ groups: Array<{ fields: Array<Record<string, unknown>> }> }>, path: string) {
+		return fields(tabs).find((field) => field.path === path);
+	}
+
+	const infoTabs = () =>
+		buildRegisterEditTabs({ internalName: 'ГрафикиРаботы', formNames: ['ФормаСписка'], commandNames: [], information: true });
+	const accumTabs = () =>
+		buildRegisterEditTabs({ internalName: 'Остатки', formNames: [], commandNames: [], information: false });
+
+	test('у регистра сведений своя периодичность и режим записи', () => {
+		const tabs = infoTabs();
+		assert.deepStrictEqual(
+			tabs.map((tab: { title: string }) => tab.title),
+			['Основные', 'Данные', 'Формы', 'Команды']
+		);
+		assert.strictEqual(fieldByPath(tabs, 'register.informationRegisterPeriodicity')?.control, 'select');
+		assert.strictEqual(fieldByPath(tabs, 'register.writeMode')?.control, 'select');
+		assert.ok(fieldByPath(tabs, 'register.recordPresentationRu'), 'представление записи есть');
+		assert.ok(
+			(fieldByPath(tabs, 'register.defaultRecordForm')?.options as Array<{ value: string }>).some(
+				(option) => option.value === 'InformationRegister.ГрафикиРаботы.Form.ФормаСписка'
+			)
+		);
+		assert.strictEqual(fieldByPath(tabs, 'register.registerType'), undefined, 'вида регистра у сведений нет');
+	});
+
+	test('у регистра накопления вид регистра вместо периодичности', () => {
+		const tabs = accumTabs();
+		assert.strictEqual(fieldByPath(tabs, 'register.registerType')?.control, 'select');
+		assert.ok(fieldByPath(tabs, 'register.enableTotalsSplitting'), 'разделение итогов есть');
+		assert.strictEqual(
+			fieldByPath(tabs, 'register.informationRegisterPeriodicity'),
+			undefined,
+			'периодичности у накопления нет'
+		);
+		assert.strictEqual(fieldByPath(tabs, 'register.recordPresentationRu'), undefined);
+		assert.strictEqual(fieldByPath(tabs, 'register.defaultRecordForm'), undefined, 'формы записи у накопления нет');
+	});
+
+	test('панель регистра сведений начинается с редактируемых вкладок', () => {
+		const props = {
+			kind: 'informationRegister',
+			internalName: 'ГрафикиРаботы',
+			synonymRu: 'Графики работы',
+			comment: '',
+			attributes: [],
+			tabularSections: [],
+			register: { objectBelonging: 'NATIVE', writeMode: 'INDEPENDENT', informationRegisterPeriodicity: 'DAY' },
+		};
+		const structure = { kind: 'informationRegister', internalName: 'ГрафикиРаботы', forms: [], commands: [] };
+		const tabs = buildMetadataObjectPropertiesTabsForTest('InformationRegister', props, structure);
+		assert.strictEqual(tabs[0]?.id, 'edit_main');
+		assert.strictEqual(tabs[0]?.render, 'edit');
+	});
+
+	test('заимствованный регистр расширения не редактируется', () => {
+		const props = {
+			kind: 'accumulationRegister',
+			internalName: 'Остатки',
+			synonymRu: 'Остатки',
+			comment: '',
+			attributes: [],
+			tabularSections: [],
+			register: { objectBelonging: 'ADOPTED' },
+		};
+		const tabs = buildMetadataObjectPropertiesTabsForTest('AccumulationRegister', props, {
+			kind: 'accumulationRegister',
+			forms: [],
+			commands: [],
+		});
+		assert.ok(!tabs.some((tab) => tab.render === 'edit'));
+	});
+});
+
+suite('metadataObjectEditSpec: состав регистра', () => {
+	const panel = require('../../features/metadata/metadataObjectPropertiesPanel');
+
+	test('правки измерений и ресурсов дают свои операции', () => {
+		const edits = panel.parseStructureEdits({
+			lists: [
+				{
+					kind: 'dimensions',
+					rows: [
+						{ originalName: 'Дата', name: 'ДатаГрафика', synonymRu: 'Дата графика', deleted: false },
+						{ name: 'Склад', synonymRu: 'Склад', deleted: false },
+					],
+				},
+				{ kind: 'resources', rows: [{ originalName: 'Значение', name: 'Значение', synonymRu: '', deleted: true }] },
+				{ kind: 'attributes', rows: [{ name: 'Комментарий', synonymRu: 'Комментарий', deleted: false }] },
+			],
+			tabularSections: [],
+		});
+		const ops = panel.structOpsFromEdits(edits, 'C:/cf/InformationRegisters/Графики.xml', 'V2_20');
+		assert.deepStrictEqual(
+			ops.map((op: { op: string }) => op.op),
+			[
+				'cf-md-dimension-rename',
+				'cf-md-resource-delete',
+				'cf-md-dimension-add',
+				'cf-md-attribute-add',
+				'cf-md-dimension-reorder',
+			],
+			'у каждого списка свои операции, порядок общий: переименования, удаления, добавления, порядок'
+		);
+		assert.deepStrictEqual(JSON.parse(ops[4].payloadJson), ['ДатаГрафика', 'Склад']);
+	});
+
+	test('синонимы состава пишутся каждый в своё поле DTO', () => {
+		const edits = panel.parseStructureEdits({
+			lists: [
+				{ kind: 'dimensions', rows: [{ originalName: 'Дата', name: 'Дата', synonymRu: 'Дата графика', deleted: false }] },
+				{ kind: 'resources', rows: [{ originalName: 'Значение', name: 'Значение', synonymRu: 'Часы', deleted: false }] },
+			],
+			tabularSections: [],
+		});
+		const dto: Record<string, unknown> = {
+			kind: 'informationRegister',
+			dimensions: [{ name: 'Дата', synonymRu: 'Дата', comment: '' }],
+			resources: [{ name: 'Значение', synonymRu: 'Значение', comment: '' }],
+			attributes: [{ name: 'Дата', synonymRu: 'Реквизит', comment: '' }],
+		};
+		panel.applySynonymEdits(dto, edits);
+		assert.strictEqual((dto.dimensions as Array<Record<string, unknown>>)[0].synonymRu, 'Дата графика');
+		assert.strictEqual((dto.resources as Array<Record<string, unknown>>)[0].synonymRu, 'Часы');
+		assert.strictEqual(
+			(dto.attributes as Array<Record<string, unknown>>)[0].synonymRu,
+			'Реквизит',
+			'реквизит с тем же именем не задет'
 		);
 	});
 });
