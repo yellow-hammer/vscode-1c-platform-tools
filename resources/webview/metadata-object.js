@@ -492,6 +492,118 @@
 		].join('');
 	}
 
+	// Примитивные типы: значение — как в XML, подпись — как в конфигураторе.
+	const PRIMITIVE_TYPES = [
+		{ value: 'xs:string', label: 'Строка' },
+		{ value: 'xs:decimal', label: 'Число' },
+		{ value: 'xs:dateTime', label: 'Дата' },
+		{ value: 'xs:boolean', label: 'Булево' },
+		{ value: 'v8:ValueStorage', label: 'Хранилище значения' },
+		{ value: 'v8:UUID', label: 'Уникальный идентификатор' },
+	];
+
+	const TYPE_DEFAULT_QUALIFIERS = {
+		'xs:string': { stringQualifiers: { length: '10', allowedLength: 'VARIABLE' } },
+		'xs:decimal': { numberQualifiers: { digits: '10', fractionDigits: '0', allowedSign: 'ANY' } },
+		'xs:dateTime': { dateQualifiers: { dateFractions: 'DATE' } },
+	};
+
+	function primitiveTypeOf(value) {
+		if (!value || !Array.isArray(value.types) || value.types.length !== 1) {
+			return '';
+		}
+		const type = value.types[0];
+		return PRIMITIVE_TYPES.some((option) => option.value === type) ? type : '';
+	}
+
+	/** Ссылочный и составной тип панель пока только показывает: правит их пикер типов. */
+	function typeSummary(value) {
+		if (!value || !Array.isArray(value.types) || value.types.length === 0) {
+			return '(не задан)';
+		}
+		if (value.types.length > 1) {
+			return `Составной тип (${value.types.length})`;
+		}
+		return value.types[0];
+	}
+
+	function typeQualifierRows(field, value, type, disabled) {
+		const row = (label, html) =>
+			`<div class="type-row"><span class="type-label">${escapeHtml(label)}</span>${html}</div>`;
+		const num = (qualifier, key, current) =>
+			`<input class="edit-input type-input" type="text" inputmode="numeric" value="${escapeHtml(
+				current == null ? '' : String(current)
+			)}" data-type-path="${escapeHtml(field.path)}" data-type-qualifier="${qualifier}" data-type-key="${key}"${disabled} />`;
+		const select = (qualifier, key, current, options) =>
+			`<select class="edit-input type-input" data-type-path="${escapeHtml(
+				field.path
+			)}" data-type-qualifier="${qualifier}" data-type-key="${key}"${disabled}>${options
+				.map(
+					(option) =>
+						`<option value="${option.value}"${option.value === current ? ' selected' : ''}>${escapeHtml(
+							option.label
+						)}</option>`
+				)
+				.join('')}</select>`;
+		if (type === 'xs:string') {
+			const q = (value && value.stringQualifiers) || {};
+			return (
+				row('Длина', num('stringQualifiers', 'length', q.length)) +
+				row(
+					'Допустимая длина',
+					select('stringQualifiers', 'allowedLength', q.allowedLength || 'VARIABLE', [
+						{ value: 'VARIABLE', label: 'Переменная' },
+						{ value: 'FIXED', label: 'Фиксированная' },
+					])
+				)
+			);
+		}
+		if (type === 'xs:decimal') {
+			const q = (value && value.numberQualifiers) || {};
+			return (
+				row('Длина', num('numberQualifiers', 'digits', q.digits)) +
+				row('Точность', num('numberQualifiers', 'fractionDigits', q.fractionDigits)) +
+				row(
+					'Неотрицательное',
+					select('numberQualifiers', 'allowedSign', q.allowedSign || 'ANY', [
+						{ value: 'ANY', label: 'Нет' },
+						{ value: 'NONNEGATIVE', label: 'Да' },
+					])
+				)
+			);
+		}
+		if (type === 'xs:dateTime') {
+			const q = (value && value.dateQualifiers) || {};
+			return row(
+				'Состав даты',
+				select('dateQualifiers', 'dateFractions', q.dateFractions || 'DATE', [
+					{ value: 'DATE', label: 'Дата' },
+					{ value: 'TIME', label: 'Время' },
+					{ value: 'DATE_TIME', label: 'Дата и время' },
+				])
+			);
+		}
+		return '';
+	}
+
+	function typeControlHtml(field, value, disabled) {
+		const type = primitiveTypeOf(value);
+		if (!type) {
+			// Ссылочный или составной тип: показываем как есть, менять пока нечем.
+			return `<div class="type-control"><span class="type-summary" title="${escapeHtml(
+				(value && Array.isArray(value.types) ? value.types : []).join(', ')
+			)}">${escapeHtml(typeSummary(value))}</span></div>`;
+		}
+		const options = PRIMITIVE_TYPES.map(
+			(option) =>
+				`<option value="${option.value}"${option.value === type ? ' selected' : ''}>${escapeHtml(option.label)}</option>`
+		).join('');
+		return `<div class="type-control">
+				<select class="edit-input" data-type-path="${escapeHtml(field.path)}" data-type-primary="1"${disabled}>${options}</select>
+				${typeQualifierRows(field, value, type, disabled)}
+			</div>`;
+	}
+
 	function editControlHtml(field, index) {
 		const value = field.path ? getPath(editedProps, field.path) : undefined;
 		const disabled = field.readonly || !fieldEnabled(field) ? ' disabled' : '';
@@ -524,6 +636,8 @@
 			}
 			case 'moduleLink':
 				return `<button type="button" class="edit-module-link" data-module-kind="${escapeHtml(field.path)}">Открыть</button>`;
+			case 'type':
+				return typeControlHtml(field, value, disabled);
 			case 'refList': {
 				const selected = Array.isArray(value) ? value : [];
 				const options = Array.isArray(field.options) ? field.options : [];
@@ -720,6 +834,37 @@
 			input.addEventListener(control === 'check' || control === 'select' ? 'change' : 'input', handler);
 		}
 		bindRefListButtons(spec);
+		bindTypeInputs(spec);
+	}
+
+	function bindTypeInputs(spec) {
+		if (!contentRoot) {
+			return;
+		}
+		for (const input of contentRoot.querySelectorAll('[data-type-path]')) {
+			const path = input.getAttribute('data-type-path');
+			const isPrimary = input.hasAttribute('data-type-primary');
+			input.addEventListener('change', function () {
+				if (!editedProps) {
+					return;
+				}
+				const current = getPath(editedProps, path) || {};
+				if (isPrimary) {
+					// Смена типа: квалификаторы заводим такие же, как платформа для нового типа.
+					const next = Object.assign({ types: [input.value] }, TYPE_DEFAULT_QUALIFIERS[input.value] || {});
+					setPath(editedProps, path, next);
+					renderEditTab(spec.id);
+					renderSaveBar();
+					return;
+				}
+				const qualifier = input.getAttribute('data-type-qualifier');
+				const key = input.getAttribute('data-type-key');
+				const next = Object.assign({}, current);
+				next[qualifier] = Object.assign({}, next[qualifier] || {}, { [key]: input.value });
+				setPath(editedProps, path, next);
+				renderSaveBar();
+			});
+		}
 	}
 
 	function bindRefListButtons(spec) {
