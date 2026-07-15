@@ -154,7 +154,8 @@
           "id": "1c-platform-tools-metadata-search",
           "name": "Поиск",
           "when": "1c-platform-tools.is1CProject == true",
-          "initialSize": 1
+          "initialSize": 1,
+          "visibility": "collapsed"
         },
         {
           "id": "1c-platform-tools-metadata-filters",
