@@ -9,6 +9,7 @@ export const MD_SPARROW_DEFAULT_REPO = 'yellow-hammer/md-sparrow';
 /** Паттерн имени fat-JAR в релизе GitHub */
 export const MD_SPARROW_JAR_REGEX = /md-sparrow-.*-all\.jar$/i;
 
+
 /** API Temurin JRE 21 (ga) — редирект на архив */
 export function adoptiumBinaryUrl(): string {
 	const { os, arch } = adoptiumOsArch();

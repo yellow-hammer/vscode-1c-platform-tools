@@ -1,5 +1,5 @@
 import * as assert from 'node:assert';
-import { isNewerTag } from '../../shared/githubReleaseLoader';
+import { isNewerTag, updateCheckDue } from '../../shared/githubReleaseLoader';
 
 suite('githubReleaseLoader.isNewerTag', () => {
 	test('новее по patch/minor/major', () => {
@@ -21,5 +21,22 @@ suite('githubReleaseLoader.isNewerTag', () => {
 	test('нечисловые теги — по строковому неравенству', () => {
 		assert.strictEqual(isNewerTag('nightly', 'nightly'), false);
 		assert.strictEqual(isNewerTag('nightly-2', 'nightly-1'), true);
+	});
+});
+
+suite('githubReleaseLoader: проверка обновлений', () => {
+	const now = 1_000_000_000_000;
+
+	test('без штампа проверяем сразу', () => {
+		assert.strictEqual(updateCheckDue(undefined, now), true);
+	});
+
+	test('сразу после проверки отдаём кэш', () => {
+		assert.strictEqual(updateCheckDue(now - 60_000, now), false);
+	});
+
+	test('через восемь минут проверяем снова', () => {
+		assert.strictEqual(updateCheckDue(now - 8 * 60_000, now), true);
+		assert.strictEqual(updateCheckDue(now - 60 * 60_000, now), true);
 	});
 });
