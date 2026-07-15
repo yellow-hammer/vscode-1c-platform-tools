@@ -19,7 +19,7 @@ import {
 import { createMdSparrowMutationRunner } from './mdSparrowMutationQueue';
 import type { MetadataFilterViewProvider } from './metadataFilterView';
 import { MetadataSearchViewProvider } from './metadataSearchView';
-import { applySubsystemFilter } from './metadataSubsystemFilter';
+import { computeSubsystemFilter, findSubsystemByName, loadSubsystemTrees } from './metadataSubsystemFilter';
 import { openMetadataObjectPropertiesEditor } from './metadataObjectPropertiesPanel';
 import {
 	openMetadataSourcePropertiesPanel,
@@ -1326,24 +1326,23 @@ export function registerMetadataFeature(
 					void vscode.window.showInformationMessage('Выберите подсистему в дереве метаданных.');
 					return;
 				}
-				const applied = await applySubsystemFilter(
-					context,
-					metadataTreeProvider,
-					[
-						{
-							sourceId: node.sourceId,
-							name: node.name,
-							xmlAbs: node.resourceUri.fsPath,
-							configurationXmlAbs: node.configurationXmlAbs,
-							metadataRootAbs: node.metadataRootAbs,
-						},
-					],
-					{ includeNested: true, includeParents: false },
-					node.name
-				);
-				if (applied) {
-					void vscode.window.showInformationMessage(`Фильтр подсистемы: ${node.name}`);
+				const roots = await loadSubsystemTrees(context, metadataTreeProvider);
+				const subsystem = findSubsystemByName(roots, node.name);
+				if (!subsystem) {
+					void vscode.window.showInformationMessage(`Не удалось прочитать подсистему: ${node.name}`);
+					return;
 				}
+				const result = computeSubsystemFilter(roots, new Set([subsystem.xmlPath]), {
+					includeNested: true,
+					includeParents: false,
+				});
+				metadataTreeProvider.setSubsystemFilter(node.name, result.names, result.keys, result.subsystemNames);
+				void vscode.commands.executeCommand(
+					'setContext',
+					'1c-platform-tools.metadata.subsystemFilterActive',
+					true
+				);
+				void vscode.window.showInformationMessage(`Фильтр подсистемы: ${node.name}`);
 			}
 		),
 		vscode.commands.registerCommand('1c-platform-tools.metadata.clearSubsystemFilter', async () => {

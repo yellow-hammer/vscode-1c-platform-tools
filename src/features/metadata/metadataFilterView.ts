@@ -1,13 +1,12 @@
 /**
  * Панель «Фильтры»: поле поиска и дерево подсистем с флажками — отбор дерева метаданных.
  * Строки повторяют дерево метаданных: тот же значок подсистемы и та же геометрия узлов.
- * Охват (подчинённые, родительские) задаётся командами в шапке панели.
+ * Подсистемы и их состав приходят от md-sparrow одной операцией на источник.
  * @module metadataFilterView
  */
-import * as path from 'node:path';
 import * as vscode from 'vscode';
-import { hasNestedSubsystems, nestedSubsystemXmls, parentSubsystemXml, type SubsystemRef } from './metadataSubsystemFilter';
-import type { MetadataLeafTreeItem, MetadataTreeDataProvider } from './metadataTreeView';
+import { loadSubsystemTrees, type SubsystemNode } from './metadataSubsystemFilter';
+import type { MetadataTreeDataProvider } from './metadataTreeView';
 
 export const METADATA_FILTERS_VIEW_ID = '1c-platform-tools-metadata-filters';
 
@@ -17,52 +16,81 @@ const APPLY_DEBOUNCE_MS = 350;
 export type FilterOptionKey = 'includeNested' | 'includeParents';
 
 export interface FilterSelection {
-	readonly subsystems: readonly SubsystemRef[];
+	/** Прочитанное дерево подсистем: по нему считается состав отбора. */
+	readonly roots: readonly SubsystemNode[];
+	/** Пути к XML отмеченных подсистем. */
+	readonly checkedPaths: ReadonlySet<string>;
 	readonly includeNested: boolean;
 	readonly includeParents: boolean;
 }
 
-/** Узел дерева подсистем для webview. */
+/** Узел дерева подсистем для webview: только то, что нужно нарисовать. */
 interface SubsystemTreeNode {
 	readonly key: string;
 	readonly name: string;
 	readonly children: SubsystemTreeNode[];
 }
 
+function toWebviewNodes(nodes: readonly SubsystemNode[]): SubsystemTreeNode[] {
+	return [...nodes]
+		.sort((a, b) => a.name.localeCompare(b.name, 'ru'))
+		.map((node) => ({ key: node.xmlPath, name: node.name, children: toWebviewNodes(node.children) }));
+}
+
 export class MetadataFilterViewProvider implements vscode.WebviewViewProvider {
 	private _view: vscode.WebviewView | undefined;
-	private readonly _refByKey = new Map<string, SubsystemRef>();
+	private _roots: SubsystemNode[] = [];
+	private _loading: Promise<void> | undefined;
 	private readonly _checked = new Set<string>();
 	private readonly _options: Record<FilterOptionKey, boolean> = { includeNested: true, includeParents: false };
 	private _applyTimer: ReturnType<typeof setTimeout> | undefined;
 
 	constructor(
-		private readonly _extensionUri: vscode.Uri,
+		private readonly _context: vscode.ExtensionContext,
 		private readonly _treeProvider: MetadataTreeDataProvider,
 		private readonly _onSelectionChanged: (selection: FilterSelection) => void
 	) {}
+
+	get roots(): readonly SubsystemNode[] {
+		return this._roots;
+	}
 
 	resolveWebviewView(view: vscode.WebviewView): void {
 		this._view = view;
 		view.webview.options = {
 			enableScripts: true,
-			localResourceRoots: [vscode.Uri.joinPath(this._extensionUri, 'resources')],
+			localResourceRoots: [vscode.Uri.joinPath(this._context.extensionUri, 'resources')],
 		};
 		view.webview.html = this.html(view.webview);
 		view.webview.onDidReceiveMessage((msg: unknown) => this.onMessage(msg));
 		view.onDidChangeVisibility(() => {
 			if (view.visible) {
-				this.pushTree();
+				void this.reload();
 			}
 		});
 		view.onDidDispose(() => {
 			this._view = undefined;
 		});
-		this.pushTree();
+		void this.reload();
 	}
 
 	/** Перечитывает подсистемы: дерево метаданных могло обновиться. */
 	refresh(): void {
+		void this.reload();
+	}
+
+	/** Читает подсистемы через md-sparrow; параллельные вызовы ждут один и тот же запрос. */
+	private async reload(): Promise<void> {
+		if (!this._loading) {
+			this._loading = loadSubsystemTrees(this._context, this._treeProvider)
+				.then((roots) => {
+					this._roots = roots;
+				})
+				.finally(() => {
+					this._loading = undefined;
+				});
+		}
+		await this._loading;
 		this.pushTree();
 	}
 
@@ -107,15 +135,9 @@ export class MetadataFilterViewProvider implements vscode.WebviewViewProvider {
 		}
 		this._applyTimer = setTimeout(() => {
 			this._applyTimer = undefined;
-			const subsystems: SubsystemRef[] = [];
-			for (const key of this._checked) {
-				const ref = this._refByKey.get(key);
-				if (ref) {
-					subsystems.push(ref);
-				}
-			}
 			this._onSelectionChanged({
-				subsystems,
+				roots: this._roots,
+				checkedPaths: new Set(this._checked),
 				includeNested: this._options.includeNested,
 				includeParents: this._options.includeParents,
 			});
@@ -126,55 +148,16 @@ export class MetadataFilterViewProvider implements vscode.WebviewViewProvider {
 		if (!this._view) {
 			return;
 		}
-		this._refByKey.clear();
-		const roots = this._treeProvider
-			.listSubsystemLeaves()
-			.filter((leaf) => leaf.resourceUri && !parentSubsystemXml(leaf.resourceUri.fsPath))
-			.map((leaf) => this.refFromLeaf(leaf))
-			.filter((ref): ref is SubsystemRef => ref !== undefined);
 		void this._view.webview.postMessage({
 			type: 'tree',
-			nodes: this.toNodes(roots),
+			nodes: toWebviewNodes(this._roots),
 			checked: [...this._checked],
 			options: this._options,
 		});
 	}
 
-	private toNodes(refs: SubsystemRef[]): SubsystemTreeNode[] {
-		return refs
-			.sort((a, b) => a.name.localeCompare(b.name, 'ru'))
-			.map((ref) => {
-				this._refByKey.set(ref.xmlAbs, ref);
-				const children = hasNestedSubsystems(ref.xmlAbs, ref.name)
-					? this.toNodes(
-							nestedSubsystemXmls(ref.xmlAbs, ref.name).map((xmlAbs) => ({
-								sourceId: ref.sourceId,
-								name: path.basename(xmlAbs, '.xml'),
-								xmlAbs,
-								configurationXmlAbs: ref.configurationXmlAbs,
-								metadataRootAbs: ref.metadataRootAbs,
-							}))
-						)
-					: [];
-				return { key: ref.xmlAbs, name: ref.name, children };
-			});
-	}
-
-	private refFromLeaf(leaf: MetadataLeafTreeItem): SubsystemRef | undefined {
-		if (!leaf.resourceUri) {
-			return undefined;
-		}
-		return {
-			sourceId: leaf.sourceId,
-			name: leaf.name,
-			xmlAbs: leaf.resourceUri.fsPath,
-			configurationXmlAbs: leaf.configurationXmlAbs,
-			metadataRootAbs: leaf.metadataRootAbs,
-		};
-	}
-
 	private iconUri(webview: vscode.Webview, ...parts: string[]): string {
-		return webview.asWebviewUri(vscode.Uri.joinPath(this._extensionUri, 'resources', ...parts)).toString();
+		return webview.asWebviewUri(vscode.Uri.joinPath(this._context.extensionUri, 'resources', ...parts)).toString();
 	}
 
 	private html(webview: vscode.Webview): string {

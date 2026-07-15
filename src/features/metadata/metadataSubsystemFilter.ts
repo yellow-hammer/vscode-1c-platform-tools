@@ -1,26 +1,26 @@
 /**
- * Отбор объектов дерева метаданных по подсистемам: общая логика для панели «Фильтры»
- * и контекстного меню подсистемы.
+ * Отбор объектов дерева метаданных по подсистемам.
  *
- * Иерархию подсистем берём из раскладки файлов (`Subsystems/<Имя>/Subsystems/<Вложенная>.xml`),
- * состав — из `cf-md-object-get`, поэтому читаем только выбранные ветки.
+ * Дерево подсистем и их состав читает md-sparrow одной операцией `cf-md-subsystem-tree`:
+ * вложенность берётся из XML, а не угадывается по раскладке каталогов.
  * @module metadataSubsystemFilter
  */
-import * as fs from 'node:fs';
 import * as path from 'node:path';
 import * as vscode from 'vscode';
+import { logger } from '../../shared/logger';
 import { ensureMdSparrowRuntime } from './mdSparrowBootstrap';
 import { runMdSparrowParamsRead } from './mdSparrowParams';
 import { mdSparrowSchemaFlagFromConfigurationXml } from './mdSparrowSchemaVersion';
 import type { MetadataTreeDataProvider } from './metadataTreeView';
 
-/** Подсистема как источник отбора: имя и пути, которых хватает для чтения состава. */
-export interface SubsystemRef {
-	readonly sourceId: string;
+const log = logger.scope('метаданные');
+
+/** Узел дерева подсистем, как его отдаёт md-sparrow. */
+export interface SubsystemNode {
 	readonly name: string;
-	readonly xmlAbs: string;
-	readonly configurationXmlAbs: string | undefined;
-	readonly metadataRootAbs: string | undefined;
+	readonly xmlPath: string;
+	readonly contentRefs: readonly string[];
+	readonly children: readonly SubsystemNode[];
 }
 
 export interface SubsystemFilterOptions {
@@ -30,172 +30,128 @@ export interface SubsystemFilterOptions {
 	readonly includeParents: boolean;
 }
 
+/** Состав отбора: имена и ключи разрешённых объектов. */
+export interface SubsystemFilterResult {
+	readonly names: Set<string>;
+	readonly keys: Set<string>;
+	readonly subsystemNames: Set<string>;
+}
+
 const CLI_ERR_PREVIEW = 500;
 
-/** XML родительской подсистемы либо undefined для подсистемы верхнего уровня. */
-export function parentSubsystemXml(xmlAbs: string): string | undefined {
-	const dir = path.dirname(xmlAbs);
-	if (path.basename(dir) !== 'Subsystems') {
-		return undefined;
-	}
-	const ownerDir = path.dirname(dir);
-	const ownerParent = path.dirname(ownerDir);
-	if (path.basename(ownerParent) !== 'Subsystems') {
-		return undefined;
-	}
-	return path.join(ownerParent, `${path.basename(ownerDir)}.xml`);
-}
-
-/** XML подчинённых подсистем по раскладке файлов. */
-export function nestedSubsystemXmls(xmlAbs: string, name: string): string[] {
-	const dir = path.join(path.dirname(xmlAbs), name, 'Subsystems');
-	try {
-		return fs
-			.readdirSync(dir, { withFileTypes: true })
-			.filter((entry) => entry.isFile() && entry.name.toLowerCase().endsWith('.xml'))
-			.map((entry) => path.join(dir, entry.name));
-	} catch {
+/**
+ * Читает подсистемы всех источников проекта одной операцией на источник.
+ */
+export async function loadSubsystemTrees(
+	context: vscode.ExtensionContext,
+	treeProvider: MetadataTreeDataProvider
+): Promise<SubsystemNode[]> {
+	const cached = treeProvider.getCachedTree();
+	const workspaceRoot = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+	if (!cached || !workspaceRoot) {
 		return [];
 	}
-}
-
-export function hasNestedSubsystems(xmlAbs: string, name: string): boolean {
-	return nestedSubsystemXmls(xmlAbs, name).length > 0;
-}
-
-function refFrom(source: SubsystemRef, xmlAbs: string): SubsystemRef {
-	return {
-		sourceId: source.sourceId,
-		name: path.basename(xmlAbs, '.xml'),
-		xmlAbs,
-		configurationXmlAbs: source.configurationXmlAbs,
-		metadataRootAbs: source.metadataRootAbs,
-	};
-}
-
-interface SubsystemDto {
-	contentRefs?: unknown[];
-	nestedSubsystems?: unknown[];
+	const runtime = await ensureMdSparrowRuntime(context);
+	const out: SubsystemNode[] = [];
+	for (const source of cached.sources) {
+		if (!source.configurationXmlRelativePath) {
+			continue;
+		}
+		const configurationXml = path.join(workspaceRoot, source.configurationXmlRelativePath);
+		const metadataRoot = source.metadataRootRelativePath
+			? path.join(workspaceRoot, source.metadataRootRelativePath)
+			: path.dirname(configurationXml);
+		try {
+			const schema = await mdSparrowSchemaFlagFromConfigurationXml(configurationXml);
+			const res = await runMdSparrowParamsRead(
+				runtime,
+				{ op: 'cf-md-subsystem-tree', configurationXml, schemaVersion: schema },
+				{ cwd: metadataRoot }
+			);
+			if (res.exitCode !== 0) {
+				log.error(`подсистемы: ${(res.stderr.trim() || res.stdout.trim()).slice(0, CLI_ERR_PREVIEW)}`);
+				continue;
+			}
+			const nodes = JSON.parse(res.stdout.trim()) as SubsystemNode[];
+			if (Array.isArray(nodes)) {
+				out.push(...nodes);
+			}
+		} catch (e) {
+			log.error(`подсистемы: ${e instanceof Error ? e.message : String(e)}`);
+		}
+	}
+	return out;
 }
 
 /**
- * Считает состав отбора по выбранным подсистемам и применяет его к дереву.
+ * Считает состав отбора по отмеченным подсистемам.
  *
- * @returns false, если состав прочитать не удалось
+ * @param checkedPaths пути к XML отмеченных подсистем
  */
-export async function applySubsystemFilter(
-	context: vscode.ExtensionContext,
-	provider: MetadataTreeDataProvider,
-	selected: readonly SubsystemRef[],
-	options: SubsystemFilterOptions,
-	label: string
-): Promise<boolean> {
-	if (selected.length === 0) {
-		return false;
+export function computeSubsystemFilter(
+	roots: readonly SubsystemNode[],
+	checkedPaths: ReadonlySet<string>,
+	options: SubsystemFilterOptions
+): SubsystemFilterResult {
+	const result: SubsystemFilterResult = { names: new Set(), keys: new Set(), subsystemNames: new Set() };
+	if (checkedPaths.size === 0) {
+		return result;
 	}
-	const runtime = await ensureMdSparrowRuntime(context);
-	const schemaByConfig = new Map<string, string>();
-	const readDto = async (ref: SubsystemRef): Promise<SubsystemDto | undefined> => {
-		if (!ref.configurationXmlAbs || !ref.metadataRootAbs) {
-			return undefined;
-		}
-		let schema = schemaByConfig.get(ref.configurationXmlAbs);
-		if (!schema) {
-			schema = await mdSparrowSchemaFlagFromConfigurationXml(ref.configurationXmlAbs);
-			schemaByConfig.set(ref.configurationXmlAbs, schema);
-		}
-		const res = await runMdSparrowParamsRead(
-			runtime,
-			{ op: 'cf-md-object-get', objectXml: ref.xmlAbs, schemaVersion: schema },
-			{ cwd: ref.metadataRootAbs }
-		);
-		if (res.exitCode !== 0) {
-			const errText = (res.stderr.trim() || res.stdout.trim() || `код ${res.exitCode}`).slice(0, CLI_ERR_PREVIEW);
-			void vscode.window.showErrorMessage(errText);
-			return undefined;
-		}
-		try {
-			return JSON.parse(res.stdout.trim()) as SubsystemDto;
-		} catch {
-			void vscode.window.showErrorMessage(`Не удалось разобрать состав подсистемы: ${ref.name}`);
-			return undefined;
-		}
-	};
-
-	const allowedNames = new Set<string>();
-	const allowedKeys = new Set<string>();
-	const allowedSubsystemNames = new Set<string>();
-	const visited = new Set<string>();
-	let read = false;
-
-	const addContent = (dto: SubsystemDto): void => {
-		const refs = Array.isArray(dto.contentRefs) ? dto.contentRefs.filter((x): x is string => typeof x === 'string') : [];
-		for (const name of parseContentRefsToObjectNames(refs)) {
-			allowedNames.add(name);
-		}
-		for (const key of parseContentRefsToObjectKeys(refs)) {
-			allowedKeys.add(key);
-		}
-	};
-
-	const addSubsystem = (ref: SubsystemRef): void => {
-		allowedSubsystemNames.add(ref.name);
-		allowedNames.add(ref.name);
-		allowedKeys.add(`Subsystem.${ref.name}`);
-	};
-
-	const walkDown = async (ref: SubsystemRef): Promise<void> => {
-		if (visited.has(ref.xmlAbs)) {
-			return;
-		}
-		visited.add(ref.xmlAbs);
-		addSubsystem(ref);
-		const dto = await readDto(ref);
-		if (!dto) {
-			return;
-		}
-		read = true;
-		addContent(dto);
-		if (!options.includeNested) {
-			return;
-		}
-		for (const nestedXml of nestedSubsystemXmls(ref.xmlAbs, ref.name)) {
-			await walkDown(refFrom(ref, nestedXml));
-		}
-	};
-
-	const walkUp = async (ref: SubsystemRef): Promise<void> => {
-		let parentXml = parentSubsystemXml(ref.xmlAbs);
-		while (parentXml) {
-			const parent = refFrom(ref, parentXml);
-			if (visited.has(parent.xmlAbs)) {
-				break;
+	const walk = (node: SubsystemNode, ancestors: SubsystemNode[]): void => {
+		if (checkedPaths.has(node.xmlPath)) {
+			include(node, result);
+			if (options.includeNested) {
+				for (const child of node.children) {
+					includeSubtree(child, result);
+				}
 			}
-			visited.add(parent.xmlAbs);
-			addSubsystem(parent);
-			const dto = await readDto(parent);
-			if (dto) {
-				read = true;
-				addContent(dto);
+			if (options.includeParents) {
+				for (const ancestor of ancestors) {
+					include(ancestor, result);
+				}
 			}
-			parentXml = parentSubsystemXml(parent.xmlAbs);
+		}
+		for (const child of node.children) {
+			walk(child, [...ancestors, node]);
 		}
 	};
-
-	for (const ref of selected) {
-		await walkDown(ref);
+	for (const root of roots) {
+		walk(root, []);
 	}
-	if (options.includeParents) {
-		for (const ref of selected) {
-			await walkUp(ref);
+	return result;
+}
+
+function includeSubtree(node: SubsystemNode, result: SubsystemFilterResult): void {
+	include(node, result);
+	for (const child of node.children) {
+		includeSubtree(child, result);
+	}
+}
+
+function include(node: SubsystemNode, result: SubsystemFilterResult): void {
+	result.subsystemNames.add(node.name);
+	result.names.add(node.name);
+	result.keys.add(`Subsystem.${node.name}`);
+	for (const name of parseContentRefsToObjectNames([...node.contentRefs])) {
+		result.names.add(name);
+	}
+	for (const key of parseContentRefsToObjectKeys([...node.contentRefs])) {
+		result.keys.add(key);
+	}
+}
+
+/** Находит подсистему по имени: контекстное меню дерева отдаёт только имя узла. */
+export function findSubsystemByName(roots: readonly SubsystemNode[], name: string): SubsystemNode | undefined {
+	for (const root of roots) {
+		if (root.name === name) {
+			return root;
+		}
+		const found = findSubsystemByName(root.children, name);
+		if (found) {
+			return found;
 		}
 	}
-	if (!read) {
-		return false;
-	}
-	provider.setSubsystemFilter(label, allowedNames, allowedKeys, allowedSubsystemNames);
-	void vscode.commands.executeCommand('setContext', '1c-platform-tools.metadata.subsystemFilterActive', true);
-	return true;
+	return undefined;
 }
 
 /**

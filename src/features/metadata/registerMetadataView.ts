@@ -5,24 +5,22 @@ import {
 } from './metadataTreeView';
 import { METADATA_SEARCH_VIEW_ID, MetadataSearchViewProvider } from './metadataSearchView';
 import { METADATA_FILTERS_VIEW_ID, MetadataFilterViewProvider, type FilterSelection } from './metadataFilterView';
-import { applySubsystemFilter } from './metadataSubsystemFilter';
+import { computeSubsystemFilter } from './metadataSubsystemFilter';
 
 /** Отмеченные подсистемы применяются сразу: пустой набор снимает отбор. */
-async function applyFilterSelection(
-	context: vscode.ExtensionContext,
-	metadataTreeProvider: MetadataTreeDataProvider,
-	selection: FilterSelection
-): Promise<void> {
-	if (selection.subsystems.length === 0) {
+function applyFilterSelection(metadataTreeProvider: MetadataTreeDataProvider, selection: FilterSelection): void {
+	if (selection.checkedPaths.size === 0) {
 		metadataTreeProvider.clearSubsystemFilter();
 		void vscode.commands.executeCommand('setContext', '1c-platform-tools.metadata.subsystemFilterActive', false);
 		return;
 	}
+	const result = computeSubsystemFilter(selection.roots, selection.checkedPaths, selection);
 	const label =
-		selection.subsystems.length === 1
-			? selection.subsystems[0].name
-			: `подсистем: ${selection.subsystems.length}`;
-	await applySubsystemFilter(context, metadataTreeProvider, selection.subsystems, selection, label);
+		selection.checkedPaths.size === 1
+			? [...result.subsystemNames][0] ?? 'подсистема'
+			: `подсистем: ${selection.checkedPaths.size}`;
+	metadataTreeProvider.setSubsystemFilter(label, result.names, result.keys, result.subsystemNames);
+	void vscode.commands.executeCommand('setContext', '1c-platform-tools.metadata.subsystemFilterActive', true);
 }
 
 export interface MetadataViewRegistration {
@@ -52,13 +50,9 @@ export function registerMetadataView(
 		vscode.window.registerWebviewViewProvider(METADATA_SEARCH_VIEW_ID, metadataSearchProvider)
 	);
 
-	const metadataFilterProvider = new MetadataFilterViewProvider(
-		context.extensionUri,
-		metadataTreeProvider,
-		(selection) => {
-			void applyFilterSelection(context, metadataTreeProvider, selection);
-		}
-	);
+	const metadataFilterProvider = new MetadataFilterViewProvider(context, metadataTreeProvider, (selection) => {
+		applyFilterSelection(metadataTreeProvider, selection);
+	});
 	context.subscriptions.push(
 		vscode.window.registerWebviewViewProvider(METADATA_FILTERS_VIEW_ID, metadataFilterProvider),
 		// Панель открывается раньше, чем дерево прочитано: без этого список подсистем остаётся пустым.

@@ -1,54 +1,97 @@
 import * as assert from 'node:assert';
-import * as fs from 'node:fs';
-import * as os from 'node:os';
-import * as path from 'node:path';
 import {
-	hasNestedSubsystems,
-	nestedSubsystemXmls,
-	parentSubsystemXml,
+	computeSubsystemFilter,
+	findSubsystemByName,
 	parseContentRefsToObjectKeys,
 	parseContentRefsToObjectNames,
+	type SubsystemNode,
 } from '../../features/metadata/metadataSubsystemFilter';
 
-suite('metadataSubsystemFilter: иерархия подсистем по раскладке файлов', () => {
-	let root: string;
+/** Дерево как его отдаёт md-sparrow: Продажи → Заказы, плюс отдельные Закупки. */
+function roots(): SubsystemNode[] {
+	return [
+		{
+			name: 'Продажи',
+			xmlPath: 'C:/ws/src/cf/Subsystems/Продажи.xml',
+			contentRefs: ['Catalog.Партнеры'],
+			children: [
+				{
+					name: 'Заказы',
+					xmlPath: 'C:/ws/src/cf/Subsystems/Продажи/Subsystems/Заказы.xml',
+					contentRefs: ['Document.ЗаказПокупателя'],
+					children: [
+						{
+							name: 'Согласование',
+							xmlPath: 'C:/ws/src/cf/Subsystems/Продажи/Subsystems/Заказы/Subsystems/Согласование.xml',
+							contentRefs: ['Catalog.Согласования'],
+							children: [],
+						},
+					],
+				},
+			],
+		},
+		{
+			name: 'Закупки',
+			xmlPath: 'C:/ws/src/cf/Subsystems/Закупки.xml',
+			contentRefs: ['Document.ЗаказПоставщику'],
+			children: [],
+		},
+	];
+}
 
-	setup(() => {
-		// src/cf/Subsystems/Продажи.xml + вложенная Продажи/Subsystems/Заказы.xml
-		root = fs.mkdtempSync(path.join(os.tmpdir(), 'md-subsystems-'));
-		const subsystems = path.join(root, 'src', 'cf', 'Subsystems');
-		fs.mkdirSync(path.join(subsystems, 'Продажи', 'Subsystems'), { recursive: true });
-		fs.writeFileSync(path.join(subsystems, 'Продажи.xml'), '<MetaDataObject/>', 'utf-8');
-		fs.writeFileSync(path.join(subsystems, 'Продажи', 'Subsystems', 'Заказы.xml'), '<MetaDataObject/>', 'utf-8');
-		fs.writeFileSync(path.join(subsystems, 'Закупки.xml'), '<MetaDataObject/>', 'utf-8');
+const ORDERS = 'C:/ws/src/cf/Subsystems/Продажи/Subsystems/Заказы.xml';
+
+suite('metadataSubsystemFilter: состав отбора', () => {
+	test('пустой набор ничего не разрешает', () => {
+		const result = computeSubsystemFilter(roots(), new Set(), { includeNested: true, includeParents: false });
+		assert.strictEqual(result.names.size, 0);
+		assert.strictEqual(result.keys.size, 0);
 	});
 
-	teardown(() => {
-		fs.rmSync(root, { recursive: true, force: true });
-	});
+	test('подчинённые включаются по переключателю', () => {
+		const withNested = computeSubsystemFilter(roots(), new Set([ORDERS]), {
+			includeNested: true,
+			includeParents: false,
+		});
+		assert.deepStrictEqual(
+			[...withNested.keys].sort(),
+			['Catalog.Согласования', 'Document.ЗаказПокупателя', 'Subsystem.Заказы', 'Subsystem.Согласование'],
+			'объекты вложенной подсистемы попадают в отбор'
+		);
 
-	function xml(...parts: string[]): string {
-		return path.join(root, 'src', 'cf', 'Subsystems', ...parts);
-	}
-
-	test('у подсистемы верхнего уровня родителя нет', () => {
-		assert.strictEqual(parentSubsystemXml(xml('Продажи.xml')), undefined);
-	});
-
-	test('у вложенной подсистемы родитель — XML владельца', () => {
-		assert.strictEqual(
-			parentSubsystemXml(xml('Продажи', 'Subsystems', 'Заказы.xml')),
-			xml('Продажи.xml')
+		const withoutNested = computeSubsystemFilter(roots(), new Set([ORDERS]), {
+			includeNested: false,
+			includeParents: false,
+		});
+		assert.deepStrictEqual(
+			[...withoutNested.keys].sort(),
+			['Document.ЗаказПокупателя', 'Subsystem.Заказы'],
+			'без переключателя берём только саму подсистему'
 		);
 	});
 
-	test('подчинённые подсистемы берутся из каталога владельца', () => {
-		assert.deepStrictEqual(nestedSubsystemXmls(xml('Продажи.xml'), 'Продажи'), [
-			xml('Продажи', 'Subsystems', 'Заказы.xml'),
-		]);
-		assert.ok(hasNestedSubsystems(xml('Продажи.xml'), 'Продажи'));
-		assert.deepStrictEqual(nestedSubsystemXmls(xml('Закупки.xml'), 'Закупки'), []);
-		assert.ok(!hasNestedSubsystems(xml('Закупки.xml'), 'Закупки'));
+	test('родительские включаются по переключателю', () => {
+		const withParents = computeSubsystemFilter(roots(), new Set([ORDERS]), {
+			includeNested: false,
+			includeParents: true,
+		});
+		assert.ok(withParents.keys.has('Catalog.Партнеры'), 'объекты родителя попадают в отбор');
+		assert.ok(withParents.subsystemNames.has('Продажи'));
+		assert.ok(!withParents.keys.has('Document.ЗаказПоставщику'), 'соседняя ветка не попадает');
+	});
+
+	test('несколько отмеченных подсистем объединяются', () => {
+		const result = computeSubsystemFilter(roots(), new Set([ORDERS, 'C:/ws/src/cf/Subsystems/Закупки.xml']), {
+			includeNested: false,
+			includeParents: false,
+		});
+		assert.ok(result.keys.has('Document.ЗаказПокупателя'));
+		assert.ok(result.keys.has('Document.ЗаказПоставщику'));
+	});
+
+	test('подсистема ищется по имени на любом уровне', () => {
+		assert.strictEqual(findSubsystemByName(roots(), 'Согласование')?.name, 'Согласование');
+		assert.strictEqual(findSubsystemByName(roots(), 'Нет'), undefined);
 	});
 });
 
