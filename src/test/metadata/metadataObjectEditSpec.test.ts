@@ -300,7 +300,7 @@ suite('metadataObjectEditSpec: документ', () => {
 			formNames: ['ФормаДокумента'],
 			commandNames: [],
 			numeratorNames: ['ОбщийНумератор'],
-			registerOptions: [{ value: 'AccumulationRegister.Остатки', label: 'Регистр накопления: Остатки' }],
+			registerOptions: [{ value: 'AccumulationRegister.Остатки', label: 'Остатки', hint: 'Регистр накопления' }],
 		});
 		assert.deepStrictEqual(
 			tabs.map((tab: { title: string }) => tab.title),

@@ -8,7 +8,7 @@ body {
 }
 
 .page {
-	max-width: 1240px;
+	max-width: 1600px;
 	margin: 0 auto;
 	padding: 16px 16px 56px 16px;
 	box-sizing: border-box;
@@ -339,10 +339,9 @@ body {
 
 /* Группы полей текут в колонки последовательно (первая заполняется сверху вниз, хвост уходит во вторую). */
 .edit-columns {
-	column-width: 430px;
+	column-width: 520px;
 	column-count: 2;
 	column-gap: 40px;
-	max-width: 960px;
 }
 
 .edit-group {
@@ -517,9 +516,13 @@ body {
 .edit-ref-item-label {
 	min-width: 0;
 	flex: 1 1 auto;
-	overflow: hidden;
+	overflow-wrap: anywhere;
+}
+
+.edit-ref-item-hint {
+	color: var(--vscode-descriptionForeground);
+	font-size: 11px;
 	white-space: nowrap;
-	text-overflow: ellipsis;
 }
 
 .edit-ref-remove {

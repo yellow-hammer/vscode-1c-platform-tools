@@ -1228,7 +1228,7 @@ async function loadEditCandidates(
 	if (wantsRegisters) {
 		Object.keys(REGISTER_TAG_LABEL).forEach((tag, index) => {
 			for (const name of registers[index] ?? []) {
-				registerOptions.push({ value: `${tag}.${name}`, label: `${REGISTER_TAG_LABEL[tag]}: ${name}` });
+				registerOptions.push({ value: `${tag}.${name}`, label: name, hint: REGISTER_TAG_LABEL[tag] });
 			}
 		});
 	}

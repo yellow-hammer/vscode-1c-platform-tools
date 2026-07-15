@@ -19,6 +19,8 @@ export type MetadataEditControl =
 export interface MetadataEditOption {
 	readonly value: string;
 	readonly label: string;
+	/** Уточнение вида объекта: в списке идёт приглушённым текстом, в подборе — заголовком группы. */
+	readonly hint?: string;
 }
 
 /** Поле активно, только если значение по path равно equals (все условия одновременно). */

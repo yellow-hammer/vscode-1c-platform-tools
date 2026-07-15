@@ -460,6 +460,38 @@
 				.join('')}</div>`;
 	}
 
+	/** Вид объекта приглушённым текстом после имени: имя всегда читается первым. */
+	function refItemHintHtml(option) {
+		if (!option || !option.hint) {
+			return '';
+		}
+		return ` <span class="edit-ref-item-hint">${escapeHtml(option.hint)}</span>`;
+	}
+
+	/** Подбор группируем по виду объекта, если он задан. */
+	function refAddOptionsHtml(options) {
+		const flat = options.filter((option) => !option.hint);
+		const groups = [];
+		for (const option of options) {
+			if (!option.hint) {
+				continue;
+			}
+			let group = groups.find((item) => item.hint === option.hint);
+			if (!group) {
+				group = { hint: option.hint, options: [] };
+				groups.push(group);
+			}
+			group.options.push(option);
+		}
+		const optionHtml = (option) => `<option value="${escapeHtml(option.value)}">${escapeHtml(option.label)}</option>`;
+		return [
+			...flat.map(optionHtml),
+			...groups.map(
+				(group) => `<optgroup label="${escapeHtml(group.hint)}">${group.options.map(optionHtml).join('')}</optgroup>`
+			),
+		].join('');
+	}
+
 	function editControlHtml(field, index) {
 		const value = field.path ? getPath(editedProps, field.path) : undefined;
 		const disabled = field.readonly || !fieldEnabled(field) ? ' disabled' : '';
@@ -495,14 +527,16 @@
 			case 'refList': {
 				const selected = Array.isArray(value) ? value : [];
 				const options = Array.isArray(field.options) ? field.options : [];
-				const labelByValue = {};
+				const optionByValue = {};
 				for (const option of options) {
-					labelByValue[option.value] = option.label;
+					optionByValue[option.value] = option;
 				}
 				const rows = selected
 					.map(
 						(item, itemIdx) => `<div class="edit-ref-item">
-							<span class="edit-ref-item-label" title="${escapeHtml(toDisplayText(item))}">${escapeHtml(labelByValue[item] || toDisplayText(item))}</span>
+							<span class="edit-ref-item-label" title="${escapeHtml(toDisplayText(item))}">${escapeHtml(
+								(optionByValue[item] && optionByValue[item].label) || toDisplayText(item)
+							)}${refItemHintHtml(optionByValue[item])}</span>
 							<span class="edit-ref-item-actions">
 								<button type="button" class="edit-ref-move" data-ref-move-path="${escapeHtml(field.path)}" data-ref-move-index="${itemIdx}" data-ref-move-dir="-1" title="Вверх"${itemIdx === 0 ? ' disabled' : disabled}>↑</button>
 								<button type="button" class="edit-ref-move" data-ref-move-path="${escapeHtml(field.path)}" data-ref-move-index="${itemIdx}" data-ref-move-dir="1" title="Вниз"${itemIdx === selected.length - 1 ? ' disabled' : disabled}>↓</button>
@@ -515,9 +549,7 @@
 				const addControl = available.length > 0
 					? `<select class="edit-ref-add-select" data-ref-add-select="${escapeHtml(field.path)}"${disabled}>
 							<option value="" selected>+ Добавить…</option>
-							${available
-								.map((option) => `<option value="${escapeHtml(option.value)}">${escapeHtml(option.label)}</option>`)
-								.join('')}
+							${refAddOptionsHtml(available)}
 						</select>`
 					: '';
 				return `<div class="edit-ref-list">
