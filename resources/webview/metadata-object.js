@@ -610,13 +610,15 @@
 			</div>`
 			: '';
 		if (tabId === 'edit_data') {
-			// Раскладка EDT: слева редактируемые реквизиты и табличные части, справа группы свойств.
+			// Раскладка EDT: слева редактируемый состав объекта, справа группы свойств.
+			const tsHtml = structSupportsTabularSections()
+				? `<div class="section-title section-title-spaced">Табличные части</div>${structEditTsHtml()}`
+				: '';
 			contentRoot.innerHTML = `${filterHtml}<div class="edit-data-layout">
 					<div class="edit-data-structure">
-						<div class="section-title">Реквизиты</div>
+						<div class="section-title">${escapeHtml(structListTitle())}</div>
 						${structEditListHtml()}
-						<div class="section-title section-title-spaced">Табличные части</div>
-						${structEditTsHtml()}
+						${tsHtml}
 					</div>
 					<div class="edit-data-props">${groupsHtml}</div>
 				</div>`;
@@ -933,13 +935,27 @@
 		</div>`;
 	}
 
+	function structListTitle() {
+		return (model.structureLists && model.structureLists.title) || 'Реквизиты';
+	}
+
+	function structAddLabel() {
+		return (model.structureLists && model.structureLists.addLabel) || '+ Реквизит…';
+	}
+
+	function structSupportsTabularSections() {
+		return !model.structureLists || model.structureLists.supportsTabularSections !== false;
+	}
+
 	function structEditListHtml() {
 		if (!editedStructure) {
 			return '<div class="edit-ref-empty">(нет данных)</div>';
 		}
 		const rows = editedStructure.attributes.map((row, idx) => structEditRowHtml(row, `a.${idx}`)).join('');
 		return `<div class="struct-list">${rows || '<div class="edit-ref-empty">(пусто)</div>'}</div>
-			<div class="struct-add-row"><button type="button" class="struct-add-btn" data-sadd="a">+ Реквизит…</button></div>`;
+			<div class="struct-add-row"><button type="button" class="struct-add-btn" data-sadd="a">${escapeHtml(
+				structAddLabel()
+			)}</button></div>`;
 	}
 
 	function structEditTsHtml() {

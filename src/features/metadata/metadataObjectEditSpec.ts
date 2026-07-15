@@ -876,6 +876,11 @@ export function buildEnumEditTabs(input: SimpleObjectEditSpecInput): MetadataEdi
 			],
 		},
 		{
+			id: 'edit_data',
+			title: 'Данные',
+			groups: [],
+		},
+		{
 			id: 'edit_forms',
 			title: 'Формы',
 			groups: [
