@@ -60,7 +60,11 @@ export function registerMetadataView(
 		}
 	);
 	context.subscriptions.push(
-		vscode.window.registerWebviewViewProvider(METADATA_FILTERS_VIEW_ID, metadataFilterProvider)
+		vscode.window.registerWebviewViewProvider(METADATA_FILTERS_VIEW_ID, metadataFilterProvider),
+		// Панель открывается раньше, чем дерево прочитано: без этого список подсистем остаётся пустым.
+		metadataTreeProvider.onDidChangeTreeData(() => {
+			metadataFilterProvider.refresh();
+		})
 	);
 
 	const syncMetadataCatalogSelectionContext = (): void => {

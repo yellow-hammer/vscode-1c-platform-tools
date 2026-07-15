@@ -40,9 +40,7 @@ export class MetadataFilterViewProvider implements vscode.WebviewViewProvider {
 		private readonly _extensionUri: vscode.Uri,
 		private readonly _treeProvider: MetadataTreeDataProvider,
 		private readonly _onSelectionChanged: (selection: FilterSelection) => void
-	) {
-		this.syncOptionContexts();
-	}
+	) {}
 
 	resolveWebviewView(view: vscode.WebviewView): void {
 		this._view = view;
@@ -72,19 +70,6 @@ export class MetadataFilterViewProvider implements vscode.WebviewViewProvider {
 		void this._view?.webview.postMessage({ type: 'collapseAll' });
 	}
 
-	getOption(key: FilterOptionKey): boolean {
-		return this._options[key];
-	}
-
-	setOption(key: FilterOptionKey, value: boolean): void {
-		if (this._options[key] === value) {
-			return;
-		}
-		this._options[key] = value;
-		this.syncOptionContexts();
-		this.scheduleApply();
-	}
-
 	/** Снимает флажки и сбрасывает отбор. */
 	clear(): void {
 		this._checked.clear();
@@ -92,23 +77,22 @@ export class MetadataFilterViewProvider implements vscode.WebviewViewProvider {
 		this.scheduleApply();
 	}
 
-	private syncOptionContexts(): void {
-		for (const key of Object.keys(this._options) as FilterOptionKey[]) {
-			void vscode.commands.executeCommand('setContext', `1c-platform-tools.metadata.filters.${key}`, this._options[key]);
-		}
-	}
-
 	private onMessage(msg: unknown): void {
 		if (typeof msg !== 'object' || msg === null) {
 			return;
 		}
-		const message = msg as { type?: string; key?: string; checked?: boolean };
+		const message = msg as { type?: string; key?: string; checked?: boolean; option?: FilterOptionKey };
 		if (message.type === 'toggle' && typeof message.key === 'string') {
 			if (message.checked) {
 				this._checked.add(message.key);
 			} else {
 				this._checked.delete(message.key);
 			}
+			this.scheduleApply();
+			return;
+		}
+		if (message.type === 'option' && message.option) {
+			this._options[message.option] = message.checked === true;
 			this.scheduleApply();
 			return;
 		}
@@ -152,6 +136,7 @@ export class MetadataFilterViewProvider implements vscode.WebviewViewProvider {
 			type: 'tree',
 			nodes: this.toNodes(roots),
 			checked: [...this._checked],
+			options: this._options,
 		});
 	}
 
@@ -304,6 +289,21 @@ export class MetadataFilterViewProvider implements vscode.WebviewViewProvider {
 		padding: 4px 8px;
 		color: var(--vscode-descriptionForeground);
 	}
+	.options {
+		margin-top: 6px;
+		padding: 6px 8px 0 8px;
+		border-top: 1px solid var(--vscode-panel-border);
+		display: flex;
+		flex-direction: column;
+		gap: 4px;
+	}
+	.options label {
+		display: flex;
+		align-items: flex-start;
+		gap: 6px;
+		cursor: pointer;
+		color: var(--vscode-descriptionForeground);
+	}
 	body.vscode-dark {
 		color-scheme: dark;
 	}
@@ -315,11 +315,17 @@ export class MetadataFilterViewProvider implements vscode.WebviewViewProvider {
 		<button id="clearSearch" class="search-clear hidden" type="button" title="Очистить">×</button>
 	</div>
 	<div id="tree"></div>
+	<div class="options">
+		<label><input id="includeNested" type="checkbox" checked /><span>Включать объекты из подчинённых подсистем</span></label>
+		<label><input id="includeParents" type="checkbox" /><span>Включать объекты из родительских подсистем</span></label>
+	</div>
 	<script>
 		const vscodeApi = acquireVsCodeApi();
 		const treeRoot = document.getElementById('tree');
 		const searchInput = document.getElementById('q');
 		const clearSearchBtn = document.getElementById('clearSearch');
+		const nestedBox = document.getElementById('includeNested');
+		const parentsBox = document.getElementById('includeParents');
 		const ICON_LIGHT = '${iconLight}';
 		const ICON_DARK = '${iconDark}';
 		// Те же шевроны, что рисует VS Code в деревьях.
@@ -435,6 +441,12 @@ export class MetadataFilterViewProvider implements vscode.WebviewViewProvider {
 			searchInput.focus();
 			render();
 		});
+		nestedBox.addEventListener('change', function () {
+			vscodeApi.postMessage({ type: 'option', option: 'includeNested', checked: nestedBox.checked });
+		});
+		parentsBox.addEventListener('change', function () {
+			vscodeApi.postMessage({ type: 'option', option: 'includeParents', checked: parentsBox.checked });
+		});
 
 		window.addEventListener('message', function (event) {
 			const msg = event.data;
@@ -444,6 +456,8 @@ export class MetadataFilterViewProvider implements vscode.WebviewViewProvider {
 			if (msg.type === 'tree') {
 				nodes = msg.nodes || [];
 				checked = new Set(msg.checked || []);
+				nestedBox.checked = !!(msg.options && msg.options.includeNested);
+				parentsBox.checked = !!(msg.options && msg.options.includeParents);
 				render();
 			}
 			if (msg.type === 'collapseAll') {
