@@ -611,3 +611,84 @@ suite('metadataObjectEditSpec: тип значения константы', () =
 		);
 	});
 });
+
+suite('metadataObjectEditSpec: регистры', () => {
+	const { buildRegisterEditTabs } = require('../../features/metadata/metadataObjectEditSpec');
+
+	function fields(tabs: Array<{ groups: Array<{ fields: Array<Record<string, unknown>> }> }>) {
+		return tabs.flatMap((tab) => tab.groups).flatMap((group) => group.fields);
+	}
+
+	function fieldByPath(tabs: Array<{ groups: Array<{ fields: Array<Record<string, unknown>> }> }>, path: string) {
+		return fields(tabs).find((field) => field.path === path);
+	}
+
+	const infoTabs = () =>
+		buildRegisterEditTabs({ internalName: 'ГрафикиРаботы', formNames: ['ФормаСписка'], commandNames: [], information: true });
+	const accumTabs = () =>
+		buildRegisterEditTabs({ internalName: 'Остатки', formNames: [], commandNames: [], information: false });
+
+	test('у регистра сведений своя периодичность и режим записи', () => {
+		const tabs = infoTabs();
+		assert.deepStrictEqual(
+			tabs.map((tab: { title: string }) => tab.title),
+			['Основные', 'Данные', 'Формы', 'Команды']
+		);
+		assert.strictEqual(fieldByPath(tabs, 'register.informationRegisterPeriodicity')?.control, 'select');
+		assert.strictEqual(fieldByPath(tabs, 'register.writeMode')?.control, 'select');
+		assert.ok(fieldByPath(tabs, 'register.recordPresentationRu'), 'представление записи есть');
+		assert.ok(
+			(fieldByPath(tabs, 'register.defaultRecordForm')?.options as Array<{ value: string }>).some(
+				(option) => option.value === 'InformationRegister.ГрафикиРаботы.Form.ФормаСписка'
+			)
+		);
+		assert.strictEqual(fieldByPath(tabs, 'register.registerType'), undefined, 'вида регистра у сведений нет');
+	});
+
+	test('у регистра накопления вид регистра вместо периодичности', () => {
+		const tabs = accumTabs();
+		assert.strictEqual(fieldByPath(tabs, 'register.registerType')?.control, 'select');
+		assert.ok(fieldByPath(tabs, 'register.enableTotalsSplitting'), 'разделение итогов есть');
+		assert.strictEqual(
+			fieldByPath(tabs, 'register.informationRegisterPeriodicity'),
+			undefined,
+			'периодичности у накопления нет'
+		);
+		assert.strictEqual(fieldByPath(tabs, 'register.recordPresentationRu'), undefined);
+		assert.strictEqual(fieldByPath(tabs, 'register.defaultRecordForm'), undefined, 'формы записи у накопления нет');
+	});
+
+	test('панель регистра сведений начинается с редактируемых вкладок', () => {
+		const props = {
+			kind: 'informationRegister',
+			internalName: 'ГрафикиРаботы',
+			synonymRu: 'Графики работы',
+			comment: '',
+			attributes: [],
+			tabularSections: [],
+			register: { objectBelonging: 'NATIVE', writeMode: 'INDEPENDENT', informationRegisterPeriodicity: 'DAY' },
+		};
+		const structure = { kind: 'informationRegister', internalName: 'ГрафикиРаботы', forms: [], commands: [] };
+		const tabs = buildMetadataObjectPropertiesTabsForTest('InformationRegister', props, structure);
+		assert.strictEqual(tabs[0]?.id, 'edit_main');
+		assert.strictEqual(tabs[0]?.render, 'edit');
+	});
+
+	test('заимствованный регистр расширения не редактируется', () => {
+		const props = {
+			kind: 'accumulationRegister',
+			internalName: 'Остатки',
+			synonymRu: 'Остатки',
+			comment: '',
+			attributes: [],
+			tabularSections: [],
+			register: { objectBelonging: 'ADOPTED' },
+		};
+		const tabs = buildMetadataObjectPropertiesTabsForTest('AccumulationRegister', props, {
+			kind: 'accumulationRegister',
+			forms: [],
+			commands: [],
+		});
+		assert.ok(!tabs.some((tab) => tab.render === 'edit'));
+	});
+});

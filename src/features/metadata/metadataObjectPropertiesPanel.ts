@@ -22,6 +22,7 @@ import {
 	buildConstantEditTabs,
 	buildDocumentEditTabs,
 	buildEnumEditTabs,
+	buildRegisterEditTabs,
 	type MetadataEditOption,
 	type MetadataEditTabSpec,
 } from './metadataObjectEditSpec';
@@ -1118,16 +1119,23 @@ function buildSimpleEditableTabs(
 			return buildConstantEditTabs(input);
 		case 'commonModule':
 			return buildCommonModuleEditTabs();
+		case 'informationRegister':
+			return buildRegisterEditTabs({ ...input, information: true });
+		case 'accumulationRegister':
+			return buildRegisterEditTabs({ ...input, information: false });
 		default:
 			return undefined;
 	}
 }
 
 function simpleKindProps(props: MdObjectPropertiesDto): Record<string, unknown> | undefined {
+	const raw = props as unknown as Record<string, unknown>;
 	const byKind: Record<string, unknown> = {
-		enum: (props as unknown as Record<string, unknown>).enumeration,
-		constant: (props as unknown as Record<string, unknown>).constant,
-		commonModule: (props as unknown as Record<string, unknown>).commonModule,
+		enum: raw.enumeration,
+		constant: raw.constant,
+		commonModule: raw.commonModule,
+		informationRegister: raw.register,
+		accumulationRegister: raw.register,
 	};
 	const value = props.kind ? byKind[props.kind] : undefined;
 	return isRecord(value) ? (value as Record<string, unknown>) : undefined;
@@ -1585,6 +1593,7 @@ const MODULE_FILE_BY_KIND: Record<string, string> = {
 	manager: 'ManagerModule.bsl',
 	module: 'Module.bsl',
 	valueManager: 'ValueManagerModule.bsl',
+	recordSet: 'RecordSetModule.bsl',
 };
 
 async function openObjectModuleFromPanel(objectXmlFsPath: string, internalName: string, moduleKind: string): Promise<void> {
