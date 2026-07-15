@@ -45,11 +45,13 @@ export class MetadataSearchViewProvider implements vscode.WebviewViewProvider {
 <head>
 <meta charset="UTF-8" />
 <style>
+	/* Секция занимает минимум места: только строка ввода. */
 	body {
 		margin: 0;
-		padding: 6px 8px;
+		padding: 2px 8px 3px 8px;
 		font-family: var(--vscode-font-family);
 		font-size: var(--vscode-font-size);
+		overflow: hidden;
 	}
 	.wrap {
 		position: relative;

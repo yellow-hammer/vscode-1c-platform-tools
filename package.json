@@ -153,13 +153,15 @@
           "type": "webview",
           "id": "1c-platform-tools-metadata-search",
           "name": "Поиск",
-          "when": "1c-platform-tools.is1CProject == true"
+          "when": "1c-platform-tools.is1CProject == true",
+          "initialSize": 1
         },
         {
           "id": "1c-platform-tools-metadata-tree",
           "name": "Дерево метаданных",
           "contextualTitle": "Метаданные выгрузки",
-          "when": "1c-platform-tools.is1CProject == true"
+          "when": "1c-platform-tools.is1CProject == true",
+          "initialSize": 30
         },
         {
           "id": "1c-platform-tools-metadata-help",
