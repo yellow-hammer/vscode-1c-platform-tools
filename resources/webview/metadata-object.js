@@ -32,7 +32,10 @@
 	const vscodeApi = typeof acquireVsCodeApi === 'function' ? acquireVsCodeApi() : null;
 	const editable = model.editable && typeof model.editable === 'object' ? model.editable : null;
 	let editedProps = editable ? deepClone(editable.props) : null;
-	let editedStructure = model.structureLists ? structureEditsFromLists(model.structureLists) : null;
+	let editedStructure =
+		model.structureLists && structureEditable(model.structureLists)
+			? structureEditsFromLists(model.structureLists)
+			: null;
 	let editFilter = '';
 
 	/** Синоним из имени по правилу 1С: «ВалютаБанка» → «Валюта банка», «БИКБанка» → «БИК банка». */
@@ -81,6 +84,12 @@
 				return isAbbrev ? word : word.toLowerCase();
 			})
 			.join(' ');
+	}
+
+	/** Правится только список, объявленный редактируемым: у регистров состав пока только показываем. */
+	function structureEditable(lists) {
+		const items = lists && Array.isArray(lists.lists) ? lists.lists : [];
+		return items.some((list) => list.editable);
 	}
 
 	function structureEditsFromLists(lists) {
@@ -724,14 +733,13 @@
 			</div>`
 			: '';
 		if (tabId === 'edit_data') {
-			// Раскладка EDT: слева редактируемый состав объекта, справа группы свойств.
+			// Раскладка EDT: слева состав объекта, справа группы свойств.
 			const tsHtml = structSupportsTabularSections()
 				? `<div class="section-title section-title-spaced">Табличные части</div>${structEditTsHtml()}`
 				: '';
 			contentRoot.innerHTML = `${filterHtml}<div class="edit-data-layout">
 					<div class="edit-data-structure">
-						<div class="section-title">${escapeHtml(structListTitle())}</div>
-						${structEditListHtml()}
+						${structListsHtml()}
 						${tsHtml}
 					</div>
 					<div class="edit-data-props">${groupsHtml}</div>
@@ -1080,26 +1088,47 @@
 		</div>`;
 	}
 
-	function structListTitle() {
-		return (model.structureLists && model.structureLists.title) || 'Реквизиты';
+	function structLists() {
+		const lists = model.structureLists && model.structureLists.lists;
+		return Array.isArray(lists) ? lists : [];
 	}
 
-	function structAddLabel() {
-		return (model.structureLists && model.structureLists.addLabel) || '+ Реквизит…';
+	/** Списки состава сверху вниз: правится только тот, что описан как редактируемый. */
+	function structListsHtml() {
+		return structLists()
+			.map(function (list, idx) {
+				const title = `<div class="section-title${idx > 0 ? ' section-title-spaced' : ''}">${escapeHtml(
+					list.title
+				)}</div>`;
+				return title + (list.editable ? structEditListHtml(list) : structReadonlyListHtml(list));
+			})
+			.join('');
+	}
+
+	function structReadonlyListHtml(list) {
+		const rows = (list.rows || [])
+			.map(function (row) {
+				const synonym = row.synonymRu && row.synonymRu !== row.name
+					? `<span class="struct-item-syn">${escapeHtml(row.synonymRu)}</span>`
+					: '';
+				return `<div class="struct-item"><span class="struct-item-name">${escapeHtml(row.name)}</span>${synonym}</div>`;
+			})
+			.join('');
+		return `<div class="struct-list">${rows || '<div class="edit-ref-empty">(пусто)</div>'}</div>`;
 	}
 
 	function structSupportsTabularSections() {
 		return !model.structureLists || model.structureLists.supportsTabularSections !== false;
 	}
 
-	function structEditListHtml() {
+	function structEditListHtml(list) {
 		if (!editedStructure) {
 			return '<div class="edit-ref-empty">(нет данных)</div>';
 		}
 		const rows = editedStructure.attributes.map((row, idx) => structEditRowHtml(row, `a.${idx}`)).join('');
 		return `<div class="struct-list">${rows || '<div class="edit-ref-empty">(пусто)</div>'}</div>
 			<div class="struct-add-row"><button type="button" class="struct-add-btn" data-sadd="a">${escapeHtml(
-				structAddLabel()
+				(list && list.addLabel) || '+ Реквизит…'
 			)}</button></div>`;
 	}
 

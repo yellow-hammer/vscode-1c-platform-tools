@@ -537,12 +537,76 @@ suite('metadataObjectEditSpec: значения перечисления', () =>
 			enumeration: { objectBelonging: 'NATIVE', choiceMode: 'BOTH_WAYS' },
 		};
 		const lists = panel.buildStructureListsForTest(props, { kind: 'enum', forms: [], commands: [] });
-		assert.strictEqual(lists.title, 'Значения');
+		assert.deepStrictEqual(
+			lists.lists.map((list: { title: string; editable: boolean }) => [list.title, list.editable]),
+			[['Значения', true]]
+		);
 		assert.strictEqual(lists.supportsTabularSections, false);
 		assert.deepStrictEqual(
 			lists.attributes.map((row: { name: string }) => row.name),
 			['Закрыт']
 		);
+	});
+
+	test('у регистра состав — измерения, ресурсы и реквизиты, без табличных частей', () => {
+		const props = {
+			kind: 'informationRegister',
+			internalName: 'ГрафикиРаботы',
+			synonymRu: 'Графики работы',
+			comment: '',
+			attributes: [],
+			tabularSections: [],
+			register: { objectBelonging: 'NATIVE' },
+		};
+		const structure = {
+			kind: 'informationRegister',
+			internalName: 'ГрафикиРаботы',
+			forms: [],
+			commands: [],
+			dimensions: ['Дата'],
+			resources: ['Значение'],
+			attributes: [],
+		};
+		const lists = panel.buildStructureListsForTest(props, structure);
+		assert.deepStrictEqual(
+			lists.lists.map((list: { title: string; editable: boolean }) => [list.title, list.editable]),
+			[
+				['Измерения', false],
+				['Ресурсы', false],
+				['Реквизиты', false],
+			],
+			'состав регистра показываем, но пока не правим'
+		);
+		assert.strictEqual(lists.supportsTabularSections, false, 'табличных частей у регистров нет');
+		assert.deepStrictEqual(
+			lists.lists[0].rows.map((row: { name: string }) => row.name),
+			['Дата']
+		);
+	});
+
+	test('у регистра нет отдельных вкладок измерений и ресурсов', () => {
+		const props = {
+			kind: 'informationRegister',
+			internalName: 'ГрафикиРаботы',
+			synonymRu: 'Графики работы',
+			comment: '',
+			attributes: [],
+			tabularSections: [],
+			register: { objectBelonging: 'NATIVE' },
+		};
+		const structure = {
+			kind: 'informationRegister',
+			forms: [],
+			commands: [],
+			dimensions: ['Дата'],
+			resources: ['Значение'],
+		};
+		const tabs = buildMetadataObjectPropertiesTabsForTest('InformationRegister', props, structure);
+		assert.ok(
+			!tabs.some((tab) => tab.id === 'section_dimensions' || tab.id === 'section_resources'),
+			'измерения и ресурсы живут на вкладке «Данные»'
+		);
+		assert.ok(tabs.some((tab) => tab.id === 'edit_data'));
 	});
 });
 

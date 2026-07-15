@@ -88,11 +88,22 @@ interface MetadataPanelEditableModel {
 }
 
 /** Списки структуры для вкладки «Данные» (реквизиты и табличные части с операциями). */
-interface MetadataPanelStructureLists {
-	/** Заголовок основного списка: у справочника «Реквизиты», у перечисления «Значения». */
+/** Список состава объекта на вкладке «Данные». */
+interface MetadataPanelStructureList {
+	/** Поле DTO, если список редактируемый: `attributes` либо `enumValues`. */
+	key: string;
 	title: string;
-	/** Подпись кнопки добавления строки основного списка. */
+	/** Подпись кнопки добавления; пусто у списков только на чтение. */
 	addLabel: string;
+	/** Правится ли список из панели: у регистров состав пока только показываем. */
+	editable: boolean;
+	rows: MetadataNamedRow[];
+}
+
+interface MetadataPanelStructureLists {
+	/** Списки состава сверху вниз: у справочника «Реквизиты», у регистра — измерения, ресурсы, реквизиты. */
+	lists: MetadataPanelStructureList[];
+	/** Строки редактируемого списка: их правит webview. */
 	attributes: MetadataNamedRow[];
 	tabularSections: MetadataTabularSectionRow[];
 	/** Есть ли у вида объекта табличные части. */
@@ -687,12 +698,20 @@ function addConsumedKeys(target: Set<string>, keys: readonly string[]): void {
 	}
 }
 
+/** Строки состава: DTO свойств отдаёт объекты с синонимом, структура объекта — только имена. */
 function asNamedRows(value: unknown): MetadataNamedRow[] {
 	if (!Array.isArray(value)) {
 		return [];
 	}
 	const out: MetadataNamedRow[] = [];
 	for (const item of value) {
+		if (typeof item === 'string') {
+			const name = item.trim();
+			if (name) {
+				out.push({ name, synonymRu: '', comment: '' });
+			}
+			continue;
+		}
 		if (typeof item !== 'object' || item === null) {
 			continue;
 		}
@@ -992,6 +1011,8 @@ const TAB_IDS_REPLACED_BY_EDIT = new Set<string>([
 	'attributes',
 	'tabularSections',
 	'section_values',
+	'section_dimensions',
+	'section_resources',
 ]);
 
 function buildTabs(
@@ -1207,21 +1228,39 @@ function buildStructureLists(
 ): MetadataPanelStructureLists {
 	if (props?.kind === 'enum') {
 		const values = (props as unknown as Record<string, unknown>).enumValues;
+		const rows = asNamedRows(Array.isArray(values) ? values : structure?.values);
 		return {
-			title: 'Значения',
-			addLabel: '+ Значение…',
-			attributes: asNamedRows(Array.isArray(values) ? values : structure?.values),
+			lists: [{ key: 'enumValues', title: 'Значения', addLabel: '+ Значение…', editable: true, rows }],
+			attributes: rows,
 			tabularSections: [],
 			supportsTabularSections: false,
 		};
 	}
+	if (isRegisterKind(props?.kind)) {
+		// Состав регистра: измерения, ресурсы и реквизиты — всё на «Данных», как в EDT.
+		const structureRecord = isRecord(structure) ? (structure as unknown as Record<string, unknown>) : {};
+		return {
+			lists: [
+				{ key: 'dimensions', title: 'Измерения', addLabel: '', editable: false, rows: asNamedRows(structureRecord.dimensions) },
+				{ key: 'resources', title: 'Ресурсы', addLabel: '', editable: false, rows: asNamedRows(structureRecord.resources) },
+				{ key: 'attributes', title: 'Реквизиты', addLabel: '', editable: false, rows: asNamedRows(structureRecord.attributes) },
+			],
+			attributes: [],
+			tabularSections: [],
+			supportsTabularSections: false,
+		};
+	}
+	const attributes = props?.attributes ? asNamedRows(props.attributes) : asNamedRows(structure?.attributes);
 	return {
-		title: 'Реквизиты',
-		addLabel: '+ Реквизит…',
-		attributes: props?.attributes ? asNamedRows(props.attributes) : asNamedRows(structure?.attributes),
+		lists: [{ key: 'attributes', title: 'Реквизиты', addLabel: '+ Реквизит…', editable: true, rows: attributes }],
+		attributes,
 		tabularSections: mergeTabularSections(props?.tabularSections, structure?.tabularSections),
 		supportsTabularSections: true,
 	};
+}
+
+function isRegisterKind(kind: string | undefined): boolean {
+	return kind === 'informationRegister' || kind === 'accumulationRegister';
 }
 
 /**
