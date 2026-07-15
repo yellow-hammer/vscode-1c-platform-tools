@@ -14,7 +14,33 @@ export type MetadataEditControl =
 	| 'select'
 	| 'staticList'
 	| 'refList'
-	| 'moduleLink';
+	| 'moduleLink'
+	| 'type';
+
+/** Примитивные типы платформы: значение — как в XML, подпись — как в конфигураторе. */
+export const PRIMITIVE_TYPES: readonly MetadataEditOptionLike[] = [
+	{ value: 'xs:string', label: 'Строка' },
+	{ value: 'xs:decimal', label: 'Число' },
+	{ value: 'xs:dateTime', label: 'Дата' },
+	{ value: 'xs:boolean', label: 'Булево' },
+	{ value: 'v8:ValueStorage', label: 'Хранилище значения' },
+	{ value: 'v8:UUID', label: 'Уникальный идентификатор' },
+];
+
+interface MetadataEditOptionLike {
+	readonly value: string;
+	readonly label: string;
+}
+
+/** Квалификаторы, которые платформа заводит вместе с типом. */
+export const TYPE_DEFAULT_QUALIFIERS: Readonly<Record<string, Record<string, unknown>>> = {
+	'xs:string': { stringQualifiers: { length: '10', allowedLength: 'VARIABLE' } },
+	'xs:decimal': { numberQualifiers: { digits: '10', fractionDigits: '0', allowedSign: 'ANY' } },
+	'xs:dateTime': { dateQualifiers: { dateFractions: 'DATE' } },
+	'v8:ValueStorage': {},
+	'v8:UUID': {},
+	'xs:boolean': {},
+};
 
 export interface MetadataEditOption {
 	readonly value: string;
@@ -949,6 +975,7 @@ export function buildConstantEditTabs(input: SimpleObjectEditSpecInput): Metadat
 						{ path: 'internalName', label: 'Имя', control: 'text', readonly: true },
 						{ path: 'synonymRu', label: 'Синоним', control: 'text' },
 						{ path: 'comment', label: 'Комментарий', control: 'text' },
+						{ path: 'constant.type', label: 'Тип', control: 'type' },
 						{ path: 'valueManager', label: 'Модуль менеджера значения', control: 'moduleLink' },
 						{ path: 'manager', label: 'Модуль менеджера', control: 'moduleLink' },
 					],
@@ -1222,9 +1249,103 @@ function normalizeFieldValue(
 		case 'text':
 		case 'textarea':
 			return typeof value === 'string' ? { ok: true, value } : { ok: false };
+		case 'type':
+			return normalizeTypeValue(value, rawValue);
 		default:
 			return { ok: false };
 	}
+}
+
+/**
+ * Описание типа из webview: правим только примитивные типы с квалификаторами.
+ * Ссылочный и составной тип отдаём как есть с диска — их правит пикер типов.
+ */
+function normalizeTypeValue(value: unknown, rawValue: unknown): { ok: boolean; value?: unknown } {
+	if (!isRecord(value) || !Array.isArray(value.types)) {
+		return { ok: false };
+	}
+	const types = value.types.filter((item): item is string => typeof item === 'string');
+	if (types.length !== 1) {
+		// Составной тип из панели не собираем: оставляем то, что на диске.
+		return { ok: false };
+	}
+	const type = types[0];
+	if (!PRIMITIVE_TYPES.some((option) => option.value === type)) {
+		return { ok: false };
+	}
+	const rawTypes = isRecord(rawValue) && Array.isArray(rawValue.types) ? rawValue.types : [];
+	const rawIsSinglePrimitive =
+		rawTypes.length === 1 && PRIMITIVE_TYPES.some((option) => option.value === rawTypes[0]);
+	if (!rawIsSinglePrimitive) {
+		// На диске ссылочный или составной тип: панель их только показывает.
+		return { ok: false };
+	}
+	const typeKept = rawTypes[0] === type;
+	const next: Record<string, unknown> = { types: [type] };
+	const stringQualifiers = normalizeQualifiers(value.stringQualifiers, {
+		length: 'number',
+		allowedLength: ['VARIABLE', 'FIXED'],
+	});
+	const numberQualifiers = normalizeQualifiers(value.numberQualifiers, {
+		digits: 'number',
+		fractionDigits: 'number',
+		allowedSign: ['ANY', 'NONNEGATIVE'],
+	});
+	const dateQualifiers = normalizeQualifiers(value.dateQualifiers, {
+		dateFractions: ['DATE', 'TIME', 'DATE_TIME'],
+	});
+	if (type === 'xs:string' && stringQualifiers) {
+		next.stringQualifiers = stringQualifiers;
+	} else if (type === 'xs:decimal' && numberQualifiers) {
+		next.numberQualifiers = numberQualifiers;
+	} else if (type === 'xs:dateTime' && dateQualifiers) {
+		next.dateQualifiers = dateQualifiers;
+	} else if (typeKept && isRecord(rawValue)) {
+		// Тип не меняли, а квалификаторы webview не прислал — оставляем прочитанные.
+		copyQualifiers(rawValue, next);
+	}
+	return { ok: true, value: next };
+}
+
+const QUALIFIER_KEYS = ['stringQualifiers', 'numberQualifiers', 'dateQualifiers', 'binaryDataQualifiers'] as const;
+
+function copyQualifiers(from: Record<string, unknown>, to: Record<string, unknown>): void {
+	for (const key of QUALIFIER_KEYS) {
+		if (from[key] !== undefined && from[key] !== null) {
+			to[key] = from[key];
+		}
+	}
+}
+
+/** @param shape поле → `'number'` (цифры) либо список допустимых значений */
+function normalizeQualifiers(
+	value: unknown,
+	shape: Record<string, 'number' | readonly string[]>
+): Record<string, string> | undefined {
+	if (!isRecord(value)) {
+		return undefined;
+	}
+	const out: Record<string, string> = {};
+	for (const [key, rule] of Object.entries(shape)) {
+		const raw = value[key];
+		if (typeof raw !== 'string' && typeof raw !== 'number') {
+			return undefined;
+		}
+		const text = String(raw).trim();
+		if (rule === 'number') {
+			if (!/^\d+$/.test(text)) {
+				return undefined;
+			}
+		} else if (!rule.includes(text)) {
+			return undefined;
+		}
+		out[key] = text;
+	}
+	return out;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+	return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
 /**
