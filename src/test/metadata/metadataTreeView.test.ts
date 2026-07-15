@@ -1,4 +1,5 @@
 import * as assert from 'node:assert';
+import * as vscode from 'vscode';
 import * as path from 'node:path';
 import {
 	MetadataLeafTreeItem,
@@ -123,6 +124,111 @@ suite('metadataTreeView subsystem filter', () => {
 		provider.clearSubsystemFilter();
 		const leaves = await provider.getChildren(group);
 		assert.strictEqual(leaves.length, 2);
+	});
+});
+
+suite('metadataTreeView поиск по имени', () => {
+	function createProvider(): {
+		provider: MetadataTreeDataProvider;
+		root: MetadataSourceTreeItem;
+		group: MetadataMdGroupTreeItem;
+	} {
+		const context = createMockExtensionContext();
+		const provider = new MetadataTreeDataProvider(context);
+		const root = new MetadataSourceTreeItem(
+			'main',
+			'Основная конфигурация',
+			'main',
+			'C:/ws/src/cf/Configuration.xml',
+			'C:/ws/src/cf'
+		);
+		const group = new MetadataMdGroupTreeItem(
+			'main',
+			'commonModules',
+			'Общие модули',
+			'symbol-namespace',
+			true,
+			false,
+			'C:/ws/src/cf/Configuration.xml',
+			'C:/ws/src/cf'
+		);
+		const leaf = (name: string): MetadataLeafTreeItem =>
+			new MetadataLeafTreeItem(
+				'main',
+				'commonModules',
+				undefined,
+				'CommonModule',
+				name,
+				undefined,
+				'C:/ws',
+				context.extensionUri,
+				'C:/ws/src/cf/Configuration.xml',
+				'C:/ws/src/cf'
+			);
+		const mutable = provider as unknown as {
+			_workspaceRoot: string;
+			_sourceItems: MetadataSourceTreeItem[];
+			_groupsBySource: Map<string, MetadataMdGroupTreeItem[]>;
+			_leavesByGroup: Map<string, MetadataLeafTreeItem[]>;
+		};
+		mutable._workspaceRoot = 'C:/ws';
+		mutable._sourceItems = [root];
+		mutable._groupsBySource.set('main', [group]);
+		mutable._leavesByGroup.set('main|commonModules', [
+			leaf('_ДемоЗаметки'),
+			leaf('_ДемоЗаказыПокупателей'),
+			leaf('ОбщегоНазначения'),
+		]);
+		return { provider, root, group };
+	}
+
+	test('ищет вхождением подстроки без учёта регистра', async () => {
+		const { provider, group } = createProvider();
+		provider.setTextFilter('демозамет');
+		const leaves = await provider.getChildren(group);
+		assert.deepStrictEqual(
+			leaves.map((item) => (item as MetadataLeafTreeItem).name),
+			['_ДемоЗаметки']
+		);
+	});
+
+	test('запрос из нескольких слов ищет объекты со всеми словами', async () => {
+		const { provider, group } = createProvider();
+		provider.setTextFilter('демо замет');
+		const leaves = await provider.getChildren(group);
+		assert.deepStrictEqual(
+			leaves.map((item) => (item as MetadataLeafTreeItem).name),
+			['_ДемоЗаметки'],
+			'«демо замет» находит «_ДемоЗаметки», но не «_ДемоЗаказыПокупателей»'
+		);
+
+		provider.setTextFilter('демо');
+		const demoLeaves = await provider.getChildren(group);
+		assert.strictEqual(demoLeaves.length, 2);
+	});
+
+	test('группа без совпадений скрывается, с совпадениями — раскрывается', async () => {
+		const { provider, root, group } = createProvider();
+		provider.setTextFilter('заметки');
+		const groups = await provider.getChildren(root);
+		assert.strictEqual(groups.length, 1);
+		assert.strictEqual(group.collapsibleState, vscode.TreeItemCollapsibleState.Expanded);
+
+		provider.setTextFilter('такогонет');
+		const hiddenGroups = await provider.getChildren(root);
+		assert.strictEqual(hiddenGroups.length, 0, 'группа без совпадений скрыта');
+		const rootLevel = await provider.getChildren();
+		assert.strictEqual(rootLevel.length, 1);
+		assert.ok(String(rootLevel[0].label).startsWith('Ничего не найдено'), 'видно, что ничего не нашлось');
+	});
+
+	test('пустая строка снимает фильтр', async () => {
+		const { provider, group } = createProvider();
+		provider.setTextFilter('заметки');
+		provider.setTextFilter('   ');
+		assert.strictEqual(provider.getTextFilter(), undefined);
+		const leaves = await provider.getChildren(group);
+		assert.strictEqual(leaves.length, 3);
 	});
 });
 

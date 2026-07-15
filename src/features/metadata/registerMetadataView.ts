@@ -3,6 +3,7 @@ import {
 	MetadataLeafTreeItem,
 	MetadataTreeDataProvider,
 } from './metadataTreeView';
+import { METADATA_SEARCH_VIEW_ID, MetadataSearchViewProvider } from './metadataSearchView';
 
 export interface MetadataViewRegistration {
 	metadataTreeProvider: MetadataTreeDataProvider;
@@ -21,6 +22,13 @@ export function registerMetadataView(
 		showCollapseAll: true,
 	});
 	context.subscriptions.push(metadataTreeView);
+
+	const metadataSearchProvider = new MetadataSearchViewProvider(context.extensionUri, (query) => {
+		metadataTreeProvider.setTextFilter(query);
+	});
+	context.subscriptions.push(
+		vscode.window.registerWebviewViewProvider(METADATA_SEARCH_VIEW_ID, metadataSearchProvider)
+	);
 
 	const syncMetadataCatalogSelectionContext = (): void => {
 		const has = metadataTreeView.selection.some(
