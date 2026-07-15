@@ -192,6 +192,21 @@ suite('metadataTreeView поиск по имени', () => {
 		);
 	});
 
+	test('запрос из нескольких слов ищет объекты со всеми словами', async () => {
+		const { provider, group } = createProvider();
+		provider.setTextFilter('демо замет');
+		const leaves = await provider.getChildren(group);
+		assert.deepStrictEqual(
+			leaves.map((item) => (item as MetadataLeafTreeItem).name),
+			['_ДемоЗаметки'],
+			'«демо замет» находит «_ДемоЗаметки», но не «_ДемоЗаказыПокупателей»'
+		);
+
+		provider.setTextFilter('демо');
+		const demoLeaves = await provider.getChildren(group);
+		assert.strictEqual(demoLeaves.length, 2);
+	});
+
 	test('группа без совпадений скрывается, с совпадениями — раскрывается', async () => {
 		const { provider, root, group } = createProvider();
 		provider.setTextFilter('заметки');

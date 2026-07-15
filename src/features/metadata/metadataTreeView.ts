@@ -1055,8 +1055,8 @@ export class MetadataTreeDataProvider implements vscode.TreeDataProvider<vscode.
 				readonly allowedSubsystemNames?: ReadonlySet<string>;
 		  }
 		| undefined;
-	/** Поиск по дереву: строка в нижнем регистре либо undefined. */
-	private _textFilter: string | undefined;
+	/** Поиск по дереву: исходный запрос и его слова в нижнем регистре. */
+	private _textFilter: { readonly query: string; readonly terms: readonly string[] } | undefined;
 
 	/** Кэш последнего успешного дерева (для API). */
 	private _sourceItems: MetadataSourceTreeItem[] = [];
@@ -1147,11 +1147,18 @@ export class MetadataTreeDataProvider implements vscode.TreeDataProvider<vscode.
 		this._onDidChange.fire(undefined);
 	}
 
-	/** Поиск по имени объекта: пустая строка снимает фильтр. */
+	/**
+	 * Поиск по имени объекта: пустая строка снимает фильтр. Запрос из нескольких слов
+	 * ищет объекты, где встречается каждое слово («демо замет» находит «_ДемоЗаметки»).
+	 */
 	setTextFilter(query: string): void {
-		const normalized = query.trim().toLowerCase();
-		const next = normalized.length > 0 ? normalized : undefined;
-		if (next === this._textFilter) {
+		const terms = query
+			.trim()
+			.toLowerCase()
+			.split(/\s+/)
+			.filter((term) => term.length > 0);
+		const next = terms.length > 0 ? { query: query.trim(), terms } : undefined;
+		if (next?.query === this._textFilter?.query) {
 			return;
 		}
 		this._textFilter = next;
@@ -1159,7 +1166,7 @@ export class MetadataTreeDataProvider implements vscode.TreeDataProvider<vscode.
 	}
 
 	getTextFilter(): string | undefined {
-		return this._textFilter;
+		return this._textFilter?.query;
 	}
 
 	clearSubsystemFilter(): void {
@@ -1364,7 +1371,7 @@ export class MetadataTreeDataProvider implements vscode.TreeDataProvider<vscode.
 		if (!element) {
 			if (this._textFilter && !this.anySourceHasMatches()) {
 				const empty = new vscode.TreeItem(
-					`Ничего не найдено: «${this._textFilter}»`,
+					`Ничего не найдено: «${this._textFilter.query}»`,
 					vscode.TreeItemCollapsibleState.None
 				);
 				empty.iconPath = new vscode.ThemeIcon('search');
@@ -1470,7 +1477,8 @@ export class MetadataTreeDataProvider implements vscode.TreeDataProvider<vscode.
 		if (!this._textFilter) {
 			return true;
 		}
-		return leaf.name.toLowerCase().includes(this._textFilter);
+		const name = leaf.name.toLowerCase();
+		return this._textFilter.terms.every((term) => name.includes(term));
 	}
 
 	private anySourceHasMatches(): boolean {
