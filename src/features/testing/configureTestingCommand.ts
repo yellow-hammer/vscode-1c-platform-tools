@@ -105,9 +105,20 @@ export function registerConfigureTestingCommand(vrunner: VRunnerManager): vscode
 			}
 		];
 
-		// список фреймворков в опциях — неинтерактивный вызов (агент, MCP)
+		// объект опций — агентный вызов (MCP/IPC передаёт его всегда); визард в
+		// этом контексте открывать нельзя: пользователь может быть не за экраном
 		let selectedKeys: Set<string>;
 		const nonInteractive = Array.isArray(opts?.frameworks);
+		if (opts !== undefined && !nonInteractive) {
+			const message =
+				'Настройка тестов без параметра frameworks требует выбора в UI; ' +
+				'передайте frameworks (vanessa, xunit, yaxunit, onescript, onebdd)';
+			if (wait) {
+				return configureResult(false, message);
+			}
+			vscode.window.showErrorMessage(message);
+			return;
+		}
 		if (nonInteractive) {
 			const knownKeys = new Set<string>(frameworks.map((framework) => framework.key));
 			const requested = (opts?.frameworks ?? []).map((key) => String(key).trim().toLowerCase());
@@ -122,12 +133,6 @@ export function registerConfigureTestingCommand(vrunner: VRunnerManager): vscode
 			}
 			selectedKeys = new Set(requested);
 		} else {
-			if (wait) {
-				return configureResult(
-					false,
-					'Настройка тестов без параметра frameworks требует выбора в UI; передайте frameworks (vanessa, xunit, yaxunit, onescript, onebdd)'
-				);
-			}
 			const picks = frameworks.map((framework) => ({
 				...framework,
 				picked: config.get<boolean>(`testing.frameworks.${framework.key}`, framework.defaultEnabled)

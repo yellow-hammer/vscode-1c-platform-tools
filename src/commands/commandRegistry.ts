@@ -91,16 +91,32 @@ export function registerCommands(
 	];
 	disposables.push(...skillsCommands);
 
+	// Агентный вызов (MCP/IPC всегда передаёт объект опций) не должен открывать
+	// окно выбора: пользователь может быть не за экраном (web-сессия, телефон)
+	const rejectAgentInteractive = (arg: unknown, hint: string): StructuredCommandResult | undefined => {
+		if (typeof arg === 'object' && arg !== null) {
+			return {
+				success: false,
+				exitCode: 1,
+				stdout: '',
+				stderr: `Команда открывает окно выбора и недоступна агенту. ${hint}`,
+			};
+		}
+		return undefined;
+	};
+
 	// Команды служебных файлов
 	const serviceFilesCommands = [
-		vscode.commands.registerCommand('1c-platform-tools.serviceFiles.create', () =>
-			commands.serviceFiles.pickAndCreate()
+		vscode.commands.registerCommand('1c-platform-tools.serviceFiles.create', (arg?: unknown) =>
+			rejectAgentInteractive(arg, 'Используйте serviceFiles.createRecommendedSet, createGitignore, createGitattributes, createEnvJson или serviceFiles.ensure с id файла.')
+				?? commands.serviceFiles.pickAndCreate()
 		),
-		vscode.commands.registerCommand('1c-platform-tools.serviceFiles.ensure', (specId?: string) => {
+		vscode.commands.registerCommand('1c-platform-tools.serviceFiles.ensure', (specId?: unknown) => {
 			if (typeof specId === 'string') {
 				return commands.serviceFiles.ensure(specId);
 			}
-			return commands.serviceFiles.pickAndCreate();
+			return rejectAgentInteractive(specId, 'Передайте id служебного файла строкой (например, launchProfile).')
+				?? commands.serviceFiles.pickAndCreate();
 		}),
 		vscode.commands.registerCommand('1c-platform-tools.serviceFiles.createGitignore', () =>
 			commands.serviceFiles.createGitignore()
