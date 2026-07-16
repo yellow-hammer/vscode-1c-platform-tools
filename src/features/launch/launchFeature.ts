@@ -15,6 +15,7 @@ import { EnvOverrides, DEFAULT_PROFILE_ID, SettingsSchema, baseSettingsFileName 
 import { logger } from '../../shared/logger';
 import { ENV_DEFAULTS, AUTUMN_DEFAULTS } from '../serviceFiles/envDefaults';
 import { buildEnvJsonWithSections } from '../serviceFiles/envJsonBuilder';
+import { isAgentOptions, uiOnlyHandler } from '../../shared/agentGate';
 import {
 	ensureEnvProfileStatusBar,
 	refreshEnvProfileStatusBar,
@@ -452,6 +453,14 @@ export function registerLaunchFeature(
 			if (typeof profileId === 'string' && profileId.trim() !== '') {
 				return selectProfileById(vrunner, refresh, profileId);
 			}
+			// объект опций (MCP/IPC) — агент без имени профиля: меню не открываем
+			if (isAgentOptions(profileId)) {
+				return {
+					success: false,
+					error: 'Передайте имя профиля строкой (id, имя файла или подпись).',
+					available: vrunner.discoverEnvProfiles().map((profile) => profile.id),
+				};
+			}
 			return selectProfile(vrunner, refresh);
 		}),
 		vscode.commands.registerCommand('1c-platform-tools.profile.openEditor', async () => {
@@ -470,8 +479,14 @@ export function registerLaunchFeature(
 			}
 			await vscode.commands.executeCommand('vscode.openWith', vscode.Uri.file(fullPath), '1c-platform-tools.profileEditor');
 		}),
-		vscode.commands.registerCommand('1c-platform-tools.env.createProfile', () => createProfile(vrunner, refresh)),
-		vscode.commands.registerCommand('1c-platform-tools.env.setOverrides', () => editOverrides(vrunner, refresh)),
+		vscode.commands.registerCommand('1c-platform-tools.env.createProfile', uiOnlyHandler(
+			'Имя профиля запрашивается в окне VS Code; профиль создаётся пользователем или файлом env.<id>.json.',
+			() => createProfile(vrunner, refresh)
+		)),
+		vscode.commands.registerCommand('1c-platform-tools.env.setOverrides', uiOnlyHandler(
+			'Временные параметры задаются в окнах VS Code; для агента передавайте settingsFile или ibConnection в вызове.',
+			() => editOverrides(vrunner, refresh)
+		)),
 		vscode.commands.registerCommand('1c-platform-tools.env.clearOverrides', () => clearOverrides(vrunner, refresh)),
 		vscode.commands.registerCommand('1c-platform-tools.env.statusBarRefresh', () => refresh()),
 		vscode.commands.registerCommand('1c-platform-tools.vrunner.refreshVersion', async () => {

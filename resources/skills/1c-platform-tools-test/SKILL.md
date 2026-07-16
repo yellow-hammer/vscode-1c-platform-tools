@@ -36,34 +36,27 @@ description: Тестирование 1С. Используй, когда пол
 
 Тесты также отображаются в нативной панели «Тестирование» (Test Explorer): Vanessa (.feature), xUnit (тестовые обработки в src/tests), YAxUnit, OneScript (.os в tests), 1bdd — с запуском отдельных тестов и статусами. Для интерактивной работы пользователя направляй туда; команды выше — для прогона «всего сразу» и агентных циклов.
 
-## Запуск обработок в Предприятии (enterprise_run)
+## Запуск обработок в Предприятии (enterprise.run)
 
-Служебные шаги (загрузка фикстур, инициализация ИБ внешней обработкой) — через `1c-platform-tools.enterprise.run` (MCP: `enterprise_run`):
+Служебные шаги (загрузка фикстур, инициализация ИБ внешней обработкой) — Execute Command `1c-platform-tools.enterprise.run` с аргументом (в схеме MCP параметров `execute`/`command` нет):
 
 ```
-enterprise_run {
-  projectPath: "C:/projects/MyProject",
-  execute: "./build/out/epf/ЗагрузкаФикстур.epf",
-  command: "Путь=./fixtures/Константы.xml;ЗавершитьРаботуСистемы",
-  wait: true
-}
+{ "execute": "./build/out/epf/ЗагрузкаФикстур.epf",
+  "command": "Путь=./fixtures/Константы.xml;ЗавершитьРаботуСистемы",
+  "wait": true }
 ```
 
 `execute` — путь к EPF/ERF, `command` — строка параметров `/C`; нужен хотя бы один из них.
 
-## Настройка фреймворков (testing_configure)
+## Настройка фреймворков (testing.configure)
 
-Неинтерактивно — с параметром `frameworks` (ключи: `vanessa`, `xunit`, `yaxunit`, `onescript`, `onebdd`; перечисленные включаются, остальные выключаются, недостающие каталоги создаются):
+Неинтерактивно — Execute Command `1c-platform-tools.testing.configure` с аргументом `{ "frameworks": [...], "wait": true }` (ключи: `vanessa`, `xunit`, `yaxunit`, `onescript`, `onebdd`; перечисленные включаются, остальные выключаются, недостающие каталоги создаются).
 
-```
-testing_configure { projectPath: "...", frameworks: ["vanessa", "yaxunit"], wait: true }
-```
-
-Без `frameworks` команда открывает визард в UI и с `wait: true` вернёт ошибку.
+Агентный вызов без `frameworks` вернёт ошибку с подсказкой, окно не откроется. Интерактивный визард доступен только пользователю из палитры.
 
 ## MCP (mcp-1c-platform-tools)
 
-Если доступны инструменты MCP, используй их: `test_xunit`, `test_syntaxCheck`, `test_vanessa`, `test_allure`, `enterprise_run`, `testing_configure`.
+Если доступны инструменты MCP, используй их: `test_xunit`, `test_syntaxCheck`, `test_vanessa`, `test_allure`.
 
 ### Параметр projectPath
 
@@ -97,8 +90,6 @@ testing_configure { projectPath: "...", frameworks: ["vanessa", "yaxunit"], wait
 | `test_syntaxCheck`| ✅          |
 | `test_xunit`      | ✅          |
 | `test_vanessa`    | ✅          |
-| `enterprise_run`  | ✅          |
-| `testing_configure`| ✅ (только с `frameworks`) |
 | `test_allure`     | ❌ (открывает браузер) |
 
 ## Примеры

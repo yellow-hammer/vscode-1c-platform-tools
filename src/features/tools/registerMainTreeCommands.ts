@@ -1,4 +1,5 @@
 import * as vscode from 'vscode';
+import { isAgentOptions, agentInteractiveError } from '../../shared/agentGate';
 import { logger } from '../../shared/logger';
 import { OscriptTasksCommands } from '../../commands/oscriptTasksCommands';
 import { SetVersionCommands } from '../../commands/setVersionCommands';
@@ -218,18 +219,24 @@ export function registerMainTreeCommands(
 
 	const oscriptRunCommand = vscode.commands.registerCommand(
 		'1c-platform-tools.oscript.run',
-		async (taskName: string) => {
+		async (taskName?: unknown) => {
+			if (isAgentOptions(taskName)) {
+				return agentInteractiveError('Передайте имя задачи строкой (см. tasks/*.os).');
+			}
 			if (!isProjectRef.current) {
 				showNot1CProjectMessage();
 				return;
 			}
-			await oscriptTasksCommands.runOscriptTask(taskName);
+			await oscriptTasksCommands.runOscriptTask(typeof taskName === 'string' ? taskName : undefined);
 		}
 	);
 
 	const oscriptAddTaskCommand = vscode.commands.registerCommand(
 		'1c-platform-tools.oscript.addTask',
-		async () => {
+		async (arg?: unknown) => {
+			if (isAgentOptions(arg)) {
+				return agentInteractiveError('Имя файла задачи запрашивается в окне VS Code; создайте файл в tasks/ напрямую.');
+			}
 			if (!isProjectRef.current) {
 				showNot1CProjectMessage();
 				return;

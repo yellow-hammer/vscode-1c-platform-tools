@@ -93,24 +93,24 @@ export class ServiceFilesCommands extends BaseCommand {
 	 *
 	 * @param specId - Идентификатор файла из реестра
 	 */
-	async ensure(specId: string): Promise<void> {
+	async ensure(specId: string, nonInteractive = false): Promise<void> {
 		// «Профиль запуска» и его конкретные формы обрабатываются до реестра:
 		// файл зависит от схемы установленного vanessa-runner.
 		if (specId === 'launchProfile') {
 			await this.vrunner.getVRunnerVersion();
 			if (this.vrunner.getActiveSettingsSchema() === 'v3') {
-				await this.ensureAutumnProperties();
+				await this.ensureAutumnProperties(nonInteractive);
 			} else {
-				await this.ensureEnv();
+				await this.ensureEnv(nonInteractive);
 			}
 			return;
 		}
 		if (specId === 'env') {
-			await this.ensureEnv();
+			await this.ensureEnv(nonInteractive);
 			return;
 		}
 		if (specId === 'autumnProperties') {
-			await this.ensureAutumnProperties();
+			await this.ensureAutumnProperties(nonInteractive);
 			return;
 		}
 		const spec = getServiceFileSpec(specId);
@@ -171,7 +171,7 @@ export class ServiceFilesCommands extends BaseCommand {
 	 * `tools/migrate26to30.os` из состава vanessa-runner (расширение не тащит
 	 * копию логики миграции).
 	 */
-	private async ensureAutumnProperties(): Promise<void> {
+	private async ensureAutumnProperties(nonInteractive = false): Promise<void> {
 		const workspaceRoot = this.ensureWorkspace();
 		if (!workspaceRoot) {
 			return;
@@ -182,7 +182,7 @@ export class ServiceFilesCommands extends BaseCommand {
 			await vscode.window.showTextDocument(doc);
 			return;
 		}
-		if (await this.createAutumnWithSections(fullPath)) {
+		if (await this.createAutumnWithSections(fullPath, nonInteractive)) {
 			await this.vrunner.setActiveEnvProfileId(DEFAULT_PROFILE_ID);
 			this.refreshTree();
 			this.refreshProfileStatusBar();
@@ -196,8 +196,8 @@ export class ServiceFilesCommands extends BaseCommand {
 	 * @param fullPath - Абсолютный путь к создаваемому файлу
 	 * @returns true, если файл создан
 	 */
-	private async createAutumnWithSections(fullPath: string): Promise<boolean> {
-		const content = await buildAutumnPropertiesWithSections();
+	private async createAutumnWithSections(fullPath: string, nonInteractive = false): Promise<boolean> {
+		const content = await buildAutumnPropertiesWithSections(nonInteractive);
 		if (content === undefined) {
 			return false;
 		}
@@ -212,7 +212,7 @@ export class ServiceFilesCommands extends BaseCommand {
 	/**
 	 * Открывает env.json, либо создаёт его с выбором секций команд (vanessa/xunit/...)
 	 */
-	private async ensureEnv(): Promise<void> {
+	private async ensureEnv(nonInteractive = false): Promise<void> {
 		const workspaceRoot = this.ensureWorkspace();
 		if (!workspaceRoot) {
 			return;
@@ -223,7 +223,7 @@ export class ServiceFilesCommands extends BaseCommand {
 			await vscode.window.showTextDocument(doc);
 			return;
 		}
-		if (await this.createEnvWithSections(fullPath)) {
+		if (await this.createEnvWithSections(fullPath, nonInteractive)) {
 			await this.vrunner.setActiveEnvProfileId(DEFAULT_PROFILE_ID);
 			this.refreshTree();
 			this.refreshProfileStatusBar();
@@ -277,8 +277,8 @@ export class ServiceFilesCommands extends BaseCommand {
 	 * @param fullPath - Абсолютный путь к создаваемому env.json
 	 * @returns true, если файл создан
 	 */
-	private async createEnvWithSections(fullPath: string): Promise<boolean> {
-		const content = await buildEnvJsonWithSections();
+	private async createEnvWithSections(fullPath: string, nonInteractive = false): Promise<boolean> {
+		const content = await buildEnvJsonWithSections(nonInteractive);
 		if (content === undefined) {
 			return false;
 		}

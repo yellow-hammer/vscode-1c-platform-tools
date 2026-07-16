@@ -35,8 +35,11 @@ async function pickSections(sections: { id: string; description: string }[]): Pr
  *
  * @returns Текст env-файла (JSON) или undefined при отмене выбора
  */
-export async function buildEnvJsonWithSections(): Promise<string | undefined> {
-	const selected = await pickSections(ENV_OPTIONAL_SECTIONS);
+export async function buildEnvJsonWithSections(nonInteractive = false): Promise<string | undefined> {
+	// агентный вызов: все секции без окна выбора
+	const selected = nonInteractive
+		? ENV_OPTIONAL_SECTIONS.map((option) => option.id)
+		: await pickSections(ENV_OPTIONAL_SECTIONS);
 	if (selected === undefined) {
 		return undefined;
 	}
@@ -50,8 +53,11 @@ export async function buildEnvJsonWithSections(): Promise<string | undefined> {
  *
  * @returns Текст файла (JSON) или undefined при отмене выбора
  */
-export async function buildAutumnPropertiesWithSections(): Promise<string | undefined> {
-	const selected = await pickSections(AUTUMN_OPTIONAL_SECTIONS);
+export async function buildAutumnPropertiesWithSections(nonInteractive = false): Promise<string | undefined> {
+	// агентный вызов: все секции без окна выбора
+	const selected = nonInteractive
+		? AUTUMN_OPTIONAL_SECTIONS.map((option) => option.id)
+		: await pickSections(AUTUMN_OPTIONAL_SECTIONS);
 	if (selected === undefined) {
 		return undefined;
 	}

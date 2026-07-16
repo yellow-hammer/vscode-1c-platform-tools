@@ -49,7 +49,9 @@ export async function pickExtensions(
 
 	const stored = getStoredExtensionSelection(memento);
 
-	if (opts?.wait === true) {
+	// Агентный вызов (объект опций передан) не открывает quickpick независимо
+	// от wait: применяется сохранённый выбор проекта (или все расширения)
+	if (opts !== undefined) {
 		return filterExtensionsBySelection(allNames, stored);
 	}
 

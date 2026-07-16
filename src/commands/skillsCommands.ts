@@ -14,7 +14,7 @@ const CC_1C_SKILLS_SOURCE_SUBDIR = '.claude/skills';
 
 const DESTINATION_OPTIONS = [
 	{ id: 'cursor', label: 'Для Cursor', folder: '.cursor/skills' },
-	{ id: 'copilot', label: 'Для GitHub Copilot', folder: '.github/copilot/skills' },
+	{ id: 'copilot', label: 'Для GitHub Copilot', folder: '.github/skills' },
 	{ id: 'claude', label: 'Для Claude Code', folder: '.claude/skills' },
 	{ id: 'custom', label: 'Указать папку…', folder: '' }
 ] as const;
@@ -148,8 +148,8 @@ function inferAgentFolderPrefix(targetDir: string): string | null {
 	if (/\/\.cursor\/skills(?:\/|$)/.test(normalizedTargetDir)) {
 		return '.cursor';
 	}
-	if (/\/\.github\/copilot\/skills(?:\/|$)/.test(normalizedTargetDir)) {
-		return '.github/copilot';
+	if (/\/\.github\/(?:copilot\/)?skills(?:\/|$)/.test(normalizedTargetDir)) {
+		return '.github';
 	}
 	if (/\/\.claude\/skills(?:\/|$)/.test(normalizedTargetDir)) {
 		return '.claude';

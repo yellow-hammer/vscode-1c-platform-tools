@@ -239,16 +239,13 @@ export class ConfigurationCommands extends BaseCommand {
 	}
 
 	async loadIncrementFromSrc(opts?: CommandExecutionOptions): Promise<StructuredCommandResult | void> {
-		// SHA в опциях — неинтерактивный вызов (агент, MCP); ввод в UI не нужен
+		// SHA в опциях — неинтерактивный вызов (агент, MCP); ввод в UI не нужен.
+		// Агентный вызов без sha отклоняется до открытия input box.
 		let shaInput = typeof opts?.sha === 'string' ? opts.sha : undefined;
-		if (shaInput === undefined) {
-			const reject = this.rejectIfWait(
-				opts,
+		if (shaInput === undefined && opts !== undefined) {
+			return this.executionError(
 				'Инкрементальная загрузка без параметра sha требует ввода в UI; передайте sha (пустая строка — полная загрузка)'
 			);
-			if (reject) {
-				return reject;
-			}
 		}
 
 		const workspaceRoot = this.ensureWorkspace();
