@@ -342,10 +342,44 @@ async function handleExecuteCommand(
 	}
 }
 
+/**
+ * Префиксы команд, которые не публикуются как инструменты MCP: чисто
+ * интерактивные (мастера, меню, деревья, навигация). Сокращение списка
+ * инструментов важно и само по себе: при переполнении пикера агентские
+ * клиенты сами урезают выборку и могут выкинуть полезные инструменты.
+ */
+const MCP_HIDDEN_PREFIXES = [
+	'1c-platform-tools.file.',
+	'1c-platform-tools.metadata.',
+	'1c-platform-tools.projects.',
+	'1c-platform-tools.todo.',
+	'1c-platform-tools.settings.',
+	'1c-platform-tools.focus',
+	'1c-platform-tools.artifacts.',
+	'1c-platform-tools.tools.',
+	'1c-platform-tools.favorites.',
+	'1c-platform-tools.support.',
+	'1c-platform-tools.setVersion.',
+	'1c-platform-tools.skills.',
+	'1c-platform-tools.profile.',
+	'1c-platform-tools.env.createProfile',
+	'1c-platform-tools.env.setOverrides',
+	'1c-platform-tools.env.statusBarRefresh',
+	'1c-platform-tools.serviceFiles.create',
+	'1c-platform-tools.dependencies.setupGit',
+	'1c-platform-tools.oscript.addTask',
+	'1c-platform-tools.server.menu',
+	'1c-platform-tools.launch.editConfigurations',
+	'1c-platform-tools.config.env.edit',
+];
+
 async function handleListCommands(request: IpcRequest): Promise<IpcResponse> {
 	const base = buildResponseBase(request.id);
 	const all = await vscode.commands.getCommands();
-	const commands = all.filter((id) => id.startsWith('1c-platform-tools.'));
+	const commands = all.filter((id) =>
+		id.startsWith('1c-platform-tools.') &&
+		!MCP_HIDDEN_PREFIXES.some((prefix) => id.startsWith(prefix))
+	);
 	return {
 		...base,
 		result: { commands },
