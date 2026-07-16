@@ -296,6 +296,50 @@ async function clearOverrides(vrunner: VRunnerManager, refresh: () => void): Pro
 	vscode.window.showInformationMessage('Временные параметры запуска сброшены.');
 }
 
+/** Результат неинтерактивного переключения профиля (возвращается агенту). */
+interface SelectProfileResult {
+	/** Профиль найден и активирован. */
+	success: boolean;
+	/** id активированного профиля. */
+	profileId?: string;
+	/** Причина отказа (профиль не найден). */
+	error?: string;
+	/** Доступные id профилей. */
+	available?: string[];
+}
+
+/**
+ * Неинтерактивное переключение env-профиля по идентификатору, имени файла или подписи.
+ *
+ * @param vrunner - Менеджер vrunner
+ * @param refresh - Колбэк обновления статус-бара
+ * @param requested - Запрошенный профиль ('dev', 'env.dev.json', 'По умолчанию')
+ * @returns Структурированный результат: success/error и доступные профили
+ */
+async function selectProfileById(
+	vrunner: VRunnerManager,
+	refresh: () => void,
+	requested: string
+): Promise<SelectProfileResult> {
+	await vrunner.getVRunnerVersion();
+	const profiles = vrunner.discoverEnvProfiles();
+	const query = requested.trim().toLowerCase();
+	const profile = profiles.find((candidate) =>
+		candidate.id.toLowerCase() === query ||
+		candidate.fileName.toLowerCase() === query ||
+		candidate.label.toLowerCase() === query
+	);
+	if (!profile) {
+		const available = profiles.map((candidate) => candidate.id);
+		const error = `Профиль запуска «${requested}» не найден. Доступные профили: ${available.join(', ') || 'нет ни одного'}.`;
+		vscode.window.showErrorMessage(error);
+		return { success: false, error, available };
+	}
+	await vrunner.setActiveEnvProfileId(profile.id);
+	refresh();
+	return { success: true, profileId: profile.id };
+}
+
 /**
  * Выбор активного env-профиля и доступ к временным параметрам (главное меню статус-бара).
  *
@@ -403,7 +447,13 @@ export function registerLaunchFeature(
 	refresh();
 
 	const disposables: vscode.Disposable[] = [
-		vscode.commands.registerCommand('1c-platform-tools.env.selectProfile', () => selectProfile(vrunner, refresh)),
+		vscode.commands.registerCommand('1c-platform-tools.env.selectProfile', (profileId?: unknown) => {
+			// строковый аргумент — неинтерактивный вызов (агент, web-сессия agent-клиента)
+			if (typeof profileId === 'string' && profileId.trim() !== '') {
+				return selectProfileById(vrunner, refresh, profileId);
+			}
+			return selectProfile(vrunner, refresh);
+		}),
 		vscode.commands.registerCommand('1c-platform-tools.profile.openEditor', async () => {
 			const workspaceRoot = vrunner.getWorkspaceRoot();
 			if (!workspaceRoot) {

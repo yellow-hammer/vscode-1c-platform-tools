@@ -15,6 +15,16 @@ export interface CommandExecutionOptions {
 	settingsFile?: string;
 	/** Явная строка подключения к ИБ. */
 	ibConnection?: string;
+	/** SHA коммита для инкрементальной загрузки (пустая строка — полная загрузка). */
+	sha?: string;
+	/** Явный список имён расширений; без него — сохранённый выбор проекта. */
+	extensions?: string[];
+	/** Ключи включаемых тестовых фреймворков (testing.configure). */
+	frameworks?: string[];
+	/** Путь к внешней обработке/отчёту для запуска в Предприятии (vrunner run --execute). */
+	execute?: string;
+	/** Строка параметров запуска /C (vrunner run --command). */
+	command?: string;
 	/** Переопределения стандартных путей. */
 	pathsOverride?: {
 		cf?: string;

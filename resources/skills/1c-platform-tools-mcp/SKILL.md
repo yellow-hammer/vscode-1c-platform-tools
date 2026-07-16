@@ -18,9 +18,19 @@ description: Инструменты MCP для команд 1C: Platform Tools (
 - **`wait: false`** (по умолчанию) — команда в терминале VS Code, ответ MCP без stdout/exitCode.
 - **`wait: true`** — синхронное выполнение vrunner; в ответе `{ success, exitCode, stdout, stderr, artifact? }`. Для цикла «собрать → проверить → исправить».
 
-Поддерживают **wait: true**: конфигурация (кроме loadIncFromSrc, loadFromFiles), расширения (кроме loadFromFiles), ИБ (кроме loadFromDt), внешние EPF/ERF, тесты (кроме allure), сборка/разбор алиасов.
+Поддерживают **wait: true**: конфигурация (loadIncFromSrc — только с параметром `sha`; кроме loadFromFiles), расширения (кроме loadFromFiles), ИБ (кроме loadFromDt), внешние EPF/ERF, тесты (кроме allure), `enterprise_run`, `testing_configure` (только с `frameworks`), сборка/разбор алиасов.
 
-**Не поддерживают wait: true** (нужен UI): `run_*`, `metadata_*`, `projects_*`, `support_*`, `dependencies_*` (кроме чистого vrunner), loadFromDt, loadIncFromSrc, objlist, allure, clearCache.
+**Не поддерживают wait: true** (нужен UI): `run_*`, `metadata_*`, `projects_*`, `support_*`, `dependencies_*` (кроме чистого vrunner), loadFromDt, objlist, allure, clearCache.
+
+### Прочие общие параметры
+
+- `settingsFile` — файл настроек vanessa-runner относительно `projectPath`; перекрывает активный профиль для конкретного вызова (например, `tools/vrunner.init.json` для init-сценариев).
+- `ibConnection` — явная строка подключения к ИБ, перекрывает значение файла настроек.
+- `pathsOverride` — переопределение каталогов `src/cf`, `src/cfe`, `src/epf`, `src/erf`, `build/out`.
+- `sha` — SHA коммита для `configuration_loadIncFromSrc` (пустая строка — полная загрузка).
+- `extensions` — явный список расширений для `extensions_*` (без окна выбора).
+- `frameworks` — включаемые фреймворки для `testing_configure` (`vanessa`, `xunit`, `yaxunit`, `onescript`, `onebdd`).
+- `execute`, `command` — путь к EPF/ERF и строка `/C` для `enterprise_run`.
 
 ## Как формируются имена инструментов
 

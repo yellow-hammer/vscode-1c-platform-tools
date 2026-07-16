@@ -80,6 +80,44 @@ export class TestCommands extends BaseCommand {
 	}
 
 	/**
+	 * Запускает внешнюю обработку/отчёт в Предприятии через vrunner run
+	 *
+	 * Выполняет vrunner run --execute <epf> --command <параметры /C> под активным
+	 * профилем (или явным settingsFile). Сценарий — служебные шаги инициализации:
+	 * загрузка фикстур, служебные EPF и т.п.
+	 *
+	 * @param opts — опции выполнения: execute (путь к EPF/ERF), command (строка /C),
+	 *               settingsFile, ibConnection; при wait: true — синхронный режим
+	 * @returns void в UI-режиме, StructuredCommandResult при wait: true
+	 */
+	async runEnterpriseProcessor(opts?: CommandExecutionOptions): Promise<StructuredCommandResult | void> {
+		const workspaceRoot = this.ensureWorkspace();
+		if (!workspaceRoot) {
+			if (opts?.wait === true) {
+				return this.executionError('Откройте рабочую область с проектом 1С');
+			}
+			return;
+		}
+
+		const execute = typeof opts?.execute === 'string' && opts.execute.trim() !== '' ? opts.execute.trim() : undefined;
+		const commandParam = typeof opts?.command === 'string' && opts.command.trim() !== '' ? opts.command.trim() : undefined;
+		if (!execute && !commandParam) {
+			const message = 'Укажите execute (путь к EPF/ERF) или command (строка параметров /C)';
+			if (opts?.wait === true) {
+				return this.executionError(message);
+			}
+			vscode.window.showErrorMessage(message);
+			return;
+		}
+
+		const connectionArgs = await this.vrunner.getIbConnectionParam(opts?.ibConnection);
+		return this.runIntent(
+			{ kind: 'run.enterprise', execute, command: commandParam, common: connectionArgs },
+			opts, 'Запуск обработки в Предприятии', undefined, '1c-platform-tools.enterprise.run'
+		);
+	}
+
+	/**
 	 * Запускает тесты YAxUnit
 	 *
 	 * Выполняет vrunner run --command RunUnitTests=<конфиг>. Конфиг прогона —
