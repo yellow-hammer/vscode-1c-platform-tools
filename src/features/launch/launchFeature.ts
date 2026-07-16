@@ -296,19 +296,31 @@ async function clearOverrides(vrunner: VRunnerManager, refresh: () => void): Pro
 	vscode.window.showInformationMessage('Временные параметры запуска сброшены.');
 }
 
+/** Результат неинтерактивного переключения профиля (возвращается агенту). */
+interface SelectProfileResult {
+	/** Профиль найден и активирован. */
+	success: boolean;
+	/** id активированного профиля. */
+	profileId?: string;
+	/** Причина отказа (профиль не найден). */
+	error?: string;
+	/** Доступные id профилей. */
+	available?: string[];
+}
+
 /**
  * Неинтерактивное переключение env-профиля по идентификатору, имени файла или подписи.
  *
  * @param vrunner - Менеджер vrunner
  * @param refresh - Колбэк обновления статус-бара
  * @param requested - Запрошенный профиль ('dev', 'env.dev.json', 'По умолчанию')
- * @returns true, если профиль найден и активирован
+ * @returns Структурированный результат: success/error и доступные профили
  */
 async function selectProfileById(
 	vrunner: VRunnerManager,
 	refresh: () => void,
 	requested: string
-): Promise<boolean> {
+): Promise<SelectProfileResult> {
 	await vrunner.getVRunnerVersion();
 	const profiles = vrunner.discoverEnvProfiles();
 	const query = requested.trim().toLowerCase();
@@ -318,15 +330,14 @@ async function selectProfileById(
 		candidate.label.toLowerCase() === query
 	);
 	if (!profile) {
-		const known = profiles.map((candidate) => candidate.id).join(', ') || 'нет ни одного';
-		vscode.window.showErrorMessage(
-			`Профиль запуска «${requested}» не найден. Доступные профили: ${known}.`
-		);
-		return false;
+		const available = profiles.map((candidate) => candidate.id);
+		const error = `Профиль запуска «${requested}» не найден. Доступные профили: ${available.join(', ') || 'нет ни одного'}.`;
+		vscode.window.showErrorMessage(error);
+		return { success: false, error, available };
 	}
 	await vrunner.setActiveEnvProfileId(profile.id);
 	refresh();
-	return true;
+	return { success: true, profileId: profile.id };
 }
 
 /**
