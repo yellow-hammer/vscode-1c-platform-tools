@@ -1,4 +1,5 @@
 import * as net from 'node:net';
+import { VRunnerManager } from './vrunnerManager';
 import * as crypto from 'node:crypto';
 import * as path from 'node:path';
 import * as vscode from 'vscode';
@@ -193,8 +194,13 @@ async function handleExecuteCommandSync(
 			sha: flags.sha,
 			extensions: flags.extensions,
 			frameworks: flags.frameworks,
+			execute: flags.execute,
+			command: flags.command,
 		};
-		const rawResult = await vscode.commands.executeCommand(commandId, optsForCommand);
+		const manager = VRunnerManager.getInstance();
+		const rawResult = projectPath
+			? await manager.runWithProjectRoot(projectPath, async () => vscode.commands.executeCommand(commandId, optsForCommand))
+			: await vscode.commands.executeCommand(commandId, optsForCommand);
 
 		const finishedAt = new Date().toISOString();
 		const durationMs = Date.now() - startMs;
@@ -305,10 +311,12 @@ async function handleExecuteCommand(
 
 	// Стандартный режим: запуск в UI-терминале
 	try {
-		const commandResult = await vscode.commands.executeCommand(
-			params.commandId,
-			...args
-		);
+		const manager = VRunnerManager.getInstance();
+		const commandId = params.commandId as string;
+		const commandResult = expectedProjectPath
+			? await manager.runWithProjectRoot(expectedProjectPath, async () =>
+				vscode.commands.executeCommand(commandId, ...args))
+			: await vscode.commands.executeCommand(commandId, ...args);
 
 		return {
 			...base,
