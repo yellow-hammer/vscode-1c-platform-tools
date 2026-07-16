@@ -34,6 +34,34 @@ const ONE_CPT_SKILL_IDS = [
 	'1c-platform-tools-mcp'
 ] as const;
 
+/**
+ * Разрешает назначение установки навыков без интерактива.
+ *
+ * @param destination - Идентификатор агента ('claude', 'cursor', 'copilot') или путь к папке
+ * @param workspaceRoot - Корень открытого проекта
+ * @returns Абсолютный путь к папке навыков, либо null при ошибке (с сообщением)
+ */
+function resolveDestination(destination: string, workspaceRoot: string | undefined): string | null {
+	const known = DESTINATION_OPTIONS.find(
+		(option) => option.id !== 'custom' && option.id === destination.trim().toLowerCase()
+	);
+	if (known) {
+		if (!workspaceRoot) {
+			vscode.window.showWarningMessage('Откройте папку проекта или укажите путь к папке навыков');
+			return null;
+		}
+		return path.join(workspaceRoot, known.folder);
+	}
+	if (path.isAbsolute(destination)) {
+		return destination;
+	}
+	if (workspaceRoot) {
+		return path.join(workspaceRoot, destination);
+	}
+	vscode.window.showWarningMessage('Откройте папку проекта или укажите абсолютный путь к папке навыков');
+	return null;
+}
+
 async function pickDestination(workspaceRoot: string | undefined): Promise<string | null> {
 	const destChoice = await vscode.window.showQuickPick(
 		DESTINATION_OPTIONS.map((o) => ({
@@ -177,9 +205,12 @@ export class SkillsCommands {
 	 * Добавляет навыки разработки 1С (cc-1c-skills) из GitHub: XML, формы, роли, СКД, метаданные, EPF/ERF и т.д.
 	 * Скачивает архив репозитория, распаковывает и копирует содержимое .claude/skills в выбранную папку.
 	 */
-	async addDevSkills(context: vscode.ExtensionContext): Promise<void> {
+	async addDevSkills(context: vscode.ExtensionContext, destination?: string): Promise<void> {
 		const workspaceRoot = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
-		const targetDir = await pickDestination(workspaceRoot);
+		// строковый аргумент — неинтерактивный вызов (агент, web-сессия agent-клиента)
+		const targetDir = destination
+			? resolveDestination(destination, workspaceRoot)
+			: await pickDestination(workspaceRoot);
 		if (!targetDir) {
 			return;
 		}
@@ -241,10 +272,13 @@ export class SkillsCommands {
 	 * Добавляет все навыки 1c-platform-tools (полный + по доменам) в выбранную папку.
 	 * Без выбора домена — копируются все папки из resources/skills.
 	 */
-	async add1cptSkills(context: vscode.ExtensionContext): Promise<void> {
+	async add1cptSkills(context: vscode.ExtensionContext, destination?: string): Promise<void> {
 		const extensionPath = context.extensionPath;
 		const workspaceRoot = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
-		const targetBaseDir = await pickDestination(workspaceRoot);
+		// строковый аргумент — неинтерактивный вызов (агент, web-сессия agent-клиента)
+		const targetBaseDir = destination
+			? resolveDestination(destination, workspaceRoot)
+			: await pickDestination(workspaceRoot);
 		if (!targetBaseDir) {
 			return;
 		}
