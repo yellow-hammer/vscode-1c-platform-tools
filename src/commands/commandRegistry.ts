@@ -82,11 +82,11 @@ export function registerCommands(
 
 	// Команды навыков для AI
 	const skillsCommands = [
-		vscode.commands.registerCommand('1c-platform-tools.skills.addDevSkills', () => {
-			void commands.skills.addDevSkills(context);
+		vscode.commands.registerCommand('1c-platform-tools.skills.addDevSkills', (destination?: unknown) => {
+			void commands.skills.addDevSkills(context, typeof destination === 'string' ? destination : undefined);
 		}),
-		vscode.commands.registerCommand('1c-platform-tools.skills.add1cpt', () => {
-			void commands.skills.add1cptSkills(context);
+		vscode.commands.registerCommand('1c-platform-tools.skills.add1cpt', (destination?: unknown) => {
+			void commands.skills.add1cptSkills(context, typeof destination === 'string' ? destination : undefined);
 		}),
 	];
 	disposables.push(...skillsCommands);
@@ -306,6 +306,9 @@ export function registerCommands(
 		),
 		registerVRunnerCommand('1c-platform-tools.test.decompileEpf', (opts) =>
 			commands.test.decompileTestEpf(opts)
+		),
+		registerVRunnerCommand('1c-platform-tools.enterprise.run', (opts) =>
+			commands.test.runEnterpriseProcessor(opts)
 		),
 	];
 

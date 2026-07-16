@@ -190,6 +190,9 @@ async function handleExecuteCommandSync(
 			settingsFile: flags.settingsFile,
 			ibConnection: flags.ibConnection,
 			pathsOverride: flags.pathsOverride,
+			sha: flags.sha,
+			extensions: flags.extensions,
+			frameworks: flags.frameworks,
 		};
 		const rawResult = await vscode.commands.executeCommand(commandId, optsForCommand);
 

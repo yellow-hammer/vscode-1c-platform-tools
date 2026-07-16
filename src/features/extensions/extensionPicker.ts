@@ -17,24 +17,30 @@ interface ExtensionPickItem extends vscode.QuickPickItem {
  * Показывает выбор расширений с чекбоксами и запоминает его для проекта.
  *
  * Приоритет источников выбора:
- * 1. Настройка `1c-platform-tools.extensions.selected` (settings.json) — если
+ * 1. Явный список в опциях вызова (агент, MCP) — используется без окна выбора
+ *    и не меняет сохранённый выбор проекта.
+ * 2. Настройка `1c-platform-tools.extensions.selected` (settings.json) — если
  *    задана, используется без окна выбора.
- * 2. Режим wait (MCP) — применяется сохранённый выбор (или все).
- * 3. Иначе — quickpick с чекбоксами: изначально отмечены все (либо ранее
+ * 3. Режим wait (MCP) — применяется сохранённый выбор (или все).
+ * 4. Иначе — quickpick с чекбоксами: изначально отмечены все (либо ранее
  *    сохранённое подмножество). Выбор сохраняется в workspaceState (локально,
  *    не коммитится). Если отмечены все — фильтр сбрасывается, чтобы новые
  *    расширения подхватывались автоматически.
  *
  * @param allNames - Все доступные имена расширений
  * @param memento - workspaceState для хранения выбора
- * @param opts - Параметры выполнения (режим wait)
+ * @param opts - Параметры выполнения (режим wait, явный список расширений)
  * @returns Выбранное подмножество, либо undefined при отмене quickpick
  */
 export async function pickExtensions(
 	allNames: string[],
 	memento: vscode.Memento | undefined,
-	opts?: { wait?: boolean }
+	opts?: { wait?: boolean; extensions?: string[] }
 ): Promise<string[] | undefined> {
+	if (Array.isArray(opts?.extensions) && opts.extensions.length > 0) {
+		return filterByConfiguredNames(allNames, normalizeConfiguredExtensions(opts.extensions));
+	}
+
 	const config = vscode.workspace.getConfiguration('1c-platform-tools');
 	const configured = normalizeConfiguredExtensions(config.get('extensions.selected'));
 	if (configured.length > 0) {

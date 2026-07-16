@@ -297,6 +297,39 @@ async function clearOverrides(vrunner: VRunnerManager, refresh: () => void): Pro
 }
 
 /**
+ * Неинтерактивное переключение env-профиля по идентификатору, имени файла или подписи.
+ *
+ * @param vrunner - Менеджер vrunner
+ * @param refresh - Колбэк обновления статус-бара
+ * @param requested - Запрошенный профиль ('dev', 'env.dev.json', 'По умолчанию')
+ * @returns true, если профиль найден и активирован
+ */
+async function selectProfileById(
+	vrunner: VRunnerManager,
+	refresh: () => void,
+	requested: string
+): Promise<boolean> {
+	await vrunner.getVRunnerVersion();
+	const profiles = vrunner.discoverEnvProfiles();
+	const query = requested.trim().toLowerCase();
+	const profile = profiles.find((candidate) =>
+		candidate.id.toLowerCase() === query ||
+		candidate.fileName.toLowerCase() === query ||
+		candidate.label.toLowerCase() === query
+	);
+	if (!profile) {
+		const known = profiles.map((candidate) => candidate.id).join(', ') || 'нет ни одного';
+		vscode.window.showErrorMessage(
+			`Профиль запуска «${requested}» не найден. Доступные профили: ${known}.`
+		);
+		return false;
+	}
+	await vrunner.setActiveEnvProfileId(profile.id);
+	refresh();
+	return true;
+}
+
+/**
  * Выбор активного env-профиля и доступ к временным параметрам (главное меню статус-бара).
  *
  * @param vrunner - Менеджер vrunner
@@ -403,7 +436,13 @@ export function registerLaunchFeature(
 	refresh();
 
 	const disposables: vscode.Disposable[] = [
-		vscode.commands.registerCommand('1c-platform-tools.env.selectProfile', () => selectProfile(vrunner, refresh)),
+		vscode.commands.registerCommand('1c-platform-tools.env.selectProfile', (profileId?: unknown) => {
+			// строковый аргумент — неинтерактивный вызов (агент, web-сессия agent-клиента)
+			if (typeof profileId === 'string' && profileId.trim() !== '') {
+				return selectProfileById(vrunner, refresh, profileId);
+			}
+			return selectProfile(vrunner, refresh);
+		}),
 		vscode.commands.registerCommand('1c-platform-tools.profile.openEditor', async () => {
 			const workspaceRoot = vrunner.getWorkspaceRoot();
 			if (!workspaceRoot) {

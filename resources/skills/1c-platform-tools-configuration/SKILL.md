@@ -21,6 +21,15 @@ description: Загрузка и выгрузка конфигурации 1С. 
 | Собрать 1Cv8.cf из src/cf             | `1c-platform-tools.configuration.build`                |
 | Разобрать 1Cv8.cf в src/cf            | `1c-platform-tools.configuration.decompile`            |
 
+## Загрузка изменений (git diff) без интерактива
+
+`loadIncrementFromSrc` без аргументов запрашивает SHA коммита в UI. Чтобы выполнить без запроса, передай аргументом объект с `sha`:
+
+- Execute Command: `1c-platform-tools.configuration.loadIncrementFromSrc` с аргументом `{ "sha": "<SHA коммита>" }` (пустая строка — полная загрузка);
+- MCP: `configuration_loadIncFromSrc` с параметром `sha`.
+
+SHA — коммит последней загрузки: изменения возьмутся от него до текущего состояния. Текущее значение хранится в `src/cf/lastUploadedCommit.txt`. Обычно нужен SHA HEAD на момент прошлой загрузки; получить текущий — `git rev-parse HEAD`.
+
 ## MCP (mcp-1c-platform-tools)
 
 Если доступны инструменты MCP, используй их для тех же операций: `configuration_loadFromSrc`, `configuration_dumpToSrc`, `configuration_loadIncFromSrc`, `configuration_dumpIncToSrc`, `configuration_loadFromFiles`, `configuration_loadFromCf`, `configuration_dumpToCf`, `configuration_build`, `configuration_decompileCfg` и т.д. **Всегда передавай параметр `projectPath`** — корень проекта 1С (каталог с `packagedef`).
