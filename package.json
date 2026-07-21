@@ -2979,9 +2979,9 @@
     "@vscode/debugadapter": "^1.67.0",
     "cytoscape": "^3.34.0",
     "cytoscape-elk": "^2.3.0",
-    "elkjs": "^0.11.1",
+    "elkjs": "^0.12.0",
     "extract-zip": "^2.0.1",
-    "fast-xml-parser": "^5.10.0",
+    "fast-xml-parser": "^5.10.1",
     "glob": "^13.0.6",
     "jsonc-parser": "^3.3.1",
     "minimatch": "^10.2.5"
