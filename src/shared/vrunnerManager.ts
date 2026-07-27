@@ -105,6 +105,9 @@ export class VRunnerManager {
 
 	/** Кэш версии vrunner по корню проекта (workspace и projectPath различаются). */
 	private readonly vrunnerVersionCacheByRoot = new Map<string, VRunnerVersion | null>();
+
+	/** Замечания последнего планирования (применённые/отброшенные временные параметры). */
+	private planNotices: string[] = [];
 	/**
 	 * Разрешённый путь к oscript: имя для PATH, абсолютный путь установки OVM или
 	 * undefined, пока проверка не выполнялась. Обновляется в checkOscriptAvailable
@@ -770,15 +773,46 @@ export class VRunnerManager {
 	 * @param settingsFile - Явный файл настроек; без него берётся активный профиль
 	 * @returns Список команд vrunner (каждая — массив аргументов)
 	 */
-	public async planIntents(intents: VRunnerIntent[], settingsFile?: string): Promise<string[][]> {
+	public async planIntents(
+		intents: VRunnerIntent[],
+		settingsFile?: string,
+		explicitIbConnection?: string
+	): Promise<string[][]> {
 		const version = await this.getVRunnerVersion();
 		const adapter = selectCliAdapter(version);
 		const cli3 = version !== undefined && isAtLeast(version, VRUNNER_FEATURES.cli3);
-		const overrides = this.getActiveEnvOverrideArgs();
+		// Параметры вызова имеют приоритет над временными параметрами профиля:
+		// с явным settingsFile временные параметры не применяются вовсе, с явной
+		// строкой подключения из них исключается подключение к ИБ.
+		this.planNotices = [];
+		let overrides = this.getActiveEnvOverrideArgs();
+		if (overrides.length > 0 && settingsFile) {
+			this.planNotices.push('Временные параметры профиля не применены: в вызове задан settingsFile.');
+			overrides = [];
+		} else if (overrides.length > 0 && explicitIbConnection) {
+			const filtered = stripOverrideFlags(overrides, ['--ibconnection', '--db-user', '--db-pwd']);
+			if (filtered.length !== overrides.length) {
+				this.planNotices.push('Из временных параметров профиля исключено подключение к ИБ: в вызове задана явная строка подключения.');
+			}
+			overrides = filtered;
+		}
+		if (overrides.length > 0) {
+			this.planNotices.push(`Применены временные параметры профиля: ${maskOverrideSecrets(overrides).join(' ')}.`);
+			log.info(`план: применены временные параметры профиля (${maskOverrideSecrets(overrides).join(' ')})`);
+		}
 		// Именованный профиль подставляется во ВСЕ команды через --settings; для
 		// базового профиля параметр пустой (vrunner читает env.json сам).
 		// Явно переданный файл настроек имеет приоритет над активным профилем.
-		const settingsParam = this.getSettingsParam(settingsFile);
+		let settingsParam = this.getSettingsParam(settingsFile);
+		// Зеркально handleV3SettingsArg: файл настроек формата 3.x (корневой
+		// ключ vrunner) на vanessa-runner 2.x роняет команды, читающие секции,
+		// невнятной ошибкой «Свойство объекта не обнаружено» — не передаём его
+		if (!cli3 && settingsParam.length === 2 && this.isSettingsFileV3Format(settingsParam[1])) {
+			const notice = `Файл настроек ${settingsParam[1]} в формате vanessa-runner 3.x не передан: установлен vanessa-runner 2.x.`;
+			this.planNotices.push(notice);
+			log.warn(`план: ${notice}`);
+			settingsParam = [];
+		}
 
 		const steps: string[][] = [];
 		for (const intent of intents) {
@@ -801,8 +835,23 @@ export class VRunnerManager {
 	/**
 	 * План одного намерения (см. {@link planIntents}).
 	 */
-	public async planIntent(intent: VRunnerIntent, settingsFile?: string): Promise<string[][]> {
-		return this.planIntents([intent], settingsFile);
+	public async planIntent(
+		intent: VRunnerIntent,
+		settingsFile?: string,
+		explicitIbConnection?: string
+	): Promise<string[][]> {
+		return this.planIntents([intent], settingsFile, explicitIbConnection);
+	}
+
+	/**
+	 * Забирает замечания последнего планирования (список очищается).
+	 *
+	 * @returns Замечания о применённых/отброшенных временных параметрах
+	 */
+	public consumePlanNotices(): string[] {
+		const notices = this.planNotices;
+		this.planNotices = [];
+		return notices;
 	}
 
 	/**
@@ -923,6 +972,29 @@ export class VRunnerManager {
 	 * @param settingsFile - Путь к файлу (абсолютный или от корня workspace)
 	 * @returns true, если файл в формате 2.x
 	 */
+	/**
+	 * Проверяет, что файл настроек в формате 3.x (корневой ключ `vrunner`).
+	 * Нечитаемый файл или не-объект форматом 3.x не считается.
+	 *
+	 * @param settingsFile - Путь к файлу (абсолютный или от корня проекта)
+	 * @returns true, если файл в формате 3.x
+	 */
+	private isSettingsFileV3Format(settingsFile: string): boolean {
+		const root = this.getEffectiveRoot();
+		if (!root) {
+			return false;
+		}
+		const absolutePath = path.isAbsolute(settingsFile)
+			? settingsFile
+			: path.join(root, settingsFile);
+		try {
+			const parsed = JSON.parse(fsSync.readFileSync(absolutePath, 'utf8'));
+			return typeof parsed === 'object' && parsed !== null && !Array.isArray(parsed) && 'vrunner' in parsed;
+		} catch {
+			return false;
+		}
+	}
+
 	private isSettingsFileV2Format(settingsFile: string): boolean {
 		const root = this.getEffectiveRoot();
 		if (!root) {
@@ -1777,7 +1849,7 @@ export class VRunnerManager {
 					success: !error,
 					stdout: stdout.toString(),
 					stderr: stderr.toString(),
-					exitCode: error ? (error.code || 1) : 0
+					exitCode: error ? (typeof error.code === 'number' ? error.code : 1) : 0
 				};
 
 				resolve(result);
@@ -1926,7 +1998,7 @@ export class VRunnerManager {
 					success: !error,
 					stdout: stdout.toString(),
 					stderr: stderr.toString(),
-					exitCode: error ? (error.code || 1) : 0
+					exitCode: error ? (typeof error.code === 'number' ? error.code : 1) : 0
 				};
 
 				resolve(result);
@@ -1996,7 +2068,7 @@ export class VRunnerManager {
 					success: !error,
 					stdout: stdout.toString(),
 					stderr: stderr.toString(),
-					exitCode: error ? (error.code || 1) : 0
+					exitCode: error ? (typeof error.code === 'number' ? error.code : 1) : 0
 				};
 
 				resolve(result);
@@ -2336,4 +2408,33 @@ export class VRunnerManager {
 	public getExtensionPath(): string | undefined {
 		return this.extensionPath;
 	}
+}
+
+/**
+ * Убирает из массива аргументов перечисленные флаги вместе со значениями.
+ *
+ * @param args - Аргументы вида ['--flag', 'value', ...]
+ * @param flags - Имена исключаемых флагов
+ * @returns Аргументы без исключённых флагов
+ */
+function stripOverrideFlags(args: string[], flags: string[]): string[] {
+	const result: string[] = [];
+	for (let i = 0; i < args.length; i++) {
+		if (flags.includes(args[i])) {
+			i++; // пропускаем и значение флага
+			continue;
+		}
+		result.push(args[i]);
+	}
+	return result;
+}
+
+/**
+ * Маскирует секреты в аргументах временных параметров для вывода.
+ *
+ * @param args - Аргументы вида ['--flag', 'value', ...]
+ * @returns Копия с заменённым значением --db-pwd
+ */
+function maskOverrideSecrets(args: string[]): string[] {
+	return args.map((arg, index) => (index > 0 && args[index - 1] === '--db-pwd' ? '••••' : arg));
 }

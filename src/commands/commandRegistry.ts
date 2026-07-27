@@ -292,12 +292,12 @@ export function registerCommands(
 
 	// Команды запуска
 	const runCommands = [
-		vscode.commands.registerCommand('1c-platform-tools.run.enterprise', () => {
-			commands.run.runEnterprise();
-		}),
-		vscode.commands.registerCommand('1c-platform-tools.run.designer', () => {
-			commands.run.runDesigner();
-		})
+		registerVRunnerCommand('1c-platform-tools.run.enterprise', (opts) =>
+			commands.run.runEnterprise(opts)
+		),
+		registerVRunnerCommand('1c-platform-tools.run.designer', (opts) =>
+			commands.run.runDesigner(opts)
+		)
 	];
 
 	// Команды тестирования

@@ -1,5 +1,6 @@
 import { BaseCommand } from './baseCommand';
 import { getRunEnterpriseCommandName, getRunDesignerCommandName } from '../features/tools/commandNames';
+import type { CommandExecutionOptions } from '../shared/commandExecutionTypes';
 
 /**
  * Команды для запуска 1С:Предприятие и Конфигуратора
@@ -14,7 +15,16 @@ export class RunCommands extends BaseCommand {
 	 *
 	 * @returns Аргументы vrunner без имени команды
 	 */
-	private async buildConnectionArgs(): Promise<string[]> {
+	private async buildConnectionArgs(opts?: CommandExecutionOptions): Promise<string[]> {
+		// Параметры вызова имеют приоритет над активным профилем: явный
+		// settingsFile подставляется как --settings, явная строка подключения
+		// как --ibconnection (агентные вызовы, MCP)
+		if (opts?.settingsFile) {
+			return this.vrunner.getSettingsParam(opts.settingsFile);
+		}
+		if (opts?.ibConnection) {
+			return this.vrunner.getIbConnectionParam(opts.ibConnection);
+		}
 		const settingsParam = this.vrunner.getActiveSettingsParamIfExists();
 		if (settingsParam.length > 0) {
 			return settingsParam;
@@ -31,7 +41,7 @@ export class RunCommands extends BaseCommand {
 	 *
 	 * @returns Промис, который разрешается после запуска команды
 	 */
-	async runEnterprise(): Promise<void> {
+	async runEnterprise(opts?: CommandExecutionOptions): Promise<void> {
 		const workspaceRoot = this.ensureWorkspace();
 		if (!workspaceRoot) {
 			return;
@@ -39,14 +49,15 @@ export class RunCommands extends BaseCommand {
 		if (!(await this.ensureOscriptAvailable())) {
 			return;
 		}
-		if (!(await this.vrunner.ensureProfileSettingsFile(true))) {
+		if (!opts?.settingsFile && !opts?.ibConnection && !(await this.vrunner.ensureProfileSettingsFile(true))) {
 			return;
 		}
 
-		const connectionArgs = await this.buildConnectionArgs();
+		const connectionArgs = await this.buildConnectionArgs(opts);
 		const commandName = getRunEnterpriseCommandName();
 		const [args] = await this.vrunner.planIntent(
-			{ kind: 'run.enterprise', noWait: true, common: connectionArgs }
+			{ kind: 'run.enterprise', noWait: true, common: connectionArgs },
+			opts?.settingsFile, opts?.ibConnection
 		);
 
 		this.vrunner.executeVRunnerInTerminal(args, {
@@ -65,7 +76,7 @@ export class RunCommands extends BaseCommand {
 	 *
 	 * @returns Промис, который разрешается после запуска команды
 	 */
-	async runDesigner(): Promise<void> {
+	async runDesigner(opts?: CommandExecutionOptions): Promise<void> {
 		const workspaceRoot = this.ensureWorkspace();
 		if (!workspaceRoot) {
 			return;
@@ -73,14 +84,15 @@ export class RunCommands extends BaseCommand {
 		if (!(await this.ensureOscriptAvailable())) {
 			return;
 		}
-		if (!(await this.vrunner.ensureProfileSettingsFile(true))) {
+		if (!opts?.settingsFile && !opts?.ibConnection && !(await this.vrunner.ensureProfileSettingsFile(true))) {
 			return;
 		}
 
-		const connectionArgs = await this.buildConnectionArgs();
+		const connectionArgs = await this.buildConnectionArgs(opts);
 		const commandName = getRunDesignerCommandName();
 		const [args] = await this.vrunner.planIntent(
-			{ kind: 'run.designer', noWait: true, common: connectionArgs }
+			{ kind: 'run.designer', noWait: true, common: connectionArgs },
+			opts?.settingsFile, opts?.ibConnection
 		);
 
 		this.vrunner.executeVRunnerInTerminal(args, {

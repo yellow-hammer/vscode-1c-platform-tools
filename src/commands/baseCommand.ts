@@ -318,11 +318,12 @@ export abstract class BaseCommand {
 		if (gate) {
 			return gate === 'blocked' ? undefined : gate;
 		}
-		const steps = await this.vrunner.planIntent(intent, opts?.settingsFile);
+		const steps = await this.vrunner.planIntent(intent, opts?.settingsFile, opts?.ibConnection);
+		const notices = this.vrunner.consumePlanNotices();
 		if (steps.length === 1) {
-			return this.runVRunner(steps[0], opts, terminalName, artifact, commandId, true);
+			return this.appendNotices(await this.runVRunner(steps[0], opts, terminalName, artifact, commandId, true), notices);
 		}
-		return this.runVRunnerSequential(steps, opts, terminalName, commandId, true);
+		return this.appendNotices(await this.runVRunnerSequential(steps, opts, terminalName, commandId, true), notices);
 	}
 
 	/**
@@ -338,8 +339,28 @@ export abstract class BaseCommand {
 		if (gate) {
 			return gate === 'blocked' ? undefined : gate;
 		}
-		const steps = await this.vrunner.planIntents(intents, opts?.settingsFile);
-		return this.runVRunnerSequential(steps, opts, terminalName, commandId, true);
+		const steps = await this.vrunner.planIntents(intents, opts?.settingsFile, opts?.ibConnection);
+		const notices = this.vrunner.consumePlanNotices();
+		return this.appendNotices(await this.runVRunnerSequential(steps, opts, terminalName, commandId, true), notices);
+	}
+
+	/**
+	 * Приклеивает замечания планирования (временные параметры профиля)
+	 * к структурированному результату, чтобы контекст выполнения был виден
+	 * вызывающей стороне, а не только в статус-баре.
+	 */
+	protected appendNotices(
+		result: StructuredCommandResult | void,
+		notices: string[]
+	): StructuredCommandResult | void {
+		if (result === undefined || notices.length === 0) {
+			return result;
+		}
+		const contextLines = notices.map((notice) => `[контекст] ${notice}`).join('\n');
+		return {
+			...result,
+			stdout: [contextLines, result.stdout].filter(Boolean).join('\n'),
+		};
 	}
 
 	/**
