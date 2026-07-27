@@ -60,6 +60,7 @@
           "1c-platform-tools.run.enterprise",
           "1c-platform-tools.service.add1cptSkills",
           "1c-platform-tools.service.addDevSkills",
+          "1c-platform-tools.service.configureCursorMcp",
           "1c-platform-tools.service.installOneScript",
           "1c-platform-tools.service.setupGit",
           "1c-platform-tools.service.updateOpm",

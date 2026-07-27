@@ -83,6 +83,27 @@ export function registerCommands(
 
 	// Команды навыков для AI
 	const skillsCommands = [
+		vscode.commands.registerCommand('1c-platform-tools.mcp.configureCursor', async () => {
+			// Команда живёт в расширении 1C: Platform Tools MCP: оно пишет
+			// .cursor/mcp.json с актуальным путём к своему серверу
+			const mcpExtension = vscode.extensions.getExtension('yellow-hammer.mcp-1c-platform-tools');
+			if (!mcpExtension) {
+				const install = 'Установить расширение';
+				const action = await vscode.window.showWarningMessage(
+					'Расширение «1C: Platform Tools MCP» не установлено: оно предоставляет MCP-сервер и настраивает его для Cursor.',
+					install
+				);
+				if (action === install) {
+					await vscode.commands.executeCommand(
+						'workbench.extensions.search',
+						'yellow-hammer.mcp-1c-platform-tools'
+					);
+				}
+				return;
+			}
+			await mcpExtension.activate();
+			await vscode.commands.executeCommand('mcp-1c-platform-tools.configureCursor');
+		}),
 		vscode.commands.registerCommand('1c-platform-tools.skills.addDevSkills', (destination?: unknown) => {
 			if (isAgentOptions(destination)) {
 				return agentInteractiveError('Передайте назначение строкой: claude, cursor, copilot или путь к папке.');
