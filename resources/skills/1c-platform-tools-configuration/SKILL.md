@@ -25,7 +25,7 @@ description: Загрузка и выгрузка конфигурации 1С. 
 
 `loadIncrementFromSrc` без аргументов запрашивает SHA коммита в UI. Чтобы выполнить без запроса, передай аргументом объект с `sha`:
 
-- Execute Command: `1c-platform-tools.configuration.loadIncrementFromSrc` с аргументом `{ "sha": "<SHA коммита>", "wait": true }` (пустая строка — полная загрузка). В схеме MCP параметра `sha` нет — используй Execute Command.
+- MCP: `configuration_loadIncFromSrc` с параметром `sha` (пустая строка — полная загрузка), либо Execute Command `1c-platform-tools.configuration.loadIncrementFromSrc` с тем же аргументом.
 
 SHA — коммит последней загрузки: изменения возьмутся от него до текущего состояния. Текущее значение хранится в `src/cf/lastUploadedCommit.txt`. Обычно нужен SHA HEAD на момент прошлой загрузки; получить текущий — `git rev-parse HEAD`.
 

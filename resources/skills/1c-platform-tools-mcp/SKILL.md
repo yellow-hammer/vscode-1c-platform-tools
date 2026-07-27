@@ -15,12 +15,12 @@ description: Инструменты MCP для команд 1C: Platform Tools (
 
 ### Параметр wait
 
-- **`wait: false`** (по умолчанию) — команда в терминале VS Code, ответ MCP без stdout/exitCode.
-- **`wait: true`** — синхронное выполнение vrunner; в ответе `{ success, exitCode, stdout, stderr, artifact? }`. Для цикла «собрать → проверить → исправить».
+- **`wait: true`** (по умолчанию) — синхронное выполнение; в ответе `{ success, exitCode, stdout, stderr, tests?, artifact? }`. Прогоны тестов возвращают счётчики по отчёту.
+- **`wait: false`** — команда уходит в терминал VS Code, ответ без stdout/exitCode. Нужен, когда пользователь смотрит ход выполнения сам.
 
-Поддерживают **wait: true**: конфигурация (кроме loadIncFromSrc, loadFromFiles), расширения (кроме loadFromFiles), ИБ (кроме loadFromDt), внешние EPF/ERF, тесты (кроме allure), сборка/разбор алиасов.
+Возвращают результат синхронно: конфигурация (loadIncFromSrc — с параметром `sha`; кроме loadFromFiles), расширения (кроме loadFromFiles), ИБ (кроме loadFromDt), внешние EPF/ERF, тесты (кроме allure), `enterprise_run`, `testing_configure` (с параметром `frameworks`), сборка и разбор.
 
-**Не поддерживают wait: true** (нужен UI): `run_*`, `metadata_*`, `projects_*`, `support_*`, `dependencies_*` (кроме чистого vrunner), loadFromDt, loadIncFromSrc, objlist, allure, clearCache.
+**Уходят в UI** (результата не возвращают): `run_*`, `metadata_*`, `projects_*`, `support_*`, `dependencies_*` (кроме чистого vrunner), loadFromDt, objlist, allure, clearCache.
 
 ### Состояние окружения: env_status
 
@@ -41,8 +41,8 @@ Read-only инструмент `env_status` возвращает JSON: акти�
 - `sha` — инкрементальная загрузка `configuration_loadIncFromSrc` (пустая строка — полная загрузка);
 - `extensions` — явный список расширений для `extensions_*`;
 - `profile` — переключение профиля: `env_selectProfile { profile: "test" }`;
-- `frameworks` — настройка тестов: `testing_configure { frameworks: ["vanessa"], wait: true }`;
-- `execute`, `command` — запуск EPF в Предприятии: `enterprise_run { execute: "путь.epf", command: "строка /C", wait: true }`.
+- `frameworks` — настройка тестов: `testing_configure { frameworks: ["vanessa"] }`;
+- `execute`, `command` — запуск EPF в Предприятии: `enterprise_run { execute: "путь.epf", command: "строка /C" }`.
 
 Команды не открывают окон при агентном вызове: если данных не хватает, вернётся структурированная ошибка с подсказкой.
 
@@ -97,4 +97,4 @@ Read-only инструмент `env_status` возвращает JSON: акти�
 
 ## Правило
 
-Для автоматизации (загрузка конфигурации, выгрузка, сборка обработок и т.д.) **предпочитай вызов инструментов MCP** Execute Command редактора — так агент получает структурированный ответ и не зависит от палитры. Всегда передавай `projectPath`.
+Для автоматизации (загрузка конфигурации, выгрузка, сборка обработок и т.д.) **предпочитай инструменты MCP** вместо Execute Command редактора — так агент получает структурированный ответ и не зависит от палитры. Всегда передавай `projectPath`.
