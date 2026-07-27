@@ -893,6 +893,56 @@ export class VRunnerManager {
 	 * @param interactive - Показывать ли предложение создать файл
 	 * @returns true, если файл настроек пригоден и команду можно выполнять
 	 */
+	public describeSettingsState(): {
+		schema: SettingsSchema;
+		fileName: string;
+		expectedFileName: string;
+		exists: boolean;
+		formatMismatch: boolean;
+	} {
+		const schema = this.activeSettingsSchema();
+		const fileName = this.getActiveEnvFile();
+		const expectedFileName = baseSettingsFileName(schema);
+		const root = this.getEffectiveRoot();
+		const absolutePath = root && !path.isAbsolute(fileName) ? path.join(root, fileName) : fileName;
+
+		let exists = false;
+		let formatMismatch = false;
+		try {
+			const parsed = JSON.parse(fsSync.readFileSync(absolutePath, 'utf8'));
+			exists = true;
+			const isObject = typeof parsed === 'object' && parsed !== null && !Array.isArray(parsed);
+			formatMismatch = !isObject || (schema === 'v3' ? !('vrunner' in parsed) : 'vrunner' in parsed);
+		} catch {
+			exists = false;
+		}
+
+		return { schema, fileName, expectedFileName, exists, formatMismatch };
+	}
+
+	/**
+	 * Сообщение о непригодном файле настроек: что нашли и что ожидалось.
+	 *
+	 * @returns Текст с именем файла, схемой и версией vanessa-runner
+	 */
+	public settingsProblemMessage(): string {
+		const state = this.describeSettingsState();
+		const version = this.getCachedVRunnerVersionLabel() ?? 'версия не определена';
+		if (state.formatMismatch) {
+			const actual = state.schema === 'v3' ? '2.x' : '3.x';
+			return (
+				`Файл настроек ${state.fileName} в формате vanessa-runner ${actual}, ` +
+				`а установлен vanessa-runner ${version}: нужен формат ${state.expectedFileName}. ` +
+				'Создайте файл настроек командой «Служебные файлы».'
+			);
+		}
+		return (
+			`Файл настроек ${state.fileName} не найден. ` +
+			`Для vanessa-runner ${version} нужен ${state.expectedFileName} в корне проекта: ` +
+			'создайте его командой «Служебные файлы».'
+		);
+	}
+
 	public async ensureProfileSettingsFile(interactive: boolean): Promise<boolean> {
 		await this.getVRunnerVersion();
 		const root = this.getEffectiveRoot();
@@ -960,6 +1010,10 @@ export class VRunnerManager {
 		}
 
 		this.warnV2SettingsOnCli3(settingsFile);
+		const notice =
+			`Файл настроек ${settingsFile} в формате vanessa-runner 2.x не передан: ` +
+			'установлен vanessa-runner 3.x, который читает autumn-properties.json.';
+		this.planNotices.push(notice);
 		const copy = [...args];
 		copy.splice(idx, 2);
 		return copy;
