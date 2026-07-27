@@ -33,8 +33,12 @@
 	],
 	"compounds": [
 		{
+			// Расширение — из исходников в Extension Development Host; MCP-сервер
+			// запускает агентский клиент из mcp.json открытого проекта
+			// (node --inspect=9229 .../out/src/index.js), а конфигурация attach
+			// собирает свежий out и подключается к нему по порту 9229.
 			"name": "Расширение + MCP (одновременно)",
-			"configurations": ["Run Extension", "MCP: запуск с отладкой"],
+			"configurations": ["Run Extension", "MCP: подключиться к процессу (port 9229)"],
 			"stopAll": true
 		}
 	]
