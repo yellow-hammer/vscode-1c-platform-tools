@@ -1,5 +1,5 @@
 import * as assert from 'node:assert';
-import { parseSyntaxCheckFindings } from '../../features/diagnostics/syntaxCheckJUnit';
+import { parseSyntaxCheckFindings, toSyntaxCheckErrors } from '../../features/diagnostics/syntaxCheckJUnit';
 
 suite('syntaxCheckJUnit', () => {
 	test('разворачивает многострочный message в отдельные находки', () => {
@@ -60,5 +60,30 @@ suite('syntaxCheckJUnit', () => {
 		const findings = parseSyntaxCheckFindings(xml);
 		assert.strictEqual(findings.length, 1);
 		assert.strictEqual(findings[0].message, 'Ошибка синтаксического контроля');
+	});
+});
+
+suite('toSyntaxCheckErrors', () => {
+	test('модуль раскладывается в путь к .bsl', () => {
+		const errors = toSyntaxCheckErrors(
+			[{ metadataPath: 'ОбщийМодуль.ОбщегоНазначения.Модуль', message: 'Переменная не определена', severity: 'error' }],
+			'src/cf'
+		);
+
+		assert.strictEqual(errors.length, 1);
+		assert.ok(errors[0].filepath.startsWith('src/cf/'), `путь от корня проекта: ${errors[0].filepath}`);
+		assert.ok(errors[0].filepath.endsWith('.bsl'), 'адресуется файл модуля');
+		assert.strictEqual(errors[0].metadataPath, 'ОбщийМодуль.ОбщегоНазначения.Модуль');
+		assert.strictEqual(errors[0].severity, 'error');
+	});
+
+	test('нераскладываемый тип оставляет путь по метаданным', () => {
+		const errors = toSyntaxCheckErrors(
+			[{ metadataPath: 'Справка.Раздел', message: 'Ошибка в справке', severity: 'warning' }],
+			'src/cf'
+		);
+
+		assert.strictEqual(errors[0].filepath, 'Справка.Раздел');
+		assert.strictEqual(errors[0].severity, 'warning');
 	});
 });

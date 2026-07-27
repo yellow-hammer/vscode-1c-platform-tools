@@ -249,6 +249,7 @@ async function handleExecuteCommandSync(
 			stderr: r.stderr ?? '',
 			artifact: r.artifact,
 			tests: r.tests,
+			errors: r.errors,
 			startedAt,
 			finishedAt,
 			durationMs,

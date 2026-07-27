@@ -1,3 +1,5 @@
+import type { SyntaxCheckError } from '../../shared/commandExecutionTypes';
+import { resolveBslPathFromMetadata } from './metadataPathResolver';
 import { parseJUnitXml, JUnitCase } from '../testing/parsers/junitParser';
 
 /**
@@ -92,4 +94,29 @@ export function parseSyntaxCheckFindings(xml: string): SyntaxCheckFinding[] {
 	}
 
 	return findings;
+}
+
+/**
+ * Переводит находки в ошибки для синхронного ответа команды.
+ *
+ * Агенту нужен путь к файлу, а не путь по метаданным: он правит .bsl.
+ * Там, где тип метаданных не раскладывается в модуль, остаётся исходный путь.
+ *
+ * @param findings - Находки из jUnit-отчёта
+ * @param cfRel - Каталог исходников конфигурации относительно корня проекта
+ * @returns Ошибки с адресом файла и текстом сообщения
+ */
+export function toSyntaxCheckErrors(
+	findings: SyntaxCheckFinding[],
+	cfRel: string
+): SyntaxCheckError[] {
+	return findings.map((finding) => {
+		const bslRel = resolveBslPathFromMetadata(finding.metadataPath);
+		return {
+			filepath: bslRel ? `${cfRel}/${bslRel}` : finding.metadataPath,
+			metadataPath: finding.metadataPath,
+			severity: finding.severity,
+			message: finding.message,
+		};
+	});
 }
