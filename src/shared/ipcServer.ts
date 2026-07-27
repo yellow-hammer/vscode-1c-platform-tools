@@ -236,6 +236,7 @@ async function handleExecuteCommandSync(
 			stdout: r.stdout ?? '',
 			stderr: r.stderr ?? '',
 			artifact: r.artifact,
+			tests: r.tests,
 			startedAt,
 			finishedAt,
 			durationMs,

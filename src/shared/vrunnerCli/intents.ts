@@ -97,7 +97,7 @@ export type VRunnerIntent =
 
 	// ---- Тесты и проверка ----
 	/** Прогнать xUnit-тесты (Vanessa-ADD). */
-	| { kind: 'test.xunit'; testsPath?: string; common?: CommonArgs }
+	| { kind: 'test.xunit'; testsPath?: string; reportsXunit?: string; common?: CommonArgs }
 	/**
 	 * Прогнать BDD-сценарии Vanessa.
 	 *

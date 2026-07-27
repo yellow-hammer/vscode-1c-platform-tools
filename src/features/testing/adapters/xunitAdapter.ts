@@ -118,10 +118,6 @@ export class XUnitAdapter implements TestFrameworkAdapter {
 	 */
 	private async buildXunitPlan(targetPath: string, reportDir: string): Promise<AdapterRunPlan> {
 		const workspaceRoot = this.vrunner.getWorkspaceRoot();
-		// --settings активного профиля подставляет planIntent централизованно.
-		const [baseArgs] = await this.vrunner.planIntent(
-			{ kind: 'test.xunit', testsPath: targetPath }
-		);
 
 		// Путь jUnit из конфигурации проекта (env.json, секция xunit)
 		if (workspaceRoot) {
@@ -130,9 +126,13 @@ export class XUnitAdapter implements TestFrameworkAdapter {
 				const reportsXunit = reportsXunitFromEnv(settings, schema);
 				const junitRel = reportsXunit ? extractJUnitPathFromReportsXunit(reportsXunit) : undefined;
 				if (junitRel) {
+					// --settings активного профиля подставляет planIntent централизованно.
+					const [args] = await this.vrunner.planIntent(
+						{ kind: 'test.xunit', testsPath: targetPath }
+					);
 					return {
 						tool: 'vrunner',
-						args: baseArgs,
+						args,
 						reportTarget: { format: 'junit', path: resolveConfigPath(junitRel, workspaceRoot) },
 						noReportHint: XUNIT_NO_REPORT_HINT
 					};
@@ -142,11 +142,16 @@ export class XUnitAdapter implements TestFrameworkAdapter {
 			}
 		}
 
-		// env.json не настроен на jUnit — направляем отчёт в каталог прогона
+		// env.json не настроен на jUnit — направляем отчёт в каталог прогона.
+		// Параметр отчёта идёт через намерение: адаптер CLI ставит опции до
+		// позиционного пути, иначе 3.x не разбирает команду.
 		const reportFile = path.join(reportDir, 'xunit.xml');
+		const [args] = await this.vrunner.planIntent(
+			{ kind: 'test.xunit', testsPath: targetPath, reportsXunit: `jUnit:${reportFile}` }
+		);
 		return {
 			tool: 'vrunner',
-			args: [...baseArgs, '--reportsxunit', `jUnit:${reportFile}`],
+			args,
 			noReportHint: XUNIT_NO_REPORT_HINT
 		};
 	}

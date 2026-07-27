@@ -36,6 +36,26 @@ export interface CommandExecutionOptions {
 }
 
 /**
+ * Сводка прогона тестов по jUnit-отчёту (wait: true у тестовых команд).
+ */
+export interface TestRunStats {
+	/** Всего тестов в отчёте. */
+	total: number;
+	/** Успешно пройдено. */
+	passed: number;
+	/** Упало (failure). */
+	failed: number;
+	/** Ошибки выполнения (error). */
+	errors: number;
+	/** Пропущено. */
+	skipped: number;
+	/** Файл или каталог отчёта, по которому построена сводка. */
+	reportPath: string;
+	/** Имена упавших тестов (с ограничением количества). */
+	failedTests: string[];
+}
+
+/**
  * Результат синхронного выполнения команды.
  * Возвращается командой при wait: true; ipcServer оборачивает в commandResult.
  */
@@ -50,4 +70,6 @@ export interface StructuredCommandResult {
 	stderr: string;
 	/** Путь к итоговому артефакту (.epf, .cf, .cfe и т.п.), если применимо. */
 	artifact?: string;
+	/** Сводка прогона тестов по jUnit-отчёту (только тестовые команды). */
+	tests?: TestRunStats;
 }
