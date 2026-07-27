@@ -131,7 +131,10 @@ jobs:
       - name: Сгенерировать CHANGELOG
         id: changelog
         run: |
-          git-cliff --config cliff.toml --output CHANGELOG.md
+          # --tag помечает версией релиза коммиты, которые ещё не покрыты тегом:
+          # без него шаг «Обновить версию» уводит main вперёд тега, и первой
+          # секцией журнала становится [Unreleased], попадая в описание релиза
+          git-cliff --config cliff.toml --tag "v${{ steps.ver.outputs.version }}" --output CHANGELOG.md
 
           if [ -f CHANGELOG.md ]; then
             # Извлекаем только последний релиз (первый ## [version] до следующего ##)
@@ -145,6 +148,12 @@ jobs:
 
             # Удаляем пустые строки в конце
             CHANGELOG=$(echo "$CHANGELOG" | sed -e :a -e '/^\n*$/{$d;N;ba' -e '}')
+
+            # Секция [Unreleased] в описании релиза означает, что версия не
+            # определилась: лучше ссылка на историю коммитов, чем такой заголовок
+            if echo "$CHANGELOG" | head -n1 | grep -q 'Unreleased'; then
+              CHANGELOG=""
+            fi
 
             # Если changelog пустой или слишком короткий — fallback на историю коммитов
             if [ -z "$CHANGELOG" ] || [ ${#CHANGELOG} -lt 20 ]; then
