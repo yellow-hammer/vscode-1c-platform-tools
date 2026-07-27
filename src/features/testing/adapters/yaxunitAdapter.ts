@@ -65,6 +65,65 @@ export class YaxunitAdapter implements TestFrameworkAdapter {
 		};
 	}
 
+	/**
+	 * Модули тестового расширения прогоняются одним запуском 1С: фильтр YAxUnit
+	 * принимает список модулей, отдельный сеанс на модуль только умножает время.
+	 */
+	public batchGroupKey(): string {
+		return 'all';
+	}
+
+	/**
+	 * Батч-прогон: один запуск 1С со списком модулей в фильтре.
+	 *
+	 * Отчёт общий, кейсы раскладываются по файлам через имя модуля в classname.
+	 *
+	 * @param units - Файлы прогона (модули тестового расширения)
+	 * @param reportDir - Каталог отчёта прогона
+	 * @returns План батч-прогона
+	 */
+	public async buildBatchRunPlan(units: RunUnit[], reportDir: string): Promise<AdapterRunPlan | undefined> {
+		const workspaceRoot = this.vrunner.getWorkspaceRoot();
+		const baseConfig = await this.readProjectConfig(workspaceRoot);
+		const baseFilter =
+			baseConfig['filter'] && typeof baseConfig['filter'] === 'object'
+				? (baseConfig['filter'] as Record<string, unknown>)
+				: {};
+		const modules = [...new Set(units.map((unit) => extractModuleName(unit.fileUri.fsPath)))];
+
+		const reportPathRaw =
+			typeof baseConfig['reportPath'] === 'string' && baseConfig['reportPath'].length > 0
+				? baseConfig['reportPath']
+				: path.join(reportDir, 'report.xml');
+		const reportPathAbsolute = workspaceRoot
+			? resolveConfigPath(reportPathRaw, workspaceRoot)
+			: reportPathRaw;
+
+		const runConfig: Record<string, unknown> = {
+			...baseConfig,
+			filter: { ...baseFilter, modules, tests: null },
+			reportPath: reportPathRaw,
+			reportFormat: baseConfig['reportFormat'] ?? 'jUnit',
+			closeAfterTests: baseConfig['closeAfterTests'] ?? true
+		};
+
+		const configPath = path.join(reportDir, 'yaxunit-config.json');
+		await fs.writeFile(configPath, JSON.stringify(runConfig, null, 2), 'utf8');
+
+		const connectionArgs = await this.vrunner.getIbConnectionParam();
+		const [args] = await this.vrunner.planIntent({
+			kind: 'run.enterprise',
+			command: `RunUnitTests=${configPath}`,
+			common: connectionArgs
+		});
+
+		return {
+			tool: 'vrunner',
+			args,
+			reportTarget: { format: 'junit', path: reportPathAbsolute }
+		};
+	}
+
 	public async buildRunPlan(unit: RunUnit, reportDir: string): Promise<AdapterRunPlan> {
 		const workspaceRoot = this.vrunner.getWorkspaceRoot();
 		const moduleName = extractModuleName(unit.fileUri.fsPath);

@@ -128,29 +128,83 @@ export class OneScriptAdapter implements TestFrameworkAdapter {
 	 * каждому файлу (а не -d по каталогу), чтобы прогнать ровно отобранные тесты и
 	 * не зацепить вспомогательные классы из utils/ (см. isTestFile).
 	 *
-	 * Для 1testrunner батч не поддержан (имя отчёта раннер выбирает сам) — возвращаем
-	 * undefined, контроллер прогонит файлы поштучно.
+	 * 1testrunner прогоняет каталог целиком: `-runall <каталог> xddReportPath
+	 * <каталог отчётов>` пишет общий отчёт `<имя каталога>.xml`, где classname
+	 * кейса — имя файла теста; контроллер раскладывает его по файлам. Батч
+	 * применим, когда выбранные файлы лежат в одном каталоге: иначе прогон
+	 * захватил бы лишние файлы.
 	 */
 	public async buildBatchRunPlan(units: RunUnit[], _reportDir: string): Promise<AdapterRunPlan | undefined> {
 		const runner = this.resolveRunner();
-		if (runner.kind !== 'oneunit') {
+		const reportsDir = await this.ensureReportsDir();
+
+		if (runner.kind === 'oneunit') {
+			const reportFile = path.join(reportsDir, '_oneunit-batch.xml');
+			const args = [runner.command, 'execute'];
+			for (const unit of units) {
+				args.push('-f', `"${unit.fileUri.fsPath}"`);
+			}
+			args.push('--junit', `"${reportFile}"`);
+
+			return {
+				tool: 'shell',
+				args: [args.join(' ')],
+				reportTarget: { format: 'junit', path: reportFile }
+			};
+		}
+
+		// 1testrunner отбирает тесты каталогом, а не списком файлов: батч возможен,
+		// только если весь каталог состоит из выбранных файлов
+		const dirs = new Set(units.map((unit) => path.dirname(unit.fileUri.fsPath)));
+		if (dirs.size !== 1) {
+			return undefined;
+		}
+		const testsDir = [...dirs][0];
+		const dirFiles = await this.testFilesInDirectory(testsDir);
+		const selected = new Set(units.map((unit) => path.resolve(unit.fileUri.fsPath).toLowerCase()));
+		if (dirFiles.length !== selected.size || dirFiles.some((file) => !selected.has(file))) {
 			return undefined;
 		}
 
-		const reportsDir = await this.ensureReportsDir();
-		const reportFile = path.join(reportsDir, '_oneunit-batch.xml');
-
-		const args = [runner.command, 'execute'];
-		for (const unit of units) {
-			args.push('-f', `"${unit.fileUri.fsPath}"`);
-		}
-		args.push('--junit', `"${reportFile}"`);
-
+		const reportFile = path.join(reportsDir, `${path.basename(testsDir)}.xml`);
+		const args = [runner.command, '-runall', `"${testsDir}"`, 'xddReportPath', `"${reportsDir}"`];
 		return {
 			tool: 'shell',
 			args: [args.join(' ')],
-			reportTarget: { format: 'junit', path: reportFile }
+			reportTarget: { format: 'junit', path: reportFile },
+			noReportHint:
+				'Отчёт xddReportPath не создан — возможно, установлена старая версия 1testrunner. ' +
+				'Обновите зависимости проекта (opm update 1testrunner).'
 		};
+	}
+
+	/**
+	 * Возвращает тестовые файлы каталога (без вложенных) в нижнем регистре
+	 *
+	 * @param dirPath - Каталог тестов
+	 * @returns Абсолютные пути тестовых файлов
+	 */
+	private async testFilesInDirectory(dirPath: string): Promise<string[]> {
+		let entries: string[];
+		try {
+			entries = (await fs.readdir(dirPath, { withFileTypes: true }))
+				.filter((entry) => entry.isFile() && entry.name.toLowerCase().endsWith('.os'))
+				.map((entry) => path.join(dirPath, entry.name));
+		} catch {
+			return [];
+		}
+
+		const testFiles: string[] = [];
+		for (const filePath of entries) {
+			try {
+				if (this.isTestFile(await fs.readFile(filePath, 'utf8'))) {
+					testFiles.push(path.resolve(filePath).toLowerCase());
+				}
+			} catch {
+				// нечитаемый файл в наборе не участвует
+			}
+		}
+		return testFiles;
 	}
 
 	/**

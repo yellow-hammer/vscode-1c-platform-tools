@@ -114,6 +114,45 @@ export class XUnitAdapter implements TestFrameworkAdapter {
 	}
 
 	/**
+	 * Тестовые обработки прогоняются одним сеансом: xUnit выполняет каталог
+	 * целиком, отдельный сеанс на обработку только умножает время прогона.
+	 */
+	public batchGroupKey(): string {
+		return 'all';
+	}
+
+	/**
+	 * Батч-прогон: сборка всех тестовых обработок и один прогон по каталогу
+	 * собранных .epf.
+	 *
+	 * @param units - Файлы прогона
+	 * @param reportDir - Каталог отчёта прогона
+	 * @returns План батч-прогона либо undefined, если сборка не применима
+	 */
+	public async buildBatchRunPlan(units: RunUnit[], reportDir: string): Promise<AdapterRunPlan | undefined> {
+		const binariesPath = path.join(this.vrunner.getOutPath(), 'tests');
+		const prepare: AdapterRunPlan['prepare'] = [];
+		for (const unit of units) {
+			const epfInfo = epfTestSourceInfo(unit.fileUri.fsPath);
+			if (!epfInfo) {
+				// В наборе есть уже собранные .epf — общий каталог сборки не гарантирован
+				return undefined;
+			}
+			const [buildArgs] = await this.vrunner.planIntent(
+				{ kind: 'epf.build', src: epfInfo.processorDir, out: binariesPath }
+			);
+			prepare.push({
+				tool: 'vrunner',
+				args: buildArgs,
+				title: `Сборка обработки ${epfInfo.processorName}`
+			});
+		}
+
+		const basePlan = await this.buildXunitPlan(binariesPath, reportDir);
+		return { ...basePlan, prepare };
+	}
+
+	/**
 	 * Строит план запуска vrunner xunit для файла или собранного .epf
 	 */
 	private async buildXunitPlan(targetPath: string, reportDir: string): Promise<AdapterRunPlan> {

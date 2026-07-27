@@ -81,11 +81,21 @@ suite('onescriptAdapter', () => {
 		assert.strictEqual(packagedefDeclaresDependency(packagedef, '1testrunner'), false, 'не объявлен');
 	});
 
-	test('buildBatchRunPlan: для 1testrunner батч недоступен (undefined)', async () => {
-		// В тестовом окружении (без локального oneunit) раннер — 1testrunner,
-		// батч им не поддержан: контроллер прогонит файлы поштучно
+	test('buildBatchRunPlan: 1testrunner без полного каталога — батч недоступен', async () => {
+		// В тестовом окружении (без локального oneunit) раннер — 1testrunner:
+		// он отбирает тесты каталогом, а каталога из набора не существует —
+		// батч неприменим, контроллер прогонит файлы поштучно
 		const adapter = new OneScriptAdapter(VRunnerManager.getInstance());
 		const plan = await adapter.buildBatchRunPlan([{ fileUri }], 'C:\\proj\\build\\report');
+		assert.strictEqual(plan, undefined);
+	});
+
+	test('buildBatchRunPlan: 1testrunner с файлами из разных каталогов — батч недоступен', async () => {
+		const adapter = new OneScriptAdapter(VRunnerManager.getInstance());
+		const plan = await adapter.buildBatchRunPlan(
+			[{ fileUri }, { fileUri: vscode.Uri.file('C:\\proj\\other\\ТестДругой.os') }],
+			'C:\\proj\\build\\report'
+		);
 		assert.strictEqual(plan, undefined);
 	});
 

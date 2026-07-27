@@ -95,6 +95,35 @@ export class VanessaAdapter implements TestFrameworkAdapter {
 	}
 
 	/**
+	 * Все фичи проекта прогоняются одним сеансом: Vanessa Automation выполняет
+	 * набор целиком, отдельный сеанс на файл только умножает время прогона.
+	 */
+	public batchGroupKey(): string {
+		return 'all';
+	}
+
+	/**
+	 * Батч-прогон: один сеанс на весь набор фич, результаты раскладываются по
+	 * файлам из общего отчёта проекта.
+	 *
+	 * Без настроенной в проекте цели отчёта батч недоступен: собственные
+	 * настройки VA пришлось бы подменять, а состав прогона задаёт проект.
+	 *
+	 * @param _units - Файлы прогона (состав задают настройки VA)
+	 * @param _reportDir - Каталог отчёта прогона (не используется)
+	 * @returns План батч-прогона либо undefined
+	 */
+	public async buildBatchRunPlan(_units: RunUnit[], _reportDir: string): Promise<AdapterRunPlan | undefined> {
+		const reportTarget = await this.findProjectReportTarget();
+		if (!reportTarget) {
+			return undefined;
+		}
+		// --settings активного профиля подставляет planIntent централизованно.
+		const [args] = await this.vrunner.planIntent({ kind: 'test.vanessa' });
+		return { tool: 'vrunner', args, reportTarget };
+	}
+
+	/**
 	 * Ищет настроенную в проекте цель отчёта VA
 	 *
 	 * env.json (vanessa.--vanessasettings) → VAParams.json → jUnit или Cucumber JSON.

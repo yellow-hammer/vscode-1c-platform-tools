@@ -18,6 +18,12 @@ export interface RoutableFile {
 	id: string;
 	/** Абсолютный путь к файлу теста */
 	fsPath: string;
+	/**
+	 * Заголовок файла из его содержимого: имя Функционала (.feature) или имя
+	 * модуля. Vanessa Automation пишет в отчёт именно его (testsuite name,
+	 * хвост classname), а не имя файла.
+	 */
+	label?: string;
 }
 
 /**
@@ -38,6 +44,8 @@ interface FileKey {
 	base: string;
 	/** Имя файла без расширения в нижнем регистре (для сопоставления с classname) */
 	stem: string;
+	/** Заголовок файла в нижнем регистре (имя функционала/модуля) */
+	label?: string;
 }
 
 /** Приводит путь к сравнимому виду: прямые слэши, без ведущего ./, нижний регистр */
@@ -96,7 +104,9 @@ function matchCase(testCase: JUnitCase, files: FileKey[]): FileKey | undefined {
 	}
 
 	// classname у OneUnit — имя набора (как правило, имя модуля без расширения);
-	// suiteName — запасной источник того же признака
+	// suiteName — запасной источник того же признака.
+	// У Vanessa Automation classname — «Каталог.Имя функционала», а suiteName —
+	// имя функционала: сопоставляем с заголовком файла.
 	for (const suiteKey of [testCase.className, testCase.suiteName]) {
 		const key = suiteKey?.trim().toLowerCase();
 		if (!key) {
@@ -105,6 +115,21 @@ function matchCase(testCase: JUnitCase, files: FileKey[]): FileKey | undefined {
 		const byStem = singleMatch(files, (file) => file.stem === key);
 		if (byStem) {
 			return byStem;
+		}
+		const byLabel = singleMatch(files, (file) => file.label !== undefined && file.label === key);
+		if (byLabel) {
+			return byLabel;
+		}
+		// classname вида «Справочники.Справочник Валюты» — берём хвост после точки
+		const tail = key.slice(key.lastIndexOf('.') + 1).trim();
+		if (tail.length > 0 && tail !== key) {
+			const byTail = singleMatch(
+				files,
+				(file) => file.label === tail || file.stem === tail
+			);
+			if (byTail) {
+				return byTail;
+			}
 		}
 	}
 
@@ -127,7 +152,8 @@ export function routeReportCases(cases: JUnitCase[], files: RoutableFile[]): Rou
 			id: file.id,
 			pathNorm,
 			base,
-			stem: ext.length > 0 ? base.slice(0, -ext.length) : base
+			stem: ext.length > 0 ? base.slice(0, -ext.length) : base,
+			label: file.label?.trim().toLowerCase() || undefined
 		};
 	});
 
