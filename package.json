@@ -479,7 +479,8 @@
     "commands": [
       {
         "command": "1c-platform-tools.profile.openEditor",
-        "title": "1С: Открыть редактор профиля запуска"
+        "title": "Открыть редактор профиля запуска",
+        "category": "1C: Конфигурации запуска"
       },
       {
         "command": "1c-platform-tools.refresh",
@@ -686,7 +687,7 @@
       },
       {
         "command": "1c-platform-tools.debug.measure.clear",
-        "title": "Скрыть результаты замера производительности",
+        "title": "Очистить результаты замера производительности",
         "category": "1C: Отладка"
       },
       {
@@ -708,7 +709,8 @@
       },
       {
         "command": "debug.debugTargets.connect",
-        "title": "Connect"
+        "title": "Подключиться к цели отладки",
+        "category": "1C: Отладка"
       },
       {
         "command": "1c-platform-tools.artifacts.refresh",
@@ -878,7 +880,7 @@
       },
       {
         "command": "1c-platform-tools.infobase.updateDatabase",
-        "title": "Постобработка обновления",
+        "title": "Выполнить обработчики обновления",
         "category": "1C: Информационная база"
       },
       {
@@ -968,7 +970,7 @@
       },
       {
         "command": "1c-platform-tools.extensions.loadFromCfe",
-        "title": "Загрузить расширение из *.cfe",
+        "title": "Загрузить расширения из *.cfe",
         "category": "1C: Расширения"
       },
       {
@@ -978,7 +980,7 @@
       },
       {
         "command": "1c-platform-tools.extensions.dumpToCfe",
-        "title": "Выгрузить расширение в *.cfe",
+        "title": "Выгрузить расширения в *.cfe",
         "category": "1C: Расширения"
       },
       {
@@ -1008,12 +1010,12 @@
       },
       {
         "command": "1c-platform-tools.externalReports.build",
-        "title": "Собрать внешний отчет",
+        "title": "Собрать внешний отчёт",
         "category": "1C: Внешние файлы"
       },
       {
         "command": "1c-platform-tools.externalReports.decompile",
-        "title": "Разобрать внешний отчет",
+        "title": "Разобрать внешний отчёт",
         "category": "1C: Внешние файлы"
       },
       {
@@ -1073,7 +1075,7 @@
       },
       {
         "command": "1c-platform-tools.dependencies.updateOpm",
-        "title": "Установить пакетный менеджер",
+        "title": "Обновить пакетный менеджер opm",
         "category": "1C: Зависимости"
       },
       {
@@ -1118,7 +1120,7 @@
       },
       {
         "command": "1c-platform-tools.build.externalReport",
-        "title": "Собрать внешний отчет",
+        "title": "Собрать внешний отчёт",
         "category": "1C: Внешние файлы"
       },
       {
@@ -1133,12 +1135,12 @@
       },
       {
         "command": "1c-platform-tools.decompile.externalReport",
-        "title": "Разобрать внешний отчет",
+        "title": "Разобрать внешний отчёт",
         "category": "1C: Внешние файлы"
       },
       {
         "command": "1c-platform-tools.decompile.extension",
-        "title": "Разобрать расширение",
+        "title": "Разобрать расширения",
         "category": "1C: Расширения"
       },
       {
@@ -1291,37 +1293,37 @@
       },
       {
         "command": "1c-platform-tools.test.buildEpf",
-        "title": "Собрать unit тесты",
-        "category": "1C: Внешние файлы"
+        "title": "Собрать unit-тесты",
+        "category": "1C: Тестирование"
       },
       {
         "command": "1c-platform-tools.test.decompileEpf",
-        "title": "Разобрать unit тесты",
-        "category": "1C: Внешние файлы"
+        "title": "Разобрать unit-тесты",
+        "category": "1C: Тестирование"
       },
       {
         "command": "1c-platform-tools.test.allure",
-        "title": "Allure отчет",
+        "title": "Отчёт Allure",
         "category": "1C: Тестирование"
       },
       {
         "command": "1c-platform-tools.setVersion.configuration",
-        "title": "Конфигурации",
+        "title": "Конфигурацию",
         "category": "1C: Установить версию"
       },
       {
         "command": "1c-platform-tools.setVersion.extension",
-        "title": "Расширения",
+        "title": "Расширение",
         "category": "1C: Установить версию"
       },
       {
         "command": "1c-platform-tools.setVersion.report",
-        "title": "Внешнего отчёта",
+        "title": "Внешний отчёт",
         "category": "1C: Установить версию"
       },
       {
         "command": "1c-platform-tools.setVersion.processor",
-        "title": "Внешней обработки",
+        "title": "Внешнюю обработку",
         "category": "1C: Установить версию"
       },
       {
@@ -1604,6 +1606,330 @@
         {
           "command": "1c-platform-tools.debug.measure.stop",
           "when": "onecPlatformTools.debug.measureActive"
+        },
+        {
+          "command": "1c-platform-tools.refresh",
+          "when": "false"
+        },
+        {
+          "command": "1c-platform-tools.metadata.refresh",
+          "when": "false"
+        },
+        {
+          "command": "1c-platform-tools.metadata.filters.collapseAll",
+          "when": "false"
+        },
+        {
+          "command": "1c-platform-tools.metadata.filters.reset",
+          "when": "false"
+        },
+        {
+          "command": "1c-platform-tools.metadata.addDocument",
+          "when": "false"
+        },
+        {
+          "command": "1c-platform-tools.metadata.addMdObject",
+          "when": "false"
+        },
+        {
+          "command": "1c-platform-tools.metadata.openObjectProperties",
+          "when": "false"
+        },
+        {
+          "command": "1c-platform-tools.metadata.openExternalConnectionModule",
+          "when": "false"
+        },
+        {
+          "command": "1c-platform-tools.metadata.openApplicationModule",
+          "when": "false"
+        },
+        {
+          "command": "1c-platform-tools.metadata.openSessionModule",
+          "when": "false"
+        },
+        {
+          "command": "1c-platform-tools.metadata.openObjectModule",
+          "when": "false"
+        },
+        {
+          "command": "1c-platform-tools.metadata.openManagerModule",
+          "when": "false"
+        },
+        {
+          "command": "1c-platform-tools.metadata.openRecordSetModule",
+          "when": "false"
+        },
+        {
+          "command": "1c-platform-tools.metadata.openValueManagerModule",
+          "when": "false"
+        },
+        {
+          "command": "1c-platform-tools.metadata.openModule",
+          "when": "false"
+        },
+        {
+          "command": "1c-platform-tools.metadata.openFormModule",
+          "when": "false"
+        },
+        {
+          "command": "1c-platform-tools.metadata.openSourceProperties",
+          "when": "false"
+        },
+        {
+          "command": "1c-platform-tools.metadata.openSourceXml",
+          "when": "false"
+        },
+        {
+          "command": "1c-platform-tools.metadata.createObject",
+          "when": "false"
+        },
+        {
+          "command": "1c-platform-tools.metadata.renameObject",
+          "when": "false"
+        },
+        {
+          "command": "1c-platform-tools.metadata.deleteObject",
+          "when": "false"
+        },
+        {
+          "command": "1c-platform-tools.metadata.duplicateObject",
+          "when": "false"
+        },
+        {
+          "command": "1c-platform-tools.metadata.addChildNode",
+          "when": "false"
+        },
+        {
+          "command": "1c-platform-tools.metadata.renameChildNode",
+          "when": "false"
+        },
+        {
+          "command": "1c-platform-tools.metadata.deleteChildNode",
+          "when": "false"
+        },
+        {
+          "command": "1c-platform-tools.metadata.duplicateChildNode",
+          "when": "false"
+        },
+        {
+          "command": "1c-platform-tools.metadata.filterBySubsystem",
+          "when": "false"
+        },
+        {
+          "command": "1c-platform-tools.metadata.clearSubsystemFilter",
+          "when": "false"
+        },
+        {
+          "command": "1c-platform-tools.metadata.copyObjectName",
+          "when": "false"
+        },
+        {
+          "command": "1c-platform-tools.metadata.copyObjectPath",
+          "when": "false"
+        },
+        {
+          "command": "1c-platform-tools.metadata.er.openCanvas",
+          "when": "false"
+        },
+        {
+          "command": "1c-platform-tools.metadata.er.openForObject",
+          "when": "false"
+        },
+        {
+          "command": "1c-platform-tools.artifacts.refresh",
+          "when": "false"
+        },
+        {
+          "command": "1c-platform-tools.artifacts._viewAsList",
+          "when": "false"
+        },
+        {
+          "command": "1c-platform-tools.artifacts._viewByFolder",
+          "when": "false"
+        },
+        {
+          "command": "1c-platform-tools.artifacts.buildConfiguration",
+          "when": "false"
+        },
+        {
+          "command": "1c-platform-tools.artifacts.decompileConfiguration",
+          "when": "false"
+        },
+        {
+          "command": "1c-platform-tools.artifacts.buildExtension",
+          "when": "false"
+        },
+        {
+          "command": "1c-platform-tools.artifacts.decompileExtension",
+          "when": "false"
+        },
+        {
+          "command": "1c-platform-tools.artifacts.buildProcessor",
+          "when": "false"
+        },
+        {
+          "command": "1c-platform-tools.artifacts.decompileProcessor",
+          "when": "false"
+        },
+        {
+          "command": "1c-platform-tools.artifacts.buildReport",
+          "when": "false"
+        },
+        {
+          "command": "1c-platform-tools.artifacts.decompileReport",
+          "when": "false"
+        },
+        {
+          "command": "1c-platform-tools.artifacts.delete",
+          "when": "false"
+        },
+        {
+          "command": "1c-platform-tools.artifacts.decompileConfiguration.fromEditor",
+          "when": "false"
+        },
+        {
+          "command": "1c-platform-tools.artifacts.decompileExtension.fromEditor",
+          "when": "false"
+        },
+        {
+          "command": "1c-platform-tools.artifacts.decompileProcessor.fromEditor",
+          "when": "false"
+        },
+        {
+          "command": "1c-platform-tools.artifacts.decompileReport.fromEditor",
+          "when": "false"
+        },
+        {
+          "command": "1c-platform-tools.favorites.configure",
+          "when": "false"
+        },
+        {
+          "command": "1c-platform-tools.tools.configureGroupVisibility",
+          "when": "false"
+        },
+        {
+          "command": "1c-platform-tools.launch.view",
+          "when": "false"
+        },
+        {
+          "command": "1c-platform-tools.file.open",
+          "when": "false"
+        },
+        {
+          "command": "1c-platform-tools.todo.refresh",
+          "when": "false"
+        },
+        {
+          "command": "1c-platform-tools.todo.toggleGroupBy",
+          "when": "false"
+        },
+        {
+          "command": "1c-platform-tools.todo._viewAsList",
+          "when": "false"
+        },
+        {
+          "command": "1c-platform-tools.todo._viewAsHierarchy",
+          "when": "false"
+        },
+        {
+          "command": "1c-platform-tools.todo.filterByTag",
+          "when": "false"
+        },
+        {
+          "command": "1c-platform-tools.todo.filterByScope",
+          "when": "false"
+        },
+        {
+          "command": "1c-platform-tools.todo.clearFilter",
+          "when": "false"
+        },
+        {
+          "command": "1c-platform-tools.projects.saveProject",
+          "when": "false"
+        },
+        {
+          "command": "1c-platform-tools.projects.editProjects",
+          "when": "false"
+        },
+        {
+          "command": "1c-platform-tools.projects.configureFavorites",
+          "when": "false"
+        },
+        {
+          "command": "1c-platform-tools.projects.listNewWindow",
+          "when": "false"
+        },
+        {
+          "command": "1c-platform-tools.projects.filterByTag",
+          "when": "false"
+        },
+        {
+          "command": "1c-platform-tools.projects.refresh",
+          "when": "false"
+        },
+        {
+          "command": "1c-platform-tools.projects._open",
+          "when": "false"
+        },
+        {
+          "command": "1c-platform-tools.projects._openInNewWindow",
+          "when": "false"
+        },
+        {
+          "command": "1c-platform-tools.projects.openSettings",
+          "when": "false"
+        },
+        {
+          "command": "1c-platform-tools.projects._sortByName",
+          "when": "false"
+        },
+        {
+          "command": "1c-platform-tools.projects._sortByPath",
+          "when": "false"
+        },
+        {
+          "command": "1c-platform-tools.projects.addToWorkspace",
+          "when": "false"
+        },
+        {
+          "command": "1c-platform-tools.projects.revealInExplorer",
+          "when": "false"
+        },
+        {
+          "command": "1c-platform-tools.projects.revealInFinder",
+          "when": "false"
+        },
+        {
+          "command": "1c-platform-tools.projects.revealInFileManager",
+          "when": "false"
+        },
+        {
+          "command": "1c-platform-tools.projects.deleteProject",
+          "when": "false"
+        },
+        {
+          "command": "1c-platform-tools.projects.renameProject",
+          "when": "false"
+        },
+        {
+          "command": "1c-platform-tools.projects.editTags",
+          "when": "false"
+        },
+        {
+          "command": "1c-platform-tools.projects.toggleEnabled",
+          "when": "false"
+        },
+        {
+          "command": "1c-platform-tools.projects.addToFavorites",
+          "when": "false"
+        },
+        {
+          "command": "1c-platform-tools.projects._viewAsList",
+          "when": "false"
+        },
+        {
+          "command": "1c-platform-tools.projects._viewAsTags",
+          "when": "false"
         }
       ],
       "debug/toolBar": [

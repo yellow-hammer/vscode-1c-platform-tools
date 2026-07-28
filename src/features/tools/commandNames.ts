@@ -54,7 +54,7 @@ export function getLoadConfigurationFromCfCommandName(): CommandNameAndTitle {
 	return {
 		id: '1c-platform-tools.configuration.loadFromCf',
 		name: 'Загрузка конфигурации из CF',
-		title: 'Загрузить конфигурацию из *.cf'
+		title: 'Загрузить конфигурацию из 1Cv8.cf'
 	};
 }
 
@@ -64,8 +64,8 @@ export function getLoadConfigurationFromCfCommandName(): CommandNameAndTitle {
 export function getLoadExtensionsCommandName(): CommandNameAndTitle {
 	return {
 		id: '1c-platform-tools.extensions.loadFromSrc',
-		name: 'Загрузка расширений',
-		title: 'Загрузка расширений'
+		name: 'Загрузить расширения из src/cfe',
+		title: 'Загрузить расширения из src/cfe'
 	};
 }
 
@@ -75,8 +75,8 @@ export function getLoadExtensionsCommandName(): CommandNameAndTitle {
 export function getUpdateDatabaseCommandName(): CommandNameAndTitle {
 	return {
 		id: '1c-platform-tools.infobase.updateDatabase',
-		name: 'Запустить обновление',
-		title: 'Запустить обновление'
+		name: 'Выполнить обработчики обновления',
+		title: 'Выполнить обработчики обновления'
 	};
 }
 
@@ -207,8 +207,8 @@ export function getAdd1cptSkillsCommandName(): CommandNameAndTitle {
 export function getUpdateOpmCommandName(): CommandNameAndTitle {
 	return {
 		id: '1c-platform-tools.service.updateOpm',
-		name: 'Установить пакетный менеджер',
-		title: 'Установить пакетный менеджер'
+		name: 'Обновить пакетный менеджер opm',
+		title: 'Обновить пакетный менеджер opm'
 	};
 }
 
@@ -268,13 +268,13 @@ export function getBuildExternalProcessorCommandName(): CommandNameAndTitle {
 }
 
 /**
- * Получить название и заголовок для команды сборки внешнего отчета
+ * Получить название и заголовок для команды сборки внешнего отчёта
  */
 export function getBuildExternalReportCommandName(): CommandNameAndTitle {
 	return {
 		id: '1c-platform-tools.artifacts.buildReport',
-		name: 'Собрать внешний отчет',
-		title: 'Собрать внешний отчет'
+		name: 'Собрать внешний отчёт',
+		title: 'Собрать внешний отчёт'
 	};
 }
 
@@ -301,13 +301,13 @@ export function getDecompileExternalProcessorCommandName(): CommandNameAndTitle 
 }
 
 /**
- * Получить название и заголовок для команды разбора внешнего отчета
+ * Получить название и заголовок для команды разбора внешнего отчёта
  */
 export function getDecompileExternalReportCommandName(): CommandNameAndTitle {
 	return {
 		id: '1c-platform-tools.artifacts.decompileReport',
-		name: 'Разобрать внешний отчет',
-		title: 'Разобрать внешний отчет'
+		name: 'Разобрать внешний отчёт',
+		title: 'Разобрать внешний отчёт'
 	};
 }
 
@@ -328,8 +328,8 @@ export function getClearCacheCommandName(): CommandNameAndTitle {
 export function getDecompileExtensionCommandName(): CommandNameAndTitle {
 	return {
 		id: '1c-platform-tools.extensions.decompile',
-		name: 'Разобрать расширение',
-		title: 'Разобрать расширение'
+		name: 'Разобрать расширения',
+		title: 'Разобрать расширения'
 	};
 }
 
@@ -396,13 +396,13 @@ export function getVanessaTestsCommandName(mode: 'normal' | 'currentFile' = 'nor
 }
 
 /**
- * Получить название и заголовок для команды Allure отчета
+ * Получить название и заголовок для команды отчёта Allure
  */
 export function getAllureReportCommandName(): CommandNameAndTitle {
 	return {
 		id: '1c-platform-tools.test.allure',
-		name: 'Allure отчет',
-		title: 'Allure отчет'
+		name: 'Отчёт Allure',
+		title: 'Отчёт Allure'
 	};
 }
 
@@ -418,24 +418,24 @@ export function getYAxUnitTestsCommandName(): CommandNameAndTitle {
 }
 
 /**
- * Получить название и заголовок для команды сборки unit тестов
+ * Получить название и заголовок для команды сборки unit-тестов
  */
 export function getBuildTestEpfCommandName(): CommandNameAndTitle {
 	return {
 		id: '1c-platform-tools.test.buildEpf',
-		name: 'Собрать unit тесты',
-		title: 'Собрать unit тесты'
+		name: 'Собрать unit-тесты',
+		title: 'Собрать unit-тесты'
 	};
 }
 
 /**
- * Получить название и заголовок для команды разборки unit тестов
+ * Получить название и заголовок для команды разборки unit-тестов
  */
 export function getDecompileTestEpfCommandName(): CommandNameAndTitle {
 	return {
 		id: '1c-platform-tools.test.decompileEpf',
-		name: 'Разобрать unit тесты',
-		title: 'Разобрать unit тесты'
+		name: 'Разобрать unit-тесты',
+		title: 'Разобрать unit-тесты'
 	};
 }
 
@@ -559,8 +559,8 @@ export function getLoadExtensionFromFilesByListCommandName(): CommandNameAndTitl
 export function getLoadExtensionFromCfeCommandName(): CommandNameAndTitle {
 	return {
 		id: '1c-platform-tools.extensions.loadFromCfe',
-		name: 'Загрузить расширение из *.cfe',
-		title: 'Загрузить расширение из *.cfe'
+		name: 'Загрузить расширения из *.cfe',
+		title: 'Загрузить расширения из *.cfe'
 	};
 }
 
@@ -581,8 +581,8 @@ export function getDumpExtensionToSrcCommandName(): CommandNameAndTitle {
 export function getDumpExtensionToCfeCommandName(): CommandNameAndTitle {
 	return {
 		id: '1c-platform-tools.extensions.dumpToCfe',
-		name: 'Выгрузить расширение в *.cfe',
-		title: 'Выгрузить расширение в *.cfe'
+		name: 'Выгрузить расширения в *.cfe',
+		title: 'Выгрузить расширения в *.cfe'
 	};
 }
 
@@ -607,8 +607,8 @@ export function getBuildExtensionCommandName(): CommandNameAndTitle {
 export function getSetVersionConfigurationCommandName(): CommandNameAndTitle {
 	return {
 		id: '1c-platform-tools.setVersion.configuration',
-		name: 'Конфигурации',
-		title: 'Конфигурации'
+		name: 'Конфигурацию',
+		title: 'Конфигурацию'
 	};
 }
 
@@ -618,8 +618,8 @@ export function getSetVersionConfigurationCommandName(): CommandNameAndTitle {
 export function getSetVersionExtensionCommandName(): CommandNameAndTitle {
 	return {
 		id: '1c-platform-tools.setVersion.extension',
-		name: 'Расширения',
-		title: 'Расширения'
+		name: 'Расширение',
+		title: 'Расширение'
 	};
 }
 
