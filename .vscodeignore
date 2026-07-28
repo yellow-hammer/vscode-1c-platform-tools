@@ -44,12 +44,11 @@ bin/onec-debug-adapter/**
 .DS_Store
 Thumbs.db
 
-# CI/CD
-.github/DISCUSSION_TEMPLATE/**
-.github/ISSUE_TEMPLATE/**
-.github/workflows/**
-.github/FUNDING.yml
-.github/PULL_REQUEST_TEMPLATE.md
+# CI/CD и локальное окружение разработчика: в пакете не нужны, а
+# .claude/settings.local.json ещё и содержит пути с рабочей машины
+.github/**
+.claude/**
+*.code-workspace
 
 # Документация: ссылки README при упаковке переписываются vsce на GitHub-URL,
 # поэтому docs в VSIX не нужен (walkthrough при этом остаётся в пакете)
