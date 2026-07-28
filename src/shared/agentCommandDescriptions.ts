@@ -1,0 +1,262 @@
+/**
+ * Описания команд для агента.
+ *
+ * Заголовки команд рассчитаны на палитру и меню, где строка должна быть
+ * короткой, а объект действия понятен из категории и места вызова. Агент
+ * видит команду вне этого контекста: «Конфигурацию» или «Удалить кэш» ему
+ * ничего не говорят. Здесь для таких команд лежит развёрнутое описание,
+ * которое подставляется вместо заголовка при выдаче списка инструментов MCP.
+ *
+ * Команды, у которых заголовок и так самодостаточен, в таблице не нужны.
+ */
+
+/** Описание команды для списка инструментов MCP. */
+export interface AgentCommandDescription {
+	/** Что делает команда: одна фраза, понятная без интерфейса. */
+	title: string;
+	/** Раздел, к которому команда относится. */
+	category: string;
+}
+
+const TESTING = '1C: Тестирование';
+const INFOBASE = '1C: Информационная база';
+const CONFIGURATION = '1C: Конфигурация';
+const EXTENSIONS = '1C: Расширения';
+const EXTERNAL = '1C: Внешние файлы';
+const DEPENDENCIES = '1C: Зависимости';
+const LAUNCH = '1C: Запуск';
+const ENVIRONMENT = '1C: Окружение';
+const TASKS = '1C: Задачи';
+
+/** Описания команд, чей заголовок вне интерфейса непонятен. */
+export const AGENT_COMMAND_DESCRIPTIONS: Record<string, AgentCommandDescription> = {
+	// Команды, которых нет в палитре: заголовка у них нет вовсе
+	'1c-platform-tools.env.status': {
+		title: 'Показать состояние окружения запуска: версия vanessa-runner, активный профиль, файл настроек, строка подключения к ИБ',
+		category: ENVIRONMENT,
+	},
+	'1c-platform-tools.enterprise.run': {
+		title: 'Запустить внешнюю обработку или отчёт в Предприятии: путь в параметре execute, строка запуска в параметре command',
+		category: LAUNCH,
+	},
+	'1c-platform-tools.vrunner.refreshVersion': {
+		title: 'Определить версию vanessa-runner заново',
+		category: ENVIRONMENT,
+	},
+
+	// Тестирование: в палитре хватает названия фреймворка, агенту нужно действие
+	'1c-platform-tools.test.xunit': {
+		title: 'Запустить тесты xUnit; результат берётся из jUnit-отчёта прогона',
+		category: TESTING,
+	},
+	'1c-platform-tools.test.vanessa': {
+		title: 'Запустить сценарии Vanessa Automation; результат берётся из отчёта прогона',
+		category: TESTING,
+	},
+	'1c-platform-tools.test.yaxunit': {
+		title: 'Запустить тесты YAxUnit; результат берётся из jUnit-отчёта прогона',
+		category: TESTING,
+	},
+	'1c-platform-tools.test.syntaxCheck': {
+		title: 'Запустить синтаксический контроль конфигурации; ошибки возвращаются списком с путями к модулям',
+		category: TESTING,
+	},
+	'1c-platform-tools.test.allure': {
+		title: 'Построить отчёт Allure по результатам прогона',
+		category: TESTING,
+	},
+	'1c-platform-tools.test.buildEpf': {
+		title: 'Собрать обработки с тестами из исходников',
+		category: TESTING,
+	},
+	'1c-platform-tools.test.decompileEpf': {
+		title: 'Разобрать обработки с тестами в исходники',
+		category: TESTING,
+	},
+	'1c-platform-tools.testing.configure': {
+		title: 'Включить или выключить тестовые фреймворки в панели тестирования (параметр frameworks)',
+		category: TESTING,
+	},
+
+	// Информационная база
+	'1c-platform-tools.infobase.updateInfobase': {
+		title: 'Обновить конфигурацию базы данных из конфигурации ИБ',
+		category: INFOBASE,
+	},
+	'1c-platform-tools.infobase.updateDatabase': {
+		title: 'Выполнить обработчики обновления в Предприятии после смены конфигурации',
+		category: INFOBASE,
+	},
+	'1c-platform-tools.infobase.initialize': {
+		title: 'Инициализировать данные в информационной базе',
+		category: INFOBASE,
+	},
+	'1c-platform-tools.infobase.dumpToDt': {
+		title: 'Выгрузить информационную базу в файл .dt',
+		category: INFOBASE,
+	},
+	'1c-platform-tools.infobase.loadFromDt': {
+		title: 'Загрузить информационную базу из файла .dt',
+		category: INFOBASE,
+	},
+	'1c-platform-tools.infobase.blockExternalResources': {
+		title: 'Запретить информационной базе работу с внешними ресурсами',
+		category: INFOBASE,
+	},
+
+	// Конфигурация и расширения: каталоги настраиваются, поэтому в описании
+	// говорится о смысле, а не о конкретном пути
+	'1c-platform-tools.configuration.loadFromSrc': {
+		title: 'Загрузить конфигурацию в ИБ из исходников проекта',
+		category: CONFIGURATION,
+	},
+	'1c-platform-tools.configuration.loadFromSrc.init': {
+		title: 'Загрузить конфигурацию в пустую ИБ из исходников проекта',
+		category: CONFIGURATION,
+	},
+	'1c-platform-tools.configuration.loadIncrementFromSrc': {
+		title: 'Загрузить в ИБ только изменённые объекты конфигурации (параметр sha задаёт коммит сравнения)',
+		category: CONFIGURATION,
+	},
+	'1c-platform-tools.configuration.loadFromFilesByList': {
+		title: 'Загрузить в ИБ объекты конфигурации по списку из objlist.txt',
+		category: CONFIGURATION,
+	},
+	'1c-platform-tools.configuration.loadFromCf': {
+		title: 'Загрузить конфигурацию в ИБ из файла .cf',
+		category: CONFIGURATION,
+	},
+	'1c-platform-tools.configuration.dumpToSrc': {
+		title: 'Выгрузить конфигурацию ИБ в исходники проекта',
+		category: CONFIGURATION,
+	},
+	'1c-platform-tools.configuration.dumpIncrementToSrc': {
+		title: 'Выгрузить в исходники только изменённые объекты конфигурации',
+		category: CONFIGURATION,
+	},
+	'1c-platform-tools.configuration.dumpToCf': {
+		title: 'Выгрузить конфигурацию ИБ в файл .cf',
+		category: CONFIGURATION,
+	},
+	'1c-platform-tools.configuration.dumpToDist': {
+		title: 'Выгрузить конфигурацию поставки в файл .cf',
+		category: CONFIGURATION,
+	},
+	'1c-platform-tools.configuration.build': {
+		title: 'Собрать файл .cf из исходников конфигурации, без загрузки в ИБ',
+		category: CONFIGURATION,
+	},
+	'1c-platform-tools.configuration.decompile': {
+		title: 'Разобрать файл .cf в исходники конфигурации, без обращения к ИБ',
+		category: CONFIGURATION,
+	},
+	'1c-platform-tools.extensions.loadFromSrc': {
+		title: 'Загрузить расширения в ИБ из исходников проекта',
+		category: EXTENSIONS,
+	},
+	'1c-platform-tools.extensions.loadFromFilesByList': {
+		title: 'Загрузить в ИБ объекты расширений по списку из objlist.txt',
+		category: EXTENSIONS,
+	},
+	'1c-platform-tools.extensions.loadFromCfe': {
+		title: 'Загрузить расширения в ИБ из файлов .cfe',
+		category: EXTENSIONS,
+	},
+	'1c-platform-tools.extensions.dumpToSrc': {
+		title: 'Выгрузить расширения ИБ в исходники проекта',
+		category: EXTENSIONS,
+	},
+	'1c-platform-tools.extensions.dumpToCfe': {
+		title: 'Выгрузить расширения ИБ в файлы .cfe',
+		category: EXTENSIONS,
+	},
+	'1c-platform-tools.extensions.build': {
+		title: 'Собрать файлы .cfe из исходников расширений, без загрузки в ИБ',
+		category: EXTENSIONS,
+	},
+	'1c-platform-tools.extensions.decompile': {
+		title: 'Разобрать файлы .cfe в исходники расширений, без обращения к ИБ',
+		category: EXTENSIONS,
+	},
+	'1c-platform-tools.extensions.updateInInfobase': {
+		title: 'Обновить расширения, уже установленные в информационной базе',
+		category: EXTENSIONS,
+	},
+
+	// Внешние файлы
+	'1c-platform-tools.externalProcessors.build': {
+		title: 'Собрать внешние обработки из исходников',
+		category: EXTERNAL,
+	},
+	'1c-platform-tools.externalProcessors.decompile': {
+		title: 'Разобрать внешние обработки в исходники',
+		category: EXTERNAL,
+	},
+	'1c-platform-tools.externalReports.build': {
+		title: 'Собрать внешние отчёты из исходников',
+		category: EXTERNAL,
+	},
+	'1c-platform-tools.externalReports.decompile': {
+		title: 'Разобрать внешние отчёты в исходники',
+		category: EXTERNAL,
+	},
+	'1c-platform-tools.externalFiles.clearCache': {
+		title: 'Удалить кэш разбора внешних обработок и отчётов',
+		category: EXTERNAL,
+	},
+
+
+	// Зависимости и задачи
+	'1c-platform-tools.dependencies.initializePackagedef': {
+		title: 'Создать описание пакета packagedef в корне проекта',
+		category: DEPENDENCIES,
+	},
+	'1c-platform-tools.dependencies.initializeProjectStructure': {
+		title: 'Создать стандартные каталоги проекта 1С',
+		category: DEPENDENCIES,
+	},
+	'1c-platform-tools.dependencies.install': {
+		title: 'Установить зависимости проекта по packagedef',
+		category: DEPENDENCIES,
+	},
+	'1c-platform-tools.dependencies.remove': {
+		title: 'Удалить установленные зависимости проекта',
+		category: DEPENDENCIES,
+	},
+	'1c-platform-tools.dependencies.updateOpm': {
+		title: 'Обновить пакетный менеджер opm',
+		category: DEPENDENCIES,
+	},
+	'1c-platform-tools.dependencies.installOscript': {
+		title: 'Установить OneScript',
+		category: DEPENDENCIES,
+	},
+	'1c-platform-tools.launch.run': {
+		title: 'Запустить задачу из конфигураций запуска проекта',
+		category: TASKS,
+	},
+	'1c-platform-tools.oscript.run': {
+		title: 'Запустить задачу OneScript (opm run)',
+		category: TASKS,
+	},
+
+	// Окружение
+	'1c-platform-tools.env.selectProfile': {
+		title: 'Переключить активный профиль запуска (параметр profile)',
+		category: ENVIRONMENT,
+	},
+	'1c-platform-tools.env.clearOverrides': {
+		title: 'Сбросить временные параметры запуска активного профиля',
+		category: ENVIRONMENT,
+	},
+};
+
+/**
+ * Возвращает описание команды для агента.
+ *
+ * @param commandId - Идентификатор команды расширения
+ * @returns Описание или undefined, если хватает заголовка из package.json
+ */
+export function agentCommandDescription(commandId: string): AgentCommandDescription | undefined {
+	return AGENT_COMMAND_DESCRIPTIONS[commandId];
+}

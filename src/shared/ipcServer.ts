@@ -7,6 +7,7 @@ import { logger } from './logger';
 import type { VRunnerExecutionResult } from './vrunnerManager';
 import type { CommandExecutionOptions, StructuredCommandResult } from './commandExecutionTypes';
 import { commandSupportsWait, isCommandExposedToMcp } from './mcpCommandPolicy';
+import { agentCommandDescription } from './agentCommandDescriptions';
 
 const log = logger.scope('ipc');
 
@@ -339,33 +340,12 @@ interface CommandDescriptor {
 }
 
 /**
- * Заголовки команд, которых нет в палитре: в package.json они не объявлены,
- * но агенту доступны и без описания выглядят набором идентификаторов.
- */
-const EXTRA_COMMAND_TITLES: Record<string, { title: string; category: string }> = {
-	'1c-platform-tools.env.status': {
-		title: 'Состояние окружения запуска: версия vanessa-runner, активный профиль, подключение к ИБ',
-		category: '1C: Окружение',
-	},
-	'1c-platform-tools.enterprise.run': {
-		title: 'Запустить внешнюю обработку или отчёт в Предприятии (параметры execute и command)',
-		category: '1C: Запуск',
-	},
-	'1c-platform-tools.vrunner.refreshVersion': {
-		title: 'Определить версию vanessa-runner заново',
-		category: '1C: Окружение',
-	},
-};
-
-/**
  * Собирает заголовки команд расширения из package.json.
  *
  * @returns Соответствие «идентификатор команды - заголовок и категория»
  */
 function readCommandTitles(): Map<string, { title?: string; category?: string }> {
-	const titles = new Map<string, { title?: string; category?: string }>(
-		Object.entries(EXTRA_COMMAND_TITLES)
-	);
+	const titles = new Map<string, { title?: string; category?: string }>();
 	const extension = vscode.extensions.getExtension('yellow-hammer.1c-platform-tools');
 	const contributed = extension?.packageJSON?.contributes?.commands;
 	if (!Array.isArray(contributed)) {
@@ -392,7 +372,9 @@ async function handleListCommands(request: IpcRequest): Promise<IpcResponse> {
 	const titles = readCommandTitles();
 	const descriptors: CommandDescriptor[] = commands.map((id) => ({
 		id,
-		...titles.get(id),
+		// Описание для агента важнее заголовка: заголовок рассчитан на палитру,
+		// где объект действия понятен из категории и места вызова
+		...(agentCommandDescription(id) ?? titles.get(id)),
 		supportsWait: commandSupportsWait(id),
 	}));
 
