@@ -514,12 +514,14 @@
       {
         "command": "1c-platform-tools.metadata.addMdObject",
         "title": "Добавить объект метаданных",
+        "shortTitle": "Добавить объект",
         "icon": "$(add)",
         "category": "1C: Метаданные"
       },
       {
         "command": "1c-platform-tools.metadata.initEmptyCf",
         "title": "Создать пустую конфигурацию",
+        "shortTitle": "Пустая конфигурация",
         "icon": "$(add)",
         "category": "1C: Метаданные"
       },
@@ -536,41 +538,49 @@
       {
         "command": "1c-platform-tools.metadata.openApplicationModule",
         "title": "Открыть модуль приложения",
+        "shortTitle": "Модуль приложения",
         "category": "1C: Метаданные"
       },
       {
         "command": "1c-platform-tools.metadata.openSessionModule",
         "title": "Открыть модуль сеанса",
+        "shortTitle": "Модуль сеанса",
         "category": "1C: Метаданные"
       },
       {
         "command": "1c-platform-tools.metadata.openObjectModule",
         "title": "Открыть модуль объекта",
+        "shortTitle": "Модуль объекта",
         "category": "1C: Метаданные"
       },
       {
         "command": "1c-platform-tools.metadata.openManagerModule",
         "title": "Открыть модуль менеджера",
+        "shortTitle": "Модуль менеджера",
         "category": "1C: Метаданные"
       },
       {
         "command": "1c-platform-tools.metadata.openRecordSetModule",
         "title": "Открыть модуль набора записей",
+        "shortTitle": "Модуль набора записей",
         "category": "1C: Метаданные"
       },
       {
         "command": "1c-platform-tools.metadata.openValueManagerModule",
         "title": "Открыть модуль менеджера значения",
+        "shortTitle": "Модуль менеджера значения",
         "category": "1C: Метаданные"
       },
       {
         "command": "1c-platform-tools.metadata.openModule",
         "title": "Открыть модуль",
+        "shortTitle": "Модуль",
         "category": "1C: Метаданные"
       },
       {
         "command": "1c-platform-tools.metadata.openFormModule",
         "title": "Открыть модуль формы",
+        "shortTitle": "Модуль формы",
         "category": "1C: Метаданные"
       },
       {
@@ -640,6 +650,7 @@
       {
         "command": "1c-platform-tools.metadata.clearSubsystemFilter",
         "title": "Сбросить фильтр подсистемы",
+        "shortTitle": "Сбросить фильтр",
         "icon": "$(clear-all)",
         "category": "1C: Метаданные"
       },
@@ -661,33 +672,39 @@
       {
         "command": "1c-platform-tools.components.update",
         "title": "Обновить внешние компоненты",
+        "shortTitle": "Обновить компоненты",
         "category": "1C: Внешние компоненты"
       },
       {
         "command": "1c-platform-tools.debug.showVariableInWindow",
         "title": "Показать значение в окне",
+        "shortTitle": "Показать в окне",
         "category": "1C: Отладка"
       },
       {
         "command": "1c-platform-tools.debug.measure.start",
         "title": "Начать замер производительности",
+        "shortTitle": "Начать замер",
         "icon": "$(dashboard)",
         "category": "1C: Отладка"
       },
       {
         "command": "1c-platform-tools.debug.measure.stop",
         "title": "Закончить замер производительности",
+        "shortTitle": "Закончить замер",
         "icon": "$(stop-circle)",
         "category": "1C: Отладка"
       },
       {
         "command": "1c-platform-tools.debug.measure.showResults",
         "title": "Показать результаты замера производительности",
+        "shortTitle": "Результаты замера",
         "category": "1C: Отладка"
       },
       {
         "command": "1c-platform-tools.debug.measure.clear",
         "title": "Очистить результаты замера производительности",
+        "shortTitle": "Очистить замер",
         "category": "1C: Отладка"
       },
       {
@@ -699,6 +716,7 @@
       {
         "command": "1c-platform-tools.metadata.er.openForObject",
         "title": "ER: диаграмма по объекту",
+        "shortTitle": "ER-диаграмма объекта",
         "category": "1C: Метаданные"
       },
       {
@@ -710,6 +728,7 @@
       {
         "command": "debug.debugTargets.connect",
         "title": "Подключиться к цели отладки",
+        "shortTitle": "Подключиться",
         "category": "1C: Отладка"
       },
       {
@@ -859,12 +878,14 @@
       {
         "command": "1c-platform-tools.tools.configureGroupVisibility",
         "title": "Настроить видимость групп",
+        "shortTitle": "Видимость групп",
         "icon": "$(eye)",
         "category": "1C: Дерево"
       },
       {
         "command": "1c-platform-tools.tools.configureGroupVisibilityActive",
         "title": "Настроить видимость групп",
+        "shortTitle": "Видимость групп",
         "icon": "$(eye-closed)",
         "category": "1C: Дерево"
       },
@@ -1466,6 +1487,7 @@
       {
         "command": "1c-platform-tools.projects.listOpen",
         "title": "Открыть список проектов 1С",
+        "shortTitle": "Список проектов",
         "category": "1C: Проекты",
         "icon": "$(search)"
       },
@@ -1519,6 +1541,7 @@
       {
         "command": "1c-platform-tools.projects.addToWorkspace",
         "title": "Добавить в рабочую область",
+        "shortTitle": "В рабочую область",
         "category": "1C: Проекты"
       },
       {
@@ -1534,6 +1557,7 @@
       {
         "command": "1c-platform-tools.projects.revealInFileManager",
         "title": "Показать в файловом менеджере",
+        "shortTitle": "В файловом менеджере",
         "category": "1C: Проекты"
       },
       {
@@ -1929,6 +1953,38 @@
         },
         {
           "command": "1c-platform-tools.projects._viewAsTags",
+          "when": "false"
+        },
+        {
+          "command": "1c-platform-tools.build.configuration",
+          "when": "false"
+        },
+        {
+          "command": "1c-platform-tools.build.extensions",
+          "when": "false"
+        },
+        {
+          "command": "1c-platform-tools.build.externalProcessor",
+          "when": "false"
+        },
+        {
+          "command": "1c-platform-tools.build.externalReport",
+          "when": "false"
+        },
+        {
+          "command": "1c-platform-tools.decompile.configuration",
+          "when": "false"
+        },
+        {
+          "command": "1c-platform-tools.decompile.extension",
+          "when": "false"
+        },
+        {
+          "command": "1c-platform-tools.decompile.externalProcessor",
+          "when": "false"
+        },
+        {
+          "command": "1c-platform-tools.decompile.externalReport",
           "when": "false"
         }
       ],
