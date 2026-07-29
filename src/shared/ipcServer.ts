@@ -194,6 +194,7 @@ async function handleExecuteCommandSync(
 			sha: flags.sha,
 			extensions: flags.extensions,
 			frameworks: flags.frameworks,
+			profile: flags.profile,
 			execute: flags.execute,
 			command: flags.command,
 		};

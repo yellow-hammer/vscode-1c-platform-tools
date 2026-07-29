@@ -22,23 +22,29 @@ description: Инструменты MCP для команд 1C: Platform Tools (
 
 **Не поддерживают wait: true** (нужен UI): `run_*`, `metadata_*`, `projects_*`, `support_*`, `dependencies_*` (кроме чистого vrunner), loadFromDt, loadIncFromSrc, objlist, allure, clearCache.
 
+### Состояние окружения: env_status
+
+Read-only инструмент `env_status` возвращает JSON: активный профиль, файл настроек и признак его существования, схему (v2/v3), версию vanessa-runner, временные параметры (пароль замаскирован) и итоговую строку подключения. Вызывай его перед операциями, когда важно, в каком окружении они выполнятся.
+
+Явно переданные `settingsFile`/`ibConnection` имеют приоритет над временными параметрами профиля; применение или отбрасывание временных параметров отражается строками `[контекст] ...` в stdout результата.
+
 ### Прочие общие параметры MCP
 
 - `settingsFile` — файл настроек vanessa-runner относительно `projectPath`; перекрывает активный профиль для конкретного вызова (например, `tools/vrunner.init.json` для init-сценариев).
 - `ibConnection` — явная строка подключения к ИБ, перекрывает значение файла настроек.
 - `pathsOverride` — переопределение каталогов `src/cf`, `src/cfe`, `src/epf`, `src/erf`, `build/out`.
 
-### Операции с дополнительными аргументами — через Execute Command
+### Дополнительные параметры операций
 
-Схема MCP этих аргументов не содержит; передавай их первым аргументом команды расширения (Execute Command / runCommands):
+Все параметры есть в схеме MCP-инструментов; те же значения можно передать объектом первым аргументом команды расширения (Execute Command), если MCP недоступен:
 
-- инкрементальная загрузка: `1c-platform-tools.configuration.loadIncrementFromSrc` с `{ "sha": "<SHA>", "wait": true }`;
-- явный список расширений: команды `1c-platform-tools.extensions.*` с `{ "extensions": ["Имя1"] }`;
-- настройка тестов: `1c-platform-tools.testing.configure` с `{ "frameworks": ["vanessa"], "wait": true }`;
-- запуск EPF в Предприятии: `1c-platform-tools.enterprise.run` с `{ "execute": "путь.epf", "command": "строка /C", "wait": true }`;
-- переключение профиля: `1c-platform-tools.env.selectProfile` со строкой (id профиля).
+- `sha` — инкрементальная загрузка `configuration_loadIncFromSrc` (пустая строка — полная загрузка);
+- `extensions` — явный список расширений для `extensions_*`;
+- `profile` — переключение профиля: `env_selectProfile { profile: "test" }`;
+- `frameworks` — настройка тестов: `testing_configure { frameworks: ["vanessa"], wait: true }`;
+- `execute`, `command` — запуск EPF в Предприятии: `enterprise_run { execute: "путь.epf", command: "строка /C", wait: true }`.
 
-Команды расширения не открывают окон при вызове с объектом аргументов: если данных не хватает, вернётся структурированная ошибка с подсказкой.
+Команды не открывают окон при агентном вызове: если данных не хватает, вернётся структурированная ошибка с подсказкой.
 
 ## Как формируются имена инструментов
 

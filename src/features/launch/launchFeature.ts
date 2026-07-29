@@ -297,10 +297,20 @@ async function clearOverrides(vrunner: VRunnerManager, refresh: () => void): Pro
 	vscode.window.showInformationMessage('Временные параметры запуска сброшены.');
 }
 
-/** Результат неинтерактивного переключения профиля (возвращается агенту). */
+/**
+ * Результат неинтерактивного переключения профиля: совместим со
+ * StructuredCommandResult (success/exitCode/stdout/stderr), чтобы MCP-сервер
+ * показал агенту текст, а не дефолтное «Выполнено.».
+ */
 interface SelectProfileResult {
 	/** Профиль найден и активирован. */
 	success: boolean;
+	/** 0 при успехе, 1 при отказе. */
+	exitCode: number;
+	/** Текст результата для агента. */
+	stdout: string;
+	/** Текст ошибки (профиль не найден). */
+	stderr: string;
 	/** id активированного профиля. */
 	profileId?: string;
 	/** Причина отказа (профиль не найден). */
@@ -333,12 +343,18 @@ async function selectProfileById(
 	if (!profile) {
 		const available = profiles.map((candidate) => candidate.id);
 		const error = `Профиль запуска «${requested}» не найден. Доступные профили: ${available.join(', ') || 'нет ни одного'}.`;
-		vscode.window.showErrorMessage(error);
-		return { success: false, error, available };
+		// без тостов: результат уходит агенту в структурированном ответе
+		return { success: false, exitCode: 1, stdout: '', stderr: error, error, available };
 	}
 	await vrunner.setActiveEnvProfileId(profile.id);
 	refresh();
-	return { success: true, profileId: profile.id };
+	return {
+		success: true,
+		exitCode: 0,
+		stdout: `Активирован профиль «${profile.id}» (файл ${profile.fileName}).`,
+		stderr: '',
+		profileId: profile.id,
+	};
 }
 
 /**
@@ -453,11 +469,19 @@ export function registerLaunchFeature(
 			if (typeof profileId === 'string' && profileId.trim() !== '') {
 				return selectProfileById(vrunner, refresh, profileId);
 			}
-			// объект опций (MCP/IPC) — агент без имени профиля: меню не открываем
+			// объект опций (MCP/IPC): имя профиля в поле profile; без него меню не открываем
 			if (isAgentOptions(profileId)) {
+				const requested = (profileId as { profile?: unknown }).profile;
+				if (typeof requested === 'string' && requested.trim() !== '') {
+					return selectProfileById(vrunner, refresh, requested);
+				}
+				const hint = 'Передайте имя профиля: параметр profile (MCP) или строка-аргумент (id, имя файла или подпись).';
 				return {
 					success: false,
-					error: 'Передайте имя профиля строкой (id, имя файла или подпись).',
+					exitCode: 1,
+					stdout: '',
+					stderr: hint,
+					error: hint,
 					available: vrunner.discoverEnvProfiles().map((profile) => profile.id),
 				};
 			}
@@ -478,6 +502,42 @@ export function registerLaunchFeature(
 				return;
 			}
 			await vscode.commands.executeCommand('vscode.openWith', vscode.Uri.file(fullPath), '1c-platform-tools.profileEditor');
+		}),
+		vscode.commands.registerCommand('1c-platform-tools.env.status', async () => {
+			// read-only состояние окружения запуска: без окон, доступно агенту
+			await vrunner.getVRunnerVersion();
+			const workspaceRoot = vrunner.getWorkspaceRoot();
+			const settingsFile = vrunner.getActiveEnvFile();
+			const settingsFileExists = workspaceRoot
+				? fsSync.existsSync(path.isAbsolute(settingsFile) ? settingsFile : path.join(workspaceRoot, settingsFile))
+				: false;
+			const overrides = vrunner.getActiveEnvOverrides();
+			const ibConnectionParam = await vrunner.getIbConnectionParam();
+			const status = {
+				vrunnerVersion: vrunner.getCachedVRunnerVersionLabel() ?? null,
+				settingsSchema: vrunner.getActiveSettingsSchema(),
+				activeProfileId: vrunner.getActiveEnvProfileId(),
+				settingsFile,
+				settingsFileExists,
+				profiles: vrunner.discoverEnvProfiles().map((profile) => ({
+					id: profile.id,
+					fileName: profile.fileName,
+					label: profile.label,
+				})),
+				overrides: overrides
+					? { ...overrides, dbPwd: overrides.dbPwd ? '••••' : undefined }
+					: null,
+				effectiveIbConnection: ibConnectionParam.length > 1
+					? ibConnectionParam[1]
+					: vrunner.readActiveProfileSettingSync('ibconnection') ?? null,
+			};
+			return {
+				success: true,
+				exitCode: 0,
+				stdout: JSON.stringify(status, null, 2),
+				stderr: '',
+				status,
+			};
 		}),
 		vscode.commands.registerCommand('1c-platform-tools.env.createProfile', uiOnlyHandler(
 			'Имя профиля запрашивается в окне VS Code; профиль создаётся пользователем или файлом env.<id>.json.',
