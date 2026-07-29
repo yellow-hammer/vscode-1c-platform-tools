@@ -21,6 +21,7 @@ import {
 	refreshEnvProfileStatusBar,
 	disposeEnvProfileStatusBar,
 } from './envProfileStatusBar';
+import type { StructuredCommandResult } from '../../shared/commandExecutionTypes';
 
 const log = logger.scope('launch');
 
@@ -288,13 +289,22 @@ async function editOverrides(
 /**
  * Сбрасывает временные параметры.
  *
+ * Результат возвращается в формате StructuredCommandResult: агенту нужен
+ * исход операции, а не дефолтное «Выполнено.».
+ *
  * @param vrunner - Менеджер vrunner
  * @param refresh - Колбэк обновления статус-бара
+ * @returns Результат операции для синхронного вызова
  */
-async function clearOverrides(vrunner: VRunnerManager, refresh: () => void): Promise<void> {
+async function clearOverrides(
+	vrunner: VRunnerManager,
+	refresh: () => void
+): Promise<StructuredCommandResult> {
 	await vrunner.setActiveEnvOverrides(undefined);
 	refresh();
-	vscode.window.showInformationMessage('Временные параметры запуска сброшены.');
+	const message = 'Временные параметры запуска сброшены.';
+	vscode.window.showInformationMessage(message);
+	return { success: true, exitCode: 0, stdout: message, stderr: '' };
 }
 
 /**
@@ -549,14 +559,19 @@ export function registerLaunchFeature(
 		)),
 		vscode.commands.registerCommand('1c-platform-tools.env.clearOverrides', () => clearOverrides(vrunner, refresh)),
 		vscode.commands.registerCommand('1c-platform-tools.env.statusBarRefresh', () => refresh()),
-		vscode.commands.registerCommand('1c-platform-tools.vrunner.refreshVersion', async () => {
+		vscode.commands.registerCommand('1c-platform-tools.vrunner.refreshVersion', async (): Promise<StructuredCommandResult> => {
 			const version = await vrunner.getVRunnerVersion(true);
 			refresh();
-			vscode.window.showInformationMessage(
-				version
-					? `vanessa-runner: ${version.raw}`
-					: 'Версия не определена. Проверьте установку vanessa-runner.'
-			);
+			const message = version
+				? `vanessa-runner: ${version.raw}`
+				: 'Версия не определена. Проверьте установку vanessa-runner.';
+			vscode.window.showInformationMessage(message);
+			return {
+				success: version !== undefined,
+				exitCode: version !== undefined ? 0 : 1,
+				stdout: version ? message : '',
+				stderr: version ? '' : message,
+			};
 		}),
 		vrunner.onDidChangeVRunnerVersion(() => refresh()),
 		vrunner.watchVRunnerInstallation(),

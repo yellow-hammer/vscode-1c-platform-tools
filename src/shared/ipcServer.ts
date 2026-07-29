@@ -6,6 +6,7 @@ import * as vscode from 'vscode';
 import { logger } from './logger';
 import type { VRunnerExecutionResult } from './vrunnerManager';
 import type { CommandExecutionOptions, StructuredCommandResult } from './commandExecutionTypes';
+import { commandSupportsWait, isCommandExposedToMcp } from './mcpCommandPolicy';
 
 const log = logger.scope('ipc');
 
@@ -119,39 +120,6 @@ function extractCommandFlags(args: unknown[]): CommandExecutionOptions {
 		return first as CommandExecutionOptions;
 	}
 	return {};
-}
-
-/**
- * Определяет, поддерживает ли команда синхронный режим выполнения.
- * UI-команды (открытие окон, навигация, просмотр) не поддерживают wait.
- *
- * @param commandId — идентификатор команды расширения
- * @returns true, если команда может выполняться синхронно
- */
-function commandSupportsWait(commandId: string): boolean {
-	const uiOnlyPrefixes = [
-		'1c-platform-tools.run.',
-		'1c-platform-tools.file.',
-		'1c-platform-tools.metadata.',
-		'1c-platform-tools.projects.',
-		'1c-platform-tools.todo.',
-		'1c-platform-tools.settings.',
-		'1c-platform-tools.focus',
-		'1c-platform-tools.artifacts.open',
-		'1c-platform-tools.artifacts.delete',
-		// Команды ниже выполняются, но исход операции не возвращают: обещать
-		// агенту синхронный результат нельзя, иначе он ждёт данных, которых нет
-		'1c-platform-tools.server.',
-		'1c-platform-tools.debug.',
-		'1c-platform-tools.syntaxCheck.',
-		'1c-platform-tools.dependencies.',
-		'1c-platform-tools.components.update',
-		'1c-platform-tools.oscript.run',
-		'1c-platform-tools.launch.view',
-		'1c-platform-tools.launch.run',
-		'1c-platform-tools.launch.edit',
-	];
-	return !uiOnlyPrefixes.some((prefix) => commandId.startsWith(prefix));
 }
 
 async function handlePing(
@@ -357,43 +325,6 @@ async function handleExecuteCommand(
 }
 
 /**
- * Префиксы команд, которые не публикуются как инструменты MCP: чисто
- * интерактивные (мастера, меню, деревья, навигация). Сокращение списка
- * инструментов важно и само по себе: при переполнении пикера агентские
- * клиенты сами урезают выборку и могут выкинуть полезные инструменты.
- */
-const MCP_HIDDEN_PREFIXES = [
-	'1c-platform-tools.file.',
-	'1c-platform-tools.metadata.',
-	'1c-platform-tools.projects.',
-	'1c-platform-tools.todo.',
-	'1c-platform-tools.settings.',
-	'1c-platform-tools.focus',
-	'1c-platform-tools.artifacts.',
-	'1c-platform-tools.tools.',
-	'1c-platform-tools.favorites.',
-	'1c-platform-tools.support.',
-	'1c-platform-tools.setVersion.',
-	'1c-platform-tools.skills.',
-	'1c-platform-tools.profile.',
-	'1c-platform-tools.env.createProfile',
-	'1c-platform-tools.env.setOverrides',
-	'1c-platform-tools.env.statusBarRefresh',
-	'1c-platform-tools.serviceFiles.create',
-	'1c-platform-tools.dependencies.setupGit',
-	'1c-platform-tools.oscript.addTask',
-	'1c-platform-tools.server.menu',
-	'1c-platform-tools.launch.editConfigurations',
-	'1c-platform-tools.config.env.edit',
-	'1c-platform-tools.help.',
-	'1c-platform-tools.getStarted.',
-	'1c-platform-tools.refresh',
-	'1c-platform-tools.mcp.',
-	'1c-platform-tools.project.createFromWelcome',
-	'1c-platform-tools.settings',
-];
-
-/**
  * Описание команды для MCP: по нему агент выбирает инструмент.
  */
 interface CommandDescriptor {
@@ -414,6 +345,14 @@ interface CommandDescriptor {
 const EXTRA_COMMAND_TITLES: Record<string, { title: string; category: string }> = {
 	'1c-platform-tools.env.status': {
 		title: 'Состояние окружения запуска: версия vanessa-runner, активный профиль, подключение к ИБ',
+		category: '1C: Окружение',
+	},
+	'1c-platform-tools.enterprise.run': {
+		title: 'Запустить внешнюю обработку или отчёт в Предприятии (параметры execute и command)',
+		category: '1C: Запуск',
+	},
+	'1c-platform-tools.vrunner.refreshVersion': {
+		title: 'Определить версию vanessa-runner заново',
 		category: '1C: Окружение',
 	},
 };
@@ -448,10 +387,7 @@ function readCommandTitles(): Map<string, { title?: string; category?: string }>
 async function handleListCommands(request: IpcRequest): Promise<IpcResponse> {
 	const base = buildResponseBase(request.id);
 	const all = await vscode.commands.getCommands();
-	const commands = all.filter((id) =>
-		id.startsWith('1c-platform-tools.') &&
-		!MCP_HIDDEN_PREFIXES.some((prefix) => id.startsWith(prefix))
-	);
+	const commands = all.filter(isCommandExposedToMcp);
 
 	const titles = readCommandTitles();
 	const descriptors: CommandDescriptor[] = commands.map((id) => ({

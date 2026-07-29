@@ -1,0 +1,120 @@
+/**
+ * Политика публикации команд расширения как инструментов MCP.
+ *
+ * Здесь два решения, которые агент видит напрямую: какие команды вообще
+ * попадают в список инструментов и какие из них возвращают исход операции.
+ * Списки живут рядом, чтобы не расходились: команда, обещающая синхронный
+ * результат без его реализации, для агента хуже отсутствующей.
+ */
+
+/** Префикс идентификаторов команд расширения. */
+export const COMMAND_PREFIX = '1c-platform-tools.';
+
+/**
+ * Команды, которые не публикуются как инструменты MCP: интерактивные мастера,
+ * меню, деревья, навигация и справка. Короткий список инструментов важен и сам
+ * по себе: при переполнении агентские клиенты урезают выборку и могут выкинуть
+ * полезное.
+ */
+const HIDDEN_PREFIXES = [
+	`${COMMAND_PREFIX}file.`,
+	`${COMMAND_PREFIX}metadata.`,
+	`${COMMAND_PREFIX}projects.`,
+	`${COMMAND_PREFIX}todo.`,
+	`${COMMAND_PREFIX}settings`,
+	`${COMMAND_PREFIX}focus`,
+	`${COMMAND_PREFIX}artifacts.`,
+	`${COMMAND_PREFIX}tools.`,
+	`${COMMAND_PREFIX}favorites.`,
+	`${COMMAND_PREFIX}support.`,
+	`${COMMAND_PREFIX}setVersion.`,
+	`${COMMAND_PREFIX}skills.`,
+	`${COMMAND_PREFIX}profile.`,
+	`${COMMAND_PREFIX}help.`,
+	`${COMMAND_PREFIX}getStarted.`,
+	`${COMMAND_PREFIX}mcp.`,
+	`${COMMAND_PREFIX}refresh`,
+	`${COMMAND_PREFIX}env.createProfile`,
+	`${COMMAND_PREFIX}env.setOverrides`,
+	`${COMMAND_PREFIX}env.statusBarRefresh`,
+	`${COMMAND_PREFIX}dependencies.setupGit`,
+	`${COMMAND_PREFIX}oscript.addTask`,
+	`${COMMAND_PREFIX}server.menu`,
+	`${COMMAND_PREFIX}launch.editConfigurations`,
+	`${COMMAND_PREFIX}config.env.edit`,
+	`${COMMAND_PREFIX}project.createFromWelcome`,
+	// Синонимы доменных команд: build.configuration и configuration.build
+	// вызывают один обработчик. В интерфейсе они нужны разным разделам дерева,
+	// а агенту два имени одного действия только мешают выбирать
+	`${COMMAND_PREFIX}build.`,
+	`${COMMAND_PREFIX}decompile.`,
+	// Служебные: вызываются самим расширением, отдельного смысла для агента нет
+	`${COMMAND_PREFIX}serviceFiles.ensure`,
+	`${COMMAND_PREFIX}server.statusBarRefresh`,
+];
+
+/**
+ * Команды, которые исход операции не возвращают: открывают окна VS Code либо
+ * выполняются без структурированного результата. Агенту об этом сообщается в
+ * описании инструмента, иначе он ждёт данных, которых не будет.
+ */
+const WITHOUT_SYNC_RESULT_PREFIXES = [
+	`${COMMAND_PREFIX}run.`,
+	`${COMMAND_PREFIX}file.`,
+	`${COMMAND_PREFIX}metadata.`,
+	`${COMMAND_PREFIX}projects.`,
+	`${COMMAND_PREFIX}todo.`,
+	`${COMMAND_PREFIX}settings`,
+	`${COMMAND_PREFIX}focus`,
+	`${COMMAND_PREFIX}artifacts.open`,
+	`${COMMAND_PREFIX}artifacts.delete`,
+	`${COMMAND_PREFIX}server.`,
+	`${COMMAND_PREFIX}debug.`,
+	`${COMMAND_PREFIX}syntaxCheck.`,
+	`${COMMAND_PREFIX}dependencies.`,
+	`${COMMAND_PREFIX}components.update`,
+	`${COMMAND_PREFIX}oscript.run`,
+	`${COMMAND_PREFIX}launch.view`,
+	`${COMMAND_PREFIX}launch.run`,
+	`${COMMAND_PREFIX}launch.edit`,
+];
+
+/**
+ * Команды, которые VS Code заводит сам для представлений и их контейнера:
+ * к работе с 1С отношения не имеют, а в списке инструментов выглядят как
+ * «open», «removeView» или «toggleVisibility».
+ */
+const HIDDEN_EXACT = [
+	`${COMMAND_PREFIX}open`,
+	`${COMMAND_PREFIX}removeView`,
+	`${COMMAND_PREFIX}toggleVisibility`,
+	`${COMMAND_PREFIX}resetViewLocation`,
+	`${COMMAND_PREFIX}resetViewContainerLocation`,
+	// Мастер выбора служебного файла: спрашивает, что создать. Команды на
+	// конкретный файл (createEnvJson и другие) агенту доступны
+	`${COMMAND_PREFIX}serviceFiles.create`,
+];
+
+/**
+ * Определяет, публикуется ли команда как инструмент MCP.
+ *
+ * @param commandId - Идентификатор команды расширения
+ * @returns true, если команда доступна агенту
+ */
+export function isCommandExposedToMcp(commandId: string): boolean {
+	return (
+		commandId.startsWith(COMMAND_PREFIX) &&
+		!HIDDEN_EXACT.includes(commandId) &&
+		!HIDDEN_PREFIXES.some((prefix) => commandId.startsWith(prefix))
+	);
+}
+
+/**
+ * Определяет, возвращает ли команда исход операции при wait: true.
+ *
+ * @param commandId - Идентификатор команды расширения
+ * @returns true, если команда выполняется синхронно и возвращает результат
+ */
+export function commandSupportsWait(commandId: string): boolean {
+	return !WITHOUT_SYNC_RESULT_PREFIXES.some((prefix) => commandId.startsWith(prefix));
+}
