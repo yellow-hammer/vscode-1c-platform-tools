@@ -27,6 +27,7 @@ const DEPENDENCIES = '1C: Зависимости';
 const LAUNCH = '1C: Запуск';
 const ENVIRONMENT = '1C: Окружение';
 const TASKS = '1C: Задачи';
+const SESSIONS = '1C: Сеансы';
 
 /** Описания команд, чей заголовок вне интерфейса непонятен. */
 export const AGENT_COMMAND_DESCRIPTIONS: Record<string, AgentCommandDescription> = {
@@ -102,6 +103,33 @@ export const AGENT_COMMAND_DESCRIPTIONS: Record<string, AgentCommandDescription>
 	'1c-platform-tools.infobase.blockExternalResources': {
 		title: 'Запретить информационной базе работу с внешними ресурсами',
 		category: INFOBASE,
+	},
+
+	// Сеансы: подключение к кластеру берётся из профиля запуска, поэтому в
+	// описании только параметры разового вызова
+	'1c-platform-tools.session.lock': {
+		title: 'Запретить начало сеансов серверной информационной базы; подключение к кластеру берётся из профиля запуска, в вызове можно задать lockMessage (сообщение пользователю), accessCode (код допуска), lockStart и lockEnd (время блокировки, только vanessa-runner 2.x)',
+		category: SESSIONS,
+	},
+	'1c-platform-tools.session.unlock': {
+		title: 'Разрешить начало сеансов серверной информационной базы; параметр accessCode - код допуска',
+		category: SESSIONS,
+	},
+	'1c-platform-tools.session.kill': {
+		title: 'Завершить сеансы серверной информационной базы; параметры sessionFilter (например appid=Designer|name=Администратор), sessionFilterMode (только 2.x) и keepSessionsUnlocked (не запрещать начало новых сеансов)',
+		category: SESSIONS,
+	},
+	'1c-platform-tools.session.lockJobs': {
+		title: 'Запретить выполнение регламентных заданий в серверной информационной базе: запрет входа сам по себе задания не останавливает',
+		category: SESSIONS,
+	},
+	'1c-platform-tools.session.unlockJobs': {
+		title: 'Разрешить выполнение регламентных заданий в серверной информационной базе',
+		category: SESSIONS,
+	},
+	'1c-platform-tools.session.checkClosed': {
+		title: 'Проверить, что сеансов нет: при найденных сеансах команда завершается ошибкой. Доступно только в vanessa-runner 2.x',
+		category: SESSIONS,
 	},
 
 	// Конфигурация и расширения: каталоги настраиваются, поэтому в описании

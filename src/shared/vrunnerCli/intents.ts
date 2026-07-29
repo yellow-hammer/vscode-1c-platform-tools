@@ -19,6 +19,7 @@
  * (в 3.x — строго перед позиционными аргументами).
  */
 
+
 /** Сквозные опции команды (аргументы, валидные в обоих CLI). */
 export type CommonArgs = readonly string[];
 
@@ -106,7 +107,54 @@ export type VRunnerIntent =
 	 */
 	| { kind: 'test.vanessa'; featurePath?: string; vanessaSettings?: string; common?: CommonArgs }
 	/** Синтаксический контроль конфигурации. */
-	| { kind: 'validate.syntaxCheck'; common?: CommonArgs };
+	| { kind: 'validate.syntaxCheck'; common?: CommonArgs }
+
+	// ---- Сеансы информационной базы (через rac и ras) ----
+	/**
+	 * Запретить начало сеансов.
+	 *
+	 * Подключение к кластеру (адрес RAS, база, администратор, пароль) задаётся
+	 * в файле настроек проекта: vanessa-runner читает его сам, а аргументы
+	 * командной строки перекрыли бы профиль. Здесь только параметры разового
+	 * вызова: `deniedMessage` виден пользователю при попытке войти,
+	 * `accessCode` пускает в заблокированную базу, время начала и окончания
+	 * блокировки поддерживает только 2.x.
+	 */
+	| {
+		kind: 'session.lock';
+		deniedMessage?: string;
+		accessCode?: string;
+		lockStart?: string;
+		lockEnd?: string;
+		common?: CommonArgs;
+	}
+	/** Снять запрет начала сеансов. */
+	| { kind: 'session.unlock'; accessCode?: string; common?: CommonArgs }
+	/**
+	 * Завершить сеансы.
+	 *
+	 * По умолчанию vanessa-runner заодно запрещает начало новых сеансов;
+	 * `withoutLock` отключает это. `filter` отбирает сеансы по приложению и
+	 * пользователю, `filterMode` задаёт режим отбора (только 2.x).
+	 */
+	| {
+		kind: 'session.kill';
+		filter?: string;
+		filterMode?: string;
+		withoutLock?: boolean;
+		common?: CommonArgs;
+	}
+	/**
+	 * Проверить, что сеансов нет: при найденных сеансах vanessa-runner
+	 * завершается с ошибкой. Действие есть только в 2.x.
+	 */
+	| { kind: 'session.closed'; filter?: string; filterMode?: string; common?: CommonArgs }
+
+	// ---- Регламентные задания (через rac и ras) ----
+	/** Запретить выполнение регламентных заданий. */
+	| { kind: 'jobs.lock'; common?: CommonArgs }
+	/** Разрешить выполнение регламентных заданий. */
+	| { kind: 'jobs.unlock'; common?: CommonArgs };
 
 /** Вид интента. */
 export type VRunnerIntentKind = VRunnerIntent['kind'];

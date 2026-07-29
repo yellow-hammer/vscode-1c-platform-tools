@@ -171,6 +171,51 @@ export class V3CliAdapter implements VRunnerCliAdapter {
 			case 'validate.syntaxCheck':
 				return [cmd(['validate', 'syntax-check'], common(intent), [])];
 
+			// ---- Сеансы информационной базы ----
+			// В 3.0 команда вошла в группу cluster; время начала и окончания
+			// блокировки не поддерживается: блокировка применяется сразу
+			case 'session.lock': {
+				const options: string[] = [];
+				if (intent.accessCode) {
+					options.push('--uccode', intent.accessCode);
+				}
+				if (intent.deniedMessage) {
+					options.push('--denied-message', intent.deniedMessage);
+				}
+				return [cmd(['cluster', 'session', 'lock'], [...options, ...common(intent)], [])];
+			}
+			case 'session.unlock': {
+				const options: string[] = [];
+				if (intent.accessCode) {
+					options.push('--uccode', intent.accessCode);
+				}
+				return [cmd(['cluster', 'session', 'unlock'], [...options, ...common(intent)], [])];
+			}
+			case 'session.kill': {
+				const options: string[] = [];
+				if (intent.filter) {
+					options.push('--filter', intent.filter);
+				}
+				if (intent.withoutLock) {
+					options.push('--no-lock');
+				}
+				return [cmd(['cluster', 'session', 'kill'], [...options, ...common(intent)], [])];
+			}
+			case 'session.closed':
+				// Проверки отсутствия сеансов в 3.x нет: команда сеансов знает об
+				// этом и до планирования объясняет, что действие недоступно
+				throw new Error(
+					'vanessa-runner 3.x не умеет проверять отсутствие сеансов: ' +
+					'действие session closed есть только в 2.x.'
+				);
+
+			// ---- Регламентные задания ----
+			// В 3.0 команда 2.x scheduledjobs вошла в группу cluster
+			case 'jobs.lock':
+				return [cmd(['cluster', 'jobs', 'lock'], [...common(intent)], [])];
+			case 'jobs.unlock':
+				return [cmd(['cluster', 'jobs', 'unlock'], [...common(intent)], [])];
+
 			default:
 				return assertNever(intent);
 		}

@@ -8,6 +8,7 @@ import { SupportCommands } from '../commands/supportCommands';
 import { DependenciesCommands } from '../commands/dependenciesCommands';
 import { RunCommands } from '../commands/runCommands';
 import { TestCommands } from '../commands/testCommands';
+import { SessionCommands } from '../commands/sessionCommands';
 import { SetVersionCommands } from '../commands/setVersionCommands';
 import { WorkspaceTasksCommands } from '../commands/workspaceTasksCommands';
 import { ArtifactCommands } from '../commands/artifactCommands';
@@ -43,6 +44,7 @@ export function registerCoreCommands(
 		dependencies: new DependenciesCommands(context),
 		run: new RunCommands(),
 		test: new TestCommands(context),
+		session: new SessionCommands(),
 		setVersion: new SetVersionCommands(),
 		oscriptTasks: new OscriptTasksCommands(),
 		workspaceTasks: new WorkspaceTasksCommands(),

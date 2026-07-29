@@ -705,3 +705,73 @@ export function getCreateDistributionFilesCommandName(): CommandNameAndTitle {
 		title: 'Создать файлы поставки и обновления (cf/cfu)'
 	};
 }
+
+// ============================================================================
+// Команды сеансов информационной базы
+// ============================================================================
+
+/**
+ * Получить название и заголовок для команды запрета начала сеансов
+ */
+export function getLockSessionsCommandName(): CommandNameAndTitle {
+	return {
+		id: '1c-platform-tools.session.lock',
+		name: 'Запретить начало сеансов',
+		title: 'Запретить начало сеансов'
+	};
+}
+
+/**
+ * Получить название и заголовок для команды снятия запрета начала сеансов
+ */
+export function getUnlockSessionsCommandName(): CommandNameAndTitle {
+	return {
+		id: '1c-platform-tools.session.unlock',
+		name: 'Разрешить начало сеансов',
+		title: 'Разрешить начало сеансов'
+	};
+}
+
+/**
+ * Получить название и заголовок для команды завершения сеансов
+ */
+export function getKillSessionsCommandName(): CommandNameAndTitle {
+	return {
+		id: '1c-platform-tools.session.kill',
+		name: 'Завершить сеансы',
+		title: 'Завершить сеансы'
+	};
+}
+
+/**
+ * Получить название и заголовок для команды проверки отсутствия сеансов
+ */
+export function getCheckSessionsClosedCommandName(): CommandNameAndTitle {
+	return {
+		id: '1c-platform-tools.session.checkClosed',
+		name: 'Проверить отсутствие сеансов',
+		title: 'Проверить отсутствие сеансов'
+	};
+}
+
+/**
+ * Получить название и заголовок для команды запрета регламентных заданий
+ */
+export function getLockScheduledJobsCommandName(): CommandNameAndTitle {
+	return {
+		id: '1c-platform-tools.session.lockJobs',
+		name: 'Запретить регламентные задания',
+		title: 'Запретить регламентные задания'
+	};
+}
+
+/**
+ * Получить название и заголовок для команды разрешения регламентных заданий
+ */
+export function getUnlockScheduledJobsCommandName(): CommandNameAndTitle {
+	return {
+		id: '1c-platform-tools.session.unlockJobs',
+		name: 'Разрешить регламентные задания',
+		title: 'Разрешить регламентные задания'
+	};
+}

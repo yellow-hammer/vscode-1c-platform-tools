@@ -296,3 +296,116 @@ suite('vrunnerCli: адаптеры v2/v3', () => {
 		assert.ok(selectCliAdapter(undefined) instanceof V2CliAdapter);
 	});
 });
+
+suite('vrunnerCli: сеансы информационной базы', () => {
+	// Подключение к кластеру (адрес RAS, база, администратор, пароль) живёт в
+	// файле настроек проекта: аргумент командной строки перекрыл бы профиль
+
+	test('session.lock: в 3.x команда в группе cluster, сообщение названо иначе', () => {
+		check(
+			{
+				kind: 'session.lock',
+				deniedMessage: 'База закрыта на обслуживание',
+				accessCode: 'code',
+				common: [...conn],
+			},
+			[[
+				'session', 'lock',
+				'--uccode', 'code',
+				'--lockmessage', 'База закрыта на обслуживание',
+				...conn,
+			]],
+			[[
+				'cluster', 'session', 'lock',
+				'--uccode', 'code',
+				'--denied-message', 'База закрыта на обслуживание',
+				...conn,
+			]]
+		);
+	});
+
+	test('session.lock: время блокировки уходит только в 2.x', () => {
+		const intent: VRunnerIntent = {
+			kind: 'session.lock',
+			lockStart: '2040-12-31T23:59:59',
+			lockEnd: '2041-01-01T06:00:00',
+		};
+		assert.deepStrictEqual(v2.plan(intent), [[
+			'session', 'lock',
+			'--lockstart', '2040-12-31T23:59:59',
+			'--lockend', '2041-01-01T06:00:00',
+		]]);
+		// в 3.x таких опций нет: блокировка применяется сразу
+		assert.deepStrictEqual(v3.plan(intent), [['cluster', 'session', 'lock']]);
+	});
+
+	test('session.unlock: код допуска передаётся обеим версиям', () => {
+		check(
+			{ kind: 'session.unlock', accessCode: 'code' },
+			[['session', 'unlock', '--uccode', 'code']],
+			[['cluster', 'session', 'unlock', '--uccode', 'code']]
+		);
+	});
+
+	test('session.kill: фильтр общий, отказ от блокировки назван по-разному', () => {
+		check(
+			{ kind: 'session.kill', filter: 'appid=Designer', withoutLock: true },
+			[['session', 'kill', '--filter', 'appid=Designer', '--with-nolock']],
+			[['cluster', 'session', 'kill', '--filter', 'appid=Designer', '--no-lock']]
+		);
+	});
+
+	test('session.kill: режим фильтра поддерживает только 2.x', () => {
+		const intent: VRunnerIntent = {
+			kind: 'session.kill',
+			filter: 'appid=Designer',
+			filterMode: 'EXCEPT',
+		};
+		assert.deepStrictEqual(v2.plan(intent), [[
+			'session', 'kill', '--filter', 'appid=Designer', '--mode', 'EXCEPT',
+		]]);
+		assert.deepStrictEqual(v3.plan(intent), [[
+			'cluster', 'session', 'kill', '--filter', 'appid=Designer',
+		]]);
+	});
+
+	test('session.closed: в 3.x действия нет и это видно сразу', () => {
+		const intent: VRunnerIntent = { kind: 'session.closed' };
+		assert.deepStrictEqual(v2.plan(intent), [['session', 'closed']]);
+		assert.throws(() => v3.plan(intent), /3\.x/);
+	});
+
+	test('без параметров вызова команда состоит из одного действия', () => {
+		check(
+			{ kind: 'session.unlock' },
+			[['session', 'unlock']],
+			[['cluster', 'session', 'unlock']]
+		);
+	});
+});
+
+suite('vrunnerCli: регламентные задания', () => {
+	test('в 2.x это отдельная команда, в 3.x подкоманда группы cluster', () => {
+		check(
+			{ kind: 'jobs.lock' },
+			[['scheduledjobs', 'lock']],
+			[['cluster', 'jobs', 'lock']]
+		);
+	});
+
+	test('снятие запрета зеркально запрету', () => {
+		check(
+			{ kind: 'jobs.unlock' },
+			[['scheduledjobs', 'unlock']],
+			[['cluster', 'jobs', 'unlock']]
+		);
+	});
+
+	test('сквозные опции доходят до команды', () => {
+		check(
+			{ kind: 'jobs.lock', common: [...conn] },
+			[['scheduledjobs', 'lock', ...conn]],
+			[['cluster', 'jobs', 'lock', ...conn]]
+		);
+	});
+});
