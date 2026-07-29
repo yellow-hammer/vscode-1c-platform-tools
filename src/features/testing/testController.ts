@@ -137,6 +137,13 @@ export class TestingController implements vscode.Disposable {
 	 * сопоставлении с отчётом (по вложенному testsuite) и показывается подписью в дереве.
 	 */
 	private readonly caseGroupNames = new Map<string, string>();
+	/**
+	 * fileItemId → заголовок файла из его содержимого (имя Функционала, имя модуля).
+	 *
+	 * Vanessa Automation пишет в отчёт имя функционала, а не имя файла, — по нему
+	 * кейсы общего отчёта раскладываются обратно по узлам-файлам.
+	 */
+	private readonly fileLabels = new Map<string, string>();
 	private runCounter = 0;
 	/** Таймер дебаунса пересборки */
 	private rebuildTimer: ReturnType<typeof setTimeout> | undefined;
@@ -460,6 +467,11 @@ export class TestingController implements vscode.Disposable {
 			if (discovered?.labelLine !== undefined) {
 				entry.item.range = new vscode.Range(discovered.labelLine, 0, discovered.labelLine, 0);
 			}
+			if (discovered?.label) {
+				this.fileLabels.set(entry.item.id, discovered.label);
+			} else {
+				this.fileLabels.delete(entry.item.id);
+			}
 
 			const fileKey = entry.item.sortText ?? '';
 			const descriptors = buildCaseDescriptors(entry.adapter.id, uri.toString(), discovered?.cases ?? []);
@@ -673,7 +685,8 @@ export class TestingController implements vscode.Disposable {
 		for (const unit of units) {
 			const uri = unit.entry.item.uri;
 			if (!unit.caseNames && unit.entry.adapter.buildBatchRunPlan && uri) {
-				const key = `${unit.entry.adapter.id} ${path.dirname(uri.fsPath)}`;
+				const groupKey = unit.entry.adapter.batchGroupKey?.(uri) ?? path.dirname(uri.fsPath);
+				const key = `${unit.entry.adapter.id} ${groupKey}`;
 				const group = batches.get(key);
 				if (group) {
 					group.push(unit);
@@ -809,45 +822,26 @@ export class TestingController implements vscode.Disposable {
 
 		if (junitCases === undefined || junitCases.length === 0) {
 			const tail = (result.stdout + '\n' + result.stderr).slice(-ERROR_OUTPUT_TAIL_LENGTH);
-			const runnerHint = missingRunnerHint(result);
-			const depHint = missingDependencyHint(result);
-
-			// Раннер не найден или не установлены зависимости — это общая проблема всех
-			// файлов, поштучный прогон её не вылечит. Помечаем ошибкой с подсказкой,
-			// не плодя бесполезные повторные запуски.
-			if (runnerHint || depHint) {
-				const planHint = plan.noReportHint ? `\n${plan.noReportHint}` : '';
-				this.markAll(
-					run,
-					allLeaves,
-					'errored',
-					`Батч-прогон завершился без jUnit-отчёта (код возврата ${result.exitCode}).` +
-						`${planHint}${runnerHint}${depHint}\n${tail}`,
-					allSuites
-				);
-				await this.cleanupReportDir(reportDir);
-				return true;
-			}
-
-			// Иначе вероятен сбой одного файла или конфликт (двойная регистрация набора):
-			// откатываемся на поштучный прогон — он изолирует сбойный файл, остальные
-			// дадут результат (поведение прежней версии). Узлы остаются enqueued/started —
-			// runUnit проставит им финальный статус.
-			log.warn(
-				`Батч-прогон ${adapter.label} без jUnit-отчёта (код ${result.exitCode}) — откат на поштучный прогон`
-			);
-			run.appendOutput(
-				`\r\n[батч] прогон одним процессом не дал отчёта (код ${result.exitCode}) — повторяю по файлам\r\n` +
-					`${tail.replaceAll(/(?<!\r)\n/g, '\r\n')}\r\n`
+			const planHint = plan.noReportHint ? `\n${plan.noReportHint}` : '';
+			// Батч применяется только там, где раннер выполняет набор целиком, —
+			// поштучный прогон упёрся бы в ту же причину
+			this.markAll(
+				run,
+				allLeaves,
+				'errored',
+				`Прогон завершился без отчёта (код возврата ${result.exitCode}).` +
+					`${planHint}${missingRunnerHint(result)}${missingDependencyHint(result)}\n${tail}`,
+				allSuites
 			);
 			await this.cleanupReportDir(reportDir);
-			return false;
+			return true;
 		}
 
 		// Раскладываем общий отчёт по файлам (по атрибуту file/classname кейса)
 		const routable: RoutableFile[] = entries.map((entry) => ({
 			id: entry.item.id,
-			fsPath: entry.item.uri!.fsPath
+			fsPath: entry.item.uri!.fsPath,
+			label: this.fileLabels.get(entry.item.id)
 		}));
 		const { byFile, unrouted } = routeReportCases(junitCases, routable);
 
@@ -856,7 +850,7 @@ export class TestingController implements vscode.Disposable {
 			// Раскладка не дала кейсов файлу (нестандартный формат отчёта) — запасной путь:
 			// применяем весь отчёт по совпадению имён, чтобы не пометить пройденный файл
 			// ошибкой; в обычном случае сюда приходят только свои кейсы файла
-			this.applyResults(run, entry, cases && cases.length > 0 ? cases : junitCases);
+			this.applyResults(run, entry, cases && cases.length > 0 ? cases : junitCases, true);
 		}
 
 		// unrouted логируем только если он не «съест» весь отчёт запасным путём выше
@@ -1125,7 +1119,12 @@ export class TestingController implements vscode.Disposable {
 	/**
 	 * Применяет результаты jUnit-отчёта к элементам файла
 	 */
-	private applyResults(run: vscode.TestRun, entry: FileEntry, junitCases: JUnitCase[]): void {
+	private applyResults(
+		run: vscode.TestRun,
+		entry: FileEntry,
+		junitCases: JUnitCase[],
+		quietUnmatched = false
+	): void {
 		const leaves = this.leafItems(entry.item);
 		const known: KnownCase[] = leaves.map((item) => ({
 			id: item.id,
@@ -1174,6 +1173,15 @@ export class TestingController implements vscode.Disposable {
 		}
 
 		this.markSuiteAggregate(run, entry.item, results);
+
+		// В батч-прогоне отчёт общий на набор: кейсы соседних файлов к этому узлу
+		// не относятся и в консоль результатов не выводятся
+		if (quietUnmatched) {
+			for (const orphan of unmatched) {
+				log.debug(`батч: testcase «${orphan.name}» (${orphan.status}) не сопоставлен с ${entry.item.id}`);
+			}
+			return;
+		}
 
 		for (const orphan of unmatched) {
 			run.appendOutput(

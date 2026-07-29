@@ -47,11 +47,10 @@ export class TestCommands extends BaseCommand {
 		opts?: CommandExecutionOptions
 	): Promise<{ settings: Record<string, unknown>; schema: 'v2' | 'v3' }> {
 		if (opts?.settingsFile) {
-			await this.vrunner.getVRunnerVersion();
-			return {
-				settings: (await this.vrunner.readEnvJson(opts.settingsFile)) as Record<string, unknown>,
-				schema: this.vrunner.getActiveSettingsSchema(),
-			};
+			const settings = (await this.vrunner.readEnvJson(opts.settingsFile)) as Record<string, unknown>;
+			// Схема определяется по самому файлу: он может быть другого формата,
+			// чем активный профиль (корневой ключ vrunner — формат 3.x)
+			return { settings, schema: 'vrunner' in settings ? 'v3' : 'v2' };
 		}
 		return this.vrunner.readActiveSettings();
 	}

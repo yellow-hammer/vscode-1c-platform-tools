@@ -91,4 +91,32 @@ suite('batchRouter', () => {
 		assert.deepStrictEqual(byFile.get('e')?.map((c) => c.name), ['Т']);
 		assert.strictEqual(byFile.has('u'), false);
 	});
+
+	test('Vanessa: раскладка по имени функционала из classname и suiteName', () => {
+		const vaFiles = [
+			{ id: 'f1', fsPath: 'C:\proj\features\Смоук\ЗапускПриложения.feature', label: 'Запуск приложения' },
+			{ id: 'f2', fsPath: 'C:\proj\features\Справочники\Валюты.feature', label: 'Справочник Валюты' },
+			{ id: 'f3', fsPath: 'C:\proj\features\Справочники\ПримерыПадений.feature', label: 'Примеры падающих сценариев' }
+		];
+		const cases = [
+			makeCase({ name: 'Подключение тестового клиента', suiteName: 'Запуск приложения', className: 'Смоук.Запуск приложения' }),
+			makeCase({ name: 'Открытие списка валют', suiteName: 'Справочник Валюты', className: 'Справочники.Справочник Валюты' }),
+			makeCase({ name: 'Падение - окно не открылось', status: 'error', suiteName: 'Примеры падающих сценариев', className: 'Справочники.Примеры падающих сценариев' })
+		];
+
+		const { byFile, unrouted } = routeReportCases(cases, vaFiles);
+		assert.strictEqual(unrouted.length, 0);
+		assert.deepStrictEqual(byFile.get('f1')?.map((c) => c.name), ['Подключение тестового клиента']);
+		assert.deepStrictEqual(byFile.get('f2')?.map((c) => c.name), ['Открытие списка валют']);
+		assert.deepStrictEqual(byFile.get('f3')?.map((c) => c.name), ['Падение - окно не открылось']);
+	});
+
+	test('без заголовка файла кейсы Vanessa остаются непривязанными', () => {
+		const vaFiles = [{ id: 'f1', fsPath: 'C:\proj\features\Валюты.feature' }];
+		const cases = [makeCase({ name: 'Открытие списка валют', suiteName: 'Справочник Валюты', className: 'Справочники.Справочник Валюты' })];
+
+		const { byFile, unrouted } = routeReportCases(cases, vaFiles);
+		assert.strictEqual(byFile.size, 0);
+		assert.strictEqual(unrouted.length, 1);
+	});
 });

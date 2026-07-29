@@ -164,4 +164,17 @@ export interface TestFrameworkAdapter {
 	 * @returns План батч-прогона либо undefined
 	 */
 	buildBatchRunPlan?(units: RunUnit[], reportDir: string): Promise<AdapterRunPlan | undefined>;
+
+	/**
+	 * Ключ группировки файлов в один батч-прогон.
+	 *
+	 * По умолчанию контроллер группирует файлы по каталогу: у OneScript наборы
+	 * из разных каталогов регистрируются раздельно. Фреймворки, которые в любом
+	 * случае выполняют весь набор одним сеансом (Vanessa Automation, xUnit),
+	 * возвращают общий ключ и прогоняются одним процессом целиком.
+	 *
+	 * @param fileUri - Файл теста
+	 * @returns Ключ группы
+	 */
+	batchGroupKey?(fileUri: vscode.Uri): string;
 }
