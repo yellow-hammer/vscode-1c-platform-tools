@@ -30,7 +30,7 @@ description: Тестирование 1С. Используй, когда пол
 | Запустить EPF в Предприятии   | `1c-platform-tools.enterprise.run`    |
 | Настроить тестовые фреймворки | `1c-platform-tools.testing.configure` |
 
-Сборка/разборка unit тестов (тестовых обработок 1С): исходники в `src/tests` (настройка `paths.testsSrc`), собранные `.epf` — в `build/out/tests` (артефакт, в git не попадает). В `tests` — скриптовые `.os`-тесты OneScript; дымовые наборы Vanessa-ADD поставляются в пакете add (oscript_modules). Обе команды поддерживают `wait: true`.
+Сборка/разборка unit тестов (тестовых обработок 1С): исходники в `src/tests` (настройка `paths.testsSrc`), собранные `.epf` — в `build/out/tests` (артефакт, в git не попадает). В `tests` — скриптовые `.os`-тесты OneScript; дымовые наборы Vanessa-ADD поставляются в пакете add (oscript_modules). Обе команды возвращают структурированный результат.
 
 ## Панель тестирования VS Code
 
@@ -38,25 +38,24 @@ description: Тестирование 1С. Используй, когда пол
 
 ## Запуск обработок в Предприятии (enterprise.run)
 
-Служебные шаги (загрузка фикстур, инициализация ИБ внешней обработкой) — Execute Command `1c-platform-tools.enterprise.run` с аргументом (в схеме MCP параметров `execute`/`command` нет):
+Служебные шаги (загрузка фикстур, инициализация ИБ внешней обработкой) — MCP `enterprise_run` или Execute Command `1c-platform-tools.enterprise.run`:
 
 ```
-{ "execute": "./build/out/epf/ЗагрузкаФикстур.epf",
-  "command": "Путь=./fixtures/Константы.xml;ЗавершитьРаботуСистемы",
-  "wait": true }
+{ "projectPath": "...", "execute": "./build/out/epf/ЗагрузкаФикстур.epf",
+  "command": "Путь=./fixtures/Константы.xml;ЗавершитьРаботуСистемы" }
 ```
 
 `execute` — путь к EPF/ERF, `command` — строка параметров `/C`; нужен хотя бы один из них.
 
 ## Настройка фреймворков (testing.configure)
 
-Неинтерактивно — Execute Command `1c-platform-tools.testing.configure` с аргументом `{ "frameworks": [...], "wait": true }` (ключи: `vanessa`, `xunit`, `yaxunit`, `onescript`, `onebdd`; перечисленные включаются, остальные выключаются, недостающие каталоги создаются).
+Неинтерактивно — MCP `testing_configure` или Execute Command `1c-platform-tools.testing.configure` с параметром `frameworks` (ключи: `vanessa`, `xunit`, `yaxunit`, `onescript`, `onebdd`; перечисленные включаются, остальные выключаются, недостающие каталоги создаются).
 
 Агентный вызов без `frameworks` вернёт ошибку с подсказкой, окно не откроется. Интерактивный визард доступен только пользователю из палитры.
 
 ## MCP (mcp-1c-platform-tools)
 
-Если доступны инструменты MCP, используй их: `test_xunit`, `test_syntaxCheck`, `test_vanessa`, `test_allure`.
+Если доступны инструменты MCP, используй их: `test_xunit`, `test_syntaxCheck`, `test_vanessa`, `test_yaxunit`, `test_allure`, `enterprise_run`, `testing_configure`.
 
 ### Параметр projectPath
 
@@ -72,16 +71,20 @@ description: Тестирование 1С. Используй, когда пол
 
 ```
 {
-  success: boolean,   // true = exitCode 0
+  success: boolean,   // прогон тестов: true только если тесты прошли
   exitCode: number,
-  stdout: string,     // вывод vrunner (прогресс, найденные ошибки)
-  stderr: string
+  stdout: string,     // вывод vrunner и сводка прогона
+  stderr: string,
+  tests?: {           // прогоны тестов: сводка по отчёту
+    total, passed, failed, errors, skipped,
+    reportPath, failedTests
+  }
 }
 ```
 
-**Когда использовать `wait: false` (по умолчанию):** запуск из UI — пользователь видит ход выполнения в терминале. Используй для интерактивного запуска без ожидания.
+**`wait: true` — по умолчанию:** агент читает `success`, `exitCode`, счётчики тестов и решает, что делать дальше.
 
-**Когда использовать `wait: true`:** автономный агентный цикл — агент читает `success`, `exitCode`, `stdout`/`stderr` и решает, что делать дальше.
+**`wait: false`:** команда уходит в терминал, результат прогона неизвестен — только когда пользователь смотрит выполнение сам.
 
 ## Поддержка wait: true (тесты)
 
@@ -90,21 +93,24 @@ description: Тестирование 1С. Используй, когда пол
 | `test_syntaxCheck`| ✅          |
 | `test_xunit`      | ✅          |
 | `test_vanessa`    | ✅          |
+| `test_yaxunit`    | ✅          |
+| `enterprise_run`  | ✅          |
+| `testing_configure`| ✅ (с параметром `frameworks`) |
 | `test_allure`     | ❌ (открывает браузер) |
 
 ## Примеры
 
-- Синхронная проверка синтаксиса (агентный цикл):
-  ```
-  test_syntaxCheck { projectPath: "C:/projects/MyProject", wait: true }
-  ```
-  → вернёт `{ success: false, exitCode: 1, stdout: "ОШИБКА - ...", stderr: "" }`
-
-- Запуск синтакс-проверки из UI (пользователь видит терминал):
+- Проверка синтаксиса (агентный цикл):
   ```
   test_syntaxCheck { projectPath: "C:/projects/MyProject" }
   ```
-  → вернёт подсказку использовать wait: true для получения результата
+  → вернёт `{ success: false, exitCode: 1, stdout: "ОШИБКА - ...", stderr: "" }`
+
+- Прогон тестов под другим файлом настроек, без переключения профиля:
+  ```
+  test_vanessa { projectPath: "C:/projects/MyProject", settingsFile: "tools/vrunner.init.json" }
+  ```
+  → в ответе счётчики прогона и список упавших тестов
 
 - Выполни команду `1c-platform-tools.test.xunit` для запуска XUnit-тестов текущего проекта.
 - Вызови MCP `test_vanessa` с `projectPath` = корень проекта 1С.
