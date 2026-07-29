@@ -27,6 +27,20 @@ export interface CommandExecutionOptions {
 	execute?: string;
 	/** Строка параметров запуска /C (vrunner run --command). */
 	command?: string;
+	/** Сообщение при попытке начать сеанс в заблокированной базе. */
+	lockMessage?: string;
+	/** Код допуска в заблокированную базу. */
+	accessCode?: string;
+	/** Время начала блокировки сеансов, например 2040-12-31T23:59:59 (только 2.x). */
+	lockStart?: string;
+	/** Время окончания блокировки сеансов (только 2.x). */
+	lockEnd?: string;
+	/** Отбор сеансов: appid=Designer|name=Администратор. */
+	sessionFilter?: string;
+	/** Режим отбора сеансов: ONLY, OFF, EXCEPT, DEFAULT, ALL (только 2.x). */
+	sessionFilterMode?: string;
+	/** Не запрещать начало сеансов при их завершении. */
+	keepSessionsUnlocked?: boolean;
 	/** Переопределения стандартных путей. */
 	pathsOverride?: {
 		cf?: string;

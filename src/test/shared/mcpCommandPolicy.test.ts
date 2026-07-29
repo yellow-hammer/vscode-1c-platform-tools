@@ -120,3 +120,26 @@ suite('mcpCommandPolicy: служебные команды представле�
 		assert.strictEqual(isCommandExposedToMcp('1c-platform-tools.serviceFiles.createEnvJson'), true);
 	});
 });
+
+suite('mcpCommandPolicy: сеансы информационной базы', () => {
+	test('команды сеансов доступны агенту и возвращают исход', () => {
+		for (const id of [
+			'1c-platform-tools.session.lock',
+			'1c-platform-tools.session.unlock',
+			'1c-platform-tools.session.kill',
+			'1c-platform-tools.session.checkClosed',
+		]) {
+			assert.strictEqual(isCommandExposedToMcp(id), true, id);
+			assert.strictEqual(commandSupportsWait(id), true, id);
+		}
+	});
+});
+
+suite('mcpCommandPolicy: регламентные задания', () => {
+	test('команды заданий доступны агенту и возвращают исход', () => {
+		for (const id of ['1c-platform-tools.session.lockJobs', '1c-platform-tools.session.unlockJobs']) {
+			assert.strictEqual(isCommandExposedToMcp(id), true, id);
+			assert.strictEqual(commandSupportsWait(id), true, id);
+		}
+	});
+});

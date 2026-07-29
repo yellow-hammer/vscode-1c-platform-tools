@@ -147,6 +147,61 @@ export class V2CliAdapter implements VRunnerCliAdapter {
 			case 'validate.syntaxCheck':
 				return [['syntax-check', ...common(intent)]];
 
+			// ---- Сеансы информационной базы ----
+			case 'session.lock': {
+				const args = ['session', 'lock'];
+				if (intent.accessCode) {
+					args.push('--uccode', intent.accessCode);
+				}
+				if (intent.deniedMessage) {
+					args.push('--lockmessage', intent.deniedMessage);
+				}
+				if (intent.lockStart) {
+					args.push('--lockstart', intent.lockStart);
+				}
+				if (intent.lockEnd) {
+					args.push('--lockend', intent.lockEnd);
+				}
+				return [[...args, ...common(intent)]];
+			}
+			case 'session.unlock': {
+				const args = ['session', 'unlock'];
+				if (intent.accessCode) {
+					args.push('--uccode', intent.accessCode);
+				}
+				return [[...args, ...common(intent)]];
+			}
+			case 'session.kill': {
+				const args = ['session', 'kill'];
+				if (intent.filter) {
+					args.push('--filter', intent.filter);
+				}
+				if (intent.filterMode) {
+					args.push('--mode', intent.filterMode);
+				}
+				if (intent.withoutLock) {
+					// по умолчанию kill заодно запрещает начало сеансов
+					args.push('--with-nolock');
+				}
+				return [[...args, ...common(intent)]];
+			}
+			case 'session.closed': {
+				const args = ['session', 'closed'];
+				if (intent.filter) {
+					args.push('--filter', intent.filter);
+				}
+				if (intent.filterMode) {
+					args.push('--mode', intent.filterMode);
+				}
+				return [[...args, ...common(intent)]];
+			}
+
+			// ---- Регламентные задания ----
+			case 'jobs.lock':
+				return [['scheduledjobs', 'lock', ...common(intent)]];
+			case 'jobs.unlock':
+				return [['scheduledjobs', 'unlock', ...common(intent)]];
+
 			default:
 				return assertNever(intent);
 		}
