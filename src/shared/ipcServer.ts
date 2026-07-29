@@ -139,6 +139,17 @@ function commandSupportsWait(commandId: string): boolean {
 		'1c-platform-tools.focus',
 		'1c-platform-tools.artifacts.open',
 		'1c-platform-tools.artifacts.delete',
+		// Команды ниже выполняются, но исход операции не возвращают: обещать
+		// агенту синхронный результат нельзя, иначе он ждёт данных, которых нет
+		'1c-platform-tools.server.',
+		'1c-platform-tools.debug.',
+		'1c-platform-tools.syntaxCheck.',
+		'1c-platform-tools.dependencies.',
+		'1c-platform-tools.components.update',
+		'1c-platform-tools.oscript.run',
+		'1c-platform-tools.launch.view',
+		'1c-platform-tools.launch.run',
+		'1c-platform-tools.launch.edit',
 	];
 	return !uiOnlyPrefixes.some((prefix) => commandId.startsWith(prefix));
 }
@@ -373,7 +384,65 @@ const MCP_HIDDEN_PREFIXES = [
 	'1c-platform-tools.server.menu',
 	'1c-platform-tools.launch.editConfigurations',
 	'1c-platform-tools.config.env.edit',
+	'1c-platform-tools.help.',
+	'1c-platform-tools.getStarted.',
+	'1c-platform-tools.refresh',
+	'1c-platform-tools.mcp.',
+	'1c-platform-tools.project.createFromWelcome',
+	'1c-platform-tools.settings',
 ];
+
+/**
+ * Описание команды для MCP: по нему агент выбирает инструмент.
+ */
+interface CommandDescriptor {
+	/** Идентификатор команды. */
+	id: string;
+	/** Заголовок команды из package.json. */
+	title?: string;
+	/** Категория команды из package.json. */
+	category?: string;
+	/** Команда выполняется синхронно и возвращает результат. */
+	supportsWait: boolean;
+}
+
+/**
+ * Заголовки команд, которых нет в палитре: в package.json они не объявлены,
+ * но агенту доступны и без описания выглядят набором идентификаторов.
+ */
+const EXTRA_COMMAND_TITLES: Record<string, { title: string; category: string }> = {
+	'1c-platform-tools.env.status': {
+		title: 'Состояние окружения запуска: версия vanessa-runner, активный профиль, подключение к ИБ',
+		category: '1C: Окружение',
+	},
+};
+
+/**
+ * Собирает заголовки команд расширения из package.json.
+ *
+ * @returns Соответствие «идентификатор команды - заголовок и категория»
+ */
+function readCommandTitles(): Map<string, { title?: string; category?: string }> {
+	const titles = new Map<string, { title?: string; category?: string }>(
+		Object.entries(EXTRA_COMMAND_TITLES)
+	);
+	const extension = vscode.extensions.getExtension('yellow-hammer.1c-platform-tools');
+	const contributed = extension?.packageJSON?.contributes?.commands;
+	if (!Array.isArray(contributed)) {
+		return titles;
+	}
+	for (const item of contributed as Array<Record<string, unknown>>) {
+		const id = typeof item.command === 'string' ? item.command : undefined;
+		if (!id) {
+			continue;
+		}
+		titles.set(id, {
+			title: typeof item.title === 'string' ? item.title : undefined,
+			category: typeof item.category === 'string' ? item.category : undefined,
+		});
+	}
+	return titles;
+}
 
 async function handleListCommands(request: IpcRequest): Promise<IpcResponse> {
 	const base = buildResponseBase(request.id);
@@ -382,9 +451,18 @@ async function handleListCommands(request: IpcRequest): Promise<IpcResponse> {
 		id.startsWith('1c-platform-tools.') &&
 		!MCP_HIDDEN_PREFIXES.some((prefix) => id.startsWith(prefix))
 	);
+
+	const titles = readCommandTitles();
+	const descriptors: CommandDescriptor[] = commands.map((id) => ({
+		id,
+		...titles.get(id),
+		supportsWait: commandSupportsWait(id),
+	}));
+
+	// commands оставлен для MCP-серверов прошлых версий: они читают только его
 	return {
 		...base,
-		result: { commands },
+		result: { commands, descriptors },
 	};
 }
 
