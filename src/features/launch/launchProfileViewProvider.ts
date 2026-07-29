@@ -95,7 +95,7 @@ export class LaunchProfileViewProvider implements vscode.TreeDataProvider<vscode
 				`vanessa-runner: ${versionLabel ?? 'не определён'}`,
 				versionLabel ? 'verified' : 'question',
 				`Синтаксис ${schema === 'v3' ? '3.x' : '2.x'}. Нажмите, чтобы определить заново.`,
-				{ command: '1c-platform-tools.vrunner.refreshVersion', title: 'Определить версию заново' }
+				{ command: '1c-platform-tools.env.refreshVersion', title: 'Определить версию заново' }
 			),
 			item(
 				`Файл настроек: ${settingsFile}`,
@@ -104,7 +104,7 @@ export class LaunchProfileViewProvider implements vscode.TreeDataProvider<vscode
 					? 'Открыть в редакторе профиля'
 					: 'Профиль запуска не создан, команды заблокированы. Нажмите, чтобы создать.',
 				settingsExists
-					? { command: '1c-platform-tools.profile.openEditor', title: 'Редактор профиля' }
+					? { command: '1c-platform-tools.env.openProfileEditor', title: 'Редактор профиля' }
 					: { command: '1c-platform-tools.serviceFiles.ensure', title: 'Файл настроек', arguments: ['launchProfile'] }
 			),
 			item(

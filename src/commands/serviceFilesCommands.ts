@@ -28,7 +28,7 @@ const log = logger.scope('serviceFiles');
  */
 export class ServiceFilesCommands extends BaseCommand {
 	private refreshTree(): void {
-		void vscode.commands.executeCommand('1c-platform-tools.refresh');
+		void vscode.commands.executeCommand('1c-platform-tools.tools.refresh');
 	}
 
 	private refreshProfileStatusBar(): void {

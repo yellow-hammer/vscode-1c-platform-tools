@@ -439,10 +439,10 @@ async function selectProfile(vrunner: VRunnerManager, refresh: () => void): Prom
 				refresh();
 				return;
 			case 'editor':
-				await vscode.commands.executeCommand('1c-platform-tools.profile.openEditor');
+				await vscode.commands.executeCommand('1c-platform-tools.env.openProfileEditor');
 				return;
 			case 'redetect':
-				await vscode.commands.executeCommand('1c-platform-tools.vrunner.refreshVersion');
+				await vscode.commands.executeCommand('1c-platform-tools.env.refreshVersion');
 				continue;
 			case 'params':
 				if (await editOverrides(vrunner, refresh, true)) {
@@ -497,7 +497,7 @@ export function registerLaunchFeature(
 			}
 			return selectProfile(vrunner, refresh);
 		}),
-		vscode.commands.registerCommand('1c-platform-tools.profile.openEditor', async () => {
+		vscode.commands.registerCommand('1c-platform-tools.env.openProfileEditor', async () => {
 			const workspaceRoot = vrunner.getWorkspaceRoot();
 			if (!workspaceRoot) {
 				vscode.window.showErrorMessage('Откройте рабочую область для работы с проектом');
@@ -559,7 +559,7 @@ export function registerLaunchFeature(
 		)),
 		vscode.commands.registerCommand('1c-platform-tools.env.clearOverrides', () => clearOverrides(vrunner, refresh)),
 		vscode.commands.registerCommand('1c-platform-tools.env.statusBarRefresh', () => refresh()),
-		vscode.commands.registerCommand('1c-platform-tools.vrunner.refreshVersion', async (): Promise<StructuredCommandResult> => {
+		vscode.commands.registerCommand('1c-platform-tools.env.refreshVersion', async (): Promise<StructuredCommandResult> => {
 			const version = await vrunner.getVRunnerVersion(true);
 			refresh();
 			const message = version
@@ -592,7 +592,7 @@ export function registerLaunchFeature(
 		);
 		const onFsChange = () => {
 			refresh();
-			void vscode.commands.executeCommand('1c-platform-tools.refresh').then(undefined, () => undefined);
+			void vscode.commands.executeCommand('1c-platform-tools.tools.refresh').then(undefined, () => undefined);
 		};
 		// Удалили файл активного именованного профиля — возвращаемся к базовому
 		const onFsDelete = async () => {

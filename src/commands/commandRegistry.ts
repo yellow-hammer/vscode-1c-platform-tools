@@ -291,7 +291,7 @@ export function registerCommands(
 		vscode.commands.registerCommand('1c-platform-tools.dependencies.initializePackagedef', () => {
 			commands.dependencies.initializePackagedef();
 		}),
-		vscode.commands.registerCommand('1c-platform-tools.project.createFromWelcome', () => {
+		vscode.commands.registerCommand('1c-platform-tools.projects.create', () => {
 			commands.dependencies.createProjectFromWelcome(context);
 		}),
 		vscode.commands.registerCommand('1c-platform-tools.dependencies.setupGit', uiOnlyHandler('Мастер настройки git выполняется пользователем; для агента настройте git командами git config.', () => {
@@ -342,7 +342,7 @@ export function registerCommands(
 		registerVRunnerCommand('1c-platform-tools.test.decompileEpf', (opts) =>
 			commands.test.decompileTestEpf(opts)
 		),
-		registerVRunnerCommand('1c-platform-tools.enterprise.run', (opts) =>
+		registerVRunnerCommand('1c-platform-tools.externalProcessors.run', (opts) =>
 			commands.test.runEnterpriseProcessor(opts)
 		),
 	];
@@ -365,33 +365,6 @@ export function registerCommands(
 		}))
 	];
 
-	// Команды сборки и разбора (алиасы)
-	const buildDecompileCommands = [
-		registerVRunnerCommand('1c-platform-tools.build.configuration', (opts) =>
-			commands.configuration.compile(opts)
-		),
-		registerVRunnerCommand('1c-platform-tools.build.extensions', (opts) =>
-			commands.extensions.compile(opts)
-		),
-		registerVRunnerCommand('1c-platform-tools.build.externalProcessor', (opts) =>
-			commands.externalFiles.compile('processor', opts)
-		),
-		registerVRunnerCommand('1c-platform-tools.build.externalReport', (opts) =>
-			commands.externalFiles.compile('report', opts)
-		),
-		registerVRunnerCommand('1c-platform-tools.decompile.configuration', (opts) =>
-			commands.configuration.decompile(opts)
-		),
-		registerVRunnerCommand('1c-platform-tools.decompile.externalProcessor', (opts) =>
-			commands.externalFiles.decompile('processor', opts)
-		),
-		registerVRunnerCommand('1c-platform-tools.decompile.externalReport', (opts) =>
-			commands.externalFiles.decompile('report', opts)
-		),
-		registerVRunnerCommand('1c-platform-tools.decompile.extension', (opts) =>
-			commands.extensions.decompile(opts)
-		),
-	];
 
 	const artifactCommands = [
 		vscode.commands.registerCommand('1c-platform-tools.artifacts.open', (element: vscode.TreeItem) => {
@@ -463,7 +436,7 @@ export function registerCommands(
 
 	// Команда редактирования env.json
 	const vrunnerManager = VRunnerManager.getInstance();
-	const envEditCommand = vscode.commands.registerCommand('1c-platform-tools.config.env.edit', async () => {
+	const envEditCommand = vscode.commands.registerCommand('1c-platform-tools.env.editSettingsFile', async () => {
 		const workspaceRoot = vrunnerManager.getWorkspaceRoot();
 		if (!workspaceRoot) {
 			log.warn('Команда env.edit вызвана без открытой рабочей области');
@@ -485,7 +458,6 @@ export function registerCommands(
 		...runCommands,
 		...testCommands,
 		...setVersionCommands,
-		...buildDecompileCommands,
 		...artifactCommands,
 		envEditCommand
 	);

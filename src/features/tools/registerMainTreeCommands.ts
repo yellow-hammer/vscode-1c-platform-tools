@@ -188,7 +188,7 @@ export function registerMainTreeCommands(
 		workspaceTasksCommands,
 	} = params;
 
-	const refreshCommand = vscode.commands.registerCommand('1c-platform-tools.refresh', () => {
+	const refreshCommand = vscode.commands.registerCommand('1c-platform-tools.tools.refresh', () => {
 		if (!isProjectRef.current) {
 			showNot1CProjectMessage();
 			return;

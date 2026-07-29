@@ -325,7 +325,7 @@ export class TestCommands extends BaseCommand {
 		const connectionArgs = await this.vrunner.getIbConnectionParam(opts?.ibConnection);
 		return this.runIntent(
 			{ kind: 'run.enterprise', execute, command: commandParam, common: connectionArgs },
-			opts, 'Запуск обработки в Предприятии', undefined, '1c-platform-tools.enterprise.run'
+			opts, 'Запуск обработки в Предприятии', undefined, '1c-platform-tools.externalProcessors.run'
 		);
 	}
 

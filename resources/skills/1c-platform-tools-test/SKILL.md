@@ -27,8 +27,8 @@ description: Тестирование 1С. Используй, когда пол
 | Allure отчёт                  | `1c-platform-tools.test.allure`       |
 | Собрать unit тесты            | `1c-platform-tools.test.buildEpf`     |
 | Разобрать unit тесты          | `1c-platform-tools.test.decompileEpf` |
-| Запустить EPF в Предприятии   | `1c-platform-tools.enterprise.run`    |
-| Настроить тестовые фреймворки | `1c-platform-tools.testing.configure` |
+| Запустить EPF в Предприятии   | `1c-platform-tools.externalProcessors.run`    |
+| Настроить тестовые фреймворки | `1c-platform-tools.test.configure` |
 
 Сборка/разборка unit тестов (тестовых обработок 1С): исходники в `src/tests` (настройка `paths.testsSrc`), собранные `.epf` — в `build/out/tests` (артефакт, в git не попадает). В `tests` — скриптовые `.os`-тесты OneScript; дымовые наборы Vanessa-ADD поставляются в пакете add (oscript_modules). Обе команды возвращают структурированный результат.
 
@@ -36,9 +36,9 @@ description: Тестирование 1С. Используй, когда пол
 
 Тесты также отображаются в нативной панели «Тестирование» (Test Explorer): Vanessa (.feature), xUnit (тестовые обработки в src/tests), YAxUnit, OneScript (.os в tests), 1bdd — с запуском отдельных тестов и статусами. Для интерактивной работы пользователя направляй туда; команды выше — для прогона «всего сразу» и агентных циклов.
 
-## Запуск обработок в Предприятии (enterprise.run)
+## Запуск обработок в Предприятии (externalProcessors.run)
 
-Служебные шаги (загрузка фикстур, инициализация ИБ внешней обработкой) — MCP `enterprise_run` или Execute Command `1c-platform-tools.enterprise.run`:
+Служебные шаги (загрузка фикстур, инициализация ИБ внешней обработкой) — MCP `externalProcs_run` или Execute Command `1c-platform-tools.externalProcessors.run`:
 
 ```
 { "projectPath": "...", "execute": "./build/out/epf/ЗагрузкаФикстур.epf",
@@ -47,15 +47,15 @@ description: Тестирование 1С. Используй, когда пол
 
 `execute` — путь к EPF/ERF, `command` — строка параметров `/C`; нужен хотя бы один из них.
 
-## Настройка фреймворков (testing.configure)
+## Настройка фреймворков (test.configure)
 
-Неинтерактивно — MCP `testing_configure` или Execute Command `1c-platform-tools.testing.configure` с параметром `frameworks` (ключи: `vanessa`, `xunit`, `yaxunit`, `onescript`, `onebdd`; перечисленные включаются, остальные выключаются, недостающие каталоги создаются).
+Неинтерактивно — MCP `test_configure` или Execute Command `1c-platform-tools.test.configure` с параметром `frameworks` (ключи: `vanessa`, `xunit`, `yaxunit`, `onescript`, `onebdd`; перечисленные включаются, остальные выключаются, недостающие каталоги создаются).
 
 Агентный вызов без `frameworks` вернёт ошибку с подсказкой, окно не откроется. Интерактивный визард доступен только пользователю из палитры.
 
 ## MCP (mcp-1c-platform-tools)
 
-Если доступны инструменты MCP, используй их: `test_xunit`, `test_syntaxCheck`, `test_vanessa`, `test_yaxunit`, `test_allure`, `enterprise_run`, `testing_configure`.
+Если доступны инструменты MCP, используй их: `test_xunit`, `test_syntaxCheck`, `test_vanessa`, `test_yaxunit`, `test_allure`, `externalProcs_run`, `test_configure`.
 
 ### Параметр projectPath
 
@@ -94,8 +94,8 @@ description: Тестирование 1С. Используй, когда пол
 | `test_xunit`      | ✅          |
 | `test_vanessa`    | ✅          |
 | `test_yaxunit`    | ✅          |
-| `enterprise_run`  | ✅          |
-| `testing_configure`| ✅ (с параметром `frameworks`) |
+| `externalProcs_run`  | ✅          |
+| `test_configure`| ✅ (с параметром `frameworks`) |
 | `test_allure`     | ❌ (открывает браузер) |
 
 ## Примеры

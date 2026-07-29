@@ -28,7 +28,7 @@ description: Конфигурации запуска и служебные фа�
 | Создать новый профиль (env.dev.json и т.п.) | `1c-platform-tools.env.createProfile` |
 | Задать временные параметры (ИБ/версия/пользователь) на лету | `1c-platform-tools.env.setOverrides` |
 | Сбросить временные параметры | `1c-platform-tools.env.clearOverrides` |
-| Открыть env.json | `1c-platform-tools.config.env.edit` |
+| Открыть env.json | `1c-platform-tools.env.editSettingsFile` |
 | Открыть launch.json | `1c-platform-tools.launch.editConfigurations` |
 
 ## Служебные файлы

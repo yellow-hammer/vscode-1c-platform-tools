@@ -12,7 +12,7 @@ suite('mcpCommandPolicy', () => {
 			'1c-platform-tools.configuration.loadFromSrc',
 			'1c-platform-tools.test.runXUnit',
 			'1c-platform-tools.env.status',
-			'1c-platform-tools.enterprise.run',
+			'1c-platform-tools.externalProcessors.run',
 		]) {
 			assert.strictEqual(isCommandExposedToMcp(id), true, id);
 		}
@@ -22,13 +22,13 @@ suite('mcpCommandPolicy', () => {
 		for (const id of [
 			'1c-platform-tools.help.openCreateIssue',
 			'1c-platform-tools.getStarted.open',
-			'1c-platform-tools.settings',
-			'1c-platform-tools.refresh',
+			'1c-platform-tools.settings.open',
+			'1c-platform-tools.tools.refresh',
 			'1c-platform-tools.mcp.configureCursor',
 			'1c-platform-tools.metadata.openViewer',
 			'1c-platform-tools.env.createProfile',
 			'1c-platform-tools.env.setOverrides',
-			'1c-platform-tools.project.createFromWelcome',
+			'1c-platform-tools.projects.create',
 		]) {
 			assert.strictEqual(isCommandExposedToMcp(id), false, id);
 		}
@@ -41,7 +41,7 @@ suite('mcpCommandPolicy', () => {
 			'1c-platform-tools.extensions.build',
 			'1c-platform-tools.env.selectProfile',
 			'1c-platform-tools.env.clearOverrides',
-			'1c-platform-tools.testing.configure',
+			'1c-platform-tools.test.configure',
 		]) {
 			assert.strictEqual(commandSupportsWait(id), true, id);
 		}
@@ -53,7 +53,7 @@ suite('mcpCommandPolicy', () => {
 			'1c-platform-tools.server.start',
 			'1c-platform-tools.debug.measure.start',
 			'1c-platform-tools.dependencies.install',
-			'1c-platform-tools.syntaxCheck.refreshDiagnostics',
+			'1c-platform-tools.syntaxCheck.refresh',
 			'1c-platform-tools.launch.run',
 			'1c-platform-tools.oscript.run',
 			'1c-platform-tools.components.update',
@@ -83,20 +83,20 @@ suite('mcpCommandPolicy: служебные команды VS Code', () => {
 	});
 });
 
-suite('mcpCommandPolicy: синонимы команд', () => {
-	test('из пары синонимов агенту доступно одно имя', () => {
-		// build.configuration и configuration.build вызывают один обработчик
-		assert.strictEqual(isCommandExposedToMcp('1c-platform-tools.configuration.build'), true);
-		assert.strictEqual(isCommandExposedToMcp('1c-platform-tools.build.configuration'), false);
-
-		assert.strictEqual(isCommandExposedToMcp('1c-platform-tools.extensions.decompile'), true);
-		assert.strictEqual(isCommandExposedToMcp('1c-platform-tools.decompile.extension'), false);
-
-		assert.strictEqual(isCommandExposedToMcp('1c-platform-tools.externalProcessors.build'), true);
-		assert.strictEqual(isCommandExposedToMcp('1c-platform-tools.build.externalProcessor'), false);
-
-		assert.strictEqual(isCommandExposedToMcp('1c-platform-tools.externalReports.decompile'), true);
-		assert.strictEqual(isCommandExposedToMcp('1c-platform-tools.decompile.externalReport'), false);
+suite('mcpCommandPolicy: сборка и разбор', () => {
+	test('доступна одна команда на действие, в домене объекта', () => {
+		for (const id of [
+			'1c-platform-tools.configuration.build',
+			'1c-platform-tools.configuration.decompile',
+			'1c-platform-tools.extensions.build',
+			'1c-platform-tools.extensions.decompile',
+			'1c-platform-tools.externalProcessors.build',
+			'1c-platform-tools.externalProcessors.decompile',
+			'1c-platform-tools.externalReports.build',
+			'1c-platform-tools.externalReports.decompile',
+		]) {
+			assert.strictEqual(isCommandExposedToMcp(id), true, id);
+		}
 	});
 });
 

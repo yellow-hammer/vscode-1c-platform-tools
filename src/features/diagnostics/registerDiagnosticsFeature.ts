@@ -14,10 +14,10 @@ export function registerDiagnosticsFeature(): vscode.Disposable[] {
 
 	return [
 		diagnostics,
-		vscode.commands.registerCommand('1c-platform-tools.syntaxCheck.refreshDiagnostics', () =>
+		vscode.commands.registerCommand('1c-platform-tools.syntaxCheck.refresh', () =>
 			diagnostics.refresh()
 		),
-		vscode.commands.registerCommand('1c-platform-tools.syntaxCheck.clearDiagnostics', () =>
+		vscode.commands.registerCommand('1c-platform-tools.syntaxCheck.clear', () =>
 			diagnostics.clear()
 		),
 	];

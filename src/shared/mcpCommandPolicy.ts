@@ -43,11 +43,6 @@ const HIDDEN_PREFIXES = [
 	`${COMMAND_PREFIX}launch.editConfigurations`,
 	`${COMMAND_PREFIX}config.env.edit`,
 	`${COMMAND_PREFIX}project.createFromWelcome`,
-	// Синонимы доменных команд: build.configuration и configuration.build
-	// вызывают один обработчик. В интерфейсе они нужны разным разделам дерева,
-	// а агенту два имени одного действия только мешают выбирать
-	`${COMMAND_PREFIX}build.`,
-	`${COMMAND_PREFIX}decompile.`,
 	// Служебные: вызываются самим расширением, отдельного смысла для агента нет
 	`${COMMAND_PREFIX}serviceFiles.ensure`,
 	`${COMMAND_PREFIX}server.statusBarRefresh`,

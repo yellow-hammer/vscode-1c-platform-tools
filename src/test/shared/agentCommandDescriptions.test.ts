@@ -16,8 +16,8 @@ function declaredCommands(): Set<string> {
 /** Команды, которых нет в палитре: регистрируются в коде фич. */
 const UNDECLARED = [
 	'1c-platform-tools.env.status',
-	'1c-platform-tools.enterprise.run',
-	'1c-platform-tools.vrunner.refreshVersion',
+	'1c-platform-tools.externalProcessors.run',
+	'1c-platform-tools.env.refreshVersion',
 ];
 
 suite('agentCommandDescriptions', () => {

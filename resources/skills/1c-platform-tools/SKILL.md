@@ -118,7 +118,7 @@ description: Операции с платформой 1С в этом проек
 
 | Задача              | Command ID                                    |
 |---------------------|-----------------------------------------------|
-| Открыть env.json    | `1c-platform-tools.config.env.edit`           |
+| Открыть env.json    | `1c-platform-tools.env.editSettingsFile`           |
 | Открыть launch.json | `1c-platform-tools.launch.editConfigurations` |
 
 ## Метаданные и ER-диаграмма

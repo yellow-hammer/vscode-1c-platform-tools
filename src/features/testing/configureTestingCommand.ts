@@ -44,7 +44,7 @@ function configureResult(success: boolean, message: string): StructuredCommandRe
 }
 
 /**
- * Регистрирует команду «Настроить тесты» (1c-platform-tools.testing.configure)
+ * Регистрирует команду «Настроить тесты» (1c-platform-tools.test.configure)
  *
  * Визард в духе «Configure Python Tests»: выбор фреймворков проекта
  * (мультивыбор с текущим состоянием), запись настроек workspace и создание
@@ -60,7 +60,7 @@ function configureResult(success: boolean, message: string): StructuredCommandRe
  * с `wait: true` возвращается StructuredCommandResult.
  */
 export function registerConfigureTestingCommand(vrunner: VRunnerManager): vscode.Disposable {
-	return vscode.commands.registerCommand('1c-platform-tools.testing.configure', async (arg?: unknown) => {
+	return vscode.commands.registerCommand('1c-platform-tools.test.configure', async (arg?: unknown) => {
 		const opts: ConfigureTestingOptions | undefined =
 			typeof arg === 'object' && arg !== null ? (arg as ConfigureTestingOptions) : undefined;
 		const wait = opts?.wait === true;

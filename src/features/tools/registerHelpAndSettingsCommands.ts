@@ -40,7 +40,7 @@ export function registerHelpAndSettingsCommands(): vscode.Disposable[] {
 	);
 
 	const settingsCommand = vscode.commands.registerCommand(
-		'1c-platform-tools.settings',
+		'1c-platform-tools.settings.open',
 		async () => {
 			const choice = await vscode.window.showQuickPick(
 				[

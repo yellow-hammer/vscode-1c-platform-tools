@@ -18,9 +18,9 @@ description: Инструменты MCP для команд 1C: Platform Tools (
 - **`wait: true`** (по умолчанию) — синхронное выполнение; в ответе `{ success, exitCode, stdout, stderr, tests?, artifact? }`. Прогоны тестов возвращают счётчики по отчёту.
 - **`wait: false`** — команда уходит в терминал VS Code, ответ без stdout/exitCode. Нужен, когда пользователь смотрит ход выполнения сам.
 
-Возвращают результат синхронно: конфигурация (loadIncFromSrc — с параметром `sha`; кроме loadFromFiles), расширения (кроме loadFromFiles), ИБ (кроме loadFromDt), внешние EPF/ERF, тесты (кроме allure), `enterprise_run`, `testing_configure` (с параметром `frameworks`), сборка и разбор.
+Возвращают результат синхронно: конфигурация (loadIncFromSrc — с параметром `sha`; кроме loadFromFiles), расширения (кроме loadFromFiles), ИБ (кроме loadFromDt), внешние EPF/ERF, тесты (кроме allure), `externalProcs_run`, `test_configure` (с параметром `frameworks`), сборка и разбор.
 
-**Исход не возвращают** (ответ подтверждает только запуск): `run_*`, `server_*`, `debug_*`, `launch_*`, `deps_*`, `syntaxCheck_refreshDiagnostics`, `syntaxCheck_clearDiagnostics`, `oscript_run`, `components_update`, loadFromDt, objlist, allure, clearCache. У таких инструментов это написано в описании.
+**Исход не возвращают** (ответ подтверждает только запуск): `run_*`, `server_*`, `debug_*`, `launch_*`, `deps_*`, `syntaxCheck_refresh`, `syntaxCheck_clear`, `oscript_run`, `components_update`, loadFromDt, objlist, allure, clearCache. У таких инструментов это написано в описании.
 
 ### Состояние окружения: env_status
 
@@ -43,8 +43,8 @@ Read-only инструмент `env_status` возвращает JSON: акти�
 - `sha` — инкрементальная загрузка `configuration_loadIncFromSrc` (пустая строка — полная загрузка);
 - `extensions` — явный список расширений для `extensions_*`;
 - `profile` — переключение профиля: `env_selectProfile { profile: "test" }`;
-- `frameworks` — настройка тестов: `testing_configure { frameworks: ["vanessa"] }`;
-- `execute`, `command` — запуск EPF в Предприятии: `enterprise_run { execute: "путь.epf", command: "строка /C" }`.
+- `frameworks` — настройка тестов: `test_configure { frameworks: ["vanessa"] }`;
+- `execute`, `command` — запуск EPF в Предприятии: `externalProcs_run { execute: "путь.epf", command: "строка /C" }`.
 
 Команды не открывают окон при агентном вызове: если данных не хватает, вернётся структурированная ошибка с подсказкой.
 

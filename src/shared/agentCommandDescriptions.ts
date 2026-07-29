@@ -35,11 +35,11 @@ export const AGENT_COMMAND_DESCRIPTIONS: Record<string, AgentCommandDescription>
 		title: 'Показать состояние окружения запуска: версия vanessa-runner, активный профиль, файл настроек, строка подключения к ИБ',
 		category: ENVIRONMENT,
 	},
-	'1c-platform-tools.enterprise.run': {
+	'1c-platform-tools.externalProcessors.run': {
 		title: 'Запустить внешнюю обработку или отчёт в Предприятии: путь в параметре execute, строка запуска в параметре command',
 		category: LAUNCH,
 	},
-	'1c-platform-tools.vrunner.refreshVersion': {
+	'1c-platform-tools.env.refreshVersion': {
 		title: 'Определить версию vanessa-runner заново',
 		category: ENVIRONMENT,
 	},
@@ -73,7 +73,7 @@ export const AGENT_COMMAND_DESCRIPTIONS: Record<string, AgentCommandDescription>
 		title: 'Разобрать обработки с тестами в исходники',
 		category: TESTING,
 	},
-	'1c-platform-tools.testing.configure': {
+	'1c-platform-tools.test.configure': {
 		title: 'Включить или выключить тестовые фреймворки в панели тестирования (параметр frameworks)',
 		category: TESTING,
 	},
