@@ -9,6 +9,7 @@ import {
 	activeProfileLabel,
 	buildOverrideArgs,
 	hasOverrides,
+	detectSettingsFormat,
 } from '../../shared/envProfiles';
 
 suite('envProfiles', () => {
@@ -133,5 +134,27 @@ suite('envProfiles', () => {
 		assert.strictEqual(hasOverrides({}), false);
 		assert.strictEqual(hasOverrides({ ibConnection: '' }), false);
 		assert.strictEqual(hasOverrides({ v8version: '8.3.27' }), true);
+	});
+});
+
+suite('detectSettingsFormat', () => {
+	test('корневой ключ vrunner означает формат 3.x', () => {
+		assert.strictEqual(detectSettingsFormat({ vrunner: { 'test.epf': {} } }), 'v3');
+	});
+
+	test('плоские секции означают формат 2.x', () => {
+		assert.strictEqual(detectSettingsFormat({ default: { v8version: '8.3.25' } }), 'v2');
+	});
+
+	test('пустой объект считается форматом 2.x', () => {
+		// пустой env.json допустим: секции добавляются по мере надобности
+		assert.strictEqual(detectSettingsFormat({}), 'v2');
+	});
+
+	test('не объект форматом настроек не считается', () => {
+		assert.strictEqual(detectSettingsFormat(null), 'unknown');
+		assert.strictEqual(detectSettingsFormat([1, 2]), 'unknown');
+		assert.strictEqual(detectSettingsFormat('строка'), 'unknown');
+		assert.strictEqual(detectSettingsFormat(undefined), 'unknown');
 	});
 });
