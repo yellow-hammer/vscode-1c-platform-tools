@@ -74,4 +74,21 @@ export interface StructuredCommandResult {
 	artifact?: string;
 	/** Сводка прогона тестов по jUnit-отчёту (только тестовые команды). */
 	tests?: TestRunStats;
+	/** Ошибки синтаксического контроля по jUnit-отчёту (только syntax-check). */
+	errors?: SyntaxCheckError[];
+}
+
+/**
+ * Ошибка синтаксического контроля с адресом в исходниках.
+ * Возвращается агенту, чтобы он правил код, а не вычитывал stdout.
+ */
+export interface SyntaxCheckError {
+	/** Путь к файлу модуля относительно корня проекта (если раскладывается). */
+	filepath: string;
+	/** Путь по метаданным из отчёта (ОбщийМодуль.Имя.Модуль). */
+	metadataPath: string;
+	/** Уровень: ошибка или предупреждение. */
+	severity: 'error' | 'warning';
+	/** Текст сообщения. */
+	message: string;
 }

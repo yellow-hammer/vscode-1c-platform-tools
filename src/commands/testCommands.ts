@@ -12,13 +12,17 @@ import {
 	getYAxUnitTestsCommandName
 } from '../features/tools/commandNames';
 import { collectAllureResultDirs } from '../utils/allureResults';
-import type { CommandExecutionOptions, StructuredCommandResult } from '../shared/commandExecutionTypes';
-import { DEFAULT_TESTING } from '../shared/pathDefaults';
+import type { CommandExecutionOptions, StructuredCommandResult, SyntaxCheckError } from '../shared/commandExecutionTypes';
+import { DEFAULT_TESTING, DEFAULT_PATHS } from '../shared/pathDefaults';
 import * as fs from 'node:fs/promises';
-import { settingValue, resolveConfigPath, reportsXunitFromEnv, extractJUnitPathFromReportsXunit, vanessaReportTarget } from '../features/testing/projectTestConfig';
+import { settingValue, resolveConfigPath, reportsXunitFromEnv, extractJUnitPathFromReportsXunit, vanessaReportTarget, syntaxCheckJUnitPathFromEnv } from '../features/testing/projectTestConfig';
+import { parseSyntaxCheckFindings, toSyntaxCheckErrors, SyntaxCheckFinding } from '../features/diagnostics/syntaxCheckJUnit';
 import { readRunSummary, formatRunSummary, RunReportFormat } from '../features/testing/runReportSummary';
 
 const NL = '\n';
+
+/** Путь jUnit-отчёта syntax-check, когда он не задан в настройках прогона. */
+const DEFAULT_SYNTAX_CHECK_JUNIT = 'build/out/syntax-check/junit/junit.xml';
 
 /** Цель отчёта прогона: путь и формат. */
 interface RunReportTarget {
@@ -196,19 +200,71 @@ export class TestCommands extends BaseCommand {
 	 * При вызове без аргументов (из UI) запускает vrunner syntax-check в терминале.
 	 * При вызове с { wait: true } выполняет синхронно и возвращает StructuredCommandResult
 	 * — используется MCP-агентами в автономном цикле «проверка → фикс → проверка».
-	 *
-	 * TODO: при переводе остальных команд на wait: true — распарсить stdout
-	 * vrunner syntax-check в массив errors[{ filepath, line, column, severity, message, mode }].
+	 * В синхронном режиме к результату добавляется разбор jUnit-отчёта: агент
+	 * получает адреса ошибок, а не простыню stdout.
 	 *
 	 * @param opts — опции выполнения; при wait: true — синхронный режим без диалогов
 	 * @returns void в UI-режиме, StructuredCommandResult при wait: true
 	 */
 	async runSyntaxCheck(opts?: CommandExecutionOptions): Promise<StructuredCommandResult | void> {
 		const commandName = getSyntaxCheckCommandName();
-		return this.runIntent(
+		const result = await this.runIntent(
 			{ kind: 'validate.syntaxCheck' },
 			opts, commandName.title, undefined, commandName.id
 		);
+		if (!result || !opts?.wait) {
+			return result;
+		}
+
+		const errors = await this.readSyntaxCheckErrors(opts);
+		return errors.length > 0 ? { ...result, errors } : result;
+	}
+
+	/**
+	 * Читает ошибки синтаксического контроля из jUnit-отчёта.
+	 *
+	 * Путь к отчёту берётся из настроек прогона (секция syntax-check,
+	 * --junitpath), с откатом на стандартный. Отсутствие отчёта — не ошибка:
+	 * проверка могла упасть до его записи, тогда остаётся stdout.
+	 *
+	 * @param opts — опции выполнения (нужны для выбора файла настроек)
+	 * @returns список ошибок (пустой, если отчёта нет или он не разобрался)
+	 */
+	private async readSyntaxCheckErrors(
+		opts?: CommandExecutionOptions
+	): Promise<SyntaxCheckError[]> {
+		const workspaceRoot = this.vrunner.getWorkspaceRoot();
+		if (!workspaceRoot) {
+			return [];
+		}
+
+		let rel = DEFAULT_SYNTAX_CHECK_JUNIT;
+		try {
+			const { settings, schema } = await this.readRunSettings(opts);
+			rel = syntaxCheckJUnitPathFromEnv(settings, schema) ?? rel;
+		} catch {
+			// Настройки нечитаемы — берём стандартный путь отчёта
+		}
+
+		let xml: string;
+		try {
+			xml = await fs.readFile(resolveConfigPath(rel, workspaceRoot), 'utf8');
+		} catch {
+			return [];
+		}
+
+		let findings: SyntaxCheckFinding[];
+		try {
+			findings = parseSyntaxCheckFindings(xml);
+		} catch {
+			return [];
+		}
+
+		const cfRel = vscode.workspace
+			.getConfiguration('1c-platform-tools')
+			.get<string>('paths.cf', DEFAULT_PATHS.cf);
+
+		return toSyntaxCheckErrors(findings, cfRel);
 	}
 
 	/**
