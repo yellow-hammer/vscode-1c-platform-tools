@@ -44,6 +44,7 @@ import {
 	VRUNNER_FEATURES,
 } from './vrunnerVersion';
 import { selectCliAdapter, VRunnerIntent } from './vrunnerCli';
+import { planIntents, SettingsFileFormat } from './vrunnerCli/planner';
 import { translateArgsToV3 } from './vrunnerCommandMap';
 import { createVRunnerTask } from '../features/tasks/vrunnerTask';
 
@@ -105,6 +106,9 @@ export class VRunnerManager {
 
 	/** Кэш версии vrunner по корню проекта (workspace и projectPath различаются). */
 	private readonly vrunnerVersionCacheByRoot = new Map<string, VRunnerVersion | null>();
+
+	/** Показанные замечания о формате файла настроек: не повторяем за сессию. */
+	private readonly warnedV2SettingsFiles = new Set<string>();
 
 	/** Замечания последнего планирования (применённые/отброшенные временные параметры). */
 	private planNotices: string[] = [];
@@ -779,57 +783,48 @@ export class VRunnerManager {
 		explicitIbConnection?: string
 	): Promise<string[][]> {
 		const version = await this.getVRunnerVersion();
-		const adapter = selectCliAdapter(version);
-		const cli3 = version !== undefined && isAtLeast(version, VRUNNER_FEATURES.cli3);
-		// Параметры вызова имеют приоритет над временными параметрами профиля:
-		// с явным settingsFile временные параметры не применяются вовсе, с явной
-		// строкой подключения из них исключается подключение к ИБ.
-		this.planNotices = [];
-		let overrides = this.getActiveEnvOverrideArgs();
-		if (overrides.length > 0 && settingsFile) {
-			this.planNotices.push('Временные параметры профиля не применены: в вызове задан settingsFile.');
-			overrides = [];
-		} else if (overrides.length > 0 && explicitIbConnection) {
-			const filtered = stripOverrideFlags(overrides, ['--ibconnection', '--db-user', '--db-pwd']);
-			if (filtered.length !== overrides.length) {
-				this.planNotices.push('Из временных параметров профиля исключено подключение к ИБ: в вызове задана явная строка подключения.');
-			}
-			overrides = filtered;
-		}
-		if (overrides.length > 0) {
-			this.planNotices.push(`Применены временные параметры профиля: ${maskOverrideSecrets(overrides).join(' ')}.`);
-			log.info(`план: применены временные параметры профиля (${maskOverrideSecrets(overrides).join(' ')})`);
-		}
-		// Именованный профиль подставляется во ВСЕ команды через --settings; для
-		// базового профиля параметр пустой (vrunner читает env.json сам).
-		// Явно переданный файл настроек имеет приоритет над активным профилем.
-		let settingsParam = this.getSettingsParam(settingsFile);
-		// Зеркально handleV3SettingsArg: файл настроек формата 3.x (корневой
-		// ключ vrunner) на vanessa-runner 2.x роняет команды, читающие секции,
-		// невнятной ошибкой «Свойство объекта не обнаружено» — не передаём его
-		if (!cli3 && settingsParam.length === 2 && this.isSettingsFileV3Format(settingsParam[1])) {
-			const notice = `Файл настроек ${settingsParam[1]} в формате vanessa-runner 3.x не передан: установлен vanessa-runner 2.x.`;
-			this.planNotices.push(notice);
-			log.warn(`план: ${notice}`);
-			settingsParam = [];
-		}
+		const { steps, notices } = planIntents(intents, {
+			version,
+			overrideArgs: this.getActiveEnvOverrideArgs(),
+			activeSettingsFile: this.getActiveSettingsParamIfExists()[1],
+			settingsFile,
+			explicitIbConnection,
+			settingsFormat: (file) => this.settingsFileFormat(file),
+		});
 
-		const steps: string[][] = [];
-		for (const intent of intents) {
-			const base = intent.common ?? [];
-			const extra = [
-				// не дублируем --settings, если он уже задан в намерении
-				...(settingsParam.length > 0 && !base.includes('--settings') ? settingsParam : []),
-				...overrides,
-			];
-			const merged: VRunnerIntent = extra.length > 0
-				? { ...intent, common: [...base, ...extra] }
-				: intent;
-			for (const step of adapter.plan(merged)) {
-				steps.push(cli3 ? this.handleV3SettingsArg(step) : step);
+		this.planNotices = notices;
+		for (const notice of notices) {
+			log.info(`план: ${notice}`);
+			if (notice.startsWith('Файл настроек ')) {
+				this.notifySettingsFormatProblem(notice);
 			}
 		}
 		return steps;
+	}
+
+	/**
+	 * Формат файла настроек по его содержимому.
+	 *
+	 * @param settingsFile - Путь к файлу (абсолютный или от корня проекта)
+	 * @returns 'v3' (корневой ключ vrunner), 'v2' (плоские секции) либо 'unknown'
+	 */
+	private settingsFileFormat(settingsFile: string): SettingsFileFormat {
+		const root = this.getEffectiveRoot();
+		if (!root) {
+			return 'unknown';
+		}
+		const absolutePath = path.isAbsolute(settingsFile)
+			? settingsFile
+			: path.join(root, settingsFile);
+		try {
+			const parsed = JSON.parse(fsSync.readFileSync(absolutePath, 'utf8'));
+			if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {
+				return 'unknown';
+			}
+			return 'vrunner' in parsed ? 'v3' : 'v2';
+		} catch {
+			return 'unknown';
+		}
 	}
 
 	/**
@@ -985,114 +980,31 @@ export class VRunnerManager {
 	}
 
 	/**
-	 * Обрабатывает `--settings` в плане команды для vrunner 3.x.
+	 * Показывает замечание планирования о непригодном файле настроек.
 	 *
-	 * vanessa-runner 3 — другой инструмент с другим форматом настроек
-	 * (`autumn-properties.json`): файлы env.json формата 2.x он не понимает,
-	 * а расширение их НЕ конвертирует автоматически. Если активный профиль
-	 * указывает на файл формата 2.x, пара `--settings <файл>` из команды
-	 * убирается (иначе она перекрыла бы каскад vrunner и занулила настройки
-	 * из autumn-properties.json в корне проекта), а пользователю показывается
-	 * предупреждение с предложением создать файл настроек vrunner 3 через
-	 * «Служебные файлы». Файлы уже в формате 3.0 передаются без изменений.
+	 * Одно и то же замечание показывается один раз за сессию; кнопка создаёт
+	 * файл настроек нужного формата через служебные файлы.
 	 *
-	 * @param args - Аргументы команды (в синтаксисе 3.x)
-	 * @returns Аргументы без `--settings` формата 2.x (или те же)
+	 * @param notice - Текст замечания планирования
 	 */
-	private handleV3SettingsArg(args: string[]): string[] {
-		const idx = args.indexOf('--settings');
-		if (idx === -1 || idx + 1 >= args.length) {
-			return args;
-		}
-		const settingsFile = args[idx + 1];
-		if (!this.isSettingsFileV2Format(settingsFile)) {
-			return args;
-		}
-
-		this.warnV2SettingsOnCli3(settingsFile);
-		const notice =
-			`Файл настроек ${settingsFile} в формате vanessa-runner 2.x не передан: ` +
-			'установлен vanessa-runner 3.x, который читает autumn-properties.json.';
-		this.planNotices.push(notice);
-		const copy = [...args];
-		copy.splice(idx, 2);
-		return copy;
-	}
-
-	/**
-	 * Проверяет, что файл настроек в формате 2.x (плоские секции, без корневого
-	 * ключа `vrunner`). Нечитаемый файл или не-объект форматом 2.x не считается.
-	 *
-	 * @param settingsFile - Путь к файлу (абсолютный или от корня workspace)
-	 * @returns true, если файл в формате 2.x
-	 */
-	/**
-	 * Проверяет, что файл настроек в формате 3.x (корневой ключ `vrunner`).
-	 * Нечитаемый файл или не-объект форматом 3.x не считается.
-	 *
-	 * @param settingsFile - Путь к файлу (абсолютный или от корня проекта)
-	 * @returns true, если файл в формате 3.x
-	 */
-	private isSettingsFileV3Format(settingsFile: string): boolean {
-		const root = this.getEffectiveRoot();
-		if (!root) {
-			return false;
-		}
-		const absolutePath = path.isAbsolute(settingsFile)
-			? settingsFile
-			: path.join(root, settingsFile);
-		try {
-			const parsed = JSON.parse(fsSync.readFileSync(absolutePath, 'utf8'));
-			return typeof parsed === 'object' && parsed !== null && !Array.isArray(parsed) && 'vrunner' in parsed;
-		} catch {
-			return false;
-		}
-	}
-
-	private isSettingsFileV2Format(settingsFile: string): boolean {
-		const root = this.getEffectiveRoot();
-		if (!root) {
-			return false;
-		}
-		const absolutePath = path.isAbsolute(settingsFile)
-			? settingsFile
-			: path.join(root, settingsFile);
-		try {
-			const parsed = JSON.parse(fsSync.readFileSync(absolutePath, 'utf8'));
-			return typeof parsed === 'object' && parsed !== null && !Array.isArray(parsed) && !('vrunner' in parsed);
-		} catch {
-			return false;
-		}
-	}
-
-	/** Файлы настроек 2.x, о которых предупреждение уже показано (раз за сессию). */
-	private readonly warnedV2SettingsFiles = new Set<string>();
-
-	/**
-	 * Предупреждает, что файл настроек в формате 2.x не подходит для vrunner 3.
-	 * Показывается один раз за сессию для каждого файла; кнопка создаёт
-	 * autumn-properties.json через служебные файлы.
-	 *
-	 * @param settingsFile - Путь файла настроек формата 2.x
-	 */
-	private warnV2SettingsOnCli3(settingsFile: string): void {
-		if (this.warnedV2SettingsFiles.has(settingsFile)) {
+	private notifySettingsFormatProblem(notice: string): void {
+		if (this.warnedV2SettingsFiles.has(notice)) {
 			return;
 		}
-		this.warnedV2SettingsFiles.add(settingsFile);
-		log.warn(`Файл настроек ${settingsFile} в старом формате, параметр --settings не передан`);
+		this.warnedV2SettingsFiles.add(notice);
 		const createAction = 'Создать профиль запуска';
 		void vscode.window
-			.showWarningMessage(
-				'Профиль запуска в другом формате и не применяется. Создайте его заново.',
-				createAction
-			)
+			.showWarningMessage(notice, createAction)
 			.then((action) => {
 				if (action === createAction) {
-					void vscode.commands.executeCommand('1c-platform-tools.serviceFiles.ensure', 'autumnProperties');
+					void vscode.commands.executeCommand(
+						'1c-platform-tools.serviceFiles.ensure',
+						this.settingsServiceFileId(this.activeSettingsSchema())
+					);
 				}
 			});
 	}
+
 
 	/**
 	 * Проверяет, доступен ли Docker для выполнения команд
@@ -2464,31 +2376,4 @@ export class VRunnerManager {
 	}
 }
 
-/**
- * Убирает из массива аргументов перечисленные флаги вместе со значениями.
- *
- * @param args - Аргументы вида ['--flag', 'value', ...]
- * @param flags - Имена исключаемых флагов
- * @returns Аргументы без исключённых флагов
- */
-function stripOverrideFlags(args: string[], flags: string[]): string[] {
-	const result: string[] = [];
-	for (let i = 0; i < args.length; i++) {
-		if (flags.includes(args[i])) {
-			i++; // пропускаем и значение флага
-			continue;
-		}
-		result.push(args[i]);
-	}
-	return result;
-}
 
-/**
- * Маскирует секреты в аргументах временных параметров для вывода.
- *
- * @param args - Аргументы вида ['--flag', 'value', ...]
- * @returns Копия с заменённым значением --db-pwd
- */
-function maskOverrideSecrets(args: string[]): string[] {
-	return args.map((arg, index) => (index > 0 && args[index - 1] === '--db-pwd' ? '••••' : arg));
-}
