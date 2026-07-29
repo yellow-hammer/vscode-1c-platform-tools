@@ -2978,10 +2978,12 @@
   "overrides": {
     "diff": "^8.0.3",
     "serialize-javascript": "^7.0.5",
-    "uuid": "^14.0.0"
+    "uuid": "^14.0.0",
+    "js-yaml": "^4.3.0",
+    "brace-expansion": "^5.0.8"
   },
   "dependencies": {
-    "@vscode/debugadapter": "^1.67.0",
+    "@vscode/debugadapter": "^1.68.0",
     "cytoscape": "^3.34.0",
     "cytoscape-elk": "^2.3.0",
     "elkjs": "^0.12.0",
@@ -2997,10 +2999,10 @@
     "@types/node": "26.x",
     "@types/vscode": "^1.125.0",
     "@vscode/test-cli": "^0.0.15",
-    "@vscode/test-electron": "^3.0.0",
+    "@vscode/test-electron": "^3.1.0",
     "@vscode/vsce": "^3.9.2",
     "esbuild": "^0.28.1",
-    "eslint": "^10.7.0",
+    "eslint": "^10.8.0",
     "typescript": "^5.9.3",
     "typescript-eslint": "^8.65.0"
   }
