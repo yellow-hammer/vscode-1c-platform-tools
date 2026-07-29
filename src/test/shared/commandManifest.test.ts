@@ -47,9 +47,9 @@ function declaredCommands(): Set<string> {
 /** Идентификаторы команд, зарегистрированных в коде. */
 function registeredCommands(): Set<string> {
 	const registered = new Set<string>();
-	// команды регистрируются напрямую и через обёртки registerVRunnerCommand
-	// и registerFromEditor
-	const pattern = /register(?:VRunnerCommand|FromEditor|Command)\(\s*'([^']+)'/g;
+	// команды регистрируются напрямую и через обёртки: registerVRunnerCommand,
+	// registerSectionCommand, registerFromEditor
+	const pattern = /register\w*(?:Command|FromEditor)\(\s*'([^']+)'/g;
 	for (const file of sourceFiles(path.join(EXTENSION_ROOT, 'src'))) {
 		const text = fs.readFileSync(file, 'utf8');
 		for (const match of text.matchAll(pattern)) {

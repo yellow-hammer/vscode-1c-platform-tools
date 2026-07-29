@@ -1,6 +1,14 @@
 import * as vscode from 'vscode';
+import { SETTINGS_SECTIONS, SettingsSection, settingsQuery } from './settingsSections';
 
-const SETTINGS_EXT = '@ext:yellow-hammer.1c-platform-tools';
+/**
+ * Открывает настройки расширения на нужном разделе.
+ *
+ * @param section - Раздел настроек
+ */
+async function openSettings(section: SettingsSection['id']): Promise<void> {
+	await vscode.commands.executeCommand('workbench.action.openSettings', settingsQuery(section));
+}
 
 /**
  * Регистрирует команды помощи и открытия настроек.
@@ -43,108 +51,29 @@ export function registerHelpAndSettingsCommands(): vscode.Disposable[] {
 		'1c-platform-tools.settings.open',
 		async () => {
 			const choice = await vscode.window.showQuickPick(
-				[
-					{
-						label: '$(plug) Сервер IPC',
-						detail: 'MCP, порт, токен',
-						filter: '1c-platform-tools.ipc',
-					},
-					{
-						label: '$(tools) Инструменты',
-						detail: 'vrunner, пути, docker, allure',
-						filter: '1c-platform-tools',
-					},
-					{
-						label: '$(folder-opened) Проекты',
-						detail: 'baseFolders, исключения, избранное',
-						filter: '1c-platform-tools.projects.',
-					},
-					{
-						label: '$(package) Артефакты',
-						detail: 'исключения при сканировании',
-						filter: '1c-platform-tools.artifacts',
-					},
-					{
-						label: '$(checklist) Список дел',
-						detail: 'паттерны, исключения, теги',
-						filter: '1c-platform-tools.todo',
-					},
-					{
-						label: '$(list-tree) Метаданные 1С',
-						detail: 'дерево метаданных, экспорт ER-диаграмм',
-						filter: '1c-platform-tools.metadata.',
-					},
-					{
-						label: '$(cloud-download) Внешние компоненты',
-						detail: 'отладчик, дерево метаданных, JRE',
-						filter: '1c-platform-tools.components.',
-					},
-					{
-						label: '$(settings-gear) Общее',
-						detail: 'все настройки расширения',
-						filter: '',
-					},
-				],
+				SETTINGS_SECTIONS.map((section) => ({
+					label: `$(${section.icon}) ${section.label}`,
+					detail: section.detail,
+					id: section.id,
+				})),
 				{ placeHolder: 'Раздел настроек' }
 			);
-			let query = '';
 			if (choice) {
-				query = choice.filter ? `${SETTINGS_EXT} ${choice.filter}` : SETTINGS_EXT;
-			}
-			if (query) {
-				await vscode.commands.executeCommand('workbench.action.openSettings', query);
+				await openSettings(choice.id);
 			}
 		}
 	);
 
-	const settingsOpenProjectsCommand = vscode.commands.registerCommand(
-		'1c-platform-tools.settings.openProjects',
-		() =>
-			vscode.commands.executeCommand(
-				'workbench.action.openSettings',
-				`${SETTINGS_EXT} 1c-platform-tools.projects.`
-			)
-	);
-	const settingsOpenToolsCommand = vscode.commands.registerCommand(
-		'1c-platform-tools.settings.openTools',
-		() => vscode.commands.executeCommand('workbench.action.openSettings', SETTINGS_EXT)
-	);
-	const settingsOpenTodoCommand = vscode.commands.registerCommand(
-		'1c-platform-tools.settings.openTodo',
-		() =>
-			vscode.commands.executeCommand(
-				'workbench.action.openSettings',
-				`${SETTINGS_EXT} 1c-platform-tools.todo`
-			)
-	);
-	const settingsOpenArtifactsCommand = vscode.commands.registerCommand(
-		'1c-platform-tools.settings.openArtifacts',
-		() =>
-			vscode.commands.executeCommand(
-				'workbench.action.openSettings',
-				`${SETTINGS_EXT} 1c-platform-tools.artifacts`
-			)
-	);
-	const settingsOpenMetadataCommand = vscode.commands.registerCommand(
-		'1c-platform-tools.settings.openMetadata',
-		() =>
-			vscode.commands.executeCommand(
-				'workbench.action.openSettings',
-				`${SETTINGS_EXT} 1c-platform-tools.metadata.`
-			)
-	);
-	const settingsOpenIpcCommand = vscode.commands.registerCommand(
-		'1c-platform-tools.settings.openIpc',
-		() =>
-			vscode.commands.executeCommand(
-				'workbench.action.openSettings',
-				`${SETTINGS_EXT} 1c-platform-tools.ipc`
-			)
-	);
-	const settingsOpenGeneralCommand = vscode.commands.registerCommand(
-		'1c-platform-tools.settings.openGeneral',
-		() => vscode.commands.executeCommand('workbench.action.openSettings', SETTINGS_EXT)
-	);
+	/** Команда открытия настроек конкретного раздела. */
+	const registerSectionCommand = (commandId: string, section: SettingsSection['id']): vscode.Disposable =>
+		vscode.commands.registerCommand(commandId, () => openSettings(section));
+
+	const settingsOpenProjectsCommand = registerSectionCommand('1c-platform-tools.settings.openProjects', 'projects');
+	const settingsOpenToolsCommand = registerSectionCommand('1c-platform-tools.settings.openTools', 'all');
+	const settingsOpenTodoCommand = registerSectionCommand('1c-platform-tools.settings.openTodo', 'todo');
+	const settingsOpenArtifactsCommand = registerSectionCommand('1c-platform-tools.settings.openArtifacts', 'artifacts');
+	const settingsOpenMetadataCommand = registerSectionCommand('1c-platform-tools.settings.openMetadata', 'metadata');
+	const settingsOpenIpcCommand = registerSectionCommand('1c-platform-tools.settings.openIpc', 'ipc');
 
 	return [
 		openCreateIssueCommand,
@@ -157,6 +86,5 @@ export function registerHelpAndSettingsCommands(): vscode.Disposable[] {
 		settingsOpenArtifactsCommand,
 		settingsOpenMetadataCommand,
 		settingsOpenIpcCommand,
-		settingsOpenGeneralCommand,
 	];
 }

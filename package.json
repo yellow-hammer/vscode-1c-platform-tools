@@ -49,7 +49,7 @@
     "onView:1c-platform-tools-projects-all",
     "onView:1c-platform-tools-projects-help",
     "onCommand:1c-platform-tools.projects.listOpen",
-    "onCommand:1c-platform-tools.projects.openSettings"
+    "onCommand:1c-platform-tools.settings.openProjects"
   ],
   "main": "./out/extension.js",
   "contributes": {
@@ -484,25 +484,26 @@
       },
       {
         "command": "1c-platform-tools.tools.refresh",
-        "title": "Обновить",
+        "title": "Обновить дерево инструментов",
         "icon": "$(refresh)",
         "category": "1C: Дерево"
       },
       {
         "command": "1c-platform-tools.metadata.refresh",
-        "title": "Обновить",
+        "title": "Обновить дерево метаданных",
         "icon": "$(refresh)",
         "category": "1C: Метаданные"
       },
       {
         "command": "1c-platform-tools.metadata.filters.collapseAll",
-        "title": "Свернуть",
+        "title": "Свернуть дерево",
         "category": "1C: Метаданные",
         "icon": "$(collapse-all)"
       },
       {
         "command": "1c-platform-tools.metadata.filters.reset",
-        "title": "Очистить фильтр",
+        "title": "Сбросить фильтры метаданных",
+        "shortTitle": "Сбросить фильтры",
         "category": "1C: Метаданные",
         "icon": "$(clear-all)"
       },
@@ -520,8 +521,8 @@
       },
       {
         "command": "1c-platform-tools.metadata.initEmptyCf",
-        "title": "Создать пустую конфигурацию",
-        "shortTitle": "Пустая конфигурация",
+        "title": "Создать новую конфигурацию",
+        "shortTitle": "Создать конфигурацию",
         "icon": "$(add)",
         "category": "1C: Метаданные"
       },
@@ -709,7 +710,7 @@
       },
       {
         "command": "1c-platform-tools.metadata.er.openCanvas",
-        "title": "ER-диаграмма",
+        "title": "Открыть ER-диаграмму",
         "icon": "$(type-hierarchy)",
         "category": "1C: Метаданные"
       },
@@ -729,24 +730,27 @@
         "command": "debug.debugTargets.connect",
         "title": "Подключиться к цели отладки",
         "shortTitle": "Подключиться",
+        "icon": "$(plug)",
         "category": "1C: Отладка"
       },
       {
         "command": "1c-platform-tools.artifacts.refresh",
-        "title": "Обновить",
+        "title": "Обновить список артефактов",
         "icon": "$(refresh)",
         "category": "1C: Артефакты"
       },
       {
         "command": "1c-platform-tools.artifacts._viewAsList",
-        "title": "Список",
+        "title": "Показать списком",
+        "shortTitle": "Списком",
         "category": "1C: Артефакты",
         "icon": "$(list-flat)",
         "enablement": "!1c-platform-tools.artifacts.viewAsList"
       },
       {
         "command": "1c-platform-tools.artifacts._viewByFolder",
-        "title": "По каталогам",
+        "title": "Показать по каталогам",
+        "shortTitle": "По каталогам",
         "category": "1C: Артефакты",
         "icon": "$(list-tree)",
         "enablement": "1c-platform-tools.artifacts.viewAsList"
@@ -844,6 +848,7 @@
       {
         "command": "1c-platform-tools.settings.openProjects",
         "title": "Настройки проектов",
+        "icon": "$(gear)",
         "category": "1C: Проекты"
       },
       {
@@ -863,11 +868,6 @@
         "title": "Настройки артефактов",
         "icon": "$(gear)",
         "category": "1C: Артефакты"
-      },
-      {
-        "command": "1c-platform-tools.settings.openGeneral",
-        "title": "Общие настройки",
-        "category": "1C: Дерево"
       },
       {
         "command": "1c-platform-tools.favorites.configure",
@@ -1344,13 +1344,14 @@
       },
       {
         "command": "1c-platform-tools.todo.showPanel",
-        "title": "Список дел (TODO)",
+        "title": "Показать список дел",
+        "shortTitle": "Список дел",
         "category": "1C: Список дел",
         "icon": "$(checklist)"
       },
       {
         "command": "1c-platform-tools.todo.refresh",
-        "title": "Обновить список",
+        "title": "Обновить список дел",
         "category": "1C: Список дел",
         "icon": "$(refresh)"
       },
@@ -1362,14 +1363,16 @@
       },
       {
         "command": "1c-platform-tools.todo._viewAsList",
-        "title": "Просмотреть списком",
+        "title": "Показать списком",
+        "shortTitle": "Списком",
         "category": "1C: Список дел",
         "icon": "$(list-flat)",
         "enablement": "1c-platform-tools.todo.groupByHierarchy"
       },
       {
         "command": "1c-platform-tools.todo._viewAsHierarchy",
-        "title": "Группировать по файлам",
+        "title": "Показать по файлам",
+        "shortTitle": "По файлам",
         "category": "1C: Список дел",
         "icon": "$(list-tree)",
         "enablement": "!1c-platform-tools.todo.groupByHierarchy"
@@ -1382,13 +1385,14 @@
       },
       {
         "command": "1c-platform-tools.todo.filterByScope",
-        "title": "Область поиска",
+        "title": "Задать область поиска",
         "category": "1C: Список дел",
         "icon": "$(folder-opened)"
       },
       {
         "command": "1c-platform-tools.todo.clearFilter",
-        "title": "Сбросить фильтры",
+        "title": "Сбросить фильтры списка дел",
+        "shortTitle": "Сбросить фильтры",
         "category": "1C: Список дел",
         "icon": "$(clear-all)"
       },
@@ -1459,13 +1463,13 @@
       },
       {
         "command": "1c-platform-tools.projects.filterByTag",
-        "title": "Фильтр по тегам",
+        "title": "Отфильтровать по тегам",
         "category": "1C: Проекты",
         "icon": "$(tag)"
       },
       {
         "command": "1c-platform-tools.projects.refresh",
-        "title": "Обновить список",
+        "title": "Обновить список проектов",
         "category": "1C: Проекты",
         "icon": "$(refresh)"
       },
@@ -1479,12 +1483,6 @@
         "title": "Открыть в новом окне",
         "category": "1C: Проекты",
         "icon": "$(link-external)"
-      },
-      {
-        "command": "1c-platform-tools.projects.openSettings",
-        "title": "Настройки",
-        "icon": "$(gear)",
-        "category": "1C: Проекты"
       },
       {
         "command": "1c-platform-tools.projects._sortByName",
@@ -1548,14 +1546,16 @@
       },
       {
         "command": "1c-platform-tools.projects._viewAsList",
-        "title": "Просмотреть как список",
+        "title": "Показать списком",
+        "shortTitle": "Списком",
         "category": "1C: Проекты",
         "icon": "$(list-flat)",
         "enablement": "!1c-platform-tools.projects.viewAsList"
       },
       {
         "command": "1c-platform-tools.projects._viewAsTags",
-        "title": "Просмотреть как теги",
+        "title": "Показать по тегам",
+        "shortTitle": "По тегам",
         "category": "1C: Проекты",
         "icon": "$(list-tree)",
         "enablement": "1c-platform-tools.projects.viewAsList"
@@ -1574,7 +1574,7 @@
       },
       {
         "view": "1c-platform-tools-projects-favorites",
-        "contents": "Нет избранных проектов.\n[Открыть папку](command:vscode.openFolder)\n[Настройка](command:1c-platform-tools.projects.openSettings)"
+        "contents": "Нет избранных проектов.\n[Открыть папку](command:vscode.openFolder)\n[Настройка](command:1c-platform-tools.settings.openProjects)"
       }
     ],
     "menus": {
@@ -1860,7 +1860,7 @@
           "when": "false"
         },
         {
-          "command": "1c-platform-tools.projects.openSettings",
+          "command": "1c-platform-tools.settings.openProjects",
           "when": "false"
         },
         {
@@ -1951,32 +1951,32 @@
         {
           "command": "1c-platform-tools.favorites.configure",
           "when": "view == 1c-platform-tools",
-          "group": "navigation@1"
+          "group": "navigation@10"
         },
         {
           "command": "1c-platform-tools.tools.configureGroupVisibility",
           "when": "view == 1c-platform-tools && !1c-platform-tools.hasHiddenToolGroups",
-          "group": "navigation@2"
+          "group": "navigation@13"
         },
         {
           "command": "1c-platform-tools.tools.configureGroupVisibilityActive",
           "when": "view == 1c-platform-tools && 1c-platform-tools.hasHiddenToolGroups",
-          "group": "navigation@2"
+          "group": "navigation@13"
         },
         {
           "command": "1c-platform-tools.settings.openTools",
           "when": "view == 1c-platform-tools",
-          "group": "navigation@3"
+          "group": "navigation@20"
         },
         {
           "command": "1c-platform-tools.todo.showPanel",
           "when": "view == 1c-platform-tools",
-          "group": "navigation@4"
+          "group": "navigation@40"
         },
         {
           "command": "1c-platform-tools.tools.refresh",
           "when": "view == 1c-platform-tools",
-          "group": "navigation@5"
+          "group": "navigation@30"
         },
         {
           "submenu": "1c-platform-tools.artifacts.viewAndSortMenu",
@@ -1991,57 +1991,57 @@
         {
           "command": "1c-platform-tools.artifacts._viewAsList",
           "when": "view == 1c-platform-tools-artifacts-tree && !1c-platform-tools.artifacts.viewAsList",
-          "group": "navigation@12"
+          "group": "navigation@11"
         },
         {
           "command": "1c-platform-tools.artifacts._viewByFolder",
           "when": "view == 1c-platform-tools-artifacts-tree && 1c-platform-tools.artifacts.viewAsList",
-          "group": "navigation@12"
+          "group": "navigation@11"
         },
         {
           "command": "1c-platform-tools.artifacts.refresh",
           "when": "view == 1c-platform-tools-artifacts-tree",
-          "group": "navigation@15"
+          "group": "navigation@30"
         },
         {
           "command": "1c-platform-tools.todo.filterByScope",
           "when": "view == 1c-platform-tools-todo-list",
-          "group": "navigation@1"
+          "group": "navigation@5"
         },
         {
           "command": "1c-platform-tools.todo.clearFilter",
           "when": "view == 1c-platform-tools-todo-list",
-          "group": "navigation@2"
+          "group": "navigation@6"
         },
         {
           "command": "1c-platform-tools.todo._viewAsList",
           "when": "view == 1c-platform-tools-todo-list && 1c-platform-tools.todo.groupByHierarchy",
-          "group": "navigation@3"
+          "group": "navigation@11"
         },
         {
           "command": "1c-platform-tools.todo._viewAsHierarchy",
           "when": "view == 1c-platform-tools-todo-list && !1c-platform-tools.todo.groupByHierarchy",
-          "group": "navigation@3"
+          "group": "navigation@11"
         },
         {
           "command": "1c-platform-tools.settings.openTodo",
           "when": "view == 1c-platform-tools-todo-list",
-          "group": "navigation@4"
+          "group": "navigation@20"
         },
         {
           "command": "1c-platform-tools.todo.refresh",
           "when": "view == 1c-platform-tools-todo-list",
-          "group": "navigation@5"
+          "group": "navigation@30"
         },
         {
           "command": "1c-platform-tools.projects._viewAsTags",
           "when": "view == 1c-platform-tools-projects-favorites && 1c-platform-tools.projects.viewAsList",
-          "group": "navigation@12"
+          "group": "navigation@11"
         },
         {
           "command": "1c-platform-tools.projects._viewAsList",
           "when": "view == 1c-platform-tools-projects-favorites && !1c-platform-tools.projects.viewAsList",
-          "group": "navigation@13"
+          "group": "navigation@11"
         },
         {
           "command": "1c-platform-tools.projects.configureFavorites",
@@ -2051,12 +2051,12 @@
         {
           "command": "1c-platform-tools.projects.filterByTag",
           "when": "view == 1c-platform-tools-projects-favorites",
-          "group": "navigation@14"
+          "group": "navigation@5"
         },
         {
           "command": "1c-platform-tools.projects.listOpen",
           "when": "view == 1c-platform-tools-projects-favorites",
-          "group": "navigation@15"
+          "group": "navigation@4"
         },
         {
           "submenu": "1c-platform-tools.projects.viewAndSortMenu",
@@ -2064,29 +2064,34 @@
           "group": "1_projects"
         },
         {
-          "command": "1c-platform-tools.projects.openSettings",
+          "command": "1c-platform-tools.settings.openProjects",
           "when": "view == 1c-platform-tools-projects-favorites",
           "group": "2_projects"
         },
         {
-          "command": "1c-platform-tools.projects.openSettings",
+          "command": "1c-platform-tools.settings.openProjects",
           "when": "view == 1c-platform-tools-projects-all",
-          "group": "navigation@9"
+          "group": "navigation@20"
         },
         {
           "command": "1c-platform-tools.projects.listOpen",
           "when": "view == 1c-platform-tools-projects-all",
-          "group": "navigation@10"
+          "group": "navigation@4"
         },
         {
           "command": "1c-platform-tools.projects.refresh",
           "when": "view == 1c-platform-tools-projects-all",
-          "group": "navigation@11"
+          "group": "navigation@30"
+        },
+        {
+          "command": "1c-platform-tools.metadata.initEmptyCf",
+          "when": "view == 1c-platform-tools-metadata-tree",
+          "group": "navigation@0"
         },
         {
           "command": "1c-platform-tools.metadata.refresh",
           "when": "view == 1c-platform-tools-metadata-tree",
-          "group": "navigation@1"
+          "group": "navigation@30"
         },
         {
           "command": "1c-platform-tools.metadata.er.openCanvas",
@@ -2101,17 +2106,22 @@
         {
           "submenu": "1c-platform-tools.metadata.overflowMenu",
           "when": "view == 1c-platform-tools-metadata-tree",
-          "group": "navigation@6"
+          "group": "navigation@40"
         },
         {
           "command": "1c-platform-tools.metadata.filters.reset",
           "when": "view == 1c-platform-tools-metadata-filters",
-          "group": "navigation@1"
+          "group": "navigation@5"
         },
         {
           "command": "1c-platform-tools.metadata.filters.collapseAll",
           "when": "view == 1c-platform-tools-metadata-filters",
-          "group": "navigation@9"
+          "group": "navigation@12"
+        },
+        {
+          "command": "1c-platform-tools.settings.openMetadata",
+          "when": "view == 1c-platform-tools-metadata-tree",
+          "group": "navigation@20"
         }
       ],
       "view/item/context": [
@@ -2585,14 +2595,6 @@
       ],
       "1c-platform-tools.metadata.overflowMenu": [
         {
-          "command": "1c-platform-tools.metadata.initEmptyCf",
-          "group": "1_md_overflow@0"
-        },
-        {
-          "command": "1c-platform-tools.settings.openMetadata",
-          "group": "1_md_overflow@1"
-        },
-        {
           "command": "1c-platform-tools.components.update",
           "group": "1_md_overflow@2"
         }
@@ -2672,7 +2674,7 @@
           {
             "id": "step6-projects",
             "title": "Панель проектов",
-            "description": "Укажите папки поиска — расширение найдёт все проекты 1С. Избранное и теги помогут быстро переключаться.\n\n[Открыть панель «Проекты 1С»](command:workbench.view.extension.1c-platform-tools-projects)\n[Настройка проектов](command:1c-platform-tools.projects.openSettings)\n[Открыть список проектов](command:1c-platform-tools.projects.listOpen)",
+            "description": "Укажите папки поиска — расширение найдёт все проекты 1С. Избранное и теги помогут быстро переключаться.\n\n[Открыть панель «Проекты 1С»](command:workbench.view.extension.1c-platform-tools-projects)\n[Настройка проектов](command:1c-platform-tools.settings.openProjects)\n[Открыть список проектов](command:1c-platform-tools.projects.listOpen)",
             "media": {
               "markdown": "walkthrough/step6-projects.md"
             }

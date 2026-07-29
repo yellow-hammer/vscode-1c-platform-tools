@@ -102,12 +102,6 @@ export function registerProjectsCommands(
 
 	// Настройки проектов (контекстное открытие: фильтр по расширению + projects)
 	disposables.push(
-		vscode.commands.registerCommand('1c-platform-tools.projects.openSettings', () => {
-			void vscode.commands.executeCommand(
-				'workbench.action.openSettings',
-				'@ext:yellow-hammer.1c-platform-tools 1c-platform-tools.projects'
-			);
-		})
 	);
 
 	// Настроить избранное (QuickPick с флажками)
