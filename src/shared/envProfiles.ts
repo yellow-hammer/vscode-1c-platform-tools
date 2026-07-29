@@ -214,22 +214,3 @@ export function buildOverrideArgs(overrides: EnvOverrides | undefined): string[]
 export function hasOverrides(overrides: EnvOverrides | undefined): boolean {
 	return buildOverrideArgs(overrides).length > 0;
 }
-
-/** Формат файла настроек vanessa-runner по его содержимому. */
-export type SettingsFileFormat = 'v2' | 'v3' | 'unknown';
-
-/**
- * Определяет формат файла настроек по разобранному содержимому.
- *
- * Корневой ключ `vrunner` означает формат 3.x, плоские секции - 2.x. Файл
- * чужого формата ронял бы команду, поэтому формат проверяется до вызова.
- *
- * @param parsed - Разобранное содержимое файла настроек
- * @returns Формат файла или 'unknown', если содержимое не похоже на настройки
- */
-export function detectSettingsFormat(parsed: unknown): SettingsFileFormat {
-	if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {
-		return 'unknown';
-	}
-	return 'vrunner' in parsed ? 'v3' : 'v2';
-}
