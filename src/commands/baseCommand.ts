@@ -294,9 +294,7 @@ export abstract class BaseCommand {
 			return undefined;
 		}
 		if (opts?.wait === true) {
-			return this.executionError(
-				'Профиль запуска не создан. Создайте его через «Служебные файлы».'
-			);
+			return this.executionError(this.vrunner.settingsProblemMessage());
 		}
 		return 'blocked';
 	}
