@@ -58,6 +58,7 @@ import {
 	getCreateDeliveryDescriptionFileCommandName,
 	getCreateDistributivePackageCommandName,
 	getCreateDistributionFilesCommandName,
+	getConfigureCursorMcpCommandName,
 	getAddDevSkillsCommandName,
 	getAdd1cptSkillsCommandName
 } from './commandNames';
@@ -230,6 +231,7 @@ export const TREE_GROUPS: TreeGroup[] = [
 		sectionType: 'skills',
 		defaultCollapsibleState: 'collapsed',
 		commands: [
+			{ command: '1c-platform-tools.mcp.configureCursor', title: getConfigureCursorMcpCommandName().title, treeLabel: '🔌 Настроить MCP для Cursor' },
 			{ command: '1c-platform-tools.skills.addDevSkills', title: getAddDevSkillsCommandName().title, treeLabel: '📐 Добавить навыки разработки 1С (cc-1c-skills)' },
 			{ command: '1c-platform-tools.skills.add1cpt', title: getAdd1cptSkillsCommandName().title, treeLabel: '🤖 Добавить навыки расширения (команды и MCP)' },
 		],

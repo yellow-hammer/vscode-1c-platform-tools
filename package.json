@@ -1087,6 +1087,11 @@
         "category": "1C: Зависимости"
       },
       {
+        "command": "1c-platform-tools.mcp.configureCursor",
+        "title": "Настроить MCP для Cursor",
+        "category": "1C: Навыки для AI"
+      },
+      {
         "command": "1c-platform-tools.skills.addDevSkills",
         "title": "Добавить навыки разработки 1С (cc-1c-skills)",
         "category": "1C: Навыки для AI"

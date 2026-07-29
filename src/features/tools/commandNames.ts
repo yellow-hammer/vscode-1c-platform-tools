@@ -169,6 +169,17 @@ export function getInitializeProjectStructureCommandName(): CommandNameAndTitle 
 }
 
 /**
+ * Получить название и заголовок для команды настройки MCP для Cursor
+ */
+export function getConfigureCursorMcpCommandName(): CommandNameAndTitle {
+	return {
+		id: '1c-platform-tools.service.configureCursorMcp',
+		name: 'Настроить MCP для Cursor',
+		title: 'Настроить MCP для Cursor'
+	};
+}
+
+/**
  * Получить название и заголовок для команды добавления навыков разработки 1С (cc-1c-skills)
  */
 export function getAddDevSkillsCommandName(): CommandNameAndTitle {
