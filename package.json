@@ -2813,7 +2813,7 @@
           "1c-platform-tools.allure.path": {
             "type": "string",
             "default": "allure",
-            "description": "Путь к allure"
+            "description": "Путь к запускаемому файлу Allure. Пусто или «allure» — командная строка загружается с GitHub Releases (см. «Allure: автозагрузка») либо берётся из PATH."
           },
           "1c-platform-tools.docker.enabled": {
             "type": "boolean",
@@ -3092,6 +3092,11 @@
             "type": "string",
             "default": "",
             "description": "Java: полный путь к java или javaw для дерева метаданных. Пусто — portable JRE из кэша либо java из PATH."
+          },
+          "1c-platform-tools.components.allureAutoload": {
+            "type": "boolean",
+            "default": true,
+            "description": "Загружать Allure с GitHub Releases и обновлять его автоматически. Выключите, если Allure установлен в системе или указан в «Путь к allure»."
           },
           "1c-platform-tools.components.ovmAutoload": {
             "type": "boolean",

@@ -82,14 +82,16 @@ src/
 
 ## Внешние компоненты
 
-Два компонента живут в отдельных репозиториях и не бандлятся в VSIX — расширение скачивает их с GitHub Releases в рантайме. Для разработки самого компонента соберите его локально и укажите путь в настройках:
+Часть инструментов не бандлится в VSIX: расширение скачивает их с GitHub Releases в рантайме и держит в globalStorage. Для разработки самого компонента соберите его локально и укажите путь в настройках:
 
 | Компонент             | Репозиторий                                                               | Локальная сборка          | Настройки (раздел «Внешние компоненты»)                                                                                 |
 |-----------------------|---------------------------------------------------------------------------|---------------------------|-------------------------------------------------------------------------------------------------------------------------|
 | Адаптер отладки (DAP) | [onec-debug-adapter](https://github.com/yellow-hammer/onec-debug-adapter) | `dotnet build -c Release` | `1c-platform-tools.components.adapterFile` — путь к `OnecDebugAdapter.dll`, `components.adapterAutoload: false`         |
 | Дерево метаданных     | [md-sparrow](https://github.com/yellow-hammer/md-sparrow)                 | `gradlew shadowJar`       | `1c-platform-tools.components.metadataJarFile` — путь к `md-sparrow-*-all.jar`, `components.metadataJarAutoload: false` |
+| Менеджер версий OneScript | [ovm](https://github.com/oscript-library/ovm)                         | не требуется              | `1c-platform-tools.components.ovmFile` — путь к `ovm.exe`, `components.ovmAutoload: false`                              |
+| Отчёты Allure         | [allure2](https://github.com/allure-framework/allure2)                    | не требуется              | `1c-platform-tools.allure.path` — путь к `allure`, `components.allureAutoload: false`                                   |
 
-После изменения компонента достаточно пересобрать его и перезапустить сессию отладки (адаптер) или обновить дерево (md-sparrow) — переустановка расширения не нужна.
+После изменения компонента достаточно пересобрать его и перезапустить сессию отладки (адаптер) или обновить дерево (md-sparrow) — переустановка расширения не нужна. Кэш любого компонента сбрасывается командой «Обновить внешние компоненты».
 
 ## Коммиты и Pull Request
 

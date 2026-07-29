@@ -42,7 +42,7 @@ export function registerCoreCommands(
 		support: new SupportCommands(),
 		dependencies: new DependenciesCommands(context),
 		run: new RunCommands(),
-		test: new TestCommands(),
+		test: new TestCommands(context),
 		setVersion: new SetVersionCommands(),
 		oscriptTasks: new OscriptTasksCommands(),
 		workspaceTasks: new WorkspaceTasksCommands(),

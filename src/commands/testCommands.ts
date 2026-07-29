@@ -18,6 +18,7 @@ import * as fs from 'node:fs/promises';
 import { settingValue, resolveConfigPath, reportsXunitFromEnv, extractJUnitPathFromReportsXunit, vanessaReportTarget, syntaxCheckJUnitPathFromEnv } from '../features/testing/projectTestConfig';
 import { parseSyntaxCheckFindings, toSyntaxCheckErrors, SyntaxCheckFinding } from '../features/diagnostics/syntaxCheckJUnit';
 import { readRunSummary, formatRunSummary, RunReportFormat } from '../features/testing/runReportSummary';
+import { ensureAllure } from '../shared/allureComponent';
 
 const NL = '\n';
 
@@ -42,6 +43,13 @@ function stripBom(text: string): string {
  * XUnit тесты, синтаксический контроль, Vanessa тесты и генерация Allure отчетов
  */
 export class TestCommands extends BaseCommand {
+	/**
+	 * @param context - Контекст расширения: из него берётся кэш загружаемых
+	 *   компонентов (Allure). Без него команда отчёта работает по PATH.
+	 */
+	constructor(private readonly context?: vscode.ExtensionContext) {
+		super();
+	}
 
 	/**
 	 * Настройки vanessa-runner для прогона: явный settingsFile вызова либо
@@ -501,7 +509,16 @@ export class TestCommands extends BaseCommand {
 			return;
 		}
 		const outputPath = path.join(outPath, 'allure-report');
-		const allurePath = this.vrunner.getAllurePath();
+		let allurePath: string;
+		try {
+			allurePath = this.context
+				? await ensureAllure(this.context)
+				: this.vrunner.getAllurePath();
+		} catch (error) {
+			const message = error instanceof Error ? error.message : String(error);
+			void vscode.window.showErrorMessage(`Не удалось подготовить Allure: ${message}`);
+			return;
+		}
 		const shellType = detectShellType();
 
 		const generateCommand = this.buildAllureGenerateCommand(
