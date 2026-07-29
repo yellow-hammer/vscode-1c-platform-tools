@@ -925,6 +925,42 @@
         "category": "1C: Информационная база"
       },
       {
+        "command": "1c-platform-tools.session.lock",
+        "title": "Запретить начало сеансов",
+        "icon": "$(lock)",
+        "category": "1C: Сеансы"
+      },
+      {
+        "command": "1c-platform-tools.session.unlock",
+        "title": "Разрешить начало сеансов",
+        "icon": "$(unlock)",
+        "category": "1C: Сеансы"
+      },
+      {
+        "command": "1c-platform-tools.session.lockJobs",
+        "title": "Запретить регламентные задания",
+        "icon": "$(lock)",
+        "category": "1C: Сеансы"
+      },
+      {
+        "command": "1c-platform-tools.session.unlockJobs",
+        "title": "Разрешить регламентные задания",
+        "icon": "$(unlock)",
+        "category": "1C: Сеансы"
+      },
+      {
+        "command": "1c-platform-tools.session.kill",
+        "title": "Завершить сеансы",
+        "icon": "$(trash)",
+        "category": "1C: Сеансы"
+      },
+      {
+        "command": "1c-platform-tools.session.checkClosed",
+        "title": "Проверить отсутствие сеансов",
+        "icon": "$(search)",
+        "category": "1C: Сеансы"
+      },
+      {
         "command": "1c-platform-tools.configuration.loadFromSrc",
         "title": "Загрузить конфигурацию из src/cf",
         "category": "1C: Конфигурация"

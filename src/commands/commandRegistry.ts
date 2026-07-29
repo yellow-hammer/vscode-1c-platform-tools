@@ -9,6 +9,7 @@ import { SupportCommands } from './supportCommands';
 import { DependenciesCommands } from './dependenciesCommands';
 import { RunCommands } from './runCommands';
 import { TestCommands } from './testCommands';
+import { SessionCommands } from './sessionCommands';
 import { SetVersionCommands } from './setVersionCommands';
 import { WorkspaceTasksCommands } from './workspaceTasksCommands';
 import { ArtifactCommands } from './artifactCommands';
@@ -37,6 +38,7 @@ interface Commands {
 	artifact: ArtifactCommands;
 	skills: SkillsCommands;
 	serviceFiles: ServiceFilesCommands;
+	session: SessionCommands;
 }
 
 function getActiveEditorResourceUri(): vscode.Uri | undefined {
@@ -172,6 +174,28 @@ export function registerCommands(
 		),
 		registerVRunnerCommand('1c-platform-tools.infobase.loadFromDt', (opts) =>
 			commands.infobase.loadFromDt(opts)
+		),
+	];
+
+	// Команды сеансов информационной базы (через rac и ras)
+	const sessionCommands = [
+		registerVRunnerCommand('1c-platform-tools.session.lock', (opts) =>
+			commands.session.lock(opts)
+		),
+		registerVRunnerCommand('1c-platform-tools.session.unlock', (opts) =>
+			commands.session.unlock(opts)
+		),
+		registerVRunnerCommand('1c-platform-tools.session.kill', (opts) =>
+			commands.session.kill(opts)
+		),
+		registerVRunnerCommand('1c-platform-tools.session.checkClosed', (opts) =>
+			commands.session.checkClosed(opts)
+		),
+		registerVRunnerCommand('1c-platform-tools.session.lockJobs', (opts) =>
+			commands.session.lockScheduledJobs(opts)
+		),
+		registerVRunnerCommand('1c-platform-tools.session.unlockJobs', (opts) =>
+			commands.session.unlockScheduledJobs(opts)
 		),
 	];
 
@@ -450,6 +474,7 @@ export function registerCommands(
 
 	disposables.push(
 		...infobaseCommands,
+		...sessionCommands,
 		...configurationCommands,
 		...extensionsCommands,
 		...externalFilesCommands,
