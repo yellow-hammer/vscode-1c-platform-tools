@@ -1400,7 +1400,7 @@
       {
         "command": "1c-platform-tools.projects.create",
         "title": "Создать проект 1С...",
-        "category": "1C: Зависимости"
+        "category": "1C: Проекты"
       },
       {
         "command": "1c-platform-tools.getStarted.open",

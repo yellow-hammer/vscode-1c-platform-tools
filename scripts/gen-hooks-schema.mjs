@@ -1,5 +1,6 @@
 // Генерирует список разрешённых command id в resources/schemas/hooks.schema.json
-// из единственного источника правды — id-литералов в src/features/tools/commandNames.ts.
+// из объявленных команд расширения (package.json) с той же политикой, что решает,
+// какие команды видит агент: интерактивные мастера и навигация в подсказки не идут.
 //
 // Использование:
 //   node scripts/gen-hooks-schema.mjs          — перезаписать схему актуальным списком
@@ -12,20 +13,43 @@ import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
-const COMMAND_NAMES = join(root, 'src', 'features', 'tools', 'commandNames.ts');
+const PACKAGE = join(root, 'package.json');
+const POLICY = join(root, 'src', 'shared', 'mcpCommandPolicy.ts');
 const SCHEMA = join(root, 'resources', 'schemas', 'hooks.schema.json');
+const COMMAND_PREFIX = '1c-platform-tools.';
 
-/** Извлекает уникальные id-литералы `1c-platform-tools.*` из commandNames.ts */
+/** Читает список идентификаторов из mcpCommandPolicy.ts */
+function readPolicyList(source, name) {
+	const block = new RegExp(name + ' = \\[(.*?)\\];', 's').exec(source);
+	if (!block) {
+		throw new Error(`Не найден список ${name} в ${POLICY}`);
+	}
+	const items = [...block[1].matchAll(/`\$\{COMMAND_PREFIX\}([^`]*)`/g)];
+	return items.map((match) => COMMAND_PREFIX + match[1]);
+}
+
+/**
+ * Команды расширения, на которые имеет смысл вешать хуки: те же, что видит
+ * агент. Интерактивные мастера, навигация и служебные команды не попадают.
+ */
 function collectCommandIds() {
-	const source = readFileSync(COMMAND_NAMES, 'utf8');
-	const ids = new Set();
-	for (const match of source.matchAll(/\bid:\s*'(1c-platform-tools\.[^']+)'/g)) {
-		ids.add(match[1]);
+	const pkg = JSON.parse(readFileSync(PACKAGE, 'utf8'));
+	const policy = readFileSync(POLICY, 'utf8');
+	const hiddenPrefixes = readPolicyList(policy, 'HIDDEN_PREFIXES');
+	const hiddenExact = new Set(readPolicyList(policy, 'HIDDEN_EXACT'));
+
+	const ids = pkg.contributes.commands
+		.map((command) => command.command)
+		.filter(
+			(id) =>
+				id.startsWith(COMMAND_PREFIX) &&
+				!hiddenExact.has(id) &&
+				!hiddenPrefixes.some((prefix) => id.startsWith(prefix))
+		);
+	if (ids.length === 0) {
+		throw new Error(`Не найдено ни одной команды в ${PACKAGE}`);
 	}
-	if (ids.size === 0) {
-		throw new Error(`Не найдено ни одного command id в ${COMMAND_NAMES}`);
-	}
-	return [...ids].sort();
+	return [...new Set(ids)].sort();
 }
 
 /** Возвращает текст схемы со строгим enum допустимых ключей хуков */

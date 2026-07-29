@@ -8,6 +8,7 @@ import type { VRunnerExecutionResult } from './vrunnerManager';
 import type { CommandExecutionOptions, StructuredCommandResult } from './commandExecutionTypes';
 import { commandSupportsWait, isCommandExposedToMcp } from './mcpCommandPolicy';
 import { agentCommandDescription } from './agentCommandDescriptions';
+import { extractCommandFlags, isProjectPathInWorkspace } from './ipcRequest';
 
 const log = logger.scope('ipc');
 
@@ -70,57 +71,6 @@ function buildResponseBase(id: unknown): Pick<IpcResponse, 'id'> {
 	return {
 		id: typeof id === 'string' || typeof id === 'number' ? String(id) : null,
 	};
-}
-
-/**
- * Проверяет, что путь проекта совпадает с одной из папок workspace или находится внутри неё.
- * На Windows сравнение без учёта регистра.
- */
-function isProjectPathInWorkspace(
-	expectedProjectPath: string,
-	workspaceFolders: readonly vscode.WorkspaceFolder[]
-): boolean {
-	if (workspaceFolders.length === 0) {
-		return true;
-	}
-	const sep = path.sep;
-	const norm = (s: string) => (sep === '\\' ? s.toLowerCase() : s);
-	const sameOrUnder = (a: string, b: string): boolean => {
-		const aNorm = norm(a);
-		const bNorm = norm(b);
-		return (
-			aNorm === bNorm ||
-			aNorm.startsWith(norm(b + sep)) ||
-			bNorm.startsWith(norm(a + sep))
-		);
-	};
-	const firstRoot = path.resolve(workspaceFolders[0].uri.fsPath);
-	const expectedNorm = path.isAbsolute(expectedProjectPath)
-		? path.resolve(expectedProjectPath)
-		: path.resolve(firstRoot, expectedProjectPath);
-	return workspaceFolders.some((folder) => {
-		const workspaceNorm = path.resolve(folder.uri.fsPath);
-		return sameOrUnder(expectedNorm, workspaceNorm);
-	});
-}
-
-/**
- * Извлекает флаги IPC из первого элемента массива args.
- * Если первый элемент является объектом с полями-флагами, возвращает их.
- * Иначе возвращает пустой объект.
- *
- * @param args — массив аргументов команды
- * @returns объект с флагами выполнения
- */
-function extractCommandFlags(args: unknown[]): CommandExecutionOptions {
-	if (args.length === 0) {
-		return {};
-	}
-	const first = args[0];
-	if (typeof first === 'object' && first !== null && !Array.isArray(first)) {
-		return first as CommandExecutionOptions;
-	}
-	return {};
 }
 
 async function handlePing(
@@ -267,11 +217,12 @@ async function handleExecuteCommand(
 			: undefined;
 
 	const workspaceFolders = vscode.workspace.workspaceFolders ?? [];
+	const workspaceRoots = workspaceFolders.map((folder) => folder.uri.fsPath);
 
 	if (
 		expectedProjectPath &&
-		workspaceFolders.length > 0 &&
-		!isProjectPathInWorkspace(expectedProjectPath, workspaceFolders)
+		workspaceRoots.length > 0 &&
+		!isProjectPathInWorkspace(expectedProjectPath, workspaceRoots)
 	) {
 		return {
 			...base,
@@ -281,7 +232,7 @@ async function handleExecuteCommand(
 				code: 'WORKSPACE_MISMATCH',
 				details: {
 					projectPath: expectedProjectPath,
-					workspaceRoots: workspaceFolders.map((f) => f.uri.fsPath),
+					workspaceRoots,
 				},
 			},
 		};

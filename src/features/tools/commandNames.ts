@@ -15,8 +15,8 @@ export interface CommandNameAndTitle {
 export function getCreateEmptyInfobaseCommandName(): CommandNameAndTitle {
 	return {
 		id: '1c-platform-tools.infobase.createEmpty',
-		name: 'Создать пустую',
-		title: 'Создать пустую'
+		name: 'Создать пустую ИБ',
+		title: 'Создать пустую ИБ'
 	};
 }
 
@@ -151,7 +151,7 @@ export function getRemoveDependenciesCommandName(): CommandNameAndTitle {
  */
 export function getInitializePackagedefCommandName(): CommandNameAndTitle {
 	return {
-		id: '1c-platform-tools.dependencies.initPackagedef',
+		id: '1c-platform-tools.dependencies.initializePackagedef',
 		name: 'Инициализировать проект',
 		title: 'Инициализировать проект'
 	};
@@ -162,7 +162,7 @@ export function getInitializePackagedefCommandName(): CommandNameAndTitle {
  */
 export function getInitializeProjectStructureCommandName(): CommandNameAndTitle {
 	return {
-		id: '1c-platform-tools.dependencies.initProjectStructure',
+		id: '1c-platform-tools.dependencies.initializeProjectStructure',
 		name: 'Инициализировать структуру проекта',
 		title: 'Инициализировать структуру проекта'
 	};
@@ -173,7 +173,7 @@ export function getInitializeProjectStructureCommandName(): CommandNameAndTitle 
  */
 export function getConfigureCursorMcpCommandName(): CommandNameAndTitle {
 	return {
-		id: '1c-platform-tools.service.configureCursorMcp',
+		id: '1c-platform-tools.mcp.configureCursor',
 		name: 'Настроить MCP для Cursor',
 		title: 'Настроить MCP для Cursor'
 	};
@@ -184,7 +184,7 @@ export function getConfigureCursorMcpCommandName(): CommandNameAndTitle {
  */
 export function getAddDevSkillsCommandName(): CommandNameAndTitle {
 	return {
-		id: '1c-platform-tools.service.addDevSkills',
+		id: '1c-platform-tools.skills.addDevSkills',
 		name: 'Добавить навыки разработки 1С (cc-1c-skills)',
 		title: 'Добавить навыки разработки 1С (cc-1c-skills)'
 	};
@@ -195,7 +195,7 @@ export function getAddDevSkillsCommandName(): CommandNameAndTitle {
  */
 export function getAdd1cptSkillsCommandName(): CommandNameAndTitle {
 	return {
-		id: '1c-platform-tools.service.add1cptSkills',
+		id: '1c-platform-tools.skills.add1cpt',
 		name: 'Добавить навыки расширения (команды и MCP)',
 		title: 'Добавить навыки расширения (команды и MCP)'
 	};
@@ -206,7 +206,7 @@ export function getAdd1cptSkillsCommandName(): CommandNameAndTitle {
  */
 export function getUpdateOpmCommandName(): CommandNameAndTitle {
 	return {
-		id: '1c-platform-tools.service.updateOpm',
+		id: '1c-platform-tools.dependencies.updateOpm',
 		name: 'Обновить пакетный менеджер opm',
 		title: 'Обновить пакетный менеджер opm'
 	};
@@ -217,7 +217,7 @@ export function getUpdateOpmCommandName(): CommandNameAndTitle {
  */
 export function getInstallOneScriptCommandName(): CommandNameAndTitle {
 	return {
-		id: '1c-platform-tools.service.installOneScript',
+		id: '1c-platform-tools.dependencies.installOscript',
 		name: 'Установить OneScript',
 		title: 'Установить OneScript'
 	};
@@ -228,7 +228,7 @@ export function getInstallOneScriptCommandName(): CommandNameAndTitle {
  */
 export function getSetupGitCommandName(): CommandNameAndTitle {
 	return {
-		id: '1c-platform-tools.service.setupGit',
+		id: '1c-platform-tools.dependencies.setupGit',
 		name: 'Настроить Git',
 		title: 'Настроить Git'
 	};
@@ -242,17 +242,6 @@ export function getBuildConfigurationCommandName(): CommandNameAndTitle {
 		id: '1c-platform-tools.configuration.build',
 		name: 'Собрать конфигурацию',
 		title: 'Собрать конфигурацию'
-	};
-}
-
-/**
- * Получить название и заголовок для команды сборки расширений
- */
-export function getBuildExtensionsCommandName(): CommandNameAndTitle {
-	return {
-		id: '1c-platform-tools.extensions.build',
-		name: 'Собрать расширения',
-		title: 'Собрать расширения'
 	};
 }
 
@@ -451,7 +440,7 @@ export function getLoadConfigurationFromSrcCommandName(mode: 'init' | 'update' =
 		return {
 			id: '1c-platform-tools.configuration.loadFromSrc.init',
 			name: 'Инициализация конфигурации',
-			title: 'Загрузить конфигурацию из src/cf'
+			title: 'Инициализировать конфигурацию из src/cf'
 		};
 	}
 	return {
@@ -667,7 +656,7 @@ export function getUpdateCfgSupportCommandName(): CommandNameAndTitle {
  */
 export function getDisableCfgSupportCommandName(): CommandNameAndTitle {
 	return {
-		id: '1c-platform-tools.support.disableCfg',
+		id: '1c-platform-tools.support.disableCfgSupport',
 		name: 'Удалить',
 		title: 'Удалить'
 	};

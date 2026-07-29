@@ -33,6 +33,7 @@ import {
 	buildOverrideArgs,
 	hasOverrides,
 	resolveActiveEnvFileName,
+	detectSettingsFormat,
 } from './envProfiles';
 import {
 	VRunnerVersion,
@@ -817,11 +818,7 @@ export class VRunnerManager {
 			? settingsFile
 			: path.join(root, settingsFile);
 		try {
-			const parsed = JSON.parse(fsSync.readFileSync(absolutePath, 'utf8'));
-			if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {
-				return 'unknown';
-			}
-			return 'vrunner' in parsed ? 'v3' : 'v2';
+			return detectSettingsFormat(JSON.parse(fsSync.readFileSync(absolutePath, 'utf8')));
 		} catch {
 			return 'unknown';
 		}
