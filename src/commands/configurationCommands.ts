@@ -239,12 +239,13 @@ export class ConfigurationCommands extends BaseCommand {
 	}
 
 	async loadIncrementFromSrc(opts?: CommandExecutionOptions): Promise<StructuredCommandResult | void> {
-		const reject = this.rejectIfWait(
-			opts,
-			'Инкрементальная загрузка требует ввода SHA в UI; wait: true недоступен'
-		);
-		if (reject) {
-			return reject;
+		// SHA в опциях — неинтерактивный вызов (агент, MCP); ввод в UI не нужен.
+		// Агентный вызов без sha отклоняется до открытия input box.
+		let shaInput = typeof opts?.sha === 'string' ? opts.sha : undefined;
+		if (shaInput === undefined && opts !== undefined) {
+			return this.executionError(
+				'Инкрементальная загрузка без параметра sha требует ввода в UI; передайте sha (пустая строка — полная загрузка)'
+			);
 		}
 
 		const workspaceRoot = this.ensureWorkspace();
@@ -263,12 +264,14 @@ export class ConfigurationCommands extends BaseCommand {
 			// полная загрузка
 		}
 
-		const shaInput = await vscode.window.showInputBox({
-			prompt: 'Введите SHA коммита для инкрементальной загрузки',
-			placeHolder: 'Оставьте пустым для полной загрузки',
-			value: currentSha,
-			ignoreFocusOut: true
-		});
+		if (shaInput === undefined) {
+			shaInput = await vscode.window.showInputBox({
+				prompt: 'Введите SHA коммита для инкрементальной загрузки',
+				placeHolder: 'Оставьте пустым для полной загрузки',
+				value: currentSha,
+				ignoreFocusOut: true
+			});
+		}
 
 		if (shaInput === undefined) {
 			return;

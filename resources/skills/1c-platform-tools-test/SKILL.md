@@ -27,12 +27,32 @@ description: Тестирование 1С. Используй, когда пол
 | Allure отчёт                  | `1c-platform-tools.test.allure`       |
 | Собрать unit тесты            | `1c-platform-tools.test.buildEpf`     |
 | Разобрать unit тесты          | `1c-platform-tools.test.decompileEpf` |
+| Запустить EPF в Предприятии   | `1c-platform-tools.enterprise.run`    |
+| Настроить тестовые фреймворки | `1c-platform-tools.testing.configure` |
 
 Сборка/разборка unit тестов (тестовых обработок 1С): исходники в `src/tests` (настройка `paths.testsSrc`), собранные `.epf` — в `build/out/tests` (артефакт, в git не попадает). В `tests` — скриптовые `.os`-тесты OneScript; дымовые наборы Vanessa-ADD поставляются в пакете add (oscript_modules). Обе команды поддерживают `wait: true`.
 
 ## Панель тестирования VS Code
 
 Тесты также отображаются в нативной панели «Тестирование» (Test Explorer): Vanessa (.feature), xUnit (тестовые обработки в src/tests), YAxUnit, OneScript (.os в tests), 1bdd — с запуском отдельных тестов и статусами. Для интерактивной работы пользователя направляй туда; команды выше — для прогона «всего сразу» и агентных циклов.
+
+## Запуск обработок в Предприятии (enterprise.run)
+
+Служебные шаги (загрузка фикстур, инициализация ИБ внешней обработкой) — Execute Command `1c-platform-tools.enterprise.run` с аргументом (в схеме MCP параметров `execute`/`command` нет):
+
+```
+{ "execute": "./build/out/epf/ЗагрузкаФикстур.epf",
+  "command": "Путь=./fixtures/Константы.xml;ЗавершитьРаботуСистемы",
+  "wait": true }
+```
+
+`execute` — путь к EPF/ERF, `command` — строка параметров `/C`; нужен хотя бы один из них.
+
+## Настройка фреймворков (testing.configure)
+
+Неинтерактивно — Execute Command `1c-platform-tools.testing.configure` с аргументом `{ "frameworks": [...], "wait": true }` (ключи: `vanessa`, `xunit`, `yaxunit`, `onescript`, `onebdd`; перечисленные включаются, остальные выключаются, недостающие каталоги создаются).
+
+Агентный вызов без `frameworks` вернёт ошибку с подсказкой, окно не откроется. Интерактивный визард доступен только пользователю из палитры.
 
 ## MCP (mcp-1c-platform-tools)
 
@@ -41,6 +61,10 @@ description: Тестирование 1С. Используй, когда пол
 ### Параметр projectPath
 
 Обязательный. Корень проекта 1С (каталог с `packagedef`). Если пользователь указал путь — используй его; иначе корень workspace.
+
+### Параметр settingsFile
+
+Файл настроек vanessa-runner относительно `projectPath`; перекрывает активный профиль для конкретного вызова. Используй, когда нужен другой набор сценариев или другая ИБ без переключения профиля (например, init-профиль `tools/vrunner.init.json` вместо основного `env.json`).
 
 ### Параметр wait
 

@@ -148,10 +148,16 @@ export class V3CliAdapter implements VRunnerCliAdapter {
 			}
 
 			// ---- Тесты и проверка ----
-			case 'test.xunit':
+			case 'test.xunit': {
 				// Путь к тестам в 3.x — позиционный и обязателен на практике:
 				// без него команда завершается ошибкой чтения параметров.
-				return [cmd(['test', 'xunit'], common(intent), [intent.testsPath ?? DEFAULT_XUNIT_TESTS_PATH])];
+				// Опции обязаны стоять до позиционного аргумента.
+				const options: string[] = [];
+				if (intent.reportsXunit !== undefined) {
+					options.push('--reportsxunit', intent.reportsXunit);
+				}
+				return [cmd(['test', 'xunit'], [...options, ...common(intent)], [intent.testsPath ?? DEFAULT_XUNIT_TESTS_PATH])];
+			}
 			case 'test.vanessa': {
 				const options: string[] = [];
 				if (intent.vanessaSettings !== undefined) {

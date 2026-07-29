@@ -1,4 +1,5 @@
 import * as vscode from 'vscode';
+import { AsyncLocalStorage } from 'node:async_hooks';
 import { exec } from 'node:child_process';
 import * as path from 'node:path';
 import * as fs from 'node:fs/promises';
@@ -99,7 +100,11 @@ export class VRunnerManager {
 	 * Кэш определённой версии vrunner.
 	 * undefined — ещё не определяли; null — определить не удалось.
 	 */
-	private vrunnerVersionCache: VRunnerVersion | null | undefined = undefined;
+	/** Контекст корня проекта для текущей цепочки вызовов (MCP/IPC с projectPath). */
+	private static readonly projectRootStorage = new AsyncLocalStorage<string>();
+
+	/** Кэш версии vrunner по корню проекта (workspace и projectPath различаются). */
+	private readonly vrunnerVersionCacheByRoot = new Map<string, VRunnerVersion | null>();
 	/**
 	 * Разрешённый путь к oscript: имя для PATH, абсолютный путь установки OVM или
 	 * undefined, пока проверка не выполнялась. Обновляется в checkOscriptAvailable
@@ -176,11 +181,40 @@ export class VRunnerManager {
 	 * @returns Относительный путь к локальному бинарю vrunner
 	 *          или 'vrunner' для поиска в PATH
 	 */
+	/**
+	 * Выполняет fn в контексте корня проекта: бинарь vrunner, версия, схема
+	 * настроек и файлы профилей резолвятся от root, а не от workspace.
+	 * Используется IPC-сервером для вызовов с projectPath.
+	 *
+	 * @param root - Абсолютный путь к корню проекта 1С
+	 * @param fn - Действие в контексте корня
+	 * @returns Результат fn
+	 */
+	public runWithProjectRoot<T>(root: string, fn: () => Promise<T>): Promise<T> {
+		return VRunnerManager.projectRootStorage.run(root, fn);
+	}
+
+	/**
+	 * Корень активного контекста: projectPath текущего агентного вызова
+	 * или корень workspace.
+	 *
+	 * @returns Абсолютный путь либо undefined без workspace
+	 */
+	private getEffectiveRoot(): string | undefined {
+		return VRunnerManager.projectRootStorage.getStore() ?? this.workspaceRoot;
+	}
+
+	/** Ключ кэша версии для активного корня. */
+	private versionCacheKey(): string {
+		return this.getEffectiveRoot() ?? '';
+	}
+
 	public getVRunnerPath(): string {
 		// Имя локального бинаря зависит от ОС: на Windows — vrunner.bat, иначе vrunner.
 		const binaryName = process.platform === 'win32' ? 'vrunner.bat' : 'vrunner';
-		if (this.workspaceRoot) {
-			const vrunnerPath = path.join(this.workspaceRoot, 'oscript_modules', 'bin', binaryName);
+		const root = this.getEffectiveRoot();
+		if (root) {
+			const vrunnerPath = path.join(root, 'oscript_modules', 'bin', binaryName);
 			if (fsSync.existsSync(vrunnerPath)) {
 				return path.join('oscript_modules', 'bin', binaryName);
 			}
@@ -225,7 +259,7 @@ export class VRunnerManager {
 	 */
 	public getInitVanessaSettingsPath(): string {
 		const fallback = 'tools/VAParams.init.json';
-		const root = this.workspaceRoot;
+		const root = this.getEffectiveRoot();
 		if (!root) {
 			return fallback;
 		}
@@ -541,8 +575,10 @@ export class VRunnerManager {
 	 * @returns Разобранная версия или undefined, если определить не удалось
 	 */
 	public async getVRunnerVersion(forceRefresh = false): Promise<VRunnerVersion | undefined> {
-		if (!forceRefresh && this.vrunnerVersionCache !== undefined) {
-			return this.vrunnerVersionCache ?? undefined;
+		const cacheKey = this.versionCacheKey();
+		const cachedVersion = this.vrunnerVersionCacheByRoot.get(cacheKey);
+		if (!forceRefresh && cachedVersion !== undefined) {
+			return cachedVersion ?? undefined;
 		}
 
 		let version = await this.detectVRunnerVersionFromCli();
@@ -557,8 +593,8 @@ export class VRunnerManager {
 			log.warn('Не удалось определить версию vrunner');
 		}
 
-		const previous = this.vrunnerVersionCache;
-		this.vrunnerVersionCache = version ?? null;
+		const previous = this.vrunnerVersionCacheByRoot.get(cacheKey);
+		this.vrunnerVersionCacheByRoot.set(cacheKey, version ?? null);
 		if (previous !== undefined && (previous?.raw ?? null) !== (version?.raw ?? null)) {
 			log.info(`Версия vrunner изменилась: ${previous?.raw ?? 'не определена'} -> ${version?.raw ?? 'не определена'}`);
 			this._onDidChangeVRunnerVersion.fire(version);
@@ -576,11 +612,12 @@ export class VRunnerManager {
 	 * @returns Disposable наблюдателя
 	 */
 	public watchVRunnerInstallation(): vscode.Disposable {
-		if (!this.workspaceRoot) {
+		const root = this.getEffectiveRoot();
+		if (!root) {
 			return new vscode.Disposable(() => undefined);
 		}
 		const watcher = vscode.workspace.createFileSystemWatcher(
-			new vscode.RelativePattern(this.workspaceRoot, 'oscript_modules/vanessa-runner/opm-metadata.xml')
+			new vscode.RelativePattern(root, 'oscript_modules/vanessa-runner/opm-metadata.xml')
 		);
 		let timer: NodeJS.Timeout | undefined;
 		const redetect = (): void => {
@@ -609,12 +646,13 @@ export class VRunnerManager {
 	 * @returns Разобранная версия или undefined
 	 */
 	private async readVRunnerVersionFromOpmMetadata(): Promise<VRunnerVersion | undefined> {
-		if (!this.workspaceRoot) {
+		const root = this.getEffectiveRoot();
+		if (!root) {
 			return undefined;
 		}
 
 		const metadataPath = path.join(
-			this.workspaceRoot,
+			root,
 			'oscript_modules',
 			'vanessa-runner',
 			'opm-metadata.xml'
@@ -652,7 +690,7 @@ export class VRunnerManager {
 	 * @returns true, если установлен vrunner >= 3.0.0
 	 */
 	private isCli3(): boolean {
-		const cached = this.vrunnerVersionCache;
+		const cached = this.vrunnerVersionCacheByRoot.get(this.versionCacheKey());
 		return cached ? isAtLeast(cached, VRUNNER_FEATURES.cli3) : false;
 	}
 
@@ -681,7 +719,7 @@ export class VRunnerManager {
 	 * @returns Строка версии (например '3.0.0_beta') или undefined
 	 */
 	public getCachedVRunnerVersionLabel(): string | undefined {
-		return this.vrunnerVersionCache?.raw;
+		return this.vrunnerVersionCacheByRoot.get(this.versionCacheKey())?.raw;
 	}
 
 	/**
@@ -692,13 +730,14 @@ export class VRunnerManager {
 	 * @returns Значение опции или undefined
 	 */
 	public readActiveProfileSettingSync(option: string): string | undefined {
-		if (!this.workspaceRoot) {
+		const root = this.getEffectiveRoot();
+		if (!root) {
 			return undefined;
 		}
 		const settingsFile = this.getActiveEnvFile();
 		const absolutePath = path.isAbsolute(settingsFile)
 			? settingsFile
-			: path.join(this.workspaceRoot, settingsFile);
+			: path.join(root, settingsFile);
 		try {
 			const parsed = JSON.parse(fsSync.readFileSync(absolutePath, 'utf8'));
 			const value = this.activeSettingsSchema() === 'v3'
@@ -807,14 +846,15 @@ export class VRunnerManager {
 	 */
 	public async ensureProfileSettingsFile(interactive: boolean): Promise<boolean> {
 		await this.getVRunnerVersion();
-		if (!this.workspaceRoot) {
+		const root = this.getEffectiveRoot();
+		if (!root) {
 			return true;
 		}
 		const schema = this.activeSettingsSchema();
 		const fileName = this.getActiveEnvFile();
 		const absolutePath = path.isAbsolute(fileName)
 			? fileName
-			: path.join(this.workspaceRoot, fileName);
+			: path.join(root, fileName);
 
 		let suitable = false;
 		try {
@@ -884,12 +924,13 @@ export class VRunnerManager {
 	 * @returns true, если файл в формате 2.x
 	 */
 	private isSettingsFileV2Format(settingsFile: string): boolean {
-		if (!this.workspaceRoot) {
+		const root = this.getEffectiveRoot();
+		if (!root) {
 			return false;
 		}
 		const absolutePath = path.isAbsolute(settingsFile)
 			? settingsFile
-			: path.join(this.workspaceRoot, settingsFile);
+			: path.join(root, settingsFile);
 		try {
 			const parsed = JSON.parse(fsSync.readFileSync(absolutePath, 'utf8'));
 			return typeof parsed === 'object' && parsed !== null && !Array.isArray(parsed) && !('vrunner' in parsed);
@@ -1043,11 +1084,10 @@ export class VRunnerManager {
 	 * @returns Массив нормализованных аргументов для Docker
 	 */
 	public processCommandArgsForDocker(args: string[]): string[] {
-		if (!this.workspaceRoot) {
+		const workspaceRoot = this.getEffectiveRoot();
+		if (!workspaceRoot) {
 			return args;
 		}
-		
-		const workspaceRoot = this.workspaceRoot;
 		
 		return args.map((arg, index) => {
 			if (arg === '--ibconnection' && index + 1 < args.length) {
@@ -1083,10 +1123,11 @@ export class VRunnerManager {
 	 * @returns Массив обработанных аргументов с нормализованными путями
 	 */
 	private processCommandArgs(args: string[], cwd: string, shellType: ShellType): string[] {
+		const root = this.getEffectiveRoot();
 		return args.map((arg) => {
 			// Преобразуем абсолютные пути в относительные, если они внутри workspace
-			if (this.workspaceRoot && path.isAbsolute(arg)) {
-				if (fsSync.existsSync(arg) && arg.startsWith(this.workspaceRoot)) {
+			if (root && path.isAbsolute(arg)) {
+				if (fsSync.existsSync(arg) && arg.startsWith(root)) {
 					let relativeArg = path.relative(cwd, arg);
 					// Нормализуем путь для bash оболочек на Windows
 					relativeArg = normalizeArgForShell(relativeArg, shellType);
@@ -1124,7 +1165,7 @@ export class VRunnerManager {
 			throw new Error('Путь к расширению не установлен. Убедитесь, что расширение активировано.');
 		}
 
-		const cwd = options?.cwd || this.workspaceRoot || process.cwd();
+		const cwd = options?.cwd || this.getEffectiveRoot() || process.cwd();
 		const shellType = options?.shellType || detectShellType();
 		const scriptPath = path.join(this.extensionPath, 'scripts', scriptName);
 		const onescriptPath = this.getOnescriptPath();
@@ -1220,11 +1261,11 @@ export class VRunnerManager {
 	): Promise<vscode.Task | undefined> {
 		await this.getVRunnerVersion();
 		const finalArgs = options?.appendOverrides === false ? args : this.appendActiveOverrides(args);
-		const cwd = options?.cwd || this.workspaceRoot || os.homedir();
+		const cwd = options?.cwd || this.getEffectiveRoot() || os.homedir();
 		const useDocker = await this.shouldUseDocker();
 
 		if (useDocker) {
-			if (!this.workspaceRoot) {
+			if (!this.getEffectiveRoot()) {
 				log.error('Для использования Docker необходимо открыть рабочую область');
 				vscode.window.showErrorMessage('Для использования Docker необходимо открыть рабочую область');
 				return undefined;
@@ -1319,12 +1360,12 @@ export class VRunnerManager {
 		const finalArgsArray = options?.appendOverrides === false
 			? argsArray
 			: argsArray.map((args) => this.appendActiveOverrides(args));
-		const cwd = options?.cwd || this.workspaceRoot || os.homedir();
+		const cwd = options?.cwd || this.getEffectiveRoot() || os.homedir();
 		const useDocker = await this.shouldUseDocker();
 		let command: string;
 
 		if (useDocker) {
-			if (!this.workspaceRoot) {
+			if (!this.getEffectiveRoot()) {
 				log.error('Для использования Docker необходимо открыть рабочую область');
 				vscode.window.showErrorMessage('Для использования Docker необходимо открыть рабочую область');
 				return;
@@ -1335,7 +1376,7 @@ export class VRunnerManager {
 			try {
 				const dockerImage = this.getDockerImage();
 				const processedArgsArray = finalArgsArray.map((args) => this.processCommandArgsForDocker(args));
-				command = buildDockerCommandSequence(dockerImage, processedArgsArray, this.workspaceRoot, TASK_HOST_SHELL);
+				command = buildDockerCommandSequence(dockerImage, processedArgsArray, this.getEffectiveRoot() ?? '', TASK_HOST_SHELL);
 			} catch (error) {
 				const errMsg = (error as Error).message;
 				log.error(`Ошибка при подготовке команды Docker: ${errMsg}`);
@@ -1385,12 +1426,12 @@ export class VRunnerManager {
 		const finalArgsArray = options?.appendOverrides === false
 			? argsArray
 			: argsArray.map((args) => this.appendActiveOverrides(args));
-		const cwd = options?.cwd || this.workspaceRoot || os.homedir();
+		const cwd = options?.cwd || this.getEffectiveRoot() || os.homedir();
 		const useDocker = await this.shouldUseDocker();
 		let command: string;
 
 		if (useDocker) {
-			if (!this.workspaceRoot) {
+			if (!this.getEffectiveRoot()) {
 				log.error('Для использования Docker необходимо открыть рабочую область');
 				vscode.window.showErrorMessage('Для использования Docker необходимо открыть рабочую область');
 				return 1;
@@ -1401,7 +1442,7 @@ export class VRunnerManager {
 			try {
 				const dockerImage = this.getDockerImage();
 				const processedArgsArray = finalArgsArray.map((args) => this.processCommandArgsForDocker(args));
-				command = buildDockerCommandSequence(dockerImage, processedArgsArray, this.workspaceRoot, TASK_HOST_SHELL);
+				command = buildDockerCommandSequence(dockerImage, processedArgsArray, this.getEffectiveRoot() ?? '', TASK_HOST_SHELL);
 			} catch (error) {
 				const errMsg = (error as Error).message;
 				log.error(`Ошибка при подготовке команды Docker: ${errMsg}`);
@@ -1471,7 +1512,7 @@ export class VRunnerManager {
 		if (options?.appendOverrides !== false) {
 			args = this.appendActiveOverrides(args);
 		}
-		const cwd = options?.cwd || this.workspaceRoot || os.homedir();
+		const cwd = options?.cwd || this.getEffectiveRoot() || os.homedir();
 		const shellType = options?.shellType || detectShellType();
 
 		const useDocker = await this.shouldUseDocker();
@@ -1479,7 +1520,7 @@ export class VRunnerManager {
 		let command: string;
 		
 		if (useDocker) {
-			if (!this.workspaceRoot) {
+			if (!this.getEffectiveRoot()) {
 				log.error('Для использования Docker необходимо открыть рабочую область');
 				vscode.window.showErrorMessage('Для использования Docker необходимо открыть рабочую область');
 				return;
@@ -1505,7 +1546,7 @@ export class VRunnerManager {
 			try {
 				const dockerImage = this.getDockerImage();
 				const processedArgs = this.processCommandArgsForDocker(args);
-				command = buildDockerCommand(dockerImage, processedArgs, this.workspaceRoot, shellType);
+				command = buildDockerCommand(dockerImage, processedArgs, this.getEffectiveRoot() ?? '', shellType);
 				log.debug(`Docker: образ=${dockerImage}, args=${processedArgs.join(' ')}`);
 			} catch (error) {
 				const errMsg = (error as Error).message;
@@ -1562,13 +1603,13 @@ export class VRunnerManager {
 			argsArray = argsArray.map((args) => this.appendActiveOverrides(args));
 		}
 
-		const cwd = options?.cwd || this.workspaceRoot || os.homedir();
+		const cwd = options?.cwd || this.getEffectiveRoot() || os.homedir();
 		const shellType = options?.shellType || detectShellType();
 		const useDocker = await this.shouldUseDocker();
 		let command: string;
 
 		if (useDocker) {
-			if (!this.workspaceRoot) {
+			if (!this.getEffectiveRoot()) {
 				log.error('Для использования Docker необходимо открыть рабочую область');
 				vscode.window.showErrorMessage('Для использования Docker необходимо открыть рабочую область');
 				return;
@@ -1589,7 +1630,7 @@ export class VRunnerManager {
 			try {
 				const dockerImage = this.getDockerImage();
 				const processedArgsArray = argsArray.map((args) => this.processCommandArgsForDocker(args));
-				command = buildDockerCommandSequence(dockerImage, processedArgsArray, this.workspaceRoot, shellType);
+				command = buildDockerCommandSequence(dockerImage, processedArgsArray, this.getEffectiveRoot() ?? '', shellType);
 				log.debug(`Docker (последовательно): образ=${dockerImage}, команд=${processedArgsArray.length}`);
 			} catch (error) {
 				const errMsg = (error as Error).message;
@@ -1646,7 +1687,7 @@ export class VRunnerManager {
 			args = this.toCliArgs(args);
 		}
 		if (useDocker) {
-			if (!this.workspaceRoot) {
+			if (!this.getEffectiveRoot()) {
 				return { error: 'Для использования Docker необходимо открыть рабочую область' };
 			}
 
@@ -1654,7 +1695,7 @@ export class VRunnerManager {
 				const dockerImage = this.getDockerImage();
 				const processedArgs = this.processCommandArgsForDocker(args);
 				const shellType = detectShellType();
-				return { command: buildDockerCommand(dockerImage, processedArgs, this.workspaceRoot, shellType) };
+				return { command: buildDockerCommand(dockerImage, processedArgs, this.getEffectiveRoot() ?? '', shellType) };
 			} catch (error) {
 				return { error: (error as Error).message };
 			}
@@ -1706,7 +1747,7 @@ export class VRunnerManager {
 		options?: { cwd?: string; env?: NodeJS.ProcessEnv }
 	): Promise<VRunnerExecutionResult> {
 		const useDocker = await this.shouldUseDocker();
-		const cwd = options?.cwd || this.workspaceRoot;
+		const cwd = options?.cwd || this.getEffectiveRoot();
 
 		return new Promise((resolve) => {
 			const built = this.buildExecCommand(args, useDocker);
@@ -1720,6 +1761,9 @@ export class VRunnerManager {
 				return;
 			}
 			const command = built.command;
+			// фактическая команда и cwd в логе: без этого не разобрать, какой
+			// vrunner исполнился (локальный из oscript_modules или из PATH)
+			log.info(`exec: ${command} (cwd: ${cwd ?? 'не задан'})`);
 
 			const execOptions = {
 				cwd: cwd,
@@ -1782,7 +1826,7 @@ export class VRunnerManager {
 		}
 
 		return runCancellableCommand(built.command, {
-			cwd: options?.cwd || this.workspaceRoot,
+			cwd: options?.cwd || this.getEffectiveRoot(),
 			env: options?.env,
 			token: options?.token,
 			onOutput: options?.onOutput
@@ -1803,7 +1847,7 @@ export class VRunnerManager {
 		options?: { cwd?: string; env?: NodeJS.ProcessEnv; name?: string }
 	): Promise<void> {
 		const { path: opmPath, leadingArgs } = this.getOpmInvocation();
-		const cwd = options?.cwd || this.workspaceRoot || os.homedir();
+		const cwd = options?.cwd || this.getEffectiveRoot() || os.homedir();
 		const quotedPath = opmPath.includes(' ') ? `"${opmPath}"` : opmPath;
 		const command = `${quotedPath} ${escapeCommandArgs([...leadingArgs, ...args])}`;
 		const task = createVRunnerTask({
@@ -1838,7 +1882,7 @@ export class VRunnerManager {
 		}
 		const { path: opmPath, leadingArgs } = this.getOpmInvocation();
 		const shellType = options?.shellType || detectShellType();
-		const cwd = options?.cwd || this.workspaceRoot || os.homedir();
+		const cwd = options?.cwd || this.getEffectiveRoot() || os.homedir();
 		const processedArgs = this.processCommandArgs([...leadingArgs, ...args], cwd, shellType);
 		const command = buildCommand(opmPath, processedArgs, shellType);
 
@@ -1872,7 +1916,7 @@ export class VRunnerManager {
 			const command = `${quotedPath} ${argsString}`;
 
 			const execOptions = {
-				cwd: options?.cwd || this.workspaceRoot,
+				cwd: options?.cwd || this.getEffectiveRoot(),
 				maxBuffer: MAX_EXEC_BUFFER_SIZE,
 				encoding: 'utf8' as BufferEncoding
 			};
@@ -1908,9 +1952,9 @@ export class VRunnerManager {
 	): void {
 		const allurePath = this.getAllurePath();
 		const shellType = options?.shellType || detectShellType();
-		const processedArgs = this.processCommandArgs(args, options?.cwd || this.workspaceRoot || os.homedir(), shellType);
+		const processedArgs = this.processCommandArgs(args, options?.cwd || this.getEffectiveRoot() || os.homedir(), shellType);
 		const command = buildCommand(allurePath, processedArgs, shellType);
-		const cwd = options?.cwd || this.workspaceRoot || os.homedir();
+		const cwd = options?.cwd || this.getEffectiveRoot() || os.homedir();
 
 		const allureTerminalName = options?.name || '1C: Platform Tools';
 		const allureTerminal =
@@ -1942,7 +1986,7 @@ export class VRunnerManager {
 			const command = `${quotedPath} ${argsString}`;
 
 			const execOptions = {
-				cwd: options?.cwd || this.workspaceRoot,
+				cwd: options?.cwd || this.getEffectiveRoot(),
 				maxBuffer: MAX_EXEC_BUFFER_SIZE,
 				encoding: 'utf8' as BufferEncoding
 			};
@@ -1988,11 +2032,12 @@ export class VRunnerManager {
 	}
 
 	public async readEnvJson(fileName: string = BASE_ENV_FILE): Promise<any> {
-		if (!this.workspaceRoot) {
+		const root = this.getEffectiveRoot();
+		if (!root) {
 			throw new Error('Рабочая область не открыта');
 		}
 
-		const envPath = path.join(this.workspaceRoot, fileName);
+		const envPath = path.join(root, fileName);
 		try {
 			const content = await fs.readFile(envPath, 'utf8');
 			return JSON.parse(content);
@@ -2012,11 +2057,12 @@ export class VRunnerManager {
 	 * @throws {Error} Если рабочая область не открыта
 	 */
 	public async writeEnvJson(data: any): Promise<void> {
-		if (!this.workspaceRoot) {
+		const root = this.getEffectiveRoot();
+		if (!root) {
 			throw new Error('Рабочая область не открыта');
 		}
 
-		const envPath = path.join(this.workspaceRoot, 'env.json');
+		const envPath = path.join(root, 'env.json');
 		const content = JSON.stringify(data, null, 2);
 		await fs.writeFile(envPath, content, 'utf8');
 	}
@@ -2064,10 +2110,11 @@ export class VRunnerManager {
 	 */
 	public discoverEnvProfiles(): EnvProfile[] {
 		let fileNames: string[] = [];
-		if (this.workspaceRoot) {
+		const root = this.getEffectiveRoot();
+		if (root) {
 			try {
 				fileNames = fsSync
-					.readdirSync(this.workspaceRoot, { withFileTypes: true })
+					.readdirSync(root, { withFileTypes: true })
 					.filter((entry) => entry.isFile())
 					.map((entry) => entry.name);
 			} catch {
@@ -2217,13 +2264,14 @@ export class VRunnerManager {
 	 * @returns Значение опции или undefined
 	 */
 	private async readActiveProfileSetting(option: string): Promise<string | undefined> {
-		if (!this.workspaceRoot) {
+		const root = this.getEffectiveRoot();
+		if (!root) {
 			return undefined;
 		}
 		const settingsFile = this.getActiveEnvFile();
 		const absolutePath = path.isAbsolute(settingsFile)
 			? settingsFile
-			: path.join(this.workspaceRoot, settingsFile);
+			: path.join(root, settingsFile);
 		try {
 			const content = await fs.readFile(absolutePath, 'utf8');
 			const parsed = JSON.parse(content);
@@ -2275,7 +2323,7 @@ export class VRunnerManager {
 	 * @returns Путь к workspace или undefined, если workspace не открыт
 	 */
 	public getWorkspaceRoot(): string | undefined {
-		return this.workspaceRoot;
+		return this.getEffectiveRoot();
 	}
 
 	/**

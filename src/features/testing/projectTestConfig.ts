@@ -92,9 +92,10 @@ export function resolveConfigPath(value: string, workspaceRoot: string): string 
  */
 export function extractJUnitPathFromReportsXunit(reportsXunit: string): string | undefined {
 	for (const part of reportsXunit.split(';')) {
-		const generatorMatch = /ГенераторОтчетаJUnitXML\s*\{([^}]+)\}/i.exec(part);
-		if (generatorMatch) {
-			return generatorMatch[1].trim();
+		// 2.x: ГенераторОтчетаJUnitXML{путь}; 3.x: jUnit{путь}; краткий: jUnit:путь
+		const braceMatch = /(?:ГенераторОтчетаJUnitXML|jUnit)\s*\{([^}]+)\}/i.exec(part);
+		if (braceMatch) {
+			return braceMatch[1].trim();
 		}
 		const shortMatch = /^\s*jUnit\s*:\s*(.+)$/i.exec(part);
 		if (shortMatch) {
@@ -114,28 +115,79 @@ export function extractJUnitPathFromReportsXunit(reportsXunit: string): string |
  * @param workspaceRoot - Корень workspace для подстановки $workspaceRoot
  * @returns Цель отчёта или undefined, если ни один формат не настроен
  */
+/**
+ * Истина в терминах настроек VA: булево true либо строки «Истина»/«True».
+ *
+ * @param value - Значение флага из VAParams
+ * @returns true, если флаг включён
+ */
+export function vaFlagOn(value: unknown): boolean {
+	if (typeof value === 'boolean') {
+		return value;
+	}
+	if (typeof value === 'string') {
+		const lowered = value.trim().toLowerCase();
+		return lowered === 'истина' || lowered === 'true';
+	}
+	return false;
+}
+
+/**
+ * Каталог выгрузки отчёта VA: плоское поле или вложенная секция.
+ *
+ * Vanessa Automation принимает оба написания настроек, в живых конфигах
+ * встречаются оба; регистр буквы j в именах ключей также различается.
+ *
+ * @param vaParams - Разобранное содержимое VAParams
+ * @param flatKeys - Имена плоских полей каталога
+ * @param sections - Пары «секция, ключ каталога»
+ * @returns Каталог как записан в конфиге или undefined
+ */
+function vaReportDir(
+	vaParams: Record<string, unknown>,
+	flatKeys: string[],
+	sections: [string, string][]
+): string | undefined {
+	for (const key of flatKeys) {
+		const value = vaParams[key];
+		if (typeof value === 'string' && value.length > 0) {
+			return value;
+		}
+	}
+	for (const [section, key] of sections) {
+		const sectionValue = vaParams[section];
+		if (typeof sectionValue === 'object' && sectionValue !== null) {
+			const value = (sectionValue as Record<string, unknown>)[key];
+			if (typeof value === 'string' && value.length > 0) {
+				return value;
+			}
+		}
+	}
+	return undefined;
+}
+
 export function vanessaReportTarget(
 	vaParams: Record<string, unknown>,
 	workspaceRoot: string
 ): ReportTarget | undefined {
-	if (vaParams['ДелатьОтчетВФорматеjUnit'] === true) {
-		const junitSection = vaParams['ОтчетjUnit'];
-		const dir =
-			junitSection && typeof junitSection === 'object'
-				? (junitSection as Record<string, unknown>)['КаталогВыгрузкиjUnit']
-				: undefined;
-		if (typeof dir === 'string' && dir.length > 0) {
+	if (vaFlagOn(vaParams['ДелатьОтчетВФорматеjUnit'])) {
+		const dir = vaReportDir(
+			vaParams,
+			['КаталогВыгрузкиJUnit', 'КаталогВыгрузкиjUnit', 'КаталогОтчетаJUnit'],
+			[['ОтчетJUnit', 'КаталогВыгрузкиJUnit'], ['ОтчетjUnit', 'КаталогВыгрузкиjUnit']]
+		);
+		if (dir) {
 			return { format: 'junit', path: resolveConfigPath(dir, workspaceRoot) };
 		}
 	}
 
-	if (vaParams['ДелатьОтчетВФорматеCucumberJson'] === true) {
-		const cucumberSection = vaParams['ОтчетCucumber'];
-		const dir =
-			cucumberSection && typeof cucumberSection === 'object'
-				? (cucumberSection as Record<string, unknown>)['КаталогВыгрузкиCucumberJson']
-				: undefined;
-		if (typeof dir === 'string' && dir.length > 0) {
+	if (vaFlagOn(vaParams['ДелатьОтчетВФорматеCucumberJson'])) {
+		const dir = vaReportDir(
+			vaParams,
+			['КаталогВыгрузкиCucumberJson'],
+			[['ОтчетCucumber', 'КаталогВыгрузкиCucumberJson']]
+		);
+		if (dir) {
 			return { format: 'cucumber', path: resolveConfigPath(dir, workspaceRoot) };
 		}
 	}

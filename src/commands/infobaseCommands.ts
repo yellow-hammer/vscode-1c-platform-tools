@@ -119,12 +119,9 @@ export class InfobaseCommands extends BaseCommand {
 	}
 
 	async loadFromDt(opts?: CommandExecutionOptions): Promise<StructuredCommandResult | void> {
-		const reject = this.rejectIfWait(
-			opts,
-			'Загрузка из .dt требует выбора файла в UI; wait: true недоступен'
-		);
-		if (reject) {
-			return reject;
+		// файл .dt выбирается в диалоге; агентный вызов отклоняется до открытия окна
+		if (opts !== undefined) {
+			return this.executionError('Загрузка из .dt требует выбора файла в UI; выполняется пользователем');
 		}
 
 		const workspaceRoot = this.ensureWorkspace();

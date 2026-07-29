@@ -14,6 +14,22 @@ import {
 import { collectAllureResultDirs } from '../utils/allureResults';
 import type { CommandExecutionOptions, StructuredCommandResult } from '../shared/commandExecutionTypes';
 import { DEFAULT_TESTING } from '../shared/pathDefaults';
+import * as fs from 'node:fs/promises';
+import { settingValue, resolveConfigPath, reportsXunitFromEnv, extractJUnitPathFromReportsXunit, vanessaReportTarget } from '../features/testing/projectTestConfig';
+import { readRunSummary, formatRunSummary, RunReportFormat } from '../features/testing/runReportSummary';
+
+const NL = '\n';
+
+/** Цель отчёта прогона: путь и формат. */
+interface RunReportTarget {
+	path: string;
+	format: RunReportFormat;
+}
+
+/** Убирает BOM в начале JSON-файла. */
+function stripBom(text: string): string {
+	return text.charCodeAt(0) === 0xfeff ? text.slice(1) : text;
+}
 
 /**
  * Команды для тестирования
@@ -24,6 +40,139 @@ import { DEFAULT_TESTING } from '../shared/pathDefaults';
 export class TestCommands extends BaseCommand {
 
 	/**
+	 * Настройки vanessa-runner для прогона: явный settingsFile вызова либо
+	 * активный профиль.
+	 */
+	private async readRunSettings(
+		opts?: CommandExecutionOptions
+	): Promise<{ settings: Record<string, unknown>; schema: 'v2' | 'v3' }> {
+		if (opts?.settingsFile) {
+			await this.vrunner.getVRunnerVersion();
+			return {
+				settings: (await this.vrunner.readEnvJson(opts.settingsFile)) as Record<string, unknown>,
+				schema: this.vrunner.getActiveSettingsSchema(),
+			};
+		}
+		return this.vrunner.readActiveSettings();
+	}
+
+	/**
+	 * Путь jUnit-отчёта прогона по конфигурации проекта.
+	 *
+	 * vanessa: файл VAParams (--vanessasettings) → КаталогОтчетаJUnit;
+	 * xunit: --reportsxunit → путь генератора jUnit;
+	 * yaxunit: конфиг testing.yaxunitConfigPath → reportPath.
+	 *
+	 * @returns Абсолютный путь к файлу/каталогу отчёта или undefined
+	 */
+	private async resolveRunReportTarget(
+		framework: 'vanessa' | 'xunit' | 'yaxunit',
+		opts?: CommandExecutionOptions
+	): Promise<RunReportTarget | undefined> {
+		const workspaceRoot = this.vrunner.getWorkspaceRoot();
+		if (!workspaceRoot) {
+			return undefined;
+		}
+		try {
+			if (framework === 'yaxunit') {
+				const config = vscode.workspace.getConfiguration('1c-platform-tools');
+				const configPath = config.get<string>('testing.yaxunitConfigPath', DEFAULT_TESTING.yaxunitConfigPath);
+				const raw = await fs.readFile(path.join(workspaceRoot, configPath), 'utf8');
+				const parsed = JSON.parse(stripBom(raw)) as Record<string, unknown>;
+				const reportPath = parsed['reportPath'];
+				return typeof reportPath === 'string' && reportPath.length > 0
+					? { path: resolveConfigPath(reportPath, workspaceRoot), format: 'junit' }
+					: undefined;
+			}
+			const { settings, schema } = await this.readRunSettings(opts);
+			if (framework === 'xunit') {
+				const reportsXunit = reportsXunitFromEnv(settings, schema);
+				const junitRel = reportsXunit ? extractJUnitPathFromReportsXunit(reportsXunit) : undefined;
+				return junitRel ? { path: resolveConfigPath(junitRel, workspaceRoot), format: 'junit' } : undefined;
+			}
+			const vaSettingsRel = settingValue(settings, schema, 'vanessa', 'vanessasettings');
+			if (typeof vaSettingsRel !== 'string' || vaSettingsRel.length === 0) {
+				return undefined;
+			}
+			const vaRaw = await fs.readFile(resolveConfigPath(vaSettingsRel, workspaceRoot), 'utf8');
+			const vaParams = JSON.parse(stripBom(vaRaw)) as Record<string, unknown>;
+			// Цель отчёта VA определяется так же, как в панели тестирования:
+			// jUnit, а при выключенном jUnit — Cucumber JSON
+			const target = vanessaReportTarget(vaParams, workspaceRoot);
+			return target ? { path: target.path, format: target.format } : undefined;
+		} catch {
+			return undefined;
+		}
+	}
+
+	/**
+	 * Создаёт каталог отчёта перед прогоном: vanessa-automation и генераторы
+	 * jUnit не создают каталоги сами и молча пропускают выгрузку отчёта.
+	 *
+	 * @param framework - Фреймворк прогона (vanessa: путь — каталог, иначе файл)
+	 * @param reportPath - Путь отчёта из конфигурации
+	 */
+	private async ensureReportDir(
+		framework: 'vanessa' | 'xunit' | 'yaxunit',
+		target: RunReportTarget | undefined
+	): Promise<void> {
+		if (!target) {
+			return;
+		}
+		const dir = framework === 'vanessa' ? target.path : path.dirname(target.path);
+		try {
+			await fs.mkdir(dir, { recursive: true });
+		} catch {
+			// каталог не создался — прогон сам сообщит об отсутствии отчёта
+		}
+	}
+
+	/**
+	 * Дополняет структурированный результат прогона фактическим результатом
+	 * тестов из jUnit-отчёта.
+	 *
+	 * Код возврата vrunner не отражает результат тестов, поэтому: упавшие
+	 * тесты, отсутствующий или устаревший отчёт дают success: false. Сводка
+	 * добавляется в stdout и в поле tests.
+	 */
+	private async withRunReport(
+		result: StructuredCommandResult | void,
+		framework: 'vanessa' | 'xunit' | 'yaxunit',
+		startedAtMs: number,
+		opts?: CommandExecutionOptions,
+		resolvedTarget?: RunReportTarget
+	): Promise<StructuredCommandResult | void> {
+		if (opts?.wait !== true || result === undefined) {
+			return result;
+		}
+		const target = resolvedTarget ?? await this.resolveRunReportTarget(framework, opts);
+		if (!target) {
+			return {
+				...result,
+				success: false,
+				stderr: [result.stderr, 'Путь отчёта прогона (jUnit или Cucumber JSON) не настроен в конфигурации проекта; результат тестов неизвестен.']
+					.filter(Boolean).join(NL),
+			};
+		}
+		const stats = await readRunSummary(target.path, startedAtMs, target.format);
+		if (!stats) {
+			return {
+				...result,
+				success: false,
+				stderr: [result.stderr, `Отчёт прогона не найден или не обновился (ожидался: ${target.path}); результат тестов неизвестен.`]
+					.filter(Boolean).join(NL),
+			};
+		}
+		const testsGreen = stats.failed === 0 && stats.errors === 0 && stats.total > 0;
+		return {
+			...result,
+			success: result.success && testsGreen,
+			stdout: [result.stdout, formatRunSummary(stats)].filter(Boolean).join(NL),
+			tests: stats,
+		};
+	}
+
+	/**
 	 * Запускает XUnit тесты
 	 *
 	 * Выполняет команду vrunner xunit для запуска модульных тестов в формате XUnit.
@@ -32,10 +181,14 @@ export class TestCommands extends BaseCommand {
 	 */
 	async runXUnit(opts?: CommandExecutionOptions): Promise<StructuredCommandResult | void> {
 		const commandName = getXUnitTestsCommandName();
-		return this.runIntent(
+		const startedAtMs = Date.now();
+		const reportTarget = await this.resolveRunReportTarget('xunit', opts);
+		await this.ensureReportDir('xunit', reportTarget);
+		const result = await this.runIntent(
 			{ kind: 'test.xunit' },
 			opts, commandName.title, undefined, commandName.id
 		);
+		return this.withRunReport(result, 'xunit', startedAtMs, opts, reportTarget);
 	}
 
 	/**
@@ -73,9 +226,51 @@ export class TestCommands extends BaseCommand {
 		opts?: CommandExecutionOptions
 	): Promise<StructuredCommandResult | void> {
 		const commandName = getVanessaTestsCommandName(mode);
-		return this.runIntent(
+		const startedAtMs = Date.now();
+		const reportTarget = await this.resolveRunReportTarget('vanessa', opts);
+		await this.ensureReportDir('vanessa', reportTarget);
+		const result = await this.runIntent(
 			{ kind: 'test.vanessa' },
 			opts, commandName.title, undefined, commandName.id
+		);
+		return this.withRunReport(result, 'vanessa', startedAtMs, opts, reportTarget);
+	}
+
+	/**
+	 * Запускает внешнюю обработку/отчёт в Предприятии через vrunner run
+	 *
+	 * Выполняет vrunner run --execute <epf> --command <параметры /C> под активным
+	 * профилем (или явным settingsFile). Сценарий — служебные шаги инициализации:
+	 * загрузка фикстур, служебные EPF и т.п.
+	 *
+	 * @param opts — опции выполнения: execute (путь к EPF/ERF), command (строка /C),
+	 *               settingsFile, ibConnection; при wait: true — синхронный режим
+	 * @returns void в UI-режиме, StructuredCommandResult при wait: true
+	 */
+	async runEnterpriseProcessor(opts?: CommandExecutionOptions): Promise<StructuredCommandResult | void> {
+		const workspaceRoot = this.ensureWorkspace();
+		if (!workspaceRoot) {
+			if (opts?.wait === true) {
+				return this.executionError('Откройте рабочую область с проектом 1С');
+			}
+			return;
+		}
+
+		const execute = typeof opts?.execute === 'string' && opts.execute.trim() !== '' ? opts.execute.trim() : undefined;
+		const commandParam = typeof opts?.command === 'string' && opts.command.trim() !== '' ? opts.command.trim() : undefined;
+		if (!execute && !commandParam) {
+			const message = 'Укажите execute (путь к EPF/ERF) или command (строка параметров /C)';
+			if (opts?.wait === true) {
+				return this.executionError(message);
+			}
+			vscode.window.showErrorMessage(message);
+			return;
+		}
+
+		const connectionArgs = await this.vrunner.getIbConnectionParam(opts?.ibConnection);
+		return this.runIntent(
+			{ kind: 'run.enterprise', execute, command: commandParam, common: connectionArgs },
+			opts, 'Запуск обработки в Предприятии', undefined, '1c-platform-tools.enterprise.run'
 		);
 	}
 
@@ -107,10 +302,14 @@ export class TestCommands extends BaseCommand {
 		// адрес ИБ из вызова MCP (перекрывает ИБ профиля), иначе пусто.
 		const connectionArgs = await this.vrunner.getIbConnectionParam(opts?.ibConnection);
 		const yaxCmd = getYAxUnitTestsCommandName();
-		return this.runIntent(
+		const startedAtMs = Date.now();
+		const reportTarget = await this.resolveRunReportTarget('yaxunit', opts);
+		await this.ensureReportDir('yaxunit', reportTarget);
+		const result = await this.runIntent(
 			{ kind: 'run.enterprise', command: `RunUnitTests=${configPath}`, common: connectionArgs },
 			opts, yaxCmd.title, undefined, yaxCmd.id
 		);
+		return this.withRunReport(result, 'yaxunit', startedAtMs, opts, reportTarget);
 	}
 
 	/**

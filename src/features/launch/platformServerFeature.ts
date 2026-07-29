@@ -10,6 +10,7 @@ import { VRunnerManager } from '../../shared/vrunnerManager';
 import { ServerUrls } from '../../shared/ibsrvPublication';
 import { DEBUG_TYPE } from '../debug/debugConstants';
 import { DEFAULT_PATHS } from '../../shared/pathDefaults';
+import { uiOnlyHandler } from '../../shared/agentGate';
 import { PlatformServerManager, ServerState, PublicationSelection } from './platformServerManager';
 
 /** Изменяемая ссылка на признак проекта 1С. */
@@ -386,7 +387,7 @@ export function registerPlatformServerFeature(
 		// публикации и предложит перезапуск, если работает на другой базе
 		vrunner.onDidChangeActiveEnvProfile(() => void manager.onActiveProfileChanged()),
 		vrunner.onDidChangeVRunnerVersion(() => void manager.onActiveProfileChanged()),
-		vscode.commands.registerCommand('1c-platform-tools.server.menu', () => showServerMenu(manager)),
+		vscode.commands.registerCommand('1c-platform-tools.server.menu', uiOnlyHandler('Меню сервера открывается пользователем; агенту доступны server.start, server.stop, server.restart.', () => showServerMenu(manager))),
 		vscode.commands.registerCommand('1c-platform-tools.server.start', () => manager.start()),
 		vscode.commands.registerCommand('1c-platform-tools.server.stop', () => manager.stop()),
 		vscode.commands.registerCommand('1c-platform-tools.server.restart', () => manager.restart()),

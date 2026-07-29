@@ -36,6 +36,11 @@ suite('projectTestConfig', () => {
 		assert.strictEqual(extractJUnitPathFromReportsXunit(value), 'build/out/smoke/junit/junit.xml');
 	});
 
+	test('extractJUnitPathFromReportsXunit: синтаксис vanessa-runner 3', () => {
+		const value = 'jUnit{build/out/smoke/junit/junit.xml};allure{build/out/smoke/allure/allure.xml}';
+		assert.strictEqual(extractJUnitPathFromReportsXunit(value), 'build/out/smoke/junit/junit.xml');
+	});
+
 	test('extractJUnitPathFromReportsXunit: короткий синтаксис jUnit:', () => {
 		assert.strictEqual(
 			extractJUnitPathFromReportsXunit('jUnit:./build/junit.xml'),

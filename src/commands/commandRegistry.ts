@@ -16,6 +16,7 @@ import { SkillsCommands } from './skillsCommands';
 import { ServiceFilesCommands } from './serviceFilesCommands';
 import { VRunnerManager } from '../shared/vrunnerManager';
 import type { CommandExecutionOptions, StructuredCommandResult } from '../shared/commandExecutionTypes';
+import { isAgentOptions, agentInteractiveError, uiOnlyHandler } from '../shared/agentGate';
 
 const log = logger.scope('commands');
 
@@ -82,23 +83,34 @@ export function registerCommands(
 
 	// Команды навыков для AI
 	const skillsCommands = [
-		vscode.commands.registerCommand('1c-platform-tools.skills.addDevSkills', () => {
-			void commands.skills.addDevSkills(context);
+		vscode.commands.registerCommand('1c-platform-tools.skills.addDevSkills', (destination?: unknown) => {
+			if (isAgentOptions(destination)) {
+				return agentInteractiveError('Передайте назначение строкой: claude, cursor, copilot или путь к папке.');
+			}
+			void commands.skills.addDevSkills(context, typeof destination === 'string' ? destination : undefined);
 		}),
-		vscode.commands.registerCommand('1c-platform-tools.skills.add1cpt', () => {
-			void commands.skills.add1cptSkills(context);
+		vscode.commands.registerCommand('1c-platform-tools.skills.add1cpt', (destination?: unknown) => {
+			if (isAgentOptions(destination)) {
+				return agentInteractiveError('Передайте назначение строкой: claude, cursor, copilot или путь к папке.');
+			}
+			void commands.skills.add1cptSkills(context, typeof destination === 'string' ? destination : undefined);
 		}),
 	];
 	disposables.push(...skillsCommands);
 
 	// Команды служебных файлов
 	const serviceFilesCommands = [
-		vscode.commands.registerCommand('1c-platform-tools.serviceFiles.create', () =>
-			commands.serviceFiles.pickAndCreate()
-		),
-		vscode.commands.registerCommand('1c-platform-tools.serviceFiles.ensure', (specId?: string) => {
+		vscode.commands.registerCommand('1c-platform-tools.serviceFiles.create', uiOnlyHandler(
+			'Используйте serviceFiles.createRecommendedSet, createGitignore, createGitattributes, createEnvJson или serviceFiles.ensure с id файла.',
+			() => commands.serviceFiles.pickAndCreate()
+		)),
+		vscode.commands.registerCommand('1c-platform-tools.serviceFiles.ensure', (specId?: unknown, opts?: unknown) => {
 			if (typeof specId === 'string') {
-				return commands.serviceFiles.ensure(specId);
+				// второй аргумент-объект — агентный вызов: без окна выбора секций
+				return commands.serviceFiles.ensure(specId, isAgentOptions(opts));
+			}
+			if (isAgentOptions(specId)) {
+				return agentInteractiveError('Передайте id служебного файла строкой (например, launchProfile).');
 			}
 			return commands.serviceFiles.pickAndCreate();
 		}),
@@ -226,26 +238,28 @@ export function registerCommands(
 		),
 	];
 
-	// Команды поддержки и поставки
+	// Команды поддержки и поставки: мастера с выбором файлов и параметров,
+	// агентный вызов отклоняется гейтом до открытия окон
+	const supportUiHint = 'Мастер поддержки/поставки выполняется пользователем в VS Code.';
 	const supportCommands = [
-		vscode.commands.registerCommand('1c-platform-tools.support.updateCfg', () => {
+		vscode.commands.registerCommand('1c-platform-tools.support.updateCfg', uiOnlyHandler(supportUiHint, () => {
 			commands.support.updateCfg();
-		}),
-		vscode.commands.registerCommand('1c-platform-tools.support.disableCfgSupport', () => {
+		})),
+		vscode.commands.registerCommand('1c-platform-tools.support.disableCfgSupport', uiOnlyHandler(supportUiHint, () => {
 			commands.support.disableCfgSupport();
-		}),
-		vscode.commands.registerCommand('1c-platform-tools.support.createDeliveryDescriptionFile', () => {
+		})),
+		vscode.commands.registerCommand('1c-platform-tools.support.createDeliveryDescriptionFile', uiOnlyHandler(supportUiHint, () => {
 			commands.support.createDeliveryDescriptionFile();
-		}),
-		vscode.commands.registerCommand('1c-platform-tools.support.createTemplateListFile', () => {
+		})),
+		vscode.commands.registerCommand('1c-platform-tools.support.createTemplateListFile', uiOnlyHandler(supportUiHint, () => {
 			commands.support.createTemplateListFile();
-		}),
-		vscode.commands.registerCommand('1c-platform-tools.support.createDistributivePackage', () => {
+		})),
+		vscode.commands.registerCommand('1c-platform-tools.support.createDistributivePackage', uiOnlyHandler(supportUiHint, () => {
 			commands.support.createDistributivePackage();
-		}),
-		vscode.commands.registerCommand('1c-platform-tools.support.createDistributionFiles', () => {
+		})),
+		vscode.commands.registerCommand('1c-platform-tools.support.createDistributionFiles', uiOnlyHandler(supportUiHint, () => {
 			commands.support.createDistributionFiles();
-		})
+		}))
 	];
 
 	// Команды зависимостей
@@ -259,9 +273,9 @@ export function registerCommands(
 		vscode.commands.registerCommand('1c-platform-tools.project.createFromWelcome', () => {
 			commands.dependencies.createProjectFromWelcome(context);
 		}),
-		vscode.commands.registerCommand('1c-platform-tools.dependencies.setupGit', () => {
+		vscode.commands.registerCommand('1c-platform-tools.dependencies.setupGit', uiOnlyHandler('Мастер настройки git выполняется пользователем; для агента настройте git командами git config.', () => {
 			commands.dependencies.setupGit();
-		}),
+		})),
 		vscode.commands.registerCommand('1c-platform-tools.dependencies.installOscript', () => {
 			commands.dependencies.installOscript();
 		}),
@@ -307,22 +321,27 @@ export function registerCommands(
 		registerVRunnerCommand('1c-platform-tools.test.decompileEpf', (opts) =>
 			commands.test.decompileTestEpf(opts)
 		),
+		registerVRunnerCommand('1c-platform-tools.enterprise.run', (opts) =>
+			commands.test.runEnterpriseProcessor(opts)
+		),
 	];
 
-	// Команды установки версий
+	// Команды установки версий: версия и объект запрашиваются в UI,
+	// агентный вызов отклоняется гейтом
+	const setVersionUiHint = 'Версия запрашивается в окне VS Code; выполняется пользователем.';
 	const setVersionCommands = [
-		vscode.commands.registerCommand('1c-platform-tools.setVersion.configuration', () => {
+		vscode.commands.registerCommand('1c-platform-tools.setVersion.configuration', uiOnlyHandler(setVersionUiHint, () => {
 			commands.setVersion.setVersionConfiguration();
-		}),
-		vscode.commands.registerCommand('1c-platform-tools.setVersion.extension', () => {
+		})),
+		vscode.commands.registerCommand('1c-platform-tools.setVersion.extension', uiOnlyHandler(setVersionUiHint, () => {
 			commands.setVersion.setVersionExtension();
-		}),
-		vscode.commands.registerCommand('1c-platform-tools.setVersion.report', (reportName: string) => {
-			commands.setVersion.setVersionReport(reportName);
-		}),
-		vscode.commands.registerCommand('1c-platform-tools.setVersion.processor', (processorName: string) => {
-			commands.setVersion.setVersionProcessor(processorName);
-		})
+		})),
+		vscode.commands.registerCommand('1c-platform-tools.setVersion.report', uiOnlyHandler(setVersionUiHint, (reportName?: unknown) => {
+			commands.setVersion.setVersionReport(typeof reportName === 'string' ? reportName : undefined);
+		})),
+		vscode.commands.registerCommand('1c-platform-tools.setVersion.processor', uiOnlyHandler(setVersionUiHint, (processorName?: unknown) => {
+			commands.setVersion.setVersionProcessor(typeof processorName === 'string' ? processorName : undefined);
+		}))
 	];
 
 	// Команды сборки и разбора (алиасы)

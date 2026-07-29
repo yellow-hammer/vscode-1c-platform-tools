@@ -1,4 +1,5 @@
 import * as net from 'node:net';
+import { VRunnerManager } from './vrunnerManager';
 import * as crypto from 'node:crypto';
 import * as path from 'node:path';
 import * as vscode from 'vscode';
@@ -190,8 +191,16 @@ async function handleExecuteCommandSync(
 			settingsFile: flags.settingsFile,
 			ibConnection: flags.ibConnection,
 			pathsOverride: flags.pathsOverride,
+			sha: flags.sha,
+			extensions: flags.extensions,
+			frameworks: flags.frameworks,
+			execute: flags.execute,
+			command: flags.command,
 		};
-		const rawResult = await vscode.commands.executeCommand(commandId, optsForCommand);
+		const manager = VRunnerManager.getInstance();
+		const rawResult = projectPath
+			? await manager.runWithProjectRoot(projectPath, async () => vscode.commands.executeCommand(commandId, optsForCommand))
+			: await vscode.commands.executeCommand(commandId, optsForCommand);
 
 		const finishedAt = new Date().toISOString();
 		const durationMs = Date.now() - startMs;
@@ -227,6 +236,7 @@ async function handleExecuteCommandSync(
 			stdout: r.stdout ?? '',
 			stderr: r.stderr ?? '',
 			artifact: r.artifact,
+			tests: r.tests,
 			startedAt,
 			finishedAt,
 			durationMs,
@@ -302,10 +312,12 @@ async function handleExecuteCommand(
 
 	// Стандартный режим: запуск в UI-терминале
 	try {
-		const commandResult = await vscode.commands.executeCommand(
-			params.commandId,
-			...args
-		);
+		const manager = VRunnerManager.getInstance();
+		const commandId = params.commandId as string;
+		const commandResult = expectedProjectPath
+			? await manager.runWithProjectRoot(expectedProjectPath, async () =>
+				vscode.commands.executeCommand(commandId, ...args))
+			: await vscode.commands.executeCommand(commandId, ...args);
 
 		return {
 			...base,
@@ -331,10 +343,44 @@ async function handleExecuteCommand(
 	}
 }
 
+/**
+ * Префиксы команд, которые не публикуются как инструменты MCP: чисто
+ * интерактивные (мастера, меню, деревья, навигация). Сокращение списка
+ * инструментов важно и само по себе: при переполнении пикера агентские
+ * клиенты сами урезают выборку и могут выкинуть полезные инструменты.
+ */
+const MCP_HIDDEN_PREFIXES = [
+	'1c-platform-tools.file.',
+	'1c-platform-tools.metadata.',
+	'1c-platform-tools.projects.',
+	'1c-platform-tools.todo.',
+	'1c-platform-tools.settings.',
+	'1c-platform-tools.focus',
+	'1c-platform-tools.artifacts.',
+	'1c-platform-tools.tools.',
+	'1c-platform-tools.favorites.',
+	'1c-platform-tools.support.',
+	'1c-platform-tools.setVersion.',
+	'1c-platform-tools.skills.',
+	'1c-platform-tools.profile.',
+	'1c-platform-tools.env.createProfile',
+	'1c-platform-tools.env.setOverrides',
+	'1c-platform-tools.env.statusBarRefresh',
+	'1c-platform-tools.serviceFiles.create',
+	'1c-platform-tools.dependencies.setupGit',
+	'1c-platform-tools.oscript.addTask',
+	'1c-platform-tools.server.menu',
+	'1c-platform-tools.launch.editConfigurations',
+	'1c-platform-tools.config.env.edit',
+];
+
 async function handleListCommands(request: IpcRequest): Promise<IpcResponse> {
 	const base = buildResponseBase(request.id);
 	const all = await vscode.commands.getCommands();
-	const commands = all.filter((id) => id.startsWith('1c-platform-tools.'));
+	const commands = all.filter((id) =>
+		id.startsWith('1c-platform-tools.') &&
+		!MCP_HIDDEN_PREFIXES.some((prefix) => id.startsWith(prefix))
+	);
 	return {
 		...base,
 		result: { commands },

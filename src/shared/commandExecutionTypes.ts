@@ -15,6 +15,16 @@ export interface CommandExecutionOptions {
 	settingsFile?: string;
 	/** Явная строка подключения к ИБ. */
 	ibConnection?: string;
+	/** SHA коммита для инкрементальной загрузки (пустая строка — полная загрузка). */
+	sha?: string;
+	/** Явный список имён расширений; без него — сохранённый выбор проекта. */
+	extensions?: string[];
+	/** Ключи включаемых тестовых фреймворков (testing.configure). */
+	frameworks?: string[];
+	/** Путь к внешней обработке/отчёту для запуска в Предприятии (vrunner run --execute). */
+	execute?: string;
+	/** Строка параметров запуска /C (vrunner run --command). */
+	command?: string;
 	/** Переопределения стандартных путей. */
 	pathsOverride?: {
 		cf?: string;
@@ -23,6 +33,26 @@ export interface CommandExecutionOptions {
 		epf?: string;
 		erf?: string;
 	};
+}
+
+/**
+ * Сводка прогона тестов по jUnit-отчёту (wait: true у тестовых команд).
+ */
+export interface TestRunStats {
+	/** Всего тестов в отчёте. */
+	total: number;
+	/** Успешно пройдено. */
+	passed: number;
+	/** Упало (failure). */
+	failed: number;
+	/** Ошибки выполнения (error). */
+	errors: number;
+	/** Пропущено. */
+	skipped: number;
+	/** Файл или каталог отчёта, по которому построена сводка. */
+	reportPath: string;
+	/** Имена упавших тестов (с ограничением количества). */
+	failedTests: string[];
 }
 
 /**
@@ -40,4 +70,6 @@ export interface StructuredCommandResult {
 	stderr: string;
 	/** Путь к итоговому артефакту (.epf, .cf, .cfe и т.п.), если применимо. */
 	artifact?: string;
+	/** Сводка прогона тестов по jUnit-отчёту (только тестовые команды). */
+	tests?: TestRunStats;
 }

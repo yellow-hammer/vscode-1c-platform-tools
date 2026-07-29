@@ -129,6 +129,9 @@ export class V2CliAdapter implements VRunnerCliAdapter {
 				if (intent.testsPath !== undefined) {
 					args.push(intent.testsPath);
 				}
+				if (intent.reportsXunit !== undefined) {
+					args.push('--reportsxunit', intent.reportsXunit);
+				}
 				return [[...args, ...common(intent)]];
 			}
 			case 'test.vanessa': {

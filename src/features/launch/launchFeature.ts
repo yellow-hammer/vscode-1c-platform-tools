@@ -15,6 +15,7 @@ import { EnvOverrides, DEFAULT_PROFILE_ID, SettingsSchema, baseSettingsFileName 
 import { logger } from '../../shared/logger';
 import { ENV_DEFAULTS, AUTUMN_DEFAULTS } from '../serviceFiles/envDefaults';
 import { buildEnvJsonWithSections } from '../serviceFiles/envJsonBuilder';
+import { isAgentOptions, uiOnlyHandler } from '../../shared/agentGate';
 import {
 	ensureEnvProfileStatusBar,
 	refreshEnvProfileStatusBar,
@@ -296,6 +297,50 @@ async function clearOverrides(vrunner: VRunnerManager, refresh: () => void): Pro
 	vscode.window.showInformationMessage('Временные параметры запуска сброшены.');
 }
 
+/** Результат неинтерактивного переключения профиля (возвращается агенту). */
+interface SelectProfileResult {
+	/** Профиль найден и активирован. */
+	success: boolean;
+	/** id активированного профиля. */
+	profileId?: string;
+	/** Причина отказа (профиль не найден). */
+	error?: string;
+	/** Доступные id профилей. */
+	available?: string[];
+}
+
+/**
+ * Неинтерактивное переключение env-профиля по идентификатору, имени файла или подписи.
+ *
+ * @param vrunner - Менеджер vrunner
+ * @param refresh - Колбэк обновления статус-бара
+ * @param requested - Запрошенный профиль ('dev', 'env.dev.json', 'По умолчанию')
+ * @returns Структурированный результат: success/error и доступные профили
+ */
+async function selectProfileById(
+	vrunner: VRunnerManager,
+	refresh: () => void,
+	requested: string
+): Promise<SelectProfileResult> {
+	await vrunner.getVRunnerVersion();
+	const profiles = vrunner.discoverEnvProfiles();
+	const query = requested.trim().toLowerCase();
+	const profile = profiles.find((candidate) =>
+		candidate.id.toLowerCase() === query ||
+		candidate.fileName.toLowerCase() === query ||
+		candidate.label.toLowerCase() === query
+	);
+	if (!profile) {
+		const available = profiles.map((candidate) => candidate.id);
+		const error = `Профиль запуска «${requested}» не найден. Доступные профили: ${available.join(', ') || 'нет ни одного'}.`;
+		vscode.window.showErrorMessage(error);
+		return { success: false, error, available };
+	}
+	await vrunner.setActiveEnvProfileId(profile.id);
+	refresh();
+	return { success: true, profileId: profile.id };
+}
+
 /**
  * Выбор активного env-профиля и доступ к временным параметрам (главное меню статус-бара).
  *
@@ -403,7 +448,21 @@ export function registerLaunchFeature(
 	refresh();
 
 	const disposables: vscode.Disposable[] = [
-		vscode.commands.registerCommand('1c-platform-tools.env.selectProfile', () => selectProfile(vrunner, refresh)),
+		vscode.commands.registerCommand('1c-platform-tools.env.selectProfile', (profileId?: unknown) => {
+			// строковый аргумент — неинтерактивный вызов (агент, web-сессия agent-клиента)
+			if (typeof profileId === 'string' && profileId.trim() !== '') {
+				return selectProfileById(vrunner, refresh, profileId);
+			}
+			// объект опций (MCP/IPC) — агент без имени профиля: меню не открываем
+			if (isAgentOptions(profileId)) {
+				return {
+					success: false,
+					error: 'Передайте имя профиля строкой (id, имя файла или подпись).',
+					available: vrunner.discoverEnvProfiles().map((profile) => profile.id),
+				};
+			}
+			return selectProfile(vrunner, refresh);
+		}),
 		vscode.commands.registerCommand('1c-platform-tools.profile.openEditor', async () => {
 			const workspaceRoot = vrunner.getWorkspaceRoot();
 			if (!workspaceRoot) {
@@ -420,8 +479,14 @@ export function registerLaunchFeature(
 			}
 			await vscode.commands.executeCommand('vscode.openWith', vscode.Uri.file(fullPath), '1c-platform-tools.profileEditor');
 		}),
-		vscode.commands.registerCommand('1c-platform-tools.env.createProfile', () => createProfile(vrunner, refresh)),
-		vscode.commands.registerCommand('1c-platform-tools.env.setOverrides', () => editOverrides(vrunner, refresh)),
+		vscode.commands.registerCommand('1c-platform-tools.env.createProfile', uiOnlyHandler(
+			'Имя профиля запрашивается в окне VS Code; профиль создаётся пользователем или файлом env.<id>.json.',
+			() => createProfile(vrunner, refresh)
+		)),
+		vscode.commands.registerCommand('1c-platform-tools.env.setOverrides', uiOnlyHandler(
+			'Временные параметры задаются в окнах VS Code; для агента передавайте settingsFile или ibConnection в вызове.',
+			() => editOverrides(vrunner, refresh)
+		)),
 		vscode.commands.registerCommand('1c-platform-tools.env.clearOverrides', () => clearOverrides(vrunner, refresh)),
 		vscode.commands.registerCommand('1c-platform-tools.env.statusBarRefresh', () => refresh()),
 		vscode.commands.registerCommand('1c-platform-tools.vrunner.refreshVersion', async () => {
