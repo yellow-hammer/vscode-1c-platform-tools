@@ -117,7 +117,7 @@ export const AGENT_COMMAND_DESCRIPTIONS: Record<string, AgentCommandDescription>
 		category: SESSIONS,
 	},
 	'1c-platform-tools.session.kill': {
-		title: 'Завершить сеансы серверной информационной базы; параметры sessionFilter (например appid=Designer|name=Администратор), sessionFilterMode (только 2.x) и keepSessionsUnlocked (не запрещать начало новых сеансов)',
+		title: 'Завершить сеансы серверной информационной базы; параметры sessionFilter (например appid=Designer|name=Администратор), sessionFilterMode (ONLY, OFF, EXCEPT), keepSessionsUnlocked (не запрещать начало новых сеансов), а также sessionRetry и sessionTimeout - число попыток и ожидание, пока зависшие сеансы завершатся (только 3.x)',
 		category: SESSIONS,
 	},
 	'1c-platform-tools.session.lockJobs': {
@@ -129,7 +129,11 @@ export const AGENT_COMMAND_DESCRIPTIONS: Record<string, AgentCommandDescription>
 		category: SESSIONS,
 	},
 	'1c-platform-tools.session.checkClosed': {
-		title: 'Проверить, что сеансов нет: при найденных сеансах команда завершается ошибкой. Доступно только в vanessa-runner 2.x',
+		title: 'Проверить, что сеансов нет: при найденных сеансах команда завершается ошибкой; параметры sessionFilter, sessionFilterMode и sessionTimeout - ожидание, пока сеансы закончатся (только 3.x)',
+		category: SESSIONS,
+	},
+	'1c-platform-tools.session.list': {
+		title: 'Показать сеансы информационной базы с детализацией; параметры sessionFilter, sessionFilterMode и sessionConnections (дополнительно показать соединения ИБ). Доступно только в vanessa-runner 3.x',
 		category: SESSIONS,
 	},
 

@@ -135,20 +135,49 @@ export type VRunnerIntent =
 	 *
 	 * По умолчанию vanessa-runner заодно запрещает начало новых сеансов;
 	 * `withoutLock` отключает это. `filter` отбирает сеансы по приложению и
-	 * пользователю, `filterMode` задаёт режим отбора (только 2.x).
+	 * пользователю в записи 2.x (`appid=Designer|name=Иванов`), `filterMode`
+	 * со значением `EXCEPT` инвертирует отбор.
+	 *
+	 * `retry` и `timeoutSeconds` есть только в 3.x: rac завершает сеансы
+	 * асинхронно, поэтому vanessa-runner перечитывает список и добивает
+	 * зависшие сеансы.
 	 */
 	| {
 		kind: 'session.kill';
 		filter?: string;
 		filterMode?: string;
 		withoutLock?: boolean;
+		retry?: number;
+		timeoutSeconds?: number;
 		common?: CommonArgs;
 	}
 	/**
 	 * Проверить, что сеансов нет: при найденных сеансах vanessa-runner
-	 * завершается с ошибкой. Действие есть только в 2.x.
+	 * завершается с ошибкой.
+	 *
+	 * `timeoutSeconds` есть только в 3.x: проверка повторяется, пока сеансы
+	 * не закончатся или не выйдет время.
 	 */
-	| { kind: 'session.closed'; filter?: string; filterMode?: string; common?: CommonArgs }
+	| {
+		kind: 'session.closed';
+		filter?: string;
+		filterMode?: string;
+		timeoutSeconds?: number;
+		common?: CommonArgs;
+	}
+	/**
+	 * Показать список сеансов с детализацией. Действие есть только в 3.x.
+	 *
+	 * `connections` дополнительно выводит соединения информационной базы,
+	 * включая зависшие соединения без сеанса.
+	 */
+	| {
+		kind: 'session.list';
+		filter?: string;
+		filterMode?: string;
+		connections?: boolean;
+		common?: CommonArgs;
+	}
 
 	// ---- Регламентные задания (через rac и ras) ----
 	/** Запретить выполнение регламентных заданий. */

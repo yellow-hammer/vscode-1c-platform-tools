@@ -34,6 +34,62 @@ function common(intent: { common?: CommonArgs }): string[] {
 }
 
 /** Собирает команду: группа + опции + позиционные (опции всегда первыми). */
+/**
+ * Переводит отбор сеансов из записи 2.x в опции 3.x.
+ *
+ * В 2.x отбор задавался одной строкой `appid=Designer|name=Иванов`, в 3.x
+ * ключи стали отдельными опциями: `--filter-app` и `--filter-name`, значения
+ * внутри каждой перечисляются через `;`, условия объединяются по ИЛИ.
+ * Режим `EXCEPT` заменён флагом `--filter-except`.
+ *
+ * @param filter - Строка отбора в записи 2.x
+ * @param mode - Режим отбора 2.x (`EXCEPT`, `ONLY`, `OFF`)
+ * @returns Опции 3.x
+ */
+function sessionFilterOptions(filter?: string, mode?: string): string[] {
+	const normalizedMode = mode?.trim().toUpperCase();
+	if (normalizedMode === 'OFF') {
+		return [];
+	}
+	if (normalizedMode !== undefined && !['EXCEPT', 'ONLY'].includes(normalizedMode)) {
+		throw new Error(
+			`Режим отбора сеансов ${mode} в vanessa-runner 3.x не поддерживается: ` +
+			'есть только EXCEPT (все сеансы, кроме подходящих) и ONLY (поведение по умолчанию).'
+		);
+	}
+
+	const options: string[] = [];
+	for (const part of (filter ?? '').split('|')) {
+		const condition = part.trim();
+		if (condition === '') {
+			continue;
+		}
+		const separator = condition.indexOf('=');
+		const key = separator < 0 ? '' : condition.slice(0, separator).trim().toLowerCase();
+		const value = separator < 0 ? '' : condition.slice(separator + 1).trim();
+		if (value === '') {
+			continue;
+		}
+		if (key === 'appid') {
+			options.push('--filter-app', value);
+		} else if (key === 'name') {
+			options.push('--filter-name', value);
+		} else {
+			throw new Error(
+				`Отбор сеансов «${condition}» не разобран: в записи отбора допустимы ` +
+				'appid=<приложения> и name=<пользователи>, значения через точку с запятой.'
+			);
+		}
+	}
+
+	if (normalizedMode === 'EXCEPT') {
+		// Инверсию без условий отбора отвергает сам vanessa-runner, и текст у него
+		// понятнее нашего: он называет опции, которых не хватает
+		options.push('--filter-except');
+	}
+	return options;
+}
+
 function cmd(group: string[], options: string[], positionals: string[]): string[] {
 	return [...group, ...options, ...positionals];
 }
@@ -192,22 +248,32 @@ export class V3CliAdapter implements VRunnerCliAdapter {
 				return [cmd(['cluster', 'session', 'unlock'], [...options, ...common(intent)], [])];
 			}
 			case 'session.kill': {
-				const options: string[] = [];
-				if (intent.filter) {
-					options.push('--filter', intent.filter);
-				}
+				const options: string[] = [...sessionFilterOptions(intent.filter, intent.filterMode)];
 				if (intent.withoutLock) {
 					options.push('--no-lock');
 				}
+				if (intent.timeoutSeconds !== undefined) {
+					options.push('--timeout', String(intent.timeoutSeconds));
+				} else if (intent.retry !== undefined) {
+					// --retry игнорируется при заданном --timeout, поэтому передаём только один
+					options.push('--retry', String(intent.retry));
+				}
 				return [cmd(['cluster', 'session', 'kill'], [...options, ...common(intent)], [])];
 			}
-			case 'session.closed':
-				// Проверки отсутствия сеансов в 3.x нет: команда сеансов знает об
-				// этом и до планирования объясняет, что действие недоступно
-				throw new Error(
-					'vanessa-runner 3.x не умеет проверять отсутствие сеансов: ' +
-					'действие session closed есть только в 2.x.'
-				);
+			case 'session.closed': {
+				const options: string[] = [...sessionFilterOptions(intent.filter, intent.filterMode)];
+				if (intent.timeoutSeconds !== undefined) {
+					options.push('--timeout', String(intent.timeoutSeconds));
+				}
+				return [cmd(['cluster', 'session', 'closed'], [...options, ...common(intent)], [])];
+			}
+			case 'session.list': {
+				const options: string[] = [...sessionFilterOptions(intent.filter, intent.filterMode)];
+				if (intent.connections) {
+					options.push('--connections');
+				}
+				return [cmd(['cluster', 'session', 'list'], [...options, ...common(intent)], [])];
+			}
 
 			// ---- Регламентные задания ----
 			// В 3.0 команда 2.x scheduledjobs вошла в группу cluster
