@@ -65,6 +65,7 @@ export type MdSparrowOp =
 	| 'cf-md-object-set'
 	| 'cf-configuration-properties-set'
 	| 'init-empty-cf'
+	| 'init-empty-cfe'
 	| 'add-md-object'
 	// чтение (read-json)
 	| 'cf-md-object-get'
@@ -84,6 +85,14 @@ export interface MdSparrowParams {
 	objectXml?: string;
 	artifactsRoot?: string;
 	targetCfRoot?: string;
+	/** Каталог создаваемого расширения (init-empty-cfe). */
+	targetCfeRoot?: string;
+	/** Configuration.xml расширяемой конфигурации: источник режимов совместимости. */
+	mainConfigurationXml?: string;
+	/** Префикс имён объектов расширения. */
+	namePrefix?: string;
+	/** Назначение расширения: patch, customization или add-on. */
+	purpose?: string;
 	projectRoot?: string;
 	/** Каталоги исходников относительно projectRoot; пусто — стандартные src/cf, src/cfe, src/epf, src/erf. */
 	cfDir?: string;

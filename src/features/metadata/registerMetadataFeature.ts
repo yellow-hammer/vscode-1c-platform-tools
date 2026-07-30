@@ -1595,6 +1595,95 @@ export function registerMetadataFeature(
 				void vscode.window.showInformationMessage('XML для выбранного узла не найден.');
 			}
 		),
+		vscode.commands.registerCommand('1c-platform-tools.metadata.initEmptyCfe', async () => {
+			await runMdSparrowMutation(async () => {
+				const root = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+				if (!root) {
+					void vscode.window.showInformationMessage('Нет открытой папки проекта.');
+					return;
+				}
+				const configurationXml = metadataTreeProvider.configurationXml;
+				if (!configurationXml || !fs.existsSync(configurationXml)) {
+					void vscode.window.showInformationMessage(
+						'Не найдена выгрузка конфигурации: режимы совместимости расширения берутся из неё.'
+					);
+					return;
+				}
+
+				const name = await vscode.window.showInputBox({
+					title: 'Новое расширение',
+					prompt: 'Имя расширения',
+					validateInput: (value) =>
+						value.trim() === '' ? 'Имя обязательно' : undefined,
+				});
+				if (!name) {
+					return;
+				}
+				const namePrefix = await vscode.window.showInputBox({
+					title: 'Новое расширение',
+					prompt: 'Префикс имён объектов; можно оставить пустым',
+					value: '',
+				});
+				if (namePrefix === undefined) {
+					return;
+				}
+				const purposeItem = await vscode.window.showQuickPick(
+					[
+						{ label: 'Дополнение', description: 'add-on', value: 'add-on' },
+						{ label: 'Адаптация', description: 'customization', value: 'customization' },
+						{ label: 'Исправление', description: 'patch', value: 'patch' },
+					],
+					{ title: 'Назначение расширения' }
+				);
+				if (!purposeItem) {
+					return;
+				}
+
+				const cfeRoot = path.join(
+					root,
+					VRunnerManager.getInstance(context).getCfePath(),
+					name.trim()
+				);
+				if (fs.existsSync(cfeRoot)) {
+					void vscode.window.showErrorMessage(`Каталог расширения уже есть: ${cfeRoot}`);
+					return;
+				}
+
+				try {
+					const runtime = await ensureMdSparrowRuntime(context);
+					const version = await mdSparrowSchemaFlagFromConfigurationXml(configurationXml);
+					if (!version) {
+						return;
+					}
+					const res = await runMdSparrowParamsMutation(
+						runtime,
+						{
+							op: 'init-empty-cfe',
+							targetCfeRoot: cfeRoot,
+							schemaVersion: version,
+							name: name.trim(),
+							namePrefix: namePrefix.trim() === '' ? undefined : namePrefix.trim(),
+							purpose: purposeItem.value,
+							mainConfigurationXml: configurationXml,
+						},
+						{ cwd: root }
+					);
+					if (res.exitCode !== 0) {
+						const errText = (res.stderr.trim() || res.stdout.trim() || `код ${res.exitCode}`).slice(
+							0,
+							MD_SPARROW_CLI_ERR_PREVIEW
+						);
+						void vscode.window.showErrorMessage(errText);
+						return;
+					}
+					await metadataTreeProvider.refresh();
+					notifyQuiet(`Расширение ${name.trim()} создано.`);
+				} catch (e) {
+					const msg = e instanceof Error ? e.message : String(e);
+					void vscode.window.showErrorMessage(msg.slice(0, MD_SPARROW_CLI_ERR_PREVIEW));
+				}
+			});
+		}),
 		vscode.commands.registerCommand('1c-platform-tools.metadata.initEmptyCf', async () => {
 			await runMdSparrowMutation(async () => {
 				const cfRoot = metadataTreeProvider.resolveCfRoot();
