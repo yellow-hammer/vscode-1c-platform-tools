@@ -557,6 +557,13 @@
         "category": "1C: Метаданные"
       },
       {
+        "command": "1c-platform-tools.metadata.validateDump",
+        "title": "Проверить выгрузку",
+        "shortTitle": "Проверить выгрузку",
+        "icon": "$(verified)",
+        "category": "1C: Метаданные"
+      },
+      {
         "command": "1c-platform-tools.metadata.initEmptyCf",
         "title": "Создать новую конфигурацию",
         "shortTitle": "Создать конфигурацию",
@@ -2202,6 +2209,11 @@
           "group": "navigation@0"
         },
         {
+          "command": "1c-platform-tools.metadata.validateDump",
+          "when": "view == 1c-platform-tools-metadata-tree",
+          "group": "navigation@1"
+        },
+        {
           "command": "1c-platform-tools.metadata.refresh",
           "when": "view == 1c-platform-tools-metadata-tree",
           "group": "navigation@30"
@@ -2238,6 +2250,11 @@
         }
       ],
       "view/item/context": [
+        {
+          "command": "1c-platform-tools.metadata.validateDump",
+          "when": "view == 1c-platform-tools-metadata-tree && viewItem == metadataSourceConfigLike",
+          "group": "1_check@0"
+        },
         {
           "command": "1c-platform-tools.projects._openInNewWindow",
           "when": "view == 1c-platform-tools-projects-favorites && viewItem == ProjectNodeKind",
