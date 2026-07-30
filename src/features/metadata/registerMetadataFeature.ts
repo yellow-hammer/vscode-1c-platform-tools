@@ -49,6 +49,7 @@ import {
 	type MetadataTreeDataProvider,
 	type ObjectModuleKind,
 } from './metadataTreeView';
+import { notifyQuiet } from '../../shared/notify';
 
 export interface RegisterMetadataFeatureParams {
 	context: vscode.ExtensionContext;
@@ -184,7 +185,7 @@ export function registerMetadataFeature(
 			const created = await ensureBslModuleFile(modulePath);
 			await openTextFile(modulePath);
 			if (created) {
-				void vscode.window.showInformationMessage(`Создан пустой модуль: ${path.basename(modulePath)}`);
+				notifyQuiet(`Создан пустой модуль: ${path.basename(modulePath)}`);
 			}
 		} catch (e) {
 			const msg = e instanceof Error ? e.message : String(e);
@@ -435,7 +436,7 @@ export function registerMetadataFeature(
 						if (!saved) {
 							return false;
 						}
-						void vscode.window.showInformationMessage('Свойства сохранены.');
+						notifyQuiet('Свойства сохранены.');
 						await metadataTreeProvider.refresh();
 						return true;
 					}
@@ -820,7 +821,7 @@ export function registerMetadataFeature(
 							return;
 						}
 						await metadataTreeProvider.refresh();
-						void vscode.window.showInformationMessage(`Объект метаданных «${name}» добавлен.`);
+						notifyQuiet(`Объект метаданных «${name}» добавлен.`);
 					} catch (e) {
 						const msg = e instanceof Error ? e.message : String(e);
 						void vscode.window.showErrorMessage(msg.slice(0, MD_SPARROW_CLI_ERR_PREVIEW));
@@ -1001,12 +1002,12 @@ export function registerMetadataFeature(
 							return;
 						}
 						await metadataTreeProvider.refresh();
-						void vscode.window.showInformationMessage(`Внешний файл «${node.name}» удалён.`);
+						notifyQuiet(`Внешний файл «${node.name}» удалён.`);
 						return;
 					}
 					const tag = metadataObjectTypeToXmlTag[node.objectType];
 					if (!tag) {
-						void vscode.window.showInformationMessage('Удаление для этого типа пока недоступно.');
+						void vscode.window.showWarningMessage('Удаление для этого типа пока недоступно.');
 						return;
 					}
 					const answer = await vscode.window.showWarningMessage(
@@ -1044,7 +1045,7 @@ export function registerMetadataFeature(
 						return;
 					}
 					await metadataTreeProvider.refresh();
-					void vscode.window.showInformationMessage(`Объект «${node.name}» удалён.`);
+					notifyQuiet(`Объект «${node.name}» удалён.`);
 				});
 			}
 		),
@@ -1095,7 +1096,7 @@ export function registerMetadataFeature(
 							return;
 						}
 						await metadataTreeProvider.refresh();
-						void vscode.window.showInformationMessage(`Создана копия «${nextName.trim()}».`);
+						notifyQuiet(`Создана копия «${nextName.trim()}».`);
 						return;
 					}
 					const tag = metadataObjectTypeToXmlTag[node.objectType];
@@ -1145,7 +1146,7 @@ export function registerMetadataFeature(
 						return;
 					}
 					await metadataTreeProvider.refresh();
-					void vscode.window.showInformationMessage(`Создана копия «${nextName.trim()}».`);
+					notifyQuiet(`Создана копия «${nextName.trim()}».`);
 				});
 			}
 		),
@@ -1177,7 +1178,7 @@ export function registerMetadataFeature(
 					} else if (selected instanceof MetadataObjectSectionTreeItem) {
 						leaf = selected.owner;
 						if (selected.sectionKind !== 'attributes' && selected.sectionKind !== 'tabularSections') {
-							void vscode.window.showInformationMessage('В этом разделе добавление не поддерживается.');
+							void vscode.window.showWarningMessage('В этом разделе добавление не поддерживается.');
 							return;
 						}
 						const title =
@@ -1331,7 +1332,7 @@ export function registerMetadataFeature(
 				const roots = await loadSubsystemTrees(context, metadataTreeProvider);
 				const subsystem = findSubsystemByName(roots, node.name);
 				if (!subsystem) {
-					void vscode.window.showInformationMessage(`Не удалось прочитать подсистему: ${node.name}`);
+					void vscode.window.showWarningMessage(`Не удалось прочитать подсистему: ${node.name}`);
 					return;
 				}
 				const result = computeSubsystemFilter(roots, new Set([subsystem.xmlPath]), {
@@ -1482,7 +1483,7 @@ export function registerMetadataFeature(
 									if (!saved) {
 										return false;
 									}
-									void vscode.window.showInformationMessage('Свойства сохранены.');
+									notifyQuiet('Свойства сохранены.');
 									await metadataTreeProvider.refresh();
 									return true;
 								},
@@ -1639,7 +1640,7 @@ export function registerMetadataFeature(
 						return;
 					}
 					await metadataTreeProvider.refresh();
-					void vscode.window.showInformationMessage('Пустая конфигурация создана.');
+					notifyQuiet('Пустая конфигурация создана.');
 				} catch (e) {
 					const msg = e instanceof Error ? e.message : String(e);
 					void vscode.window.showErrorMessage(msg.slice(0, MD_SPARROW_CLI_ERR_PREVIEW));
@@ -1672,7 +1673,7 @@ export function registerMetadataFeature(
 					}
 				}
 				if (!node.configurationXmlAbs && !schemaFlagFallback) {
-					void vscode.window.showInformationMessage('Не удалось определить схему для чтения свойств.');
+					void vscode.window.showWarningMessage('Не удалось определить схему для чтения свойств.');
 					return;
 				}
 				await openMetadataObjectPropertiesEditor(

@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import * as vscode from 'vscode';
+import { registerFormPanel } from '../editors/formPanels';
 
 export interface SourcePropertiesInput {
 	label: string;
@@ -81,6 +82,7 @@ export async function openMetadataSourcePropertiesPanel(
 			localResourceRoots: [webviewRoot],
 		}
 	);
+	registerFormPanel(panel);
 	const nonce = randomUUID();
 	panel.webview.html = await loadMetadataSourceHtml(
 		panel.webview,

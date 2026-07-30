@@ -13,6 +13,7 @@ import {
 } from '../features/tools/commandNames';
 import { readConfigurationVersion, readConfigurationDeliveryProperties } from '../utils/configVersionUtils';
 import { logger } from '../shared/logger';
+import { notifyQuiet } from '../shared/notify';
 
 const log = logger.scope('commands');
 
@@ -289,7 +290,7 @@ export class SupportCommands extends BaseCommand {
 		await fs.writeFile(edfPath, content, { encoding: 'utf-8' });
 
 		const commandName = getCreateDeliveryDescriptionFileCommandName();
-		void vscode.window.showInformationMessage(
+		notifyQuiet(
 			`${commandName.title}: создан файл ${path.join(versionDir, edfFileName)}`
 		);
 		log.info(`Создан файл описания поставки: ${edfPath}`);

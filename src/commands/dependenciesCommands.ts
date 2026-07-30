@@ -16,6 +16,7 @@ import { notifyProjectCreated } from '../shared/projectContext';
 import { PROJECT_STRUCTURE } from '../shared/projectStructure';
 import { getOvmBinaryPath } from '../shared/ovmPaths';
 import { streamDownload } from '../shared/githubReleaseLoader';
+import { notifyQuiet } from '../shared/notify';
 
 const log = logger.scope('commands');
 
@@ -273,7 +274,7 @@ export class DependenciesCommands extends BaseCommand {
 			if (stats.isDirectory()) {
 				await fs.rm(oscriptModulesPath, { recursive: true, force: true });
 				log.info(`Каталог oscript_modules успешно удалён: ${oscriptModulesPath}`);
-				vscode.window.showInformationMessage('Каталог oscript_modules успешно удален');
+				notifyQuiet('Каталог oscript_modules успешно удален');
 			} else {
 				log.warn(`oscript_modules не является каталогом: ${oscriptModulesPath}`);
 				vscode.window.showWarningMessage('oscript_modules не является каталогом');
@@ -523,7 +524,7 @@ export class DependenciesCommands extends BaseCommand {
 		try {
 			await fs.writeFile(packagedefPath, packagedefContent, 'utf-8');
 			log.info(`Файл packagedef успешно создан: ${packagedefPath}`);
-			vscode.window.showInformationMessage('Файл packagedef успешно создан');
+			notifyQuiet('Файл packagedef успешно создан');
 
 			// Полная активация расширения: панель «Инструменты 1С» и дерево появятся без перезагрузки окна
 			notifyProjectCreated();
@@ -689,7 +690,7 @@ export class DependenciesCommands extends BaseCommand {
 					log.info(
 						`Структура проекта создана: каталогов=${createdDirs}, новых README=${createdReadmes}. Путь: ${targetDir}`
 					);
-					vscode.window.showInformationMessage(
+					notifyQuiet(
 						`Проект 1С создан: packagedef и структура (${createdDirs} каталогов, ${createdReadmes} README). Открываю папку…`
 					);
 				} catch (error) {
@@ -759,7 +760,7 @@ export class DependenciesCommands extends BaseCommand {
 			log.info(
 				`Структура проекта создана: каталогов=${createdDirs}, новых README=${createdReadmes}. Workspace: ${workspaceRoot}`
 			);
-			vscode.window.showInformationMessage(
+			notifyQuiet(
 				`Структура проекта создана: ${createdDirs} каталогов, ${createdReadmes} файлов README`
 			);
 			notifyProjectCreated();

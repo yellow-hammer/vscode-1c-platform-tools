@@ -4,6 +4,7 @@ import {
 	ProjectArtifactsTreeDataProvider,
 	type ArtifactsViewMode,
 } from './projectArtifactsView';
+import { notifyQuiet } from '../../shared/notify';
 
 const log = logger.scope('artifacts');
 
@@ -67,7 +68,7 @@ export function registerArtifactsFeature(
 			}
 			await artifactsProvider.refresh();
 			log.debug('Дерево артефактов обновлено');
-			vscode.window.showInformationMessage('Дерево артефактов обновлено');
+			notifyQuiet('Дерево артефактов обновлено');
 		}
 	);
 

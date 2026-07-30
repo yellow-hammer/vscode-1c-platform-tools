@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import * as vscode from 'vscode';
+import { registerFormPanel } from '../editors/formPanels';
 
 export interface ExternalArtifactPropertiesDto {
 	name: string;
@@ -30,6 +31,7 @@ export async function openExternalArtifactPropertiesPanel(
 			localResourceRoots: [webviewRoot],
 		}
 	);
+	registerFormPanel(panel);
 	const nonce = randomUUID();
 	panel.webview.html = await loadHtml(panel.webview, context.extensionUri, nonce, dto);
 	panel.webview.onDidReceiveMessage(
