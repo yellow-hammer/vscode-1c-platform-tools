@@ -1,4 +1,4 @@
-import { VRUNNER_SCHEMA, HOOKS_SCHEMA } from './schemaUrls';
+import { VRUNNER_SCHEMA, HOOKS_SCHEMA, PIPELINES_SCHEMA } from './schemaUrls';
 
 /** Базовые поля секции default, общие для всех env-файлов */
 const DEFAULT_SECTION = {
@@ -115,4 +115,10 @@ export const HOOKS_DEFAULTS = {
 	$schema: HOOKS_SCHEMA,
 	version: 1 as const,
 	hooks: {} as Record<string, unknown>,
+};
+
+export const PIPELINES_DEFAULTS = {
+	$schema: PIPELINES_SCHEMA,
+	version: 1 as const,
+	pipelines: [] as unknown[],
 };

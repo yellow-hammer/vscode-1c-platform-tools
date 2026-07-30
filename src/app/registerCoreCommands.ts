@@ -9,6 +9,8 @@ import { DependenciesCommands } from '../commands/dependenciesCommands';
 import { RunCommands } from '../commands/runCommands';
 import { TestCommands } from '../commands/testCommands';
 import { SessionCommands } from '../commands/sessionCommands';
+import { PipelineCommands } from '../commands/pipelineCommands';
+import { HooksCommands } from '../commands/hooksCommands';
 import { SetVersionCommands } from '../commands/setVersionCommands';
 import { WorkspaceTasksCommands } from '../commands/workspaceTasksCommands';
 import { ArtifactCommands } from '../commands/artifactCommands';
@@ -45,6 +47,8 @@ export function registerCoreCommands(
 		run: new RunCommands(),
 		test: new TestCommands(context),
 		session: new SessionCommands(),
+		pipelines: new PipelineCommands(),
+		hooks: new HooksCommands(),
 		setVersion: new SetVersionCommands(),
 		oscriptTasks: new OscriptTasksCommands(),
 		workspaceTasks: new WorkspaceTasksCommands(),

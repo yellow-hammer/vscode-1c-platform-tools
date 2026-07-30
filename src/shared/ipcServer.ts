@@ -8,6 +8,7 @@ import type { VRunnerExecutionResult } from './vrunnerManager';
 import type { CommandExecutionOptions, StructuredCommandResult } from './commandExecutionTypes';
 import { commandSupportsWait, isCommandExposedToMcp } from './mcpCommandPolicy';
 import { agentCommandDescription } from './agentCommandDescriptions';
+import { readManifestCommands } from './commandCatalog';
 import { extractCommandFlags, isProjectPathInWorkspace } from './ipcRequest';
 
 const log = logger.scope('ipc');
@@ -290,37 +291,12 @@ interface CommandDescriptor {
 	supportsWait: boolean;
 }
 
-/**
- * Собирает заголовки команд расширения из package.json.
- *
- * @returns Соответствие «идентификатор команды - заголовок и категория»
- */
-function readCommandTitles(): Map<string, { title?: string; category?: string }> {
-	const titles = new Map<string, { title?: string; category?: string }>();
-	const extension = vscode.extensions.getExtension('yellow-hammer.1c-platform-tools');
-	const contributed = extension?.packageJSON?.contributes?.commands;
-	if (!Array.isArray(contributed)) {
-		return titles;
-	}
-	for (const item of contributed as Array<Record<string, unknown>>) {
-		const id = typeof item.command === 'string' ? item.command : undefined;
-		if (!id) {
-			continue;
-		}
-		titles.set(id, {
-			title: typeof item.title === 'string' ? item.title : undefined,
-			category: typeof item.category === 'string' ? item.category : undefined,
-		});
-	}
-	return titles;
-}
-
 async function handleListCommands(request: IpcRequest): Promise<IpcResponse> {
 	const base = buildResponseBase(request.id);
 	const all = await vscode.commands.getCommands();
 	const commands = all.filter(isCommandExposedToMcp);
 
-	const titles = readCommandTitles();
+	const titles = readManifestCommands();
 	const descriptors: CommandDescriptor[] = commands.map((id) => ({
 		id,
 		// Описание для агента важнее заголовка: заголовок рассчитан на палитру,

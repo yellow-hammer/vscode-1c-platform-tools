@@ -775,3 +775,26 @@ export function getUnlockScheduledJobsCommandName(): CommandNameAndTitle {
 		title: 'Разрешить регламентные задания'
 	};
 }
+
+/**
+ * Получить название и заголовок для команды открытия редактора пайплайнов
+ */
+export function getOpenPipelineEditorCommandName(): CommandNameAndTitle {
+	return {
+		id: '1c-platform-tools.pipelines.openEditor',
+		name: 'Открыть редактор пайплайнов',
+		title: 'Открыть редактор пайплайнов'
+	};
+}
+
+/**
+ * Получить название и заголовок для команды открытия редактора хуков
+ */
+export function getOpenHooksEditorCommandName(): CommandNameAndTitle {
+	return {
+		id: '1c-platform-tools.hooks.openEditor',
+		name: 'Открыть редактор хуков',
+		title: 'Открыть редактор хуков'
+	};
+}
+

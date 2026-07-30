@@ -54,7 +54,6 @@ const HIDDEN_PREFIXES = [
  * описании инструмента, иначе он ждёт данных, которых не будет.
  */
 const WITHOUT_SYNC_RESULT_PREFIXES = [
-	`${COMMAND_PREFIX}run.`,
 	`${COMMAND_PREFIX}file.`,
 	`${COMMAND_PREFIX}metadata.`,
 	`${COMMAND_PREFIX}projects.`,
@@ -88,6 +87,12 @@ const HIDDEN_EXACT = [
 	// Мастер выбора служебного файла: спрашивает, что создать. Команды на
 	// конкретный файл (createEnvJson и другие) агенту доступны
 	`${COMMAND_PREFIX}serviceFiles.create`,
+	// Конструкторы пайплайнов и хуков: агент правит `.1cpt/pipelines.json` и
+	// `.1cpt/hooks.json` файлами, запуск цепочки ему доступен командой pipelines.run
+	`${COMMAND_PREFIX}pipelines.openEditor`,
+	`${COMMAND_PREFIX}hooks.openEditor`,
+	// Сохранение формы: приходит по Ctrl+S из активного редактора
+	`${COMMAND_PREFIX}editors.save`,
 ];
 
 /**

@@ -16,6 +16,7 @@ import { logger } from '../../shared/logger';
 import { ENV_DEFAULTS, AUTUMN_DEFAULTS } from '../serviceFiles/envDefaults';
 import { buildEnvJsonWithSections } from '../serviceFiles/envJsonBuilder';
 import { isAgentOptions, uiOnlyHandler } from '../../shared/agentGate';
+import { invalidateHooksCache } from '../../shared/commandHooks';
 import {
 	ensureEnvProfileStatusBar,
 	refreshEnvProfileStatusBar,
@@ -497,7 +498,13 @@ export function registerLaunchFeature(
 			}
 			return selectProfile(vrunner, refresh);
 		}),
-		vscode.commands.registerCommand('1c-platform-tools.env.openProfileEditor', async () => {
+		vscode.commands.registerCommand('1c-platform-tools.env.openProfileEditor', async (target?: vscode.Uri) => {
+			// Кнопка над открытым файлом передаёт его сам: редактор нужен для него,
+			// а не для активного профиля проекта
+			if (target instanceof vscode.Uri) {
+				await vscode.commands.executeCommand('vscode.openWith', target, '1c-platform-tools.profileEditor');
+				return;
+			}
 			const workspaceRoot = vrunner.getWorkspaceRoot();
 			if (!workspaceRoot) {
 				vscode.window.showErrorMessage('Откройте рабочую область для работы с проектом');
@@ -588,9 +595,11 @@ export function registerLaunchFeature(
 	const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
 	if (workspaceFolder) {
 		const watcher = vscode.workspace.createFileSystemWatcher(
-			new vscode.RelativePattern(workspaceFolder, '{env*.json,.gitignore,.gitattributes,tools/**}')
+			new vscode.RelativePattern(workspaceFolder, '{env*.json,.gitignore,.gitattributes,tools/**,.1cpt/**}')
 		);
 		const onFsChange = () => {
+			// Хуки читаются с кэшем: без сброса правка .1cpt/hooks.json не действует до перезагрузки окна
+			invalidateHooksCache(workspaceFolder.uri.fsPath);
 			refresh();
 			void vscode.commands.executeCommand('1c-platform-tools.tools.refresh').then(undefined, () => undefined);
 		};
@@ -603,6 +612,7 @@ export function registerLaunchFeature(
 			onFsChange();
 		};
 		watcher.onDidCreate(onFsChange);
+		watcher.onDidChange(onFsChange);
 		watcher.onDidDelete(() => void onFsDelete());
 		disposables.push(watcher);
 	}

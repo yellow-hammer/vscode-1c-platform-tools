@@ -10,6 +10,8 @@ import { DependenciesCommands } from './dependenciesCommands';
 import { RunCommands } from './runCommands';
 import { TestCommands } from './testCommands';
 import { SessionCommands } from './sessionCommands';
+import { PipelineCommands } from './pipelineCommands';
+import { HooksCommands } from './hooksCommands';
 import { SetVersionCommands } from './setVersionCommands';
 import { WorkspaceTasksCommands } from './workspaceTasksCommands';
 import { ArtifactCommands } from './artifactCommands';
@@ -39,6 +41,8 @@ interface Commands {
 	skills: SkillsCommands;
 	serviceFiles: ServiceFilesCommands;
 	session: SessionCommands;
+	pipelines: PipelineCommands;
+	hooks: HooksCommands;
 }
 
 function getActiveEditorResourceUri(): vscode.Uri | undefined {
@@ -196,6 +200,19 @@ export function registerCommands(
 		),
 		registerVRunnerCommand('1c-platform-tools.session.unlockJobs', (opts) =>
 			commands.session.unlockScheduledJobs(opts)
+		),
+	];
+
+	// Пайплайны и хуки: автоматизация вокруг команд расширения
+	const pipelineCommands = [
+		registerVRunnerCommand('1c-platform-tools.pipelines.run', (opts) =>
+			commands.pipelines.run(opts)
+		),
+		vscode.commands.registerCommand('1c-platform-tools.pipelines.openEditor', (pipelineId?: string) =>
+			commands.pipelines.openEditor(typeof pipelineId === 'string' ? pipelineId : undefined)
+		),
+		vscode.commands.registerCommand('1c-platform-tools.hooks.openEditor', (commandId?: string) =>
+			commands.hooks.openEditor(typeof commandId === 'string' ? commandId : undefined)
 		),
 	];
 
@@ -475,6 +492,7 @@ export function registerCommands(
 	disposables.push(
 		...infobaseCommands,
 		...sessionCommands,
+		...pipelineCommands,
 		...configurationCommands,
 		...extensionsCommands,
 		...externalFilesCommands,

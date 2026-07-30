@@ -27,6 +27,7 @@ export function getHideableToolGroups(): HideableToolGroup[] {
 	);
 	return [
 		...staticGroups,
+		{ sectionType: 'pipelines', label: 'Автоматизация' },
 		{ sectionType: 'oscriptTasks', label: 'Задачи (oscript)' },
 		{ sectionType: 'launch', label: 'Задачи (workspace)' },
 	];
