@@ -76,7 +76,8 @@ export type MdSparrowOp =
 	| 'cf-list-catalogs'
 	| 'cf-md-subsystem-tree'
 	| 'project-metadata-tree'
-	| 'cf-md-graph';
+	| 'cf-md-graph'
+	| 'cf-validate-dump';
 
 /** Параметры команды; сериализуются в UTF-8 JSON и читаются `apply-mutation`/`read-json`. */
 export interface MdSparrowParams {
@@ -85,6 +86,8 @@ export interface MdSparrowParams {
 	objectXml?: string;
 	artifactsRoot?: string;
 	targetCfRoot?: string;
+	/** Каталог проверяемой выгрузки: src/cf или каталог расширения. */
+	cfRoot?: string;
 	/** Каталог создаваемого расширения (init-empty-cfe). */
 	targetCfeRoot?: string;
 	/** Configuration.xml расширяемой конфигурации: источник режимов совместимости. */

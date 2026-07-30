@@ -50,6 +50,7 @@ import {
 	type ObjectModuleKind,
 } from './metadataTreeView';
 import { notifyQuiet } from '../../shared/notify';
+import { CfDumpFinding, DumpValidationDiagnostics } from './dumpValidationDiagnostics';
 
 export interface RegisterMetadataFeatureParams {
 	context: vscode.ExtensionContext;
@@ -70,6 +71,9 @@ export function registerMetadataFeature(
 	const MD_SPARROW_CLI_ERR_PREVIEW = 500;
 
 	const runMdSparrowMutation = createMdSparrowMutationRunner();
+
+	/** Находки проверки выгрузки живут в своей коллекции: их снимает и ставит только проверка. */
+	const dumpValidation = new DumpValidationDiagnostics();
 
 	function resolveCfPathsFromMetadataTree(): { cfgPath: string; cfRoot: string } | undefined {
 		const sel = metadataTreeView.selection[0];
@@ -139,6 +143,23 @@ export function registerMetadataFeature(
 			return selected;
 		}
 		return undefined;
+	}
+
+	/** Каталоги расширений проекта: у каждого свой Configuration.xml. */
+	function listExtensionRoots(): string[] {
+		const root = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+		if (!root) {
+			return [];
+		}
+		const cfeRoot = path.join(root, VRunnerManager.getInstance(context).getCfePath());
+		if (!fs.existsSync(cfeRoot)) {
+			return [];
+		}
+		return fs
+			.readdirSync(cfeRoot, { withFileTypes: true })
+			.filter((entry) => entry.isDirectory())
+			.map((entry) => path.join(cfeRoot, entry.name))
+			.filter((dir) => fs.existsSync(path.join(dir, 'Configuration.xml')));
 	}
 
 	async function openTextFile(pathToOpen: string): Promise<void> {
@@ -1684,6 +1705,61 @@ export function registerMetadataFeature(
 				}
 			});
 		}),
+		vscode.commands.registerCommand(
+			'1c-platform-tools.metadata.validateDump',
+			async (item?: MetadataSourceTreeItem) => {
+				const source = resolveSelectedMetadataSource(item);
+				const roots: string[] = [];
+				if (source?.metadataRootAbs) {
+					roots.push(source.metadataRootAbs);
+				} else {
+					const cfRoot = metadataTreeProvider.resolveCfRoot();
+					if (cfRoot && fs.existsSync(path.join(cfRoot, 'Configuration.xml'))) {
+						roots.push(cfRoot);
+					}
+					roots.push(...listExtensionRoots());
+				}
+				if (roots.length === 0) {
+					void vscode.window.showInformationMessage('Не найдена выгрузка для проверки.');
+					return;
+				}
+
+				try {
+					const runtime = await ensureMdSparrowRuntime(context);
+					let total = 0;
+					for (const root of roots) {
+						const res = await runMdSparrowParamsRead(runtime, {
+							op: 'cf-validate-dump',
+							cfRoot: root,
+						});
+						if (res.exitCode !== 0) {
+							const errText = (res.stderr.trim() || res.stdout.trim() || `код ${res.exitCode}`).slice(
+								0,
+								MD_SPARROW_CLI_ERR_PREVIEW
+							);
+							void vscode.window.showErrorMessage(errText);
+							return;
+						}
+						const findings = JSON.parse(res.stdout.trim() || '[]') as CfDumpFinding[];
+						dumpValidation.publish(root, findings);
+						total += findings.length;
+					}
+					if (total === 0) {
+						notifyQuiet(
+							roots.length === 1
+								? 'Выгрузка цела: находок нет.'
+								: `Выгрузки целы: находок нет (проверено: ${roots.length}).`
+						);
+						return;
+					}
+					notifyQuiet(`Проверка выгрузки: находок ${total}, см. панель «Проблемы».`);
+					await vscode.commands.executeCommand('workbench.actions.view.problems');
+				} catch (e) {
+					const msg = e instanceof Error ? e.message : String(e);
+					void vscode.window.showErrorMessage(msg.slice(0, MD_SPARROW_CLI_ERR_PREVIEW));
+				}
+			}
+		),
 		vscode.commands.registerCommand('1c-platform-tools.metadata.initEmptyCf', async () => {
 			await runMdSparrowMutation(async () => {
 				const cfRoot = metadataTreeProvider.resolveCfRoot();
