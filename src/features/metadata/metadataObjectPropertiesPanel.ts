@@ -6,6 +6,7 @@
 
 import * as path from 'node:path';
 import * as vscode from 'vscode';
+import { registerFormPanel } from '../editors/formPanels';
 import { ensureMdSparrowRuntime } from './mdSparrowBootstrap';
 import { logger } from '../../shared/logger';
 import { mdSparrowSchemaFlagFromConfigurationXml } from './mdSparrowSchemaVersion';
@@ -32,6 +33,7 @@ import {
 	type MetadataPropertySpecialSection,
 } from './metadataObjectPropertyProfiles';
 import { type MetadataObjectSectionSource } from './metadataObjectSectionProfiles';
+import { notifyQuiet } from '../../shared/notify';
 
 const log = logger.scope('metadata');
 
@@ -1332,6 +1334,7 @@ export async function openMetadataObjectPropertiesEditor(
 		retainContextWhenHidden: true,
 		localResourceRoots: [webviewRoot],
 	});
+	registerFormPanel(panel);
 
 	if (viewModel.editable) {
 		registerEditableSaveHandler(context, panel, params, runtime, schema, viewModel.editable, candidates);
@@ -1715,7 +1718,7 @@ async function openObjectModuleFromPanel(objectXmlFsPath: string, internalName: 
 	} catch {
 		await vscode.workspace.fs.createDirectory(vscode.Uri.file(path.dirname(modulePath)));
 		await vscode.workspace.fs.writeFile(uri, new Uint8Array());
-		void vscode.window.showInformationMessage(`Создан пустой модуль: ${fileName}`);
+		notifyQuiet(`Создан пустой модуль: ${fileName}`);
 	}
 	const doc = await vscode.workspace.openTextDocument(uri);
 	await vscode.window.showTextDocument(doc, { preview: false });

@@ -17,6 +17,7 @@ import { supportedErFormats } from './erExporters/exporterRegistry';
 import { buildSubgraph, listObjectTypes, listRelationKinds } from './erFilters';
 import { loadErGraph } from './erGraphService';
 import type { ErExportFormat, ErGraph, ErScope, ErSubgraph } from './erTypes';
+import { notifyQuiet } from '../../../shared/notify';
 
 const log = logger.scope('er');
 
@@ -380,7 +381,7 @@ async function saveExport(payload: ExportContentPayload, workspaceRoot: string, 
 		await fs.writeFile(fileAbs, payload.content, 'utf8');
 	}
 	const rel = path.relative(workspaceRoot, fileAbs).replaceAll('\\', '/');
-	void vscode.window.showInformationMessage(`ER: ${payload.format.toUpperCase()} сохранён: ${rel}`);
+	notifyQuiet(`ER: ${payload.format.toUpperCase()} сохранён: ${rel}`);
 }
 
 function sanitizeLabel(label: string): string {

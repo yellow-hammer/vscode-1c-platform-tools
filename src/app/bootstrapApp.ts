@@ -1,5 +1,9 @@
 import * as vscode from 'vscode';
 import { ProfileEditorProvider } from '../features/profileEditor/profileEditorProvider';
+import { PipelineEditorProvider } from '../features/pipelines/pipelineEditorProvider';
+import { PipelineTaskProvider } from '../features/pipelines/pipelineTaskProvider';
+import { registerFormSaveCommand } from '../features/editors/formPanels';
+import { HooksEditorProvider } from '../features/hooks/hooksEditorProvider';
 import { VRunnerManager } from '../shared/vrunnerManager';
 import { registerHelpAndSettingsCommands } from '../features/tools/registerHelpAndSettingsCommands';
 import { registerDebugFeature } from '../features/debug/registerDebugFeature';
@@ -32,6 +36,10 @@ export async function bootstrapApp(context: vscode.ExtensionContext): Promise<vo
 
 	registerDebugFeature(context);
 	context.subscriptions.push(ProfileEditorProvider.register(context));
+	context.subscriptions.push(PipelineEditorProvider.register());
+	context.subscriptions.push(PipelineTaskProvider.register());
+	context.subscriptions.push(registerFormSaveCommand());
+	context.subscriptions.push(HooksEditorProvider.register());
 	const isProject = await detectAndSetInitialProjectContext();
 	const { metadataTreeProvider } = registerMetadataFlow(context, isProject);
 	checkMdSparrowUpdateInBackground(context, () => void metadataTreeProvider.refresh());

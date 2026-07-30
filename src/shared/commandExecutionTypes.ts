@@ -41,6 +41,8 @@ export interface CommandExecutionOptions {
 	sessionFilterMode?: string;
 	/** Не запрещать начало сеансов при их завершении. */
 	keepSessionsUnlocked?: boolean;
+	/** Идентификатор или название пайплайна для запуска (pipelines.run). */
+	pipeline?: string;
 	/** Переопределения стандартных путей. */
 	pathsOverride?: {
 		cf?: string;

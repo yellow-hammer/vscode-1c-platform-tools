@@ -4,3 +4,4 @@ const TOOLS_BASE = 'https://raw.githubusercontent.com/yellow-hammer/vscode-1c-pl
 export const VRUNNER_SCHEMA = `${VRUNNER_BASE}/vanessa-runner-schema.json`;
 export const XUNIT_SCHEMA = `${VRUNNER_BASE}/xunit-schema.json`;
 export const HOOKS_SCHEMA = `${TOOLS_BASE}/resources/schemas/hooks.schema.json`;
+export const PIPELINES_SCHEMA = `${TOOLS_BASE}/resources/schemas/pipelines.schema.json`;

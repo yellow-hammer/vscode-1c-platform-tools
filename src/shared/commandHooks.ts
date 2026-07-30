@@ -105,6 +105,10 @@ async function runPhase(
 	phaseName: string
 ): Promise<HookPhaseResult> {
 	for (const step of steps) {
+		// Шаг могли добавить в редакторе и не заполнить: выполнять нечего
+		if (step.command.trim() === '') {
+			continue;
+		}
 		log.info(`[${phaseName}] ${step.command}`);
 		const { exitCode, output } = await runStep(step, env, cwd);
 		if (output) {
@@ -304,4 +308,45 @@ export async function runWithHooks<T extends CommandResult>(
 	}
 
 	return result!;
+}
+
+/**
+ * Выполняет шаги хука без самой команды: проверка из редактора.
+ *
+ * @param workspaceRoot - Корень проекта
+ * @param commandId - Идентификатор команды расширения
+ * @param phase - Фаза: pre, post или onError
+ * @returns Итог прогона и вывод шагов
+ */
+export async function runHookPhaseDry(
+	workspaceRoot: string,
+	commandId: string,
+	phase: 'pre' | 'post' | 'onError'
+): Promise<{ success: boolean; output: string }> {
+	const config = await loadConfig(workspaceRoot);
+	const entry = config ? resolveEntry(config, commandId) : undefined;
+	const steps = normalizeSteps(entry?.[phase]);
+	if (steps.length === 0) {
+		return { success: true, output: 'шагов нет' };
+	}
+
+	const lines: string[] = [];
+	const env = { ...process.env, ONEC_PROJECT_PATH: workspaceRoot, ONEC_COMMAND_ID: commandId };
+	for (const step of steps) {
+		if (step.command.trim() === '') {
+			continue;
+		}
+		lines.push(`> ${step.command}`);
+		const { exitCode, output } = await runStep(step, env, workspaceRoot);
+		if (output.trim() !== '') {
+			lines.push(output.trim());
+		}
+		if (exitCode !== 0) {
+			lines.push(`шаг завершился с кодом ${exitCode}`);
+			if (step.continueOnError !== true) {
+				return { success: false, output: lines.join('\n') };
+			}
+		}
+	}
+	return { success: true, output: lines.join('\n') };
 }

@@ -109,6 +109,13 @@ export const SERVICE_FILES: ServiceFileSpec[] = [
 		description: '.1cpt/hooks.json — хуки pre/post/onError на команды расширения',
 		recommended: false,
 	},
+	{
+		id: 'pipelines',
+		relPath: '.1cpt/pipelines.json',
+		label: '1cpt: пайплайны',
+		description: '.1cpt/pipelines.json — графы шагов: команды, оболочка, паузы',
+		recommended: false,
+	},
 	// tools/README.md создаётся командой «Инициализировать структуру проекта»
 	// (см. PROJECT_STRUCTURE), здесь не дублируется.
 ];

@@ -28,6 +28,7 @@ const LAUNCH = '1C: Запуск';
 const ENVIRONMENT = '1C: Окружение';
 const TASKS = '1C: Задачи';
 const SESSIONS = '1C: Сеансы';
+const PIPELINES = '1C: Пайплайны';
 
 /** Описания команд, чей заголовок вне интерфейса непонятен. */
 export const AGENT_COMMAND_DESCRIPTIONS: Record<string, AgentCommandDescription> = {
@@ -266,6 +267,22 @@ export const AGENT_COMMAND_DESCRIPTIONS: Record<string, AgentCommandDescription>
 	'1c-platform-tools.oscript.run': {
 		title: 'Запустить задачу OneScript (opm run)',
 		category: TASKS,
+	},
+
+	// Запуск платформы: vrunner отдаёт управление сразу после старта
+	'1c-platform-tools.run.enterprise': {
+		title: 'Запустить 1С:Предприятие на активном профиле; результат - удалось ли стартовать, окно платформы остаётся у пользователя',
+		category: LAUNCH,
+	},
+	'1c-platform-tools.run.designer': {
+		title: 'Запустить Конфигуратор на активном профиле; результат - удалось ли стартовать, окно платформы остаётся у пользователя',
+		category: LAUNCH,
+	},
+
+	// Пайплайны: цепочки команд из .1cpt/pipelines.json
+	'1c-platform-tools.pipelines.run': {
+		title: 'Запустить пайплайн - граф шагов из .1cpt/pipelines.json; параметр pipeline - идентификатор или название цепочки, без него команда не выполняется; шаги идут по связям, упавший шаг без ветки error останавливает свою ветку, шаг с подтверждением в неинтерактивном запуске завершается ошибкой; возвращается пошаговый отчёт',
+		category: PIPELINES,
 	},
 
 	// Окружение

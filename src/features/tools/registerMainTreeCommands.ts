@@ -18,6 +18,7 @@ import {
 	setHiddenToolGroups,
 	syncHiddenToolGroupsContext,
 } from './toolsGroupVisibility';
+import { notifyQuiet } from '../../shared/notify';
 
 const log = logger.scope('ui');
 
@@ -195,7 +196,7 @@ export function registerMainTreeCommands(
 		}
 		treeDataProvider.refresh();
 		log.debug('Дерево обновлено');
-		vscode.window.showInformationMessage('Дерево обновлено');
+		notifyQuiet('Дерево обновлено');
 	});
 
 	const launchViewCommand = vscode.commands.registerCommand('1c-platform-tools.launch.view', () => {
@@ -321,7 +322,7 @@ export function registerMainTreeCommands(
 			await setFavorites(context, newFavorites);
 			treeDataProvider.refresh();
 			log.info(`Избранное обновлено: ${newFavorites.length} команд`);
-			vscode.window.showInformationMessage(
+			notifyQuiet(
 				`Избранное обновлено: ${newFavorites.length} команд`
 			);
 		}

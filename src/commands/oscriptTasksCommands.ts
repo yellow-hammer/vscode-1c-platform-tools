@@ -3,6 +3,7 @@ import * as path from 'node:path';
 import * as fs from 'node:fs/promises';
 import { BaseCommand } from './baseCommand';
 import { logger } from '../shared/logger';
+import { notifyQuiet } from '../shared/notify';
 
 const log = logger.scope('commands');
 
@@ -156,7 +157,7 @@ export class OscriptTasksCommands extends BaseCommand {
 			await vscode.window.showTextDocument(doc);
 
 			log.info(`Создана задача oscript: ${nameWithExt}, путь: ${filePath}`);
-			vscode.window.showInformationMessage(`Создана задача oscript: ${nameWithExt}`);
+			notifyQuiet(`Создана задача oscript: ${nameWithExt}`);
 		} catch (error) {
 			const errMsg = (error as Error).message;
 			log.error(`Ошибка при создании задачи oscript: ${errMsg}. Путь: ${filePath}`);

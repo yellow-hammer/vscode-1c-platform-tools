@@ -15,8 +15,10 @@ import {
 	VRUNNER_DEFAULTS_V3,
 	VRUNNER_INIT_DEFAULTS_V3,
 	HOOKS_DEFAULTS,
+	PIPELINES_DEFAULTS,
 } from '../features/serviceFiles/envDefaults';
 import { DEFAULT_PROFILE_ID } from '../shared/envProfiles';
+import { notifyQuiet } from '../shared/notify';
 
 const log = logger.scope('serviceFiles');
 
@@ -83,7 +85,7 @@ export class ServiceFilesCommands extends BaseCommand {
 		await fs.mkdir(path.dirname(fullPath), { recursive: true });
 		await fs.writeFile(fullPath, template, 'utf8');
 		log.info(`Создан служебный файл ${spec.relPath}`);
-		vscode.window.showInformationMessage(`Создан ${spec.relPath}`);
+		notifyQuiet(`Создан ${spec.relPath}`);
 		return true;
 	}
 
@@ -133,6 +135,10 @@ export class ServiceFilesCommands extends BaseCommand {
 			await this.ensureFromDefaults(spec, HOOKS_DEFAULTS);
 			return;
 		}
+		if (spec.id === 'pipelines') {
+			await this.ensureFromDefaults(spec, PIPELINES_DEFAULTS);
+			return;
+		}
 		if (await this.createFromSpec(spec, true)) {
 			this.refreshTree();
 		}
@@ -154,7 +160,7 @@ export class ServiceFilesCommands extends BaseCommand {
 			await fs.mkdir(path.dirname(fullPath), { recursive: true });
 			await fs.writeFile(fullPath, `${JSON.stringify(defaults, null, 4)}\n`, 'utf8');
 			log.info(`Создан служебный файл ${spec.relPath}`);
-			vscode.window.showInformationMessage(`Создан ${spec.relPath}`);
+			notifyQuiet(`Создан ${spec.relPath}`);
 			this.refreshTree();
 		}
 		const doc = await vscode.workspace.openTextDocument(vscode.Uri.file(fullPath));
@@ -249,7 +255,7 @@ export class ServiceFilesCommands extends BaseCommand {
 		}
 		await fs.writeFile(fullPath, `${JSON.stringify(AUTUMN_DEFAULTS, null, 4)}\n`, 'utf8');
 		log.info('Создан autumn-properties.json');
-		vscode.window.showInformationMessage('Создан autumn-properties.json');
+		notifyQuiet('Создан autumn-properties.json');
 		return true;
 	}
 
@@ -267,7 +273,7 @@ export class ServiceFilesCommands extends BaseCommand {
 		}
 		await fs.writeFile(fullPath, `${JSON.stringify(ENV_DEFAULTS, null, 4)}\n`, 'utf8');
 		log.info('Создан env.json');
-		vscode.window.showInformationMessage('Создан env.json');
+		notifyQuiet('Создан env.json');
 		return true;
 	}
 
@@ -284,7 +290,7 @@ export class ServiceFilesCommands extends BaseCommand {
 		}
 		await fs.writeFile(fullPath, content, 'utf8');
 		log.info('Создан env.json');
-		vscode.window.showInformationMessage('Создан env.json');
+		notifyQuiet('Создан env.json');
 		return true;
 	}
 
@@ -336,7 +342,7 @@ export class ServiceFilesCommands extends BaseCommand {
 		if (changed) {
 			this.refreshTree();
 		}
-		vscode.window.showInformationMessage('Базовый набор служебных файлов готов.');
+		notifyQuiet('Базовый набор служебных файлов готов.');
 	}
 
 	/**

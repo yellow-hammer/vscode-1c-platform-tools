@@ -89,10 +89,21 @@ function extractImageFromMarkdown(md: string): string {
 	return m ? m[1] : 'placeholder.svg';
 }
 
-function extractExtendedContentFromMarkdown(md: string): string {
-	const lines = md.split('\n');
-	const skipFirst = lines[0].startsWith('# ![') ? 1 : 0;
-	return lines.slice(skipFirst).join('\n').trim();
+/**
+ * Текст шага для webview: без заголовка файла и без разметки изображения.
+ *
+ * Заголовок дублирует название шага в списке слева, а картинка выводится
+ * отдельно справа: в тексте они выглядели бы сырой разметкой.
+ *
+ * @param md - Содержимое файла шага
+ * @returns Текст для показа
+ */
+export function extractExtendedContentFromMarkdown(md: string): string {
+	return md
+		.split('\n')
+		.filter((line, index) => !(index === 0 && line.startsWith('# ')) && !line.trim().startsWith('!['))
+		.join('\n')
+		.trim();
 }
 
 interface WalkthroughData {
@@ -171,7 +182,7 @@ async function loadWalkthroughData(context: vscode.ExtensionContext): Promise<Wa
 
 	return {
 		title: walkthrough.title ?? 'Начало работы с 1C: Platform Tools',
-		description: walkthrough.description ?? 'Шесть шагов: проект, зависимости, панель команд, служебные файлы, панель проектов, список дел.',
+		description: walkthrough.description ?? 'Пошаговое знакомство с панелями расширения.',
 		steps,
 	};
 }
@@ -188,8 +199,18 @@ function escapeHtml(s: string): string {
 		.replaceAll('"', '&quot;');
 }
 
-function simpleMarkdownToHtml(s: string): string {
+/**
+ * Разметка шага в HTML: жирный, код, ссылки, переводы строк.
+ *
+ * Ссылка на документацию в webview никуда не ведёт, поэтому от неё остаётся
+ * только подпись: путь к файлу репозитория читателю бесполезен.
+ *
+ * @param s - Текст в markdown
+ * @returns HTML для вставки в страницу
+ */
+export function simpleMarkdownToHtml(s: string): string {
 	return escapeHtml(s)
+		.replaceAll(/\[([^\]]+)\]\([^)]+\)/g, '$1')
 		.replaceAll(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
 		.replaceAll(/`(.+?)`/g, '<code>$1</code>')
 		.replaceAll('\n', '<br>');

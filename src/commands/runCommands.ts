@@ -1,6 +1,6 @@
 import { BaseCommand } from './baseCommand';
 import { getRunEnterpriseCommandName, getRunDesignerCommandName } from '../features/tools/commandNames';
-import type { CommandExecutionOptions } from '../shared/commandExecutionTypes';
+import type { CommandExecutionOptions, StructuredCommandResult } from '../shared/commandExecutionTypes';
 
 /**
  * Команды для запуска 1С:Предприятие и Конфигуратора
@@ -41,7 +41,7 @@ export class RunCommands extends BaseCommand {
 	 *
 	 * @returns Промис, который разрешается после запуска команды
 	 */
-	async runEnterprise(opts?: CommandExecutionOptions): Promise<void> {
+	async runEnterprise(opts?: CommandExecutionOptions): Promise<StructuredCommandResult | void> {
 		const workspaceRoot = this.ensureWorkspace();
 		if (!workspaceRoot) {
 			return;
@@ -60,11 +60,7 @@ export class RunCommands extends BaseCommand {
 			opts?.settingsFile, opts?.ibConnection
 		);
 
-		this.vrunner.executeVRunnerInTerminal(args, {
-			cwd: workspaceRoot,
-			name: commandName.title,
-			appendOverrides: false
-		});
+		return this.runVRunner(args, opts, commandName.title, undefined, commandName.id, true);
 	}
 
 	/**
@@ -76,7 +72,7 @@ export class RunCommands extends BaseCommand {
 	 *
 	 * @returns Промис, который разрешается после запуска команды
 	 */
-	async runDesigner(opts?: CommandExecutionOptions): Promise<void> {
+	async runDesigner(opts?: CommandExecutionOptions): Promise<StructuredCommandResult | void> {
 		const workspaceRoot = this.ensureWorkspace();
 		if (!workspaceRoot) {
 			return;
@@ -95,10 +91,6 @@ export class RunCommands extends BaseCommand {
 			opts?.settingsFile, opts?.ibConnection
 		);
 
-		this.vrunner.executeVRunnerInTerminal(args, {
-			cwd: workspaceRoot,
-			name: commandName.title,
-			appendOverrides: false
-		});
+		return this.runVRunner(args, opts, commandName.title, undefined, commandName.id, true);
 	}
 }

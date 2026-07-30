@@ -1,0 +1,252 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://raw.githubusercontent.com/yellow-hammer/vscode-1c-platform-tools/main/resources/schemas/pipelines.schema.json",
+  "title": "1C Platform Tools pipelines",
+  "description": "Пайплайны расширения 1C Platform Tools: графы шагов (.1cpt/pipelines.json)",
+  "type": "object",
+  "properties": {
+    "$schema": {
+      "type": "string"
+    },
+    "version": {
+      "type": "integer",
+      "description": "Версия формата файла",
+      "enum": [
+        2
+      ]
+    },
+    "pipelines": {
+      "type": "array",
+      "description": "Цепочки шагов: узлы графа и связи между ними",
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "nodes"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Идентификатор для запуска командой и агентом",
+            "minLength": 1
+          },
+          "name": {
+            "type": "string",
+            "description": "Название цепочки в панели и редакторе",
+            "minLength": 1
+          },
+          "description": {
+            "type": "string",
+            "description": "Пояснение к назначению цепочки"
+          },
+          "nodes": {
+            "type": "array",
+            "description": "Шаги графа",
+            "items": {
+              "type": "object",
+              "required": [
+                "id"
+              ],
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "description": "Идентификатор узла, уникальный в пределах пайплайна",
+                  "minLength": 1
+                },
+                "type": {
+                  "type": "string",
+                  "description": "Что делает шаг: команда расширения, команда оболочки, пауза с подтверждением",
+                  "enum": [
+                    "command",
+                    "shell",
+                    "confirm"
+                  ],
+                  "default": "command"
+                },
+                "name": {
+                  "type": "string",
+                  "description": "Подпись шага; без неё берётся действие"
+                },
+                "command": {
+                  "type": "string",
+                  "description": "Идентификатор команды расширения (type: command)",
+                  "enum": [
+                    "1c-platform-tools.components.update",
+                    "1c-platform-tools.configuration.build",
+                    "1c-platform-tools.configuration.decompile",
+                    "1c-platform-tools.configuration.dumpIncrementToSrc",
+                    "1c-platform-tools.configuration.dumpToCf",
+                    "1c-platform-tools.configuration.dumpToDist",
+                    "1c-platform-tools.configuration.dumpToSrc",
+                    "1c-platform-tools.configuration.loadFromCf",
+                    "1c-platform-tools.configuration.loadFromFilesByList",
+                    "1c-platform-tools.configuration.loadFromSrc",
+                    "1c-platform-tools.configuration.loadFromSrc.init",
+                    "1c-platform-tools.configuration.loadIncrementFromSrc",
+                    "1c-platform-tools.debug.measure.clear",
+                    "1c-platform-tools.debug.measure.showResults",
+                    "1c-platform-tools.debug.measure.start",
+                    "1c-platform-tools.debug.measure.stop",
+                    "1c-platform-tools.debug.showVariableInWindow",
+                    "1c-platform-tools.dependencies.initializePackagedef",
+                    "1c-platform-tools.dependencies.initializeProjectStructure",
+                    "1c-platform-tools.dependencies.install",
+                    "1c-platform-tools.dependencies.installOscript",
+                    "1c-platform-tools.dependencies.remove",
+                    "1c-platform-tools.dependencies.updateOpm",
+                    "1c-platform-tools.env.clearOverrides",
+                    "1c-platform-tools.env.editSettingsFile",
+                    "1c-platform-tools.env.openProfileEditor",
+                    "1c-platform-tools.env.selectProfile",
+                    "1c-platform-tools.extensions.build",
+                    "1c-platform-tools.extensions.decompile",
+                    "1c-platform-tools.extensions.dumpToCfe",
+                    "1c-platform-tools.extensions.dumpToSrc",
+                    "1c-platform-tools.extensions.loadFromCfe",
+                    "1c-platform-tools.extensions.loadFromFilesByList",
+                    "1c-platform-tools.extensions.loadFromSrc",
+                    "1c-platform-tools.extensions.updateInInfobase",
+                    "1c-platform-tools.externalFiles.clearCache",
+                    "1c-platform-tools.externalProcessors.build",
+                    "1c-platform-tools.externalProcessors.decompile",
+                    "1c-platform-tools.externalReports.build",
+                    "1c-platform-tools.externalReports.decompile",
+                    "1c-platform-tools.infobase.blockExternalResources",
+                    "1c-platform-tools.infobase.createEmpty",
+                    "1c-platform-tools.infobase.dumpToDt",
+                    "1c-platform-tools.infobase.initialize",
+                    "1c-platform-tools.infobase.loadFromDt",
+                    "1c-platform-tools.infobase.updateDatabase",
+                    "1c-platform-tools.infobase.updateInfobase",
+                    "1c-platform-tools.launch.edit",
+                    "1c-platform-tools.launch.run",
+                    "1c-platform-tools.launch.view",
+                    "1c-platform-tools.oscript.run",
+                    "1c-platform-tools.pipelines.run",
+                    "1c-platform-tools.run.designer",
+                    "1c-platform-tools.run.enterprise",
+                    "1c-platform-tools.server.debug",
+                    "1c-platform-tools.server.openConfig",
+                    "1c-platform-tools.server.openInBrowser",
+                    "1c-platform-tools.server.restart",
+                    "1c-platform-tools.server.selectServices",
+                    "1c-platform-tools.server.showLogs",
+                    "1c-platform-tools.server.start",
+                    "1c-platform-tools.server.stop",
+                    "1c-platform-tools.serviceFiles.createEnvJson",
+                    "1c-platform-tools.serviceFiles.createGitattributes",
+                    "1c-platform-tools.serviceFiles.createGitignore",
+                    "1c-platform-tools.serviceFiles.createRecommendedSet",
+                    "1c-platform-tools.session.checkClosed",
+                    "1c-platform-tools.session.kill",
+                    "1c-platform-tools.session.lock",
+                    "1c-platform-tools.session.lockJobs",
+                    "1c-platform-tools.session.unlock",
+                    "1c-platform-tools.session.unlockJobs",
+                    "1c-platform-tools.syntaxCheck.clear",
+                    "1c-platform-tools.syntaxCheck.refresh",
+                    "1c-platform-tools.test.allure",
+                    "1c-platform-tools.test.buildEpf",
+                    "1c-platform-tools.test.configure",
+                    "1c-platform-tools.test.decompileEpf",
+                    "1c-platform-tools.test.syntaxCheck",
+                    "1c-platform-tools.test.vanessa",
+                    "1c-platform-tools.test.xunit",
+                    "1c-platform-tools.test.yaxunit"
+                  ]
+                },
+                "options": {
+                  "type": "object",
+                  "description": "Параметры вызова команды, например settingsFile или lockMessage (type: command)"
+                },
+                "script": {
+                  "type": "string",
+                  "description": "Командная строка, выполняется в корне проекта (type: shell)"
+                },
+                "timeout": {
+                  "type": "number",
+                  "description": "Ограничение времени шага в секундах",
+                  "exclusiveMinimum": 0
+                },
+                "message": {
+                  "type": "string",
+                  "description": "Текст вопроса; в запуске от агента такой шаг завершается ошибкой (type: confirm)"
+                },
+                "enabled": {
+                  "type": "boolean",
+                  "description": "Шаг выполняется (по умолчанию true); выключенный пропускается, ветка успеха идёт дальше",
+                  "default": true
+                },
+                "join": {
+                  "type": "string",
+                  "description": "Ждать все входящие ветки, а не первую пришедшую",
+                  "enum": [
+                    "all"
+                  ]
+                },
+                "x": {
+                  "type": "number",
+                  "description": "Положение узла на полотне редактора"
+                },
+                "y": {
+                  "type": "number",
+                  "description": "Положение узла на полотне редактора"
+                },
+                "retry": {
+                  "type": "integer",
+                  "description": "Сколько раз повторить упавший шаг перед тем, как считать его ошибкой",
+                  "minimum": 1
+                }
+              },
+              "additionalProperties": false
+            }
+          },
+          "edges": {
+            "type": "array",
+            "description": "Связи между шагами: куда идти по исходу узла",
+            "items": {
+              "type": "object",
+              "required": [
+                "from",
+                "to"
+              ],
+              "properties": {
+                "from": {
+                  "type": "string",
+                  "description": "Идентификатор узла-источника",
+                  "minLength": 1
+                },
+                "to": {
+                  "type": "string",
+                  "description": "Идентификатор узла-приёмника",
+                  "minLength": 1
+                },
+                "on": {
+                  "type": "string",
+                  "description": "Условие перехода; по умолчанию success",
+                  "enum": [
+                    "success",
+                    "error",
+                    "always"
+                  ],
+                  "default": "success"
+                }
+              },
+              "additionalProperties": false
+            }
+          },
+          "params": {
+            "type": "object",
+            "description": "Параметры цепочки: подставляются в шаги как {{имя}}",
+            "additionalProperties": {
+              "type": "string"
+            }
+          }
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "additionalProperties": false
+}

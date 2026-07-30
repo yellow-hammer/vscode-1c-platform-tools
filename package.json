@@ -57,6 +57,10 @@
       {
         "fileMatch": "**/.1cpt/hooks.json",
         "url": "./resources/schemas/hooks.schema.json"
+      },
+      {
+        "fileMatch": "**/.1cpt/pipelines.json",
+        "url": "./resources/schemas/pipelines.schema.json"
       }
     ],
     "taskDefinitions": [
@@ -76,6 +80,18 @@
               "type": "string"
             },
             "description": "Дополнительные аргументы команды vrunner"
+          }
+        }
+      },
+      {
+        "type": "1c-pipeline",
+        "required": [
+          "pipeline"
+        ],
+        "properties": {
+          "pipeline": {
+            "type": "string",
+            "description": "Идентификатор или название цепочки из .1cpt/pipelines.json"
           }
         }
       }
@@ -474,13 +490,34 @@
           }
         ],
         "priority": "option"
+      },
+      {
+        "viewType": "1c-platform-tools.pipelineEditor",
+        "displayName": "Пайплайны 1С",
+        "selector": [
+          {
+            "filenamePattern": "**/.1cpt/pipelines.json"
+          }
+        ],
+        "priority": "option"
+      },
+      {
+        "viewType": "1c-platform-tools.hooksEditor",
+        "displayName": "Хуки команд 1С",
+        "selector": [
+          {
+            "filenamePattern": "**/.1cpt/hooks.json"
+          }
+        ],
+        "priority": "option"
       }
     ],
     "commands": [
       {
         "command": "1c-platform-tools.env.openProfileEditor",
         "title": "Открыть редактор профиля запуска",
-        "category": "1C: Конфигурации запуска"
+        "category": "1C: Конфигурации запуска",
+        "icon": "$(server-environment)"
       },
       {
         "command": "1c-platform-tools.tools.refresh",
@@ -1595,6 +1632,29 @@
         "category": "1C: Проекты",
         "icon": "$(list-tree)",
         "enablement": "1c-platform-tools.projects.viewAsList"
+      },
+      {
+        "command": "1c-platform-tools.pipelines.run",
+        "title": "Запустить пайплайн",
+        "category": "1C: Пайплайны",
+        "icon": "$(play)"
+      },
+      {
+        "command": "1c-platform-tools.pipelines.openEditor",
+        "title": "Открыть редактор пайплайнов",
+        "category": "1C: Пайплайны",
+        "icon": "$(circuit-board)"
+      },
+      {
+        "command": "1c-platform-tools.hooks.openEditor",
+        "title": "Открыть редактор хуков",
+        "category": "1C: Хуки",
+        "icon": "$(zap)"
+      },
+      {
+        "command": "1c-platform-tools.editors.save",
+        "title": "Сохранить изменения формы",
+        "category": "1C: Служебные файлы"
       }
     ],
     "viewsWelcome": [
@@ -1949,6 +2009,10 @@
         },
         {
           "command": "1c-platform-tools.projects._viewAsTags",
+          "when": "false"
+        },
+        {
+          "command": "1c-platform-tools.editors.save",
           "when": "false"
         }
       ],
@@ -2555,6 +2619,11 @@
           "command": "1c-platform-tools.metadata.copyObjectPath",
           "when": "view == 1c-platform-tools-metadata-tree && (viewItem =~ /^metadataObjectProperties($| )/ || viewItem == metadataObjectPropertiesSubsystem || viewItem == metadataLeafFile)",
           "group": "5_md_copy"
+        },
+        {
+          "command": "1c-platform-tools.pipelines.run",
+          "when": "view == 1c-platform-tools && viewItem == pipelineEntry",
+          "group": "inline"
         }
       ],
       "editor/title": [
@@ -2576,6 +2645,21 @@
         {
           "command": "1c-platform-tools.artifacts.decompileReport.fromEditor",
           "when": "1c-platform-tools.is1CProject == true && (resourceExtname == '.erf' || resourcePath =~ /.*\\.erf$/i)",
+          "group": "navigation"
+        },
+        {
+          "command": "1c-platform-tools.pipelines.openEditor",
+          "when": "resourceFilename == pipelines.json && resourcePath =~ /\\.1cpt/",
+          "group": "navigation"
+        },
+        {
+          "command": "1c-platform-tools.hooks.openEditor",
+          "when": "resourceFilename == hooks.json && resourcePath =~ /\\.1cpt/",
+          "group": "navigation"
+        },
+        {
+          "command": "1c-platform-tools.env.openProfileEditor",
+          "when": "1c-platform-tools.is1CProject == true && (resourceFilename =~ /^env.*\\.json$/ || resourceFilename =~ /^autumn-properties.*\\.json$/)",
           "group": "navigation"
         }
       ],
@@ -2658,13 +2742,19 @@
         "command": "1c-platform-tools.projects.listOpen",
         "key": "ctrl+alt+p",
         "mac": "cmd+alt+p"
+      },
+      {
+        "command": "1c-platform-tools.editors.save",
+        "key": "ctrl+s",
+        "mac": "cmd+s",
+        "when": "activeCustomEditorId == '1c-platform-tools.pipelineEditor' || activeCustomEditorId == '1c-platform-tools.hooksEditor' || activeWebviewPanelId == '1cMetadataObjectProperties' || activeWebviewPanelId == '1cMetadataSourceProperties' || activeWebviewPanelId == '1cExternalArtifactProperties'"
       }
     ],
     "walkthroughs": [
       {
         "id": "1c-platform-tools.getStarted",
         "title": "Начало работы с 1C: Platform Tools",
-        "description": "Одиннадцать шагов: проект, зависимости, панель команд, артефакты, служебные файлы, панель проектов, список дел, отладка 1С, интеграция с AI и MCP, дерево метаданных, ER-диаграммы.",
+        "description": "Проект, зависимости, панель команд, артефакты, служебные файлы, панель проектов, список дел, отладка 1С, тестирование, автоматизация, интеграция с AI и MCP, дерево метаданных, ER-диаграммы, автономный сервер.",
         "icon": "resources/1c-icon.png",
         "steps": [
           {
@@ -2737,6 +2827,14 @@
             "description": "Тесты Vanessa, xUnit, YAxUnit, OneScript и 1bdd в нативной панели тестирования VS Code: запуск из редактора, статусы, переход к падению.\n\n[Открыть панель тестирования](command:workbench.view.testing.focus)\n[Настроить тесты](command:1c-platform-tools.test.configure)",
             "media": {
               "markdown": "walkthrough/step12-testing.md"
+            }
+          },
+          {
+            "id": "step14-automation",
+            "title": "Автоматизируйте повторяющиеся действия",
+            "description": "Пайплайн собирает шаги в цепочку с ветками на успех и ошибку, хук выполняет шаги вокруг любой команды расширения.\n\n[Редактор пайплайнов](command:1c-platform-tools.pipelines.openEditor)\n[Редактор хуков](command:1c-platform-tools.hooks.openEditor)\n[Запустить пайплайн](command:1c-platform-tools.pipelines.run)",
+            "media": {
+              "markdown": "walkthrough/step14-automation.md"
             }
           },
           {
@@ -3316,12 +3414,12 @@
     ]
   },
   "scripts": {
-    "vscode:prepublish": "npm run gen:hooks-schema && npm run compile",
+    "vscode:prepublish": "npm run gen:command-schemas && npm run compile",
     "compile": "node esbuild.config.mjs",
     "watch": "node esbuild.config.mjs --watch",
-    "gen:hooks-schema": "node scripts/gen-hooks-schema.mjs",
+    "gen:command-schemas": "node scripts/gen-command-schemas.mjs",
     "gen:vrunner-options": "node scripts/gen-vrunner-options.mjs",
-    "pretest": "node scripts/gen-hooks-schema.mjs --check && npm run compile && npm run lint",
+    "pretest": "node scripts/gen-command-schemas.mjs --check && npm run compile && npm run lint",
     "lint": "eslint src",
     "test": "vscode-test",
     "package": "vsce package",

@@ -18,6 +18,12 @@ suite('mcpCommandPolicy', () => {
 		}
 	});
 
+	test('запуск платформы возвращает исход старта: шаг пайплайна знает, получилось ли', () => {
+		for (const id of ['1c-platform-tools.run.designer', '1c-platform-tools.run.enterprise']) {
+			assert.strictEqual(commandSupportsWait(id), true, id);
+		}
+	});
+
 	test('интерактивные мастера и навигация скрыты', () => {
 		for (const id of [
 			'1c-platform-tools.help.openCreateIssue',
@@ -49,7 +55,6 @@ suite('mcpCommandPolicy', () => {
 
 	test('команды без синхронного результата помечены', () => {
 		for (const id of [
-			'1c-platform-tools.run.designer',
 			'1c-platform-tools.server.start',
 			'1c-platform-tools.debug.measure.start',
 			'1c-platform-tools.dependencies.install',
@@ -140,6 +145,22 @@ suite('mcpCommandPolicy: регламентные задания', () => {
 		for (const id of ['1c-platform-tools.session.lockJobs', '1c-platform-tools.session.unlockJobs']) {
 			assert.strictEqual(isCommandExposedToMcp(id), true, id);
 			assert.strictEqual(commandSupportsWait(id), true, id);
+		}
+	});
+});
+
+suite('mcpCommandPolicy: пайплайны', () => {
+	test('запуск цепочки доступен агенту и возвращает исход', () => {
+		assert.strictEqual(isCommandExposedToMcp('1c-platform-tools.pipelines.run'), true);
+		assert.strictEqual(commandSupportsWait('1c-platform-tools.pipelines.run'), true);
+	});
+
+	test('конструкторы агенту не публикуются: файлы он правит напрямую', () => {
+		for (const id of [
+			'1c-platform-tools.pipelines.openEditor',
+			'1c-platform-tools.hooks.openEditor',
+		]) {
+			assert.strictEqual(isCommandExposedToMcp(id), false, id);
 		}
 	});
 });

@@ -18,7 +18,8 @@
 | **xUnit: параметры** | `tools/xUnitParams.json` | параметры дымовых тестов xUnit | нет |
 | **YaXunit: параметры** | `tools/yaxunit.json` | конфигурация YAxUnit | нет |
 | **Syntax: исключения** | `tools/syntax-check-excludes.txt` | исключения синтаксического контроля | нет |
-| **1cpt: hooks** | `.1cpt/hooks.json` | [хуки](hooks.md) `pre`/`post`/`onError` на команды расширения | нет |
+| **1cpt: hooks** | `.1cpt/hooks.json` | [хуки](automation.md#хуки-команд) `pre`/`post`/`onError` на команды расширения | нет |
+| **1cpt: пайплайны** | `.1cpt/pipelines.json` | [пайплайны](automation.md#пайплайны): графы шагов с визуальным редактором | нет |
 
 Подпись «Осн. профиль запуска» отличает базовый файл настроек от именованных профилей; фактическое имя файла зависит от установленного vanessa-runner (`env.json` для 2.x, `autumn-properties.json` для 3.x).
 

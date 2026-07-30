@@ -23,6 +23,7 @@ import {
 	shouldOpenInNewWindow,
 	InvocationSource,
 } from './index';
+import { notifyQuiet } from '../../shared/notify';
 
 /**
  * Регистрирует команды панели «Проекты 1С».
@@ -110,7 +111,7 @@ export function registerProjectsCommands(
 			const changed = await pickFavoritesToConfigure(projectStorage, locator, stack);
 			if (changed) {
 				providers.refreshStorage();
-				void vscode.window.showInformationMessage('Избранное обновлено.');
+				notifyQuiet('Избранное обновлено.');
 			}
 		})
 	);
@@ -217,7 +218,7 @@ export function registerProjectsCommands(
 				projectStorage.save();
 				providers.refreshStorage();
 				showStatusBar(projectStorage, locator, name);
-				void vscode.window.showInformationMessage('Проект сохранён!');
+				notifyQuiet('Проект сохранён!');
 				input.hide();
 			});
 
@@ -296,7 +297,7 @@ export function registerProjectsCommands(
 					providers.updateAutodetectTitle();
 				}
 			);
-			void vscode.window.showInformationMessage('Список проектов обновлён.');
+			notifyQuiet('Список проектов обновлён.');
 		})
 	);
 
@@ -343,7 +344,7 @@ export function registerProjectsCommands(
 				projectStorage.pop(name);
 				projectStorage.save();
 				providers.refreshStorage();
-				void vscode.window.showInformationMessage('Проект удалён.');
+				notifyQuiet('Проект удалён.');
 			}
 		})
 	);
@@ -391,7 +392,7 @@ export function registerProjectsCommands(
 				projectStorage.editTags(project.name, tags);
 				projectStorage.save();
 				providers.refreshStorage();
-				void vscode.window.showInformationMessage('Теги обновлены.');
+				notifyQuiet('Теги обновлены.');
 			}
 		})
 	);
@@ -432,7 +433,7 @@ export function registerProjectsCommands(
 			projectStorage.push(name, expandHomePath(projectPath));
 			projectStorage.save();
 			providers.refreshStorage();
-			void vscode.window.showInformationMessage('Проект добавлен в избранное.');
+			notifyQuiet('Проект добавлен в избранное.');
 		})
 	);
 

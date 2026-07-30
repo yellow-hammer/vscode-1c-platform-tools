@@ -7,8 +7,14 @@ import { SERVICE_FILES, resolveLaunchProfileSpec } from '../serviceFiles/registr
 import { VRunnerManager } from '../../shared/vrunnerManager';
 import {
 	getSetVersionReportCommandName,
-	getSetVersionProcessorCommandName
+	getSetVersionProcessorCommandName,
+	getOpenPipelineEditorCommandName,
+	getOpenHooksEditorCommandName
 } from './commandNames';
+import { readPipelines } from '../../shared/pipelines/pipelineFile';
+import { stepsWord } from '../../shared/pipelines/pipelineTypes';
+import { readHooks, describeHookEntry, HOOKS_WILDCARD } from '../../shared/hooks/hooksModel';
+import { commandTitle } from '../../shared/commandCatalog';
 import type { SetVersionCommands } from '../../commands/setVersionCommands';
 import { getFavorites, type FavoriteEntry } from './favorites';
 import { getHiddenToolGroups } from './toolsGroupVisibility';
@@ -31,6 +37,10 @@ export enum TreeItemType {
 	Test = 'test',
 	Launch = 'launch',
 	OscriptTasks = 'oscriptTasks',
+	Pipelines = 'pipelines',
+	PipelineEntry = 'pipelineEntry',
+	Hooks = 'hooks',
+	Editor = 'editor',
 	Subsystem = 'subsystem',
 	Configuration = 'configuration',
 	Extension = 'extension',
@@ -46,6 +56,9 @@ export enum TreeItemType {
 
 /** Элемент дерева команд */
 export class PlatformTreeItem extends vscode.TreeItem {
+	/** Идентификатор пайплайна: для кнопки запуска в строке дерева */
+	public pipelineId?: string;
+
 	/** Тип для отображения иконки (если задан — используется вместо type) */
 	private readonly preferredIconType?: TreeItemType;
 
@@ -128,6 +141,14 @@ export class PlatformTreeItem extends vscode.TreeItem {
 				return new vscode.ThemeIcon('lightbulb');
 			case TreeItemType.Skills:
 				return new vscode.ThemeIcon('sparkle');
+			case TreeItemType.Pipelines:
+				return new vscode.ThemeIcon('run-all');
+			case TreeItemType.PipelineEntry:
+				return new vscode.ThemeIcon('circuit-board');
+			case TreeItemType.Hooks:
+				return new vscode.ThemeIcon('zap');
+			case TreeItemType.Editor:
+				return new vscode.ThemeIcon('edit');
 			default:
 				return new vscode.ThemeIcon('circle-outline');
 		}
@@ -239,6 +260,7 @@ export class PlatformTreeDataProvider implements vscode.TreeDataProvider<Platfor
 			serviceFiles: TreeItemType.Config,
 			helpAndSupport: TreeItemType.Lightbulb,
 			oscriptTasks: TreeItemType.OscriptTasks,
+			pipelines: TreeItemType.Pipelines,
 			skills: TreeItemType.Skills,
 		};
 		return map[sectionType];
@@ -260,6 +282,10 @@ export class PlatformTreeDataProvider implements vscode.TreeDataProvider<Platfor
 
 		if (element.type === TreeItemType.OscriptTasks) {
 			return this.getOscriptTasks();
+		}
+
+		if (element.type === TreeItemType.Pipelines) {
+			return this.getPipelines();
 		}
 
 		if (element.type === TreeItemType.SetVersionReportsFolder) {
@@ -477,6 +503,20 @@ export class PlatformTreeDataProvider implements vscode.TreeDataProvider<Platfor
 			);
 		}
 
+		if (!hiddenGroups.has('pipelines')) {
+			const pipelinesExpanded = this.resolveGroupCollapsibleState('pipelines', false) === vscode.TreeItemCollapsibleState.Expanded;
+			allSections.push(
+				this.createTreeItem(
+					'Автоматизация',
+					TreeItemType.Pipelines,
+					pipelinesExpanded ? vscode.TreeItemCollapsibleState.Expanded : vscode.TreeItemCollapsibleState.Collapsed,
+					undefined,
+					[],
+					undefined,
+					'pipelines'
+				)
+			);
+		}
 		if (!hiddenGroups.has('oscriptTasks')) {
 			const oscriptExpanded = this.resolveGroupCollapsibleState('oscriptTasks', false) === vscode.TreeItemCollapsibleState.Expanded;
 			allSections.push(
@@ -582,6 +622,80 @@ export class PlatformTreeDataProvider implements vscode.TreeDataProvider<Platfor
 					vscode.TreeItemCollapsibleState.None
 				)
 			);
+		}
+
+		return items;
+	}
+
+	/**
+	 * Получает пайплайны проекта из .1cpt/pipelines.json
+	 * @returns Промис, который разрешается массивом элементов дерева с цепочками
+	 */
+	private async getPipelines(): Promise<PlatformTreeItem[]> {
+		const items: PlatformTreeItem[] = [
+			this.createTreeItem(
+				'Редактор пайплайнов',
+				TreeItemType.Editor,
+				vscode.TreeItemCollapsibleState.None,
+				{
+					command: '1c-platform-tools.pipelines.openEditor',
+					title: getOpenPipelineEditorCommandName().title,
+				}
+			),
+		];
+
+		const workspaceRoot = VRunnerManager.getInstance().getWorkspaceRoot();
+		if (!workspaceRoot) {
+			return items;
+		}
+
+		// Клик по цепочке открывает её в редакторе: запуск - кнопкой в строке,
+		// иначе один промах мышью запускает команды по базе
+		const pipelines = await readPipelines(workspaceRoot);
+		for (const pipeline of pipelines) {
+			const item = this.createTreeItem(
+				pipeline.name,
+				TreeItemType.PipelineEntry,
+				vscode.TreeItemCollapsibleState.None,
+				{
+					command: '1c-platform-tools.pipelines.openEditor',
+					title: getOpenPipelineEditorCommandName().title,
+					arguments: [pipeline.id],
+				}
+			);
+			item.pipelineId = pipeline.id;
+			item.description = `${pipeline.nodes.length} ${stepsWord(pipeline.nodes.length)}`;
+			item.tooltip = pipeline.description ?? `Открыть «${pipeline.name}» в редакторе`;
+			items.push(item);
+		}
+
+		items.push(
+			this.createTreeItem(
+				'Редактор хуков',
+				TreeItemType.Editor,
+				vscode.TreeItemCollapsibleState.None,
+				{
+					command: '1c-platform-tools.hooks.openEditor',
+					title: getOpenHooksEditorCommandName().title,
+				}
+			)
+		);
+
+		const { hooks } = await readHooks(workspaceRoot);
+		for (const [commandId, entry] of Object.entries(hooks)) {
+			const item = this.createTreeItem(
+				commandId === HOOKS_WILDCARD ? 'Все команды' : commandTitle(commandId) ?? commandId,
+				TreeItemType.Hooks,
+				vscode.TreeItemCollapsibleState.None,
+				{
+					command: '1c-platform-tools.hooks.openEditor',
+					title: getOpenHooksEditorCommandName().title,
+					arguments: [commandId],
+				}
+			);
+			item.description = describeHookEntry(entry);
+			item.tooltip = commandId;
+			items.push(item);
 		}
 
 		return items;

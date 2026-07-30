@@ -13,6 +13,7 @@ import * as vscode from 'vscode';
 import * as jsonc from 'jsonc-parser';
 import { SettingsSchema } from '../../shared/envProfiles';
 import { loadEditorSections, EditorSection, OptionGroup, CatalogOption } from './optionsCatalog';
+import { chromeStyles, CHROME_LABELS } from '../editors/webviewChrome';
 
 export const PROFILE_EDITOR_VIEW_TYPE = '1c-platform-tools.profileEditor';
 
@@ -349,28 +350,13 @@ function buildHtml(): string {
 <meta charset="UTF-8">
 <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'nonce-${nonce}';">
 <style>
-	body { font-family: var(--vscode-font-family); color: var(--vscode-foreground); margin: 0; }
-	.page { max-width: 760px; margin: 0 auto; padding: 0 20px 40px; }
-	header { position: sticky; top: 0; background: var(--vscode-editor-background); padding: 14px 0 10px; z-index: 1; border-bottom: 1px solid var(--vscode-widget-border, #3333); }
-	h1 { font-size: 1.2em; margin: 0; font-weight: 600; }
-	.subtitle { color: var(--vscode-descriptionForeground); font-size: 0.85em; margin-top: 2px; }
-	.toolbar { margin-top: 10px; display: flex; gap: 8px; }
-	.toolbar input { flex: 1; }
-	input[type=text], select, textarea {
-		background: var(--vscode-input-background); color: var(--vscode-input-foreground);
-		border: 1px solid var(--vscode-input-border, transparent); border-radius: 2px; padding: 4px 8px;
-		font-family: inherit; font-size: inherit; box-sizing: border-box;
-	}
-	input[type=text]:focus, select:focus, textarea:focus { outline: 1px solid var(--vscode-focusBorder); }
-	button {
-		background: var(--vscode-button-secondaryBackground); color: var(--vscode-button-secondaryForeground);
-		border: none; border-radius: 2px; padding: 4px 12px; cursor: pointer; white-space: nowrap;
-	}
-	button:hover { background: var(--vscode-button-secondaryHoverBackground); }
-	button.primary { background: var(--vscode-button-background); color: var(--vscode-button-foreground); }
-	button.primary:hover { background: var(--vscode-button-hoverBackground); }
+${chromeStyles()}
+	.page { flex: 1; min-height: 0; overflow: auto; }
+	.page-inner { max-width: 760px; margin: 0 auto; padding: 14px 20px 40px; }
+	.toolbar input { flex: 1; max-width: 320px; }
+	.subtitle { color: var(--vscode-descriptionForeground); font-size: 0.85em; }
 
-	h2 { font-size: 1em; font-weight: 600; margin: 26px 0 4px; }
+	h2 { font-size: 1em; font-weight: 600; margin: 26px 0 4px; text-transform: none; letter-spacing: 0; color: inherit; }
 	h2 .count { color: var(--vscode-descriptionForeground); font-weight: 400; }
 	.group-title { font-size: 0.8em; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; color: var(--vscode-descriptionForeground); margin: 18px 0 2px; }
 
@@ -394,18 +380,21 @@ function buildHtml(): string {
 </style>
 </head>
 <body>
-<div class="page">
-<header>
-	<h1 id="title"></h1>
-	<div class="subtitle" id="subtitle"></div>
+<div class="chrome">
 	<div class="toolbar">
-		<input type="text" id="filter" placeholder="Поиск параметра (имя или описание)…">
-		<button class="primary" id="addMain">＋ Параметр</button>
-		<button id="addSection" title="Задать параметры для конкретной команды vanessa-runner">＋ Команда…</button>
-		<button id="openJson" title="Открыть файл как обычный JSON">JSON</button>
+		<span class="title" id="title"></span>
+		<span class="subtitle" id="subtitle"></span>
+		<input type="text" id="filter" placeholder="Поиск параметра…">
+		<button class="primary" id="addMain">${CHROME_LABELS.add} Параметр</button>
+		<button id="addSection" title="Задать параметры для конкретной команды vanessa-runner">${CHROME_LABELS.add} Команда…</button>
+		<button id="openJson" title="Открыть файл как обычный JSON">${CHROME_LABELS.json}</button>
 	</div>
-</header>
-<div id="content"></div>
+	<div class="page">
+		<div class="page-inner" id="content"></div>
+	</div>
+	<div class="save-bar" id="saveBar">
+		<span class="status" id="saveStatus">Правки сохраняются сразу: файл меняется точечно, комментарии остаются на месте</span>
+	</div>
 </div>
 <script nonce="${nonce}">
 const vscodeApi = acquireVsCodeApi();

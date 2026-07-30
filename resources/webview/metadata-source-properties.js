@@ -120,6 +120,18 @@
 		vscode.postMessage({ type: 'save', payload: collect() });
 	});
 
+
+	// Ctrl+S приходит командой из расширения: внутри webview его перехватывает VS Code
+	window.addEventListener('message', (event) => {
+		if (!event.data || event.data.type !== 'saveRequested') {
+			return;
+		}
+		const button = /** @type {HTMLButtonElement | null} */ (document.getElementById('saveBtn'));
+		if (button && !button.disabled) {
+			button.click();
+		}
+	});
+
 	window.addEventListener('message', (event) => {
 		const msg = event.data;
 		if (!msg || typeof msg !== 'object' || msg.type !== 'saved') {

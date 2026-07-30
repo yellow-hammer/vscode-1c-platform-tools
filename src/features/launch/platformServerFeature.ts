@@ -12,6 +12,7 @@ import { DEBUG_TYPE } from '../debug/debugConstants';
 import { DEFAULT_PATHS } from '../../shared/pathDefaults';
 import { uiOnlyHandler } from '../../shared/agentGate';
 import { PlatformServerManager, ServerState, PublicationSelection } from './platformServerManager';
+import { notifyQuiet } from '../../shared/notify';
 
 /** Изменяемая ссылка на признак проекта 1С. */
 interface ProjectRef {
@@ -201,7 +202,7 @@ async function selectPublishedServices(manager: PlatformServerManager): Promise<
 			await manager.restart();
 		}
 	} else {
-		vscode.window.showInformationMessage('Выбор публикуемых сервисов сохранён.');
+		notifyQuiet('Выбор публикуемых сервисов сохранён.');
 	}
 }
 

@@ -991,6 +991,15 @@
 		if (!editable || !vscodeApi || !saveBtn || !resetBtn) {
 			return;
 		}
+		// Ctrl+S приходит командой из расширения: внутри webview его перехватывает VS Code
+		window.addEventListener('message', function (event) {
+			if (!event.data || event.data.type !== 'saveRequested') {
+				return;
+			}
+			if (!saveBtn.disabled) {
+				saveBtn.click();
+			}
+		});
 		saveBtn.addEventListener('click', function () {
 			if (saving || !isDirty() || structValidationError()) {
 				return;

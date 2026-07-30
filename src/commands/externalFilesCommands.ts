@@ -10,6 +10,7 @@ import {
 } from '../features/tools/commandNames';
 import { logger } from '../shared/logger';
 import type { CommandExecutionOptions, StructuredCommandResult } from '../shared/commandExecutionTypes';
+import { notifyQuiet } from '../shared/notify';
 
 const log = logger.scope('commands');
 
@@ -153,7 +154,7 @@ export class ExternalFilesCommands extends BaseCommand {
 		try {
 			await fs.unlink(cacheFilePath);
 			log.info(`Кэш успешно очищен: ${cacheFilePath}`);
-			vscode.window.showInformationMessage('Кэш успешно очищен');
+			notifyQuiet('Кэш успешно очищен');
 		} catch (error) {
 			const err = error as NodeJS.ErrnoException;
 			if (err.code === 'ENOENT') {
