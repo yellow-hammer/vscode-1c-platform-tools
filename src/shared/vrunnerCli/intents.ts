@@ -47,10 +47,12 @@ export type VRunnerIntent =
 	/**
 	 * Выгрузить конфигурацию ИБ в исходники.
 	 *
-	 * `versionsFile` (ConfigDumpInfo.xml) включает инкрементальную выгрузку в
-	 * 2.x (`--versions`); в 3.x такой опции нет — выполняется полная выгрузка.
+	 * Выгрузка в непустой каталог идёт инкрементально: vanessa-runner сам просит
+	 * у конфигуратора `-update`, а файл версий тот берёт из каталога выгрузки.
+	 * Отдельной опции для файла версий здесь нет: `--versions` на файл внутри
+	 * каталога выгрузки ломает инкремент - конфигуратор отвечает «Каталог не пуст».
 	 */
-	| { kind: 'cf.dumpIbToSrc'; out: string; versionsFile?: string; common?: CommonArgs }
+	| { kind: 'cf.dumpIbToSrc'; out: string; common?: CommonArgs }
 	/** Выгрузить конфигурацию ИБ в .cf. */
 	| { kind: 'cf.unloadIbToCf'; out: string; common?: CommonArgs }
 	/** Создать файл поставки (в 3.x команда пока не реализована — vrunner сообщит об этом сам). */

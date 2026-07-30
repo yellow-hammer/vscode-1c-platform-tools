@@ -105,11 +105,13 @@ export class ConfigurationCommands extends BaseCommand {
 
 		const ibConnectionParam = await this.vrunner.getIbConnectionParam();
 		const dumpIncrCmd = getDumpConfigurationIncrementToSrcCommandName();
+		// Файл версий не передаём: он лежит внутри каталога выгрузки, и платформа берёт его
+		// оттуда сама. Явный -configDumpInfoForChanges на файл внутри каталога ломает связку
+		// с -update: конфигуратор отвечает «Каталог не пуст» и инкремент не выполняется.
 		return this.runIntent(
 			{
 				kind: 'cf.dumpIbToSrc',
 				out: srcPath,
-				versionsFile: versionFileExists ? path.join(srcPath, 'ConfigDumpInfo.xml') : undefined,
 				common: ibConnectionParam,
 			},
 			opts,

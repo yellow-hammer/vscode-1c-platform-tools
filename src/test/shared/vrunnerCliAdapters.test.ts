@@ -97,7 +97,11 @@ suite('vrunnerCli: адаптеры v2/v3', () => {
 		);
 	});
 
-	test('cf.dumpIbToSrc', () => {
+	test('cf.dumpIbToSrc: файл версий не передаётся, его берут из каталога выгрузки', () => {
+		// --versions на файл внутри каталога выгрузки ломает инкремент: конфигуратор
+		// отвечает «Каталог не пуст», хотя тот же -update без него отрабатывает
+		const planned = v2.plan({ kind: 'cf.dumpIbToSrc', out: 'src/cf', common: conn }).flat();
+		assert.ok(!planned.includes('--versions'), 'файл версий ушёл в команду');
 		check(
 			{ kind: 'cf.dumpIbToSrc', out: 'src/cf', common: conn },
 			[['decompile', '--current', '--out', 'src/cf', ...conn]],

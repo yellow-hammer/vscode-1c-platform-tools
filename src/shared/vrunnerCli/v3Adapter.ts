@@ -127,8 +127,6 @@ export class V3CliAdapter implements VRunnerCliAdapter {
 				return [cmd(['cf', 'decompile'], ['--cf-file', intent.file, ...common(intent)], [intent.out])];
 			case 'cf.dumpIbToSrc':
 				// Без --cf-file исходники выгружаются из ИБ, указанной в --ibconnection.
-				// Опции --versions (инкрементальная выгрузка 2.x) в 3.x нет —
-				// versionsFile игнорируется, выполняется полная выгрузка.
 				return [cmd(['cf', 'decompile'], common(intent), [intent.out])];
 			case 'cf.unloadIbToCf':
 				return [cmd(['cf', 'unload'], common(intent), [intent.out])];
