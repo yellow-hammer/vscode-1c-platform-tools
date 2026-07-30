@@ -76,11 +76,14 @@ const targets = [
 	{ path: PIPELINES_SCHEMA, name: 'pipelines.schema.json', next: buildPipelinesSchemaText(ids) },
 ];
 
+/** Сравнение без учёта переводов строк: git на Windows разворачивает LF в CRLF */
+const sameText = (a, b) => a.replaceAll('\r\n', '\n') === b.replaceAll('\r\n', '\n');
+
 let stale = false;
 for (const target of targets) {
 	const current = readFileSync(target.path, 'utf8');
 	if (isCheck) {
-		if (current !== target.next) {
+		if (!sameText(current, target.next)) {
 			console.error(
 				`${target.name} устарел: список command id не совпадает с манифестом.\n` +
 					'Запустите `npm run gen:command-schemas` и закоммитьте результат.'
@@ -89,7 +92,7 @@ for (const target of targets) {
 		}
 		continue;
 	}
-	if (current === target.next) {
+	if (sameText(current, target.next)) {
 		console.log(`${target.name} без изменений (${ids.length} command id).`);
 	} else {
 		writeFileSync(target.path, target.next, 'utf8');
