@@ -54,13 +54,8 @@ export class V2CliAdapter implements VRunnerCliAdapter {
 				return [['compile', '--src', intent.src, '--out', intent.out, ...common(intent)]];
 			case 'cf.decompileFile':
 				return [['decompile', '--in', intent.file, '--out', intent.out, ...common(intent)]];
-			case 'cf.dumpIbToSrc': {
-				const args = ['decompile', '--current', '--out', intent.out, ...common(intent)];
-				if (intent.versionsFile !== undefined) {
-					args.push('--versions', intent.versionsFile);
-				}
-				return [args];
-			}
+			case 'cf.dumpIbToSrc':
+				return [['decompile', '--current', '--out', intent.out, ...common(intent)]];
 			case 'cf.unloadIbToCf':
 				return [['unload', intent.out, ...common(intent)]];
 			case 'cf.makeDist':
