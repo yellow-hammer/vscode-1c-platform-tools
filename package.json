@@ -564,6 +564,13 @@
         "category": "1C: Метаданные"
       },
       {
+        "command": "1c-platform-tools.metadata.initEmptyCfe",
+        "title": "Создать новое расширение",
+        "shortTitle": "Создать расширение",
+        "icon": "$(extensions)",
+        "category": "1C: Метаданные"
+      },
+      {
         "command": "1c-platform-tools.metadata.openObjectProperties",
         "title": "Свойства объекта",
         "category": "1C: Метаданные"
@@ -2190,7 +2197,7 @@
           "group": "navigation@30"
         },
         {
-          "command": "1c-platform-tools.metadata.initEmptyCf",
+          "submenu": "1c-platform-tools.metadata.createMenu",
           "when": "view == 1c-platform-tools-metadata-tree",
           "group": "navigation@0"
         },
@@ -2719,6 +2726,16 @@
           "group": "1_view@2"
         }
       ],
+      "1c-platform-tools.metadata.createMenu": [
+        {
+          "command": "1c-platform-tools.metadata.initEmptyCf",
+          "group": "navigation@0"
+        },
+        {
+          "command": "1c-platform-tools.metadata.initEmptyCfe",
+          "group": "navigation@1"
+        }
+      ],
       "1c-platform-tools.metadata.overflowMenu": [
         {
           "command": "1c-platform-tools.components.update",
@@ -2741,6 +2758,11 @@
         "id": "1c-platform-tools.metadata.overflowMenu",
         "label": "Ещё",
         "icon": "$(ellipsis)"
+      },
+      {
+        "id": "1c-platform-tools.metadata.createMenu",
+        "label": "Создать",
+        "icon": "$(add)"
       }
     ],
     "keybindings": [
