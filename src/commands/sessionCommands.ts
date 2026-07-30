@@ -7,6 +7,7 @@ import {
 	getUnlockSessionsCommandName,
 	getKillSessionsCommandName,
 	getCheckSessionsClosedCommandName,
+	getListSessionsCommandName,
 	getLockScheduledJobsCommandName,
 	getUnlockScheduledJobsCommandName,
 } from '../features/tools/commandNames';
@@ -90,6 +91,8 @@ export class SessionCommands extends BaseCommand {
 				filter: opts?.sessionFilter,
 				filterMode: opts?.sessionFilterMode,
 				withoutLock: opts?.keepSessionsUnlocked,
+				retry: opts?.sessionRetry,
+				timeoutSeconds: opts?.sessionTimeout,
 			},
 			opts, commandName.title, undefined, commandName.id
 		);
@@ -99,27 +102,47 @@ export class SessionCommands extends BaseCommand {
 	 * Проверяет, что сеансов нет: при найденных сеансах vanessa-runner
 	 * завершается с ошибкой, поэтому команда годится как шаг перед обновлением.
 	 *
-	 * Действие есть только в vanessa-runner 2.x.
-	 *
-	 * @param opts - Опции выполнения: sessionFilter, sessionFilterMode
+	 * @param opts - Опции выполнения: sessionFilter, sessionFilterMode, sessionTimeout
 	 * @returns void в UI-режиме, StructuredCommandResult при wait: true
 	 */
 	async checkClosed(opts?: CommandExecutionOptions): Promise<StructuredCommandResult | void> {
-		const version = await this.vrunner.getVRunnerVersion();
-		if (version !== undefined && isAtLeast(version, VRUNNER_FEATURES.cli3)) {
-			return this.reportUnavailable(
-				'Проверка отсутствия сеансов есть только в vanessa-runner 2.x: ' +
-				'в 3.x действие session closed не реализовано.',
-				opts
-			);
-		}
-
 		const commandName = getCheckSessionsClosedCommandName();
 		return this.runIntent(
 			{
 				kind: 'session.closed',
 				filter: opts?.sessionFilter,
 				filterMode: opts?.sessionFilterMode,
+				timeoutSeconds: opts?.sessionTimeout,
+			},
+			opts, commandName.title, undefined, commandName.id
+		);
+	}
+
+	/**
+	 * Показывает сеансы информационной базы с детализацией.
+	 *
+	 * Действие есть только в vanessa-runner 3.x.
+	 *
+	 * @param opts - Опции выполнения: sessionFilter, sessionFilterMode, sessionConnections
+	 * @returns void в UI-режиме, StructuredCommandResult при wait: true
+	 */
+	async list(opts?: CommandExecutionOptions): Promise<StructuredCommandResult | void> {
+		const version = await this.vrunner.getVRunnerVersion();
+		if (version !== undefined && !isAtLeast(version, VRUNNER_FEATURES.cli3)) {
+			return this.reportUnavailable(
+				'Список сеансов есть только в vanessa-runner 3.x: ' +
+				'в 2.x действия session list нет.',
+				opts
+			);
+		}
+
+		const commandName = getListSessionsCommandName();
+		return this.runIntent(
+			{
+				kind: 'session.list',
+				filter: opts?.sessionFilter,
+				filterMode: opts?.sessionFilterMode,
+				connections: opts?.sessionConnections,
 			},
 			opts, commandName.title, undefined, commandName.id
 		);

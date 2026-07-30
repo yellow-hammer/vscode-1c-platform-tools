@@ -192,6 +192,9 @@ export function registerCommands(
 		registerVRunnerCommand('1c-platform-tools.session.kill', (opts) =>
 			commands.session.kill(opts)
 		),
+		registerVRunnerCommand('1c-platform-tools.session.list', (opts) =>
+			commands.session.list(opts)
+		),
 		registerVRunnerCommand('1c-platform-tools.session.checkClosed', (opts) =>
 			commands.session.checkClosed(opts)
 		),

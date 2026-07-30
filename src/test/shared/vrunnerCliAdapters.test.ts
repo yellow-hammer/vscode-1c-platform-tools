@@ -347,15 +347,27 @@ suite('vrunnerCli: сеансы информационной базы', () => {
 		);
 	});
 
-	test('session.kill: фильтр общий, отказ от блокировки назван по-разному', () => {
+	test('session.kill: единый отбор 2.x раскладывается на опции 3.x', () => {
 		check(
 			{ kind: 'session.kill', filter: 'appid=Designer', withoutLock: true },
 			[['session', 'kill', '--filter', 'appid=Designer', '--with-nolock']],
-			[['cluster', 'session', 'kill', '--filter', 'appid=Designer', '--no-lock']]
+			[['cluster', 'session', 'kill', '--filter-app', 'Designer', '--no-lock']]
 		);
 	});
 
-	test('session.kill: режим фильтра поддерживает только 2.x', () => {
+	test('session.kill: отбор по приложению и пользователю разводится по опциям', () => {
+		check(
+			{ kind: 'session.kill', filter: 'appid=Designer;1CV8|name=рег1;рег2' },
+			[['session', 'kill', '--filter', 'appid=Designer;1CV8|name=рег1;рег2']],
+			[[
+				'cluster', 'session', 'kill',
+				'--filter-app', 'Designer;1CV8',
+				'--filter-name', 'рег1;рег2',
+			]]
+		);
+	});
+
+	test('session.kill: режим EXCEPT становится флагом инверсии', () => {
 		const intent: VRunnerIntent = {
 			kind: 'session.kill',
 			filter: 'appid=Designer',
@@ -365,14 +377,68 @@ suite('vrunnerCli: сеансы информационной базы', () => {
 			'session', 'kill', '--filter', 'appid=Designer', '--mode', 'EXCEPT',
 		]]);
 		assert.deepStrictEqual(v3.plan(intent), [[
-			'cluster', 'session', 'kill', '--filter', 'appid=Designer',
+			'cluster', 'session', 'kill', '--filter-app', 'Designer', '--filter-except',
 		]]);
 	});
 
-	test('session.closed: в 3.x действия нет и это видно сразу', () => {
-		const intent: VRunnerIntent = { kind: 'session.closed' };
-		assert.deepStrictEqual(v2.plan(intent), [['session', 'closed']]);
-		assert.throws(() => v3.plan(intent), /3\.x/);
+	test('session.kill: режим OFF снимает отбор, неизвестный режим отвергается', () => {
+		assert.deepStrictEqual(
+			v3.plan({ kind: 'session.kill', filter: 'appid=Designer', filterMode: 'OFF' }),
+			[['cluster', 'session', 'kill']]
+		);
+		assert.throws(
+			() => v3.plan({ kind: 'session.kill', filterMode: 'ALL' }),
+			/EXCEPT/
+		);
+	});
+
+	test('session.kill: инверсию без условий разбирает сам vanessa-runner', () => {
+		// свою проверку не заводим: vanessa-runner отвергает такой вызов и называет
+		// недостающие опции точнее, чем это сделали бы мы
+		assert.deepStrictEqual(
+			v3.plan({ kind: 'session.kill', filterMode: 'EXCEPT' }),
+			[['cluster', 'session', 'kill', '--filter-except']]
+		);
+	});
+
+	test('session.kill: непонятный отбор не уходит в команду молча', () => {
+		assert.throws(
+			() => v3.plan({ kind: 'session.kill', filter: 'computer=СЕРВЕР' }),
+			/appid/
+		);
+	});
+
+	test('session.kill: ожидание и попытки есть только в 3.x, вместе не идут', () => {
+		assert.deepStrictEqual(
+			v3.plan({ kind: 'session.kill', retry: 5 }),
+			[['cluster', 'session', 'kill', '--retry', '5']]
+		);
+		// при заданном таймауте vanessa-runner игнорирует retry, поэтому шлём только timeout
+		assert.deepStrictEqual(
+			v3.plan({ kind: 'session.kill', retry: 5, timeoutSeconds: 60 }),
+			[['cluster', 'session', 'kill', '--timeout', '60']]
+		);
+		assert.deepStrictEqual(v2.plan({ kind: 'session.kill', retry: 5 }), [['session', 'kill']]);
+	});
+
+	test('session.closed: действие есть в обеих версиях, ожидание - только в 3.x', () => {
+		check(
+			{ kind: 'session.closed', filter: 'name=Иванов' },
+			[['session', 'closed', '--filter', 'name=Иванов']],
+			[['cluster', 'session', 'closed', '--filter-name', 'Иванов']]
+		);
+		assert.deepStrictEqual(
+			v3.plan({ kind: 'session.closed', timeoutSeconds: 300 }),
+			[['cluster', 'session', 'closed', '--timeout', '300']]
+		);
+	});
+
+	test('session.list: действия нет в 2.x и это видно сразу', () => {
+		assert.deepStrictEqual(
+			v3.plan({ kind: 'session.list', connections: true }),
+			[['cluster', 'session', 'list', '--connections']]
+		);
+		assert.throws(() => v2.plan({ kind: 'session.list' }), /3\.x/);
 	});
 
 	test('без параметров вызова команда состоит из одного действия', () => {

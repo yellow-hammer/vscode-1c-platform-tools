@@ -37,10 +37,16 @@ export interface CommandExecutionOptions {
 	lockEnd?: string;
 	/** Отбор сеансов: appid=Designer|name=Администратор. */
 	sessionFilter?: string;
-	/** Режим отбора сеансов: ONLY, OFF, EXCEPT, DEFAULT, ALL (только 2.x). */
+	/** Режим отбора сеансов: ONLY, OFF, EXCEPT; DEFAULT и ALL - только 2.x. */
 	sessionFilterMode?: string;
 	/** Не запрещать начало сеансов при их завершении. */
 	keepSessionsUnlocked?: boolean;
+	/** Ожидание завершения сеансов, секунды (только 3.x). */
+	sessionTimeout?: number;
+	/** Число попыток добить зависшие сеансы при завершении (только 3.x). */
+	sessionRetry?: number;
+	/** Показывать соединения информационной базы вместе с сеансами (только 3.x). */
+	sessionConnections?: boolean;
 	/** Идентификатор или название пайплайна для запуска (pipelines.run). */
 	pipeline?: string;
 	/** Переопределения стандартных путей. */

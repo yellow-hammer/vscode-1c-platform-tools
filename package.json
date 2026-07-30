@@ -992,6 +992,12 @@
         "category": "1C: Сеансы"
       },
       {
+        "command": "1c-platform-tools.session.list",
+        "title": "Показать сеансы",
+        "icon": "$(list-unordered)",
+        "category": "1C: Сеансы"
+      },
+      {
         "command": "1c-platform-tools.session.checkClosed",
         "title": "Проверить отсутствие сеансов",
         "icon": "$(search)",

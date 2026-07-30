@@ -140,6 +140,7 @@
                     "1c-platform-tools.serviceFiles.createRecommendedSet",
                     "1c-platform-tools.session.checkClosed",
                     "1c-platform-tools.session.kill",
+                    "1c-platform-tools.session.list",
                     "1c-platform-tools.session.lock",
                     "1c-platform-tools.session.lockJobs",
                     "1c-platform-tools.session.unlock",

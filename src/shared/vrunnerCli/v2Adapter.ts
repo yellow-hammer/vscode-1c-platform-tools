@@ -196,6 +196,13 @@ export class V2CliAdapter implements VRunnerCliAdapter {
 				return [[...args, ...common(intent)]];
 			}
 
+			case 'session.list':
+				// Список сеансов появился в 3.x; в 2.x подкоманды нет
+				throw new Error(
+					'vanessa-runner 2.x не умеет показывать список сеансов: ' +
+					'действие cluster session list появилось в 3.x.'
+				);
+
 			// ---- Регламентные задания ----
 			case 'jobs.lock':
 				return [['scheduledjobs', 'lock', ...common(intent)]];

@@ -755,6 +755,17 @@ export function getCheckSessionsClosedCommandName(): CommandNameAndTitle {
 }
 
 /**
+ * Получить название и заголовок для команды списка сеансов
+ */
+export function getListSessionsCommandName(): CommandNameAndTitle {
+	return {
+		id: '1c-platform-tools.session.list',
+		name: 'Показать сеансы',
+		title: 'Показать сеансы'
+	};
+}
+
+/**
  * Получить название и заголовок для команды запрета регламентных заданий
  */
 export function getLockScheduledJobsCommandName(): CommandNameAndTitle {
