@@ -5,6 +5,14 @@
 Формат основан на [Keep a Changelog](https://keepachangelog.com/ru/1.0.0/),
 и этот проект придерживается [Semantic Versioning](https://semver.org/lang/ru/).
 
+## [0.7.32] - 2026-07-31
+
+
+### Исправления
+
+- **pipelines:** Вывод шагов уходит в панель «Вывод»
+
+
 ## [0.7.31] - 2026-07-30
 
 
