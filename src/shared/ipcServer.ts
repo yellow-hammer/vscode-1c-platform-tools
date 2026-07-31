@@ -102,7 +102,7 @@ async function handlePing(
  * @param request — исходный IPC-запрос
  * @param commandId — идентификатор команды
  * @param projectPath — путь к корню проекта
- * @param flags — флаги выполнения (wait, settingsFile, ibConnection, pathsOverride)
+ * @param flags — флаги выполнения (wait, settingsFile, ibConnection и прочие)
  * @returns IPC-ответ со структурированным commandResult
  */
 async function handleExecuteCommandSync(
@@ -121,7 +121,6 @@ async function handleExecuteCommandSync(
 			projectPath,
 			settingsFile: flags.settingsFile,
 			ibConnection: flags.ibConnection,
-			pathsOverride: flags.pathsOverride,
 			sha: flags.sha,
 			extensions: flags.extensions,
 			frameworks: flags.frameworks,

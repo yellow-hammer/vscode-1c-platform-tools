@@ -16,7 +16,6 @@ const AGENT_OPTION_KEYS = [
 	'projectPath',
 	'settingsFile',
 	'ibConnection',
-	'pathsOverride',
 	'sha',
 	'extensions',
 	'frameworks',
