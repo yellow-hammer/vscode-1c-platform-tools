@@ -1,0 +1,57 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="640" height="360" viewBox="0 0 640 360" font-family="Segoe UI, system-ui, sans-serif">
+  <rect width="640" height="360" rx="6" fill="#1f1f1f"/>
+
+  <!-- панель дерева -->
+  <rect x="16" y="16" width="286" height="328" rx="4" fill="#252526" stroke="#3c3c3c"/>
+  <text x="32" y="42" fill="#cccccc" font-size="12" letter-spacing="0.6">ИНСТРУМЕНТЫ 1С</text>
+  <path d="M32 62 h270" stroke="#3c3c3c"/>
+
+  <g font-size="13" fill="#cccccc">
+    <text x="36" y="86">📦 Информационная база</text>
+    <text x="36" y="112">📁 Конфигурация</text>
+    <text x="36" y="138">🧩 Расширения</text>
+  </g>
+
+  <!-- раскрытый раздел -->
+  <rect x="26" y="152" width="266" height="120" rx="3" fill="#04395e" fill-opacity="0.35"/>
+  <text x="36" y="170" fill="#ffffff" font-size="13" font-weight="600">⚙️ Служебные файлы</text>
+  <g font-size="13" fill="#cccccc">
+    <text x="54" y="196">Создать служебные файлы</text>
+    <text x="54" y="220">Базовый набор</text>
+    <text x="54" y="244">Открыть профиль запуска</text>
+  </g>
+  <text x="36" y="296" fill="#cccccc" font-size="13">🚀 Запуск</text>
+  <text x="36" y="322" fill="#cccccc" font-size="13">🧪 Тестирование</text>
+
+  <!-- выпадающий список файлов -->
+  <rect x="318" y="60" width="306" height="230" rx="4" fill="#252526" stroke="#454545"/>
+  <rect x="318" y="60" width="306" height="34" rx="4" fill="#3c3c3c"/>
+  <text x="334" y="82" fill="#cccccc" font-size="12">Какие файлы создать</text>
+
+  <g font-size="13">
+    <rect x="326" y="102" width="290" height="26" rx="3" fill="#04395e"/>
+    <text x="340" y="120" fill="#89d185">✓</text>
+    <text x="362" y="120" fill="#ffffff">env.json</text>
+    <text x="530" y="120" fill="#858585" font-size="11">есть</text>
+
+    <text x="340" y="152" fill="#858585">☐</text>
+    <text x="362" y="152" fill="#cccccc">.gitignore</text>
+
+    <text x="340" y="182" fill="#858585">☐</text>
+    <text x="362" y="182" fill="#cccccc">.gitattributes</text>
+
+    <text x="340" y="212" fill="#89d185">✓</text>
+    <text x="362" y="212" fill="#cccccc">tools/VAParams.json</text>
+    <text x="530" y="212" fill="#858585" font-size="11">есть</text>
+
+    <text x="340" y="242" fill="#858585">☐</text>
+    <text x="362" y="242" fill="#cccccc">tools/yaxunit.json</text>
+  </g>
+
+  <path d="M326 262 h290" stroke="#3c3c3c"/>
+  <text x="334" y="280" fill="#858585" font-size="11">Существующие файлы не перезаписываются</text>
+
+  <!-- подпись -->
+  <text x="318" y="322" fill="#858585" font-size="12">Профиль запуска: env.json для 2.x,</text>
+  <text x="318" y="340" fill="#858585" font-size="12">autumn-properties.json для 3.x</text>
+</svg>

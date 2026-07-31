@@ -1,0 +1,80 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="640" height="360" viewBox="0 0 640 360" font-family="Segoe UI, system-ui, sans-serif">
+  <rect width="640" height="360" rx="6" fill="#1f1f1f"/>
+
+  <!-- палитра команд -->
+  <rect x="16" y="16" width="150" height="328" rx="4" fill="#252526" stroke="#3c3c3c"/>
+  <text x="30" y="40" fill="#cccccc" font-size="12" letter-spacing="0.6">ШАГИ</text>
+  <g font-size="12" fill="#cccccc">
+    <rect x="26" y="54" width="130" height="26" rx="3" fill="#37373d"/>
+    <text x="38" y="72">Создать ИБ</text>
+    <rect x="26" y="88" width="130" height="26" rx="3" fill="#37373d"/>
+    <text x="38" y="106">Загрузить src/cf</text>
+    <rect x="26" y="122" width="130" height="26" rx="3" fill="#37373d"/>
+    <text x="38" y="140">Загрузить cfe</text>
+    <rect x="26" y="156" width="130" height="26" rx="3" fill="#37373d"/>
+    <text x="38" y="174">Тесты YAxUnit</text>
+    <rect x="26" y="190" width="130" height="26" rx="3" fill="#37373d"/>
+    <text x="38" y="208">Команда оболочки</text>
+    <rect x="26" y="224" width="130" height="26" rx="3" fill="#37373d"/>
+    <text x="38" y="242">Пауза с вопросом</text>
+  </g>
+
+  <!-- полотно -->
+  <rect x="182" y="16" width="442" height="328" rx="4" fill="#1b1b1b" stroke="#3c3c3c"/>
+  <g stroke="#2a2a2a">
+    <path d="M182 76 h442 M182 136 h442 M182 196 h442 M182 256 h442 M182 316 h442"/>
+    <path d="M242 16 v328 M302 16 v328 M362 16 v328 M422 16 v328 M482 16 v328 M542 16 v328"/>
+  </g>
+
+  <!-- связи -->
+  <g fill="none" stroke-width="2">
+    <path d="M300 66 h34" stroke="#4d4d4d"/>
+    <path d="M448 66 h30 q10 0 10 10 v34" stroke="#89d185"/>
+    <path d="M448 66 q40 0 40 -34" stroke="#f14c4c" stroke-dasharray="4 3"/>
+    <path d="M488 176 v22" stroke="#4d4d4d"/>
+  </g>
+  <g font-size="10">
+    <text x="496" y="104" fill="#89d185">успех</text>
+    <text x="496" y="40" fill="#f14c4c">ошибка</text>
+  </g>
+
+  <!-- узлы -->
+  <g>
+    <rect x="206" y="46" width="94" height="40" rx="5" fill="#252526" stroke="#3794ff" stroke-width="1.5"/>
+    <path d="M206 51 a5 5 0 0 1 5 -5 h4 v40 h-4 a5 5 0 0 1 -5 -5 z" fill="#3794ff"/>
+    <text x="222" y="63" fill="#cccccc" font-size="11">1. Создать ИБ</text>
+    <text x="222" y="78" fill="#858585" font-size="10">infobase.create</text>
+  </g>
+  <g>
+    <rect x="334" y="46" width="114" height="40" rx="5" fill="#252526" stroke="#c586c0" stroke-width="1.5"/>
+    <path d="M334 51 a5 5 0 0 1 5 -5 h4 v40 h-4 a5 5 0 0 1 -5 -5 z" fill="#c586c0"/>
+    <text x="350" y="63" fill="#cccccc" font-size="11">2. Загрузить src/cf</text>
+    <text x="350" y="78" fill="#858585" font-size="10">configuration.load</text>
+  </g>
+  <g>
+    <rect x="440" y="10" width="96" height="26" rx="5" fill="#252526" stroke="#f14c4c" stroke-width="1.5"/>
+    <text x="452" y="27" fill="#cccccc" font-size="11">Отчёт об ошибке</text>
+  </g>
+  <g>
+    <rect x="434" y="120" width="108" height="40" rx="5" fill="#252526" stroke="#c586c0" stroke-width="1.5"/>
+    <path d="M434 125 a5 5 0 0 1 5 -5 h4 v40 h-4 a5 5 0 0 1 -5 -5 z" fill="#c586c0"/>
+    <text x="450" y="137" fill="#cccccc" font-size="11">3. Загрузить cfe</text>
+    <text x="450" y="152" fill="#858585" font-size="10">extensions.load</text>
+  </g>
+  <g>
+    <rect x="434" y="198" width="108" height="40" rx="5" fill="#252526" stroke="#dcdcaa" stroke-width="1.5"/>
+    <path d="M434 203 a5 5 0 0 1 5 -5 h4 v40 h-4 a5 5 0 0 1 -5 -5 z" fill="#dcdcaa"/>
+    <text x="450" y="215" fill="#cccccc" font-size="11">4. Тесты YAxUnit</text>
+    <text x="450" y="230" fill="#858585" font-size="10">повтор: 2, таймаут 600</text>
+  </g>
+
+  <!-- панель прогона -->
+  <rect x="196" y="266" width="414" height="64" rx="4" fill="#252526" stroke="#3c3c3c"/>
+  <text x="210" y="286" fill="#cccccc" font-size="12">Прогон цепочки</text>
+  <g font-size="11">
+    <text x="210" y="306" fill="#89d185">✓ 1. Создать ИБ</text>
+    <text x="330" y="306" fill="#89d185">✓ 2. Загрузить src/cf</text>
+    <text x="470" y="306" fill="#3794ff">● 3. Загрузить cfe</text>
+    <text x="210" y="322" fill="#858585">Вывод шага виден в панели «Вывод»</text>
+  </g>
+</svg>
