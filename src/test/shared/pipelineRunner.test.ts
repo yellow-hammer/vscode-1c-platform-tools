@@ -2,6 +2,7 @@ import * as assert from 'node:assert';
 import {
 	runPipeline,
 	formatRunSummary,
+	stepOutputTail,
 	validatePipeline,
 	NodeExecutionResult,
 } from '../../shared/pipelines/pipelineRunner';
@@ -27,6 +28,26 @@ function executor(
 		return outcomes[item.id] ?? { success: true };
 	};
 }
+
+suite('Пайплайны: вывод шага', () => {
+	test('пустой вывод в панель не идёт', () => {
+		assert.strictEqual(stepOutputTail('', 100), undefined);
+		assert.strictEqual(stepOutputTail('   \n  ', 100), undefined);
+	});
+
+	test('короткий вывод идёт целиком', () => {
+		assert.strictEqual(stepOutputTail('загрузка завершена', 100), 'загрузка завершена');
+	});
+
+	test('длинный вывод обрезается с начала: интересное в конце', () => {
+		const long = 'начало'.repeat(100) + 'КОНЕЦ';
+		const tail = stepOutputTail(long, 20);
+
+		assert.ok(tail !== undefined);
+		assert.ok(tail.startsWith('…'), 'не видно, что вывод обрезан');
+		assert.ok(tail.endsWith('КОНЕЦ'), 'потерян конец вывода');
+	});
+});
 
 suite('прогон пайплайна: линейная цепочка', () => {
 	test('узлы идут по связям, а не по порядку объявления', async () => {

@@ -24,6 +24,7 @@ import {
 } from '../shared/pipelines/pipelineTypes';
 import {
 	formatRunSummary,
+	stepOutputTail,
 	runPipeline,
 	validatePipeline,
 	NodeExecutionResult,
@@ -38,6 +39,14 @@ const log = logger.scope('pipelines');
 
 /** Сколько символов вывода команды оболочки оставлять в отчёте */
 const SHELL_OUTPUT_LIMIT = 2_000;
+
+/**
+ * Сколько вывода шага уходит в панель «Вывод».
+ *
+ * Прогон конфигуратора выдаёт мегабайты, и целиком они панель забивают, поэтому
+ * хвост: интересное у vanessa-runner и платформы в конце.
+ */
+const STEP_OUTPUT_LIMIT = 20_000;
 
 /**
  * Префикс кодировки для команд оболочки: exec на Windows запускает cmd, где без
@@ -270,6 +279,25 @@ export class PipelineCommands extends BaseCommand {
 	 * @param opts - Опции выполнения, общие для узлов
 	 * @returns Исход узла
 	 */
+	/**
+	 * Пишет вывод шага в панель «Вывод».
+	 *
+	 * Шаги пайплайна идут захваченными, без терминала, поэтому без этого вывод
+	 * vanessa-runner и команд оболочки не виден нигде: остаются только отметки
+	 * «шаг выполнен» и отчёт по прогону.
+	 *
+	 * @param label - Название шага
+	 * @param output - Собранный вывод команды
+	 */
+	private logStepOutput(label: string, output: string): void {
+		const tail = stepOutputTail(output, STEP_OUTPUT_LIMIT);
+		if (tail === undefined) {
+			return;
+		}
+		log.info(`Вывод шага «${label}»:
+${tail}`);
+	}
+
 	private async runExtensionCommand(
 		node: PipelineNode,
 		opts?: CommandExecutionOptions
@@ -292,6 +320,11 @@ export class PipelineCommands extends BaseCommand {
 		if (!result) {
 			return { success: true };
 		}
+		this.logStepOutput(
+			nodeLabel(node, commandTitle),
+			`${result.stdout ?? ''}
+${result.stderr ?? ''}`
+		);
 		return {
 			success: result.success,
 			exitCode: result.exitCode,
@@ -324,6 +357,7 @@ export class PipelineCommands extends BaseCommand {
 				},
 				(error, stdout, stderr) => {
 					const output = `${stdout}${stderr}`.trim();
+					this.logStepOutput(nodeLabel(node, commandTitle), output);
 					if (!error) {
 						log.info(`Команда оболочки завершилась: ${script}`);
 						resolve({ success: true, exitCode: 0 });

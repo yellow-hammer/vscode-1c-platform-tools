@@ -292,6 +292,25 @@ export function validatePipeline(pipeline: Pipeline): string[] {
 }
 
 /**
+ * Готовит вывод шага для панели «Вывод»: пустой отбрасывается, длинный обрезается с начала.
+ *
+ * Прогон конфигуратора выдаёт мегабайты, и целиком они панель забивают. Интересное у
+ * vanessa-runner и платформы в конце, поэтому остаётся хвост.
+ *
+ * @param output - Собранный вывод команды шага
+ * @param limit - Сколько символов оставить
+ * @returns Текст для панели или undefined, если выводить нечего
+ */
+export function stepOutputTail(output: string, limit: number): string | undefined {
+	const text = output.trim();
+	if (text === '') {
+		return undefined;
+	}
+	return text.length > limit ? `…
+${text.slice(-limit)}` : text;
+}
+
+/**
  * Собирает текстовую сводку прогона: по строке на выполненный узел.
  *
  * @param result - Результат прогона
