@@ -53,7 +53,7 @@ function sourceFiles(dir: string, found: string[] = []): string[] {
 }
 
 suite('walkthrough: шаги', () => {
-	test('у каждого шага есть файл с текстом и картинкой', () => {
+	test('у каждого шага есть файл, а в нём иллюстрация: снимок экрана или пример', () => {
 		for (const step of steps()) {
 			const mdPath = step.media?.markdown;
 			assert.ok(mdPath, `${step.title}: не задан файл шага`);
@@ -62,11 +62,16 @@ suite('walkthrough: шаги', () => {
 
 			const md = fs.readFileSync(full, 'utf8');
 			const image = /!\[.*?\]\((?:images\/)?([^)]+)\)/.exec(md)?.[1];
-			assert.ok(image, `${step.title}: в файле нет картинки`);
-			assert.ok(
-				fs.existsSync(path.join(EXTENSION_ROOT, 'walkthrough', 'images', image as string)),
-				`${step.title}: нет файла картинки ${image}`
-			);
+			// Иллюстрацией считается и текстовый пример: для панелей и цепочек он
+			// показывает состав точнее снимка экрана и не устаревает молча
+			const sample = /```text[\s\S]+?```/.test(md);
+			assert.ok(image || sample, `${step.title}: в файле нет ни картинки, ни примера`);
+			if (image) {
+				assert.ok(
+					fs.existsSync(path.join(EXTENSION_ROOT, 'walkthrough', 'images', image as string)),
+					`${step.title}: нет файла картинки ${image}`
+				);
+			}
 		}
 	});
 
