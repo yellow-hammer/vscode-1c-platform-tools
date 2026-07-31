@@ -49,14 +49,6 @@ export interface CommandExecutionOptions {
 	sessionConnections?: boolean;
 	/** Идентификатор или название пайплайна для запуска (pipelines.run). */
 	pipeline?: string;
-	/** Переопределения стандартных путей. */
-	pathsOverride?: {
-		cf?: string;
-		out?: string;
-		cfe?: string;
-		epf?: string;
-		erf?: string;
-	};
 }
 
 /**
