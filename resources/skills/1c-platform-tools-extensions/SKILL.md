@@ -19,9 +19,25 @@ description: Загрузка и выгрузка расширений конф�
 | Собрать *.cfe из src/cfe        | `1c-platform-tools.extensions.build`               |
 | Разобрать *.cfe в src/cfe       | `1c-platform-tools.extensions.decompile`           |
 
+## Тестовые расширения
+
+Расширения, нужные только для прогона тестов (YAxUnit и расширение с тестами), лежат отдельно:
+`tests/cfe` (подкаталог корня тестов `paths.tests`), собранные `*.cfe` — в `build/out/tests/cfe`. Команды выше
+их не трогают, для них своя четвёрка (в дереве - группа «Тестовое окружение»):
+
+| Задача                              | Command ID                                     |
+|-------------------------------------|------------------------------------------------|
+| Загрузить тестовые из tests/cfe     | `1c-platform-tools.test.loadExtensions`        |
+| Выгрузить тестовые в tests/cfe      | `1c-platform-tools.test.dumpExtensions`        |
+| Собрать тестовые *.cfe              | `1c-platform-tools.test.buildExtensions`       |
+| Разобрать тестовые *.cfe            | `1c-platform-tools.test.decompileExtensions`   |
+
+Параметр `extensions` работает так же и отбирает каталоги в `tests/cfe`. Инструменты MCP:
+`test_loadExts`, `test_dumpExts`, `test_buildExts`, `test_decompileExts`.
+
 ## MCP (mcp-1c-platform-tools)
 
-Если доступны инструменты MCP, используй их: `extensions_loadFromSrc`, `extensions_dumpToSrc`, `extensions_loadFromFiles`, `extensions_loadFromCfe`, `extensions_dumpToCfe`, `extensions_build`, `extensions_decompileExt` и т.д.
+Если доступны инструменты MCP, используй их: `extensions_loadFromSrc`, `extensions_dumpToSrc`, `extensions_loadFromFiles`, `extensions_loadFromCfe`, `extensions_dumpToCfe`, `extensions_build`, `extensions_decompile` и т.д.
 
 ### Параметр projectPath
 
@@ -29,7 +45,7 @@ description: Загрузка и выгрузка расширений конф�
 
 ### Выбор расширений
 
-В проекте может быть несколько расширений (каталоги в `src/cfe`). Если пользователь назвал конкретные — передай их параметром `extensions`: команда выполнится только для них и без окна выбора. Без параметра используется сохранённый выбор проекта (или все расширения); явный список сохранённый выбор не меняет.
+В проекте может быть несколько расширений (каталоги в `src/cfe`). Если пользователь назвал конкретные — передай их параметром `extensions`: команда выполнится только для них и без окна выбора. Без параметра используется сохранённый выбор проекта (или все расширения); явный список сохранённый выбор не меняет. Постоянный отбор без окна выбора задаётся в settings.json: `1c-platform-tools.extensions.selected` для расширений решения, `1c-platform-tools.testing.selectedExtensions` для тестовых.
 
 ## Примеры
 

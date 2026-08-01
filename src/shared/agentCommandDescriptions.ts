@@ -67,6 +67,22 @@ export const AGENT_COMMAND_DESCRIPTIONS: Record<string, AgentCommandDescription>
 		title: 'Построить отчёт Allure по результатам прогона',
 		category: TESTING,
 	},
+	'1c-platform-tools.test.loadExtensions': {
+		title: 'Загрузить тестовые расширения в ИБ из исходников (подкаталог cfe корня тестов, по умолчанию tests/cfe): YAxUnit и расширение с тестами; параметр extensions отбирает нужные',
+		category: TESTING,
+	},
+	'1c-platform-tools.test.buildExtensions': {
+		title: 'Собрать тестовые расширения из исходников в *.cfe в каталоге результатов сборки; параметр extensions отбирает нужные',
+		category: TESTING,
+	},
+	'1c-platform-tools.test.dumpExtensions': {
+		title: 'Выгрузить установленные тестовые расширения из ИБ в исходники: перенос существующего расширения с тестами под контроль версий',
+		category: TESTING,
+	},
+	'1c-platform-tools.test.decompileExtensions': {
+		title: 'Разобрать собранные тестовые *.cfe в исходники (tests/cfe): так раскладывают полученный со стороны YAxUnit.cfe; параметр extensions отбирает нужные',
+		category: TESTING,
+	},
 	'1c-platform-tools.test.buildEpf': {
 		title: 'Собрать обработки с тестами из исходников',
 		category: TESTING,

@@ -65,7 +65,7 @@
   "rootProject": "${workspaceFolder}/src/cf",
   "debugServerHost": "localhost",
   "autoAttachTypes": ["ManagedClient", "Server"],
-  "extensions": ["${workspaceFolder}/src/cfe/МоёРасширение"],
+  "extensions": ["${workspaceFolder}/src/cfe/МоёРасширение", "${workspaceFolder}/tests/cfe/yaxunit-test"],
   "externalFilesSrc": ["${workspaceFolder}/src/epf", "${workspaceFolder}/src/erf"],
   "externalFilesBuilds": ["${workspaceFolder}/build/out/epf", "${workspaceFolder}/build/out/erf"]
 }
@@ -74,7 +74,7 @@
 | Параметр                             | Назначение                                                                                                                                                                                                                         |
 |--------------------------------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | `rootProject`                        | каталог исходников конфигурации                                                                                                                                                                                                    |
-| `extensions`                         | каталоги исходников расширений (по одному на расширение)                                                                                                                                                                           |
+| `extensions`                         | каталоги исходников расширений (по одному на расширение): и решения из `paths.cfe`, и тестовых из `<paths.tests>/cfe` - иначе в тест не зайти точкой останова                                                                                                                                                                           |
 | `platformPath`                       | каталог с установленными версиями платформы 1С                                                                                                                                                                                     |
 | `platformVersion`                    | конкретная версия платформы (необязательно — по умолчанию берётся `--v8version` активного профиля, сведённая к конкретной сборке; иначе последняя)                                                                                  |
 | `debugServerHost`, `debugServerPort` | адрес HTTP-сервера отладки для серверной ИБ (порт по умолчанию 1550); для файловой ИБ сервер отладки запускается автоматически                                                                                                     |

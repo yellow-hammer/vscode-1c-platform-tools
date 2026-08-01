@@ -9,6 +9,10 @@ import {
 	getDumpExtensionToSrcCommandName,
 	getDumpExtensionToCfeCommandName,
 	getBuildExtensionCommandName,
+	getBuildTestExtensionsCommandName,
+	getDumpTestExtensionsCommandName,
+	getDecompileTestExtensionsCommandName,
+	getLoadTestExtensionsCommandName,
 	getDecompileExtensionCommandName,
 	getUpdateExtensionsInInfobaseCommandName
 } from '../features/tools/commandNames';
@@ -17,8 +21,10 @@ import { logger } from '../shared/logger';
 import { filterCfeFilesBySelection } from '../features/extensions/extensionSelection';
 import { resolveExtensionNameFromSrc } from '../features/extensions/extensionNames';
 import { pickExtensions } from '../features/extensions/extensionPicker';
+import type { ExtensionScope } from '../features/extensions/extensionSelection';
 import type { CommandExecutionOptions, StructuredCommandResult } from '../shared/commandExecutionTypes';
 import type { VRunnerIntent } from '../shared/vrunnerCli';
+import { BUILD_SUBDIRS } from '../shared/pathDefaults';
 
 const log = logger.scope('commands');
 
@@ -40,11 +46,13 @@ export class ExtensionsCommands extends BaseCommand {
 	 * @param commandName - Название команды для отображения
 	 * @returns Промис, который разрешается после запуска всех команд
 	 */
-	private async executeForAllExtensions(
+	protected async executeForAllExtensions(
 		buildIntent: (extensionFolder: string, extensionName: string) => VRunnerIntent,
 		commandName: string,
 		opts?: CommandExecutionOptions,
-		commandId?: string
+		commandId?: string,
+		sourcesRoot?: string,
+		scope: ExtensionScope = 'solution'
 	): Promise<StructuredCommandResult | void> {
 		const workspaceRoot = this.getExecutionCwd(opts);
 		if (!workspaceRoot) {
@@ -69,7 +77,8 @@ export class ExtensionsCommands extends BaseCommand {
 			}
 		}
 
-		const extensionFolders = await this.getExtensionFoldersFromSrc(workspaceRoot);
+		const root = sourcesRoot ?? this.vrunner.getCfePath();
+		const extensionFolders = await this.getExtensionFoldersFromSrc(workspaceRoot, root);
 		if (!extensionFolders) {
 			if (opts?.wait === true) {
 				return this.executionError('В каталоге расширений не найдено подкаталогов');
@@ -77,7 +86,7 @@ export class ExtensionsCommands extends BaseCommand {
 			return;
 		}
 
-		const selectedFolders = await this.selectExtensions(extensionFolders, opts);
+		const selectedFolders = await this.selectExtensions(extensionFolders, opts, scope);
 		if (selectedFolders === undefined) {
 			// Отмена quickpick — команда не выполняется
 			return;
@@ -91,8 +100,9 @@ export class ExtensionsCommands extends BaseCommand {
 		}
 
 		// Имя расширения берётся из метаданных исходников: оно может отличаться
-		// от имени каталога (например, каталог yaxunit-test с расширением «Тесты»)
-		const cfeRoot = path.join(workspaceRoot, this.vrunner.getCfePath());
+		// от имени каталога (например, каталог yaxunit-test с расширением «Тесты»).
+		// Корень тот же, из которого взяли каталоги: у тестовых расширений он свой
+		const cfeRoot = path.join(workspaceRoot, root);
 		const intents = await Promise.all(selectedFolders.map(async (folder) =>
 			buildIntent(folder, await resolveExtensionNameFromSrc(path.join(cfeRoot, folder)))
 		));
@@ -112,10 +122,13 @@ export class ExtensionsCommands extends BaseCommand {
 	/**
 	 * Получает список папок расширений из исходников
 	 * @param workspaceRoot - Корневая директория workspace
+	 * @param cfePath - Корень исходников расширений относительно workspace
 	 * @returns Промис, который разрешается массивом имен папок расширений или undefined при ошибке
 	 */
-	private async getExtensionFoldersFromSrc(workspaceRoot: string): Promise<string[] | undefined> {
-		const cfePath = this.vrunner.getCfePath();
+	private async getExtensionFoldersFromSrc(
+		workspaceRoot: string,
+		cfePath: string
+	): Promise<string[] | undefined> {
 		const extensionsSrcPath = path.join(workspaceRoot, cfePath);
 
 		if (!(await this.checkDirectoryExists(extensionsSrcPath, `Папка ${cfePath} не является директорией`))) {
@@ -150,9 +163,10 @@ export class ExtensionsCommands extends BaseCommand {
 	 */
 	private async selectExtensions(
 		allNames: string[],
-		opts?: CommandExecutionOptions
+		opts?: CommandExecutionOptions,
+		scope: ExtensionScope = 'solution'
 	): Promise<string[] | undefined> {
-		return pickExtensions(allNames, this.vrunner.getWorkspaceMemento(), opts);
+		return pickExtensions(allNames, this.vrunner.getWorkspaceMemento(), opts, scope);
 	}
 
 	/**
@@ -162,14 +176,16 @@ export class ExtensionsCommands extends BaseCommand {
 	 *
 	 * @param cfeFiles - Все доступные файлы *.cfe
 	 * @param opts - Параметры выполнения (режим wait)
+	 * @param scope - Область расширений: решение или тестовые
 	 * @returns Отфильтрованный список файлов, либо undefined при отмене quickpick
 	 */
 	private async selectCfeFiles(
 		cfeFiles: string[],
-		opts?: CommandExecutionOptions
+		opts?: CommandExecutionOptions,
+		scope: ExtensionScope = 'solution'
 	): Promise<string[] | undefined> {
 		const names = [...new Set(cfeFiles.map((file) => file.replace(/\.cfe$/i, '')))];
-		const selected = await this.selectExtensions(names, opts);
+		const selected = await this.selectExtensions(names, opts, scope);
 		if (selected === undefined) {
 			return undefined;
 		}
@@ -258,7 +274,10 @@ export class ExtensionsCommands extends BaseCommand {
 			return;
 		}
 
-		const extensionFolders = await this.getExtensionFoldersFromSrc(workspaceRoot);
+		const extensionFolders = await this.getExtensionFoldersFromSrc(
+			workspaceRoot,
+			this.vrunner.getCfePath()
+		);
 		if (!extensionFolders) {
 			return;
 		}
@@ -406,7 +425,7 @@ export class ExtensionsCommands extends BaseCommand {
 		}
 
 		const buildPath = this.vrunner.getOutPath();
-		const cfePath = path.join(cwd, buildPath, 'cfe');
+		const cfePath = path.join(cwd, buildPath, BUILD_SUBDIRS.cfe);
 
 		if (opts?.wait === true) {
 			try {
@@ -454,7 +473,7 @@ export class ExtensionsCommands extends BaseCommand {
 				: EPF_NAMES.LOAD_EXTENSION
 		);
 		const steps = await this.vrunner.planIntents(selectedCfeFiles.map((cfeFile) => {
-			const cfeFilePath = path.join(buildPath, 'cfe', cfeFile);
+			const cfeFilePath = path.join(buildPath, BUILD_SUBDIRS.cfe, cfeFile);
 			const commandParam = EPF_COMMANDS.LOAD_EXTENSION(cfeFilePath);
 			return { kind: 'run.enterprise' as const, command: commandParam, execute: epfPath, common: ibConnectionParam };
 		}), opts?.settingsFile);
@@ -515,7 +534,7 @@ export class ExtensionsCommands extends BaseCommand {
 			return;
 		}
 
-		const extensionFolders = await this.getExtensionFoldersFromSrc(cwd);
+		const extensionFolders = await this.getExtensionFoldersFromSrc(cwd, this.vrunner.getCfePath());
 		if (!extensionFolders) {
 			if (opts?.wait === true) {
 				return this.executionError('В каталоге расширений не найдено подкаталогов');
@@ -524,7 +543,7 @@ export class ExtensionsCommands extends BaseCommand {
 		}
 
 		const buildPath = this.vrunner.getOutPath();
-		const cfeBuildPath = path.join(cwd, buildPath, 'cfe');
+		const cfeBuildPath = path.join(cwd, buildPath, BUILD_SUBDIRS.cfe);
 		if (!(await this.ensureDirectoryForExecution(
 			cfeBuildPath,
 			opts,
@@ -543,7 +562,7 @@ export class ExtensionsCommands extends BaseCommand {
 			(extensionFolder, extensionName) => ({
 				kind: 'cfe.unloadIbToCfe',
 				extensionName,
-				out: path.join(buildPath, 'cfe', `${extensionFolder}.cfe`),
+				out: path.join(buildPath, BUILD_SUBDIRS.cfe, `${extensionFolder}.cfe`),
 				common: ibConnectionParam,
 			}),
 			commandName.title,
@@ -572,7 +591,7 @@ export class ExtensionsCommands extends BaseCommand {
 			return;
 		}
 
-		const extensionFolders = await this.getExtensionFoldersFromSrc(cwd);
+		const extensionFolders = await this.getExtensionFoldersFromSrc(cwd, this.vrunner.getCfePath());
 		if (!extensionFolders) {
 			if (opts?.wait === true) {
 				return this.executionError('В каталоге расширений не найдено подкаталогов');
@@ -581,7 +600,7 @@ export class ExtensionsCommands extends BaseCommand {
 		}
 
 		const buildPath = this.vrunner.getOutPath();
-		const cfeBuildPath = path.join(cwd, buildPath, 'cfe');
+		const cfeBuildPath = path.join(cwd, buildPath, BUILD_SUBDIRS.cfe);
 		if (!(await this.ensureDirectoryForExecution(
 			cfeBuildPath,
 			opts,
@@ -600,7 +619,7 @@ export class ExtensionsCommands extends BaseCommand {
 			(extensionFolder, extensionName) => ({
 				kind: 'cfe.buildCfe',
 				src: path.join(cfePath, extensionFolder),
-				out: path.join(buildPath, 'cfe', `${extensionFolder}.cfe`),
+				out: path.join(buildPath, BUILD_SUBDIRS.cfe, `${extensionFolder}.cfe`),
 				extensionName,
 			}),
 			commandName.title,
@@ -610,8 +629,197 @@ export class ExtensionsCommands extends BaseCommand {
 	}
 
 	/**
+	 * Загружает тестовые расширения в ИБ из исходников.
+	 *
+	 * Тестовые расширения живут отдельно от решения (`<paths.tests>/cfe`,
+	 * по умолчанию `tests/cfe`): сам YAxUnit и расширение с тестами - обычные
+	 * подкаталоги там же. Показывается тот же выбор, что и у расширений
+	 * решения, поэтому можно подключить только тесты или только инструмент.
+	 *
+	 * @param opts - Опции выполнения
+	 * @returns void в UI-режиме, StructuredCommandResult при wait: true
+	 */
+	async loadTestsFromSrc(opts?: CommandExecutionOptions): Promise<StructuredCommandResult | void> {
+		const ibConnectionParam = await this.vrunner.getIbConnectionParam();
+		const commandName = getLoadTestExtensionsCommandName();
+		const testsCfePath = this.vrunner.getTestsCfePath();
+
+		return this.executeForAllExtensions(
+			(extensionFolder, extensionName) => ({
+				kind: 'cfe.loadFromSrc',
+				src: path.join(testsCfePath, extensionFolder),
+				extensionName,
+				updateDb: true,
+				common: ibConnectionParam,
+			}),
+			commandName.title,
+			opts,
+			commandName.id,
+			testsCfePath,
+			'tests'
+		);
+	}
+
+	/**
+	 * Собирает тестовые расширения из исходников в *.cfe.
+	 *
+	 * Как и у тестовых обработок, собранное кладётся в каталог результатов
+	 * сборки и в репозиторий не попадает.
+	 *
+	 * @param opts - Опции выполнения
+	 * @returns void в UI-режиме, StructuredCommandResult при wait: true
+	 */
+	async buildTests(opts?: CommandExecutionOptions): Promise<StructuredCommandResult | void> {
+		const commandName = getBuildTestExtensionsCommandName();
+		const testsCfePath = this.vrunner.getTestsCfePath();
+		const buildPath = this.vrunner.getOutPath();
+
+		return this.executeForAllExtensions(
+			(extensionFolder, extensionName) => ({
+				kind: 'cfe.buildCfe',
+				src: path.join(testsCfePath, extensionFolder),
+				out: path.join(buildPath, BUILD_SUBDIRS.testsCfe, `${extensionFolder}.cfe`),
+				extensionName,
+			}),
+			commandName.title,
+			opts,
+			commandName.id,
+			testsCfePath,
+			'tests'
+		);
+	}
+
+	/**
+	 * Выгружает установленные тестовые расширения из ИБ в исходники.
+	 *
+	 * Нужно для первичного переноса существующего расширения с тестами под
+	 * контроль версий - как «Разобрать unit тесты» у обработок.
+	 *
+	 * @param opts - Опции выполнения
+	 * @returns void в UI-режиме, StructuredCommandResult при wait: true
+	 */
+	async dumpTestsToSrc(opts?: CommandExecutionOptions): Promise<StructuredCommandResult | void> {
+		const ibConnectionParam = await this.vrunner.getIbConnectionParam();
+		const commandName = getDumpTestExtensionsCommandName();
+		const testsCfePath = this.vrunner.getTestsCfePath();
+
+		return this.executeForAllExtensions(
+			(extensionFolder, extensionName) => ({
+				kind: 'cfe.dumpIbToSrc',
+				extensionName,
+				out: path.join(testsCfePath, extensionFolder),
+				common: ibConnectionParam,
+			}),
+			commandName.title,
+			opts,
+			commandName.id,
+			testsCfePath,
+			'tests'
+		);
+	}
+
+	/**
+	 * Разбирает собранные тестовые *.cfe в исходники.
+	 *
+	 * Берёт файлы из каталога сборки тестовых расширений и раскладывает каждый
+	 * в свой подкаталог корня тестов (`<paths.tests>/cfe`). Разбирается сам файл, а не то, что
+	 * установлено в ИБ: так подключают полученный со стороны YAxUnit.cfe.
+	 *
+	 * @param opts - Опции выполнения
+	 * @returns void в UI-режиме, StructuredCommandResult при wait: true
+	 */
+	async decompileTests(opts?: CommandExecutionOptions): Promise<StructuredCommandResult | void> {
+		const cwd = this.getExecutionCwd(opts);
+		if (!cwd) {
+			if (opts?.wait === true) {
+				return this.executionError(
+					'Укажите projectPath или откройте рабочую область с проектом 1С'
+				);
+			}
+			this.ensureWorkspace();
+			return;
+		}
+		if (!(await this.ensureOscriptForExecution(opts))) {
+			if (opts?.wait === true) {
+				return this.executionError('OneScript (oscript) или opm не найдены');
+			}
+			return;
+		}
+		{
+			const gate = await this.settingsGate(opts);
+			if (gate) {
+				return gate === 'blocked' ? undefined : gate;
+			}
+		}
+
+		const buildPath = this.vrunner.getOutPath();
+		const buildDir = path.posix.join(buildPath.replace(/\\/g, '/'), BUILD_SUBDIRS.testsCfe);
+		const cfeBuildPath = path.join(cwd, buildPath, BUILD_SUBDIRS.testsCfe);
+
+		if (opts?.wait === true) {
+			try {
+				const stats = await fs.stat(cfeBuildPath);
+				if (!stats.isDirectory()) {
+					return this.executionError(`Каталог ${buildDir} не найден`);
+				}
+			} catch {
+				return this.executionError(`Каталог ${buildDir} не найден`);
+			}
+		} else if (!(await this.checkDirectoryExists(cfeBuildPath, `Папка ${buildDir} не является директорией`))) {
+			return;
+		}
+
+		const cfeFiles = await this.getFilesByExtension(cfeBuildPath, '.cfe', `Ошибка при чтении папки ${buildDir}`);
+		if (cfeFiles.length === 0) {
+			if (opts?.wait === true) {
+				return this.executionError(`В каталоге ${buildDir} нет файлов .cfe`);
+			}
+			log.info(`В папке ${buildDir} не найдено файлов .cfe`);
+			vscode.window.showInformationMessage(`В папке ${buildDir} не найдено файлов .cfe`);
+			return;
+		}
+
+		const selectedCfeFiles = await this.selectCfeFiles(cfeFiles, opts, 'tests');
+		if (selectedCfeFiles === undefined) {
+			// Отмена quickpick — команда не выполняется
+			return;
+		}
+		if (selectedCfeFiles.length === 0) {
+			if (opts?.wait === true) {
+				return this.executionError(`В каталоге ${buildDir} нет файлов .cfe выбранных расширений`);
+			}
+			vscode.window.showInformationMessage('Не выбрано ни одного расширения.');
+			return;
+		}
+
+		const ibConnectionParam = await this.vrunner.getIbConnectionParam();
+		const commandName = getDecompileTestExtensionsCommandName();
+		const testsCfePath = this.vrunner.getTestsCfePath();
+		const steps = await this.vrunner.planIntents(await Promise.all(selectedCfeFiles.map(async (cfeFile) => {
+			const folderName = cfeFile.replace(/\.cfe$/i, '');
+			const extensionName = await resolveExtensionNameFromSrc(path.join(cwd, testsCfePath, folderName));
+			return {
+				kind: 'cfe.decompileCfeFile' as const,
+				file: this.pathForCmd(path.join(buildPath, BUILD_SUBDIRS.testsCfe, cfeFile)),
+				extensionName,
+				out: this.pathForCmd(path.join(testsCfePath, folderName)),
+				common: ibConnectionParam,
+			};
+		})), opts?.settingsFile);
+
+		if (opts?.wait === true) {
+			return this.runVRunnerSequential(steps, opts, commandName.title, commandName.id, true);
+		}
+
+		await this.vrunner.executeVRunnerCommandsInSequence(steps, {
+			cwd,
+			name: commandName.title,
+		});
+	}
+
+	/**
 	 * Разбирает .cfe файл в исходники
-	 * 
+	 *
 	 * Находит все файлы .cfe в папке сборки и для каждого выполняет команду `decompileext`.
 	 * Бинарные .cfe файлы разбираются в исходники в формате XML в папку расширений.
 	 * 
@@ -642,7 +850,7 @@ export class ExtensionsCommands extends BaseCommand {
 		}
 
 		const buildPath = this.vrunner.getOutPath();
-		const cfeBuildPath = path.join(cwd, buildPath, 'cfe');
+		const cfeBuildPath = path.join(cwd, buildPath, BUILD_SUBDIRS.cfe);
 
 		if (opts?.wait === true) {
 			try {

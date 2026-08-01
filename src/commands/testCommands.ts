@@ -13,12 +13,16 @@ import {
 } from '../features/tools/commandNames';
 import { collectAllureResultDirs } from '../utils/allureResults';
 import type { CommandExecutionOptions, StructuredCommandResult, SyntaxCheckError } from '../shared/commandExecutionTypes';
-import { DEFAULT_TESTING, DEFAULT_PATHS } from '../shared/pathDefaults';
+import { DEFAULT_TESTING, DEFAULT_PATHS, BUILD_SUBDIRS } from '../shared/pathDefaults';
+import { legacyTestsSrcHint } from '../features/testing/legacyTestsSrc';
 import * as fs from 'node:fs/promises';
-import { settingValue, resolveConfigPath, reportsXunitFromEnv, extractJUnitPathFromReportsXunit, vanessaReportTarget, syntaxCheckJUnitPathFromEnv } from '../features/testing/projectTestConfig';
+import { settingValue, resolveConfigPath, reportsXunitFromEnv, extractJUnitPathFromReportsXunit, extractAllurePathFromReportsXunit, vanessaReportTarget, vanessaSettingsPathFromEnv, syntaxCheckJUnitPathFromEnv, syntaxCheckAllurePathsFromEnv } from '../features/testing/projectTestConfig';
 import { parseSyntaxCheckFindings, toSyntaxCheckErrors, SyntaxCheckFinding } from '../features/diagnostics/syntaxCheckJUnit';
 import { readRunSummary, formatRunSummary, RunReportFormat } from '../features/testing/runReportSummary';
 import { ensureAllure } from '../shared/allureComponent';
+import { logger } from '../shared/logger';
+
+const log = logger.scope('testing');
 
 const NL = '\n';
 
@@ -378,9 +382,9 @@ export class TestCommands extends BaseCommand {
 	/**
 	 * Собирает тестовые обработки из исходников в бинарники
 	 *
-	 * Выполняет vrunner compileepf <paths.testsSrc> <paths.out>/tests:
-	 * разобранные исходники тестовых обработок (src/tests) собираются в .epf
-	 * в каталог результатов сборки (build/out/tests) — собранные артефакты
+	 * Выполняет vrunner compileepf <paths.tests>/epf <paths.out>/tests/epf:
+	 * разобранные исходники тестовых обработок (tests/epf) собираются в .epf
+	 * в каталог результатов сборки (build/out/tests/epf) — собранные артефакты
 	 * не попадают в git. vrunner кэширует сборку и пересобирает только
 	 * изменённые обработки.
 	 *
@@ -388,8 +392,12 @@ export class TestCommands extends BaseCommand {
 	 * @returns void в UI-режиме, StructuredCommandResult при wait: true
 	 */
 	async buildTestEpf(opts?: CommandExecutionOptions): Promise<StructuredCommandResult | void> {
+		const legacy = this.legacyTestsSrcMessage(opts);
+		if (legacy) {
+			return legacy === 'blocked' ? undefined : legacy;
+		}
 		const sourcesPath = this.vrunner.getTestsSrcPath();
-		const binariesPath = path.join(this.vrunner.getOutPath(), 'tests');
+		const binariesPath = path.join(this.vrunner.getOutPath(), BUILD_SUBDIRS.testsEpf);
 		const ibConnectionParam = await this.vrunner.getIbConnectionParam();
 		const buildEpfCmd = getBuildTestEpfCommandName();
 		return this.runIntent(
@@ -401,14 +409,46 @@ export class TestCommands extends BaseCommand {
 	/**
 	 * Разбирает бинарники тестовых обработок в исходники
 	 *
-	 * Выполняет vrunner decompileepf <paths.tests> <paths.testsSrc>:
-	 * .epf из каталога тестов раскладываются в исходники (src/tests) —
+	 * Выполняет vrunner decompileepf <paths.tests> <paths.tests>/epf:
+	 * .epf из каталога тестов раскладываются в исходники (tests/epf) —
 	 * удобно для первичного переноса существующих бинарных тестов под контроль версий.
 	 *
 	 * @param opts — опции выполнения; при wait: true — синхронный режим
 	 * @returns void в UI-режиме, StructuredCommandResult при wait: true
 	 */
+	/**
+	 * Сообщение о старой раскладке тестовых обработок (src/tests вместо tests/epf).
+	 *
+	 * Команда с несуществующим каталогом исходников упала бы ошибкой vrunner,
+	 * из которой причина не видна: отвечаем прямо, что переехало и что сделать.
+	 *
+	 * @param opts - Опции выполнения
+	 * @returns Результат-ошибку в режиме wait, 'blocked' после показа сообщения
+	 *          в UI, либо undefined, если раскладка в порядке
+	 */
+	private legacyTestsSrcMessage(
+		opts?: CommandExecutionOptions
+	): StructuredCommandResult | 'blocked' | undefined {
+		const cwd = this.getExecutionCwd(opts);
+		if (!cwd) {
+			return undefined;
+		}
+		const hint = legacyTestsSrcHint(cwd);
+		if (!hint) {
+			return undefined;
+		}
+		if (opts?.wait === true) {
+			return this.executionError(hint);
+		}
+		void vscode.window.showWarningMessage(hint);
+		return 'blocked';
+	}
+
 	async decompileTestEpf(opts?: CommandExecutionOptions): Promise<StructuredCommandResult | void> {
+		const legacy = this.legacyTestsSrcMessage(opts);
+		if (legacy) {
+			return legacy === 'blocked' ? undefined : legacy;
+		}
 		const sourcesPath = this.vrunner.getTestsSrcPath();
 		const binariesPath = this.vrunner.getTestsPath();
 		const ibConnectionParam = await this.vrunner.getIbConnectionParam();
@@ -420,19 +460,107 @@ export class TestCommands extends BaseCommand {
 	}
 
 	/**
+	 * Каталоги результатов, объявленные в файлах настроек проекта.
+	 *
+	 * Пути отчётов проект уже описал сам: env.json (`xunit --reportsxunit` -
+	 * оба генератора, `syntax-check --junitpath`, `--allure-results` и
+	 * `--allure-results2`), файл параметров VA из `--vanessasettings` и конфиг
+	 * YAxUnit. Обход каталогов угадывает их по именам, поэтому нестандартную
+	 * раскладку отчётов теряет.
+	 *
+	 * Каждая опция описывает либо файл отчёта, либо каталог результатов - это
+	 * известно из её смысла, а не из вида пути. Allure принимает каталоги,
+	 * поэтому у файловых опций берётся каталог файла.
+	 *
+	 * @param workspaceRoot - Корень workspace
+	 * @returns Абсолютные пути существующих каталогов результатов
+	 */
+	private async declaredResultDirs(workspaceRoot: string): Promise<string[]> {
+		const declared: Array<{ value: string; kind: 'file' | 'dir' }> = [];
+		try {
+			const { settings, schema } = await this.vrunner.readActiveSettings();
+
+			const reportsXunit = reportsXunitFromEnv(settings, schema);
+			if (reportsXunit) {
+				// оба генератора указывают на файл отчёта
+				for (const value of [
+					extractJUnitPathFromReportsXunit(reportsXunit),
+					extractAllurePathFromReportsXunit(reportsXunit)
+				]) {
+					if (value) {
+						declared.push({ value, kind: 'file' });
+					}
+				}
+			}
+
+			const syntaxJUnit = syntaxCheckJUnitPathFromEnv(settings, schema);
+			if (syntaxJUnit) {
+				declared.push({ value: syntaxJUnit, kind: 'file' });
+			}
+			for (const value of syntaxCheckAllurePathsFromEnv(settings, schema)) {
+				declared.push({ value, kind: 'dir' });
+			}
+
+			const vaSettingsRel = vanessaSettingsPathFromEnv(settings, schema);
+			if (vaSettingsRel) {
+				const vaPath = resolveConfigPath(vaSettingsRel, workspaceRoot);
+				try {
+					const raw = await fs.readFile(vaPath, 'utf8');
+					// VA задаёт каталоги выгрузки, а не файлы отчётов
+					const target = vanessaReportTarget(
+						JSON.parse(stripBom(raw)) as Record<string, unknown>,
+						workspaceRoot
+					);
+					if (target) {
+						declared.push({ value: target.path, kind: 'dir' });
+					}
+				} catch (error) {
+					log.debug(`Файл параметров VA ${vaPath} не прочитан: ${(error as Error).message}`);
+				}
+			}
+		} catch (error) {
+			log.debug(`Настройки активного профиля не прочитаны: ${(error as Error).message}`);
+		}
+
+		const yaxunitTarget = await this.resolveRunReportTarget('yaxunit');
+		if (yaxunitTarget) {
+			declared.push({ value: yaxunitTarget.path, kind: 'file' });
+		}
+
+		const dirs = new Set<string>();
+		for (const { value, kind } of declared) {
+			const dir = kind === 'file'
+				? path.dirname(resolveConfigPath(value, workspaceRoot))
+				: resolveConfigPath(value, workspaceRoot);
+			// Каталога нет — прогон в него ещё не писал; Allure на пустом источнике падает
+			try {
+				if ((await fs.stat(dir)).isDirectory()) {
+					dirs.add(dir);
+				}
+			} catch {
+				log.debug(`Каталог результатов ${dir} не существует, пропущен`);
+			}
+		}
+		return [...dirs];
+	}
+
+	/**
 	 * Получает пути к результатам тестов для Allure
 	 *
-	 * Сканирует каталог результатов сборки и возвращает все реально
-	 * существующие источники: каталоги allure, jUnit (в т.ч. yaxunit)
-	 * и Cucumber JSON — Allure 2 понимает все три формата.
+	 * Сначала берутся каталоги, объявленные в файлах настроек проекта, затем к
+	 * ним добавляется обход каталога сборки: так подхватываются и отчёты
+	 * прогонов из панели тестирования, которые в настройках не описаны.
 	 *
 	 * @param workspaceRoot - Корень workspace
 	 * @param outPath - Путь к результатам сборки (относительно workspace)
 	 * @returns Массив путей к результатам тестов (относительно workspace)
 	 */
-	private getAllureResultPaths(workspaceRoot: string, outPath: string): string[] {
-		const absoluteDirs = collectAllureResultDirs(path.join(workspaceRoot, outPath));
-		return absoluteDirs.map((dir) => path.relative(workspaceRoot, dir));
+	private async getAllureResultPaths(workspaceRoot: string, outPath: string): Promise<string[]> {
+		const absoluteDirs = new Set<string>(await this.declaredResultDirs(workspaceRoot));
+		for (const dir of collectAllureResultDirs(path.join(workspaceRoot, outPath))) {
+			absoluteDirs.add(dir);
+		}
+		return [...absoluteDirs].map((dir) => path.relative(workspaceRoot, dir));
 	}
 
 	/**
@@ -500,7 +628,7 @@ export class TestCommands extends BaseCommand {
 
 		const outPath = this.vrunner.getOutPath();
 		const commandName = getAllureReportCommandName();
-		const allureResultPaths = this.getAllureResultPaths(workspaceRoot, outPath);
+		const allureResultPaths = await this.getAllureResultPaths(workspaceRoot, outPath);
 		if (allureResultPaths.length === 0) {
 			void vscode.window.showWarningMessage(
 				`Результаты тестов не найдены в «${outPath}». ` +

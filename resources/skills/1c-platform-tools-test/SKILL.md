@@ -29,12 +29,20 @@ description: Тестирование 1С. Используй, когда пол
 | Разобрать unit тесты          | `1c-platform-tools.test.decompileEpf` |
 | Запустить EPF в Предприятии   | `1c-platform-tools.externalProcessors.run`    |
 | Настроить тестовые фреймворки | `1c-platform-tools.test.configure` |
+| Загрузить тестовые расширения | `1c-platform-tools.test.loadExtensions`  |
+| Выгрузить тестовые расширения | `1c-platform-tools.test.dumpExtensions`  |
+| Собрать тестовые расширения   | `1c-platform-tools.test.buildExtensions` |
+| Разобрать тестовые расширения | `1c-platform-tools.test.decompileExtensions` |
 
-Сборка/разборка unit тестов (тестовых обработок 1С): исходники в `src/tests` (настройка `paths.testsSrc`), собранные `.epf` — в `build/out/tests` (артефакт, в git не попадает). В `tests` — скриптовые `.os`-тесты OneScript; дымовые наборы Vanessa-ADD поставляются в пакете add (oscript_modules). Обе команды возвращают структурированный результат.
+Тестовые расширения (YAxUnit и расширение с тестами) живут в `tests/cfe`, собранные `*.cfe` — в `build/out/tests/cfe`; команды расширений решения их не трогают.
+Перед прогоном YAxUnit расширения должны быть в базе: `test.loadExtensions`. В дереве команд и они,
+и сборка/разборка unit тестов - в группе «Тестовое окружение», запуск тестов - в «Тестировании».
+
+Сборка/разборка unit тестов (тестовых обработок 1С): исходники в `tests/epf`, собранные `.epf` — в `build/out/tests/epf` (артефакт, в git не попадает). В `tests` — скриптовые `.os`-тесты OneScript; дымовые наборы Vanessa-ADD поставляются в пакете add (oscript_modules). Обе команды возвращают структурированный результат.
 
 ## Панель тестирования VS Code
 
-Тесты также отображаются в нативной панели «Тестирование» (Test Explorer): Vanessa (.feature), xUnit (тестовые обработки в src/tests), YAxUnit, OneScript (.os в tests), 1bdd — с запуском отдельных тестов и статусами. Для интерактивной работы пользователя направляй туда; команды выше — для прогона «всего сразу» и агентных циклов.
+Тесты также отображаются в нативной панели «Тестирование» (Test Explorer): Vanessa (.feature), xUnit (тестовые обработки в tests/epf), YAxUnit, OneScript (.os в tests), 1bdd — с запуском отдельных тестов и статусами. Для интерактивной работы пользователя направляй туда; команды выше — для прогона «всего сразу» и агентных циклов.
 
 ## Запуск обработок в Предприятии (externalProcessors.run)
 
@@ -55,7 +63,7 @@ description: Тестирование 1С. Используй, когда пол
 
 ## MCP (mcp-1c-platform-tools)
 
-Если доступны инструменты MCP, используй их: `test_xunit`, `test_syntaxCheck`, `test_vanessa`, `test_yaxunit`, `test_allure`, `externalProcs_run`, `test_configure`.
+Если доступны инструменты MCP, используй их: `test_xunit`, `test_syntaxCheck`, `test_vanessa`, `test_yaxunit`, `test_allure`, `externalProcs_run`, `test_configure`, а для тестовых расширений - `test_loadExts`, `test_dumpExts`, `test_buildExts`, `test_decompileExts`.
 
 ### Параметр projectPath
 

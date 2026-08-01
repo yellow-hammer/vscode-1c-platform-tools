@@ -380,6 +380,18 @@ export function registerCommands(
 		registerVRunnerCommand('1c-platform-tools.test.allure', (opts) =>
 			commands.test.generateAllureReport(opts)
 		),
+		registerVRunnerCommand('1c-platform-tools.test.loadExtensions', (opts) =>
+			commands.extensions.loadTestsFromSrc(opts)
+		),
+		registerVRunnerCommand('1c-platform-tools.test.buildExtensions', (opts) =>
+			commands.extensions.buildTests(opts)
+		),
+		registerVRunnerCommand('1c-platform-tools.test.dumpExtensions', (opts) =>
+			commands.extensions.dumpTestsToSrc(opts)
+		),
+		registerVRunnerCommand('1c-platform-tools.test.decompileExtensions', (opts) =>
+			commands.extensions.decompileTests(opts)
+		),
 		registerVRunnerCommand('1c-platform-tools.test.buildEpf', (opts) =>
 			commands.test.buildTestEpf(opts)
 		),

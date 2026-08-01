@@ -18,7 +18,7 @@ import {
 } from '../utils/commandUtils';
 import { logger } from './logger';
 import { runCancellableCommand, CancellableProcessResult } from './cancellableProcess';
-import { DEFAULT_PATHS, DEFAULT_VRUNNER, DEFAULT_ENV } from './pathDefaults';
+import { DEFAULT_PATHS, DEFAULT_VRUNNER, DEFAULT_ENV, TESTS_SUBDIRS, testsSubPath } from './pathDefaults';
 import { getOvmBinaryPath, getOvmBinDir, getOvmRootDir, getOpmBinaryCandidates, getOpmScriptPath } from './ovmPaths';
 import {
 	ACTIVE_ENV_PROFILE_KEY,
@@ -376,6 +376,23 @@ export class VRunnerManager {
 	}
 
 	/**
+	 * Получает путь к исходникам тестовых расширений
+	 *
+	 * Тестовые расширения живут рядом с тестами, а не в исходниках решения:
+	 * они не поставляются, поэтому команды группы «Расширения», дерево
+	 * метаданных и установка версии их не трогают. Собираются и подключаются
+	 * отдельными командами перед прогоном - как тестовые обработки.
+	 *
+	 * Подкаталог cfe внутри корня тестов (1c-platform-tools.paths.tests).
+	 * По умолчанию: 'tests/cfe'
+	 *
+	 * @returns Путь к исходникам тестовых расширений (относительно workspace)
+	 */
+	public getTestsCfePath(): string {
+		return testsSubPath(this.getTestsPath(), TESTS_SUBDIRS.cfe);
+	}
+
+	/**
 	 * Получает путь к исходникам расширений
 	 *
 	 * Путь берется из настроек VS Code (1c-platform-tools.paths.cfe).
@@ -391,14 +408,13 @@ export class VRunnerManager {
 	/**
 	 * Получает путь к исходникам тестовых обработок (xUnit/Vanessa-ADD)
 	 *
-	 * Путь берется из настроек VS Code (1c-platform-tools.paths.testsSrc).
-	 * По умолчанию: 'src/tests'
+	 * Подкаталог epf внутри корня тестов (1c-platform-tools.paths.tests).
+	 * По умолчанию: 'tests/epf'
 	 *
 	 * @returns Путь к исходникам тестовых обработок (относительно workspace)
 	 */
 	public getTestsSrcPath(): string {
-		const config = vscode.workspace.getConfiguration('1c-platform-tools');
-		return config.get<string>('paths.testsSrc', DEFAULT_PATHS.testsSrc);
+		return testsSubPath(this.getTestsPath(), TESTS_SUBDIRS.epf);
 	}
 
 	/**

@@ -5,6 +5,7 @@ import * as fsSync from 'node:fs';
 import { VRunnerManager } from '../../shared/vrunnerManager';
 import { logger } from '../../shared/logger';
 import { DEFAULT_TESTING } from '../../shared/pathDefaults';
+import { resolveOnescriptTestsPath } from './onescriptTestsPath';
 import type { StructuredCommandResult } from '../../shared/commandExecutionTypes';
 
 const log = logger.scope('testing');
@@ -67,7 +68,7 @@ export function registerConfigureTestingCommand(vrunner: VRunnerManager): vscode
 
 		const config = vscode.workspace.getConfiguration('1c-platform-tools');
 		const featuresPath = config.get<string>('testing.featuresPath', DEFAULT_TESTING.featuresPath);
-		const onescriptPath = config.get<string>('testing.onescriptTestsPath', DEFAULT_TESTING.onescriptTestsPath);
+		const onescriptPath = resolveOnescriptTestsPath();
 
 		const frameworks: FrameworkPick[] = [
 			{
@@ -87,8 +88,9 @@ export function registerConfigureTestingCommand(vrunner: VRunnerManager): vscode
 			{
 				key: 'yaxunit',
 				label: 'YAxUnit',
-				description: 'модули тестового расширения в каталоге расширений',
-				defaultEnabled: true
+				description: `модули тестового расширения (исходники в ${vrunner.getTestsCfePath()})`,
+				defaultEnabled: true,
+				dir: vrunner.getTestsCfePath()
 			},
 			{
 				key: 'onescript',

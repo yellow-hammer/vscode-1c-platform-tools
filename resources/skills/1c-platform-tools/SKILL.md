@@ -47,6 +47,10 @@ description: Операции с платформой 1С в этом проек
 | Собрать *.cfe из src/cfe        | `1c-platform-tools.extensions.build`               |
 | Разобрать *.cfe в src/cfe       | `1c-platform-tools.extensions.decompile`           |
 
+Тестовые расширения (YAxUnit и расширение с тестами) лежат отдельно, в `tests/cfe`
+(подкаталог корня тестов `paths.tests`), и обслуживаются своими командами: `1c-platform-tools.test.loadExtensions`,
+`test.dumpExtensions`, `test.buildExtensions`, `test.decompileExtensions`.
+
 ## Внешние обработки и отчёты
 
 | Задача                      | Command ID                                       |

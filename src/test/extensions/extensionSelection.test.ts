@@ -96,3 +96,47 @@ suite('extensionSelection', () => {
 		assert.strictEqual(getStoredExtensionSelection(undefined), undefined);
 	});
 });
+
+suite('extensionSelection: области выбора', () => {
+	test('выбор тестовых расширений не затирает выбор расширений решения', async () => {
+		const memento = new FakeMemento();
+
+		await setStoredExtensionSelection(memento, ['РасширениеРешения']);
+		await setStoredExtensionSelection(memento, ['ТестовоеРасширение'], 'tests');
+
+		assert.deepStrictEqual(getStoredExtensionSelection(memento), ['РасширениеРешения']);
+		assert.deepStrictEqual(getStoredExtensionSelection(memento, 'tests'), ['ТестовоеРасширение']);
+	});
+
+	test('настройка области отбирает свои каталоги: имена решения к тестовым не подходят', () => {
+		// в settings.json списки разные: extensions.selected - решение,
+		// testing.selectedExtensions - тестовые; пересечения между ними нет
+		const testFolders = ['yaxunit', 'yaxunit-test'];
+		assert.deepStrictEqual(
+			filterByConfiguredNames(testFolders, normalizeConfiguredExtensions(['РасширениеРешения'])),
+			[]
+		);
+		assert.deepStrictEqual(
+			filterByConfiguredNames(testFolders, normalizeConfiguredExtensions([' YAXUNIT '])),
+			['yaxunit']
+		);
+	});
+
+	test('сброс одной области не трогает другую', async () => {
+		const memento = new FakeMemento();
+		await setStoredExtensionSelection(memento, ['РасширениеРешения']);
+		await setStoredExtensionSelection(memento, ['ТестовоеРасширение'], 'tests');
+
+		await setStoredExtensionSelection(memento, undefined, 'tests');
+
+		assert.deepStrictEqual(getStoredExtensionSelection(memento), ['РасширениеРешения']);
+		assert.strictEqual(getStoredExtensionSelection(memento, 'tests'), undefined);
+	});
+
+	test('область по умолчанию - расширения решения', async () => {
+		const memento = new FakeMemento();
+		await setStoredExtensionSelection(memento, ['РасширениеРешения'], 'solution');
+
+		assert.deepStrictEqual(getStoredExtensionSelection(memento), ['РасширениеРешения']);
+	});
+});

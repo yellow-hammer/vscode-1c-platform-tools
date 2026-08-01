@@ -6,6 +6,7 @@ import { logger } from '../../../shared/logger';
 import { TestFrameworkAdapter, AdapterRunPlan, RunUnit, FileTreeLocation } from '../frameworkAdapter';
 import { DiscoveredFile } from '../parsers/parserTypes';
 import { parseBslTestModule } from '../parsers/bslTestParser';
+import { BUILD_SUBDIRS } from '../../../shared/pathDefaults';
 import {
 	extractJUnitPathFromReportsXunit,
 	reportsXunitFromEnv,
@@ -29,9 +30,9 @@ export interface EpfTestSourceInfo {
  * Адаптер модульных тестов xUnitFor1C / Vanessa-ADD
  *
  * Тесты для 1С — это внешние обработки: discovery идёт по разобранным
- * исходникам (paths.testsSrc, ObjectModule.bsl в формате decompileepf).
- * Перед прогоном обработка собирается в .epf в каталог тестов (vrunner
- * кэширует сборку), затем запускается бинарник.
+ * исходникам (<paths.tests>/epf, ObjectModule.bsl в формате decompileepf).
+ * Перед прогоном обработка собирается в .epf в каталог сборки тестовых
+ * обработок (vrunner кэширует сборку), затем запускается бинарник.
  *
  * Файлы .os в каталоге тестов — мир OneScript (1testrunner): xddTestRunner
  * в 1С подключает только внешние обработки, поэтому .os здесь не сканируются.
@@ -92,7 +93,7 @@ export class XUnitAdapter implements TestFrameworkAdapter {
 		// исходник не менялся, сборка пропускается, и запускается уже собранный
 		// ранее бинарник. Собрать вручную можно командой «Собрать unit тесты».
 		if (epfInfo) {
-			const binariesPath = path.join(this.vrunner.getOutPath(), 'tests');
+			const binariesPath = path.join(this.vrunner.getOutPath(), BUILD_SUBDIRS.testsEpf);
 			const builtEpf = path.join(binariesPath, `${epfInfo.processorName}.epf`);
 			const basePlan = await this.buildXunitPlan(builtEpf, reportDir);
 			const [buildArgs] = await this.vrunner.planIntent(
@@ -130,7 +131,7 @@ export class XUnitAdapter implements TestFrameworkAdapter {
 	 * @returns План батч-прогона либо undefined, если сборка не применима
 	 */
 	public async buildBatchRunPlan(units: RunUnit[], reportDir: string): Promise<AdapterRunPlan | undefined> {
-		const binariesPath = path.join(this.vrunner.getOutPath(), 'tests');
+		const binariesPath = path.join(this.vrunner.getOutPath(), BUILD_SUBDIRS.testsEpf);
 		const prepare: AdapterRunPlan['prepare'] = [];
 		for (const unit of units) {
 			const epfInfo = epfTestSourceInfo(unit.fileUri.fsPath);

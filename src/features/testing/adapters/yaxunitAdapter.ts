@@ -9,14 +9,17 @@ import { parseBslTestModule } from '../parsers/bslTestParser';
 import { resolveConfigPath } from '../projectTestConfig';
 import { normalizeGlobBase } from './adapterUtils';
 import { DEFAULT_PATHS, DEFAULT_TESTING } from '../../../shared/pathDefaults';
+import { resolveExtensionNameFromSrc } from '../../extensions/extensionNames';
 
 const log = logger.scope('testing');
 
 /**
  * Адаптер YAxUnit (модульные тесты в расширении конфигурации)
  *
- * Discovery: общие модули тестового расширения (paths.cfe → CommonModules → Module.bsl)
- * с регистрацией тестов через ДобавитьТест("...").
+ * Discovery: общие модули тестового расширения с регистрацией тестов через
+ * ДобавитьТест("..."). Смотрим оба корня расширений: и решения (paths.cfe), и
+ * тестовых (<paths.tests>/cfe) - расширение с тестами держат отдельно от поставки,
+ * но и внутри решения оно встречается.
  *
  * Запуск: vrunner run --command RunUnitTests=<конфиг>. За основу берётся
  * конфиг проекта (testing.yaxunitConfigPath, по умолчанию tools/yaxunit.json) —
@@ -35,10 +38,13 @@ export class YaxunitAdapter implements TestFrameworkAdapter {
 	}
 
 	public getIncludeGlobs(): string[] {
-		const config = vscode.workspace.getConfiguration('1c-platform-tools');
-		const base = normalizeGlobBase(config.get<string>('paths.cfe', DEFAULT_PATHS.cfe));
+		const roots = [this.vrunner.getCfePath(), this.vrunner.getTestsCfePath()];
 		// Формат Конфигуратора: CommonModules/<Имя>/Ext/Module.bsl
-		return [`${base}/*/CommonModules/*/Ext/Module.bsl`];
+		const globs = roots
+			.map((root) => normalizeGlobBase(root))
+			.filter((base, index, all) => base.length > 0 && all.indexOf(base) === index)
+			.map((base) => `${base}/*/CommonModules/*/Ext/Module.bsl`);
+		return globs;
 	}
 
 	public parseFile(content: string): DiscoveredFile | undefined {
@@ -90,6 +96,7 @@ export class YaxunitAdapter implements TestFrameworkAdapter {
 				? (baseConfig['filter'] as Record<string, unknown>)
 				: {};
 		const modules = [...new Set(units.map((unit) => extractModuleName(unit.fileUri.fsPath)))];
+		const extensions = await this.extensionNames(units);
 
 		const reportPathRaw =
 			typeof baseConfig['reportPath'] === 'string' && baseConfig['reportPath'].length > 0
@@ -101,7 +108,7 @@ export class YaxunitAdapter implements TestFrameworkAdapter {
 
 		const runConfig: Record<string, unknown> = {
 			...baseConfig,
-			filter: { ...baseFilter, modules, tests: null },
+			filter: { ...baseFilter, extensions, modules, tests: null },
 			reportPath: reportPathRaw,
 			reportFormat: baseConfig['reportFormat'] ?? 'jUnit',
 			closeAfterTests: baseConfig['closeAfterTests'] ?? true
@@ -134,9 +141,15 @@ export class YaxunitAdapter implements TestFrameworkAdapter {
 			baseConfig['filter'] && typeof baseConfig['filter'] === 'object'
 				? (baseConfig['filter'] as Record<string, unknown>)
 				: {};
+		const extensions = await this.extensionNames([unit]);
 		const filter = unit.caseNames && unit.caseNames.length > 0
-			? { ...baseFilter, modules: null, tests: unit.caseNames.map((name) => `${moduleName}.${name}`) }
-			: { ...baseFilter, modules: [moduleName], tests: null };
+			? {
+				...baseFilter,
+				extensions,
+				modules: null,
+				tests: unit.caseNames.map((name) => `${moduleName}.${name}`)
+			}
+			: { ...baseFilter, extensions, modules: [moduleName], tests: null };
 
 		const reportPathRaw =
 			typeof baseConfig['reportPath'] === 'string' && baseConfig['reportPath'].length > 0
@@ -175,6 +188,28 @@ export class YaxunitAdapter implements TestFrameworkAdapter {
 	}
 
 	/**
+	 * Имена расширений, которым принадлежат запускаемые модули.
+	 *
+	 * Фильтр YAxUnit отбирает тесты по имени расширения. В конфиге проекта оно
+	 * задано одним списком, а панель показывает модули из обоих корней (решения
+	 * и тестового): со списком из конфига запуск модуля из другого расширения
+	 * дал бы пустой отчёт. Имя берём из метаданных исходников - оно может не
+	 * совпадать с именем каталога.
+	 *
+	 * @param units - Файлы прогона
+	 * @returns Имена расширений без повторов
+	 */
+	private async extensionNames(units: RunUnit[]): Promise<string[]> {
+		const dirs = [...new Set(
+			units
+				.map((unit) => extensionSourceDir(unit.fileUri.fsPath))
+				.filter((dir): dir is string => dir !== undefined)
+		)];
+		const names = await Promise.all(dirs.map((dir) => resolveExtensionNameFromSrc(dir)));
+		return [...new Set(names)];
+	}
+
+	/**
 	 * Читает базовый конфиг YAxUnit проекта (tools/yaxunit.json)
 	 *
 	 * @returns Содержимое конфига или пустой объект, если файла нет
@@ -200,6 +235,15 @@ export class YaxunitAdapter implements TestFrameworkAdapter {
 /**
  * Извлекает имя общего модуля из пути .../CommonModules/<Имя>/Module.bsl
  */
+export function extensionSourceDir(fsPath: string): string | undefined {
+	const segments = fsPath.split(/[\\/]/);
+	const index = segments.lastIndexOf('CommonModules');
+	if (index < 1) {
+		return undefined;
+	}
+	return segments.slice(0, index).join(path.sep);
+}
+
 export function extractModuleName(fsPath: string): string {
 	const segments = fsPath.split(/[\\/]/);
 	const index = segments.lastIndexOf('CommonModules');

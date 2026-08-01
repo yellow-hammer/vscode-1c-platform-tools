@@ -67,7 +67,7 @@ export const SETTINGS_SECTIONS: SettingsSection[] = [
 	{
 		id: 'testing',
 		label: 'Тестирование',
-		detail: 'фреймворки, каталоги тестов, отчёты',
+		detail: 'фреймворки, каталоги тестов, тестовые расширения, отчёты',
 		icon: 'beaker',
 		prefix: '1c-platform-tools.testing',
 	},

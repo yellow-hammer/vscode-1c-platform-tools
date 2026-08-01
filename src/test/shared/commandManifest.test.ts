@@ -2,6 +2,8 @@ import * as assert from 'node:assert';
 import * as path from 'node:path';
 import * as fs from 'node:fs';
 
+import { TREE_GROUPS } from '../../features/tools/treeStructure';
+
 const EXTENSION_ROOT = path.resolve(__dirname, '../../..');
 const COMMAND_PREFIX = '1c-platform-tools.';
 
@@ -88,6 +90,32 @@ suite('манифест команд', () => {
 			.map((match) => match[1])
 			.filter((id) => !declared.has(id));
 		assert.deepStrictEqual(missing, [], `узлы дерева ссылаются на несуществующие команды: ${missing.join(', ')}`);
+	});
+
+	test('группа тестового окружения: тестовые расширения и unit тесты, порядок по действию', () => {
+		const group = TREE_GROUPS.find((item) => item.sectionType === 'testEnvironment');
+		assert.ok(group, 'группа «Тестовое окружение» пропала из дерева');
+		assert.deepStrictEqual(
+			group.commands.map((command) => command.command),
+			[
+				'1c-platform-tools.test.loadExtensions',
+				'1c-platform-tools.test.dumpExtensions',
+				'1c-platform-tools.test.buildExtensions',
+				'1c-platform-tools.test.buildEpf',
+				'1c-platform-tools.test.decompileExtensions',
+				'1c-platform-tools.test.decompileEpf',
+			],
+			'состав или порядок команд тестового окружения разошёлся с задуманным'
+		);
+	});
+
+	test('команды расширений решения не смешаны с тестовыми', () => {
+		const group = TREE_GROUPS.find((item) => item.sectionType === 'extension');
+		assert.ok(group, 'группа «Расширения» пропала из дерева');
+		const foreign = group.commands
+			.map((command) => command.command)
+			.filter((id) => !id.startsWith('1c-platform-tools.extensions.'));
+		assert.deepStrictEqual(foreign, [], `в группе расширений решения чужие команды: ${foreign.join(', ')}`);
 	});
 
 	test('меню вызывают существующие команды', () => {

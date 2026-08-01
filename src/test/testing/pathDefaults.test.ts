@@ -1,7 +1,7 @@
 import * as assert from 'node:assert';
 import * as path from 'node:path';
 import { existsSync, readFileSync } from 'node:fs';
-import { DEFAULT_PATHS, DEFAULT_TESTING, DEFAULT_VRUNNER } from '../../shared/pathDefaults';
+import { DEFAULT_PATHS, DEFAULT_TESTING, DEFAULT_VRUNNER, TESTS_SUBDIRS, testsSubPath } from '../../shared/pathDefaults';
 
 /**
  * Находит package.json расширения, поднимаясь от каталога теста вверх.
@@ -65,4 +65,26 @@ suite('pathDefaults ↔ package.json', () => {
 	check('paths', DEFAULT_PATHS);
 	check('testing', DEFAULT_TESTING);
 	check('vrunner', DEFAULT_VRUNNER);
+});
+
+suite('каталоги тестов', () => {
+	test('подкаталоги считаются от корня тестов', () => {
+		assert.strictEqual(testsSubPath('tests', TESTS_SUBDIRS.cfe), 'tests/cfe');
+		assert.strictEqual(testsSubPath('tests', TESTS_SUBDIRS.epf), 'tests/epf');
+	});
+
+	test('корень нормализуется: слэши, ведущее ./ и хвостовой разделитель', () => {
+		assert.strictEqual(testsSubPath('./проверка/тесты/', TESTS_SUBDIRS.cfe), 'проверка/тесты/cfe');
+		assert.strictEqual(testsSubPath('проверка\\тесты', TESTS_SUBDIRS.epf), 'проверка/тесты/epf');
+	});
+
+	test('пустой корень — подкаталог в корне проекта', () => {
+		assert.strictEqual(testsSubPath('', TESTS_SUBDIRS.cfe), 'cfe');
+	});
+
+	test('раскладка тестов не настраивается: отдельных настроек путей нет', () => {
+		const defaults = readConfigDefaults();
+		assert.ok(!defaults.has('1c-platform-tools.paths.testsCfe'), 'paths.testsCfe вернулась в манифест');
+		assert.ok(!defaults.has('1c-platform-tools.paths.testsSrc'), 'paths.testsSrc вернулась в манифест');
+	});
 });

@@ -8,6 +8,7 @@ import { YaxunitAdapter } from './adapters/yaxunitAdapter';
 import { OneScriptAdapter } from './adapters/onescriptAdapter';
 import { OneBddAdapter } from './adapters/onebddAdapter';
 import { registerConfigureTestingCommand } from './configureTestingCommand';
+import { warnOnLegacyTestsSrc } from './legacyTestsSrc';
 
 /**
  * Регистрирует интеграцию тестов 1С с панелью тестирования VS Code
@@ -50,11 +51,23 @@ export function registerTestingFeature(params: {
 
 	const controller = new TestingController(adapters, vrunner, params.isProjectRef);
 
+	// Проекту со старой раскладкой (src/tests) говорим об этом один раз: иначе
+	// ветка xUnit просто не появится в панели и причина будет неочевидна
+	const workspaceRoot = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+	if (params.isProjectRef.current && workspaceRoot) {
+		warnOnLegacyTestsSrc(workspaceRoot);
+	}
+
 	// Чистим устаревшие каталоги отчётов прошлых сессий и строим дерево
 	void controller.cleanupAllReports().then(() => controller.scheduleRebuild());
 
 	const onConfigChange = vscode.workspace.onDidChangeConfiguration((event) => {
-		if (event.affectsConfiguration('1c-platform-tools.testing')) {
+		// paths.* тоже меняет состав дерева: корни поиска тестов берутся из
+		// paths.tests (и подкаталогов в нём) и paths.cfe
+		if (
+			event.affectsConfiguration('1c-platform-tools.testing') ||
+			event.affectsConfiguration('1c-platform-tools.paths')
+		) {
 			controller.scheduleRebuild();
 		}
 	});
