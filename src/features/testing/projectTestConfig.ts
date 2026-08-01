@@ -106,6 +106,30 @@ export function extractJUnitPathFromReportsXunit(reportsXunit: string): string |
 }
 
 /**
+ * Извлекает путь Allure-результатов из значения --reportsxunit
+ *
+ * Тот же синтаксис, что у jUnit-генератора:
+ * - `ГенераторОтчетаAllureXMLВерсия2{build/out/allure/allure.xml}`
+ * - `allure{...}` или `allure:путь`
+ *
+ * @param reportsXunit - Значение параметра --reportsxunit из env.json
+ * @returns Путь к Allure-результатам (как записан в конфиге) или undefined
+ */
+export function extractAllurePathFromReportsXunit(reportsXunit: string): string | undefined {
+	for (const part of reportsXunit.split(';')) {
+		const braceMatch = /(?:ГенераторОтчетаAllureXML[^\s{]*|allure)\s*\{([^}]+)\}/i.exec(part);
+		if (braceMatch) {
+			return braceMatch[1].trim();
+		}
+		const shortMatch = /^\s*allure\s*:\s*(.+)$/i.exec(part);
+		if (shortMatch) {
+			return shortMatch[1].trim();
+		}
+	}
+	return undefined;
+}
+
+/**
  * Определяет цель отчёта Vanessa Automation по содержимому VAParams.json
  *
  * Приоритет: jUnit (если включён и задан каталог) → Cucumber JSON.
@@ -238,6 +262,30 @@ export function syntaxCheckJUnitPathFromEnv(
 ): string | undefined {
 	const value = settingValue(settings, schema, 'syntax-check', 'junitpath');
 	return typeof value === 'string' && value.length > 0 ? value : undefined;
+}
+
+/**
+ * Каталоги Allure-результатов синтаксического контроля из env.json
+ *
+ * У проверки две разные опции, и заданы они могут быть обе:
+ * `--allure-results` (Allure, xml) и `--allure-results2` (Allure2, json).
+ *
+ * @param settings - Разобранные настройки активного профиля
+ * @param schema - Схема файла настроек (2.x или 3.x)
+ * @returns Пути как записаны в конфиге
+ */
+export function syntaxCheckAllurePathsFromEnv(
+	settings: Record<string, unknown>,
+	schema: SettingsSchema = 'v2'
+): string[] {
+	const paths: string[] = [];
+	for (const option of ['allure-results', 'allure-results2']) {
+		const value = settingValue(settings, schema, 'syntax-check', option);
+		if (typeof value === 'string' && value.length > 0) {
+			paths.push(value);
+		}
+	}
+	return paths;
 }
 
 /**

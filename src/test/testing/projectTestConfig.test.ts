@@ -3,6 +3,8 @@ import * as path from 'node:path';
 import {
 	resolveConfigPath,
 	extractJUnitPathFromReportsXunit,
+	extractAllurePathFromReportsXunit,
+	syntaxCheckAllurePathsFromEnv,
 	vanessaReportTarget,
 	vanessaSettingsPathFromEnv,
 	reportsXunitFromEnv,
@@ -34,6 +36,44 @@ suite('projectTestConfig', () => {
 		const value =
 			'ГенераторОтчетаJUnitXML{build/out/smoke/junit/junit.xml};ГенераторОтчетаAllureXMLВерсия2{build/out/smoke/allure/allure.xml}';
 		assert.strictEqual(extractJUnitPathFromReportsXunit(value), 'build/out/smoke/junit/junit.xml');
+	});
+
+	test('extractAllurePathFromReportsXunit: Allure-генератор из того же значения', () => {
+		// каталоги результатов для Allure берём из конфига проекта, а не по именам папок
+		const v2 =
+			'ГенераторОтчетаJUnitXML{build/out/smoke/junit/junit.xml};ГенераторОтчетаAllureXMLВерсия2{build/out/smoke/allure/allure.xml}';
+		assert.strictEqual(extractAllurePathFromReportsXunit(v2), 'build/out/smoke/allure/allure.xml');
+		assert.strictEqual(
+			extractAllurePathFromReportsXunit('jUnit{a/junit.xml};allure{b/allure.xml}'),
+			'b/allure.xml'
+		);
+		assert.strictEqual(
+			extractAllurePathFromReportsXunit('allure:build/out/allure'),
+			'build/out/allure'
+		);
+		assert.strictEqual(extractAllurePathFromReportsXunit('jUnit{a/junit.xml}'), undefined);
+	});
+
+	test('syntaxCheckAllurePathsFromEnv: обе опции синтаксконтроля, xml и json', () => {
+		// --allure-results (xml) и --allure-results2 (json) — разные каталоги,
+		// заданы могут быть оба, поэтому берём все
+		assert.deepStrictEqual(
+			syntaxCheckAllurePathsFromEnv({
+				'syntax-check': {
+					'--allure-results': 'build/out/syntax-check/allure-xml',
+					'--allure-results2': 'build/out/syntax-check/allure'
+				}
+			}),
+			['build/out/syntax-check/allure-xml', 'build/out/syntax-check/allure']
+		);
+		assert.deepStrictEqual(
+			syntaxCheckAllurePathsFromEnv(
+				{ vrunner: { validate: { 'syntax-check': { 'allure-results2': 'build/out/allure' } } } },
+				'v3'
+			),
+			['build/out/allure']
+		);
+		assert.deepStrictEqual(syntaxCheckAllurePathsFromEnv({ 'syntax-check': {} }), []);
 	});
 
 	test('extractJUnitPathFromReportsXunit: синтаксис vanessa-runner 3', () => {
