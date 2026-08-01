@@ -1,6 +1,8 @@
 import * as assert from 'node:assert';
 import * as path from 'node:path';
-import { epfTestSourceInfo } from '../../features/testing/adapters/xunitAdapter';
+import { epfTestSourceInfo, XUnitAdapter } from '../../features/testing/adapters/xunitAdapter';
+import { VRunnerManager } from '../../shared/vrunnerManager';
+import { DEFAULT_PATHS, TESTS_SUBDIRS, testsSubPath } from '../../shared/pathDefaults';
 
 suite('xunitAdapter', () => {
 	test('epfTestSourceInfo: стандартная структура decompileepf', () => {
@@ -17,7 +19,7 @@ suite('xunitAdapter', () => {
 
 	test('epfTestSourceInfo: обработка в подкаталоге-группе', () => {
 		const info = epfTestSourceInfo(
-			'C:/proj/src/tests/Core/Тест_Плагины/Тест_Плагины/Ext/ObjectModule.bsl'
+			'C:/proj/tests/epf/Core/Тест_Плагины/Тест_Плагины/Ext/ObjectModule.bsl'
 		);
 		assert.ok(info);
 		assert.strictEqual(info.processorName, 'Тест_Плагины');
@@ -25,16 +27,29 @@ suite('xunitAdapter', () => {
 	});
 
 	test('epfTestSourceInfo: без дублирующего каталога — берётся внутренний', () => {
-		const info = epfTestSourceInfo('C:/proj/src/tests/Тест_Один/Ext/ObjectModule.bsl');
+		const info = epfTestSourceInfo('C:/proj/tests/epf/Тест_Один/Ext/ObjectModule.bsl');
 		assert.ok(info);
 		assert.strictEqual(info.processorName, 'Тест_Один');
 		assert.ok(info.processorDir.endsWith('Тест_Один'));
 	});
 
+	test('поиск обработок идёт по корню тестов, а не по старому src/tests', () => {
+		const adapter = new XUnitAdapter(VRunnerManager.getInstance());
+
+		const globs = adapter.getIncludeGlobs();
+
+		// исходники тестовых обработок переехали в tests/epf: панель ищет их там же,
+		// куда смотрят команды сборки, иначе ветка xUnit опустеет
+		const expected = testsSubPath(DEFAULT_PATHS.tests, TESTS_SUBDIRS.epf);
+		assert.strictEqual(expected, 'tests/epf');
+		assert.deepStrictEqual(globs, [`${expected}/**/Ext/ObjectModule.bsl`]);
+		assert.ok(!globs.some((glob) => glob.startsWith('src/tests')), globs.join(', '));
+	});
+
 	test('epfTestSourceInfo: не ObjectModule.bsl — undefined', () => {
 		assert.strictEqual(epfTestSourceInfo('C:/proj/tests/Тест.os'), undefined);
 		assert.strictEqual(
-			epfTestSourceInfo('C:/proj/src/tests/Тест/Forms/Форма/Ext/Form/Module.bsl'),
+			epfTestSourceInfo('C:/proj/tests/epf/Тест/Forms/Форма/Ext/Form/Module.bsl'),
 			undefined
 		);
 		assert.strictEqual(epfTestSourceInfo('C:/proj/ObjectModule.bsl'), undefined);

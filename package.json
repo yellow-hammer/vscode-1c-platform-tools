@@ -1366,6 +1366,30 @@
         "category": "1C: Тестирование"
       },
       {
+        "command": "1c-platform-tools.test.loadExtensions",
+        "title": "Загрузить тестовые расширения",
+        "icon": "$(cloud-upload)",
+        "category": "1C: Тестирование"
+      },
+      {
+        "command": "1c-platform-tools.test.buildExtensions",
+        "title": "Собрать тестовые расширения",
+        "icon": "$(tools)",
+        "category": "1C: Тестирование"
+      },
+      {
+        "command": "1c-platform-tools.test.dumpExtensions",
+        "title": "Выгрузить тестовые расширения",
+        "icon": "$(repo-pull)",
+        "category": "1C: Тестирование"
+      },
+      {
+        "command": "1c-platform-tools.test.decompileExtensions",
+        "title": "Разобрать тестовые расширения",
+        "icon": "$(file-binary)",
+        "category": "1C: Тестирование"
+      },
+      {
         "command": "1c-platform-tools.test.buildEpf",
         "title": "Собрать unit-тесты",
         "category": "1C: Тестирование"
@@ -2981,15 +3005,10 @@
             "default": "src/erf",
             "description": "Путь к исходному коду внешних отчетов"
           },
-          "1c-platform-tools.paths.testsSrc": {
-            "type": "string",
-            "default": "src/tests",
-            "description": "Путь к исходному коду тестовых обработок (xUnit/Vanessa-ADD, формат decompileepf). Собранные .epf выкладываются в build/out/tests командой «Собрать unit тесты»."
-          },
           "1c-platform-tools.paths.tests": {
             "type": "string",
             "default": "tests",
-            "description": "Путь к каталогу скриптовых тестов OneScript (*.os). Бинарники тестов здесь не хранятся: дымовые наборы Vanessa-ADD поставляются в пакете add (oscript_modules), собственные обработки собираются из paths.testsSrc в build/out/tests."
+            "markdownDescription": "Корневой каталог тестов. Раскладка внутри фиксированная: `*.os` в корне, исходники тестовых расширений в `cfe`, исходники тестовых обработок в `epf`. Бинарники тестов здесь не хранятся: дымовые наборы Vanessa-ADD поставляются в пакете add (oscript_modules), собранное уходит в `build/out/tests`."
           },
           "1c-platform-tools.allure.path": {
             "type": "string",
@@ -3309,7 +3328,16 @@
           "1c-platform-tools.testing.onescriptTestsPath": {
             "type": "string",
             "default": "tests",
-            "description": "Каталог тестов OneScript (1testrunner/OneUnit), относительно корня проекта."
+            "markdownDescription": "Каталог тестов OneScript (1testrunner/OneUnit), относительно корня проекта.",
+            "markdownDeprecationMessage": "Каталог тестов задаётся в `#1c-platform-tools.paths.tests#`. Заданное здесь значение пока используется, о чём пишется в журнал."
+          },
+          "1c-platform-tools.testing.selectedExtensions": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "default": [],
+            "markdownDescription": "Список тестовых расширений (имена каталогов в `tests/cfe`), с которыми работают команды тестовых расширений. Если список задан — команды используют его без интерактивного выбора. Если пуст — при запуске команды показывается окно выбора с чекбоксами, а выбор запоминается для проекта. Расширения решения перечисляет `#1c-platform-tools.extensions.selected#`."
           },
           "1c-platform-tools.testing.exclude": {
             "type": "array",
@@ -3340,7 +3368,7 @@
           "1c-platform-tools.testing.frameworks.xunit": {
             "type": "boolean",
             "default": true,
-            "description": "Показывать в панели тестирования тестовые обработки xUnit/Vanessa-ADD (исходники в paths.testsSrc; перед прогоном собираются в .epf). Активен только при наличии исходников конфигурации (paths.cf) — тесты выполняются в информационной базе."
+            "description": "Показывать в панели тестирования тестовые обработки xUnit/Vanessa-ADD (исходники в tests/epf; перед прогоном собираются в .epf). Активен только при наличии исходников конфигурации (paths.cf) — тесты выполняются в информационной базе."
           },
           "1c-platform-tools.testing.frameworks.yaxunit": {
             "type": "boolean",

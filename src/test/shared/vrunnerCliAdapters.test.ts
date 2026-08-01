@@ -263,9 +263,9 @@ suite('vrunnerCli: адаптеры v2/v3', () => {
 
 	test('test.xunit с путём: в v3 путь после опций', () => {
 		check(
-			{ kind: 'test.xunit', testsPath: 'build/out/tests/Тест.epf', common: ['--settings', 'env.json'] },
-			[['xunit', 'build/out/tests/Тест.epf', '--settings', 'env.json']],
-			[['test', 'xunit', '--settings', 'env.json', 'build/out/tests/Тест.epf']]
+			{ kind: 'test.xunit', testsPath: 'build/out/tests/epf/Тест.epf', common: ['--settings', 'env.json'] },
+			[['xunit', 'build/out/tests/epf/Тест.epf', '--settings', 'env.json']],
+			[['test', 'xunit', '--settings', 'env.json', 'build/out/tests/epf/Тест.epf']]
 		);
 	});
 

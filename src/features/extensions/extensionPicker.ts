@@ -4,12 +4,13 @@ import {
 	setStoredExtensionSelection,
 	filterExtensionsBySelection,
 	normalizeConfiguredExtensions,
-	filterByConfiguredNames
+	filterByConfiguredNames,
+	ExtensionScope
 } from './extensionSelection';
 
 /** Элемент quickpick для выбора расширения. */
 interface ExtensionPickItem extends vscode.QuickPickItem {
-	/** Имя расширения (каталог в src/cfe) */
+	/** Имя расширения (каталог в src/cfe или tests/cfe) */
 	name: string;
 }
 
@@ -19,8 +20,9 @@ interface ExtensionPickItem extends vscode.QuickPickItem {
  * Приоритет источников выбора:
  * 1. Явный список в опциях вызова (агент, MCP) — используется без окна выбора
  *    и не меняет сохранённый выбор проекта.
- * 2. Настройка `1c-platform-tools.extensions.selected` (settings.json) — если
- *    задана, используется без окна выбора.
+ * 2. Настройка области в settings.json (`1c-platform-tools.extensions.selected`
+ *    для расширений решения, `1c-platform-tools.testing.selectedExtensions` для
+ *    тестовых) — если задана, используется без окна выбора.
  * 3. Режим wait (MCP) — применяется сохранённый выбор (или все).
  * 4. Иначе — quickpick с чекбоксами: изначально отмечены все (либо ранее
  *    сохранённое подмножество). Выбор сохраняется в workspaceState (локально,
@@ -35,19 +37,25 @@ interface ExtensionPickItem extends vscode.QuickPickItem {
 export async function pickExtensions(
 	allNames: string[],
 	memento: vscode.Memento | undefined,
-	opts?: { wait?: boolean; extensions?: string[] }
+	opts?: { wait?: boolean; extensions?: string[] },
+	scope: ExtensionScope = 'solution'
 ): Promise<string[] | undefined> {
 	if (Array.isArray(opts?.extensions) && opts.extensions.length > 0) {
 		return filterByConfiguredNames(allNames, normalizeConfiguredExtensions(opts.extensions));
 	}
 
+	// У каждой области свой список в настройках: extensions.selected перечисляет
+	// расширения решения, testing.selectedExtensions - тестовые. Заданный список
+	// работает без окна выбора, поэтому команду можно закрепить в проекте файлом.
 	const config = vscode.workspace.getConfiguration('1c-platform-tools');
-	const configured = normalizeConfiguredExtensions(config.get('extensions.selected'));
+	const configured = normalizeConfiguredExtensions(
+		config.get(scope === 'tests' ? 'testing.selectedExtensions' : 'extensions.selected')
+	);
 	if (configured.length > 0) {
 		return filterByConfiguredNames(allNames, configured);
 	}
 
-	const stored = getStoredExtensionSelection(memento);
+	const stored = getStoredExtensionSelection(memento, scope);
 
 	// Агентный вызов (объект опций передан) не открывает quickpick независимо
 	// от wait: применяется сохранённый выбор проекта (или все расширения)
@@ -59,7 +67,7 @@ export async function pickExtensions(
 	const items: ExtensionPickItem[] = allNames.map((name) => ({ label: name, name, picked: isChecked(name) }));
 	const picked = await vscode.window.showQuickPick(items, {
 		canPickMany: true,
-		title: 'Расширения',
+		title: scope === 'tests' ? 'Тестовые расширения' : 'Расширения',
 		placeHolder: 'Отметьте расширения, с которыми выполнить команду'
 	});
 	if (!picked) {
@@ -69,7 +77,8 @@ export async function pickExtensions(
 	const pickedNames = picked.map((item) => item.name);
 	await setStoredExtensionSelection(
 		memento,
-		pickedNames.length === allNames.length ? undefined : pickedNames
+		pickedNames.length === allNames.length ? undefined : pickedNames,
+		scope
 	);
 	return pickedNames;
 }

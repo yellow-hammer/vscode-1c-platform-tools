@@ -755,6 +755,50 @@ export function getCheckSessionsClosedCommandName(): CommandNameAndTitle {
 }
 
 /**
+ * Получить название и заголовок для команды загрузки тестовых расширений
+ */
+export function getLoadTestExtensionsCommandName(): CommandNameAndTitle {
+	return {
+		id: '1c-platform-tools.test.loadExtensions',
+		name: 'Загрузить тестовые расширения',
+		title: 'Загрузить тестовые расширения'
+	};
+}
+
+/**
+ * Получить название и заголовок для команды сборки тестовых расширений
+ */
+export function getBuildTestExtensionsCommandName(): CommandNameAndTitle {
+	return {
+		id: '1c-platform-tools.test.buildExtensions',
+		name: 'Собрать тестовые расширения',
+		title: 'Собрать тестовые расширения'
+	};
+}
+
+/**
+ * Получить название и заголовок для команды выгрузки тестовых расширений
+ */
+export function getDumpTestExtensionsCommandName(): CommandNameAndTitle {
+	return {
+		id: '1c-platform-tools.test.dumpExtensions',
+		name: 'Выгрузить тестовые расширения',
+		title: 'Выгрузить тестовые расширения'
+	};
+}
+
+/**
+ * Получить название и заголовок для команды разборки тестовых расширений
+ */
+export function getDecompileTestExtensionsCommandName(): CommandNameAndTitle {
+	return {
+		id: '1c-platform-tools.test.decompileExtensions',
+		name: 'Разобрать тестовые расширения',
+		title: 'Разобрать тестовые расширения'
+	};
+}
+
+/**
  * Получить название и заголовок для команды списка сеансов
  */
 export function getListSessionsCommandName(): CommandNameAndTitle {

@@ -1,11 +1,12 @@
 import type * as vscode from 'vscode';
 
 /**
- * Выбор расширений проекта, с которыми работают команды группы «Расширения».
+ * Выбор расширений проекта, с которыми работают команды расширений: своя запись
+ * у расширений решения (src/cfe) и своя у тестовых (tests/cfe).
  *
  * Хранится локально в workspaceState (не коммитится). Значение:
  *  - `undefined` — выбор не задан: команды работают со всеми расширениями
- *    из src/cfe (включая добавленные позже);
+ *    своего каталога (включая добавленные позже);
  *  - `string[]` — явно выбранное подмножество имён каталогов. Команды работают
  *    только с этими расширениями; новые каталоги в подмножество не попадают.
  *
@@ -17,13 +18,28 @@ import type * as vscode from 'vscode';
 const EXTENSION_SELECTION_KEY = '1c-platform-tools.extensions.selection';
 
 /**
+ * Область выбора: расширения решения и тестовые лежат в разных каталогах, и
+ * имена у них разные. Общий выбор на две области означал бы, что выбор тестовых
+ * расширений затирает выбор рабочих и наоборот.
+ */
+export type ExtensionScope = 'solution' | 'tests';
+
+/** Ключ хранения по области выбора. */
+function selectionKey(scope: ExtensionScope): string {
+	return scope === 'tests' ? `${EXTENSION_SELECTION_KEY}.tests` : EXTENSION_SELECTION_KEY;
+}
+
+/**
  * Возвращает сохранённый выбор расширений.
  *
  * @param memento - workspaceState (undefined вне контекста VS Code)
  * @returns Массив имён каталогов или undefined, если выбор не задан
  */
-export function getStoredExtensionSelection(memento: vscode.Memento | undefined): string[] | undefined {
-	const stored = memento?.get<string[]>(EXTENSION_SELECTION_KEY);
+export function getStoredExtensionSelection(
+	memento: vscode.Memento | undefined,
+	scope: ExtensionScope = 'solution'
+): string[] | undefined {
+	const stored = memento?.get<string[]>(selectionKey(scope));
 	if (Array.isArray(stored)) {
 		return stored;
 	}
@@ -39,9 +55,10 @@ export function getStoredExtensionSelection(memento: vscode.Memento | undefined)
  */
 export async function setStoredExtensionSelection(
 	memento: vscode.Memento | undefined,
-	selection: string[] | undefined
+	selection: string[] | undefined,
+	scope: ExtensionScope = 'solution'
 ): Promise<void> {
-	await memento?.update(EXTENSION_SELECTION_KEY, selection);
+	await memento?.update(selectionKey(scope), selection);
 }
 
 /**
@@ -49,7 +66,7 @@ export async function setStoredExtensionSelection(
  *
  * Порядок исходного списка сохраняется.
  *
- * @param available - Доступные каталоги расширений (src/cfe)
+ * @param available - Доступные каталоги расширений (src/cfe или tests/cfe)
  * @param selection - Сохранённый выбор (undefined — без фильтра)
  * @returns Отфильтрованный список
  */
@@ -86,7 +103,7 @@ export function normalizeConfiguredExtensions(raw: unknown): string[] {
  * Сравнение имён без учёта регистра (каталоги на Windows регистронезависимы).
  * Порядок исходного списка сохраняется.
  *
- * @param available - Доступные каталоги расширений (src/cfe)
+ * @param available - Доступные каталоги расширений (src/cfe или tests/cfe)
  * @param configured - Имена из настройки extensions.selected
  * @returns Отфильтрованный список
  */

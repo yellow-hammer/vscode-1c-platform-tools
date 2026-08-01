@@ -145,7 +145,7 @@ suite('vrunnerPlanner', () => {
 
 	test('несколько намерений дают несколько команд', () => {
 		const { steps } = planIntents(
-			[{ kind: 'test.vanessa' }, { kind: 'test.xunit', testsPath: 'src/tests' }],
+			[{ kind: 'test.vanessa' }, { kind: 'test.xunit', testsPath: 'tests/epf' }],
 			{ version: V2, overrideArgs: [], settingsFormat: formatByName }
 		);
 		assert.strictEqual(steps.length, 2);

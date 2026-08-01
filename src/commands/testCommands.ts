@@ -13,12 +13,14 @@ import {
 } from '../features/tools/commandNames';
 import { collectAllureResultDirs } from '../utils/allureResults';
 import type { CommandExecutionOptions, StructuredCommandResult, SyntaxCheckError } from '../shared/commandExecutionTypes';
-import { DEFAULT_TESTING, DEFAULT_PATHS } from '../shared/pathDefaults';
+import { DEFAULT_TESTING, DEFAULT_PATHS, BUILD_SUBDIRS } from '../shared/pathDefaults';
+import { legacyTestsSrcHint } from '../features/testing/legacyTestsSrc';
 import * as fs from 'node:fs/promises';
 import { settingValue, resolveConfigPath, reportsXunitFromEnv, extractJUnitPathFromReportsXunit, vanessaReportTarget, syntaxCheckJUnitPathFromEnv } from '../features/testing/projectTestConfig';
 import { parseSyntaxCheckFindings, toSyntaxCheckErrors, SyntaxCheckFinding } from '../features/diagnostics/syntaxCheckJUnit';
 import { readRunSummary, formatRunSummary, RunReportFormat } from '../features/testing/runReportSummary';
 import { ensureAllure } from '../shared/allureComponent';
+
 
 const NL = '\n';
 
@@ -378,9 +380,9 @@ export class TestCommands extends BaseCommand {
 	/**
 	 * Собирает тестовые обработки из исходников в бинарники
 	 *
-	 * Выполняет vrunner compileepf <paths.testsSrc> <paths.out>/tests:
-	 * разобранные исходники тестовых обработок (src/tests) собираются в .epf
-	 * в каталог результатов сборки (build/out/tests) — собранные артефакты
+	 * Выполняет vrunner compileepf <paths.tests>/epf <paths.out>/tests/epf:
+	 * разобранные исходники тестовых обработок (tests/epf) собираются в .epf
+	 * в каталог результатов сборки (build/out/tests/epf) — собранные артефакты
 	 * не попадают в git. vrunner кэширует сборку и пересобирает только
 	 * изменённые обработки.
 	 *
@@ -388,8 +390,12 @@ export class TestCommands extends BaseCommand {
 	 * @returns void в UI-режиме, StructuredCommandResult при wait: true
 	 */
 	async buildTestEpf(opts?: CommandExecutionOptions): Promise<StructuredCommandResult | void> {
+		const legacy = this.legacyTestsSrcMessage(opts);
+		if (legacy) {
+			return legacy === 'blocked' ? undefined : legacy;
+		}
 		const sourcesPath = this.vrunner.getTestsSrcPath();
-		const binariesPath = path.join(this.vrunner.getOutPath(), 'tests');
+		const binariesPath = path.join(this.vrunner.getOutPath(), BUILD_SUBDIRS.testsEpf);
 		const ibConnectionParam = await this.vrunner.getIbConnectionParam();
 		const buildEpfCmd = getBuildTestEpfCommandName();
 		return this.runIntent(
@@ -401,14 +407,46 @@ export class TestCommands extends BaseCommand {
 	/**
 	 * Разбирает бинарники тестовых обработок в исходники
 	 *
-	 * Выполняет vrunner decompileepf <paths.tests> <paths.testsSrc>:
-	 * .epf из каталога тестов раскладываются в исходники (src/tests) —
+	 * Выполняет vrunner decompileepf <paths.tests> <paths.tests>/epf:
+	 * .epf из каталога тестов раскладываются в исходники (tests/epf) —
 	 * удобно для первичного переноса существующих бинарных тестов под контроль версий.
 	 *
 	 * @param opts — опции выполнения; при wait: true — синхронный режим
 	 * @returns void в UI-режиме, StructuredCommandResult при wait: true
 	 */
+	/**
+	 * Сообщение о старой раскладке тестовых обработок (src/tests вместо tests/epf).
+	 *
+	 * Команда с несуществующим каталогом исходников упала бы ошибкой vrunner,
+	 * из которой причина не видна: отвечаем прямо, что переехало и что сделать.
+	 *
+	 * @param opts - Опции выполнения
+	 * @returns Результат-ошибку в режиме wait, 'blocked' после показа сообщения
+	 *          в UI, либо undefined, если раскладка в порядке
+	 */
+	private legacyTestsSrcMessage(
+		opts?: CommandExecutionOptions
+	): StructuredCommandResult | 'blocked' | undefined {
+		const cwd = this.getExecutionCwd(opts);
+		if (!cwd) {
+			return undefined;
+		}
+		const hint = legacyTestsSrcHint(cwd);
+		if (!hint) {
+			return undefined;
+		}
+		if (opts?.wait === true) {
+			return this.executionError(hint);
+		}
+		void vscode.window.showWarningMessage(hint);
+		return 'blocked';
+	}
+
 	async decompileTestEpf(opts?: CommandExecutionOptions): Promise<StructuredCommandResult | void> {
+		const legacy = this.legacyTestsSrcMessage(opts);
+		if (legacy) {
+			return legacy === 'blocked' ? undefined : legacy;
+		}
 		const sourcesPath = this.vrunner.getTestsSrcPath();
 		const binariesPath = this.vrunner.getTestsPath();
 		const ibConnectionParam = await this.vrunner.getIbConnectionParam();

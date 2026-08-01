@@ -7,6 +7,7 @@ import * as path from 'node:path';
 import * as vscode from 'vscode';
 import { BaseCommand } from './baseCommand';
 import { resolveExtensionNameFromSrc } from '../features/extensions/extensionNames';
+import { BUILD_SUBDIRS } from '../shared/pathDefaults';
 
 function getRelativePath(uri: vscode.Uri): string {
 	const folders = vscode.workspace.workspaceFolders;
@@ -20,6 +21,23 @@ function getRelativePath(uri: vscode.Uri): string {
  * Команды для артефактов (точечная сборка/разборка, запуск тестов)
  */
 export class ArtifactCommands extends BaseCommand {
+
+	/**
+	 * Относится ли артефакт к тестовым расширениям: исходники в `<paths.tests>/cfe`,
+	 * собранные `*.cfe` - в своём каталоге сборки. От этого зависят каталоги по
+	 * умолчанию: иначе кнопка увела бы тестовое расширение к расширениям решения.
+	 *
+	 * @param artifactUri - Файл или каталог артефакта
+	 * @returns true, если артефакт лежит в каталогах тестовых расширений
+	 */
+	private isTestsScopeArtifact(artifactUri: vscode.Uri): boolean {
+		const rel = getRelativePath(artifactUri);
+		const roots = [
+			this.vrunner.getTestsCfePath(),
+			path.join(this.vrunner.getOutPath(), BUILD_SUBDIRS.testsCfe),
+		].map((root) => root.replaceAll('\\', '/').replace(/^\.?\//, ''));
+		return roots.some((root) => rel === root || rel.startsWith(`${root}/`));
+	}
 
 	private async pickOutputPath(
 		defaultPath: string,
@@ -154,7 +172,10 @@ export class ArtifactCommands extends BaseCommand {
 		if (!(await this.vrunner.ensureProfileSettingsFile(true))) {
 			return;
 		}
-		const defaultPath = path.join(this.vrunner.getOutPath(), 'cfe');
+		const defaultPath = path.join(
+			this.vrunner.getOutPath(),
+			this.isTestsScopeArtifact(artifactUri) ? BUILD_SUBDIRS.testsCfe : BUILD_SUBDIRS.cfe
+		);
 		const outPath = await this.pickOutputPath(defaultPath, 'Каталог для сборки расширения');
 		if (!outPath) {
 			return;
@@ -190,8 +211,10 @@ export class ArtifactCommands extends BaseCommand {
 		if (!(await this.vrunner.ensureProfileSettingsFile(true))) {
 			return;
 		}
-		const defaultPath = this.vrunner.getCfePath();
-		const outDir = await this.pickOutputPath(defaultPath, 'Каталог для разборки расширения');
+		const sourcesRoot = this.isTestsScopeArtifact(artifactUri)
+			? this.vrunner.getTestsCfePath()
+			: this.vrunner.getCfePath();
+		const outDir = await this.pickOutputPath(sourcesRoot, 'Каталог для разборки расширения');
 		if (!outDir) {
 			return;
 		}
@@ -200,7 +223,7 @@ export class ArtifactCommands extends BaseCommand {
 		// Файл .cfe собирается из каталога с тем же именем; имя расширения внутри
 		// может отличаться от имени файла — берём его из метаданных исходников
 		const extensionName = await resolveExtensionNameFromSrc(
-			path.join(workspaceRoot, this.vrunner.getCfePath(), folderName)
+			path.join(workspaceRoot, sourcesRoot, folderName)
 		);
 		const cfeRel = getRelativePath(artifactUri);
 		const targetDir = this.pathForCmd(path.join(outDir, folderName));
@@ -228,7 +251,7 @@ export class ArtifactCommands extends BaseCommand {
 		if (!(await this.vrunner.ensureProfileSettingsFile(true))) {
 			return;
 		}
-		const defaultPath = path.join(this.vrunner.getOutPath(), 'epf');
+		const defaultPath = path.join(this.vrunner.getOutPath(), BUILD_SUBDIRS.epf);
 		const outDir = await this.pickOutputPath(defaultPath, 'Каталог для сборки обработки');
 		if (!outDir) {
 			return;
@@ -280,7 +303,7 @@ export class ArtifactCommands extends BaseCommand {
 		if (!(await this.vrunner.ensureProfileSettingsFile(true))) {
 			return;
 		}
-		const defaultPath = path.join(this.vrunner.getOutPath(), 'erf');
+		const defaultPath = path.join(this.vrunner.getOutPath(), BUILD_SUBDIRS.erf);
 		const outDir = await this.pickOutputPath(defaultPath, 'Каталог для сборки отчёта');
 		if (!outDir) {
 			return;

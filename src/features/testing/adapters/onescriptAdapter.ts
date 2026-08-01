@@ -9,6 +9,7 @@ import { parseBslTestModule } from '../parsers/bslTestParser';
 import { resolveConfigPath } from '../projectTestConfig';
 import { normalizeGlobBase, directorySegments } from './adapterUtils';
 import { DEFAULT_TESTING } from '../../../shared/pathDefaults';
+import { resolveOnescriptTestsPath } from '../onescriptTestsPath';
 
 /** Раннер тестов OneScript */
 type OneScriptRunner = '1testrunner' | 'oneunit';
@@ -47,14 +48,13 @@ export class OneScriptAdapter implements TestFrameworkAdapter {
 
 	public isEnabled(): boolean {
 		// Конфликта с xUnit нет: .os-файлы — всегда OneScript,
-		// тесты xUnit для 1С — внешние обработки (исходники в paths.testsSrc)
+		// тесты xUnit для 1С — внешние обработки (исходники в <paths.tests>/epf)
 		const config = vscode.workspace.getConfiguration('1c-platform-tools');
 		return config.get<boolean>('testing.frameworks.onescript', true);
 	}
 
 	public getIncludeGlobs(): string[] {
-		const config = vscode.workspace.getConfiguration('1c-platform-tools');
-		const base = normalizeGlobBase(config.get<string>('testing.onescriptTestsPath', DEFAULT_TESTING.onescriptTestsPath));
+		const base = normalizeGlobBase(resolveOnescriptTestsPath());
 		return [`${base}/**/*.os`];
 	}
 
@@ -72,9 +72,7 @@ export class OneScriptAdapter implements TestFrameworkAdapter {
 	}
 
 	public describeFileLocation(fileUri: vscode.Uri, workspaceRoot: string) {
-		const config = vscode.workspace.getConfiguration('1c-platform-tools');
-		const base = config.get<string>('testing.onescriptTestsPath', DEFAULT_TESTING.onescriptTestsPath);
-		return { segments: directorySegments(fileUri.fsPath, base, workspaceRoot) };
+		return { segments: directorySegments(fileUri.fsPath, resolveOnescriptTestsPath(), workspaceRoot) };
 	}
 
 	public async buildRunPlan(unit: RunUnit, _reportDir: string): Promise<AdapterRunPlan> {

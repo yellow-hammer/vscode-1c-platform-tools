@@ -255,6 +255,7 @@ export class PlatformTreeDataProvider implements vscode.TreeDataProvider<Platfor
 			run: TreeItemType.Run,
 			session: TreeItemType.Run,
 			test: TreeItemType.Test,
+			testEnvironment: TreeItemType.Test,
 			setVersion: TreeItemType.SetVersion,
 			config: TreeItemType.Config,
 			serviceFiles: TreeItemType.Config,

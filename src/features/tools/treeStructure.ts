@@ -55,6 +55,10 @@ import {
 	getVanessaTestsCommandName,
 	getAllureReportCommandName,
 	getYAxUnitTestsCommandName,
+	getLoadTestExtensionsCommandName,
+	getBuildTestExtensionsCommandName,
+	getDumpTestExtensionsCommandName,
+	getDecompileTestExtensionsCommandName,
 	getBuildTestEpfCommandName,
 	getDecompileTestEpfCommandName,
 	getSetVersionConfigurationCommandName,
@@ -149,10 +153,8 @@ export const TREE_GROUPS: TreeGroup[] = [
 		commands: [
 			{ command: '1c-platform-tools.externalProcessors.build', title: getBuildExternalProcessorCommandName().title, treeLabel: '🔨 Собрать внешнюю обработку' },
 			{ command: '1c-platform-tools.externalReports.build', title: getBuildExternalReportCommandName().title, treeLabel: '🔨 Собрать внешний отчет' },
-			{ command: '1c-platform-tools.test.buildEpf', title: getBuildTestEpfCommandName().title, treeLabel: '🔨 Собрать unit тесты' },
 			{ command: '1c-platform-tools.externalProcessors.decompile', title: getDecompileExternalProcessorCommandName().title, treeLabel: '🔓 Разобрать внешнюю обработку' },
 			{ command: '1c-platform-tools.externalReports.decompile', title: getDecompileExternalReportCommandName().title, treeLabel: '🔓 Разобрать внешний отчет' },
-			{ command: '1c-platform-tools.test.decompileEpf', title: getDecompileTestEpfCommandName().title, treeLabel: '🔓 Разобрать unit тесты' },
 			{ command: '1c-platform-tools.externalFiles.clearCache', title: getClearCacheCommandName().title, treeLabel: '🗑️ Удалить кэш' },
 		],
 	},
@@ -212,6 +214,19 @@ export const TREE_GROUPS: TreeGroup[] = [
 		commands: [
 			{ command: '1c-platform-tools.run.enterprise', title: getRunEnterpriseCommandName().title, treeLabel: '▶️ Запустить Предприятие' },
 			{ command: '1c-platform-tools.run.designer', title: getRunDesignerCommandName().title, treeLabel: '▶️ Запустить Конфигуратор' },
+		],
+	},
+	{
+		groupLabel: 'Тестовое окружение',
+		sectionType: 'testEnvironment',
+		defaultCollapsibleState: 'collapsed',
+		commands: [
+			{ command: '1c-platform-tools.test.loadExtensions', title: getLoadTestExtensionsCommandName().title, treeLabel: '📥 Загрузить тестовые расширения из tests/cfe' },
+			{ command: '1c-platform-tools.test.dumpExtensions', title: getDumpTestExtensionsCommandName().title, treeLabel: '📤 Выгрузить тестовые расширения в tests/cfe' },
+			{ command: '1c-platform-tools.test.buildExtensions', title: getBuildTestExtensionsCommandName().title, treeLabel: '🔨 Собрать тестовые *.cfe из tests/cfe' },
+			{ command: '1c-platform-tools.test.buildEpf', title: getBuildTestEpfCommandName().title, treeLabel: '🔨 Собрать unit тесты' },
+			{ command: '1c-platform-tools.test.decompileExtensions', title: getDecompileTestExtensionsCommandName().title, treeLabel: '🔓 Разобрать тестовые *.cfe в tests/cfe' },
+			{ command: '1c-platform-tools.test.decompileEpf', title: getDecompileTestEpfCommandName().title, treeLabel: '🔓 Разобрать unit тесты' },
 		],
 	},
 	{

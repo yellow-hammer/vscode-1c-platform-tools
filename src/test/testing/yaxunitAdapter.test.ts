@@ -4,7 +4,7 @@ import * as path from 'node:path';
 import * as fs from 'node:fs/promises';
 import * as vscode from 'vscode';
 import { VRunnerManager } from '../../shared/vrunnerManager';
-import { YaxunitAdapter, extractModuleName } from '../../features/testing/adapters/yaxunitAdapter';
+import { YaxunitAdapter, extractModuleName, extensionSourceDir } from '../../features/testing/adapters/yaxunitAdapter';
 
 suite('yaxunitAdapter', () => {
 	test('isTestFile: служебный модуль фреймворка (без зарегистрированных тестов) отсекается', () => {
@@ -83,5 +83,59 @@ suite('yaxunitAdapter', () => {
 		} finally {
 			await fs.rm(reportDir, { recursive: true, force: true });
 		}
+	});
+
+	test('extensionSourceDir даёт каталог расширения по пути модуля', () => {
+		assert.strictEqual(
+			extensionSourceDir('C:/proj/tests/cfe/yaxunit-test/CommonModules/ОМ_Тест/Ext/Module.bsl'),
+			path.join('C:', 'proj', 'tests', 'cfe', 'yaxunit-test')
+		);
+		assert.strictEqual(extensionSourceDir('C:/proj/tests/Тест.os'), undefined);
+	});
+
+	test('buildRunPlan: фильтр по расширению модуля, а не по списку из конфига проекта', async () => {
+		const adapter = new YaxunitAdapter(VRunnerManager.getInstance());
+		const reportDir = await fs.mkdtemp(path.join(os.tmpdir(), 'yaxunit-ext-'));
+		const extensionDir = path.join(reportDir, 'tests', 'cfe', 'yaxunit-test');
+		await fs.mkdir(path.join(extensionDir, 'CommonModules', 'ОМ_Тест', 'Ext'), { recursive: true });
+		// имя расширения в метаданных отличается от имени каталога
+		await fs.writeFile(
+			path.join(extensionDir, 'Configuration.xml'),
+			'<MetaDataObject><Configuration><Properties><Name>Тесты</Name></Properties></Configuration></MetaDataObject>',
+			'utf8'
+		);
+		const fileUri = vscode.Uri.file(
+			path.join(extensionDir, 'CommonModules', 'ОМ_Тест', 'Ext', 'Module.bsl')
+		);
+
+		try {
+			await adapter.buildRunPlan({ fileUri }, reportDir);
+			const config = JSON.parse(
+				await fs.readFile(path.join(reportDir, 'yaxunit-config.json'), 'utf8')
+			);
+			// без этого прогон модуля из другого расширения отфильтровался бы
+			// списком extensions из tools/yaxunit.json и дал пустой отчёт
+			assert.deepStrictEqual(config.filter.extensions, ['Тесты']);
+			assert.deepStrictEqual(config.filter.modules, ['ОМ_Тест']);
+		} finally {
+			await fs.rm(reportDir, { recursive: true, force: true });
+		}
+	});
+
+	test('поиск идёт и по расширениям решения, и по тестовым', () => {
+		const adapter = new YaxunitAdapter(VRunnerManager.getInstance());
+
+		const globs = adapter.getIncludeGlobs();
+
+		// расширение с тестами держат отдельно от поставки: без второго корня
+		// панель тестирования перестала бы видеть тесты после переноса
+		assert.ok(
+			globs.some((glob) => glob.startsWith('src/cfe/')),
+			`нет расширений решения: ${globs.join(', ')}`
+		);
+		assert.ok(
+			globs.some((glob) => glob.startsWith('tests/cfe/')),
+			`нет тестовых расширений: ${globs.join(', ')}`
+		);
 	});
 });

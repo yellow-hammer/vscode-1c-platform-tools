@@ -48,34 +48,29 @@ export class OnecDebugConfigurationProvoider implements vscode.DebugConfiguratio
 
 		if (folder) {
 			const workspaceRoot = folder.uri.fsPath;
-			const cfePathSetting = vscode
-				.workspace
-				.getConfiguration('1c-platform-tools')
-				.get<string>('paths.cfe', DEFAULT_PATHS.cfe);
+			// Каталоги расширений решения и тестовых: тесты YAxUnit живут отдельно
+			// от поставки, но отлаживать их нужно так же
+			const roots = [this.vrunner.getCfePath(), this.vrunner.getTestsCfePath()];
 
-			const normalizedCfePath = cfePathSetting
-				.replace(/\\/g, '/')
-				.replace(/^\.?\//, '');
-
-			const absoluteCfeDir =
-				normalizedCfePath.length > 0
-					? path.join(workspaceRoot, normalizedCfePath)
-					: workspaceRoot;
-
-			try {
-				const entries = fs.readdirSync(absoluteCfeDir, { withFileTypes: true });
-				const dirs = entries.filter((entry) => entry.isDirectory());
-
-				if (dirs.length > 0) {
-					extensions = dirs.map((dir) => {
-						const base = normalizedCfePath.length > 0
-							? `\${workspaceFolder}/${normalizedCfePath}`
-							: '${workspaceFolder}';
-						return `${base}/${dir.name}`;
-					});
+			const found: string[] = [];
+			for (const root of roots) {
+				const normalized = root.replace(/\\/g, '/').replace(/^\.?\//, '');
+				const absolute = normalized.length > 0 ? path.join(workspaceRoot, normalized) : workspaceRoot;
+				const base = normalized.length > 0
+					? `\${workspaceFolder}/${normalized}`
+					: '${workspaceFolder}';
+				try {
+					for (const entry of fs.readdirSync(absolute, { withFileTypes: true })) {
+						if (entry.isDirectory()) {
+							found.push(`${base}/${entry.name}`);
+						}
+					}
+				} catch {
+					// Каталога нет или он нечитаем — просто не добавляем его расширения
 				}
-			} catch {
-				// Если каталога нет или ошибка чтения — просто не заполняем extensions
+			}
+			if (found.length > 0) {
+				extensions = found;
 			}
 		}
 

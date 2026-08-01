@@ -11,6 +11,7 @@ import {
 import { logger } from '../shared/logger';
 import type { CommandExecutionOptions, StructuredCommandResult } from '../shared/commandExecutionTypes';
 import { notifyQuiet } from '../shared/notify';
+import { BUILD_SUBDIRS } from '../shared/pathDefaults';
 
 const log = logger.scope('commands');
 
@@ -62,7 +63,7 @@ export class ExternalFilesCommands extends BaseCommand {
 		}
 
 		const buildPath = this.vrunner.getOutPath();
-		const outputFolder = fileType === 'processor' ? 'epf' : 'erf';
+		const outputFolder = fileType === 'processor' ? BUILD_SUBDIRS.epf : BUILD_SUBDIRS.erf;
 		const outputFullPath = path.join(cwd, buildPath, outputFolder);
 		if (!(await this.ensureDirectoryForExecution(
 			outputFullPath,
@@ -108,7 +109,7 @@ export class ExternalFilesCommands extends BaseCommand {
 		}
 
 		const buildPath = this.vrunner.getOutPath();
-		const buildFolder = fileType === 'processor' ? 'epf' : 'erf';
+		const buildFolder = fileType === 'processor' ? BUILD_SUBDIRS.epf : BUILD_SUBDIRS.erf;
 		const inputPath = path.join(buildPath, buildFolder);
 		const inputFullPath = path.join(cwd, inputPath);
 
