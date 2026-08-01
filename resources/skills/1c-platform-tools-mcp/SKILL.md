@@ -80,6 +80,10 @@ Read-only инструмент `env_status` возвращает JSON: акти�
 | Выгрузить в исходники    | `extensions_dumpToSrc`     |
 | Выгрузить в *.cfe        | `extensions_dumpToCfe`     |
 | Собрать *.cfe            | `extensions_build`         |
+| Разобрать *.cfe          | `extensions_decompile`     |
+
+Тестовые расширения (`tests/cfe`): `test_loadExts`, `test_dumpExts`, `test_buildExts`,
+`test_decompileExts` — параметр `extensions` работает так же.
 
 ## Внешние обработки и отчёты
 
