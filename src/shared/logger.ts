@@ -83,9 +83,16 @@ export const logger = {
 		return isVerboseLevel(getChannel().logLevel);
 	},
 
-	/** Показать панель Output с логами расширения */
+	/**
+	 * Показать панель Output с журналом расширения.
+	 *
+	 * Канал выбираем без перехвата фокуса, а панель раскрываем штатной командой: у части сборок
+	 * (в том числе Cursor) один только `show()` канал переключает, но панель не открывает, и по
+	 * кнопке «Показать журнал» внешне ничего не происходит.
+	 */
 	show(): void {
-		getChannel().show();
+		getChannel().show(true);
+		void vscode.commands.executeCommand('workbench.panel.output.focus');
 	},
 
 	/** Освободить канал (вызывать при деактивации расширения) */
