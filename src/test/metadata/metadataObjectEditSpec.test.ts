@@ -548,7 +548,9 @@ suite('metadataObjectEditSpec: значения перечисления', () =>
 		};
 		const lists = panel.buildStructureListsForTest(props, { kind: 'enum', forms: [], commands: [] });
 		assert.deepStrictEqual(
-			lists.lists.map((list: { title: string; editable: boolean }) => [list.title, list.editable]),
+			lists.lists
+				.filter((list: { tab: string }) => list.tab === 'edit_data')
+				.map((list: { title: string; editable: boolean }) => [list.title, list.editable]),
 			[['Значения', true]]
 		);
 		assert.strictEqual(lists.supportsTabularSections, false);
@@ -821,6 +823,379 @@ suite('metadataObjectEditSpec: состав регистра', () => {
 			(dto.attributes as Array<Record<string, unknown>>)[0].synonymRu,
 			'Реквизит',
 			'реквизит с тем же именем не задет'
+		);
+	});
+});
+
+suite('metadataObjectEditSpec: отчёты и обработки', () => {
+	const { buildReportEditTabs, applyEditedScalars } = require('../../features/metadata/metadataObjectEditSpec');
+
+	function fields(tabs: Array<{ groups: Array<{ fields: Array<Record<string, unknown>> }> }>) {
+		return tabs.flatMap((tab) => tab.groups).flatMap((group) => group.fields);
+	}
+
+	function fieldByPath(tabs: Array<{ groups: Array<{ fields: Array<Record<string, unknown>> }> }>, path: string) {
+		return fields(tabs).find((field) => field.path === path);
+	}
+
+	const reportTabs = () =>
+		buildReportEditTabs({
+			internalName: 'ДинамикаПродаж',
+			formNames: ['ФормаОтчета'],
+			commandNames: [],
+			report: true,
+			templateNames: ['ОсновнаяСхемаКомпоновкиДанных'],
+			settingsStorageNames: ['ХранилищеВариантовОтчетов'],
+		});
+
+	const processorTabs = () =>
+		buildReportEditTabs({
+			internalName: 'ЗагрузкаДанных',
+			formNames: ['Форма'],
+			commandNames: [],
+			report: false,
+		});
+
+	test('у отчёта есть схема компоновки, формы вариантов и хранилища', () => {
+		const tabs = reportTabs();
+		assert.deepStrictEqual(
+			tabs.map((tab: { title: string }) => tab.title),
+			['Основные', 'Формы', 'Команды', 'Модули']
+		);
+		const schema = fieldByPath(tabs, 'report.mainDataCompositionSchema');
+		assert.strictEqual(schema?.control, 'select');
+		assert.ok(
+			(schema?.options as Array<{ value: string }>).some(
+				(option) => option.value === 'Report.ДинамикаПродаж.Template.ОсновнаяСхемаКомпоновкиДанных'
+			),
+			'макет объекта предлагается как схема компоновки'
+		);
+		assert.ok(
+			(fieldByPath(tabs, 'report.variantsStorage')?.options as Array<{ value: string }>).some(
+				(option) => option.value === 'SettingsStorage.ХранилищеВариантовОтчетов'
+			)
+		);
+		assert.ok(fieldByPath(tabs, 'report.defaultVariantForm'), 'форма варианта есть');
+	});
+
+	test('у обработки полей отчёта нет, а общие свойства те же', () => {
+		const tabs = processorTabs();
+		assert.strictEqual(fieldByPath(tabs, 'report.mainDataCompositionSchema'), undefined);
+		assert.strictEqual(fieldByPath(tabs, 'report.variantsStorage'), undefined);
+		assert.strictEqual(fieldByPath(tabs, 'report.defaultVariantForm'), undefined);
+		assert.strictEqual(fieldByPath(tabs, 'report.includeHelpInContents')?.control, 'check');
+		assert.ok(
+			(fieldByPath(tabs, 'report.defaultForm')?.options as Array<{ value: string }>).some(
+				(option) => option.value === 'DataProcessor.ЗагрузкаДанных.Form.Форма'
+			),
+			'форма адресуется как обработка, а не как отчёт'
+		);
+	});
+
+	test('сохранение переносит только объявленные спекой поля', () => {
+		const raw = {
+			kind: 'report',
+			internalName: 'ДинамикаПродаж',
+			synonymRu: 'Динамика продаж',
+			comment: '',
+			report: {
+				defaultForm: 'Report.ДинамикаПродаж.Form.ФормаОтчета',
+				useStandardCommands: false,
+				includeHelpInContents: false,
+				objectModule: 'Report.ДинамикаПродаж.ObjectModule',
+			},
+		};
+		const edited = {
+			synonymRu: 'Динамика продаж за период',
+			report: {
+				useStandardCommands: true,
+				objectModule: 'подделка',
+			},
+		};
+
+		const saved = applyEditedScalars(raw, edited, reportTabs()) as Record<string, unknown>;
+		const report = saved.report as Record<string, unknown>;
+
+		assert.strictEqual(saved.synonymRu, 'Динамика продаж за период');
+		assert.strictEqual(report.useStandardCommands, true);
+		assert.strictEqual(
+			report.objectModule,
+			'Report.ДинамикаПродаж.ObjectModule',
+			'модуль правится ссылкой на файл, из формы не пишется'
+		);
+	});
+});
+
+suite('metadataObjectEditSpec: журнал документов', () => {
+	const { buildDocumentJournalEditTabs, applyEditedScalars } = require('../../features/metadata/metadataObjectEditSpec');
+
+	const tabs = () =>
+		buildDocumentJournalEditTabs({
+			internalName: 'СкладскиеДокументы',
+			formNames: ['ФормаСписка'],
+			commandNames: [],
+			documentNames: ['ПоступлениеТоваров', 'СписаниеТоваров'],
+		});
+
+	test('регистрируемые документы ведутся списком ссылок', () => {
+		const spec = tabs();
+		assert.deepStrictEqual(
+			spec.map((tab: { title: string }) => tab.title),
+			['Основные', 'Регистрируемые документы', 'Формы', 'Команды', 'Модули']
+		);
+		const field = spec
+			.flatMap((tab: { groups: Array<{ fields: Array<Record<string, unknown>> }> }) => tab.groups)
+			.flatMap((group: { fields: Array<Record<string, unknown>> }) => group.fields)
+			.find((f: Record<string, unknown>) => f.path === 'documentJournal.registeredDocuments');
+		assert.strictEqual(field?.control, 'refList');
+		assert.deepStrictEqual((field?.options as Array<{ value: string }>).map((option) => option.value), [
+			'Document.ПоступлениеТоваров',
+			'Document.СписаниеТоваров',
+		]);
+	});
+
+	test('сохранение пишет выбранные документы и не трогает остальное', () => {
+		const raw = {
+			kind: 'documentJournal',
+			internalName: 'СкладскиеДокументы',
+			synonymRu: 'Складские документы',
+			comment: '',
+			documentJournal: {
+				registeredDocuments: ['Document.ПоступлениеТоваров'],
+				managerModule: 'DocumentJournal.СкладскиеДокументы.ManagerModule',
+				useStandardCommands: true,
+			},
+		};
+		const edited = {
+			documentJournal: {
+				registeredDocuments: ['Document.ПоступлениеТоваров', 'Document.СписаниеТоваров'],
+				managerModule: 'подделка',
+			},
+		};
+
+		const saved = applyEditedScalars(raw, edited, tabs()) as Record<string, unknown>;
+		const journal = saved.documentJournal as Record<string, unknown>;
+
+		assert.deepStrictEqual(journal.registeredDocuments, [
+			'Document.ПоступлениеТоваров',
+			'Document.СписаниеТоваров',
+		]);
+		assert.strictEqual(journal.managerModule, 'DocumentJournal.СкладскиеДокументы.ManagerModule');
+		assert.strictEqual(journal.useStandardCommands, true);
+	});
+});
+
+suite('metadataObjectEditSpec: план обмена', () => {
+	const { buildExchangePlanEditTabs } = require('../../features/metadata/metadataObjectEditSpec');
+
+	const spec = () =>
+		buildExchangePlanEditTabs({
+			internalName: 'ОбменСФилиалами',
+			formNames: ['ФормаСписка'],
+			commandNames: [],
+			attributeNames: ['ВерсияФормата'],
+			catalogNames: ['Организации'],
+			documentNames: ['ПоступлениеТоваров'],
+		});
+
+	function fieldByPath(tabs: Array<{ groups: Array<{ fields: Array<Record<string, unknown>> }> }>, path: string) {
+		return tabs
+			.flatMap((tab) => tab.groups)
+			.flatMap((group) => group.fields)
+			.find((field) => field.path === path);
+	}
+
+	test('вкладки повторяют редактор, распределённая база включает расширения по условию', () => {
+		const tabs = spec();
+		assert.deepStrictEqual(
+			tabs.map((tab: { title: string }) => tab.title),
+			['Основные', 'Данные', 'Формы', 'Команды']
+		);
+		const include = fieldByPath(tabs, 'exchangePlan.includeConfigurationExtensions');
+		assert.deepStrictEqual(include?.enabledWhen, [
+			{ path: 'exchangePlan.distributedInfoBase', equals: true },
+		]);
+	});
+
+	test('ввод по строке и основания собираются из объектов конфигурации', () => {
+		const tabs = spec();
+		const inputByString = fieldByPath(tabs, 'exchangePlan.inputByString')?.options as Array<{ value: string }>;
+		assert.ok(inputByString.some((option) => option.value === 'ExchangePlan.ОбменСФилиалами.Attribute.ВерсияФормата'));
+		assert.ok(inputByString.some((option) => option.value === 'ExchangePlan.ОбменСФилиалами.StandardAttribute.Code'));
+
+		const basedOn = fieldByPath(tabs, 'exchangePlan.basedOn')?.options as Array<{ value: string; hint?: string }>;
+		assert.deepStrictEqual(basedOn.map((option) => option.value), [
+			'Catalog.Организации',
+			'Document.ПоступлениеТоваров',
+		]);
+		assert.strictEqual(basedOn[1].hint, 'Документ');
+	});
+});
+
+suite('metadataObjectEditSpec: план видов характеристик', () => {
+	const { buildChartOfCharacteristicTypesEditTabs } = require('../../features/metadata/metadataObjectEditSpec');
+
+	const spec = () =>
+		buildChartOfCharacteristicTypesEditTabs({
+			internalName: 'ВидыСубконто',
+			formNames: ['ФормаЭлемента'],
+			commandNames: [],
+			attributeNames: ['Комментарий'],
+			catalogNames: ['ЗначенияСубконто'],
+			documentNames: [],
+		});
+
+	function fieldByPath(tabs: Array<{ groups: Array<{ fields: Array<Record<string, unknown>> }> }>, path: string) {
+		return tabs
+			.flatMap((tab) => tab.groups)
+			.flatMap((group) => group.fields)
+			.find((field) => field.path === path);
+	}
+
+	test('тип характеристики правится палитрой типов, дополнительные значения выбираются справочником', () => {
+		const tabs = spec();
+		assert.strictEqual(fieldByPath(tabs, 'chartOfCharacteristicTypes.type')?.control, 'type');
+		const ext = fieldByPath(tabs, 'chartOfCharacteristicTypes.characteristicExtValues');
+		assert.strictEqual(ext?.control, 'select');
+		assert.ok(
+			(ext?.options as Array<{ value: string }>).some((option) => option.value === 'Catalog.ЗначенияСубконто')
+		);
+	});
+
+	test('формы групп доступны только у иерархического плана', () => {
+		const tabs = spec();
+		assert.deepStrictEqual(fieldByPath(tabs, 'chartOfCharacteristicTypes.defaultFolderForm')?.enabledWhen, [
+			{ path: 'chartOfCharacteristicTypes.hierarchical', equals: true },
+		]);
+		assert.deepStrictEqual(fieldByPath(tabs, 'chartOfCharacteristicTypes.foldersOnTop')?.enabledWhen, [
+			{ path: 'chartOfCharacteristicTypes.hierarchical', equals: true },
+		]);
+	});
+});
+
+suite('metadataObjectEditSpec: задача и бизнес-процесс', () => {
+	const {
+		buildTaskEditTabs,
+		buildBusinessProcessEditTabs,
+	} = require('../../features/metadata/metadataObjectEditSpec');
+
+	function fieldByPath(tabs: Array<{ groups: Array<{ fields: Array<Record<string, unknown>> }> }>, path: string) {
+		return tabs
+			.flatMap((tab) => tab.groups)
+			.flatMap((group) => group.fields)
+			.find((field) => field.path === path);
+	}
+
+	test('у задачи адресация собирается из регистров сведений и реквизитов адресации', () => {
+		const tabs = buildTaskEditTabs({
+			internalName: 'ЗадачаИсполнителя',
+			formNames: ['ФормаЗадачи'],
+			commandNames: [],
+			attributeNames: ['Важность'],
+			addressingAttributeNames: ['Исполнитель', 'ОсновнойОбъектАдресации'],
+			informationRegisterNames: ['ЗадачиИсполнителей'],
+			sessionParameterNames: ['ТекущийПользователь'],
+		});
+		assert.deepStrictEqual(
+			tabs.map((tab: { title: string }) => tab.title),
+			['Основные', 'Данные', 'Формы', 'Команды']
+		);
+		assert.ok(
+			(fieldByPath(tabs, 'task.addressing')?.options as Array<{ value: string }>).some(
+				(option) => option.value === 'InformationRegister.ЗадачиИсполнителей'
+			)
+		);
+		assert.ok(
+			(fieldByPath(tabs, 'task.mainAddressingAttribute')?.options as Array<{ value: string }>).some(
+				(option) => option.value === 'Task.ЗадачаИсполнителя.AddressingAttribute.Исполнитель'
+			)
+		);
+		// текущий исполнитель - параметр сеанса, а не реквизит адресации
+		assert.deepStrictEqual(
+			(fieldByPath(tabs, 'task.currentPerformer')?.options as Array<{ value: string }>).map((o) => o.value),
+			['', 'SessionParameter.ТекущийПользователь']
+		);
+	});
+
+	test('у бизнес-процесса задача выбирается из задач конфигурации, карта маршрута только читается', () => {
+		const tabs = buildBusinessProcessEditTabs({
+			internalName: 'Согласование',
+			formNames: [],
+			commandNames: [],
+			attributeNames: [],
+			taskNames: ['ЗадачаИсполнителя'],
+		});
+		assert.ok(
+			(fieldByPath(tabs, 'businessProcess.task')?.options as Array<{ value: string }>).some(
+				(option) => option.value === 'Task.ЗадачаИсполнителя'
+			)
+		);
+		assert.strictEqual(fieldByPath(tabs, 'businessProcess.flowchart')?.readonly, true);
+		assert.strictEqual(fieldByPath(tabs, 'businessProcess.numberPeriodicity')?.control, 'select');
+	});
+});
+
+suite('metadataObjectEditSpec: план счетов', () => {
+	const { buildChartOfAccountsEditTabs } = require('../../features/metadata/metadataObjectEditSpec');
+
+	test('виды субконто выбираются планом видов характеристик, количество числом', () => {
+		const tabs = buildChartOfAccountsEditTabs({
+			internalName: 'Хозрасчетный',
+			formNames: [],
+			commandNames: [],
+			attributeNames: [],
+			characteristicTypeNames: ['ВидыСубконто'],
+			catalogNames: [],
+			documentNames: [],
+		});
+		const fields = tabs
+			.flatMap((tab: { groups: Array<{ fields: Array<Record<string, unknown>> }> }) => tab.groups)
+			.flatMap((group: { fields: Array<Record<string, unknown>> }) => group.fields);
+		const types = fields.find((field: Record<string, unknown>) => field.path === 'chartOfAccounts.extDimensionTypes');
+		assert.ok(
+			(types?.options as Array<{ value: string }>).some(
+				(option) => option.value === 'ChartOfCharacteristicTypes.ВидыСубконто'
+			)
+		);
+		assert.strictEqual(
+			fields.find((field: Record<string, unknown>) => field.path === 'chartOfAccounts.maxExtDimensionCount')?.control,
+			'number'
+		);
+		assert.strictEqual(
+			fields.find((field: Record<string, unknown>) => field.path === 'chartOfAccounts.codeMask')?.control,
+			'text'
+		);
+	});
+});
+
+suite('metadataObjectEditSpec: план видов расчёта', () => {
+	const { buildChartOfCalculationTypesEditTabs } = require('../../features/metadata/metadataObjectEditSpec');
+
+	test('базовые виды расчёта берутся из планов конфигурации, включая сам объект', () => {
+		const tabs = buildChartOfCalculationTypesEditTabs({
+			internalName: 'ОсновныеНачисления',
+			formNames: [],
+			commandNames: [],
+			attributeNames: [],
+			calculationTypeNames: ['ОсновныеНачисления', 'ДополнительныеНачисления'],
+		});
+		const fields = tabs
+			.flatMap((tab: { groups: Array<{ fields: Array<Record<string, unknown>> }> }) => tab.groups)
+			.flatMap((group: { fields: Array<Record<string, unknown>> }) => group.fields);
+		const baseTypes = fields.find(
+			(field: Record<string, unknown>) => field.path === 'chartOfCalculationTypes.baseCalculationTypes'
+		);
+		assert.strictEqual(baseTypes?.control, 'refList');
+		// план видов расчёта бывает базовым сам себе, как основные начисления в типовых
+		assert.deepStrictEqual((baseTypes?.options as Array<{ value: string }>).map((option) => option.value), [
+			'ChartOfCalculationTypes.ОсновныеНачисления',
+			'ChartOfCalculationTypes.ДополнительныеНачисления',
+		]);
+		assert.strictEqual(
+			fields.find(
+				(field: Record<string, unknown>) => field.path === 'chartOfCalculationTypes.dependenceOnCalculationTypes'
+			)?.control,
+			'select'
 		);
 	});
 });

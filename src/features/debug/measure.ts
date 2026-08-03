@@ -61,7 +61,7 @@ export function registerMeasureFeature(context: vscode.ExtensionContext): void {
 		vscode.debug.onDidReceiveDebugSessionCustomEvent((ev) => {
 			if (ev.event === 'MeasureResults' && ev.session.type === DEBUG_TYPE) {
 				results = ev.body as MeasureResults;
-				log.debug(`результаты замера: модулей — ${results.modules.length}, всего — ${formatSeconds(results.totalSeconds)}`);
+				log.debug(`результаты замера: модулей ${results.modules.length}, всего ${formatSeconds(results.totalSeconds)}`);
 				updateStatusBar();
 				applyDecorations();
 				// Результаты приходят порциями от каждого предмета отладки — таблицу

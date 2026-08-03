@@ -290,11 +290,11 @@
               },
               "user": {
                 "type": "string",
-                "description": "Пользователь ИБ для автовхода. Пусто — берётся --db-user из env.json"
+                "description": "Пользователь ИБ для автовхода. Пусто: берётся --db-user из env.json"
               },
               "password": {
                 "type": "string",
-                "description": "Пароль пользователя ИБ для автовхода. Пусто — берётся --db-pwd из env.json"
+                "description": "Пароль пользователя ИБ для автовхода. Пусто: берётся --db-pwd из env.json"
               },
               "externalFilesSrc": {
                 "type": "array",
@@ -308,7 +308,7 @@
                 "items": {
                   "type": "string"
                 },
-                "description": "Каталоги собранных .epf/.erf — необходимы для точек останова во внешних файлах"
+                "description": "Каталоги собранных .epf/.erf, нужны для точек останова во внешних файлах"
               },
               "calcWaitingTimeMs": {
                 "type": "number",
@@ -396,11 +396,11 @@
               },
               "user": {
                 "type": "string",
-                "description": "Пользователь ИБ для автовхода. Пусто — берётся --db-user из env.json"
+                "description": "Пользователь ИБ для автовхода. Пусто: берётся --db-user из env.json"
               },
               "password": {
                 "type": "string",
-                "description": "Пароль пользователя ИБ для автовхода. Пусто — берётся --db-pwd из env.json"
+                "description": "Пароль пользователя ИБ для автовхода. Пусто: берётся --db-pwd из env.json"
               },
               "externalFilesSrc": {
                 "type": "array",
@@ -414,7 +414,7 @@
                 "items": {
                   "type": "string"
                 },
-                "description": "Каталоги собранных .epf/.erf — необходимы для точек останова во внешних файлах"
+                "description": "Каталоги собранных .epf/.erf, нужны для точек останова во внешних файлах"
               },
               "calcWaitingTimeMs": {
                 "type": "number",
@@ -2851,7 +2851,7 @@
           {
             "id": "step3-commands-panel",
             "title": "Панель с командами",
-            "description": "Дерево команд, избранное и палитра — всё для работы с проектом. Закрепите нужные команды в избранном.\n\n[Открыть панель «Инструменты 1С»](command:workbench.view.extension.1c-platform-tools)\n[Настроить избранное](command:1c-platform-tools.favorites.configure)",
+            "description": "Дерево команд, избранное и палитра: всё для работы с проектом. Закрепите нужные команды в избранном.\n\n[Открыть панель «Инструменты 1С»](command:workbench.view.extension.1c-platform-tools)\n[Настроить избранное](command:1c-platform-tools.favorites.configure)",
             "media": {
               "markdown": "walkthrough/step3-commands-panel.md"
             }
@@ -2859,7 +2859,7 @@
           {
             "id": "step4-artifacts",
             "title": "Панель артефактов",
-            "description": "Конфигурации, расширения, обработки, отчёты и feature-файлы. Открыть, собрать, разобрать, запустить Vanessa-Automation — из панели проводника или панели редактора.\n\n[Настройки артефактов](command:1c-platform-tools.settings.openArtifacts)",
+            "description": "Конфигурации, расширения, обработки, отчёты и feature-файлы. Открыть, собрать, разобрать, запустить Vanessa-Automation можно из панели проводника или панели редактора.\n\n[Настройки артефактов](command:1c-platform-tools.settings.openArtifacts)",
             "media": {
               "markdown": "walkthrough/step4-artifacts.md"
             }
@@ -2867,7 +2867,7 @@
           {
             "id": "step5-service-files",
             "title": "Служебные файлы",
-            "description": "env.json, launch.json и др. — параметры ИБ, отладка, Git. Единый интерфейс настройки разрабатывается.\n\n[Открыть env.json](command:1c-platform-tools.env.editSettingsFile)\n[Открыть launch.json](command:1c-platform-tools.launch.editConfigurations)",
+            "description": "env.json, launch.json и другие: параметры ИБ, отладка, Git. Единый интерфейс настройки разрабатывается.\n\n[Открыть env.json](command:1c-platform-tools.env.editSettingsFile)\n[Открыть launch.json](command:1c-platform-tools.launch.editConfigurations)",
             "media": {
               "markdown": "walkthrough/step5-service-files.md"
             }
@@ -2875,7 +2875,7 @@
           {
             "id": "step6-projects",
             "title": "Панель проектов",
-            "description": "Укажите папки поиска — расширение найдёт все проекты 1С. Избранное и теги помогут быстро переключаться.\n\n[Открыть панель «Проекты 1С»](command:workbench.view.extension.1c-platform-tools-projects)\n[Настройка проектов](command:1c-platform-tools.settings.openProjects)\n[Открыть список проектов](command:1c-platform-tools.projects.listOpen)",
+            "description": "Укажите папки поиска, и расширение найдёт все проекты 1С. Избранное и теги помогут быстро переключаться.\n\n[Открыть панель «Проекты 1С»](command:workbench.view.extension.1c-platform-tools-projects)\n[Настройка проектов](command:1c-platform-tools.settings.openProjects)\n[Открыть список проектов](command:1c-platform-tools.projects.listOpen)",
             "media": {
               "markdown": "walkthrough/step6-projects.md"
             }
@@ -2991,7 +2991,7 @@
           "1c-platform-tools.defaultEnvProfile": {
             "type": "string",
             "default": "",
-            "description": "Идентификатор env-профиля по умолчанию (имя X из env.X.json; пусто — базовый env.json). Активный профиль выбирается локально и не коммитится, переопределяя это значение. Подставляется во все команды vrunner через --settings."
+            "description": "Идентификатор env-профиля по умолчанию (имя X из env.X.json; пусто: базовый env.json). Активный профиль выбирается локально и не коммитится, переопределяя это значение. Подставляется во все команды vrunner через --settings."
           },
           "1c-platform-tools.paths.out": {
             "type": "string",
@@ -3019,7 +3019,7 @@
               "type": "string"
             },
             "default": [],
-            "markdownDescription": "Список расширений (имена каталогов в `src/cfe`), с которыми работают команды группы «Расширения» и установка версии расширений. Если список задан — команды используют его без интерактивного выбора. Если пуст — при запуске команды показывается окно выбора с чекбоксами, а выбор запоминается для проекта."
+            "markdownDescription": "Список расширений (имена каталогов в `src/cfe`), с которыми работают команды группы «Расширения» и установка версии расширений. Заданный список команды используют без интерактивного выбора. Если он пуст, при запуске команды показывается окно выбора с чекбоксами, а выбор запоминается для проекта."
           },
           "1c-platform-tools.paths.epf": {
             "type": "string",
@@ -3039,7 +3039,7 @@
           "1c-platform-tools.allure.path": {
             "type": "string",
             "default": "allure",
-            "description": "Путь к запускаемому файлу Allure. Пусто или «allure» — командная строка загружается с GitHub Releases (см. «Allure: автозагрузка») либо берётся из PATH."
+            "description": "Путь к запускаемому файлу Allure. Пусто или «allure»: командная строка загружается с GitHub Releases (см. «Allure: автозагрузка») либо берётся из PATH."
           },
           "1c-platform-tools.docker.enabled": {
             "type": "boolean",
@@ -3149,18 +3149,18 @@
           "1c-platform-tools.projects.cacheBetweenSessions": {
             "type": "boolean",
             "default": true,
-            "description": "Кэшировать список найденных проектов между сессиями. При открытии панели сразу показывается кэш; полное сканирование — по кнопке «Обновить»."
+            "description": "Кэшировать список найденных проектов между сессиями. При открытии панели сразу показывается кэш; полное сканирование выполняется по кнопке «Обновить»."
           },
           "1c-platform-tools.projects.maxDepthRecursion": {
             "type": "number",
             "minimum": 0,
             "default": 0,
-            "description": "Максимальная глубина вложенности при сканировании baseFolders (0 — без ограничения, положительное число — ограничить глубину)."
+            "description": "Максимальная глубина вложенности при сканировании baseFolders (0 снимает ограничение, положительное число ограничивает глубину)."
           },
           "1c-platform-tools.projects.projectsLocation": {
             "type": "string",
             "default": "",
-            "description": "Папка для хранения projects.json. Если указана — файл сохраняется туда (для синхронизации между устройствами). Поддерживает ~ и $home."
+            "description": "Папка для хранения projects.json. Заданная папка хранит файл (для синхронизации между устройствами). Поддерживает ~ и $home."
           },
           "1c-platform-tools.projects.sortList": {
             "type": "string",
@@ -3297,7 +3297,7 @@
           "1c-platform-tools.components.adapterFile": {
             "type": "string",
             "default": "",
-            "description": "Отладчик: полный путь к локальной сборке OnecDebugAdapter.dll. Пусто — используется загруженный с GitHub."
+            "description": "Отладчик: полный путь к локальной сборке OnecDebugAdapter.dll. Пусто: используется загруженный с GitHub."
           },
           "1c-platform-tools.components.metadataJarAutoload": {
             "type": "boolean",
@@ -3307,7 +3307,7 @@
           "1c-platform-tools.components.metadataJarFile": {
             "type": "string",
             "default": "",
-            "description": "Дерево метаданных: полный путь к локальной сборке md-sparrow-*-all.jar. Пусто — используется загруженный с GitHub."
+            "description": "Дерево метаданных: полный путь к локальной сборке md-sparrow-*-all.jar. Пусто: используется загруженный с GitHub."
           },
           "1c-platform-tools.components.jreAutoload": {
             "type": "boolean",
@@ -3317,7 +3317,7 @@
           "1c-platform-tools.components.javaExecutable": {
             "type": "string",
             "default": "",
-            "description": "Java: полный путь к java или javaw для дерева метаданных. Пусто — portable JRE из кэша либо java из PATH."
+            "description": "Java: полный путь к java или javaw для дерева метаданных. Пусто: portable JRE из кэша либо java из PATH."
           },
           "1c-platform-tools.components.allureAutoload": {
             "type": "boolean",
@@ -3332,7 +3332,7 @@
           "1c-platform-tools.components.ovmFile": {
             "type": "string",
             "default": "",
-            "description": "OVM: полный путь к локальному ovm.exe. Пусто — используется загруженный с GitHub."
+            "description": "OVM: полный путь к локальному ovm.exe. Пусто: используется загруженный с GitHub."
           }
         }
       },
@@ -3363,7 +3363,7 @@
               "type": "string"
             },
             "default": [],
-            "markdownDescription": "Список тестовых расширений (имена каталогов в `tests/cfe`), с которыми работают команды тестовых расширений. Если список задан — команды используют его без интерактивного выбора. Если пуст — при запуске команды показывается окно выбора с чекбоксами, а выбор запоминается для проекта. Расширения решения перечисляет `#1c-platform-tools.extensions.selected#`."
+            "markdownDescription": "Список тестовых расширений (имена каталогов в `tests/cfe`), с которыми работают команды тестовых расширений. Заданный список команды используют без интерактивного выбора. Если он пуст, при запуске команды показывается окно выбора с чекбоксами, а выбор запоминается для проекта. Расширения решения перечисляет `#1c-platform-tools.extensions.selected#`."
           },
           "1c-platform-tools.testing.exclude": {
             "type": "array",
@@ -3394,7 +3394,7 @@
           "1c-platform-tools.testing.frameworks.xunit": {
             "type": "boolean",
             "default": true,
-            "description": "Показывать в панели тестирования тестовые обработки xUnit/Vanessa-ADD (исходники в tests/epf; перед прогоном собираются в .epf). Активен только при наличии исходников конфигурации (paths.cf) — тесты выполняются в информационной базе."
+            "description": "Показывать в панели тестирования тестовые обработки xUnit/Vanessa-ADD (исходники в tests/epf; перед прогоном собираются в .epf). Активен только при наличии исходников конфигурации (paths.cf): тесты выполняются в информационной базе."
           },
           "1c-platform-tools.testing.frameworks.yaxunit": {
             "type": "boolean",
@@ -3409,7 +3409,7 @@
           "1c-platform-tools.testing.frameworks.onebdd": {
             "type": "boolean",
             "default": true,
-            "description": "Показывать в панели тестирования BDD-сценарии 1bdd (.feature в OneScript-проектах). Активен только в проектах без исходников конфигурации — в проектах 1С фичи относятся к Vanessa Automation."
+            "description": "Показывать в панели тестирования BDD-сценарии 1bdd (.feature в OneScript-проектах). Активен только в проектах без исходников конфигурации: в проектах 1С фичи относятся к Vanessa Automation."
           },
           "1c-platform-tools.testing.onescriptRunner": {
             "type": "string",
@@ -3419,17 +3419,17 @@
               "oneunit"
             ],
             "default": "auto",
-            "description": "Раннер тестов OneScript. auto — OneUnit при наличии в oscript_modules/bin, иначе 1testrunner. Оба пишут jUnit-отчёт (1testrunner — через xddReportPath, OneUnit — через --junit)."
+            "description": "Раннер тестов OneScript. auto выбирает OneUnit при наличии в oscript_modules/bin, иначе 1testrunner. Оба пишут jUnit-отчёт: 1testrunner через xddReportPath, OneUnit через --junit."
           },
           "1c-platform-tools.testing.onescriptRunnerPath": {
             "type": "string",
             "default": "",
-            "description": "Путь к раннеру тестов OneScript (1testrunner/oneunit). Поддерживаются относительные пути от корня проекта (например ./oscript_modules/bin/oneunit.bat). Пусто — локальная установка oscript_modules/bin, затем PATH."
+            "description": "Путь к раннеру тестов OneScript (1testrunner/oneunit). Поддерживаются относительные пути от корня проекта (например ./oscript_modules/bin/oneunit.bat). Пусто: локальная установка oscript_modules/bin, затем PATH."
           },
           "1c-platform-tools.testing.onebddPath": {
             "type": "string",
             "default": "",
-            "description": "Путь к раннеру 1bdd. Поддерживаются относительные пути от корня проекта. Пусто — локальная установка oscript_modules/bin, затем PATH."
+            "description": "Путь к раннеру 1bdd. Поддерживаются относительные пути от корня проекта. Пусто: локальная установка oscript_modules/bin, затем PATH."
           }
         }
       },
@@ -3440,12 +3440,12 @@
           "1c-platform-tools.server.platformPath": {
             "type": "string",
             "default": "",
-            "description": "Каталог установки платформы 1С для поиска ibsrv (автономный сервер). Пусто — определяется автоматически (%PROGRAMFILES%\\1cv8 в Windows, /opt/1cv8/x86_64 и /opt/1C/v8.3/x86_64 в Linux). Бинарь ищется в bin/, напрямую в каталоге версии и в самой базе."
+            "description": "Каталог установки платформы 1С для поиска ibsrv (автономный сервер). Пусто: определяется автоматически (%PROGRAMFILES%\\1cv8 в Windows, /opt/1cv8/x86_64 и /opt/1C/v8.3/x86_64 в Linux). Бинарь ищется в bin/, напрямую в каталоге версии и в самой базе."
           },
           "1c-platform-tools.server.platformVersion": {
             "type": "string",
             "default": "",
-            "description": "Версия платформы для автономного сервера (например 8.3.27.1936 или префикс 8.3.27). Пусто — берётся наибольшая установленная."
+            "description": "Версия платформы для автономного сервера (например 8.3.27.1936 или префикс 8.3.27). Пусто: берётся наибольшая установленная."
           },
           "1c-platform-tools.server.host": {
             "type": "string",
@@ -3460,12 +3460,12 @@
           "1c-platform-tools.server.httpBase": {
             "type": "string",
             "default": "ib",
-            "description": "Базовый путь публикации информационной базы. Например ib → http://localhost:8314/ib/. Пусто или / — корень сайта."
+            "description": "Базовый путь публикации информационной базы. Например ib даёт http://localhost:8314/ib/. Пусто или / означает корень сайта."
           },
           "1c-platform-tools.server.dataPath": {
             "type": "string",
             "default": "",
-            "description": "Каталог данных автономного сервера (сеансовые данные, журнал, конфиг публикации publication.yaml). Относительный путь — от корня проекта. Пусто — build/ibsrv в корне проекта."
+            "description": "Каталог данных автономного сервера (сеансовые данные, журнал, конфиг публикации publication.yaml). Относительный путь считается от корня проекта. Пусто: build/ibsrv в корне проекта."
           },
           "1c-platform-tools.server.distributeLicenses": {
             "type": "boolean",

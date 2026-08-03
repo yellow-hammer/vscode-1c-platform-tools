@@ -87,10 +87,156 @@ function opts(...pairs: Array<[string, string]>): MetadataEditOption[] {
 
 const USE_DONT_USE = opts(['USE', 'Использовать'], ['DONT_USE', 'Не использовать']);
 
+/** Вспомогательные формы объекта: у каждого вида свой набор. */
+type AuxiliaryFormKind = 'object' | 'folder' | 'list' | 'choice' | 'folderChoice' | 'record';
+
+const AUXILIARY_FORM_LABELS: Readonly<Record<AuxiliaryFormKind, [string, string]>> = {
+	object: ['auxiliaryObjectForm', 'Вспомогательная форма объекта'],
+	folder: ['auxiliaryFolderForm', 'Вспомогательная форма группы'],
+	list: ['auxiliaryListForm', 'Вспомогательная форма списка'],
+	choice: ['auxiliaryChoiceForm', 'Вспомогательная форма выбора'],
+	folderChoice: ['auxiliaryFolderChoiceForm', 'Вспомогательная форма выбора группы'],
+	record: ['auxiliaryRecordForm', 'Вспомогательная форма записи'],
+};
+
+/** Общие свойства ссылочных видов: набор у них одинаковый, поэтому и спека одна. */
+interface ReferenceCommonInput {
+	/** Блок DTO: `catalog`, `task` и так далее. */
+	block: string;
+	/** Кандидаты в основные и вспомогательные формы. */
+	forms: readonly MetadataEditOption[];
+	/** Вспомогательные формы, которые у вида есть. */
+	auxiliaryForms: readonly AuxiliaryFormKind[];
+	/** Есть ли у вида свойства поля ввода: создание при вводе, поиск строки, получение данных. */
+	inputField?: boolean;
+	/** Есть ли у вида полнотекстовый поиск и история данных. */
+	dataHistory?: boolean;
+	/** Кандидаты в поля блокировки данных; пусто - поля у вида нет. */
+	lockFields?: readonly MetadataEditOption[];
+	/** Кандидаты в основания ввода; пусто - ввода на основании у вида нет. */
+	basedOn?: readonly MetadataEditOption[];
+}
+
+/**
+ * Добавляет к вкладкам вида общие свойства ссылочных видов. Куда они попадут, решает канон
+ * раскладки, поэтому построителю достаточно объявить кандидатов ссылок.
+ */
+function withReferenceCommon(tabs: MetadataEditTabSpec[], common: ReferenceCommonInput): MetadataEditTabSpec[] {
+	// Общие свойства идут последними: в группе сначала то, что вид объявил сам.
+	const last = tabs[tabs.length - 1];
+	return [
+		...tabs.slice(0, -1),
+		{ ...last, groups: [...last.groups, ...referenceCommonGroups(common)] },
+	];
+}
+
+/**
+ * Группы свойств, одинаковые у всех ссылочных видов: поле ввода, блокировка и история,
+ * ввод на основании, вспомогательные формы. Канон раскладки сам разложит их по вкладкам,
+ * а повторы с полями самого вида отбросит.
+ */
+function referenceCommonGroups(input: ReferenceCommonInput): MetadataEditGroup[] {
+	const p = (name: string): string => `${input.block}.${name}`;
+	const groups: MetadataEditGroup[] = [];
+	if (input.inputField) {
+		groups.push({
+			title: 'Поле ввода',
+			fields: [
+				{
+					path: p('createOnInput'),
+					label: 'Создание при вводе',
+					control: 'select',
+					options: opts(['AUTO', 'Авто'], ['USE', 'Использовать'], ['DONT_USE', 'Не использовать']),
+				},
+				{
+					path: p('searchStringModeOnInputByString'),
+					label: 'Способ поиска строки при вводе',
+					control: 'select',
+					options: opts(['BEGIN', 'Начало'], ['ANY_PART', 'Любая часть']),
+				},
+				{
+					path: p('fullTextSearchOnInputByString'),
+					label: 'Полнотекстовый поиск при вводе',
+					control: 'select',
+					options: USE_DONT_USE,
+				},
+				{
+					path: p('choiceDataGetModeOnInputByString'),
+					label: 'Режим получения данных выбора',
+					control: 'select',
+					options: opts(['DIRECTLY', 'Непосредственно'], ['BACKGROUND', 'Фоновым заданием']),
+				},
+			],
+		});
+	}
+	if (input.dataHistory) {
+		groups.push({
+			title: 'Блокировка и история',
+			fields: [
+				{ path: p('fullTextSearch'), label: 'Полнотекстовый поиск', control: 'select', options: USE_DONT_USE },
+				{ path: p('dataHistory'), label: 'История данных', control: 'select', options: USE_DONT_USE },
+				{
+					path: p('updateDataHistoryImmediatelyAfterWrite'),
+					label: 'Обновлять историю данных сразу после записи',
+					control: 'check',
+					enabledWhen: [{ path: p('dataHistory'), equals: 'USE' }],
+				},
+				{
+					path: p('executeAfterWriteDataHistoryVersionProcessing'),
+					label: 'Выполнять обработку версий истории данных после записи',
+					control: 'check',
+					enabledWhen: [{ path: p('dataHistory'), equals: 'USE' }],
+				},
+			],
+		});
+	}
+	if (input.auxiliaryForms.length > 0) {
+		groups.push({
+			title: 'Основные формы',
+			fields: input.auxiliaryForms.map((kind) => {
+				const [property, label] = AUXILIARY_FORM_LABELS[kind];
+				return {
+					path: p(property),
+					label,
+					control: 'select' as const,
+					options: input.forms,
+					clearable: true,
+				};
+			}),
+		});
+	}
+	if (input.lockFields) {
+		groups.push({
+			title: 'Блокировка и история',
+			fields: [
+				{
+					path: p('dataLockFields'),
+					label: 'Поля блокировки данных',
+					control: 'refList',
+					options: input.lockFields,
+				},
+			],
+		});
+	}
+	if (input.basedOn) {
+		groups.push({
+			title: 'Ввод на основании',
+			fields: [{ path: p('basedOn'), label: 'Вводится на основании', control: 'refList', options: input.basedOn }],
+		});
+	}
+	return groups;
+}
+
 interface CatalogEditSpecInput {
+	/** Стандартные реквизиты объекта из файла: кандидаты в поля блокировки данных. */
+	standardAttributeNames?: readonly string[];
+	/** Готовые кандидаты в основания ввода: их состав определяет панель. */
+	basedOnOptions?: readonly MetadataEditOption[];
 	internalName: string;
 	formNames: readonly string[];
 	commandNames: readonly string[];
+	/** Имена общих форм конфигурации - кандидаты в основные формы объекта. */
+	commonFormNames?: readonly string[];
 	/** Имена всех справочников конфигурации — кандидаты во владельцы и в основания. */
 	catalogNames?: readonly string[];
 	/** Имена документов конфигурации — кандидаты в основания. */
@@ -103,10 +249,20 @@ interface CatalogEditSpecInput {
 	hierarchical?: boolean;
 }
 
-function formOptions(internalName: string, formNames: readonly string[]): MetadataEditOption[] {
+/**
+ * Кандидаты в основную форму: формы самого объекта и общие формы конфигурации.
+ * Общие формы платформа разрешает назначать основными, и конфигурации этим пользуются.
+ */
+function objectFormOptions(
+	prefix: string,
+	internalName: string,
+	formNames: readonly string[],
+	commonFormNames: readonly string[] = []
+): MetadataEditOption[] {
 	return [
 		{ value: '', label: '(не задана)' },
-		...formNames.map((name) => ({ value: `Catalog.${internalName}.Form.${name}`, label: name })),
+		...formNames.map((name) => ({ value: `${prefix}.${internalName}.Form.${name}`, label: name })),
+		...commonFormNames.map((name) => ({ value: `CommonForm.${name}`, label: name, hint: 'Общая форма' })),
 	];
 }
 
@@ -125,25 +281,78 @@ function inputByStringOptions(internalName: string, attributeNames: readonly str
 	];
 }
 
-function dataLockFieldsOptions(input: CatalogEditSpecInput): MetadataEditOption[] {
-	const base = `Catalog.${input.internalName}`;
-	const out: MetadataEditOption[] = [
-		{ value: `${base}.StandardAttribute.Code`, label: 'Код' },
-		{ value: `${base}.StandardAttribute.Description`, label: 'Наименование' },
-	];
-	if (input.hasOwners) {
-		out.push({ value: `${base}.StandardAttribute.Owner`, label: 'Владелец' });
-	}
-	if (input.hierarchical) {
-		out.push({ value: `${base}.StandardAttribute.Parent`, label: 'Родитель' });
-	}
-	for (const name of input.attributeNames ?? []) {
-		out.push({ value: `${base}.Attribute.${name}`, label: name });
-	}
-	return out;
+/**
+ * Подписи стандартных реквизитов платформы. Состав берётся из файла объекта, здесь только перевод:
+ * имени без перевода показываем как есть.
+ */
+const STANDARD_ATTRIBUTE_LABELS: Readonly<Record<string, string>> = {
+	Ref: 'Ссылка',
+	Code: 'Код',
+	Description: 'Наименование',
+	Owner: 'Владелец',
+	Parent: 'Родитель',
+	IsFolder: 'Это группа',
+	DeletionMark: 'Пометка удаления',
+	Predefined: 'Предопределённый',
+	Number: 'Номер',
+	Date: 'Дата',
+	Posted: 'Проведён',
+	BusinessProcess: 'Бизнес-процесс',
+	RoutePoint: 'Точка маршрута',
+	Executed: 'Выполнена',
+	HeadTask: 'Главная задача',
+	Started: 'Стартован',
+	Completed: 'Завершён',
+	Period: 'Период',
+	Recorder: 'Регистратор',
+	LineNumber: 'Номер строки',
+	Active: 'Активность',
+};
+
+/**
+ * Кандидаты в поля блокировки данных: стандартные реквизиты из файла объекта и его реквизиты.
+ */
+/** Вид объекта из ссылки `Catalog.Имя`: имя вида нужно для путей стандартных реквизитов. */
+function prefixOf(base: string): string {
+	return base.slice(0, base.indexOf('.'));
 }
 
-function basedOnOptions(input: CatalogEditSpecInput): MetadataEditOption[] {
+function lockFieldOptions(
+	prefix: string,
+	internalName: string,
+	standardAttributeNames: readonly string[] = [],
+	attributeNames: readonly string[] = []
+): MetadataEditOption[] {
+	const base = `${prefix}.${internalName}`;
+	return [
+		...standardAttributeNames.map((name) => ({
+			value: `${base}.StandardAttribute.${name}`,
+			label: STANDARD_ATTRIBUTE_LABELS[name] ?? name,
+			hint: 'Стандартный реквизит',
+		})),
+		...attributeNames.map((name) => ({ value: `${base}.Attribute.${name}`, label: name })),
+	];
+}
+
+function dataLockFieldsOptions(input: CatalogEditSpecInput): MetadataEditOption[] {
+	const standard =
+		input.standardAttributeNames ??
+		['Code', 'Description', ...(input.hasOwners ? ['Owner'] : []), ...(input.hierarchical ? ['Parent'] : [])];
+	return lockFieldOptions('Catalog', input.internalName, standard, input.attributeNames);
+}
+
+/**
+ * Кандидаты в основания ввода. Список объектов, на основании которых платформа разрешает вводить,
+ * шире справочников и документов, поэтому его собирает панель и передаёт готовым.
+ */
+function basedOnOptions(input: {
+	basedOnOptions?: readonly MetadataEditOption[];
+	catalogNames?: readonly string[];
+	documentNames?: readonly string[];
+}): MetadataEditOption[] {
+	if (input.basedOnOptions) {
+		return [...input.basedOnOptions];
+	}
 	return [
 		...(input.catalogNames ?? []).map((name) => ({ value: `Catalog.${name}`, label: name, hint: 'Справочник' })),
 		...(input.documentNames ?? []).map((name) => ({ value: `Document.${name}`, label: name, hint: 'Документ' })),
@@ -157,12 +366,13 @@ const HIERARCHICAL_ON: readonly MetadataEditCondition[] = [{ path: 'catalog.hier
  * (Основные, Данные, Владельцы, Формы, Команды).
  */
 export function buildCatalogEditTabs(input: CatalogEditSpecInput): MetadataEditTabSpec[] {
-	const forms = formOptions(input.internalName, input.formNames);
+	const forms = objectFormOptions('Catalog', input.internalName, input.formNames, input.commonFormNames);
 	const owners = ownerOptions(input.internalName, input.catalogNames ?? []);
 	const inputByString = inputByStringOptions(input.internalName, input.attributeNames ?? []);
 	const dataLockFields = dataLockFieldsOptions(input);
 	const basedOn = basedOnOptions(input);
-	return [
+	return withReferenceCommon(
+		[
 		{
 			id: 'edit_main',
 			title: 'Основные',
@@ -297,12 +507,6 @@ export function buildCatalogEditTabs(input: CatalogEditSpecInput): MetadataEditT
 					title: 'Прочее',
 					fields: [
 						{
-							path: 'catalog.editType',
-							label: 'Способ редактирования',
-							control: 'select',
-							options: opts(['IN_DIALOG', 'В диалоге'], ['IN_LIST', 'В списке'], ['BOTH_WAYS', 'Обоими способами']),
-						},
-						{
 							path: 'catalog.predefinedDataUpdate',
 							label: 'Обновление предопределенных данных',
 							control: 'select',
@@ -357,8 +561,14 @@ export function buildCatalogEditTabs(input: CatalogEditSpecInput): MetadataEditT
 			title: 'Данные',
 			groups: [
 				{
-					title: 'Код',
+					title: 'Код и наименование',
 					fields: [
+						{
+							path: 'catalog.editType',
+							label: 'Способ редактирования',
+							control: 'select',
+							options: opts(['IN_DIALOG', 'В диалоге'], ['IN_LIST', 'В списке'], ['BOTH_WAYS', 'Обоими способами']),
+						},
 						{ path: 'catalog.codeLength', label: 'Длина кода', control: 'number' },
 						{ path: 'catalog.descriptionLength', label: 'Длина наименования', control: 'number' },
 						{
@@ -471,7 +681,6 @@ export function buildCatalogEditTabs(input: CatalogEditSpecInput): MetadataEditT
 					title: 'Команды',
 					fields: [
 						{ path: 'catalog.useStandardCommands', label: 'Использовать стандартные команды', control: 'check' },
-						{ path: '', label: 'Команды объекта', control: 'staticList', items: input.commandNames },
 					],
 				},
 			],
@@ -486,13 +695,27 @@ export function buildCatalogEditTabs(input: CatalogEditSpecInput): MetadataEditT
 				},
 			],
 		},
-	];
+		],
+		{
+			block: 'catalog',
+			forms,
+			auxiliaryForms: ['object', 'folder', 'list', 'choice', 'folderChoice'],
+			inputField: true,
+			dataHistory: true,
+		}
+	);
 }
 
 export interface DocumentEditSpecInput {
+	/** Стандартные реквизиты объекта из файла: кандидаты в поля блокировки данных. */
+	standardAttributeNames?: readonly string[];
+	/** Готовые кандидаты в основания ввода: их состав определяет панель. */
+	basedOnOptions?: readonly MetadataEditOption[];
 	internalName: string;
 	formNames: readonly string[];
 	commandNames: readonly string[];
+	/** Имена общих форм конфигурации - кандидаты в основные формы объекта. */
+	commonFormNames?: readonly string[];
 	/** Имена справочников — кандидаты в основания. */
 	catalogNames?: readonly string[];
 	/** Имена документов — кандидаты в основания. */
@@ -505,13 +728,6 @@ export interface DocumentEditSpecInput {
 	registerOptions?: readonly MetadataEditOption[];
 }
 
-function documentFormOptions(internalName: string, formNames: readonly string[]): MetadataEditOption[] {
-	return [
-		{ value: '', label: '(не задана)' },
-		...formNames.map((name) => ({ value: `Document.${internalName}.Form.${name}`, label: name })),
-	];
-}
-
 function documentInputByStringOptions(internalName: string, attributeNames: readonly string[]): MetadataEditOption[] {
 	const base = `Document.${internalName}`;
 	return [
@@ -521,12 +737,12 @@ function documentInputByStringOptions(internalName: string, attributeNames: read
 }
 
 function documentDataLockFieldsOptions(input: DocumentEditSpecInput): MetadataEditOption[] {
-	const base = `Document.${input.internalName}`;
-	return [
-		{ value: `${base}.StandardAttribute.Number`, label: 'Номер' },
-		{ value: `${base}.StandardAttribute.Date`, label: 'Дата' },
-		...(input.attributeNames ?? []).map((name) => ({ value: `${base}.Attribute.${name}`, label: name })),
-	];
+	return lockFieldOptions(
+		'Document',
+		input.internalName,
+		input.standardAttributeNames ?? ['Number', 'Date'],
+		input.attributeNames
+	);
 }
 
 /**
@@ -534,21 +750,16 @@ function documentDataLockFieldsOptions(input: DocumentEditSpecInput): MetadataEd
  * (Основные, Данные, Движения, Формы, Команды, Ввод на основании).
  */
 export function buildDocumentEditTabs(input: DocumentEditSpecInput): MetadataEditTabSpec[] {
-	const forms = documentFormOptions(input.internalName, input.formNames);
+	const forms = objectFormOptions('Document', input.internalName, input.formNames, input.commonFormNames);
 	const inputByString = documentInputByStringOptions(input.internalName, input.attributeNames ?? []);
 	const dataLockFields = documentDataLockFieldsOptions(input);
-	const basedOn = basedOnOptions({
-		internalName: input.internalName,
-		formNames: [],
-		commandNames: [],
-		catalogNames: input.catalogNames,
-		documentNames: input.documentNames,
-	});
+	const basedOn = basedOnOptions(input);
 	const numerators: MetadataEditOption[] = [
 		{ value: '', label: '(не задан)' },
 		...(input.numeratorNames ?? []).map((name) => ({ value: `DocumentNumerator.${name}`, label: name })),
 	];
-	return [
+	return withReferenceCommon(
+		[
 		{
 			id: 'edit_main',
 			title: 'Основные',
@@ -812,7 +1023,6 @@ export function buildDocumentEditTabs(input: DocumentEditSpecInput): MetadataEdi
 					title: 'Команды',
 					fields: [
 						{ path: 'document.useStandardCommands', label: 'Использовать стандартные команды', control: 'check' },
-						{ path: '', label: 'Команды объекта', control: 'staticList', items: input.commandNames },
 					],
 				},
 			],
@@ -827,31 +1037,39 @@ export function buildDocumentEditTabs(input: DocumentEditSpecInput): MetadataEdi
 				},
 			],
 		},
-	];
+		],
+		{
+			block: 'document',
+			forms,
+			auxiliaryForms: ['object', 'list', 'choice'],
+			inputField: true,
+			dataHistory: true,
+		}
+	);
 }
 
 export interface SimpleObjectEditSpecInput {
 	internalName: string;
 	formNames: readonly string[];
 	commandNames: readonly string[];
+	/** Стандартные реквизиты объекта из файла: кандидаты в поля блокировки данных. */
+	standardAttributeNames?: readonly string[];
+	/** Готовые кандидаты в основания ввода: их состав определяет панель. */
+	basedOnOptions?: readonly MetadataEditOption[];
+	/** Имена общих форм конфигурации - кандидаты в основные формы объекта. */
+	commonFormNames?: readonly string[];
 }
 
 const CHOICE_HISTORY = opts(['AUTO', 'Авто'], ['DONT_USE', 'Не использовать']);
-
-function enumFormOptions(internalName: string, formNames: readonly string[]): MetadataEditOption[] {
-	return [
-		{ value: '', label: '(не задана)' },
-		...formNames.map((name) => ({ value: `Enum.${internalName}.Form.${name}`, label: name })),
-	];
-}
 
 /**
  * Вкладки редактирования перечисления: раскладка повторяет редактор EDT.
  * Значения перечисления правятся отдельно.
  */
 export function buildEnumEditTabs(input: SimpleObjectEditSpecInput): MetadataEditTabSpec[] {
-	const forms = enumFormOptions(input.internalName, input.formNames);
-	return [
+	const forms = objectFormOptions('Enum', input.internalName, input.formNames, input.commonFormNames);
+	return withReferenceCommon(
+		[
 		{
 			id: 'edit_main',
 			title: 'Основные',
@@ -943,19 +1161,13 @@ export function buildEnumEditTabs(input: SimpleObjectEditSpecInput): MetadataEdi
 					title: 'Команды',
 					fields: [
 						{ path: 'enumeration.useStandardCommands', label: 'Использовать стандартные команды', control: 'check' },
-						{ path: '', label: 'Команды объекта', control: 'staticList', items: input.commandNames },
 					],
 				},
 			],
 		},
-	];
-}
-
-function constantFormOptions(internalName: string, formNames: readonly string[]): MetadataEditOption[] {
-	return [
-		{ value: '', label: '(не задана)' },
-		...formNames.map((name) => ({ value: `Constant.${internalName}.Form.${name}`, label: name })),
-	];
+		],
+		{ block: 'enumeration', forms, auxiliaryForms: ['list', 'choice'] }
+	);
 }
 
 /**
@@ -963,7 +1175,7 @@ function constantFormOptions(internalName: string, formNames: readonly string[])
  * Тип значения правится палитрой типов.
  */
 export function buildConstantEditTabs(input: SimpleObjectEditSpecInput): MetadataEditTabSpec[] {
-	const forms = constantFormOptions(input.internalName, input.formNames);
+	const forms = objectFormOptions('Constant', input.internalName, input.formNames, input.commonFormNames);
 	return [
 		{
 			id: 'edit_main',
@@ -1096,8 +1308,1923 @@ export function buildConstantEditTabs(input: SimpleObjectEditSpecInput): Metadat
 					title: 'Команды',
 					fields: [
 						{ path: 'constant.useStandardCommands', label: 'Использовать стандартные команды', control: 'check' },
-						{ path: '', label: 'Команды объекта', control: 'staticList', items: input.commandNames },
 					],
+				},
+			],
+		},
+	];
+}
+
+/** Вход спецификации отчёта и обработки: формы объекта и макеты для схемы компоновки. */
+export interface ReportEditSpecInput extends SimpleObjectEditSpecInput {
+	/** Вид объекта: у обработки нет схемы компоновки, вариантов и хранилищ. */
+	report: boolean;
+	/** Имена макетов объекта - кандидаты в основную схему компоновки данных. */
+	templateNames?: readonly string[];
+	/** Имена хранилищ настроек конфигурации - кандидаты в хранилища вариантов и настроек. */
+	settingsStorageNames?: readonly string[];
+}
+
+function reportTemplateOptions(
+	internalName: string,
+	templateNames: readonly string[]
+): MetadataEditOption[] {
+	return [
+		{ value: '', label: '(не задана)' },
+		...templateNames.map((name) => ({ value: `Report.${internalName}.Template.${name}`, label: name })),
+	];
+}
+
+function settingsStorageOptions(names: readonly string[]): MetadataEditOption[] {
+	return [
+		{ value: '', label: '(не задано)' },
+		...names.map((name) => ({ value: `SettingsStorage.${name}`, label: name })),
+	];
+}
+
+/**
+ * Вкладки редактирования отчёта и обработки: раскладка повторяет редактор EDT.
+ * Наборы свойств совпадают, поэтому спецификация одна: у обработки нет группы
+ * схемы компоновки и хранилищ, а формы вариантов и настроек только у отчёта.
+ */
+export function buildReportEditTabs(input: ReportEditSpecInput): MetadataEditTabSpec[] {
+	const prefix = input.report ? 'Report' : 'DataProcessor';
+	const forms = objectFormOptions(prefix, input.internalName, input.formNames, input.commonFormNames);
+	const mainGroupFields: MetadataEditField[] = [
+		{ path: 'internalName', label: 'Имя', control: 'text', readonly: true },
+		{ path: 'synonymRu', label: 'Синоним', control: 'text' },
+		{ path: 'comment', label: 'Комментарий', control: 'text' },
+	];
+	// схема компоновки и хранилища - суть отчёта, у обработки их нет
+	const compositionFields: MetadataEditField[] = input.report
+		? [
+				{
+					path: 'report.mainDataCompositionSchema',
+					label: 'Основная схема компоновки данных',
+					control: 'select',
+					options: reportTemplateOptions(input.internalName, input.templateNames ?? []),
+					clearable: true,
+				},
+				{
+					path: 'report.variantsStorage',
+					label: 'Хранилище вариантов',
+					control: 'select',
+					options: settingsStorageOptions(input.settingsStorageNames ?? []),
+					clearable: true,
+				},
+				{
+					path: 'report.settingsStorage',
+					label: 'Хранилище настроек',
+					control: 'select',
+					options: settingsStorageOptions(input.settingsStorageNames ?? []),
+					clearable: true,
+				},
+			]
+		: [];
+
+	const otherFields: MetadataEditField[] = [
+		{ path: 'report.includeHelpInContents', label: 'Включать в содержание справки', control: 'check' },
+	];
+
+	const formFields: MetadataEditField[] = [
+		{ path: 'report.defaultForm', label: 'Основная форма', control: 'select', options: forms, clearable: true },
+		{
+			path: 'report.auxiliaryForm',
+			label: 'Вспомогательная форма',
+			control: 'select',
+			options: forms,
+			clearable: true,
+		},
+	];
+	if (input.report) {
+		formFields.push(
+			{
+				path: 'report.defaultSettingsForm',
+				label: 'Основная форма настроек',
+				control: 'select',
+				options: forms,
+				clearable: true,
+			},
+			{
+				path: 'report.auxiliarySettingsForm',
+				label: 'Вспомогательная форма настроек',
+				control: 'select',
+				options: forms,
+				clearable: true,
+			},
+			{
+				path: 'report.defaultVariantForm',
+				label: 'Основная форма варианта',
+				control: 'select',
+				options: forms,
+				clearable: true,
+			},
+			{
+				path: 'report.auxiliaryVariantForm',
+				label: 'Вспомогательная форма варианта',
+				control: 'select',
+				options: forms,
+				clearable: true,
+			}
+		);
+	}
+
+	return [
+		{
+			id: 'edit_main',
+			title: 'Основные',
+			groups: [
+				{ title: 'Основные', fields: mainGroupFields },
+				{
+					title: 'Представление',
+					fields: [
+						{ path: 'report.extendedPresentationRu', label: 'Расширенное представление', control: 'text' },
+						{ path: 'report.explanationRu', label: 'Пояснение', control: 'textarea' },
+					],
+				},
+				{ title: 'Компоновка', fields: compositionFields },
+				{ title: 'Прочее', fields: otherFields },
+			],
+		},
+		{
+			id: 'edit_forms',
+			title: 'Формы',
+			groups: [
+				{ title: 'Основные формы', fields: formFields },
+				{
+					title: 'Формы',
+					fields: [{ path: '', label: 'Формы объекта', control: 'staticList', items: input.formNames }],
+				},
+			],
+		},
+		{
+			id: 'edit_commands',
+			title: 'Команды',
+			groups: [
+				{
+					title: 'Команды',
+					fields: [
+						{ path: 'report.useStandardCommands', label: 'Использовать стандартные команды', control: 'check' },
+					],
+				},
+			],
+		},
+		{
+			id: 'edit_modules',
+			title: 'Модули',
+			groups: [
+				{
+					title: 'Модули',
+					fields: [
+						{ path: 'object', label: 'Модуль объекта', control: 'moduleLink' },
+						{ path: 'manager', label: 'Модуль менеджера', control: 'moduleLink' },
+					],
+				},
+			],
+		},
+	];
+}
+
+/** Вход спецификации плана видов расчёта: формы, реквизиты и планы видов расчёта конфигурации. */
+export interface ChartOfCalculationTypesEditSpecInput extends SimpleObjectEditSpecInput {
+	/** Имена справочников конфигурации - кандидаты в основания ввода. */
+	catalogNames?: readonly string[];
+	/** Имена документов конфигурации - кандидаты в основания ввода. */
+	documentNames?: readonly string[];
+	/** Имена реквизитов объекта - кандидаты для ввода по строке и полей блокировки. */
+	attributeNames?: readonly string[];
+	/** Имена планов видов расчёта - кандидаты в базовые виды расчёта. */
+	calculationTypeNames?: readonly string[];
+}
+
+/**
+ * Вкладки редактирования плана видов расчёта: раскладка повторяет редактор EDT.
+ * Базовые виды расчёта доступны, только когда задана зависимость от видов расчёта.
+ */
+export function buildChartOfCalculationTypesEditTabs(
+	input: ChartOfCalculationTypesEditSpecInput
+): MetadataEditTabSpec[] {
+	const base = `ChartOfCalculationTypes.${input.internalName}`;
+	const basedOn = basedOnOptions(input);
+	const dataLockFields = lockFieldOptions(
+		'ChartOfCalculationTypes',
+		input.internalName,
+		input.standardAttributeNames ?? ['Code', 'Description'],
+		input.attributeNames
+	);
+	const forms = objectFormOptions('ChartOfCalculationTypes', input.internalName, input.formNames, input.commonFormNames);
+	const inputByString: MetadataEditOption[] = [
+		{ value: `${base}.StandardAttribute.Description`, label: 'Наименование' },
+		{ value: `${base}.StandardAttribute.Code`, label: 'Код' },
+		...(input.attributeNames ?? []).map((name) => ({
+			value: `${base}.Attribute.${name}`,
+			label: name,
+		})),
+	];
+	// План видов расчёта бывает базовым сам себе: так сделаны основные начисления в типовых.
+	const baseCalculationTypes: MetadataEditOption[] = (input.calculationTypeNames ?? []).map((name) => ({
+		value: `ChartOfCalculationTypes.${name}`,
+		label: name,
+	}));
+
+	return withReferenceCommon(
+		[
+		{
+			id: 'edit_main',
+			title: 'Основные',
+			groups: [
+				{
+					title: 'Основные',
+					fields: [
+						{ path: 'internalName', label: 'Имя', control: 'text', readonly: true },
+						{ path: 'synonymRu', label: 'Синоним', control: 'text' },
+						{ path: 'comment', label: 'Комментарий', control: 'text' },
+						{ path: 'object', label: 'Модуль объекта', control: 'moduleLink' },
+						{ path: 'manager', label: 'Модуль менеджера', control: 'moduleLink' },
+					],
+				},
+				{
+					title: 'Расчёт',
+					fields: [
+						{
+							path: 'chartOfCalculationTypes.dependenceOnCalculationTypes',
+							label: 'Зависимость от видов расчёта',
+							control: 'select',
+							options: opts(
+								['DONT_USE', 'Не зависит'],
+								['ON_ACTION_PERIOD', 'По периоду действия'],
+								['ON_REGISTRATION_PERIOD', 'По периоду регистрации']
+							),
+						},
+						{
+							path: 'chartOfCalculationTypes.baseCalculationTypes',
+							label: 'Базовые виды расчёта',
+							control: 'refList',
+							options: baseCalculationTypes,
+						},
+						{
+							path: 'chartOfCalculationTypes.actionPeriodUse',
+							label: 'Использует период действия',
+							control: 'check',
+						},
+					],
+				},
+				{
+					title: 'Представление',
+					fields: [
+						{
+							path: 'chartOfCalculationTypes.objectPresentationRu',
+							label: 'Представление объекта',
+							control: 'text',
+						},
+						{
+							path: 'chartOfCalculationTypes.extendedObjectPresentationRu',
+							label: 'Расширенное представление объекта',
+							control: 'text',
+						},
+						{
+							path: 'chartOfCalculationTypes.listPresentationRu',
+							label: 'Представление списка',
+							control: 'text',
+						},
+						{
+							path: 'chartOfCalculationTypes.extendedListPresentationRu',
+							label: 'Расширенное представление списка',
+							control: 'text',
+						},
+						{ path: 'chartOfCalculationTypes.explanationRu', label: 'Пояснение', control: 'textarea' },
+					],
+				},
+				{
+					title: 'Прочее',
+					fields: [
+						{
+							path: 'chartOfCalculationTypes.predefinedDataUpdate',
+							label: 'Обновление предопределённых данных',
+							control: 'select',
+							options: opts(
+								['AUTO', 'Авто'],
+								['DONT_AUTO_UPDATE', 'Не обновлять автоматически'],
+								['AUTO_UPDATE', 'Обновлять автоматически']
+							),
+						},
+						{
+							path: 'chartOfCalculationTypes.dataLockControlMode',
+							label: 'Режим управления блокировкой данных',
+							control: 'select',
+							options: opts(
+								['AUTOMATIC', 'Автоматический'],
+								['MANAGED', 'Управляемый'],
+								['AUTOMATIC_AND_MANAGED', 'Автоматический и управляемый']
+							),
+						},
+						{
+							path: 'chartOfCalculationTypes.includeHelpInContents',
+							label: 'Включать в содержание справки',
+							control: 'check',
+						},
+						{
+							path: 'chartOfCalculationTypes.additionalIndexes',
+							label: 'Дополнительные индексы',
+							control: 'text',
+						},
+					],
+				},
+			],
+		},
+		{
+			id: 'edit_data',
+			title: 'Данные',
+			groups: [
+				{
+					title: 'Код и наименование',
+					fields: [
+						{ path: 'chartOfCalculationTypes.codeLength', label: 'Длина кода', control: 'number' },
+						{
+							path: 'chartOfCalculationTypes.codeType',
+							label: 'Тип кода',
+							control: 'select',
+							options: opts(['STRING', 'Строка'], ['NUMBER', 'Число']),
+						},
+						{
+							path: 'chartOfCalculationTypes.codeAllowedLength',
+							label: 'Допустимая длина кода',
+							control: 'select',
+							options: opts(['VARIABLE', 'Переменная'], ['FIXED', 'Фиксированная']),
+						},
+						{
+							path: 'chartOfCalculationTypes.descriptionLength',
+							label: 'Длина наименования',
+							control: 'number',
+						},
+						{
+							path: 'chartOfCalculationTypes.editType',
+							label: 'Способ редактирования',
+							control: 'select',
+							options: opts(
+								['IN_DIALOG', 'В диалоге'],
+								['IN_LIST', 'В списке'],
+								['BOTH_WAYS', 'Обоими способами']
+							),
+						},
+						{
+							path: 'chartOfCalculationTypes.inputByString',
+							label: 'Ввод по строке',
+							control: 'refList',
+							options: inputByString,
+						},
+						{
+							path: 'chartOfCalculationTypes.choiceHistoryOnInput',
+							label: 'История выбора при вводе',
+							control: 'select',
+							options: CHOICE_HISTORY,
+						},
+					],
+				},
+			],
+		},
+		{
+			id: 'edit_forms',
+			title: 'Формы',
+			groups: [
+				{
+					title: 'Основные формы',
+					fields: [
+						{
+							path: 'chartOfCalculationTypes.defaultObjectForm',
+							label: 'Основная форма объекта',
+							control: 'select',
+							options: forms,
+							clearable: true,
+						},
+						{
+							path: 'chartOfCalculationTypes.defaultListForm',
+							label: 'Основная форма списка',
+							control: 'select',
+							options: forms,
+							clearable: true,
+						},
+						{
+							path: 'chartOfCalculationTypes.defaultChoiceForm',
+							label: 'Основная форма выбора',
+							control: 'select',
+							options: forms,
+							clearable: true,
+						},
+					],
+				},
+				{
+					title: 'Формы',
+					fields: [{ path: '', label: 'Формы объекта', control: 'staticList', items: input.formNames }],
+				},
+			],
+		},
+		{
+			id: 'edit_commands',
+			title: 'Команды',
+			groups: [
+				{
+					title: 'Команды',
+					fields: [
+						{
+							path: 'chartOfCalculationTypes.useStandardCommands',
+							label: 'Использовать стандартные команды',
+							control: 'check',
+						},
+					],
+				},
+			],
+		},
+		],
+		{
+			block: 'chartOfCalculationTypes',
+			forms,
+			auxiliaryForms: ['object', 'list', 'choice'],
+			inputField: true,
+			dataHistory: true,
+			lockFields: dataLockFields,
+			basedOn,
+		}
+	);
+}
+
+/** Вход спецификации плана счетов: формы, реквизиты и планы видов характеристик. */
+export interface ChartOfAccountsEditSpecInput extends SimpleObjectEditSpecInput {
+	/** Имена реквизитов объекта - кандидаты для ввода по строке и полей блокировки. */
+	attributeNames?: readonly string[];
+	/** Имена планов видов характеристик - кандидаты в виды субконто. */
+	characteristicTypeNames?: readonly string[];
+	/** Имена справочников конфигурации - кандидаты в основания. */
+	catalogNames?: readonly string[];
+	/** Имена документов конфигурации - кандидаты в основания. */
+	documentNames?: readonly string[];
+}
+
+/**
+ * Вкладки редактирования плана счетов: раскладка повторяет редактор EDT.
+ * Признаки учёта и признаки учёта субконто ведутся своими списками, здесь только свойства.
+ */
+export function buildChartOfAccountsEditTabs(input: ChartOfAccountsEditSpecInput): MetadataEditTabSpec[] {
+	const base = `ChartOfAccounts.${input.internalName}`;
+	const forms = objectFormOptions('ChartOfAccounts', input.internalName, input.formNames, input.commonFormNames);
+	const attributeOptions = (input.attributeNames ?? []).map((name) => ({
+		value: `${base}.Attribute.${name}`,
+		label: name,
+	}));
+	const inputByString: MetadataEditOption[] = [
+		{ value: `${base}.StandardAttribute.Description`, label: 'Наименование' },
+		{ value: `${base}.StandardAttribute.Code`, label: 'Код' },
+		...attributeOptions,
+	];
+	const dataLockFields = lockFieldOptions(
+		prefixOf(base),
+		input.internalName,
+		input.standardAttributeNames ?? ['Code', 'Description'],
+		input.attributeNames
+	);
+	const basedOn = basedOnOptions(input);
+	const extDimensionTypes: MetadataEditOption[] = [
+		{ value: '', label: '(не заданы)' },
+		...(input.characteristicTypeNames ?? []).map((name) => ({
+			value: `ChartOfCharacteristicTypes.${name}`,
+			label: name,
+		})),
+	];
+
+	return withReferenceCommon(
+		[
+		{
+			id: 'edit_main',
+			title: 'Основные',
+			groups: [
+				{
+					title: 'Основные',
+					fields: [
+						{ path: 'internalName', label: 'Имя', control: 'text', readonly: true },
+						{ path: 'synonymRu', label: 'Синоним', control: 'text' },
+						{ path: 'comment', label: 'Комментарий', control: 'text' },
+						{ path: 'object', label: 'Модуль объекта', control: 'moduleLink' },
+						{ path: 'manager', label: 'Модуль менеджера', control: 'moduleLink' },
+					],
+				},
+				{
+					title: 'Субконто',
+					fields: [
+						{
+							path: 'chartOfAccounts.extDimensionTypes',
+							label: 'Виды субконто',
+							control: 'select',
+							options: extDimensionTypes,
+							clearable: true,
+						},
+						{
+							path: 'chartOfAccounts.maxExtDimensionCount',
+							label: 'Максимальное количество субконто',
+							control: 'number',
+						},
+					],
+				},
+				{
+					title: 'Представление',
+					fields: [
+						{ path: 'chartOfAccounts.objectPresentationRu', label: 'Представление объекта', control: 'text' },
+						{
+							path: 'chartOfAccounts.extendedObjectPresentationRu',
+							label: 'Расширенное представление объекта',
+							control: 'text',
+						},
+						{ path: 'chartOfAccounts.listPresentationRu', label: 'Представление списка', control: 'text' },
+						{
+							path: 'chartOfAccounts.extendedListPresentationRu',
+							label: 'Расширенное представление списка',
+							control: 'text',
+						},
+						{ path: 'chartOfAccounts.explanationRu', label: 'Пояснение', control: 'textarea' },
+					],
+				},
+				{
+					title: 'Поле ввода',
+					fields: [
+						{ path: 'chartOfAccounts.quickChoice', label: 'Быстрый выбор', control: 'check' },
+						{
+							path: 'chartOfAccounts.choiceMode',
+							label: 'Способ выбора',
+							control: 'select',
+							options: opts(
+								['BOTH_WAYS', 'Обоими способами'],
+								['FROM_FORM', 'Из формы'],
+								['QUICK_CHOICE', 'Быстрый выбор']
+							),
+						},
+						{
+							path: 'chartOfAccounts.createOnInput',
+							label: 'Создание при вводе',
+							control: 'select',
+							options: opts(['AUTO', 'Авто'], ['USE', 'Использовать'], ['DONT_USE', 'Не использовать']),
+						},
+						{
+							path: 'chartOfAccounts.inputByString',
+							label: 'Ввод по строке',
+							control: 'refList',
+							options: inputByString,
+						},
+						{
+							path: 'chartOfAccounts.choiceHistoryOnInput',
+							label: 'История выбора при вводе',
+							control: 'select',
+							options: CHOICE_HISTORY,
+						},
+					],
+				},
+				{
+					title: 'Прочее',
+					fields: [
+						{ path: 'chartOfAccounts.basedOn', label: 'Вводится на основании', control: 'refList', options: basedOn },
+						{
+							path: 'chartOfAccounts.dataLockFields',
+							label: 'Поля блокировки данных',
+							control: 'refList',
+							options: dataLockFields,
+						},
+						{
+							path: 'chartOfAccounts.dataLockControlMode',
+							label: 'Режим управления блокировкой данных',
+							control: 'select',
+							options: opts(
+								['AUTOMATIC', 'Автоматический'],
+								['MANAGED', 'Управляемый'],
+								['AUTOMATIC_AND_MANAGED', 'Автоматический и управляемый']
+							),
+						},
+						{
+							path: 'chartOfAccounts.predefinedDataUpdate',
+							label: 'Обновление предопределённых данных',
+							control: 'select',
+							options: opts(
+								['AUTO', 'Авто'],
+								['DONT_AUTO_UPDATE', 'Не обновлять автоматически'],
+								['AUTO_UPDATE', 'Обновлять автоматически']
+							),
+						},
+						{
+							path: 'chartOfAccounts.includeHelpInContents',
+							label: 'Включать в содержание справки',
+							control: 'check',
+						},
+						{ path: 'chartOfAccounts.additionalIndexes', label: 'Дополнительные индексы', control: 'text' },
+					],
+				},
+			],
+		},
+		{
+			id: 'edit_data',
+			title: 'Данные',
+			groups: [
+				{
+					title: 'Код и наименование',
+					fields: [
+						{ path: 'chartOfAccounts.codeMask', label: 'Маска кода', control: 'text' },
+						{ path: 'chartOfAccounts.codeLength', label: 'Длина кода', control: 'number' },
+						{ path: 'chartOfAccounts.descriptionLength', label: 'Длина наименования', control: 'number' },
+						{
+							path: 'chartOfAccounts.codeSeries',
+							label: 'Серии кодов',
+							control: 'select',
+							options: opts(
+								['WHOLE_CHART_OF_ACCOUNTS', 'Во всём плане счетов'],
+								['WITHIN_SUBORDINATION', 'В пределах подчинения']
+							),
+						},
+						{ path: 'chartOfAccounts.checkUnique', label: 'Контроль уникальности', control: 'check' },
+						{
+							path: 'chartOfAccounts.defaultPresentation',
+							label: 'Основное представление',
+							control: 'select',
+							options: opts(['AS_CODE', 'В виде кода'], ['AS_DESCRIPTION', 'В виде наименования']),
+						},
+						{
+							path: 'chartOfAccounts.editType',
+							label: 'Способ редактирования',
+							control: 'select',
+							options: opts(
+								['IN_DIALOG', 'В диалоге'],
+								['IN_LIST', 'В списке'],
+								['BOTH_WAYS', 'Обоими способами']
+							),
+						},
+					],
+				},
+			],
+		},
+		{
+			id: 'edit_forms',
+			title: 'Формы',
+			groups: [
+				{
+					title: 'Основные формы',
+					fields: [
+						{
+							path: 'chartOfAccounts.defaultObjectForm',
+							label: 'Основная форма объекта',
+							control: 'select',
+							options: forms,
+							clearable: true,
+						},
+						{
+							path: 'chartOfAccounts.defaultListForm',
+							label: 'Основная форма списка',
+							control: 'select',
+							options: forms,
+							clearable: true,
+						},
+						{
+							path: 'chartOfAccounts.defaultChoiceForm',
+							label: 'Основная форма выбора',
+							control: 'select',
+							options: forms,
+							clearable: true,
+						},
+					],
+				},
+				{
+					title: 'Формы',
+					fields: [{ path: '', label: 'Формы объекта', control: 'staticList', items: input.formNames }],
+				},
+			],
+		},
+		{
+			id: 'edit_commands',
+			title: 'Команды',
+			groups: [
+				{
+					title: 'Команды',
+					fields: [
+						{
+							path: 'chartOfAccounts.useStandardCommands',
+							label: 'Использовать стандартные команды',
+							control: 'check',
+						},
+					],
+				},
+			],
+		},
+		],
+		{
+			block: 'chartOfAccounts',
+			forms,
+			auxiliaryForms: ['object', 'list', 'choice'],
+			inputField: true,
+			dataHistory: true,
+		}
+	);
+}
+
+/** Вход спецификации задачи: формы, реквизиты адресации и регистры сведений. */
+export interface TaskEditSpecInput extends SimpleObjectEditSpecInput {
+	/** Имена справочников конфигурации - кандидаты в основания ввода. */
+	catalogNames?: readonly string[];
+	/** Имена документов конфигурации - кандидаты в основания ввода. */
+	documentNames?: readonly string[];
+	/** Имена реквизитов объекта - кандидаты для ввода по строке и полей блокировки. */
+	attributeNames?: readonly string[];
+	/** Имена реквизитов адресации - кандидаты в основной реквизит адресации. */
+	addressingAttributeNames?: readonly string[];
+	/** Имена регистров сведений - кандидаты в регистр адресации. */
+	informationRegisterNames?: readonly string[];
+	/** Имена параметров сеанса - кандидаты в текущего исполнителя. */
+	sessionParameterNames?: readonly string[];
+}
+
+/**
+ * Вкладки редактирования задачи: раскладка повторяет редактор EDT.
+ * Адресация вынесена своей группой: без неё ролевая адресация не настраивается.
+ */
+export function buildTaskEditTabs(input: TaskEditSpecInput): MetadataEditTabSpec[] {
+	const base = `Task.${input.internalName}`;
+	const basedOn = basedOnOptions(input);
+	const dataLockFields = lockFieldOptions(
+		'Task',
+		input.internalName,
+		input.standardAttributeNames ?? ['Number', 'Date', 'Description'],
+		input.attributeNames
+	);
+	const forms = objectFormOptions('Task', input.internalName, input.formNames, input.commonFormNames);
+	const attributeOptions = (input.attributeNames ?? []).map((name) => ({
+		value: `${base}.Attribute.${name}`,
+		label: name,
+	}));
+	const addressingOptions = [
+		{ value: '', label: '(не задан)' },
+		...(input.addressingAttributeNames ?? []).map((name) => ({
+			value: `${base}.AddressingAttribute.${name}`,
+			label: name,
+		})),
+	];
+	const registerOptions = [
+		{ value: '', label: '(не задан)' },
+		...(input.informationRegisterNames ?? []).map((name) => ({
+			value: `InformationRegister.${name}`,
+			label: name,
+		})),
+	];
+	// Текущий исполнитель - параметр сеанса: платформа сравнивает с ним значение реквизита адресации.
+	const performerOptions = [
+		{ value: '', label: '(не задан)' },
+		...(input.sessionParameterNames ?? []).map((name) => ({
+			value: `SessionParameter.${name}`,
+			label: name,
+		})),
+	];
+	const inputByString: MetadataEditOption[] = [
+		{ value: `${base}.StandardAttribute.Description`, label: 'Наименование' },
+		{ value: `${base}.StandardAttribute.Number`, label: 'Номер' },
+		...attributeOptions,
+	];
+
+	return withReferenceCommon(
+		[
+		{
+			id: 'edit_main',
+			title: 'Основные',
+			groups: [
+				{
+					title: 'Основные',
+					fields: [
+						{ path: 'internalName', label: 'Имя', control: 'text', readonly: true },
+						{ path: 'synonymRu', label: 'Синоним', control: 'text' },
+						{ path: 'comment', label: 'Комментарий', control: 'text' },
+						{ path: 'object', label: 'Модуль объекта', control: 'moduleLink' },
+						{ path: 'manager', label: 'Модуль менеджера', control: 'moduleLink' },
+					],
+				},
+				{
+					title: 'Адресация',
+					fields: [
+						{
+							path: 'task.addressing',
+							label: 'Адресация',
+							control: 'select',
+							options: registerOptions,
+							clearable: true,
+						},
+						{
+							path: 'task.mainAddressingAttribute',
+							label: 'Основной реквизит адресации',
+							control: 'select',
+							options: addressingOptions,
+							clearable: true,
+						},
+						{
+							path: 'task.currentPerformer',
+							label: 'Текущий исполнитель',
+							control: 'select',
+							options: performerOptions,
+							clearable: true,
+						},
+					],
+				},
+				{
+					title: 'Представление',
+					fields: [
+						{ path: 'task.objectPresentationRu', label: 'Представление объекта', control: 'text' },
+						{
+							path: 'task.extendedObjectPresentationRu',
+							label: 'Расширенное представление объекта',
+							control: 'text',
+						},
+						{ path: 'task.listPresentationRu', label: 'Представление списка', control: 'text' },
+						{
+							path: 'task.extendedListPresentationRu',
+							label: 'Расширенное представление списка',
+							control: 'text',
+						},
+						{ path: 'task.explanationRu', label: 'Пояснение', control: 'textarea' },
+					],
+				},
+				{
+					title: 'Нумерация',
+					fields: [
+						{
+							path: 'task.numberType',
+							label: 'Тип номера',
+							control: 'select',
+							options: opts(['STRING', 'Строка'], ['NUMBER', 'Число']),
+						},
+						{ path: 'task.numberLength', label: 'Длина номера', control: 'number' },
+						{
+							path: 'task.numberAllowedLength',
+							label: 'Допустимая длина номера',
+							control: 'select',
+							options: opts(['VARIABLE', 'Переменная'], ['FIXED', 'Фиксированная']),
+						},
+						{ path: 'task.autonumbering', label: 'Автонумерация', control: 'check' },
+						{ path: 'task.checkUnique', label: 'Контроль уникальности', control: 'check' },
+						{
+							path: 'task.taskNumberAutoPrefix',
+							label: 'Автопрефикс номера',
+							control: 'select',
+							options: opts(['DONT_USE', 'Не использовать'], ['BUSINESS_PROCESS_NUMBER', 'Номер бизнес-процесса']),
+						},
+					],
+				},
+				{
+					title: 'Прочее',
+					fields: [
+						{ path: 'task.includeHelpInContents', label: 'Включать в содержание справки', control: 'check' },
+						{
+							path: 'task.dataLockControlMode',
+							label: 'Режим управления блокировкой данных',
+							control: 'select',
+							options: opts(
+								['AUTOMATIC', 'Автоматический'],
+								['MANAGED', 'Управляемый'],
+								['AUTOMATIC_AND_MANAGED', 'Автоматический и управляемый']
+							),
+						},
+						{ path: 'task.additionalIndexes', label: 'Дополнительные индексы', control: 'text' },
+					],
+				},
+			],
+		},
+		{
+			id: 'edit_data',
+			title: 'Данные',
+			groups: [
+				{
+					title: 'Номер и наименование',
+					fields: [
+						{ path: 'task.descriptionLength', label: 'Длина наименования', control: 'number' },
+						{
+							path: 'task.defaultPresentation',
+							label: 'Основное представление',
+							control: 'select',
+							options: opts(['AS_NUMBER', 'В виде номера'], ['AS_DESCRIPTION', 'В виде наименования']),
+						},
+						{
+							path: 'task.editType',
+							label: 'Способ редактирования',
+							control: 'select',
+							options: opts(
+								['IN_DIALOG', 'В диалоге'],
+								['IN_LIST', 'В списке'],
+								['BOTH_WAYS', 'Обоими способами']
+							),
+						},
+						{ path: 'task.inputByString', label: 'Ввод по строке', control: 'refList', options: inputByString },
+						{
+							path: 'task.choiceHistoryOnInput',
+							label: 'История выбора при вводе',
+							control: 'select',
+							options: CHOICE_HISTORY,
+						},
+					],
+				},
+			],
+		},
+		{
+			id: 'edit_forms',
+			title: 'Формы',
+			groups: [
+				{
+					title: 'Основные формы',
+					fields: [
+						{
+							path: 'task.defaultObjectForm',
+							label: 'Основная форма объекта',
+							control: 'select',
+							options: forms,
+							clearable: true,
+						},
+						{
+							path: 'task.defaultListForm',
+							label: 'Основная форма списка',
+							control: 'select',
+							options: forms,
+							clearable: true,
+						},
+						{
+							path: 'task.defaultChoiceForm',
+							label: 'Основная форма выбора',
+							control: 'select',
+							options: forms,
+							clearable: true,
+						},
+					],
+				},
+				{
+					title: 'Формы',
+					fields: [{ path: '', label: 'Формы объекта', control: 'staticList', items: input.formNames }],
+				},
+			],
+		},
+		{
+			id: 'edit_commands',
+			title: 'Команды',
+			groups: [
+				{
+					title: 'Команды',
+					fields: [
+						{ path: 'task.useStandardCommands', label: 'Использовать стандартные команды', control: 'check' },
+					],
+				},
+			],
+		},
+		],
+		{
+			block: 'task',
+			forms,
+			auxiliaryForms: ['object', 'list', 'choice'],
+			inputField: true,
+			dataHistory: true,
+			lockFields: dataLockFields,
+			basedOn,
+		}
+	);
+}
+
+/** Вход спецификации бизнес-процесса: формы, реквизиты и задачи конфигурации. */
+export interface BusinessProcessEditSpecInput extends SimpleObjectEditSpecInput {
+	/** Имена справочников конфигурации - кандидаты в основания ввода. */
+	catalogNames?: readonly string[];
+	/** Имена документов конфигурации - кандидаты в основания ввода. */
+	documentNames?: readonly string[];
+	/** Имена реквизитов объекта - кандидаты для ввода по строке. */
+	attributeNames?: readonly string[];
+	/** Имена задач конфигурации - кандидаты в задачу бизнес-процесса. */
+	taskNames?: readonly string[];
+}
+
+/**
+ * Вкладки редактирования бизнес-процесса: раскладка повторяет редактор EDT.
+ * Карта маршрута правится в конфигураторе, здесь она показывается ссылкой.
+ */
+export function buildBusinessProcessEditTabs(input: BusinessProcessEditSpecInput): MetadataEditTabSpec[] {
+	const base = `BusinessProcess.${input.internalName}`;
+	const basedOn = basedOnOptions(input);
+	const dataLockFields = lockFieldOptions(
+		'BusinessProcess',
+		input.internalName,
+		input.standardAttributeNames ?? ['Number', 'Date'],
+		input.attributeNames
+	);
+	const forms = objectFormOptions('BusinessProcess', input.internalName, input.formNames, input.commonFormNames);
+	const inputByString: MetadataEditOption[] = [
+		{ value: `${base}.StandardAttribute.Number`, label: 'Номер' },
+		...(input.attributeNames ?? []).map((name) => ({
+			value: `${base}.Attribute.${name}`,
+			label: name,
+		})),
+	];
+	const taskOptions = [
+		{ value: '', label: '(не задана)' },
+		...(input.taskNames ?? []).map((name) => ({ value: `Task.${name}`, label: name })),
+	];
+
+	return withReferenceCommon(
+		[
+		{
+			id: 'edit_main',
+			title: 'Основные',
+			groups: [
+				{
+					title: 'Основные',
+					fields: [
+						{ path: 'internalName', label: 'Имя', control: 'text', readonly: true },
+						{ path: 'synonymRu', label: 'Синоним', control: 'text' },
+						{ path: 'comment', label: 'Комментарий', control: 'text' },
+						{
+							path: 'businessProcess.task',
+							label: 'Задача',
+							control: 'select',
+							options: taskOptions,
+							clearable: true,
+						},
+						{
+							path: 'businessProcess.createTaskInPrivilegedMode',
+							label: 'Создавать задачи в привилегированном режиме',
+							control: 'check',
+						},
+						{ path: 'businessProcess.flowchart', label: 'Карта маршрута', control: 'text', readonly: true },
+						{ path: 'object', label: 'Модуль объекта', control: 'moduleLink' },
+						{ path: 'manager', label: 'Модуль менеджера', control: 'moduleLink' },
+					],
+				},
+				{
+					title: 'Представление',
+					fields: [
+						{ path: 'businessProcess.objectPresentationRu', label: 'Представление объекта', control: 'text' },
+						{
+							path: 'businessProcess.extendedObjectPresentationRu',
+							label: 'Расширенное представление объекта',
+							control: 'text',
+						},
+						{ path: 'businessProcess.listPresentationRu', label: 'Представление списка', control: 'text' },
+						{
+							path: 'businessProcess.extendedListPresentationRu',
+							label: 'Расширенное представление списка',
+							control: 'text',
+						},
+						{ path: 'businessProcess.explanationRu', label: 'Пояснение', control: 'textarea' },
+					],
+				},
+				{
+					title: 'Нумерация',
+					fields: [
+						{
+							path: 'businessProcess.numberType',
+							label: 'Тип номера',
+							control: 'select',
+							options: opts(['STRING', 'Строка'], ['NUMBER', 'Число']),
+						},
+						{ path: 'businessProcess.numberLength', label: 'Длина номера', control: 'number' },
+						{
+							path: 'businessProcess.numberAllowedLength',
+							label: 'Допустимая длина номера',
+							control: 'select',
+							options: opts(['VARIABLE', 'Переменная'], ['FIXED', 'Фиксированная']),
+						},
+						{
+							path: 'businessProcess.numberPeriodicity',
+							label: 'Периодичность номера',
+							control: 'select',
+							options: opts(
+								['NONPERIODICAL', 'Непериодический'],
+								['YEAR', 'В пределах года'],
+								['QUARTER', 'В пределах квартала'],
+								['MONTH', 'В пределах месяца'],
+								['DAY', 'В пределах дня']
+							),
+						},
+						{ path: 'businessProcess.autonumbering', label: 'Автонумерация', control: 'check' },
+						{ path: 'businessProcess.checkUnique', label: 'Контроль уникальности', control: 'check' },
+					],
+				},
+				{
+					title: 'Прочее',
+					fields: [
+						{
+							path: 'businessProcess.includeHelpInContents',
+							label: 'Включать в содержание справки',
+							control: 'check',
+						},
+						{
+							path: 'businessProcess.dataLockControlMode',
+							label: 'Режим управления блокировкой данных',
+							control: 'select',
+							options: opts(
+								['AUTOMATIC', 'Автоматический'],
+								['MANAGED', 'Управляемый'],
+								['AUTOMATIC_AND_MANAGED', 'Автоматический и управляемый']
+							),
+						},
+						{ path: 'businessProcess.additionalIndexes', label: 'Дополнительные индексы', control: 'text' },
+					],
+				},
+			],
+		},
+		{
+			id: 'edit_data',
+			title: 'Данные',
+			groups: [
+				{
+					title: 'Данные',
+					fields: [
+						{
+							path: 'businessProcess.editType',
+							label: 'Способ редактирования',
+							control: 'select',
+							options: opts(
+								['IN_DIALOG', 'В диалоге'],
+								['IN_LIST', 'В списке'],
+								['BOTH_WAYS', 'Обоими способами']
+							),
+						},
+						{
+							path: 'businessProcess.inputByString',
+							label: 'Ввод по строке',
+							control: 'refList',
+							options: inputByString,
+						},
+						{
+							path: 'businessProcess.choiceHistoryOnInput',
+							label: 'История выбора при вводе',
+							control: 'select',
+							options: CHOICE_HISTORY,
+						},
+					],
+				},
+			],
+		},
+		{
+			id: 'edit_forms',
+			title: 'Формы',
+			groups: [
+				{
+					title: 'Основные формы',
+					fields: [
+						{
+							path: 'businessProcess.defaultObjectForm',
+							label: 'Основная форма объекта',
+							control: 'select',
+							options: forms,
+							clearable: true,
+						},
+						{
+							path: 'businessProcess.defaultListForm',
+							label: 'Основная форма списка',
+							control: 'select',
+							options: forms,
+							clearable: true,
+						},
+						{
+							path: 'businessProcess.defaultChoiceForm',
+							label: 'Основная форма выбора',
+							control: 'select',
+							options: forms,
+							clearable: true,
+						},
+					],
+				},
+				{
+					title: 'Формы',
+					fields: [{ path: '', label: 'Формы объекта', control: 'staticList', items: input.formNames }],
+				},
+			],
+		},
+		{
+			id: 'edit_commands',
+			title: 'Команды',
+			groups: [
+				{
+					title: 'Команды',
+					fields: [
+						{
+							path: 'businessProcess.useStandardCommands',
+							label: 'Использовать стандартные команды',
+							control: 'check',
+						},
+					],
+				},
+			],
+		},
+		],
+		{
+			block: 'businessProcess',
+			forms,
+			auxiliaryForms: ['object', 'list', 'choice'],
+			inputField: true,
+			dataHistory: true,
+			lockFields: dataLockFields,
+			basedOn,
+		}
+	);
+}
+
+/** Вход спецификации плана видов характеристик. */
+export interface ChartOfCharacteristicTypesEditSpecInput extends SimpleObjectEditSpecInput {
+	/** Имена реквизитов объекта - кандидаты для ввода по строке и полей блокировки. */
+	attributeNames?: readonly string[];
+	/** Имена справочников конфигурации - кандидаты в дополнительные значения и в основания. */
+	catalogNames?: readonly string[];
+	/** Имена документов конфигурации - кандидаты в основания. */
+	documentNames?: readonly string[];
+}
+
+/**
+ * Вкладки редактирования плана видов характеристик: раскладка повторяет редактор EDT.
+ * Тип значения характеристики правится палитрой типов, как у константы.
+ */
+export function buildChartOfCharacteristicTypesEditTabs(
+	input: ChartOfCharacteristicTypesEditSpecInput
+): MetadataEditTabSpec[] {
+	const base = `ChartOfCharacteristicTypes.${input.internalName}`;
+	const forms = objectFormOptions('ChartOfCharacteristicTypes', input.internalName, input.formNames, input.commonFormNames);
+	const attributeOptions = (input.attributeNames ?? []).map((name) => ({
+		value: `${base}.Attribute.${name}`,
+		label: name,
+	}));
+	const inputByString: MetadataEditOption[] = [
+		{ value: `${base}.StandardAttribute.Description`, label: 'Наименование' },
+		{ value: `${base}.StandardAttribute.Code`, label: 'Код' },
+		...attributeOptions,
+	];
+	const dataLockFields = lockFieldOptions(
+		prefixOf(base),
+		input.internalName,
+		input.standardAttributeNames ?? ['Code', 'Description'],
+		input.attributeNames
+	);
+	const basedOn = basedOnOptions(input);
+	const extValues: MetadataEditOption[] = [
+		{ value: '', label: '(не задан)' },
+		...(input.catalogNames ?? []).map((name) => ({ value: `Catalog.${name}`, label: name })),
+	];
+
+	return withReferenceCommon(
+		[
+		{
+			id: 'edit_main',
+			title: 'Основные',
+			groups: [
+				{
+					title: 'Основные',
+					fields: [
+						{ path: 'internalName', label: 'Имя', control: 'text', readonly: true },
+						{ path: 'synonymRu', label: 'Синоним', control: 'text' },
+						{ path: 'comment', label: 'Комментарий', control: 'text' },
+						{ path: 'chartOfCharacteristicTypes.type', label: 'Тип значения характеристики', control: 'type' },
+						{
+							path: 'chartOfCharacteristicTypes.characteristicExtValues',
+							label: 'Дополнительные значения характеристик',
+							control: 'select',
+							options: extValues,
+							clearable: true,
+						},
+						{ path: 'object', label: 'Модуль объекта', control: 'moduleLink' },
+						{ path: 'manager', label: 'Модуль менеджера', control: 'moduleLink' },
+					],
+				},
+				{
+					title: 'Представление',
+					fields: [
+						{
+							path: 'chartOfCharacteristicTypes.objectPresentationRu',
+							label: 'Представление объекта',
+							control: 'text',
+						},
+						{
+							path: 'chartOfCharacteristicTypes.extendedObjectPresentationRu',
+							label: 'Расширенное представление объекта',
+							control: 'text',
+						},
+						{
+							path: 'chartOfCharacteristicTypes.listPresentationRu',
+							label: 'Представление списка',
+							control: 'text',
+						},
+						{
+							path: 'chartOfCharacteristicTypes.extendedListPresentationRu',
+							label: 'Расширенное представление списка',
+							control: 'text',
+						},
+						{ path: 'chartOfCharacteristicTypes.explanationRu', label: 'Пояснение', control: 'textarea' },
+					],
+				},
+				{
+					title: 'Иерархия',
+					fields: [
+						{ path: 'chartOfCharacteristicTypes.hierarchical', label: 'Иерархический', control: 'check' },
+						{
+							path: 'chartOfCharacteristicTypes.foldersOnTop',
+							label: 'Размещать группы сверху',
+							control: 'check',
+							enabledWhen: [{ path: 'chartOfCharacteristicTypes.hierarchical', equals: true }],
+						},
+					],
+				},
+				{
+					title: 'Нумерация',
+					fields: [
+						{ path: 'chartOfCharacteristicTypes.autonumbering', label: 'Автонумерация', control: 'check' },
+						{ path: 'chartOfCharacteristicTypes.checkUnique', label: 'Контроль уникальности', control: 'check' },
+						{
+							path: 'chartOfCharacteristicTypes.codeSeries',
+							label: 'Серии кодов',
+							control: 'select',
+							options: opts(
+								['WHOLE_CHARACTERISTIC_KIND', 'Во всём плане видов характеристик'],
+								['WITHIN_SUBORDINATION', 'В пределах подчинения']
+							),
+						},
+					],
+				},
+				{
+					title: 'Поле ввода',
+					fields: [
+						{ path: 'chartOfCharacteristicTypes.quickChoice', label: 'Быстрый выбор', control: 'check' },
+						{
+							path: 'chartOfCharacteristicTypes.choiceMode',
+							label: 'Способ выбора',
+							control: 'select',
+							options: opts(
+								['BOTH_WAYS', 'Обоими способами'],
+								['FROM_FORM', 'Из формы'],
+								['QUICK_CHOICE', 'Быстрый выбор']
+							),
+						},
+						{
+							path: 'chartOfCharacteristicTypes.createOnInput',
+							label: 'Создание при вводе',
+							control: 'select',
+							options: opts(['AUTO', 'Авто'], ['USE', 'Использовать'], ['DONT_USE', 'Не использовать']),
+						},
+						{
+							path: 'chartOfCharacteristicTypes.inputByString',
+							label: 'Ввод по строке',
+							control: 'refList',
+							options: inputByString,
+						},
+						{
+							path: 'chartOfCharacteristicTypes.choiceHistoryOnInput',
+							label: 'История выбора при вводе',
+							control: 'select',
+							options: CHOICE_HISTORY,
+						},
+					],
+				},
+				{
+					title: 'Прочее',
+					fields: [
+						{
+							path: 'chartOfCharacteristicTypes.basedOn',
+							label: 'Вводится на основании',
+							control: 'refList',
+							options: basedOn,
+						},
+						{
+							path: 'chartOfCharacteristicTypes.dataLockFields',
+							label: 'Поля блокировки данных',
+							control: 'refList',
+							options: dataLockFields,
+						},
+						{
+							path: 'chartOfCharacteristicTypes.dataLockControlMode',
+							label: 'Режим управления блокировкой данных',
+							control: 'select',
+							options: opts(
+								['AUTOMATIC', 'Автоматический'],
+								['MANAGED', 'Управляемый'],
+								['AUTOMATIC_AND_MANAGED', 'Автоматический и управляемый']
+							),
+						},
+						{
+							path: 'chartOfCharacteristicTypes.predefinedDataUpdate',
+							label: 'Обновление предопределённых данных',
+							control: 'select',
+							options: opts(
+								['AUTO', 'Авто'],
+								['DONT_AUTO_UPDATE', 'Не обновлять автоматически'],
+								['AUTO_UPDATE', 'Обновлять автоматически']
+							),
+						},
+						{
+							path: 'chartOfCharacteristicTypes.includeHelpInContents',
+							label: 'Включать в содержание справки',
+							control: 'check',
+						},
+						{
+							path: 'chartOfCharacteristicTypes.additionalIndexes',
+							label: 'Дополнительные индексы',
+							control: 'text',
+						},
+					],
+				},
+			],
+		},
+		{
+			id: 'edit_data',
+			title: 'Данные',
+			groups: [
+				{
+					title: 'Код и наименование',
+					fields: [
+						{ path: 'chartOfCharacteristicTypes.codeLength', label: 'Длина кода', control: 'number' },
+						{
+							path: 'chartOfCharacteristicTypes.codeAllowedLength',
+							label: 'Допустимая длина кода',
+							control: 'select',
+							options: opts(['VARIABLE', 'Переменная'], ['FIXED', 'Фиксированная']),
+						},
+						{
+							path: 'chartOfCharacteristicTypes.descriptionLength',
+							label: 'Длина наименования',
+							control: 'number',
+						},
+						{
+							path: 'chartOfCharacteristicTypes.defaultPresentation',
+							label: 'Основное представление',
+							control: 'select',
+							options: opts(['AS_CODE', 'В виде кода'], ['AS_DESCRIPTION', 'В виде наименования']),
+						},
+						{
+							path: 'chartOfCharacteristicTypes.editType',
+							label: 'Способ редактирования',
+							control: 'select',
+							options: opts(
+								['IN_DIALOG', 'В диалоге'],
+								['IN_LIST', 'В списке'],
+								['BOTH_WAYS', 'Обоими способами']
+							),
+						},
+					],
+				},
+			],
+		},
+		{
+			id: 'edit_forms',
+			title: 'Формы',
+			groups: [
+				{
+					title: 'Основные формы',
+					fields: [
+						{
+							path: 'chartOfCharacteristicTypes.defaultObjectForm',
+							label: 'Основная форма объекта',
+							control: 'select',
+							options: forms,
+							clearable: true,
+						},
+						{
+							path: 'chartOfCharacteristicTypes.defaultFolderForm',
+							label: 'Основная форма группы',
+							control: 'select',
+							options: forms,
+							clearable: true,
+							enabledWhen: [{ path: 'chartOfCharacteristicTypes.hierarchical', equals: true }],
+						},
+						{
+							path: 'chartOfCharacteristicTypes.defaultListForm',
+							label: 'Основная форма списка',
+							control: 'select',
+							options: forms,
+							clearable: true,
+						},
+						{
+							path: 'chartOfCharacteristicTypes.defaultChoiceForm',
+							label: 'Основная форма выбора',
+							control: 'select',
+							options: forms,
+							clearable: true,
+						},
+						{
+							path: 'chartOfCharacteristicTypes.defaultFolderChoiceForm',
+							label: 'Основная форма выбора группы',
+							control: 'select',
+							options: forms,
+							clearable: true,
+							enabledWhen: [{ path: 'chartOfCharacteristicTypes.hierarchical', equals: true }],
+						},
+					],
+				},
+				{
+					title: 'Формы',
+					fields: [{ path: '', label: 'Формы объекта', control: 'staticList', items: input.formNames }],
+				},
+			],
+		},
+		{
+			id: 'edit_commands',
+			title: 'Команды',
+			groups: [
+				{
+					title: 'Команды',
+					fields: [
+						{
+							path: 'chartOfCharacteristicTypes.useStandardCommands',
+							label: 'Использовать стандартные команды',
+							control: 'check',
+						},
+					],
+				},
+			],
+		},
+		],
+		{
+			block: 'chartOfCharacteristicTypes',
+			forms,
+			auxiliaryForms: ['object', 'folder', 'list', 'choice', 'folderChoice'],
+			inputField: true,
+			dataHistory: true,
+		}
+	);
+}
+
+/** Вход спецификации плана обмена: формы, реквизиты и кандидаты в основания. */
+export interface ExchangePlanEditSpecInput extends SimpleObjectEditSpecInput {
+	/** Имена реквизитов объекта - кандидаты для ввода по строке и полей блокировки. */
+	attributeNames?: readonly string[];
+	/** Имена справочников конфигурации - кандидаты в основания. */
+	catalogNames?: readonly string[];
+	/** Имена документов конфигурации - кандидаты в основания. */
+	documentNames?: readonly string[];
+}
+
+/**
+ * Вкладки редактирования плана обмена: раскладка повторяет редактор EDT.
+ * Состав плана обмена ведётся отдельно, здесь только свойства.
+ */
+export function buildExchangePlanEditTabs(input: ExchangePlanEditSpecInput): MetadataEditTabSpec[] {
+	const base = `ExchangePlan.${input.internalName}`;
+	const forms = objectFormOptions('ExchangePlan', input.internalName, input.formNames, input.commonFormNames);
+	const attributeOptions = (input.attributeNames ?? []).map((name) => ({
+		value: `${base}.Attribute.${name}`,
+		label: name,
+	}));
+	const inputByString: MetadataEditOption[] = [
+		{ value: `${base}.StandardAttribute.Description`, label: 'Наименование' },
+		{ value: `${base}.StandardAttribute.Code`, label: 'Код' },
+		...attributeOptions,
+	];
+	const dataLockFields = lockFieldOptions(
+		prefixOf(base),
+		input.internalName,
+		input.standardAttributeNames ?? ['Code', 'Description'],
+		input.attributeNames
+	);
+	const basedOn = basedOnOptions(input);
+
+	return withReferenceCommon(
+		[
+		{
+			id: 'edit_main',
+			title: 'Основные',
+			groups: [
+				{
+					title: 'Основные',
+					fields: [
+						{ path: 'internalName', label: 'Имя', control: 'text', readonly: true },
+						{ path: 'synonymRu', label: 'Синоним', control: 'text' },
+						{ path: 'comment', label: 'Комментарий', control: 'text' },
+						{ path: 'object', label: 'Модуль объекта', control: 'moduleLink' },
+						{ path: 'manager', label: 'Модуль менеджера', control: 'moduleLink' },
+					],
+				},
+				{
+					title: 'Представление',
+					fields: [
+						{ path: 'exchangePlan.objectPresentationRu', label: 'Представление объекта', control: 'text' },
+						{
+							path: 'exchangePlan.extendedObjectPresentationRu',
+							label: 'Расширенное представление объекта',
+							control: 'text',
+						},
+						{ path: 'exchangePlan.listPresentationRu', label: 'Представление списка', control: 'text' },
+						{
+							path: 'exchangePlan.extendedListPresentationRu',
+							label: 'Расширенное представление списка',
+							control: 'text',
+						},
+						{ path: 'exchangePlan.explanationRu', label: 'Пояснение', control: 'textarea' },
+					],
+				},
+				{
+					title: 'Обмен данными',
+					fields: [
+						{
+							path: 'exchangePlan.distributedInfoBase',
+							label: 'Распределённая информационная база',
+							control: 'check',
+						},
+						{
+							path: 'exchangePlan.includeConfigurationExtensions',
+							label: 'Включать расширения конфигурации',
+							control: 'check',
+							enabledWhen: [{ path: 'exchangePlan.distributedInfoBase', equals: true }],
+						},
+					],
+				},
+				{
+					title: 'Поле ввода',
+					fields: [
+						{ path: 'exchangePlan.quickChoice', label: 'Быстрый выбор', control: 'check' },
+						{
+							path: 'exchangePlan.choiceMode',
+							label: 'Способ выбора',
+							control: 'select',
+							options: opts(
+								['BOTH_WAYS', 'Обоими способами'],
+								['FROM_FORM', 'Из формы'],
+								['QUICK_CHOICE', 'Быстрый выбор']
+							),
+						},
+						{
+							path: 'exchangePlan.createOnInput',
+							label: 'Создание при вводе',
+							control: 'select',
+							options: opts(['AUTO', 'Авто'], ['USE', 'Использовать'], ['DONT_USE', 'Не использовать']),
+						},
+						{
+							path: 'exchangePlan.inputByString',
+							label: 'Ввод по строке',
+							control: 'refList',
+							options: inputByString,
+						},
+						{
+							path: 'exchangePlan.choiceHistoryOnInput',
+							label: 'История выбора при вводе',
+							control: 'select',
+							options: CHOICE_HISTORY,
+						},
+					],
+				},
+				{
+					title: 'Прочее',
+					fields: [
+						{ path: 'exchangePlan.basedOn', label: 'Вводится на основании', control: 'refList', options: basedOn },
+						{
+							path: 'exchangePlan.dataLockFields',
+							label: 'Поля блокировки данных',
+							control: 'refList',
+							options: dataLockFields,
+						},
+						{
+							path: 'exchangePlan.dataLockControlMode',
+							label: 'Режим управления блокировкой данных',
+							control: 'select',
+							options: opts(
+								['AUTOMATIC', 'Автоматический'],
+								['MANAGED', 'Управляемый'],
+								['AUTOMATIC_AND_MANAGED', 'Автоматический и управляемый']
+							),
+						},
+						{
+							path: 'exchangePlan.includeHelpInContents',
+							label: 'Включать в содержание справки',
+							control: 'check',
+						},
+						{ path: 'exchangePlan.additionalIndexes', label: 'Дополнительные индексы', control: 'text' },
+					],
+				},
+			],
+		},
+		{
+			id: 'edit_data',
+			title: 'Данные',
+			groups: [
+				{
+					title: 'Код и наименование',
+					fields: [
+						{ path: 'exchangePlan.codeLength', label: 'Длина кода', control: 'number' },
+						{
+							path: 'exchangePlan.codeAllowedLength',
+							label: 'Допустимая длина кода',
+							control: 'select',
+							options: opts(['VARIABLE', 'Переменная'], ['FIXED', 'Фиксированная']),
+						},
+						{ path: 'exchangePlan.descriptionLength', label: 'Длина наименования', control: 'number' },
+						{
+							path: 'exchangePlan.defaultPresentation',
+							label: 'Основное представление',
+							control: 'select',
+							options: opts(['AS_CODE', 'В виде кода'], ['AS_DESCRIPTION', 'В виде наименования']),
+						},
+						{
+							path: 'exchangePlan.editType',
+							label: 'Способ редактирования',
+							control: 'select',
+							options: opts(
+								['IN_DIALOG', 'В диалоге'],
+								['IN_LIST', 'В списке'],
+								['BOTH_WAYS', 'Обоими способами']
+							),
+						},
+					],
+				},
+			],
+		},
+		{
+			id: 'edit_forms',
+			title: 'Формы',
+			groups: [
+				{
+					title: 'Основные формы',
+					fields: [
+						{
+							path: 'exchangePlan.defaultObjectForm',
+							label: 'Основная форма объекта',
+							control: 'select',
+							options: forms,
+							clearable: true,
+						},
+						{
+							path: 'exchangePlan.defaultListForm',
+							label: 'Основная форма списка',
+							control: 'select',
+							options: forms,
+							clearable: true,
+						},
+						{
+							path: 'exchangePlan.defaultChoiceForm',
+							label: 'Основная форма выбора',
+							control: 'select',
+							options: forms,
+							clearable: true,
+						},
+						{
+							path: 'exchangePlan.auxiliaryObjectForm',
+							label: 'Вспомогательная форма объекта',
+							control: 'select',
+							options: forms,
+							clearable: true,
+						},
+						{
+							path: 'exchangePlan.auxiliaryListForm',
+							label: 'Вспомогательная форма списка',
+							control: 'select',
+							options: forms,
+							clearable: true,
+						},
+						{
+							path: 'exchangePlan.auxiliaryChoiceForm',
+							label: 'Вспомогательная форма выбора',
+							control: 'select',
+							options: forms,
+							clearable: true,
+						},
+					],
+				},
+				{
+					title: 'Формы',
+					fields: [{ path: '', label: 'Формы объекта', control: 'staticList', items: input.formNames }],
+				},
+			],
+		},
+		{
+			id: 'edit_commands',
+			title: 'Команды',
+			groups: [
+				{
+					title: 'Команды',
+					fields: [
+						{
+							path: 'exchangePlan.useStandardCommands',
+							label: 'Использовать стандартные команды',
+							control: 'check',
+						},
+					],
+				},
+			],
+		},
+		],
+		{
+			block: 'exchangePlan',
+			forms,
+			auxiliaryForms: [],
+			inputField: true,
+			dataHistory: true,
+		}
+	);
+}
+
+/** Вход спецификации журнала документов: формы объекта и документы конфигурации. */
+export interface DocumentJournalEditSpecInput extends SimpleObjectEditSpecInput {
+	/** Имена документов конфигурации - кандидаты в регистрируемые. */
+	documentNames?: readonly string[];
+}
+
+/**
+ * Вкладки редактирования журнала документов: раскладка повторяет редактор EDT.
+ * Регистрируемые документы ведутся списком ссылок, графы журнала - на вкладке состава.
+ */
+export function buildDocumentJournalEditTabs(input: DocumentJournalEditSpecInput): MetadataEditTabSpec[] {
+	const forms = objectFormOptions('DocumentJournal', input.internalName, input.formNames, input.commonFormNames);
+	const documentOptions = (input.documentNames ?? []).map((name) => ({
+		value: `Document.${name}`,
+		label: name,
+	}));
+	return [
+		{
+			id: 'edit_main',
+			title: 'Основные',
+			groups: [
+				{
+					title: 'Основные',
+					fields: [
+						{ path: 'internalName', label: 'Имя', control: 'text', readonly: true },
+						{ path: 'synonymRu', label: 'Синоним', control: 'text' },
+						{ path: 'comment', label: 'Комментарий', control: 'text' },
+					],
+				},
+				{
+					title: 'Представление',
+					fields: [
+						{ path: 'documentJournal.listPresentationRu', label: 'Представление списка', control: 'text' },
+						{
+							path: 'documentJournal.extendedListPresentationRu',
+							label: 'Расширенное представление списка',
+							control: 'text',
+						},
+						{ path: 'documentJournal.explanationRu', label: 'Пояснение', control: 'textarea' },
+					],
+				},
+				{
+					title: 'Прочее',
+					fields: [
+						{ path: 'documentJournal.includeHelpInContents', label: 'Включать в содержание справки', control: 'check' },
+						{ path: 'documentJournal.additionalIndexes', label: 'Дополнительные индексы', control: 'text' },
+					],
+				},
+			],
+		},
+		{
+			id: 'edit_registered',
+			title: 'Регистрируемые документы',
+			groups: [
+				{
+					title: 'Регистрируемые документы',
+					fields: [
+						{
+							path: 'documentJournal.registeredDocuments',
+							label: 'Документы журнала',
+							control: 'refList',
+							options: documentOptions,
+						},
+					],
+				},
+			],
+		},
+		{
+			id: 'edit_forms',
+			title: 'Формы',
+			groups: [
+				{
+					title: 'Основные формы',
+					fields: [
+						{
+							path: 'documentJournal.defaultForm',
+							label: 'Основная форма',
+							control: 'select',
+							options: forms,
+							clearable: true,
+						},
+						{
+							path: 'documentJournal.auxiliaryForm',
+							label: 'Вспомогательная форма',
+							control: 'select',
+							options: forms,
+							clearable: true,
+						},
+					],
+				},
+				{
+					title: 'Формы',
+					fields: [{ path: '', label: 'Формы объекта', control: 'staticList', items: input.formNames }],
+				},
+			],
+		},
+		{
+			id: 'edit_commands',
+			title: 'Команды',
+			groups: [
+				{
+					title: 'Команды',
+					fields: [
+						{
+							path: 'documentJournal.useStandardCommands',
+							label: 'Использовать стандартные команды',
+							control: 'check',
+						},
+					],
+				},
+			],
+		},
+		{
+			id: 'edit_modules',
+			title: 'Модули',
+			groups: [
+				{
+					title: 'Модули',
+					fields: [{ path: 'manager', label: 'Модуль менеджера', control: 'moduleLink' }],
 				},
 			],
 		},
@@ -1107,6 +3234,424 @@ export function buildConstantEditTabs(input: SimpleObjectEditSpecInput): Metadat
 /**
  * Вкладки редактирования общего модуля: контекст исполнения одной группой, как в EDT.
  */
+/** Вкладки параметра сеанса: кроме имени и синонима у него только тип значения. */
+export function buildSessionParameterEditTabs(): MetadataEditTabSpec[] {
+	return [
+		{
+			id: 'edit_main',
+			title: 'Основные',
+			groups: [
+				{
+					title: 'Основные',
+					fields: [
+						{ path: 'internalName', label: 'Имя', control: 'text', readonly: true },
+						{ path: 'synonymRu', label: 'Синоним', control: 'text' },
+						{ path: 'comment', label: 'Комментарий', control: 'text' },
+					],
+				},
+				{
+					title: 'Данные',
+					fields: [{ path: 'sessionParameter.type', label: 'Тип', control: 'type' }],
+				},
+			],
+		},
+	];
+}
+
+/** Вкладки нумератора документов: нумерация, общая для документов с этим нумератором. */
+export function buildDocumentNumeratorEditTabs(): MetadataEditTabSpec[] {
+	return [
+		{
+			id: 'edit_main',
+			title: 'Основные',
+			groups: [
+				{
+					title: 'Основные',
+					fields: [
+						{ path: 'internalName', label: 'Имя', control: 'text', readonly: true },
+						{ path: 'synonymRu', label: 'Синоним', control: 'text' },
+						{ path: 'comment', label: 'Комментарий', control: 'text' },
+					],
+				},
+				{
+					title: 'Нумерация',
+					fields: [
+						{
+							path: 'documentNumerator.numberType',
+							label: 'Тип номера',
+							control: 'select',
+							options: opts(['STRING', 'Строка'], ['NUMBER', 'Число']),
+						},
+						{ path: 'documentNumerator.numberLength', label: 'Длина номера', control: 'number' },
+						{
+							path: 'documentNumerator.numberAllowedLength',
+							label: 'Допустимая длина номера',
+							control: 'select',
+							options: opts(['VARIABLE', 'Переменная'], ['FIXED', 'Фиксированная']),
+						},
+						{
+							path: 'documentNumerator.numberPeriodicity',
+							label: 'Периодичность номера',
+							control: 'select',
+							options: opts(
+								['NONPERIODICAL', 'Непериодический'],
+								['YEAR', 'В пределах года'],
+								['QUARTER', 'В пределах квартала'],
+								['MONTH', 'В пределах месяца'],
+								['DAY', 'В пределах дня']
+							),
+						},
+						{ path: 'documentNumerator.checkUnique', label: 'Контроль уникальности', control: 'check' },
+					],
+				},
+			],
+		},
+	];
+}
+
+/** Вкладки подписки на событие: источник, событие и обработчик. */
+export function buildEventSubscriptionEditTabs(): MetadataEditTabSpec[] {
+	return [
+		{
+			id: 'edit_main',
+			title: 'Основные',
+			groups: [
+				{
+					title: 'Основные',
+					fields: [
+						{ path: 'internalName', label: 'Имя', control: 'text', readonly: true },
+						{ path: 'synonymRu', label: 'Синоним', control: 'text' },
+						{ path: 'comment', label: 'Комментарий', control: 'text' },
+					],
+				},
+				{
+					title: 'Данные',
+					fields: [
+						{ path: 'eventSubscription.source', label: 'Источник', control: 'type' },
+						{ path: 'eventSubscription.event', label: 'Событие', control: 'text' },
+						{ path: 'eventSubscription.handler', label: 'Обработчик', control: 'text' },
+					],
+				},
+			],
+		},
+	];
+}
+
+/** Вкладки регламентного задания: метод, ключ, расписание и перезапуски. */
+export function buildScheduledJobEditTabs(): MetadataEditTabSpec[] {
+	return [
+		{
+			id: 'edit_main',
+			title: 'Основные',
+			groups: [
+				{
+					title: 'Основные',
+					fields: [
+						{ path: 'internalName', label: 'Имя', control: 'text', readonly: true },
+						{ path: 'synonymRu', label: 'Синоним', control: 'text' },
+						{ path: 'comment', label: 'Комментарий', control: 'text' },
+					],
+				},
+				{
+					title: 'Данные',
+					fields: [
+						{ path: 'scheduledJob.methodName', label: 'Имя метода', control: 'text' },
+						{ path: 'scheduledJob.description', label: 'Наименование', control: 'text' },
+						{ path: 'scheduledJob.key', label: 'Ключ', control: 'text' },
+						{ path: 'scheduledJob.use', label: 'Использование', control: 'check' },
+						{ path: 'scheduledJob.predefined', label: 'Предопределённое', control: 'check' },
+						{ path: 'scheduledJob.schedule', label: 'Расписание', control: 'textarea' },
+					],
+				},
+				{
+					title: 'Прочее',
+					fields: [
+						{ path: 'scheduledJob.restartCountOnFailure', label: 'Число попыток при ошибке', control: 'number' },
+						{
+							path: 'scheduledJob.restartIntervalOnFailure',
+							label: 'Интервал повтора при ошибке, с',
+							control: 'number',
+						},
+					],
+				},
+			],
+		},
+	];
+}
+
+/** Вкладки общей команды: где команда появляется и с каким параметром работает. */
+export function buildCommonCommandEditTabs(): MetadataEditTabSpec[] {
+	return [
+		{
+			id: 'edit_main',
+			title: 'Основные',
+			groups: [
+				{
+					title: 'Основные',
+					fields: [
+						{ path: 'internalName', label: 'Имя', control: 'text', readonly: true },
+						{ path: 'synonymRu', label: 'Синоним', control: 'text' },
+						{ path: 'comment', label: 'Комментарий', control: 'text' },
+						{ path: 'commandModule', label: 'Модуль команды', control: 'moduleLink' },
+					],
+				},
+				{
+					title: 'Представление',
+					fields: [
+						{ path: 'commonCommand.toolTipRu', label: 'Подсказка', control: 'text' },
+						{
+							path: 'commonCommand.representation',
+							label: 'Отображение',
+							control: 'select',
+							options: opts(
+								['AUTO', 'Авто'],
+								['TEXT', 'Текст'],
+								['PICTURE', 'Картинка'],
+								['PICTURE_AND_TEXT', 'Картинка и текст']
+							),
+						},
+						{ path: 'commonCommand.shortcut', label: 'Сочетание клавиш', control: 'text' },
+					],
+				},
+				{
+					title: 'Данные',
+					fields: [
+						{ path: 'commonCommand.group', label: 'Группа', control: 'text' },
+						{ path: 'commonCommand.commandParameterType', label: 'Тип параметра команды', control: 'type' },
+						{
+							path: 'commonCommand.parameterUseMode',
+							label: 'Режим использования параметра',
+							control: 'select',
+							options: opts(['SINGLE', 'Одиночный'], ['MULTIPLE', 'Множественный']),
+						},
+						{ path: 'commonCommand.modifiesData', label: 'Изменяет сохраняемые данные', control: 'check' },
+						{
+							path: 'commonCommand.onMainServerUnavalableBehavior',
+							label: 'Поведение при недоступности главного сервера',
+							control: 'select',
+							options: opts(
+								['AUTO', 'Авто'],
+								['MAKE_DISABLE', 'Выключать'],
+								['DONT_CHANGE_BEHAVIOR', 'Не менять поведение']
+							),
+						},
+					],
+				},
+				{
+					title: 'Прочее',
+					fields: [
+						{
+							path: 'commonCommand.includeHelpInContents',
+							label: 'Включать в содержание справки',
+							control: 'check',
+						},
+					],
+				},
+			],
+		},
+	];
+}
+
+/** Вкладки общего реквизита: разделение данных решает, где он появится. */
+export function buildCommonAttributeEditTabs(): MetadataEditTabSpec[] {
+	return [
+		{
+			id: 'edit_main',
+			title: 'Основные',
+			groups: [
+				{
+					title: 'Основные',
+					fields: [
+						{ path: 'internalName', label: 'Имя', control: 'text', readonly: true },
+						{ path: 'synonymRu', label: 'Синоним', control: 'text' },
+						{ path: 'comment', label: 'Комментарий', control: 'text' },
+						{ path: 'commonAttribute.type', label: 'Тип', control: 'type' },
+					],
+				},
+				{
+					title: 'Представление',
+					fields: [{ path: 'commonAttribute.toolTipRu', label: 'Подсказка', control: 'text' }],
+				},
+				{
+					title: 'Данные',
+					fields: [
+						{
+							path: 'commonAttribute.autoUse',
+							label: 'Автоиспользование',
+							control: 'select',
+							options: opts(['USE', 'Использовать'], ['DONT_USE', 'Не использовать']),
+						},
+						{
+							path: 'commonAttribute.dataSeparation',
+							label: 'Разделение данных',
+							control: 'select',
+							options: opts(['DONT_USE', 'Не использовать'], ['SEPARATE', 'Разделять']),
+						},
+						{
+							path: 'commonAttribute.separatedDataUse',
+							label: 'Использование разделённых данных',
+							control: 'select',
+							options: opts(
+								['INDEPENDENTLY_AND_SIMULTANEOUSLY', 'Независимо и совместно'],
+								['INDEPENDENTLY', 'Независимо']
+							),
+						},
+						{ path: 'commonAttribute.dataSeparationValue', label: 'Значение разделителя', control: 'text' },
+						{ path: 'commonAttribute.dataSeparationUse', label: 'Использование разделителя', control: 'text' },
+						{
+							path: 'commonAttribute.conditionalSeparation',
+							label: 'Условное разделение',
+							control: 'text',
+						},
+						{
+							path: 'commonAttribute.usersSeparation',
+							label: 'Разделение пользователей',
+							control: 'select',
+							options: opts(['SEPARATE', 'Разделять'], ['DONT_SEPARATE', 'Не разделять']),
+						},
+						{
+							path: 'commonAttribute.authenticationSeparation',
+							label: 'Разделение аутентификации',
+							control: 'select',
+							options: opts(['SEPARATE', 'Разделять'], ['DONT_SEPARATE', 'Не разделять']),
+						},
+						{
+							path: 'commonAttribute.configurationExtensionsSeparation',
+							label: 'Разделение расширений конфигурации',
+							control: 'select',
+							options: opts(['SEPARATE', 'Разделять'], ['DONT_SEPARATE', 'Не разделять']),
+						},
+						{
+							path: 'commonAttribute.indexing',
+							label: 'Индексирование',
+							control: 'select',
+							options: opts(['DONT_INDEX', 'Не индексировать'], ['INDEX', 'Индексировать']),
+						},
+					],
+				},
+				{
+					title: 'Поле ввода',
+					fields: [
+						{ path: 'commonAttribute.passwordMode', label: 'Режим пароля', control: 'check' },
+						{ path: 'commonAttribute.multiLine', label: 'Многострочный режим', control: 'check' },
+						{ path: 'commonAttribute.mask', label: 'Маска', control: 'text' },
+						{
+							path: 'commonAttribute.fillChecking',
+							label: 'Проверка заполнения',
+							control: 'select',
+							options: opts(['DONT_CHECK', 'Не проверять'], ['SHOW_ERROR', 'Выдавать ошибку']),
+						},
+						{ path: 'commonAttribute.choiceForm', label: 'Форма выбора', control: 'text' },
+					],
+				},
+				{
+					title: 'Блокировка и история',
+					fields: [
+						{
+							path: 'commonAttribute.fullTextSearch',
+							label: 'Полнотекстовый поиск',
+							control: 'select',
+							options: opts(['USE', 'Использовать'], ['DONT_USE', 'Не использовать']),
+						},
+						{
+							path: 'commonAttribute.dataHistory',
+							label: 'История данных',
+							control: 'select',
+							options: opts(['USE', 'Использовать'], ['DONT_USE', 'Не использовать']),
+						},
+					],
+				},
+			],
+		},
+	];
+}
+
+/** Вкладки общей картинки: сам файл правится не панелью. */
+export function buildCommonPictureEditTabs(): MetadataEditTabSpec[] {
+	return [
+		{
+			id: 'edit_main',
+			title: 'Основные',
+			groups: [
+				{
+					title: 'Основные',
+					fields: [
+						{ path: 'internalName', label: 'Имя', control: 'text', readonly: true },
+						{ path: 'synonymRu', label: 'Синоним', control: 'text' },
+						{ path: 'comment', label: 'Комментарий', control: 'text' },
+					],
+				},
+				{
+					title: 'Данные',
+					fields: [
+						{
+							path: 'commonPicture.availabilityForChoice',
+							label: 'Доступна для выбора',
+							control: 'check',
+						},
+						{
+							path: 'commonPicture.availabilityForAppearance',
+							label: 'Доступна для оформления',
+							control: 'check',
+						},
+					],
+				},
+			],
+		},
+	];
+}
+
+/** Вкладки роли: состав прав живёт отдельным файлом и панелью не правится. */
+export function buildRoleEditTabs(): MetadataEditTabSpec[] {
+	return [
+		{
+			id: 'edit_main',
+			title: 'Основные',
+			groups: [
+				{
+					title: 'Основные',
+					fields: [
+						{ path: 'internalName', label: 'Имя', control: 'text', readonly: true },
+						{ path: 'synonymRu', label: 'Синоним', control: 'text' },
+						{ path: 'comment', label: 'Комментарий', control: 'text' },
+					],
+				},
+			],
+		},
+	];
+}
+
+/** Вкладки внешнего источника данных: таблицы и функции правятся в дереве. */
+export function buildExternalDataSourceEditTabs(): MetadataEditTabSpec[] {
+	return [
+		{
+			id: 'edit_main',
+			title: 'Основные',
+			groups: [
+				{
+					title: 'Основные',
+					fields: [
+						{ path: 'internalName', label: 'Имя', control: 'text', readonly: true },
+						{ path: 'synonymRu', label: 'Синоним', control: 'text' },
+						{ path: 'comment', label: 'Комментарий', control: 'text' },
+					],
+				},
+				{
+					title: 'Блокировка и история',
+					fields: [
+						{
+							path: 'externalDataSource.dataLockControlMode',
+							label: 'Режим управления блокировкой данных',
+							control: 'select',
+							options: opts(['AUTOMATIC', 'Автоматический'], ['MANAGED', 'Управляемый']),
+						},
+					],
+				},
+			],
+		},
+	];
+}
+
 export function buildCommonModuleEditTabs(): MetadataEditTabSpec[] {
 	return [
 		{
@@ -1167,6 +3712,8 @@ export interface RegisterEditSpecInput {
 	internalName: string;
 	formNames: readonly string[];
 	commandNames: readonly string[];
+	/** Имена общих форм конфигурации - кандидаты в основные формы объекта. */
+	commonFormNames?: readonly string[];
 	/** Регистр сведений или накопления: наборы свойств у них разные. */
 	information: boolean;
 }
@@ -1177,13 +3724,9 @@ const DATA_LOCK_CONTROL_MODE = opts(
 	['AUTOMATIC_AND_MANAGED', 'Автоматический и управляемый']
 );
 
-function registerFormOptions(input: RegisterEditSpecInput, kind: 'Record' | 'List'): MetadataEditOption[] {
+function registerFormOptions(input: RegisterEditSpecInput): MetadataEditOption[] {
 	const prefix = input.information ? 'InformationRegister' : 'AccumulationRegister';
-	void kind;
-	return [
-		{ value: '', label: '(не задана)' },
-		...input.formNames.map((name) => ({ value: `${prefix}.${input.internalName}.Form.${name}`, label: name })),
-	];
+	return objectFormOptions(prefix, input.internalName, input.formNames, input.commonFormNames);
 }
 
 /**
@@ -1191,10 +3734,19 @@ function registerFormOptions(input: RegisterEditSpecInput, kind: 'Record' | 'Lis
  * (Основные, Данные, Формы, Команды).
  */
 export function buildRegisterEditTabs(input: RegisterEditSpecInput): MetadataEditTabSpec[] {
-	const recordForms = registerFormOptions(input, 'Record');
-	const listForms = registerFormOptions(input, 'List');
+	const forms = registerFormOptions(input);
 	const dataFields: MetadataEditField[] = input.information
 		? [
+				{
+					path: 'register.editType',
+					label: 'Способ редактирования',
+					control: 'select',
+					options: opts(
+						['IN_DIALOG', 'В диалоге'],
+						['IN_LIST', 'В списке'],
+						['BOTH_WAYS', 'Обоими способами']
+					),
+				},
 				{
 					path: 'register.informationRegisterPeriodicity',
 					label: 'Периодичность',
@@ -1241,7 +3793,8 @@ export function buildRegisterEditTabs(input: RegisterEditSpecInput): MetadataEdi
 				},
 				{ path: 'register.enableTotalsSplitting', label: 'Разделение итогов', control: 'check' },
 			];
-	return [
+	return withReferenceCommon(
+		[
 		{
 			id: 'edit_main',
 			title: 'Основные',
@@ -1316,7 +3869,7 @@ export function buildRegisterEditTabs(input: RegisterEditSpecInput): MetadataEdi
 										path: 'register.defaultRecordForm',
 										label: 'Основная форма записи',
 										control: 'select' as const,
-										options: recordForms,
+										options: forms,
 										clearable: true,
 									},
 								]
@@ -1325,7 +3878,7 @@ export function buildRegisterEditTabs(input: RegisterEditSpecInput): MetadataEdi
 							path: 'register.defaultListForm',
 							label: 'Основная форма списка',
 							control: 'select',
-							options: listForms,
+							options: forms,
 							clearable: true,
 						},
 					],
@@ -1344,12 +3897,18 @@ export function buildRegisterEditTabs(input: RegisterEditSpecInput): MetadataEdi
 					title: 'Команды',
 					fields: [
 						{ path: 'register.useStandardCommands', label: 'Использовать стандартные команды', control: 'check' },
-						{ path: '', label: 'Команды объекта', control: 'staticList', items: input.commandNames },
 					],
 				},
 			],
 		},
-	];
+		],
+		{
+			block: 'register',
+			forms: forms,
+			auxiliaryForms: input.information ? ['record', 'list'] : ['list'],
+			dataHistory: input.information,
+		}
+	);
 }
 
 function isEditableField(field: MetadataEditField): boolean {
@@ -1535,6 +4094,346 @@ function normalizeQualifiers(
 
 function isRecord(value: unknown): value is Record<string, unknown> {
 	return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+/**
+ * Канон раскладки: на какой вкладке живёт группа свойств. Порядок записей задаёт порядок вкладок,
+ * порядок групп внутри записи - порядок групп на вкладке. Раскладку решает эта таблица, а не
+ * построитель вида: иначе у каждого вида она разъезжается.
+ */
+const TAB_LAYOUT: ReadonlyArray<{ id: string; title: string; groups: readonly string[] }> = [
+	{
+		id: 'edit_main',
+		title: 'Основные',
+		groups: ['Основные', 'Контекст исполнения', 'Представление', 'Модули', 'Прочее'],
+	},
+	{
+		id: 'edit_data',
+		title: 'Данные',
+		groups: [
+			'Код и наименование',
+			'Номер и наименование',
+			'Представление значения',
+			'Иерархия',
+			'Владельцы',
+			'Нумерация',
+			'Данные',
+			'Итоги',
+			'Поле ввода',
+			'Блокировка и история',
+		],
+	},
+	{ id: 'edit_addressing', title: 'Адресация', groups: ['Адресация'] },
+	{ id: 'edit_composition', title: 'Компоновка', groups: ['Компоновка'] },
+	{ id: 'edit_subconto', title: 'Субконто', groups: ['Субконто'] },
+	{ id: 'edit_calculation', title: 'Расчёт', groups: ['Расчёт'] },
+	{ id: 'edit_movements', title: 'Движения', groups: ['Проведение', 'Движения'] },
+	{ id: 'edit_registered', title: 'Регистрируемые документы', groups: ['Регистрируемые документы'] },
+	{ id: 'edit_exchange', title: 'Обмен данными', groups: ['Обмен данными'] },
+	{ id: 'edit_forms', title: 'Формы', groups: ['Основные формы', 'Вспомогательные формы', 'Формы'] },
+	{ id: 'edit_commands', title: 'Команды', groups: ['Команды'] },
+	{ id: 'edit_templates', title: 'Макеты', groups: ['Макеты'] },
+	{ id: 'edit_basedon', title: 'Ввод на основании', groups: ['Ввод на основании'] },
+];
+
+/** Заголовки групп, которые знает канон раскладки: по ним группы расходятся по вкладкам. */
+export const KNOWN_GROUP_TITLES: readonly string[] = TAB_LAYOUT.flatMap((tab) => tab.groups);
+
+/**
+ * Свойства, место которым канон назначает сам: у разных видов они лежали кто где, хотя означают
+ * одно и то же. Ссылки на модули собираются так же - по типу поля, а не по названию группы.
+ */
+const PROPERTY_GROUP: Readonly<Record<string, string>> = {
+	dataLockFields: 'Блокировка и история',
+	dataLockControlMode: 'Блокировка и история',
+	fullTextSearch: 'Блокировка и история',
+	dataHistory: 'Блокировка и история',
+	updateDataHistoryImmediatelyAfterWrite: 'Блокировка и история',
+	executeAfterWriteDataHistoryVersionProcessing: 'Блокировка и история',
+	basedOn: 'Ввод на основании',
+	quickChoice: 'Поле ввода',
+	choiceMode: 'Поле ввода',
+	createOnInput: 'Поле ввода',
+	inputByString: 'Поле ввода',
+	searchStringModeOnInputByString: 'Поле ввода',
+	fullTextSearchOnInputByString: 'Поле ввода',
+	choiceDataGetModeOnInputByString: 'Поле ввода',
+	auxiliaryObjectForm: 'Вспомогательные формы',
+	auxiliaryFolderForm: 'Вспомогательные формы',
+	auxiliaryListForm: 'Вспомогательные формы',
+	auxiliaryChoiceForm: 'Вспомогательные формы',
+	auxiliaryFolderChoiceForm: 'Вспомогательные формы',
+	auxiliaryRecordForm: 'Вспомогательные формы',
+	auxiliaryForm: 'Вспомогательные формы',
+	auxiliarySettingsForm: 'Вспомогательные формы',
+	auxiliaryVariantForm: 'Вспомогательные формы',
+	choiceHistoryOnInput: 'Поле ввода',
+	includeHelpInContents: 'Прочее',
+	additionalIndexes: 'Прочее',
+	predefinedDataUpdate: 'Прочее',
+};
+
+/**
+ * Порядок свойств внутри группы: вид объявляет их в своём порядке, а видно должно быть одно и то же
+ * у всех. Свойства вне списка идут следом, сохраняя порядок объявления.
+ */
+const GROUP_FIELD_ORDER: Readonly<Record<string, readonly string[]>> = {
+	'Поле ввода': [
+		'quickChoice',
+		'choiceMode',
+		'createOnInput',
+		'inputByString',
+		'searchStringModeOnInputByString',
+		'fullTextSearchOnInputByString',
+		'choiceDataGetModeOnInputByString',
+		'choiceHistoryOnInput',
+	],
+	'Блокировка и история': [
+		'dataLockFields',
+		'dataLockControlMode',
+		'fullTextSearch',
+		'dataHistory',
+		'updateDataHistoryImmediatelyAfterWrite',
+		'executeAfterWriteDataHistoryVersionProcessing',
+	],
+	'Вспомогательные формы': [
+		'auxiliaryObjectForm',
+		'auxiliaryFolderForm',
+		'auxiliaryListForm',
+		'auxiliaryChoiceForm',
+		'auxiliaryFolderChoiceForm',
+		'auxiliaryRecordForm',
+		'auxiliaryForm',
+		'auxiliarySettingsForm',
+		'auxiliaryVariantForm',
+	],
+	'Основные формы': [
+		'defaultObjectForm',
+		'defaultFolderForm',
+		'defaultListForm',
+		'defaultChoiceForm',
+		'defaultFolderChoiceForm',
+		'defaultRecordForm',
+		'defaultForm',
+		'defaultSettingsForm',
+		'defaultVariantForm',
+		'auxiliaryObjectForm',
+		'auxiliaryFolderForm',
+		'auxiliaryListForm',
+		'auxiliaryChoiceForm',
+		'auxiliaryFolderChoiceForm',
+		'auxiliaryRecordForm',
+		'auxiliaryForm',
+		'auxiliarySettingsForm',
+		'auxiliaryVariantForm',
+	],
+	Прочее: ['predefinedDataUpdate', 'includeHelpInContents', 'additionalIndexes'],
+};
+
+const MODULES_GROUP = 'Модули';
+
+/** Свойство поля: последний сегмент пути (`catalog.codeSeries` → `codeSeries`). */
+function propertyOf(field: MetadataEditField): string {
+	return field.path.slice(field.path.lastIndexOf('.') + 1);
+}
+
+function orderGroupFields(title: string, fields: readonly MetadataEditField[]): MetadataEditField[] {
+	const order = GROUP_FIELD_ORDER[title];
+	if (!order) {
+		return [...fields];
+	}
+	const rank = (field: MetadataEditField): number => {
+		const index = order.indexOf(propertyOf(field));
+		return index === -1 ? order.length : index;
+	};
+	return fields
+		.map((field, index) => ({ field, index }))
+		.sort((a, b) => rank(a.field) - rank(b.field) || a.index - b.index)
+		.map((item) => item.field);
+}
+
+/** Группа, которую канон назначает полю, или undefined - тогда поле остаётся в своей группе. */
+function canonicalGroup(field: MetadataEditField): string | undefined {
+	if (field.control === 'moduleLink') {
+		return MODULES_GROUP;
+	}
+	return PROPERTY_GROUP[propertyOf(field)];
+}
+
+/**
+ * Расставляет группы по вкладкам канона: набор и порядок вкладок у всех видов одинаковые,
+ * пустые вкладки не показываются. Ссылки на модули собираются в одну группу - у каждого вида
+ * они лежали в разных местах.
+ */
+export function normalizeTabLayout(tabs: readonly MetadataEditTabSpec[]): MetadataEditTabSpec[] {
+	const byTitle = new Map<string, MetadataEditField[]>();
+	const seen = new Set<string>();
+	const put = (title: string, field: MetadataEditField): void => {
+		// Одно свойство - одно поле: вид мог объявить его сам, а общий набор объявляет ещё раз.
+		if (field.path.length > 0) {
+			if (seen.has(field.path)) {
+				return;
+			}
+			seen.add(field.path);
+		}
+		const fields = byTitle.get(title) ?? [];
+		fields.push(field);
+		byTitle.set(title, fields);
+	};
+	for (const tab of tabs) {
+		for (const group of tab.groups) {
+			for (const field of group.fields) {
+				put(canonicalGroup(field) ?? group.title, field);
+			}
+		}
+	}
+
+	const out: MetadataEditTabSpec[] = [];
+	for (const tab of TAB_LAYOUT) {
+		const groups: MetadataEditGroup[] = [];
+		for (const title of tab.groups) {
+			const fields = byTitle.get(title);
+			if (fields && fields.length > 0) {
+				groups.push({ title, fields: orderGroupFields(title, fields) });
+				byTitle.delete(title);
+			}
+		}
+		if (groups.length > 0) {
+			out.push({ id: tab.id, title: tab.title, groups });
+		}
+	}
+	// Группа, которой в каноне нет, остаётся на «Основных»: потерять свойства хуже, чем показать
+	// их не на своём месте. Что такие группы не заводятся, следит тест на заголовки групп.
+	const unknown = [...byTitle.entries()].filter(([, fields]) => fields.length > 0);
+	if (unknown.length > 0) {
+		const main = out.find((tab) => tab.id === 'edit_main');
+		const groups = unknown.map(([title, fields]) => ({ title, fields }));
+		if (main) {
+			out[out.indexOf(main)] = { ...main, groups: [...main.groups, ...groups] };
+		} else {
+			out.unshift({ id: 'edit_main', title: 'Основные', groups });
+		}
+	}
+	return out;
+}
+
+/** Допустимые значения перечислимых свойств формата: `catalog.codeSeries` → константы модели. */
+export type MetadataEnumDictionary = Readonly<Record<string, readonly string[]>>;
+
+/**
+ * Приводит варианты выпадающих списков к словарю формата: список значений задаёт модель,
+ * спека даёт им подписи и порядок. Значения, которых в формате нет, из списка уходят: иначе
+ * их можно было бы выбрать, а запись упала бы. Значения формата без подписи показываются
+ * константой - лучше непривычная подпись, чем недоступное свойство.
+ * Свойства вне словаря (ссылки на формы, хранилища и прочее) остаются как в спеке.
+ */
+export function applyEnumDictionary(
+	tabs: readonly MetadataEditTabSpec[],
+	dictionary: MetadataEnumDictionary
+): MetadataEditTabSpec[] {
+	return tabs.map((tab) => ({
+		...tab,
+		groups: tab.groups.map((group) => ({
+			...group,
+			fields: group.fields.map((field) => {
+				const known = dictionary[field.path];
+				if (field.control !== 'select' || !known) {
+					return field;
+				}
+				const fromSpec = (field.options ?? []).filter(
+					(option) => option.value === '' || known.includes(option.value)
+				);
+				const labelled = new Set(fromSpec.map((option) => option.value));
+				const rest = known.filter((value) => !labelled.has(value)).map((value) => ({ value, label: value }));
+				return { ...field, options: [...fromSpec, ...rest] };
+			}),
+		})),
+	}));
+}
+
+/**
+ * Добавляет вкладку макетов: список в общем стиле панели, а не отдельная таблица поверх остального.
+ * Вкладка есть и у объекта без макетов - место состава не должно появляться и исчезать.
+ *
+ * @param tabs Вкладки вида.
+ * @param templateNames Имена макетов объекта.
+ */
+export function withTemplatesTab(
+	tabs: readonly MetadataEditTabSpec[],
+	templateNames: readonly string[]
+): MetadataEditTabSpec[] {
+	return [
+		...tabs,
+		{
+			id: 'edit_templates',
+			title: 'Макеты',
+			groups: [
+				{
+					title: 'Макеты',
+					fields: [{ path: '', label: 'Макеты объекта', control: 'staticList', items: templateNames }],
+				},
+			],
+		},
+	];
+}
+
+/**
+ * Досыпает в списки выбора значение, которое уже стоит в файле, но в кандидаты не попало
+ * (общая форма чужой подсистемы, объект из другой конфигурации, ссылка на удалённый объект).
+ * Без этого поле выглядит пустым, хотя значение в файле есть, а выбор соседнего пункта
+ * затирает его молча.
+ */
+export function ensureCurrentSelectValues(
+	tabs: readonly MetadataEditTabSpec[],
+	props: Record<string, unknown>
+): MetadataEditTabSpec[] {
+	return tabs.map((tab) => ({
+		...tab,
+		groups: tab.groups.map((group) => ({
+			...group,
+			fields: group.fields.map((field) => {
+				if (field.control !== 'select' || !field.options) {
+					return field;
+				}
+				const current = readPath(props, field.path);
+				if (typeof current !== 'string' || current.length === 0) {
+					return field;
+				}
+				if (field.options.some((option) => option.value === current)) {
+					return field;
+				}
+				const short = current.slice(current.lastIndexOf('.') + 1);
+				return { ...field, options: [...field.options, { value: current, label: short, hint: 'из файла' }] };
+			}),
+		})),
+	}));
+}
+
+/**
+ * Значения спеки, которых нет в словаре формата: панель их не покажет, а разработчику
+ * нужно исправить спеку. Пустое значение - это очистка свойства, а не константа.
+ */
+export function findUnknownEnumValues(
+	tabs: readonly MetadataEditTabSpec[],
+	dictionary: MetadataEnumDictionary
+): string[] {
+	const out: string[] = [];
+	for (const tab of tabs) {
+		for (const group of tab.groups) {
+			for (const field of group.fields) {
+				const known = dictionary[field.path];
+				if (field.control !== 'select' || !known) {
+					continue;
+				}
+				for (const option of field.options ?? []) {
+					if (option.value !== '' && !known.includes(option.value)) {
+						out.push(`${field.path}: ${option.value}`);
+					}
+				}
+			}
+		}
+	}
+	return out;
 }
 
 /**

@@ -102,7 +102,7 @@ async function runProjectMetadataTreeWithRepair(context: vscode.ExtensionContext
 		{ cwd: abs }
 	);
 	if (initialRes.exitCode !== 0 && shouldRepairJarAndRetry(initialRes.stderr, initialRes.stdout)) {
-		log.warn('ошибка загрузки классов md-sparrow — очищаем кэш JAR и повторяем запуск');
+		log.warn('ошибка загрузки классов md-sparrow: очищаем кэш JAR и повторяем запуск');
 		await clearMdSparrowJarCache(context);
 		const repairedRuntime = await ensureMdSparrowRuntime(context);
 		return runMdSparrowParamsRead(repairedRuntime, projectMetadataTreeParams(abs), {

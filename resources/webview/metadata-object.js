@@ -492,6 +492,34 @@
 	}
 
 	/** Подбор группируем по виду объекта, если он задан. */
+	// Уточнение вида (общая форма, значение из файла) идёт заголовком группы: иначе одинаковые
+	// имена из разных мест выглядят одним и тем же вариантом.
+	function selectOptionsHtml(options, current) {
+		const optionHtml = (option) =>
+			`<option value="${escapeHtml(option.value)}"${option.value === current ? ' selected' : ''}>${escapeHtml(
+				option.label
+			)}</option>`;
+		const flat = options.filter((option) => !option.hint);
+		const groups = [];
+		for (const option of options) {
+			if (!option.hint) {
+				continue;
+			}
+			let group = groups.find((item) => item.hint === option.hint);
+			if (!group) {
+				group = { hint: option.hint, options: [] };
+				groups.push(group);
+			}
+			group.options.push(option);
+		}
+		return [
+			...flat.map(optionHtml),
+			...groups.map(
+				(group) => `<optgroup label="${escapeHtml(group.hint)}">${group.options.map(optionHtml).join('')}</optgroup>`
+			),
+		].join('');
+	}
+
 	function refAddOptionsHtml(options) {
 		const flat = options.filter((option) => !option.hint);
 		const groups = [];
@@ -649,12 +677,7 @@
 				if (!current && !options.some((option) => option.value === '')) {
 					options.unshift({ value: '', label: '(по умолчанию)' });
 				}
-				const optionsHtml = options
-					.map(
-						(option) =>
-							`<option value="${escapeHtml(option.value)}"${option.value === current ? ' selected' : ''}>${escapeHtml(option.label)}</option>`
-					)
-					.join('');
+				const optionsHtml = selectOptionsHtml(options, current);
 				return `<select id="${id}" class="edit-input" data-path="${escapeHtml(field.path)}" data-control="select"${disabled}>${optionsHtml}</select>`;
 			}
 			case 'moduleLink':
@@ -726,8 +749,9 @@
 					.map((field) => {
 						const control = editControlHtml(field, fieldIndex);
 						fieldIndex += 1;
-						return `<div class="edit-row">
-							<label class="edit-label">${escapeHtml(field.label)}</label>
+						const changed = fieldChanged(field.path) ? ' edit-row-changed' : '';
+						return `<div class="edit-row${changed}">
+							<label class="edit-label" title="${escapeHtml(field.path)}">${escapeHtml(field.label)}</label>
 							<div class="edit-control">${control}</div>
 						</div>`;
 					})
@@ -738,25 +762,26 @@
 					</div>`;
 			})
 			.join('');
-		const filterHtml = tabId === 'edit_main'
-			? `<div class="edit-filter-row">
+		// Поиск нужен там, где свойств много: на «Данных». На вкладке с тремя полями он лишний.
+		const filterHtml = tabId !== 'edit_data' ? '' : `<div class="edit-filter-row">
 				<span class="edit-filter-wrap">
 					<input id="editFilterInput" class="edit-input edit-filter" type="text" placeholder="Поиск свойства..." value="${escapeHtml(editFilter)}" />
 					<button id="editFilterClear" class="edit-filter-clear${editFilter ? '' : ' hidden'}" type="button" title="Очистить">×</button>
 				</span>
-			</div>`
-			: '';
-		if (tabId === 'edit_data') {
-			// Раскладка EDT: слева состав объекта, справа группы свойств.
-			const tsHtml = structSupportsTabularSections()
+			</div>`;
+		const tabLists = structListsForTab(tabId);
+		const withTabularSections = tabId === 'edit_data' && structSupportsTabularSections();
+		if (tabLists.length > 0 || withTabularSections) {
+			// Раскладка конфигуратора: слева состав, справа свойства этой же вкладки.
+			const tsHtml = withTabularSections
 				? `<div class="section-title section-title-spaced">Табличные части</div>${structEditTsHtml()}`
 				: '';
 			contentRoot.innerHTML = `${filterHtml}<div class="edit-data-layout">
 					<div class="edit-data-structure">
-						${structListsHtml()}
+						${structListsHtml(tabId)}
 						${tsHtml}
 					</div>
-					<div class="edit-data-props">${groupsHtml}</div>
+					${groupsHtml ? `<div class="edit-data-props">${groupsHtml}</div>` : ''}
 				</div>`;
 			bindEditInputs(spec);
 			bindStructEditInputs(spec);
@@ -823,6 +848,24 @@
 		return null;
 	}
 
+	/** Свойство отличается от того, что лежит в файле: панель помечает такие строки до сохранения. */
+	function fieldChanged(path) {
+		if (!editable || !editedProps || !path) {
+			return false;
+		}
+		const before = getPath(editable.props, path);
+		const after = getPath(editedProps, path);
+		const norm = (value) => (value === null || value === undefined ? '' : JSON.stringify(value));
+		return norm(before) !== norm(after);
+	}
+
+	function markRowChanged(input, path) {
+		const row = input.closest ? input.closest('.edit-row') : null;
+		if (row) {
+			row.classList.toggle('edit-row-changed', fieldChanged(path));
+		}
+	}
+
 	function bindEditInputs(spec) {
 		if (!contentRoot) {
 			return;
@@ -851,6 +894,7 @@
 					renderEditTab(spec.id);
 				}
 				void field;
+				markRowChanged(input, path);
 				renderSaveBar();
 			};
 			input.addEventListener(control === 'check' || control === 'select' ? 'change' : 'input', handler);
@@ -1118,10 +1162,22 @@
 		return Array.isArray(lists) ? lists : [];
 	}
 
+	/** Списки состава этой вкладки: состав объекта на «Данных», команды - на «Командах». */
+	function structListsForTab(tabId) {
+		return structLists().filter((list) => (list.tab || 'edit_data') === tabId);
+	}
+
+	/** Номер списка в правках структуры: правки хранятся по всем редактируемым спискам подряд. */
+	function structEditIndex(list) {
+		if (!editedStructure) {
+			return -1;
+		}
+		return editedStructure.lists.findIndex((item) => item.kind === list.key);
+	}
+
 	/** Списки состава сверху вниз: правится тот, что описан как редактируемый. */
-	function structListsHtml() {
-		let editableIdx = -1;
-		return structLists()
+	function structListsHtml(tabId) {
+		return structListsForTab(tabId)
 			.map(function (list, idx) {
 				const title = `<div class="section-title${idx > 0 ? ' section-title-spaced' : ''}">${escapeHtml(
 					list.title
@@ -1129,8 +1185,7 @@
 				if (!list.editable) {
 					return title + structReadonlyListHtml(list);
 				}
-				editableIdx += 1;
-				return title + structEditListHtml(editableIdx);
+				return title + structEditListHtml(structEditIndex(list));
 			})
 			.join('');
 	}
@@ -1502,7 +1557,23 @@
 		}
 	}
 
+	// Подчинённые объекты: в ссылке четыре части, читать её целиком незачем.
+	const memberKindLabels = {
+		StandardAttribute: 'Стандартный реквизит',
+		Attribute: 'Реквизит',
+		AddressingAttribute: 'Реквизит адресации',
+		TabularSection: 'Табличная часть',
+		Form: 'Форма',
+		Template: 'Макет',
+		Command: 'Команда',
+		EnumValue: 'Значение',
+	};
+
 	function humanizeMetadataReference(value) {
+		const parts = value.split('.');
+		if (parts.length === 4 && memberKindLabels[parts[2]]) {
+			return `${memberKindLabels[parts[2]]}: ${parts[3]}`;
+		}
 		const match = /^([A-Za-z][A-Za-z0-9]*)\.(.+)$/.exec(value);
 		if (!match) {
 			return '';

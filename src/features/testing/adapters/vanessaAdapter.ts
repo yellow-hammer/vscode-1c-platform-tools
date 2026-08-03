@@ -76,7 +76,7 @@ export class VanessaAdapter implements TestFrameworkAdapter {
 
 		// Проект без VAParams (или без настроенных отчётов): подключаем
 		// собственные настройки VA с jUnit-отчётом в каталог прогона
-		log.info('VAParams проекта не настроены на отчёты — используются настройки VA от расширения');
+		log.info('VAParams проекта не настроены на отчёты: используются настройки VA от расширения');
 		const vanessaSettings = {
 			'ВыполнитьСценарии': true,
 			'ЗавершитьРаботуСистемы': true,
