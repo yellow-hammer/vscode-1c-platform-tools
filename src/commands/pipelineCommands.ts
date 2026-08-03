@@ -30,6 +30,7 @@ import {
 } from '../shared/pipelines/pipelineTypes';
 import {
 	formatRunSummary,
+	stepErrorLine,
 	stepOutputTail,
 	runPipeline,
 	validatePipeline,
@@ -434,7 +435,7 @@ ${result.stderr ?? ''}`
 					resolve({
 						success: false,
 						exitCode,
-						message: this.lastLine(tail) ?? `код возврата ${exitCode}`,
+						message: stepErrorLine(tail) ?? `код возврата ${exitCode}`,
 					});
 				}
 			);
