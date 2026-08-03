@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 import { runCancellableCommand } from '../../shared/cancellableProcess';
 import { logger } from '../../shared/logger';
+import { signalTaskFinished } from './taskFinishSignal';
 
 const log = logger.scope('vrunner-task');
 
@@ -57,7 +58,10 @@ class VRunnerPseudoterminal implements vscode.Pseudoterminal {
 
 	private readonly cts = new vscode.CancellationTokenSource();
 
+	private startedAt = 0;
+
 	constructor(
+		private readonly name: string,
 		private readonly command: string,
 		private readonly cwd: string,
 		private readonly env?: NodeJS.ProcessEnv,
@@ -66,6 +70,7 @@ class VRunnerPseudoterminal implements vscode.Pseudoterminal {
 
 	public open(): void {
 		log.debug(`запуск задачи: ${this.command}`);
+		this.startedAt = Date.now();
 		// Эхо исходной команды в начале вывода (как у штатных задач VS Code),
 		// чтобы было видно, что именно запущено. Служебный префикс кодировки прячем.
 		const displayCommand = this.command.replace(/^chcp 65001 >nul && /, '');
@@ -82,6 +87,10 @@ class VRunnerPseudoterminal implements vscode.Pseudoterminal {
 			}
 			// Код < 0 (ошибка запуска или отмена) приводим к 1, чтобы VS Code пометил задачу неуспешной.
 			const exitCode = result.exitCode >= 0 ? result.exitCode : 1;
+			if (!result.cancelled) {
+				// Остановленная задача о себе не сообщает: пользователь остановил её сам.
+				signalTaskFinished({ name: this.name, exitCode, durationMs: Date.now() - this.startedAt });
+			}
 			this.exitCallback?.(exitCode);
 			this.closeEmitter.fire(exitCode);
 		});
@@ -90,6 +99,16 @@ class VRunnerPseudoterminal implements vscode.Pseudoterminal {
 	public close(): void {
 		this.cts.cancel();
 	}
+}
+
+/**
+ * Строит псевдотерминал задачи: он исполняет команду и сообщает о её завершении.
+ *
+ * @param params - Параметры задачи (имя, команда, cwd, окружение)
+ * @returns Псевдотерминал для {@link vscode.CustomExecution}
+ */
+export function createVRunnerTaskTerminal(params: VRunnerTaskParams): vscode.Pseudoterminal {
+	return new VRunnerPseudoterminal(params.name, params.command, params.cwd, params.env, params.exitCallback);
 }
 
 /**
@@ -107,9 +126,7 @@ export function createVRunnerTask(params: VRunnerTaskParams): vscode.Task {
 	const definition: vscode.TaskDefinition =
 		params.definition ?? { type: VRUNNER_TASK_TYPE, command: params.name };
 
-	const execution = new vscode.CustomExecution(
-		async () => new VRunnerPseudoterminal(params.command, params.cwd, params.env, params.exitCallback)
-	);
+	const execution = new vscode.CustomExecution(async () => createVRunnerTaskTerminal(params));
 
 	const task = new vscode.Task(
 		definition,

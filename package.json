@@ -2957,6 +2957,26 @@
             "default": true,
             "description": "Запускать команды vrunner как задачи VS Code: ошибки прогона попадают в панель Problems (с переходом к строке), доступна команда «Rerun Last Task», команды видны в списке задач. Отключите, чтобы выполнять команды в обычном интерактивном терминале."
           },
+          "1c-platform-tools.notifications.onCommandFinish": {
+            "type": "string",
+            "enum": [
+              "always",
+              "onError",
+              "never"
+            ],
+            "enumDescriptions": [
+              "После каждой команды",
+              "Только когда команда завершилась с ошибкой",
+              "Не сообщать"
+            ],
+            "default": "always",
+            "description": "Сообщать о завершении команды: звук и строка состояния с длительностью и исходом, без всплывающих окон. У пайплайна сигнал один, по итогу всей цепочки. Работает при запуске команд задачами VS Code (execution.useTasks)."
+          },
+          "1c-platform-tools.notifications.sound": {
+            "type": "boolean",
+            "default": true,
+            "description": "Звук по завершении команды: успех и ошибка звучат по-разному. На Windows берутся звуки системной схемы, на macOS и Linux - системные звуки рабочего окружения."
+          },
           "1c-platform-tools.vrunner.initSettingsPath": {
             "type": "string",
             "default": "tools/vrunner.init.json",

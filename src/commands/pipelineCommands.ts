@@ -8,6 +8,7 @@
  */
 
 import * as vscode from 'vscode';
+import { withGroupedFinishSignals } from '../features/tasks/taskFinishSignal';
 import { exec } from 'node:child_process';
 import { BaseCommand } from './baseCommand';
 import type { CommandExecutionOptions, StructuredCommandResult } from '../shared/commandExecutionTypes';
@@ -245,31 +246,39 @@ export class PipelineCommands extends BaseCommand {
 			},
 		};
 
+		// Шаги цепочки о себе не сообщают: сигнал один, по итогу всего прогона.
 		if (opts?.wait === true) {
-			return runPipeline(pipeline, execute, observer, commandTitle);
+			return withGroupedFinishSignals(
+				`Пайплайн «${pipeline.name}»`,
+				() => runPipeline(pipeline, execute, observer, commandTitle),
+				(result) => result.success
+			);
 		}
 
-		return vscode.window.withProgress(
-			{
-				location: vscode.ProgressLocation.Notification,
-				title: `Пайплайн «${pipeline.name}»`,
-				cancellable: true,
-			},
-			async (progress, token) =>
-				runPipeline(
-					pipeline,
-					execute,
-					{
-						...observer,
-						onNodeStart: (node, number) => {
-							observer.onNodeStart(node, number);
-							progress.report({ message: `${number}. ${nodeLabel(node, commandTitle)}` });
+		const withProgress = async (): Promise<PipelineRunResult> =>
+			vscode.window.withProgress(
+				{
+					location: vscode.ProgressLocation.Notification,
+					title: `Пайплайн «${pipeline.name}»`,
+					cancellable: true,
+				},
+				async (progress, token) =>
+					runPipeline(
+						pipeline,
+						execute,
+						{
+							...observer,
+							onNodeStart: (node, number) => {
+								observer.onNodeStart(node, number);
+								progress.report({ message: `${number}. ${nodeLabel(node, commandTitle)}` });
+							},
+							isCancelled: () => token.isCancellationRequested,
 						},
-						isCancelled: () => token.isCancellationRequested,
-					},
-					commandTitle
-				)
-		);
+						commandTitle
+					)
+			);
+
+		return withGroupedFinishSignals(`Пайплайн «${pipeline.name}»`, withProgress, (result) => result.success);
 	}
 
 	/**
