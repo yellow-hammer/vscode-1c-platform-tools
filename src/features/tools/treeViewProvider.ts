@@ -12,6 +12,7 @@ import {
 	getOpenHooksEditorCommandName
 } from './commandNames';
 import { readPipelines } from '../../shared/pipelines/pipelineFile';
+import { PIPELINE_TEMPLATE_ID_PREFIX } from '../../shared/pipelines/pipelineTemplates';
 import { stepsWord } from '../../shared/pipelines/pipelineTypes';
 import { readHooks, describeHookEntry, HOOKS_WILDCARD } from '../../shared/hooks/hooksModel';
 import { commandTitle } from '../../shared/commandCatalog';
@@ -650,9 +651,29 @@ export class PlatformTreeDataProvider implements vscode.TreeDataProvider<Platfor
 			return items;
 		}
 
+		const pipelines = await readPipelines(workspaceRoot);
+		// Как у служебных файлов: пока цепочек шаблона нет - плюс, когда стоят - галка.
+		const installed = pipelines.some((pipeline) => pipeline.id.startsWith(PIPELINE_TEMPLATE_ID_PREFIX));
+		const templates = this.createTreeItem(
+			'Типовые пайплайны',
+			TreeItemType.Task,
+			vscode.TreeItemCollapsibleState.None,
+			{
+				command: '1c-platform-tools.pipelines.addTemplates',
+				title: 'Типовые пайплайны',
+			},
+			undefined,
+			undefined,
+			undefined,
+			installed ? 'check' : 'add'
+		);
+		templates.tooltip = installed
+			? 'Обновить типовые цепочки до поставляемых с расширением'
+			: 'Добавить в проект типовые цепочки шагов';
+		items.push(templates);
+
 		// Клик по цепочке открывает её в редакторе: запуск - кнопкой в строке,
 		// иначе один промах мышью запускает команды по базе
-		const pipelines = await readPipelines(workspaceRoot);
 		for (const pipeline of pipelines) {
 			const item = this.createTreeItem(
 				pipeline.name,

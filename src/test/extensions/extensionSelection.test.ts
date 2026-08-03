@@ -1,5 +1,6 @@
 import * as assert from 'node:assert';
-import type * as vscode from 'vscode';
+import * as vscode from 'vscode';
+import { pickExtensions } from '../../features/extensions/extensionPicker';
 import {
 	getStoredExtensionSelection,
 	setStoredExtensionSelection,
@@ -138,5 +139,32 @@ suite('extensionSelection: области выбора', () => {
 		await setStoredExtensionSelection(memento, ['РасширениеРешения'], 'solution');
 
 		assert.deepStrictEqual(getStoredExtensionSelection(memento), ['РасширениеРешения']);
+	});
+});
+
+suite('pickExtensions: прогон без окна выбора', () => {
+	const memento = (value: unknown): vscode.Memento =>
+		({
+			get: () => value,
+			update: async () => undefined,
+			keys: () => [],
+		}) as unknown as vscode.Memento;
+
+	test('пустой запомненный выбор не останавливает прогон: берём все', async () => {
+		const picked = await pickExtensions(['Расширение1', 'Расширение2'], memento([]), { wait: true });
+
+		assert.deepStrictEqual(picked, ['Расширение1', 'Расширение2']);
+	});
+
+	test('запомненный выбор от другого состава не оставляет прогон без расширений', async () => {
+		const picked = await pickExtensions(['Расширение1'], memento(['УдалённоеРасширение']), { wait: true });
+
+		assert.deepStrictEqual(picked, ['Расширение1']);
+	});
+
+	test('запомненный выбор применяется, когда совпал', async () => {
+		const picked = await pickExtensions(['Расширение1', 'Расширение2'], memento(['Расширение2']), { wait: true });
+
+		assert.deepStrictEqual(picked, ['Расширение2']);
 	});
 });

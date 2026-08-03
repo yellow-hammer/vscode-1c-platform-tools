@@ -17,6 +17,11 @@ import { commandSupportsWait } from '../shared/mcpCommandPolicy';
 import { commandTitle } from '../shared/commandCatalog';
 import { readPipelines, writePipelines, pipelinesFilePath } from '../shared/pipelines/pipelineFile';
 import {
+	mergePipelineTemplates,
+	mergeSummary,
+	readPipelineTemplates,
+} from '../shared/pipelines/pipelineTemplates';
+import {
 	nodeLabel,
 	stepsWord,
 	Pipeline,
@@ -149,6 +154,57 @@ export class PipelineCommands extends BaseCommand {
 		if (typeof pipelineId === 'string' && pipelineId !== '') {
 			PipelineEditorProvider.revealPipeline(pipelineId);
 		}
+	}
+
+	/**
+	 * Ставит в проект типовые цепочки, поставляемые с расширением.
+	 *
+	 * Цепочку шаблона узнаём по идентификатору: повторная установка обновляет её, а остальные
+	 * цепочки проекта, включая правленые руками, остаются как были.
+	 *
+	 * @returns Ничего
+	 */
+	async addTemplates(): Promise<void> {
+		const workspaceRoot = this.ensureWorkspace();
+		if (!workspaceRoot) {
+			return;
+		}
+		const extensionPath = this.vrunner.getExtensionPath();
+		if (!extensionPath) {
+			void vscode.window.showErrorMessage('Не удалось определить каталог расширения');
+			return;
+		}
+		const templates = await readPipelineTemplates(extensionPath);
+		if (templates.length === 0) {
+			void vscode.window.showWarningMessage('Типовые пайплайны не найдены');
+			return;
+		}
+		const existing = await readPipelines(workspaceRoot);
+		const existingIds = new Set(existing.map((pipeline) => pipeline.id));
+		const picked = await vscode.window.showQuickPick(
+			templates.map((template) => ({
+				label: template.name,
+				description: existingIds.has(template.id) ? 'уже есть, будет обновлена' : undefined,
+				picked: true,
+				template,
+			})),
+			{
+				canPickMany: true,
+				title: 'Типовые пайплайны',
+				placeHolder: 'Отметьте цепочки, которые добавить в проект',
+			}
+		);
+		if (!picked || picked.length === 0) {
+			return;
+		}
+
+		const result = mergePipelineTemplates(existing, picked.map((item) => item.template));
+		await writePipelines(workspaceRoot, result.pipelines);
+		const names = new Map(templates.map((template) => [template.id, template.name]));
+		const summary = mergeSummary(result, names);
+		log.info(summary);
+		notifyQuiet(summary);
+		await this.openEditor(picked[0].template.id);
 	}
 
 	/**

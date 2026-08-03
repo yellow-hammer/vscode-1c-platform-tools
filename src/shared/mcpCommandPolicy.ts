@@ -90,6 +90,7 @@ const HIDDEN_EXACT = [
 	// Конструкторы пайплайнов и хуков: агент правит `.1cpt/pipelines.json` и
 	// `.1cpt/hooks.json` файлами, запуск цепочки ему доступен командой pipelines.run
 	`${COMMAND_PREFIX}pipelines.openEditor`,
+	`${COMMAND_PREFIX}pipelines.addTemplates`,
 	`${COMMAND_PREFIX}hooks.openEditor`,
 	// Сохранение формы: приходит по Ctrl+S из активного редактора
 	`${COMMAND_PREFIX}editors.save`,

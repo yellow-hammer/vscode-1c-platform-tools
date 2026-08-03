@@ -1684,6 +1684,12 @@
         "icon": "$(play)"
       },
       {
+        "command": "1c-platform-tools.pipelines.addTemplates",
+        "title": "Добавить типовые пайплайны",
+        "category": "1C: Пайплайны",
+        "icon": "$(add)"
+      },
+      {
         "command": "1c-platform-tools.pipelines.openEditor",
         "title": "Открыть редактор пайплайнов",
         "category": "1C: Пайплайны",
