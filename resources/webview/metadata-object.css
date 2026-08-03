@@ -382,6 +382,15 @@ body {
 	line-height: 1.3;
 }
 
+/* Изменённое, но ещё не сохранённое свойство: цвет и точка как у изменённых файлов в VS Code. */
+.edit-row-changed .edit-label {
+	color: var(--vscode-gitDecoration-modifiedResourceForeground, var(--vscode-charts-blue));
+}
+
+.edit-row-changed .edit-label::after {
+	content: ' •';
+}
+
 .edit-input {
 	width: 100%;
 	box-sizing: border-box;

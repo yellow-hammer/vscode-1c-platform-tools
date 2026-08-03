@@ -362,12 +362,12 @@ async function openBuiltinWalkthroughWithFallback(
 	try {
 		await tryOpen();
 	} catch (error) {
-		log.warn(`открытие: ${String(error)} — повтор через 400 мс`);
+		log.warn(`открытие: ${String(error)}, повтор через 400 мс`);
 		await sleep(400);
 		try {
 			await tryOpen();
 		} catch (retryError) {
-			log.warn(`открытие: ${String(retryError)} — открываем Webview`);
+			log.warn(`открытие: ${String(retryError)}, открываем Webview`);
 			await openWalkthroughWebview(context);
 		}
 	}

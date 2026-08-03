@@ -62,6 +62,10 @@ export type MdSparrowOp =
 	| 'external-artifact-duplicate'
 	| 'external-artifact-add'
 	| 'external-artifact-properties-set'
+	| 'cf-md-command-add'
+	| 'cf-md-command-rename'
+	| 'cf-md-command-delete'
+	| 'cf-md-command-reorder'
 	| 'cf-md-object-set'
 	| 'cf-configuration-properties-set'
 	| 'init-empty-cf'
@@ -69,6 +73,7 @@ export type MdSparrowOp =
 	| 'add-md-object'
 	// чтение (read-json)
 	| 'cf-md-object-get'
+	| 'cf-md-object-enums'
 	| 'cf-md-object-structure-get'
 	| 'external-artifact-properties-get'
 	| 'cf-configuration-properties-get'

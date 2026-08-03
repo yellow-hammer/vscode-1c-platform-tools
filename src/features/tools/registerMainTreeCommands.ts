@@ -312,7 +312,7 @@ export function registerMainTreeCommands(
 
 			const selected = await vscode.window.showQuickPick(items, {
 				canPickMany: true,
-				placeHolder: 'Выберите команды для избранного (отмечены — в избранном)',
+				placeHolder: 'Выберите команды для избранного (отмеченные уже в нём)',
 				matchOnDescription: true,
 			});
 			if (selected === undefined) {

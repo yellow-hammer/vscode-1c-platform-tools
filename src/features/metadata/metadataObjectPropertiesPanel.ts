@@ -18,15 +18,39 @@ import {
 } from './mdSparrowParams';
 import {
 	applyEditedScalars,
+	applyEnumDictionary,
+	ensureCurrentSelectValues,
+	findUnknownEnumValues,
+	normalizeTabLayout,
+	withTemplatesTab,
 	buildCatalogEditTabs,
 	buildCommonModuleEditTabs,
+	buildSessionParameterEditTabs,
+	buildDocumentNumeratorEditTabs,
+	buildEventSubscriptionEditTabs,
+	buildScheduledJobEditTabs,
+	buildCommonCommandEditTabs,
+	buildCommonAttributeEditTabs,
+	buildCommonPictureEditTabs,
+	buildRoleEditTabs,
+	buildExternalDataSourceEditTabs,
 	buildConstantEditTabs,
 	buildDocumentEditTabs,
 	buildEnumEditTabs,
 	buildRegisterEditTabs,
+	buildReportEditTabs,
+	buildDocumentJournalEditTabs,
+	buildExchangePlanEditTabs,
+	buildChartOfCharacteristicTypesEditTabs,
+	buildTaskEditTabs,
+	buildBusinessProcessEditTabs,
+	buildChartOfAccountsEditTabs,
+	buildChartOfCalculationTypesEditTabs,
 	type MetadataEditOption,
 	type MetadataEditTabSpec,
+	type MetadataEnumDictionary,
 } from './metadataObjectEditSpec';
+import { METADATA_OBJECT_SECTION_SOURCES_BY_TYPE } from './metadataObjectSectionProfiles';
 import {
 	metadataObjectPropertyProfileByType,
 	type MetadataObjectPropertyProfile,
@@ -68,6 +92,7 @@ interface MdObjectStructureDto {
 	resources?: unknown[];
 	recalculations?: unknown[];
 	addressingAttributes?: unknown[];
+	standardAttributes?: unknown[];
 	operations?: unknown[];
 	urlTemplates?: unknown[];
 	channels?: unknown[];
@@ -94,6 +119,8 @@ interface MetadataPanelEditableModel {
 interface MetadataPanelStructureList {
 	/** Поле DTO, если список редактируемый: `attributes` либо `enumValues`. */
 	key: string;
+	/** Вкладка панели, на которой список показывается: у команд своя, как в конфигураторе. */
+	tab: string;
 	title: string;
 	/** Подпись кнопки добавления; пусто у списков только на чтение. */
 	addLabel: string;
@@ -799,6 +826,36 @@ async function runMdSparrowJson<T>(
 	}
 }
 
+/** Словари формата в рамках сеанса: набор констант меняется только вместе с версией формата. */
+const enumDictionaryCache = new Map<string, MetadataEnumDictionary>();
+
+/**
+ * Допустимые значения перечислимых свойств для версии формата.
+ * Если md-sparrow ответить не смог, словарь пустой: панель покажет варианты как в спеке.
+ */
+async function loadEnumDictionary(
+	runtime: Awaited<ReturnType<typeof ensureMdSparrowRuntime>>,
+	cwd: string,
+	schema: string
+): Promise<MetadataEnumDictionary> {
+	const cacheKey = `${runtime.jarPath}|${schema}`;
+	const cached = enumDictionaryCache.get(cacheKey);
+	if (cached) {
+		return cached;
+	}
+	const res = await runMdSparrowJson<MetadataEnumDictionary>(
+		runtime,
+		{ op: 'cf-md-object-enums', schemaVersion: schema },
+		cwd
+	);
+	if (!res.ok) {
+		log.warn(`словарь значений формата ${schema}: ${res.error}`);
+		return {};
+	}
+	enumDictionaryCache.set(cacheKey, res.value);
+	return res.value;
+}
+
 function isUnsupportedMdObjectError(errorText: string): boolean {
 	const normalized = errorText.toLowerCase();
 	return normalized.includes('unsupported metadataobject') || normalized.includes('unsupported metadata object');
@@ -1011,8 +1068,10 @@ const TAB_IDS_REPLACED_BY_EDIT = new Set<string>([
 	'attributes',
 	'tabularSections',
 	'section_values',
+	'section_addressingAttributes',
 	'section_dimensions',
 	'section_resources',
+	'section_templates',
 ]);
 
 function buildTabs(
@@ -1054,6 +1113,22 @@ export interface MetadataEditCandidates {
 	documentNames: readonly string[];
 	numeratorNames: readonly string[];
 	registerOptions: readonly MetadataEditOption[];
+	/** Хранилища настроек конфигурации: кандидаты в хранилища вариантов и настроек отчёта. */
+	settingsStorageNames: readonly string[];
+	/** Регистры сведений: кандидаты в регистр адресации задачи. */
+	informationRegisterNames: readonly string[];
+	/** Задачи конфигурации: кандидаты в задачу бизнес-процесса. */
+	taskNames: readonly string[];
+	/** Планы видов характеристик: кандидаты в виды субконто плана счетов. */
+	characteristicTypeNames: readonly string[];
+	/** Планы видов расчёта: кандидаты в базовые виды расчёта. */
+	calculationTypeNames: readonly string[];
+	/** Общие формы конфигурации: их платформа тоже разрешает назначать основными формами. */
+	commonFormNames: readonly string[];
+	/** Параметры сеанса: кандидаты в текущего исполнителя задачи. */
+	sessionParameterNames: readonly string[];
+	/** Объекты, на основании которых платформа разрешает вводить: не только справочники и документы. */
+	basedOnOptions: readonly MetadataEditOption[];
 }
 
 const EMPTY_CANDIDATES: MetadataEditCandidates = {
@@ -1061,13 +1136,85 @@ const EMPTY_CANDIDATES: MetadataEditCandidates = {
 	documentNames: [],
 	numeratorNames: [],
 	registerOptions: [],
+	settingsStorageNames: [],
+	informationRegisterNames: [],
+	taskNames: [],
+	characteristicTypeNames: [],
+	calculationTypeNames: [],
+	commonFormNames: [],
+	sessionParameterNames: [],
+	basedOnOptions: [],
 };
 
+/**
+ * Модель редактирования: вкладки по спеке, но варианты перечислимых свойств - из словаря формата
+ * (`cf-md-object-enums`). Своего списка констант расширение не держит: он бы разошёлся с форматом.
+ */
 function buildEditableModel(
 	props: MdObjectPropertiesDto | null,
 	structure: MdObjectStructureDto | null,
 	internalName: string,
-	candidates: MetadataEditCandidates = EMPTY_CANDIDATES
+	candidates: MetadataEditCandidates = EMPTY_CANDIDATES,
+	enums: MetadataEnumDictionary = {}
+): MetadataPanelEditableModel | undefined {
+	const model = buildEditableModelBySpec(props, structure, internalName, candidates);
+	if (!model) {
+		return undefined;
+	}
+	const unknown = findUnknownEnumValues(model.tabs, enums);
+	if (unknown.length > 0) {
+		log.warn(`панель свойств: значений нет в формате выгрузки: ${unknown.join(', ')}`);
+	}
+	// Макеты показываем у видов, у которых они бывают: у общего модуля их не заводят вовсе.
+	const sections = METADATA_OBJECT_SECTION_SOURCES_BY_TYPE[objectTypeFromKind(props?.kind ?? '')] ?? [];
+	const withTemplates = sections.includes('templates')
+		? withTemplatesTab(model.tabs, rawNameList(structure?.templates))
+		: model.tabs;
+	const withEnums = applyEnumDictionary(normalizeTabLayout(withTemplates), enums);
+	const withCurrent = ensureCurrentSelectValues(withEnums, props as unknown as Record<string, unknown>);
+	return { ...model, tabs: withDataTabForComposition(withCurrent, props?.kind) };
+}
+
+/** Виды, состав которых панель правит на вкладке «Данные»: реквизиты, значения, измерения. */
+const COMPOSITION_KINDS: readonly string[] = [
+	'catalog',
+	'document',
+	'enum',
+	'report',
+	'dataProcessor',
+	'exchangePlan',
+	'chartOfCharacteristicTypes',
+	'chartOfAccounts',
+	'chartOfCalculationTypes',
+	'task',
+	'businessProcess',
+	'informationRegister',
+	'accumulationRegister',
+];
+
+/**
+ * Вкладка «Данные» держит состав объекта, поэтому она нужна и там, где свойств данных нет:
+ * у отчёта и обработки реквизиты и табличные части иначе не открыть.
+ */
+function withDataTabForComposition(
+	tabs: readonly MetadataEditTabSpec[],
+	kind: string | undefined
+): MetadataEditTabSpec[] {
+	if (!kind || !COMPOSITION_KINDS.includes(kind) || tabs.some((tab) => tab.id === 'edit_data')) {
+		return [...tabs];
+	}
+	const mainIndex = tabs.findIndex((tab) => tab.id === 'edit_main');
+	const dataTab: MetadataEditTabSpec = { id: 'edit_data', title: 'Данные', groups: [] };
+	const out = [...tabs];
+	out.splice(mainIndex + 1, 0, dataTab);
+	return out;
+}
+
+function buildEditableModelBySpec(
+	props: MdObjectPropertiesDto | null,
+	structure: MdObjectStructureDto | null,
+	internalName: string,
+	candidates: MetadataEditCandidates
 ): MetadataPanelEditableModel | undefined {
 	if (!props) {
 		return undefined;
@@ -1084,6 +1231,9 @@ function buildEditableModel(
 				internalName,
 				formNames: rawNameList(structure?.forms),
 				commandNames: rawNameList(structure?.commands),
+				commonFormNames: candidates.commonFormNames,
+				basedOnOptions: candidates.basedOnOptions,
+				standardAttributeNames: rawNameList(structure?.standardAttributes),
 				catalogNames: candidates.catalogNames,
 				documentNames: candidates.documentNames,
 				attributeNames: rawNameList(props.attributes),
@@ -1103,6 +1253,9 @@ function buildEditableModel(
 				internalName,
 				formNames: rawNameList(structure?.forms),
 				commandNames: rawNameList(structure?.commands),
+				commonFormNames: candidates.commonFormNames,
+				basedOnOptions: candidates.basedOnOptions,
+				standardAttributeNames: rawNameList(structure?.standardAttributes),
 				catalogNames: candidates.catalogNames,
 				documentNames: candidates.documentNames,
 				attributeNames: rawNameList(props.attributes),
@@ -1111,7 +1264,7 @@ function buildEditableModel(
 			}),
 		};
 	}
-	const simpleTabs = buildSimpleEditableTabs(props, structure, internalName);
+	const simpleTabs = buildSimpleEditableTabs(props, structure, internalName, candidates);
 	if (simpleTabs) {
 		return { props, tabs: simpleTabs };
 	}
@@ -1122,7 +1275,8 @@ function buildEditableModel(
 function buildSimpleEditableTabs(
 	props: MdObjectPropertiesDto,
 	structure: MdObjectStructureDto | null,
-	internalName: string
+	internalName: string,
+	candidates: MetadataEditCandidates = EMPTY_CANDIDATES
 ): MetadataEditTabSpec[] | undefined {
 	const kindProps = simpleKindProps(props);
 	if (!kindProps || kindProps.objectBelonging === 'ADOPTED') {
@@ -1132,6 +1286,9 @@ function buildSimpleEditableTabs(
 		internalName,
 		formNames: rawNameList(structure?.forms),
 		commandNames: rawNameList(structure?.commands),
+		commonFormNames: candidates.commonFormNames,
+		basedOnOptions: candidates.basedOnOptions,
+		standardAttributeNames: rawNameList(structure?.standardAttributes),
 	};
 	switch (props.kind) {
 		case 'enum':
@@ -1140,6 +1297,83 @@ function buildSimpleEditableTabs(
 			return buildConstantEditTabs(input);
 		case 'commonModule':
 			return buildCommonModuleEditTabs();
+		case 'sessionParameter':
+			return buildSessionParameterEditTabs();
+		case 'documentNumerator':
+			return buildDocumentNumeratorEditTabs();
+		case 'eventSubscription':
+			return buildEventSubscriptionEditTabs();
+		case 'scheduledJob':
+			return buildScheduledJobEditTabs();
+		case 'commonCommand':
+			return buildCommonCommandEditTabs();
+		case 'commonAttribute':
+			return buildCommonAttributeEditTabs();
+		case 'commonPicture':
+			return buildCommonPictureEditTabs();
+		case 'role':
+			return buildRoleEditTabs();
+		case 'externalDataSource':
+			return buildExternalDataSourceEditTabs();
+		case 'report':
+			return buildReportEditTabs({
+				...input,
+				report: true,
+				templateNames: rawNameList(structure?.templates),
+				settingsStorageNames: candidates.settingsStorageNames,
+			});
+		case 'dataProcessor':
+			return buildReportEditTabs({ ...input, report: false });
+		case 'documentJournal':
+			return buildDocumentJournalEditTabs({ ...input, documentNames: candidates.documentNames });
+		case 'task':
+			return buildTaskEditTabs({
+				...input,
+				attributeNames: rawNameList(props.attributes),
+				addressingAttributeNames: rawNameList(structure?.addressingAttributes),
+				informationRegisterNames: candidates.informationRegisterNames,
+				sessionParameterNames: candidates.sessionParameterNames,
+				catalogNames: candidates.catalogNames,
+				documentNames: candidates.documentNames,
+			});
+		case 'businessProcess':
+			return buildBusinessProcessEditTabs({
+				...input,
+				attributeNames: rawNameList(props.attributes),
+				taskNames: candidates.taskNames,
+				catalogNames: candidates.catalogNames,
+				documentNames: candidates.documentNames,
+			});
+		case 'chartOfCalculationTypes':
+			return buildChartOfCalculationTypesEditTabs({
+				...input,
+				attributeNames: rawNameList(props.attributes),
+				calculationTypeNames: candidates.calculationTypeNames,
+				catalogNames: candidates.catalogNames,
+				documentNames: candidates.documentNames,
+			});
+		case 'chartOfAccounts':
+			return buildChartOfAccountsEditTabs({
+				...input,
+				attributeNames: rawNameList(props.attributes),
+				characteristicTypeNames: candidates.characteristicTypeNames,
+				catalogNames: candidates.catalogNames,
+				documentNames: candidates.documentNames,
+			});
+		case 'chartOfCharacteristicTypes':
+			return buildChartOfCharacteristicTypesEditTabs({
+				...input,
+				attributeNames: rawNameList(props.attributes),
+				catalogNames: candidates.catalogNames,
+				documentNames: candidates.documentNames,
+			});
+		case 'exchangePlan':
+			return buildExchangePlanEditTabs({
+				...input,
+				attributeNames: rawNameList(props.attributes),
+				catalogNames: candidates.catalogNames,
+				documentNames: candidates.documentNames,
+			});
 		case 'informationRegister':
 			return buildRegisterEditTabs({ ...input, information: true });
 		case 'accumulationRegister':
@@ -1155,8 +1389,26 @@ function simpleKindProps(props: MdObjectPropertiesDto): Record<string, unknown> 
 		enum: raw.enumeration,
 		constant: raw.constant,
 		commonModule: raw.commonModule,
+		report: raw.report,
+		dataProcessor: raw.report,
+		documentJournal: raw.documentJournal,
+		exchangePlan: raw.exchangePlan,
+		chartOfCharacteristicTypes: raw.chartOfCharacteristicTypes,
+		task: raw.task,
+		chartOfAccounts: raw.chartOfAccounts,
+		chartOfCalculationTypes: raw.chartOfCalculationTypes,
+		businessProcess: raw.businessProcess,
 		informationRegister: raw.register,
 		accumulationRegister: raw.register,
+		sessionParameter: raw.sessionParameter,
+		documentNumerator: raw.documentNumerator,
+		eventSubscription: raw.eventSubscription,
+		scheduledJob: raw.scheduledJob,
+		commonCommand: raw.commonCommand,
+		commonAttribute: raw.commonAttribute,
+		commonPicture: raw.commonPicture,
+		role: raw.role,
+		externalDataSource: raw.externalDataSource,
 	};
 	const value = props.kind ? byKind[props.kind] : undefined;
 	return isRecord(value) ? (value as Record<string, unknown>) : undefined;
@@ -1182,7 +1434,8 @@ function buildViewModel(
 	props: MdObjectPropertiesDto | null,
 	structure: MdObjectStructureDto | null,
 	warnings: string[],
-	candidates: MetadataEditCandidates = EMPTY_CANDIDATES
+	candidates: MetadataEditCandidates = EMPTY_CANDIDATES,
+	enums: MetadataEnumDictionary = {}
 ): MetadataPanelViewModel {
 	const declaredObjectType = normalizeObjectType(params.objectType ?? '');
 	const internalName = props?.internalName || structure?.internalName || path.parse(params.objectXmlFsPath).name;
@@ -1192,7 +1445,7 @@ function buildViewModel(
 		properties: props,
 		structure,
 	};
-	const editable = buildEditableModel(props, structure, internalName, candidates);
+	const editable = buildEditableModel(props, structure, internalName, candidates, enums);
 	const structureLists = editable ? buildStructureLists(props, structure) : undefined;
 	return {
 		objectKind,
@@ -1222,6 +1475,18 @@ function structListKind(props: MdObjectPropertiesDto): MetadataStructListKind {
 	return props.kind === 'enum' ? 'enumValues' : 'attributes';
 }
 
+/** Список команд объекта: живёт на вкладке «Команды», как в конфигураторе. */
+function commandsList(structure: MdObjectStructureDto | null): MetadataPanelStructureList {
+	return {
+		key: 'commands',
+		tab: 'edit_commands',
+		title: 'Команды',
+		addLabel: '+ Команда…',
+		editable: true,
+		rows: asNamedRows(structure?.commands),
+	};
+}
+
 function buildStructureLists(
 	props: MdObjectPropertiesDto | null,
 	structure: MdObjectStructureDto | null
@@ -1230,7 +1495,10 @@ function buildStructureLists(
 		const values = (props as unknown as Record<string, unknown>).enumValues;
 		const rows = asNamedRows(Array.isArray(values) ? values : structure?.values);
 		return {
-			lists: [{ key: 'enumValues', title: 'Значения', addLabel: '+ Значение…', editable: true, rows }],
+			lists: [
+				{ key: 'enumValues', tab: 'edit_data', title: 'Значения', addLabel: '+ Значение…', editable: true, rows },
+				commandsList(structure),
+			],
 			tabularSections: [],
 			supportsTabularSections: false,
 		};
@@ -1247,6 +1515,7 @@ function buildStructureLists(
 			lists: [
 				{
 					key: 'dimensions',
+					tab: 'edit_data',
 					title: 'Измерения',
 					addLabel: '+ Измерение…',
 					editable: true,
@@ -1254,6 +1523,7 @@ function buildStructureLists(
 				},
 				{
 					key: 'resources',
+					tab: 'edit_data',
 					title: 'Ресурсы',
 					addLabel: '+ Ресурс…',
 					editable: true,
@@ -1261,6 +1531,7 @@ function buildStructureLists(
 				},
 				{
 					key: 'attributes',
+					tab: 'edit_data',
 					title: 'Реквизиты',
 					addLabel: '+ Реквизит…',
 					editable: true,
@@ -1271,9 +1542,30 @@ function buildStructureLists(
 			supportsTabularSections: false,
 		};
 	}
+	if (props?.kind === 'constant' || props?.kind === 'commonModule') {
+		// У константы и общего модуля состава нет: показывать пустой список реквизитов незачем.
+		return { lists: [], tabularSections: [], supportsTabularSections: false };
+	}
 	const attributes = props?.attributes ? asNamedRows(props.attributes) : asNamedRows(structure?.attributes);
+	const lists: MetadataPanelStructureList[] = [
+		{ key: 'attributes', tab: 'edit_data', title: 'Реквизиты', addLabel: '+ Реквизит…', editable: true, rows: attributes },
+		commandsList(structure),
+	];
+	const addressing = asNamedRows(structure?.addressingAttributes);
+	if (addressing.length > 0) {
+		// Реквизиты адресации только показываем: правку их состава md-sparrow пока не умеет,
+		// а знать их состав нужно - на них ссылается основной реквизит адресации.
+		lists.unshift({
+			key: 'addressingAttributes',
+			tab: 'edit_data',
+			title: 'Реквизиты адресации',
+			addLabel: '',
+			editable: false,
+			rows: addressing,
+		});
+	}
 	return {
-		lists: [{ key: 'attributes', title: 'Реквизиты', addLabel: '+ Реквизит…', editable: true, rows: attributes }],
+		lists,
 		tabularSections: mergeTabularSections(props?.tabularSections, structure?.tabularSections),
 		supportsTabularSections: true,
 	};
@@ -1301,8 +1593,8 @@ export async function openMetadataObjectPropertiesEditor(
 
 	const runtime = await ensureMdSparrowRuntime(context);
 	const editableType = normalizeObjectType(params.objectType ?? '');
-	const wantsCandidates = Boolean(params.cfgPath) && (editableType === 'Catalog' || editableType === 'Document');
-	const [propsResult, structureResult, candidates] = await Promise.all([
+	const wantsCandidates = Boolean(params.cfgPath) && EDITABLE_CANDIDATE_TYPES.includes(editableType);
+	const [propsResult, structureResult, candidates, enums] = await Promise.all([
 		runMdSparrowJson<MdObjectPropertiesDto>(
 			runtime,
 			{ op: 'cf-md-object-get', objectXml: params.objectXmlFsPath, schemaVersion: schema },
@@ -1316,6 +1608,7 @@ export async function openMetadataObjectPropertiesEditor(
 		wantsCandidates
 			? loadEditCandidates(runtime, params, schema, editableType)
 			: Promise.resolve(EMPTY_CANDIDATES),
+		loadEnumDictionary(runtime, params.cwd, schema),
 	]);
 
 	const { propsDto, structureDto, warnings, fatalReason } = collectMetadataReadState(propsResult, structureResult);
@@ -1326,7 +1619,7 @@ export async function openMetadataObjectPropertiesEditor(
 		return;
 	}
 
-	const viewModel = buildViewModel(params, propsDto, structureDto, warnings, candidates);
+	const viewModel = buildViewModel(params, propsDto, structureDto, warnings, candidates, enums);
 	const title = panelTitleForKind(viewModel.objectKind, viewModel.internalName);
 	const webviewRoot = vscode.Uri.joinPath(context.extensionUri, 'resources', 'webview');
 	const panel = vscode.window.createWebviewPanel('1cMetadataObjectProperties', title, vscode.ViewColumn.Active, {
@@ -1337,7 +1630,7 @@ export async function openMetadataObjectPropertiesEditor(
 	registerFormPanel(panel);
 
 	if (viewModel.editable) {
-		registerEditableSaveHandler(context, panel, params, runtime, schema, viewModel.editable, candidates);
+		registerEditableSaveHandler(context, panel, params, runtime, schema, viewModel.editable, candidates, enums);
 	}
 
 	try {
@@ -1348,6 +1641,46 @@ export async function openMetadataObjectPropertiesEditor(
 		panel.dispose();
 	}
 }
+
+/** Виды, для которых панель подбирает ссылки из конфигурации. */
+const EDITABLE_CANDIDATE_TYPES: readonly string[] = [
+	'Catalog',
+	'Document',
+	'Enum',
+	'Constant',
+	'Report',
+	'DataProcessor',
+	'DocumentJournal',
+	'ExchangePlan',
+	'ChartOfCharacteristicTypes',
+	'Task',
+	'BusinessProcess',
+	'ChartOfAccounts',
+	'ChartOfCalculationTypes',
+	'InformationRegister',
+	'AccumulationRegister',
+	'SessionParameter',
+	'DocumentNumerator',
+	'EventSubscription',
+	'ScheduledJob',
+	'CommonCommand',
+	'CommonAttribute',
+	'CommonPicture',
+	'Role',
+	'ExternalDataSource',
+];
+
+/** Виды объектов, на основании которых платформа разрешает вводить новый объект. */
+const BASED_ON_TAG_LABEL: Record<string, string> = {
+	Catalog: 'Справочник',
+	Document: 'Документ',
+	ChartOfCharacteristicTypes: 'План видов характеристик',
+	ChartOfAccounts: 'План счетов',
+	ChartOfCalculationTypes: 'План видов расчёта',
+	BusinessProcess: 'Бизнес-процесс',
+	Task: 'Задача',
+	ExchangePlan: 'План обмена',
+};
 
 const REGISTER_TAG_LABEL: Record<string, string> = {
 	InformationRegister: 'Регистр сведений',
@@ -1372,12 +1705,46 @@ async function loadEditCandidates(
 		return res.ok && Array.isArray(res.value) ? res.value : [];
 	};
 	const wantsRegisters = editableType === 'Document';
-	const [catalogNames, documentNames, numeratorNames, ...registers] = await Promise.all([
-		listByTag('Catalog'),
-		listByTag('Document'),
+	const wantsSettingsStorages = editableType === 'Report';
+	// справочники нужны владельцам и вводу на основании, документы - им же и журналу документов
+	// виды, у которых есть ввод на основании: им нужен весь список возможных оснований
+	const wantsBasedOn = Object.keys(BASED_ON_TAG_LABEL).includes(editableType);
+	const wantsCatalogs = wantsBasedOn;
+	const wantsDocuments = wantsCatalogs || editableType === 'DocumentJournal';
+	const [
+		catalogNames,
+		documentNames,
+		numeratorNames,
+		settingsStorageNames,
+		informationRegisterNames,
+		taskNames,
+		characteristicTypeNames,
+		calculationTypeNames,
+		commonFormNames,
+		sessionParameterNames,
+		basedOnLists,
+		...registers
+	] = await Promise.all([
+		wantsCatalogs ? listByTag('Catalog') : Promise.resolve([]),
+		wantsDocuments ? listByTag('Document') : Promise.resolve([]),
 		wantsRegisters ? listByTag('DocumentNumerator') : Promise.resolve([]),
+		wantsSettingsStorages ? listByTag('SettingsStorage') : Promise.resolve([]),
+		editableType === 'Task' ? listByTag('InformationRegister') : Promise.resolve([]),
+		editableType === 'BusinessProcess' ? listByTag('Task') : Promise.resolve([]),
+		editableType === 'ChartOfAccounts' ? listByTag('ChartOfCharacteristicTypes') : Promise.resolve([]),
+		editableType === 'ChartOfCalculationTypes' ? listByTag('ChartOfCalculationTypes') : Promise.resolve([]),
+		listByTag('CommonForm'),
+		editableType === 'Task' ? listByTag('SessionParameter') : Promise.resolve([]),
+		wantsBasedOn
+			? Promise.all(
+					Object.keys(BASED_ON_TAG_LABEL).map(async (tag) => ({ tag, names: await listByTag(tag) }))
+				)
+			: Promise.resolve([]),
 		...(wantsRegisters ? Object.keys(REGISTER_TAG_LABEL).map((tag) => listByTag(tag)) : []),
 	]);
+	const basedOnOptions: MetadataEditOption[] = (basedOnLists as Array<{ tag: string; names: string[] }>).flatMap(
+		(list) => list.names.map((name) => ({ value: `${list.tag}.${name}`, label: name, hint: BASED_ON_TAG_LABEL[list.tag] }))
+	);
 	const registerOptions: MetadataEditOption[] = [];
 	if (wantsRegisters) {
 		Object.keys(REGISTER_TAG_LABEL).forEach((tag, index) => {
@@ -1386,7 +1753,20 @@ async function loadEditCandidates(
 			}
 		});
 	}
-	return { catalogNames, documentNames, numeratorNames, registerOptions };
+	return {
+		catalogNames,
+		documentNames,
+		numeratorNames,
+		registerOptions,
+		settingsStorageNames,
+		informationRegisterNames,
+		taskNames,
+		characteristicTypeNames,
+		calculationTypeNames,
+		commonFormNames,
+		sessionParameterNames,
+		basedOnOptions,
+	};
 }
 
 interface MetadataPanelSaveMessage {
@@ -1411,7 +1791,7 @@ interface MetadataTabularSectionEdit extends MetadataStructRowEdit {
 }
 
 /** Вид списка состава: поле DTO, в которое пишутся синонимы, и набор операций. */
-export type MetadataStructListKind = 'attributes' | 'enumValues' | 'dimensions' | 'resources';
+export type MetadataStructListKind = 'attributes' | 'enumValues' | 'dimensions' | 'resources' | 'commands';
 
 interface MetadataStructListEdit {
 	kind: MetadataStructListKind;
@@ -1451,9 +1831,21 @@ const STRUCT_OPS: Record<
 		del: 'cf-md-resource-delete',
 		reorder: 'cf-md-resource-reorder',
 	},
+	commands: {
+		add: 'cf-md-command-add',
+		rename: 'cf-md-command-rename',
+		del: 'cf-md-command-delete',
+		reorder: 'cf-md-command-reorder',
+	},
 };
 
-const STRUCT_LIST_KINDS: readonly MetadataStructListKind[] = ['attributes', 'enumValues', 'dimensions', 'resources'];
+const STRUCT_LIST_KINDS: readonly MetadataStructListKind[] = [
+	'attributes',
+	'enumValues',
+	'dimensions',
+	'resources',
+	'commands',
+];
 
 function asStructListKind(value: unknown): MetadataStructListKind | undefined {
 	return STRUCT_LIST_KINDS.find((kind) => kind === value);
@@ -1731,7 +2123,8 @@ function registerEditableSaveHandler(
 	runtime: Awaited<ReturnType<typeof ensureMdSparrowRuntime>>,
 	schema: string,
 	editable: MetadataPanelEditableModel,
-	candidates: MetadataEditCandidates
+	candidates: MetadataEditCandidates,
+	enums: MetadataEnumDictionary
 ): void {
 	const enqueue = params.enqueueMutation ?? (<T,>(fn: () => Promise<T>): Promise<T> => fn());
 	let saving = false;
@@ -1757,7 +2150,8 @@ function registerEditableSaveHandler(
 			propsResult.value,
 			structureResult.ok ? structureResult.value : null,
 			[],
-			candidates
+			candidates,
+			enums
 		);
 		if (vm.editable) {
 			editable.props = vm.editable.props;
