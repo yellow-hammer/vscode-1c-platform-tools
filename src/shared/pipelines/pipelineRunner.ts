@@ -310,6 +310,38 @@ export function stepOutputTail(output: string, limit: number): string | undefine
 ${text.slice(-limit)}` : text;
 }
 
+/** Метки, которыми vanessa-runner, oscript и платформа помечают ошибки в выводе. */
+const ERROR_MARKERS = [/^КРИТИЧНАЯОШИБКА/i, /^ОШИБКА/i, /^ERROR/i, /^FATAL/i];
+
+/**
+ * Строка вывода, по которой видно, из-за чего упал шаг.
+ *
+ * Последняя строка вывода для этого не годится: у vanessa-runner там оказывается «Закрытие
+ * TestClient», а у конфигуратора - закрывающая скобка сообщения. Берём первую строку с меткой
+ * ошибки, самую тяжёлую метку вперёд; без меток - первую непустую строку.
+ *
+ * @param output Вывод шага (stderr и stdout).
+ * @param limit Сколько символов оставить.
+ * @returns Строка ошибки или undefined для пустого вывода.
+ */
+export function stepErrorLine(output: string, limit = 300): string | undefined {
+	const lines = output
+		.split(/\r?\n/)
+		.map((line) => line.trim())
+		.filter((line) => line !== '');
+	if (lines.length === 0) {
+		return undefined;
+	}
+	for (const marker of ERROR_MARKERS) {
+		const found = lines.find((line) => marker.test(line));
+		if (found) {
+			return found.length > limit ? `${found.slice(0, limit)}…` : found;
+		}
+	}
+	const first = lines[0];
+	return first.length > limit ? `${first.slice(0, limit)}…` : first;
+}
+
 /**
  * Собирает текстовую сводку прогона: по строке на выполненный узел.
  *
