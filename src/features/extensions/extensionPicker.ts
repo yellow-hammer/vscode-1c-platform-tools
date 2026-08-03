@@ -57,10 +57,13 @@ export async function pickExtensions(
 
 	const stored = getStoredExtensionSelection(memento, scope);
 
-	// Агентный вызов (объект опций передан) не открывает quickpick независимо
-	// от wait: применяется сохранённый выбор проекта (или все расширения)
+	// Агентный вызов и шаг цепочки (объект опций передан) не открывают quickpick независимо
+	// от wait: применяется сохранённый выбор проекта. Если от него ничего не осталось (выбор
+	// пуст или сделан для другого состава), берём все расширения: остановить прогон нечем,
+	// а «ни одного» здесь всегда означает недосмотр, а не намерение.
 	if (opts !== undefined) {
-		return filterExtensionsBySelection(allNames, stored);
+		const selected = filterExtensionsBySelection(allNames, stored);
+		return selected.length > 0 ? selected : allNames;
 	}
 
 	const isChecked = (name: string): boolean => stored === undefined || stored.includes(name);

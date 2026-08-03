@@ -1,0 +1,326 @@
+{
+	"version": 2,
+	"pipelines": [
+		{
+			"id": "template-infobase-deploy",
+			"name": "Развёртывание информационной базы",
+			"description": "Пустая база из исходников проекта: конфигурация, расширения, обработчики обновления и первый запуск",
+			"nodes": [
+				{
+					"id": "create",
+					"type": "command",
+					"command": "1c-platform-tools.infobase.createEmpty",
+					"x": 60,
+					"y": 60
+				},
+				{
+					"id": "loadCf",
+					"type": "command",
+					"command": "1c-platform-tools.configuration.loadFromSrc",
+					"x": 330,
+					"y": 60
+				},
+				{
+					"id": "loadCfe",
+					"type": "command",
+					"command": "1c-platform-tools.extensions.loadFromSrc",
+					"x": 600,
+					"y": 60
+				},
+				{
+					"id": "updateDb",
+					"type": "command",
+					"command": "1c-platform-tools.infobase.updateDatabase",
+					"x": 870,
+					"y": 60
+				},
+				{
+					"id": "init",
+					"type": "command",
+					"command": "1c-platform-tools.infobase.initialize",
+					"x": 1140,
+					"y": 60
+				}
+			],
+			"edges": [
+				{
+					"from": "create",
+					"to": "loadCf"
+				},
+				{
+					"from": "loadCf",
+					"to": "loadCfe"
+				},
+				{
+					"from": "loadCfe",
+					"to": "updateDb"
+				},
+				{
+					"from": "updateDb",
+					"to": "init"
+				}
+			]
+		},
+		{
+			"id": "template-production-update",
+			"name": "Обновление рабочей базы",
+			"description": "Обновление с закрытием сеансов; при ошибке загрузки сеансы разрешаются обратно",
+			"nodes": [
+				{
+					"id": "lock",
+					"type": "command",
+					"command": "1c-platform-tools.session.lock",
+					"x": 60,
+					"y": 60
+				},
+				{
+					"id": "kill",
+					"type": "command",
+					"command": "1c-platform-tools.session.kill",
+					"x": 330,
+					"y": 60
+				},
+				{
+					"id": "loadCf",
+					"type": "command",
+					"command": "1c-platform-tools.configuration.loadFromSrc",
+					"x": 600,
+					"y": 60
+				},
+				{
+					"id": "loadCfe",
+					"type": "command",
+					"command": "1c-platform-tools.extensions.loadFromSrc",
+					"x": 870,
+					"y": 60
+				},
+				{
+					"id": "unlock",
+					"type": "command",
+					"command": "1c-platform-tools.session.unlock",
+					"x": 1140,
+					"y": 60
+				},
+				{
+					"id": "unlockOnError",
+					"type": "command",
+					"command": "1c-platform-tools.session.unlock",
+					"x": 600,
+					"y": 200,
+					"name": "Разрешить сеансы после ошибки"
+				}
+			],
+			"edges": [
+				{
+					"from": "lock",
+					"to": "kill"
+				},
+				{
+					"from": "kill",
+					"to": "loadCf"
+				},
+				{
+					"from": "loadCf",
+					"to": "loadCfe"
+				},
+				{
+					"from": "loadCfe",
+					"to": "unlock"
+				},
+				{
+					"from": "loadCf",
+					"to": "unlockOnError",
+					"on": "error"
+				},
+				{
+					"from": "loadCfe",
+					"to": "unlockOnError",
+					"on": "error"
+				}
+			]
+		},
+		{
+			"id": "template-test-run",
+			"name": "Прогон тестов",
+			"description": "Тестовые расширения и обработки, юнит-тесты, сценарные тесты, синтаксический контроль и отчёт",
+			"nodes": [
+				{
+					"id": "loadExt",
+					"type": "command",
+					"command": "1c-platform-tools.test.loadExtensions",
+					"x": 60,
+					"y": 60
+				},
+				{
+					"id": "buildEpf",
+					"type": "command",
+					"command": "1c-platform-tools.test.buildEpf",
+					"x": 330,
+					"y": 60
+				},
+				{
+					"id": "xunit",
+					"type": "command",
+					"command": "1c-platform-tools.test.xunit",
+					"x": 600,
+					"y": 60
+				},
+				{
+					"id": "vanessa",
+					"type": "command",
+					"command": "1c-platform-tools.test.vanessa",
+					"x": 870,
+					"y": 60
+				},
+				{
+					"id": "syntax",
+					"type": "command",
+					"command": "1c-platform-tools.test.syntaxCheck",
+					"x": 1140,
+					"y": 60
+				},
+				{
+					"id": "allure",
+					"type": "command",
+					"command": "1c-platform-tools.test.allure",
+					"x": 1410,
+					"y": 60
+				}
+			],
+			"edges": [
+				{
+					"from": "loadExt",
+					"to": "buildEpf"
+				},
+				{
+					"from": "buildEpf",
+					"to": "xunit"
+				},
+				{
+					"from": "xunit",
+					"to": "vanessa",
+					"on": "always"
+				},
+				{
+					"from": "vanessa",
+					"to": "syntax",
+					"on": "always"
+				},
+				{
+					"from": "syntax",
+					"to": "allure",
+					"on": "always"
+				}
+			]
+		},
+		{
+			"id": "template-delivery-build",
+			"name": "Сборка поставки",
+			"description": "Файлы поставки из исходников: конфигурация, расширения, внешние обработки и отчёты",
+			"nodes": [
+				{
+					"id": "buildCf",
+					"type": "command",
+					"command": "1c-platform-tools.configuration.build",
+					"x": 60,
+					"y": 60
+				},
+				{
+					"id": "buildCfe",
+					"type": "command",
+					"command": "1c-platform-tools.extensions.build",
+					"x": 330,
+					"y": 60
+				},
+				{
+					"id": "buildEpf",
+					"type": "command",
+					"command": "1c-platform-tools.externalProcessors.build",
+					"x": 600,
+					"y": 60
+				},
+				{
+					"id": "buildErf",
+					"type": "command",
+					"command": "1c-platform-tools.externalReports.build",
+					"x": 870,
+					"y": 60
+				}
+			],
+			"edges": [
+				{
+					"from": "buildCf",
+					"to": "buildCfe"
+				},
+				{
+					"from": "buildCfe",
+					"to": "buildEpf"
+				},
+				{
+					"from": "buildEpf",
+					"to": "buildErf"
+				}
+			]
+		},
+		{
+			"id": "template-source-dump",
+			"name": "Выгрузка в исходники",
+			"description": "Исходники проекта: конфигурация, расширения, тестовые расширения, внешние обработки и отчёты",
+			"nodes": [
+				{
+					"id": "dumpCf",
+					"type": "command",
+					"command": "1c-platform-tools.configuration.dumpToSrc",
+					"x": 60,
+					"y": 60
+				},
+				{
+					"id": "dumpCfe",
+					"type": "command",
+					"command": "1c-platform-tools.extensions.dumpToSrc",
+					"x": 330,
+					"y": 60
+				},
+				{
+					"id": "dumpTests",
+					"type": "command",
+					"command": "1c-platform-tools.test.dumpExtensions",
+					"x": 600,
+					"y": 60
+				},
+				{
+					"id": "decompileEpf",
+					"type": "command",
+					"command": "1c-platform-tools.externalProcessors.decompile",
+					"x": 870,
+					"y": 60
+				},
+				{
+					"id": "decompileErf",
+					"type": "command",
+					"command": "1c-platform-tools.externalReports.decompile",
+					"x": 1140,
+					"y": 60
+				}
+			],
+			"edges": [
+				{
+					"from": "dumpCf",
+					"to": "dumpCfe"
+				},
+				{
+					"from": "dumpCfe",
+					"to": "dumpTests"
+				},
+				{
+					"from": "dumpTests",
+					"to": "decompileEpf"
+				},
+				{
+					"from": "decompileEpf",
+					"to": "decompileErf"
+				}
+			]
+		}
+	]
+}

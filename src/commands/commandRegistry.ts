@@ -214,6 +214,9 @@ export function registerCommands(
 		vscode.commands.registerCommand('1c-platform-tools.pipelines.openEditor', (pipelineId?: string) =>
 			commands.pipelines.openEditor(typeof pipelineId === 'string' ? pipelineId : undefined)
 		),
+		vscode.commands.registerCommand('1c-platform-tools.pipelines.addTemplates', () =>
+			commands.pipelines.addTemplates()
+		),
 		vscode.commands.registerCommand('1c-platform-tools.hooks.openEditor', (commandId?: string) =>
 			commands.hooks.openEditor(typeof commandId === 'string' ? commandId : undefined)
 		),
