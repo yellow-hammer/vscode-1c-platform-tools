@@ -27,6 +27,19 @@ export function notifyQuiet(message: string): void {
 }
 
 /**
+ * Сообщает о рутинном действии, которое закончилось неудачей.
+ *
+ * Всплывающее окно тут не нужно: подробности уже видны там, где шла работа (панель задачи,
+ * Problems, журнал), а строка состояния только отмечает исход.
+ *
+ * @param message - Что не получилось
+ */
+export function notifyQuietFailure(message: string): void {
+	log.error(message);
+	vscode.window.setStatusBarMessage(`$(error) ${message}`, STATUS_TIMEOUT_MS);
+}
+
+/**
  * Сообщает о действии, которое идёт прямо сейчас.
  *
  * @param message - Что происходит
