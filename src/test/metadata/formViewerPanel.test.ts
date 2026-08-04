@@ -86,7 +86,7 @@ suite('Свойства элемента формы для палитры', () =
 			{ name: 'DataPath', kind: 'string', defaultValue: '' },
 			{ name: 'Visible', kind: 'boolean', defaultValue: 'true' },
 			{ name: 'Width', kind: 'number', defaultValue: '0' },
-			{ name: 'TitleLocation', kind: 'enum', defaultValue: 'Auto', values: ['AUTO', 'NONE'] },
+			{ name: 'TitleLocation', kind: 'enum', defaultValue: 'Auto', values: ['Auto', 'None'] },
 			{ name: 'Wrap', kind: 'boolean', defaultValue: 'false' },
 		],
 	};
@@ -105,7 +105,7 @@ suite('Свойства элемента формы для палитры', () =
 		assert.strictEqual(byKey.get('TitleLocation')?.value, 'Auto');
 		assert.deepStrictEqual(
 			byKey.get('TitleLocation')?.options?.map((option) => option.value),
-			['AUTO', 'NONE']
+			['Auto', 'None']
 		);
 		assert.ok(byKey.get('Visible')?.hint?.includes('по умолчанию'), 'видно, что значение не записано');
 	});

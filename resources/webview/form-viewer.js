@@ -276,7 +276,7 @@
 
 	function previewField(node) {
 		const row = element('div', 'pv-field');
-		if (node.item.titleLocation !== 'NONE') {
+		if (node.item.titleLocation !== 'None') {
 			row.append(element('span', 'pv-label', fieldLabel(node.item) + ':'));
 		}
 		const input = element('div', 'pv-input', '');
@@ -289,9 +289,9 @@
 	}
 
 	function previewGroup(node) {
-		const horizontal = node.item.group === 'HORIZONTAL' || node.item.group === 'HORIZONTAL_IF_POSSIBLE';
+		const horizontal = node.item.group === 'Horizontal' || node.item.group === 'HorizontalIfPossible';
 		const box = element('div', 'pv-group ' + (horizontal ? 'is-horizontal' : 'is-vertical'));
-		if (node.item.title && node.item.showTitle !== 'FALSE') {
+		if (node.item.title && node.item.showTitle !== 'false') {
 			box.append(element('div', 'pv-group-title', node.item.title));
 		}
 		for (const child of visibleNodes(node.children)) {
