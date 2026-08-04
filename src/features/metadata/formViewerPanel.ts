@@ -15,14 +15,14 @@ import { runMdSparrowParamsRead } from './mdSparrowParams';
 import { mdSparrowSchemaFlagFromConfigurationXml } from './mdSparrowSchemaVersion';
 import { logger } from '../../shared/logger';
 import { ensureBslModuleFile } from './bslModuleFile';
-import {
-	booleanText,
-	propertyGroup,
-	propertyRow,
-	type PropertyGroup,
-	type PropertyPaletteState,
-	type PropertyPaletteViewProvider,
+import type {
+	PropertyControlKind,
+	PropertyGroup,
+	PropertyPaletteState,
+	PropertyPaletteViewProvider,
+	PropertyRow,
 } from '../properties/propertyPaletteView';
+import { PROPERTY_GROUP_ORDER, propertyGroupName, propertyLabel } from './formItemPropertySpec';
 
 /** Обработчик события формы или элемента. */
 export interface FormEventDto {
@@ -32,6 +32,17 @@ export interface FormEventDto {
 }
 
 /** Элемент формы с вложенными элементами. */
+/** Свойство вида элемента формы из словаря md-sparrow. */
+export interface FormItemPropertySpecDto {
+	name: string;
+	kind: string;
+	defaultValue?: string;
+	values?: string[];
+}
+
+/** Словарь: вид элемента формы -> состав его свойств. */
+export type FormItemPropertyDictionary = Record<string, FormItemPropertySpecDto[]>;
+
 export interface FormItemDto {
 	type?: string;
 	name?: string;
@@ -51,6 +62,8 @@ export interface FormItemDto {
 	verticalStretch?: string;
 	events?: FormEventDto[];
 	items?: FormItemDto[];
+	/** Свойства, записанные в файле: имя узла XML -> значение. */
+	properties?: Record<string, string>;
 }
 
 /** Реквизит формы; у реквизита-таблицы заполнены колонки. */
@@ -88,6 +101,33 @@ export interface OpenFormViewerParams {
 }
 
 const log = logger.scope('metadata');
+
+/** Состав свойств элементов зависит только от версии формата, поэтому читаем его один раз за сеанс. */
+const itemPropertyDictionaryCache = new Map<string, FormItemPropertyDictionary>();
+
+async function loadItemPropertyDictionary(
+	runtime: Awaited<ReturnType<typeof ensureMdSparrowRuntime>>,
+	schema: string,
+	cwd: string
+): Promise<FormItemPropertyDictionary | undefined> {
+	const cached = itemPropertyDictionaryCache.get(schema);
+	if (cached) {
+		return cached;
+	}
+	const result = await runMdSparrowParamsRead(runtime, { op: 'cf-form-item-properties', schemaVersion: schema }, { cwd });
+	if (result.exitCode !== 0) {
+		log.warn(`состав свойств элементов формы недоступен: ${result.stderr.trim() || `код ${result.exitCode}`}`);
+		return undefined;
+	}
+	try {
+		const dictionary = JSON.parse(result.stdout.trim()) as FormItemPropertyDictionary;
+		itemPropertyDictionaryCache.set(schema, dictionary);
+		return dictionary;
+	} catch (e) {
+		log.warn(`состав свойств элементов формы не разобран: ${e instanceof Error ? e.message : String(e)}`);
+		return undefined;
+	}
+}
 
 const ERR_PREVIEW = 400;
 
@@ -130,11 +170,14 @@ export async function openFormViewer(
 	}
 
 	const runtime = await ensureMdSparrowRuntime(context);
-	const result = await runMdSparrowParamsRead(
-		runtime,
-		{ op: 'cf-form-content-get', formXml: params.formXmlFsPath, schemaVersion: schema },
-		{ cwd: params.cwd }
-	);
+	const [result, dictionary] = await Promise.all([
+		runMdSparrowParamsRead(
+			runtime,
+			{ op: 'cf-form-content-get', formXml: params.formXmlFsPath, schemaVersion: schema },
+			{ cwd: params.cwd }
+		),
+		loadItemPropertyDictionary(runtime, schema, params.cwd),
+	]);
 	if (result.exitCode !== 0) {
 		const errText = result.stderr.trim() || result.stdout.trim() || `код ${result.exitCode}`;
 		void vscode.window.showErrorMessage(`Не удалось прочитать форму. ${errText}`.slice(0, ERR_PREVIEW));
@@ -166,7 +209,7 @@ export async function openFormViewer(
 			}
 			if (message?.type === 'select') {
 				if (message.item) {
-					params.propertyPalette?.show(paletteOwner, formItemProperties(message.item));
+					params.propertyPalette?.show(paletteOwner, formItemProperties(message.item, dictionary));
 				} else {
 					params.propertyPalette?.clear(paletteOwner);
 				}
@@ -216,39 +259,82 @@ const ITEM_KIND_LABELS: Record<string, string> = {
 	ViewStatusAddition: 'Состояние просмотра',
 };
 
-/** Свойства элемента формы для панели «Свойства»: группы те же, что в конфигураторе. */
-export function formItemProperties(item: FormItemDto): PropertyPaletteState {
-	const groups: (PropertyGroup | undefined)[] = [
-		propertyGroup('Основные', [
-			propertyRow('name', 'Имя', item.name),
-			propertyRow('title', 'Заголовок', item.title),
-			propertyRow('dataPath', 'Путь к данным', item.dataPath, 'reference'),
-			propertyRow('id', 'Идентификатор', item.id, 'number'),
-		]),
-		propertyGroup('Использование', [
-			propertyRow('visible', 'Видимость', booleanText(item.visible), 'boolean'),
-			propertyRow('enabled', 'Доступность', booleanText(item.enabled), 'boolean'),
-			propertyRow('readOnly', 'Только просмотр', booleanText(item.readOnly), 'boolean'),
-		]),
-		propertyGroup('Расположение', [
-			propertyRow('group', 'Группировка', item.group, 'select'),
-			propertyRow('showTitle', 'Отображать заголовок', item.showTitle, 'select'),
-			propertyRow('titleLocation', 'Положение заголовка', item.titleLocation, 'select'),
-			propertyRow('representation', 'Представление', item.representation, 'select'),
-			propertyRow('width', 'Ширина', item.width, 'number'),
-			propertyRow('height', 'Высота', item.height, 'number'),
-			propertyRow('horizontalStretch', 'Растягивать по горизонтали', item.horizontalStretch, 'select'),
-			propertyRow('verticalStretch', 'Растягивать по вертикали', item.verticalStretch, 'select'),
-		]),
-		propertyGroup(
-			'События',
-			(item.events ?? []).map((event) => propertyRow(`event.${event.name}`, event.name ?? '', event.handler))
-		),
-	];
+/** Значение свойства для показа: булево словом, пустое - как есть. */
+function propertyValueText(value: string | undefined, kind: string): string | undefined {
+	if (value === undefined || value === '') {
+		return undefined;
+	}
+	if (kind === 'boolean') {
+		return value === 'true' ? 'Да' : value === 'false' ? 'Нет' : value;
+	}
+	return value;
+}
+
+function controlKind(kind: string): PropertyControlKind {
+	switch (kind) {
+		case 'boolean':
+			return 'boolean';
+		case 'number':
+			return 'number';
+		case 'enum':
+			return 'select';
+		case 'localString':
+			return 'multiline';
+		default:
+			return 'text';
+	}
+}
+
+/**
+ * Свойства элемента формы для панели «Свойства».
+ *
+ * Состав берём из словаря формата: в файле лежат только изменённые свойства, а показывать нужно
+ * весь набор вида элемента - со значениями по умолчанию там, где в файле ничего нет.
+ * Без словаря (старая сборка md-sparrow) показываем то, что записано в файле.
+ */
+export function formItemProperties(item: FormItemDto, dictionary?: FormItemPropertyDictionary): PropertyPaletteState {
+	const written = item.properties ?? {};
+	const specs: FormItemPropertySpecDto[] = dictionary?.[item.type ?? ''] ??
+		Object.keys(written).map((name) => ({ name, kind: 'string' }));
+
+	const byGroup = new Map<string, PropertyRow[]>();
+	for (const spec of specs) {
+		const value = propertyValueText(written[spec.name] ?? spec.defaultValue, spec.kind);
+		const row: PropertyRow = {
+			key: spec.name,
+			label: propertyLabel(spec.name),
+			kind: controlKind(spec.kind),
+			value: value,
+			readonly: true,
+			hint: written[spec.name] === undefined ? `${spec.name}, по умолчанию` : spec.name,
+			options: spec.values?.map((constant) => ({ value: constant, label: constant })),
+		};
+		const group = propertyGroupName(spec.name);
+		byGroup.set(group, [...(byGroup.get(group) ?? []), row]);
+	}
+	for (const event of item.events ?? []) {
+		const row: PropertyRow = {
+			key: `event.${event.name}`,
+			label: event.name ?? '',
+			kind: 'text',
+			value: event.handler,
+			readonly: true,
+			hint: 'Обработчик события',
+		};
+		byGroup.set('События', [...(byGroup.get('События') ?? []), row]);
+	}
+
+	const groups: PropertyGroup[] = [];
+	for (const name of PROPERTY_GROUP_ORDER) {
+		const rows = byGroup.get(name);
+		if (rows && rows.length > 0) {
+			groups.push({ title: name, rows });
+		}
+	}
 	return {
 		title: item.name || ITEM_KIND_LABELS[item.type ?? ''] || 'Элемент формы',
 		subtitle: ITEM_KIND_LABELS[item.type ?? ''] ?? item.type,
-		groups: groups.filter((group): group is PropertyGroup => group !== undefined),
+		groups,
 	};
 }
 

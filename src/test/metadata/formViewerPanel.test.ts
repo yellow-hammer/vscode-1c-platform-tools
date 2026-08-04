@@ -80,50 +80,65 @@ suite('Просмотр формы: разметка и скрипт', () => {
 });
 
 suite('Свойства элемента формы для палитры', () => {
-	test('группы собираются из заполненных свойств', () => {
+	const dictionary = {
+		InputField: [
+			{ name: 'name', kind: 'string' },
+			{ name: 'DataPath', kind: 'string', defaultValue: '' },
+			{ name: 'Visible', kind: 'boolean', defaultValue: 'true' },
+			{ name: 'Width', kind: 'number', defaultValue: '0' },
+			{ name: 'TitleLocation', kind: 'enum', defaultValue: 'Auto', values: ['AUTO', 'NONE'] },
+			{ name: 'Wrap', kind: 'boolean', defaultValue: 'false' },
+		],
+	};
+
+	test('показывается весь состав свойств вида элемента, незаписанные - по умолчанию', () => {
+		const state = formItemProperties(
+			{ type: 'InputField', name: 'Код', properties: { name: 'Код', DataPath: 'Объект.Code', Width: '3' } },
+			dictionary
+		);
+
+		const rows = state.groups.flatMap((group) => group.rows);
+		assert.strictEqual(rows.length, 6, 'состав берётся из словаря, а не из файла');
+		const byKey = new Map(rows.map((row) => [row.key, row]));
+		assert.strictEqual(byKey.get('Width')?.value, '3', 'записанное значение важнее умолчания');
+		assert.strictEqual(byKey.get('Visible')?.value, 'Да', 'умолчание булева показывается словом');
+		assert.strictEqual(byKey.get('TitleLocation')?.value, 'Auto');
+		assert.deepStrictEqual(
+			byKey.get('TitleLocation')?.options?.map((option) => option.value),
+			['AUTO', 'NONE']
+		);
+		assert.ok(byKey.get('Visible')?.hint?.includes('по умолчанию'), 'видно, что значение не записано');
+	});
+
+	test('свойства разложены по группам палитры', () => {
+		const state = formItemProperties({ type: 'InputField', name: 'Код' }, dictionary);
+
+		assert.deepStrictEqual(
+			state.groups.map((group) => group.title),
+			['Основные', 'Использование', 'Расположение', 'Данные', 'Прочие'],
+			'свойство без описания попадает в «Прочие», а не теряется'
+		);
+	});
+
+	test('без словаря показываем то, что записано в файле', () => {
 		const state = formItemProperties({
 			type: 'InputField',
 			name: 'Код',
-			id: '2',
-			dataPath: 'Объект.Code',
-			width: '3',
-			visible: false,
+			properties: { name: 'Код', DataPath: 'Объект.Code' },
 			events: [{ name: 'OnChange', handler: 'КодПриИзменении' }],
 		});
 
-		assert.strictEqual(state.title, 'Код');
+		const rows = state.groups.flatMap((group) => group.rows);
+		assert.deepStrictEqual(
+			rows.map((row) => row.key),
+			['name', 'DataPath', 'event.OnChange']
+		);
 		assert.strictEqual(state.subtitle, 'Поле ввода');
-		assert.deepStrictEqual(
-			state.groups.map((group) => group.title),
-			['Основные', 'Использование', 'Расположение', 'События']
-		);
-
-		const main = state.groups[0];
-		assert.deepStrictEqual(
-			main.rows.map((row) => `${row.label}=${row.value}`),
-			['Имя=Код', 'Путь к данным=Объект.Code', 'Идентификатор=2']
-		);
-		assert.strictEqual(state.groups[1].rows[0].value, 'Нет', 'булево показывается словом');
-		assert.strictEqual(state.groups[3].rows[0].value, 'КодПриИзменении');
-	});
-
-	test('пустые свойства и группы без строк не показываются', () => {
-		const state = formItemProperties({ type: 'ExtendedTooltip', name: 'Подсказка', title: '' });
-
-		assert.deepStrictEqual(
-			state.groups.map((group) => group.title),
-			['Основные']
-		);
-		assert.deepStrictEqual(
-			state.groups[0].rows.map((row) => row.label),
-			['Имя']
-		);
 	});
 
 	test('у элемента без имени в заголовке вид элемента', () => {
 		const state = formItemProperties({ type: 'AutoCommandBar' });
 
 		assert.strictEqual(state.title, 'Командная панель');
-		assert.strictEqual(state.subtitle, 'Командная панель');
 	});
 });
