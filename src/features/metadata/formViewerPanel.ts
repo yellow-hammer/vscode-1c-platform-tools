@@ -15,6 +15,14 @@ import { runMdSparrowParamsRead } from './mdSparrowParams';
 import { mdSparrowSchemaFlagFromConfigurationXml } from './mdSparrowSchemaVersion';
 import { logger } from '../../shared/logger';
 import { ensureBslModuleFile } from './bslModuleFile';
+import {
+	booleanText,
+	propertyGroup,
+	propertyRow,
+	type PropertyGroup,
+	type PropertyPaletteState,
+	type PropertyPaletteViewProvider,
+} from './propertyPaletteView';
 
 /** Обработчик события формы или элемента. */
 export interface FormEventDto {
@@ -75,6 +83,8 @@ export interface OpenFormViewerParams {
 	cwd: string;
 	cfgPath?: string;
 	schemaFlag?: string;
+	/** Панель «Свойства»: показывает выделенный элемент формы. */
+	propertyPalette?: PropertyPaletteViewProvider;
 }
 
 const log = logger.scope('metadata');
@@ -147,15 +157,25 @@ export async function openFormViewer(
 		localResourceRoots: [webviewRoot],
 	});
 
+	const paletteOwner = params.formXmlFsPath;
 	panel.webview.onDidReceiveMessage(
-		async (message: { type?: string; handler?: string }) => {
+		async (message: { type?: string; handler?: string; item?: FormItemDto }) => {
 			if (message?.type === 'openHandler' || message?.type === 'openModule') {
 				await openFormModuleAt(params.moduleFsPath, message.handler, panel.viewColumn);
+				return;
+			}
+			if (message?.type === 'select') {
+				if (message.item) {
+					params.propertyPalette?.show(paletteOwner, formItemProperties(message.item));
+				} else {
+					params.propertyPalette?.clear(paletteOwner);
+				}
 			}
 		},
 		undefined,
 		context.subscriptions
 	);
+	panel.onDidDispose(() => params.propertyPalette?.clear(paletteOwner), undefined, context.subscriptions);
 
 	try {
 		panel.webview.html = await loadFormViewerHtml(panel.webview, context.extensionUri, {
@@ -168,6 +188,68 @@ export async function openFormViewer(
 		void vscode.window.showErrorMessage('Не удалось загрузить просмотр формы.');
 		panel.dispose();
 	}
+}
+
+/** Вид элемента формы по-русски: то же название, что в дереве элементов. */
+const ITEM_KIND_LABELS: Record<string, string> = {
+	UsualGroup: 'Группа',
+	ColumnGroup: 'Группа колонок',
+	Pages: 'Страницы',
+	Page: 'Страница',
+	InputField: 'Поле ввода',
+	LabelField: 'Поле надписи',
+	LabelDecoration: 'Надпись',
+	PictureDecoration: 'Картинка',
+	CheckBoxField: 'Поле флажка',
+	RadioButtonField: 'Поле переключателя',
+	PictureField: 'Поле картинки',
+	Table: 'Таблица',
+	Button: 'Кнопка',
+	ButtonGroup: 'Группа кнопок',
+	CommandBar: 'Командная панель',
+	AutoCommandBar: 'Командная панель',
+	ContextMenu: 'Контекстное меню',
+	Popup: 'Подменю',
+	ExtendedTooltip: 'Расширенная подсказка',
+	SearchStringAddition: 'Строка поиска',
+	SearchControlAddition: 'Управление поиском',
+	ViewStatusAddition: 'Состояние просмотра',
+};
+
+/** Свойства элемента формы для панели «Свойства»: группы те же, что в конфигураторе. */
+export function formItemProperties(item: FormItemDto): PropertyPaletteState {
+	const groups: (PropertyGroup | undefined)[] = [
+		propertyGroup('Основные', [
+			propertyRow('name', 'Имя', item.name),
+			propertyRow('title', 'Заголовок', item.title),
+			propertyRow('dataPath', 'Путь к данным', item.dataPath, 'reference'),
+			propertyRow('id', 'Идентификатор', item.id, 'number'),
+		]),
+		propertyGroup('Использование', [
+			propertyRow('visible', 'Видимость', booleanText(item.visible), 'boolean'),
+			propertyRow('enabled', 'Доступность', booleanText(item.enabled), 'boolean'),
+			propertyRow('readOnly', 'Только просмотр', booleanText(item.readOnly), 'boolean'),
+		]),
+		propertyGroup('Расположение', [
+			propertyRow('group', 'Группировка', item.group, 'select'),
+			propertyRow('showTitle', 'Отображать заголовок', item.showTitle, 'select'),
+			propertyRow('titleLocation', 'Положение заголовка', item.titleLocation, 'select'),
+			propertyRow('representation', 'Представление', item.representation, 'select'),
+			propertyRow('width', 'Ширина', item.width, 'number'),
+			propertyRow('height', 'Высота', item.height, 'number'),
+			propertyRow('horizontalStretch', 'Растягивать по горизонтали', item.horizontalStretch, 'select'),
+			propertyRow('verticalStretch', 'Растягивать по вертикали', item.verticalStretch, 'select'),
+		]),
+		propertyGroup(
+			'События',
+			(item.events ?? []).map((event) => propertyRow(`event.${event.name}`, event.name ?? '', event.handler))
+		),
+	];
+	return {
+		title: item.name || ITEM_KIND_LABELS[item.type ?? ''] || 'Элемент формы',
+		subtitle: ITEM_KIND_LABELS[item.type ?? ''] ?? item.type,
+		groups: groups.filter((group): group is PropertyGroup => group !== undefined),
+	};
 }
 
 /**

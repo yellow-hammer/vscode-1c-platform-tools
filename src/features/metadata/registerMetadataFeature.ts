@@ -25,6 +25,7 @@ import { computeSubsystemFilter, findSubsystemByName, loadSubsystemTrees } from 
 import { openMetadataObjectPropertiesEditor } from './metadataObjectPropertiesPanel';
 import { formModulePath, objectFormXmlPath, openFormViewer } from './formViewerPanel';
 import { ensureBslModuleFile } from './bslModuleFile';
+import type { PropertyPaletteViewProvider } from './propertyPaletteView';
 import {
 	openMetadataSourcePropertiesPanel,
 	type SourcePropertiesDto,
@@ -60,6 +61,7 @@ export interface RegisterMetadataFeatureParams {
 	metadataTreeView: vscode.TreeView<vscode.TreeItem>;
 	metadataSearchProvider: MetadataSearchViewProvider;
 	metadataFilterProvider: MetadataFilterViewProvider;
+	propertyPaletteProvider: PropertyPaletteViewProvider;
 }
 
 /**
@@ -68,7 +70,14 @@ export interface RegisterMetadataFeatureParams {
 export function registerMetadataFeature(
 	params: RegisterMetadataFeatureParams
 ): vscode.Disposable[] {
-	const { context, metadataTreeProvider, metadataTreeView, metadataSearchProvider, metadataFilterProvider } = params;
+	const {
+		context,
+		metadataTreeProvider,
+		metadataTreeView,
+		metadataSearchProvider,
+		metadataFilterProvider,
+		propertyPaletteProvider,
+	} = params;
 
 	const MD_SPARROW_CLI_ERR_PREVIEW = 500;
 
@@ -1479,6 +1488,7 @@ export function registerMetadataFeature(
 					title: `${owner.name}.${node.name}`,
 					cwd: owner.metadataRootAbs ?? path.dirname(owner.resourceUri.fsPath),
 					cfgPath: owner.configurationXmlAbs,
+					propertyPalette: propertyPaletteProvider,
 				});
 			}
 		),

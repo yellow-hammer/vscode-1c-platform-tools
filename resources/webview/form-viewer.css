@@ -42,11 +42,11 @@ body {
 	flex: 1;
 	min-height: 0;
 	display: grid;
-	grid-template-columns: minmax(200px, 1fr) minmax(320px, 2fr) minmax(220px, 1fr);
-	grid-template-rows: 1fr 1fr;
+	grid-template-columns: minmax(220px, 1fr) minmax(360px, 3fr);
+	grid-template-rows: 2fr 1fr;
 	grid-template-areas:
-		"tree preview props"
-		"tree data props";
+		"tree preview"
+		"tree data";
 	gap: 8px;
 }
 
@@ -60,10 +60,6 @@ body {
 
 .pane-data {
 	grid-area: data;
-}
-
-.pane-props {
-	grid-area: props;
 }
 
 .pane {
@@ -309,25 +305,6 @@ body {
 	font-size: 11px;
 	opacity: 0.65;
 	white-space: nowrap;
-}
-
-.prop-row {
-	display: flex;
-	gap: 8px;
-	padding: 2px 0;
-	border-bottom: 1px solid var(--vscode-panel-border);
-}
-
-.prop-name {
-	flex: 0 0 45%;
-	font-size: 12px;
-	opacity: 0.75;
-}
-
-.prop-value {
-	flex: 1;
-	font-size: 12px;
-	word-break: break-word;
 }
 
 .link-button {

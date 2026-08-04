@@ -190,6 +190,12 @@
           "initialSize": 30
         },
         {
+          "id": "1c-platform-tools-metadata-properties",
+          "name": "Свойства",
+          "type": "webview",
+          "icon": "resources/property-palette.svg"
+        },
+        {
           "id": "1c-platform-tools-metadata-help",
           "name": "Помощь и поддержка",
           "contextualTitle": "Помощь",

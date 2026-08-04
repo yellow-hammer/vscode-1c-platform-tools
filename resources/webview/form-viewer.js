@@ -103,7 +103,15 @@
 		state.selected = key;
 		renderTree();
 		renderPreview();
-		renderProperties();
+		const node = findNode(tree, key);
+		vscode.postMessage({ type: 'select', item: node ? itemProperties(node.item) : undefined });
+	}
+
+	/** Свойства самого элемента, без вложенных: панель «Свойства» рисует только его. */
+	function itemProperties(item) {
+		const own = Object.assign({}, item);
+		delete own.items;
+		return own;
 	}
 
 	// Дерево элементов
@@ -372,55 +380,6 @@
 		return button;
 	}
 
-	// Свойства выделенного элемента
-
-	const PROPERTY_LABELS = [
-		['name', 'Имя'],
-		['type', 'Тип элемента'],
-		['title', 'Заголовок'],
-		['dataPath', 'Путь к данным'],
-		['group', 'Группировка'],
-		['showTitle', 'Отображать заголовок'],
-		['titleLocation', 'Положение заголовка'],
-		['representation', 'Представление'],
-		['visible', 'Видимость'],
-		['enabled', 'Доступность'],
-		['readOnly', 'Только просмотр'],
-		['width', 'Ширина'],
-		['height', 'Высота'],
-		['horizontalStretch', 'Растягивать по горизонтали'],
-		['verticalStretch', 'Растягивать по вертикали'],
-		['id', 'Идентификатор'],
-	];
-
-	function renderProperties() {
-		const host = document.getElementById('properties');
-		host.textContent = '';
-		const node = state.selected ? findNode(tree, state.selected) : null;
-		if (!node) {
-			host.append(element('div', 'empty-note', 'Выберите элемент'));
-			return;
-		}
-		for (const pair of PROPERTY_LABELS) {
-			const value = node.item[pair[0]];
-			if (value === undefined || value === null || value === '') {
-				continue;
-			}
-			const row = element('div', 'prop-row');
-			row.append(element('div', 'prop-name', pair[1]));
-			row.append(element('div', 'prop-value', pair[0] === 'type' ? typeLabel(value) : String(value)));
-			host.append(row);
-		}
-		for (const event of node.item.events || []) {
-			const row = element('div', 'prop-row');
-			row.append(element('div', 'prop-name', event.name));
-			const value = element('div', 'prop-value');
-			value.append(handlerLink(event.handler));
-			row.append(value);
-			host.append(row);
-		}
-	}
-
 	// Запуск
 
 	document.getElementById('showService').addEventListener('change', (event) => {
@@ -451,5 +410,4 @@
 	renderTree();
 	renderPreview();
 	renderData();
-	renderProperties();
 })();
