@@ -18,6 +18,7 @@ import { registerWelcomeFlow } from './registerWelcomeFlow';
 import { registerInfrastructure } from './registerInfrastructure';
 import { registerProjectsFlow } from './registerProjectsFlow';
 import { registerMetadataFlow } from './registerMetadataFlow';
+import { registerPropertiesFlow } from './registerPropertiesFlow';
 import { checkMdSparrowUpdateInBackground } from '../features/metadata/mdSparrowBootstrap';
 import { registerArtifactsFlow } from './registerArtifactsFlow';
 import { registerTodoFlow } from './registerTodoFlow';
@@ -41,7 +42,8 @@ export async function bootstrapApp(context: vscode.ExtensionContext): Promise<vo
 	context.subscriptions.push(registerFormSaveCommand());
 	context.subscriptions.push(HooksEditorProvider.register());
 	const isProject = await detectAndSetInitialProjectContext();
-	const { metadataTreeProvider } = registerMetadataFlow(context, isProject);
+	const propertyPaletteProvider = registerPropertiesFlow(context);
+	const { metadataTreeProvider } = registerMetadataFlow(context, isProject, propertyPaletteProvider);
 	checkMdSparrowUpdateInBackground(context, () => void metadataTreeProvider.refresh());
 
 	// Инициализируем VRunnerManager с контекстом расширения для доступа к extensionPath

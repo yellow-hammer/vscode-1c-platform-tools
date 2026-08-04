@@ -1,5 +1,5 @@
 /**
- * Панель «Свойства»: показывает свойства того, что выделено, откуда бы выделение ни пришло.
+ * Отдельная панель «Свойства»: показывает свойства того, что выделено, откуда бы выделение ни пришло.
  *
  * Содержимое описывается данными, а не разметкой: источник отдаёт группы и строки
  * (`PropertyPaletteState`), панель их рисует. Так один и тот же механизм обслуживает элементы
@@ -10,7 +10,7 @@
 
 import * as vscode from 'vscode';
 
-export const PROPERTY_PALETTE_VIEW_ID = '1c-platform-tools-metadata-properties';
+export const PROPERTY_PALETTE_VIEW_ID = '1c-platform-tools-properties';
 
 /** Вид редактора значения; пока панель показывает значения, правка появится вместе с записью. */
 export type PropertyControlKind = 'text' | 'multiline' | 'number' | 'boolean' | 'select' | 'reference';
@@ -101,6 +101,12 @@ export class PropertyPaletteViewProvider implements vscode.WebviewViewProvider {
 		this._ownerId = ownerId;
 		this._state = state;
 		this.push();
+		this.syncHeader();
+	}
+
+	/** Открывает панель, не забирая фокус: без этого свойства уходят в скрытую панель. */
+	reveal(): void {
+		void vscode.commands.executeCommand(`${PROPERTY_PALETTE_VIEW_ID}.focus`, { preserveFocus: true });
 	}
 
 	/** Убирает свойства, если панель показывает выделение этого источника. */
@@ -111,6 +117,14 @@ export class PropertyPaletteViewProvider implements vscode.WebviewViewProvider {
 		this._ownerId = undefined;
 		this._state = undefined;
 		this.push();
+		this.syncHeader();
+	}
+
+	/** В заголовке панели видно, чьи свойства показаны: имя выделенного рядом с названием плашки. */
+	private syncHeader(): void {
+		if (this._view) {
+			this._view.description = this._state?.title;
+		}
 	}
 
 	private push(): void {

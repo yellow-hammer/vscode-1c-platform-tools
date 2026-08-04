@@ -22,7 +22,7 @@ import {
 	type PropertyGroup,
 	type PropertyPaletteState,
 	type PropertyPaletteViewProvider,
-} from './propertyPaletteView';
+} from '../properties/propertyPaletteView';
 
 /** Обработчик события формы или элемента. */
 export interface FormEventDto {
@@ -158,6 +158,8 @@ export async function openFormViewer(
 	});
 
 	const paletteOwner = params.formXmlFsPath;
+	// Панель свойств отдельная и может быть закрыта: показываем её при открытии формы, но фокус оставляем здесь.
+	params.propertyPalette?.reveal();
 	panel.webview.onDidReceiveMessage(
 		async (message: { type?: string; handler?: string; item?: FormItemDto }) => {
 			if (message?.type === 'openHandler' || message?.type === 'openModule') {

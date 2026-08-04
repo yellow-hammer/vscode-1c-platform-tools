@@ -2,6 +2,7 @@ import * as vscode from 'vscode';
 import { registerMetadataFeature } from '../features/metadata/registerMetadataFeature';
 import { registerMetadataView } from '../features/metadata/registerMetadataView';
 import type { MetadataTreeDataProvider } from '../features/metadata/metadataTreeView';
+import type { PropertyPaletteViewProvider } from '../features/properties/propertyPaletteView';
 
 export interface MetadataFlow {
 	metadataTreeProvider: MetadataTreeDataProvider;
@@ -12,15 +13,11 @@ export interface MetadataFlow {
  */
 export function registerMetadataFlow(
 	context: vscode.ExtensionContext,
-	isProject: boolean
+	isProject: boolean,
+	propertyPaletteProvider: PropertyPaletteViewProvider
 ): MetadataFlow {
-	const {
-		metadataTreeProvider,
-		metadataTreeView,
-		metadataSearchProvider,
-		metadataFilterProvider,
-		propertyPaletteProvider,
-	} = registerMetadataView(context);
+	const { metadataTreeProvider, metadataTreeView, metadataSearchProvider, metadataFilterProvider } =
+		registerMetadataView(context);
 
 	const metadataFeatureDisposables = registerMetadataFeature({
 		context,

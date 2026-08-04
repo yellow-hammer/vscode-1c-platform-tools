@@ -6,7 +6,6 @@ import {
 import { METADATA_SEARCH_VIEW_ID, MetadataSearchViewProvider } from './metadataSearchView';
 import { METADATA_FILTERS_VIEW_ID, MetadataFilterViewProvider, type FilterSelection } from './metadataFilterView';
 import { computeSubsystemFilter } from './metadataSubsystemFilter';
-import { PROPERTY_PALETTE_VIEW_ID, PropertyPaletteViewProvider } from './propertyPaletteView';
 
 /** Отмеченные подсистемы применяются сразу: пустой набор снимает отбор. */
 function applyFilterSelection(metadataTreeProvider: MetadataTreeDataProvider, selection: FilterSelection): void {
@@ -29,7 +28,6 @@ export interface MetadataViewRegistration {
 	metadataTreeView: vscode.TreeView<vscode.TreeItem>;
 	metadataSearchProvider: MetadataSearchViewProvider;
 	metadataFilterProvider: MetadataFilterViewProvider;
-	propertyPaletteProvider: PropertyPaletteViewProvider;
 }
 
 /**
@@ -50,13 +48,6 @@ export function registerMetadataView(
 	});
 	context.subscriptions.push(
 		vscode.window.registerWebviewViewProvider(METADATA_SEARCH_VIEW_ID, metadataSearchProvider)
-	);
-
-	const propertyPaletteProvider = new PropertyPaletteViewProvider(context.extensionUri);
-	context.subscriptions.push(
-		vscode.window.registerWebviewViewProvider(PROPERTY_PALETTE_VIEW_ID, propertyPaletteProvider, {
-			webviewOptions: { retainContextWhenHidden: true },
-		})
 	);
 
 	const metadataFilterProvider = new MetadataFilterViewProvider(context, metadataTreeProvider, (selection) => {
@@ -114,11 +105,5 @@ export function registerMetadataView(
 		metadataTreeView.onDidChangeSelection(syncMetadataCatalogSelectionContext)
 	);
 
-	return {
-		metadataTreeProvider,
-		metadataTreeView,
-		metadataSearchProvider,
-		metadataFilterProvider,
-		propertyPaletteProvider,
-	};
+	return { metadataTreeProvider, metadataTreeView, metadataSearchProvider, metadataFilterProvider };
 }

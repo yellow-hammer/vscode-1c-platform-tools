@@ -25,7 +25,7 @@ import { computeSubsystemFilter, findSubsystemByName, loadSubsystemTrees } from 
 import { openMetadataObjectPropertiesEditor } from './metadataObjectPropertiesPanel';
 import { formModulePath, objectFormXmlPath, openFormViewer } from './formViewerPanel';
 import { ensureBslModuleFile } from './bslModuleFile';
-import type { PropertyPaletteViewProvider } from './propertyPaletteView';
+import type { PropertyPaletteViewProvider } from '../properties/propertyPaletteView';
 import {
 	openMetadataSourcePropertiesPanel,
 	type SourcePropertiesDto,

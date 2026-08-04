@@ -114,6 +114,12 @@
           "title": "Метаданные 1С",
           "icon": "resources/1c-icon.svg",
           "when": "1c-platform-tools.is1CProject == true"
+        },
+        {
+          "id": "1c-platform-tools-properties",
+          "title": "Свойства 1С",
+          "icon": "resources/property-palette.svg",
+          "when": "1c-platform-tools.is1CProject == true"
         }
       ],
       "panel": [
@@ -190,17 +196,19 @@
           "initialSize": 30
         },
         {
-          "id": "1c-platform-tools-metadata-properties",
-          "name": "Свойства",
-          "type": "webview",
-          "icon": "resources/property-palette.svg"
-        },
-        {
           "id": "1c-platform-tools-metadata-help",
           "name": "Помощь и поддержка",
           "contextualTitle": "Помощь",
           "when": "1c-platform-tools.is1CProject == true",
           "visibility": "collapsed"
+        }
+      ],
+      "1c-platform-tools-properties": [
+        {
+          "id": "1c-platform-tools-properties",
+          "name": "Свойства",
+          "type": "webview",
+          "icon": "resources/property-palette.svg"
         }
       ],
       "1c-platform-tools-todo": [
