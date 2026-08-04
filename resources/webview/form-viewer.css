@@ -350,3 +350,32 @@ body {
 	opacity: 0.6;
 	padding: 4px;
 }
+
+/* Нижние вкладки: форма и её модуль */
+
+.form-tabs {
+	display: flex;
+	gap: 2px;
+	margin-top: 8px;
+	border-top: 1px solid var(--vscode-panel-border);
+	padding-top: 6px;
+}
+
+.form-tab {
+	background: transparent;
+	border: 1px solid transparent;
+	border-radius: 4px 4px 0 0;
+	color: var(--vscode-foreground);
+	font-family: inherit;
+	font-size: 12px;
+	padding: 4px 14px;
+	cursor: pointer;
+	opacity: 0.75;
+}
+
+.form-tab.is-active {
+	opacity: 1;
+	background: var(--vscode-editorWidget-background);
+	border-color: var(--vscode-panel-border);
+	border-bottom-color: transparent;
+}

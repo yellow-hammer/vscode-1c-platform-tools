@@ -2616,11 +2616,6 @@
           "group": "1_modules@2"
         },
         {
-          "command": "1c-platform-tools.metadata.openForm",
-          "when": "view == 1c-platform-tools-metadata-tree && viewItem =~ /(^| )mdForm( |$)/",
-          "group": "1_modules@0"
-        },
-        {
           "command": "1c-platform-tools.metadata.openFormModule",
           "when": "view == 1c-platform-tools-metadata-tree && viewItem =~ /(^| )mdFormModule( |$)/",
           "group": "1_modules@3"

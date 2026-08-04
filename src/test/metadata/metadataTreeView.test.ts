@@ -297,6 +297,44 @@ suite('metadataTreeView nested nodes', () => {
 		assert.strictEqual(ts.contextValue, 'metadataTabularSection');
 		assert.strictEqual(tsAttr.contextValue, 'metadataTabularAttribute');
 	});
+
+	test('форма открывается кликом по узлу', () => {
+		const context = createMockExtensionContext();
+		const owner = new MetadataLeafTreeItem(
+			'main',
+			'catalogs',
+			undefined,
+			'Catalog',
+			'Валюты',
+			'src/cf/Catalogs/Валюты.xml',
+			'C:/ws',
+			context.extensionUri,
+			'C:/ws/src/cf/Configuration.xml',
+			'C:/ws/src/cf'
+		);
+		const form = new MetadataObjectNodeTreeItem(
+			'k4',
+			'form',
+			'ФормаСписка',
+			'ФормаСписка',
+			false,
+			context.extensionUri,
+			owner
+		);
+		const template = new MetadataObjectNodeTreeItem(
+			'k5',
+			'template',
+			'Печать',
+			'Печать',
+			false,
+			context.extensionUri,
+			owner
+		);
+
+		assert.strictEqual(form.command?.command, '1c-platform-tools.metadata.openForm');
+		assert.deepStrictEqual(form.command?.arguments, [form]);
+		assert.strictEqual(template.command, undefined, 'клик открывает только форму');
+	});
 });
 
 suite('metadataTreeView object modules', () => {

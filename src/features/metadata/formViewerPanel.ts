@@ -14,6 +14,7 @@ import { ensureMdSparrowRuntime } from './mdSparrowBootstrap';
 import { runMdSparrowParamsRead } from './mdSparrowParams';
 import { mdSparrowSchemaFlagFromConfigurationXml } from './mdSparrowSchemaVersion';
 import { logger } from '../../shared/logger';
+import { ensureBslModuleFile } from './bslModuleFile';
 
 /** Обработчик события формы или элемента. */
 export interface FormEventDto {
@@ -148,8 +149,8 @@ export async function openFormViewer(
 
 	panel.webview.onDidReceiveMessage(
 		async (message: { type?: string; handler?: string }) => {
-			if (message?.type === 'openHandler') {
-				await openFormModuleAt(params.moduleFsPath, message.handler);
+			if (message?.type === 'openHandler' || message?.type === 'openModule') {
+				await openFormModuleAt(params.moduleFsPath, message.handler, panel.viewColumn);
 			}
 		},
 		undefined,
@@ -169,11 +170,19 @@ export async function openFormViewer(
 	}
 }
 
-/** Открывает модуль формы и ставит курсор на процедуру-обработчик. */
-async function openFormModuleAt(moduleFsPath: string, handler?: string): Promise<void> {
+/**
+ * Открывает модуль формы соседней вкладкой и ставит курсор на процедуру-обработчик.
+ * Модуля может не быть на диске: конфигуратор заводит его по факту файла, поэтому создаём пустой.
+ */
+async function openFormModuleAt(
+	moduleFsPath: string,
+	handler?: string,
+	column?: vscode.ViewColumn
+): Promise<void> {
 	try {
+		await ensureBslModuleFile(moduleFsPath);
 		const doc = await vscode.workspace.openTextDocument(vscode.Uri.file(moduleFsPath));
-		const editor = await vscode.window.showTextDocument(doc, { preview: false });
+		const editor = await vscode.window.showTextDocument(doc, { preview: false, viewColumn: column });
 		if (!handler) {
 			return;
 		}

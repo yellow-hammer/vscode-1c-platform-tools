@@ -561,8 +561,16 @@ export class MetadataObjectNodeTreeItem extends vscode.TreeItem {
 			this.iconPath = metadataSvgIcon(extensionUri, 'attribute.svg');
 			return;
 		}
-		this.contextValue = nodeKind === 'form' ? 'metadataObjectChildReadonly mdForm' : 'metadataObjectChildReadonly';
+		this.contextValue = 'metadataObjectChildReadonly';
 		this.iconPath = metadataNodeKindIcon(nodeKind, extensionUri);
+		if (nodeKind === 'form') {
+			// Форма открывается кликом, как файл: отдельного пункта меню для этого не нужно.
+			this.command = {
+				command: '1c-platform-tools.metadata.openForm',
+				title: 'Открыть форму',
+				arguments: [this],
+			};
+		}
 	}
 }
 

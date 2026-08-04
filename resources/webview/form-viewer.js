@@ -202,15 +202,17 @@
 		return box;
 	}
 
+	// Без заголовка платформа показывает синоним реквизита; его в форме нет, поэтому берём имя
+	// элемента - оно совпадает с тем, что видно в конфигураторе, в отличие от английского пути к данным.
 	function fieldLabel(item) {
 		if (item.title) {
 			return item.title;
 		}
-		if (item.dataPath) {
-			const parts = String(item.dataPath).split('.');
-			return parts[parts.length - 1];
+		if (item.name) {
+			return item.name;
 		}
-		return item.name || '';
+		const parts = String(item.dataPath || '').split('.');
+		return parts[parts.length - 1];
 	}
 
 	function previewField(node) {
@@ -436,6 +438,15 @@
 			renderData();
 		});
 	}
+
+	// Нижние вкладки: «Форма» - эта вкладка, «Модуль» открывает модуль формы соседней вкладкой редактора.
+	document.getElementById('tabModule').addEventListener('click', () => {
+		vscode.postMessage({ type: 'openModule' });
+	});
+	document.getElementById('tabForm').addEventListener('click', () => {
+		document.getElementById('tabForm').classList.add('is-active');
+		document.getElementById('tabModule').classList.remove('is-active');
+	});
 
 	renderTree();
 	renderPreview();
