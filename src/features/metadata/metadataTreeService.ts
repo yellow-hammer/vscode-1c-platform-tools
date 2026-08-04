@@ -49,6 +49,7 @@ export interface MetadataItemDto {
 	readonly objectType: string;
 	readonly name: string;
 	readonly relativePath: string;
+	readonly objectBelonging?: string;
 }
 
 /**

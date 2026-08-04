@@ -251,6 +251,7 @@ export class MetadataLeafTreeItem extends vscode.TreeItem {
 		public readonly objectType: string,
 		public readonly name: string,
 		public readonly relativePath: string | undefined,
+		public readonly objectBelonging: string | undefined,
 		workspaceRoot: string,
 		extensionUri: vscode.Uri,
 		public readonly configurationXmlAbs: string | undefined,
@@ -301,7 +302,7 @@ export class MetadataLeafTreeItem extends vscode.TreeItem {
 				this.contextValue = [this.contextValue, ...tokens].join(' ');
 			}
 		}
-		this.iconPath = metadataObjectTypeIcon(normalizedObjectType, extensionUri, groupId, subgroupId);
+		this.iconPath = metadataObjectTypeIcon(normalizedObjectType, extensionUri, objectBelonging, groupId, subgroupId);
 		this.description = '';
 	}
 
@@ -384,6 +385,7 @@ export class MetadataSubsystemChildTreeItem extends MetadataLeafTreeItem {
 		objectType: string,
 		name: string,
 		relativePath: string | undefined,
+		objectBelonging: string | undefined,
 		workspaceRoot: string,
 		extensionUri: vscode.Uri,
 		configurationXmlAbs: string | undefined,
@@ -396,6 +398,7 @@ export class MetadataSubsystemChildTreeItem extends MetadataLeafTreeItem {
 			objectType,
 			name,
 			relativePath,
+			objectBelonging,
 			workspaceRoot,
 			extensionUri,
 			configurationXmlAbs,
@@ -609,6 +612,11 @@ function metadataSvgIcon(
 	const lightUri = vscode.Uri.file(lightFsPath);
 	const darkUri = fs.existsSync(darkFsPath) ? vscode.Uri.file(darkFsPath) : lightUri;
 	return { light: lightUri, dark: darkUri };
+}
+
+function metadataSvgIconExists(extensionUri: vscode.Uri, fileName: string): boolean {
+	const lightFsPath = path.join(extensionUri.fsPath, 'resources', 'metadata-tree-icons', fileName);
+	return fs.existsSync(lightFsPath);
 }
 
 function metadataNodeKindIcon(
@@ -927,11 +935,18 @@ function preferredObjectType(
 function metadataObjectTypeIcon(
 	objectType: string,
 	extensionUri: vscode.Uri,
+	objectBelonging?: string,
 	groupId?: string,
 	subgroupId?: string
 ): vscode.ThemeIcon | { light: vscode.Uri; dark: vscode.Uri } {
-	const fileName = metadataObjectTypeIconFileName(objectType, groupId, subgroupId);
-	return metadataSvgIcon(extensionUri, fileName);
+	const baseFileName = metadataObjectTypeIconFileName(objectType, groupId, subgroupId);
+	if (objectBelonging === 'ADOPTED') {
+		const adoptedFileName = baseFileName.replace(/\.svg$/i, '.adopted.svg');
+		if (adoptedFileName !== baseFileName && metadataSvgIconExists(extensionUri, adoptedFileName)) {
+			return metadataSvgIcon(extensionUri, adoptedFileName);
+		}
+	}
+	return metadataSvgIcon(extensionUri, baseFileName);
 }
 
 function metadataGroupIcon(
@@ -1223,6 +1238,7 @@ export class MetadataTreeDataProvider implements vscode.TreeDataProvider<vscode.
 								it.objectType,
 								it.name,
 								rel,
+								it.objectBelonging,
 								workspaceRoot,
 								this._context.extensionUri,
 								undefined,
@@ -1293,6 +1309,7 @@ export class MetadataTreeDataProvider implements vscode.TreeDataProvider<vscode.
 								it.objectType,
 								it.name,
 								rel,
+								it.objectBelonging,
 								workspaceRoot,
 								this._context.extensionUri,
 								cfgAbs,
@@ -1317,6 +1334,7 @@ export class MetadataTreeDataProvider implements vscode.TreeDataProvider<vscode.
 								it.objectType,
 								it.name,
 								rel,
+								it.objectBelonging,
 								workspaceRoot,
 								this._context.extensionUri,
 								cfgAbs,
@@ -1337,6 +1355,7 @@ export class MetadataTreeDataProvider implements vscode.TreeDataProvider<vscode.
 								it.objectType,
 								it.name,
 								rel,
+								it.objectBelonging,
 								workspaceRoot,
 								this._context.extensionUri,
 								cfgAbs,
@@ -1762,6 +1781,7 @@ export class MetadataTreeDataProvider implements vscode.TreeDataProvider<vscode.
 						childTemplate.objectType,
 						childTemplate.name,
 						childTemplate.relativePath,
+						childTemplate.objectBelonging,
 						this._workspaceRoot ?? '',
 						this._context.extensionUri,
 						childTemplate.configurationXmlAbs,
@@ -1811,6 +1831,7 @@ export class MetadataTreeDataProvider implements vscode.TreeDataProvider<vscode.
 			'Subsystem',
 			nestedName,
 			rel,
+			parentLeaf.objectBelonging,
 			this._workspaceRoot,
 			this._context.extensionUri,
 			parentLeaf.configurationXmlAbs,

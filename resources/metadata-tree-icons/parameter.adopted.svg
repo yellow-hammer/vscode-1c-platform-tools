@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 48 48">
+	<path fill="#5F6368" d="M34 36q-4.95 0-8.475-3.525Q22 28.95 22 24q0-4.95 3.525-8.475Q29.05 12 34 12q4.95 0 8.475 3.525Q46 19.05 46 24q0 4.95-3.525 8.475Q38.95 36 34 36Z"/>
+	<circle cx="37" cy="11" r="8.5" fill="none" stroke="#A67C00" stroke-width="2"/>
+	<text x="37" y="16.2" text-anchor="middle" font-size="15" font-family="Segoe UI, Arial, sans-serif" fill="#A67C00">&#1040;</text>
+</svg>
