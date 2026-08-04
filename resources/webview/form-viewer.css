@@ -59,6 +59,11 @@ body {
 	grid-area: preview;
 }
 
+.pane-preview .pane-body {
+	background: var(--vscode-editor-background);
+	padding: 10px 12px;
+}
+
 .pane-data {
 	grid-area: data;
 }
@@ -182,12 +187,18 @@ body {
 /* Превью */
 
 .pv-group {
-	border: 1px solid var(--vscode-panel-border);
+	border: 1px solid transparent;
 	border-radius: 4px;
-	padding: 6px;
+	padding: 2px 4px;
 	display: flex;
-	gap: 6px;
+	gap: 6px 12px;
 	min-width: 0;
+}
+
+/* Рамку и заголовок платформа рисует только у выделенных групп. */
+.pv-group.is-framed {
+	border-color: var(--vscode-panel-border);
+	padding: 10px 8px 8px 8px;
 }
 
 .pv-group.is-vertical {
@@ -212,14 +223,44 @@ body {
 .pv-field {
 	display: flex;
 	align-items: center;
-	gap: 6px;
+	gap: 8px;
 	min-width: 0;
+}
+
+/* В вертикальной группе подписи полей выстраиваются в колонку, как на форме. */
+.pv-group.is-vertical > .pv-field > .pv-label {
+	flex: 0 0 auto;
+	min-width: 120px;
+	text-align: right;
 }
 
 .pv-label {
 	font-size: 12px;
 	opacity: 0.9;
 	white-space: nowrap;
+}
+
+.pv-label::after {
+	content: ':';
+}
+
+.pv-addition {
+	display: inline-flex;
+	align-items: center;
+	padding: 2px 8px;
+	min-width: 140px;
+	border: 1px solid var(--vscode-input-border, var(--vscode-panel-border));
+	border-radius: 3px;
+	background: var(--vscode-input-background);
+}
+
+.pv-addition-text {
+	font-size: 12px;
+	opacity: 0.5;
+}
+
+.pv-hidden {
+	opacity: 0.45;
 }
 
 .pv-input {
@@ -279,7 +320,7 @@ body {
 
 .pv-table-row {
 	display: flex;
-	opacity: 0.45;
+	min-height: 18px;
 }
 
 .pv-table-row:nth-child(odd) {

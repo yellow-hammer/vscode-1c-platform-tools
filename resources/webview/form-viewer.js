@@ -238,6 +238,8 @@
 			box = previewCommandBar(node);
 		} else if (type === 'Table') {
 			box = previewTable(node);
+		} else if (type === 'SearchStringAddition' || type === 'SearchControlAddition' || type === 'ViewStatusAddition') {
+			box = previewAddition(node);
 		} else if (type === 'Button') {
 			box = element('button', 'pv-button', item.title || item.name);
 		} else if (type === 'LabelDecoration' || type === 'PictureDecoration') {
@@ -253,6 +255,9 @@
 		}
 		if (state.selected === node.key) {
 			box.classList.add('pv-selected');
+		}
+		if (item.visible === false) {
+			box.classList.add('pv-hidden');
 		}
 		box.addEventListener('click', (event) => {
 			event.stopPropagation();
@@ -277,7 +282,7 @@
 	function previewField(node) {
 		const row = element('div', 'pv-field');
 		if (node.item.titleLocation !== 'None') {
-			row.append(element('span', 'pv-label', fieldLabel(node.item) + ':'));
+			row.append(element('span', 'pv-label', fieldLabel(node.item)));
 		}
 		const input = element('div', 'pv-input', '');
 		if (node.item.width) {
@@ -288,10 +293,20 @@
 		return row;
 	}
 
+	/** Строка поиска и состояние просмотра платформа рисует прямо в командной панели. */
+	function previewAddition(node) {
+		const box = element('div', 'pv-addition');
+		box.append(element('span', 'pv-addition-text', node.item.type === 'ViewStatusAddition' ? 'Состояние просмотра' : 'Поиск'));
+		return box;
+	}
+
 	function previewGroup(node) {
 		const horizontal = node.item.group === 'Horizontal' || node.item.group === 'HorizontalIfPossible';
-		const box = element('div', 'pv-group ' + (horizontal ? 'is-horizontal' : 'is-vertical'));
-		if (node.item.title && node.item.showTitle !== 'false') {
+		// Рамку платформа рисует только у выделенных групп: у обычных виден лишь отступ.
+		const framed = node.item.representation && node.item.representation !== 'None';
+		const box = element('div', 'pv-group ' + (horizontal ? 'is-horizontal' : 'is-vertical')
+			+ (framed ? ' is-framed' : ''));
+		if (node.item.title && node.item.showTitle !== 'false' && framed) {
 			box.append(element('div', 'pv-group-title', node.item.title));
 		}
 		for (const child of visibleNodes(node.children)) {
@@ -305,7 +320,7 @@
 		for (const child of visibleNodes(node.children)) {
 			box.append(previewNode(child));
 		}
-		if (box.childElementCount === 0) {
+		if (box.childElementCount === 0 && node.item.type !== 'ButtonGroup') {
 			box.append(element('span', 'pv-unknown', typeLabel(node.item.type)));
 		}
 		return box;
@@ -334,7 +349,7 @@
 		for (let i = 0; i < 3; i += 1) {
 			const row = element('div', 'pv-table-row');
 			for (let c = 0; c < Math.max(columns.length, 1); c += 1) {
-				row.append(element('div', 'pv-table-cell', '—'));
+				row.append(element('div', 'pv-table-cell', ' '));
 			}
 			box.append(row);
 		}
