@@ -12,7 +12,7 @@ import * as vscode from 'vscode';
 
 export const PROPERTY_PALETTE_VIEW_ID = '1c-platform-tools-properties';
 
-/** Вид редактора значения; пока панель показывает значения, правка появится вместе с записью. */
+/** Вид редактора значения. */
 export type PropertyControlKind = 'text' | 'multiline' | 'number' | 'boolean' | 'select' | 'reference';
 
 /** Одно свойство: путь в модели источника, подпись и значение. */
@@ -27,6 +27,17 @@ export interface PropertyRow {
 	/** Пояснение к свойству: показывается внизу панели у выделенной строки. */
 	readonly hint?: string;
 }
+
+/** Изменённые значения: ключ строки -> новое значение. */
+export type PropertyEdits = Readonly<Record<string, string>>;
+
+/**
+ * Записывает изменения источника.
+ *
+ * @returns Свойства после записи; источник перечитывает их сам.
+ * @throws Текст ошибки показывается в панели.
+ */
+export type PropertyApplyHandler = (edits: PropertyEdits) => Promise<PropertyPaletteState | undefined>;
 
 /** Группа свойств: заголовок и строки в порядке источника. */
 export interface PropertyGroup {
@@ -43,35 +54,12 @@ export interface PropertyPaletteState {
 	readonly groups: readonly PropertyGroup[];
 }
 
-/** Подпись значения флажка: панель не показывает `true`/`false`. */
-export function booleanText(value: boolean | undefined): string | undefined {
-	return value === undefined ? undefined : value ? 'Да' : 'Нет';
-}
-
-/** Строка палитры без пустых значений: свойства, которых у выделенного нет, не показываем. */
-export function propertyRow(
-	key: string,
-	label: string,
-	value: string | undefined,
-	kind: PropertyControlKind = 'text'
-): PropertyRow | undefined {
-	if (value === undefined || value === null || value === '') {
-		return undefined;
-	}
-	return { key, label, kind, value, readonly: true };
-}
-
-/** Группа из строк, среди которых могут быть пропущенные. */
-export function propertyGroup(title: string, rows: readonly (PropertyRow | undefined)[]): PropertyGroup | undefined {
-	const filled = rows.filter((row): row is PropertyRow => row !== undefined);
-	return filled.length > 0 ? { title, rows: filled } : undefined;
-}
-
 export class PropertyPaletteViewProvider implements vscode.WebviewViewProvider {
 	private _view: vscode.WebviewView | undefined;
 	private _state: PropertyPaletteState | undefined;
 	/** Кто последним показал свойства: чужой источник не гасит чужое выделение. */
 	private _ownerId: string | undefined;
+	private _onApply: PropertyApplyHandler | undefined;
 
 	constructor(private readonly _extensionUri: vscode.Uri) {}
 
@@ -83,8 +71,11 @@ export class PropertyPaletteViewProvider implements vscode.WebviewViewProvider {
 		};
 		view.webview.html = this.html();
 		view.webview.onDidReceiveMessage((message: unknown) => {
-			if (typeof message === 'object' && message !== null && (message as { type?: string }).type === 'ready') {
+			const msg = message as { type?: string; edits?: PropertyEdits } | null;
+			if (msg?.type === 'ready') {
 				this.push();
+			} else if (msg?.type === 'apply') {
+				void this.apply(msg.edits ?? {});
 			}
 		});
 		view.onDidDispose(() => {
@@ -98,10 +89,12 @@ export class PropertyPaletteViewProvider implements vscode.WebviewViewProvider {
 	 *
 	 * @param ownerId Источник выделения: панель гаснет только по его же команде.
 	 * @param state Что показать.
+	 * @param onApply Запись изменений; без него свойства только для чтения.
 	 */
-	show(ownerId: string, state: PropertyPaletteState): void {
+	show(ownerId: string, state: PropertyPaletteState, onApply?: PropertyApplyHandler): void {
 		this._ownerId = ownerId;
 		this._state = state;
+		this._onApply = onApply;
 		this.push();
 		this.syncHeader();
 	}
@@ -113,8 +106,32 @@ export class PropertyPaletteViewProvider implements vscode.WebviewViewProvider {
 		}
 		this._ownerId = undefined;
 		this._state = undefined;
+		this._onApply = undefined;
 		this.push();
 		this.syncHeader();
+	}
+
+	/** Записывает изменения и показывает свойства заново: в файле лежит уже другое. */
+	private async apply(edits: PropertyEdits): Promise<void> {
+		const handler = this._onApply;
+		if (!handler) {
+			void this._view?.webview.postMessage({ type: 'applied', ok: false, error: 'Свойства только для чтения' });
+			return;
+		}
+		try {
+			const state = await handler(edits);
+			if (state) {
+				this._state = state;
+			}
+			void this._view?.webview.postMessage({ type: 'applied', ok: true, state: this._state });
+			this.syncHeader();
+		} catch (e) {
+			void this._view?.webview.postMessage({
+				type: 'applied',
+				ok: false,
+				error: e instanceof Error ? e.message : String(e),
+			});
+		}
 	}
 
 	/** В заголовке панели видно, чьи свойства показаны: имя выделенного рядом с названием плашки. */
@@ -125,7 +142,11 @@ export class PropertyPaletteViewProvider implements vscode.WebviewViewProvider {
 	}
 
 	private push(): void {
-		void this._view?.webview.postMessage({ type: 'state', state: this._state });
+		void this._view?.webview.postMessage({
+			type: 'state',
+			state: this._state,
+			editable: this._onApply !== undefined,
+		});
 	}
 
 	private html(): string {
@@ -228,7 +249,75 @@ export class PropertyPaletteViewProvider implements vscode.WebviewViewProvider {
 	}
 	.row-value {
 		flex: 1;
+		min-width: 0;
 		word-break: break-word;
+	}
+	.row.is-changed .row-label {
+		opacity: 1;
+		font-weight: 600;
+	}
+	.row-value input[type="text"],
+	.row-value select {
+		width: 100%;
+		box-sizing: border-box;
+		padding: 1px 3px;
+		border: 1px solid transparent;
+		border-radius: 2px;
+		background: transparent;
+		color: inherit;
+		font-family: inherit;
+		font-size: inherit;
+	}
+	.row-value input[type="text"]:hover,
+	.row-value select:hover {
+		border-color: var(--vscode-input-border, var(--vscode-panel-border));
+	}
+	.row-value input[type="text"]:focus,
+	.row-value select:focus {
+		background: var(--vscode-input-background);
+		color: var(--vscode-input-foreground);
+		outline: 1px solid var(--vscode-focusBorder);
+		outline-offset: -1px;
+	}
+	.row-value input[type="checkbox"] {
+		margin: 0;
+		vertical-align: middle;
+	}
+	.save-bar {
+		display: none;
+		gap: 8px;
+		align-items: center;
+		padding: 6px 10px;
+		border-top: 1px solid var(--vscode-panel-border);
+	}
+	.save-bar.is-shown {
+		display: flex;
+	}
+	.save-status {
+		flex: 1;
+		min-width: 0;
+		font-size: 11px;
+		opacity: 0.8;
+		word-break: break-word;
+	}
+	.save-status.is-error {
+		opacity: 1;
+		color: var(--vscode-errorForeground);
+	}
+	.save-bar button {
+		flex: none;
+		padding: 3px 10px;
+		border: none;
+		border-radius: 2px;
+		background: var(--vscode-button-background);
+		color: var(--vscode-button-foreground);
+		font-family: inherit;
+		font-size: inherit;
+		cursor: pointer;
+	}
+	.save-bar button:disabled {
+		opacity: 0.5;
+		cursor: default;
 	}
 	.hint {
 		border-top: 1px solid var(--vscode-panel-border);
@@ -254,6 +343,10 @@ export class PropertyPaletteViewProvider implements vscode.WebviewViewProvider {
 	<div id="header" class="header"></div>
 	<div id="list" class="list"><div class="empty">Ничего не выделено</div></div>
 	<div id="hint" class="hint"></div>
+	<div id="saveBar" class="save-bar">
+		<span id="saveStatus" class="save-status"></span>
+		<button id="saveBtn" type="button" disabled>Записать</button>
+	</div>
 	<script>
 		const vscode = acquireVsCodeApi();
 		const header = document.getElementById('header');
@@ -261,9 +354,15 @@ export class PropertyPaletteViewProvider implements vscode.WebviewViewProvider {
 		const hint = document.getElementById('hint');
 		const search = document.getElementById('search');
 		const sortToggle = document.getElementById('sortToggle');
+		const saveBar = document.getElementById('saveBar');
+		const saveStatus = document.getElementById('saveStatus');
+		const saveBtn = document.getElementById('saveBtn');
 		let current;
+		let editable = false;
 		let selectedKey;
 		let alphabetical = false;
+		// Правки копятся до кнопки: в конфигураторе свойство тоже применяется не по каждому нажатию.
+		const draft = new Map();
 
 		function element(tag, className, text) {
 			const el = document.createElement(tag);
@@ -272,9 +371,22 @@ export class PropertyPaletteViewProvider implements vscode.WebviewViewProvider {
 			return el;
 		}
 
+		/** Значение как его читают: булево словом, константа перечисления - подписью. */
+		function displayText(row) {
+			const value = row.value || '';
+			if (row.kind === 'boolean') {
+				return value === 'true' ? 'Да' : value === 'false' ? 'Нет' : value;
+			}
+			if (row.options) {
+				const known = row.options.find((option) => option.value === value);
+				return known ? known.label : value;
+			}
+			return value;
+		}
+
 		function matches(row, query) {
 			if (!query) { return true; }
-			return (row.label + ' ' + (row.value || '')).toLowerCase().includes(query);
+			return (row.label + ' ' + displayText(row)).toLowerCase().includes(query);
 		}
 
 		function showHint(row) {
@@ -284,16 +396,90 @@ export class PropertyPaletteViewProvider implements vscode.WebviewViewProvider {
 			hint.append(element('div', null, row.hint || row.key));
 		}
 
+		function draftValue(row) {
+			return draft.has(row.key) ? draft.get(row.key) : (row.value || '');
+		}
+
+		/**
+		 * Правка держится, только пока отличается от того, что показано: иначе строка снова обычная.
+		 * Перерисовки нет намеренно - иначе редактор терял бы фокус на каждом изменении.
+		 */
+		function edit(row, line, value) {
+			if (value === (row.value || '')) {
+				draft.delete(row.key);
+			} else {
+				draft.set(row.key, value);
+			}
+			line.classList.toggle('is-changed', draft.has(row.key));
+			syncSaveBar();
+		}
+
+		function editor(row, line) {
+			if (row.kind === 'boolean') {
+				const box = element('input');
+				box.type = 'checkbox';
+				box.checked = draftValue(row) === 'true';
+				box.addEventListener('change', () => edit(row, line, box.checked ? 'true' : 'false'));
+				return box;
+			}
+			if (row.kind === 'select' && row.options && row.options.length > 0) {
+				const box = element('select');
+				const value = draftValue(row);
+				let known = false;
+				for (const option of row.options) {
+					const node = element('option', null, option.label);
+					node.value = option.value;
+					if (option.value === value) { node.selected = true; known = true; }
+					box.append(node);
+				}
+				// Значение из файла может быть не из словаря: показываем как есть, а не подменяем первым.
+				if (!known) {
+					const node = element('option', null, value || ' ');
+					node.value = value;
+					node.selected = true;
+					box.prepend(node);
+				}
+				box.addEventListener('change', () => edit(row, line, box.value));
+				return box;
+			}
+			const field = element('input');
+			field.type = 'text';
+			field.value = draftValue(row);
+			field.addEventListener('change', () => edit(row, line, field.value));
+			return field;
+		}
+
 		function renderRow(row) {
-			const line = element('div', 'row' + (selectedKey === row.key ? ' is-selected' : ''));
+			const line = element('div', 'row'
+				+ (selectedKey === row.key ? ' is-selected' : '')
+				+ (draft.has(row.key) ? ' is-changed' : ''));
 			line.append(element('div', 'row-label', row.label));
-			line.append(element('div', 'row-value', row.value || ''));
+			const value = element('div', 'row-value');
+			if (editable && !row.readonly) {
+				value.append(editor(row, line));
+			} else {
+				value.textContent = displayText(row);
+			}
+			line.append(value);
+			// Выделение переставляем классом: перерисовка вырвала бы фокус из редактора под курсором.
 			line.addEventListener('click', () => {
 				selectedKey = row.key;
-				render();
+				for (const other of list.querySelectorAll('.row.is-selected')) {
+					other.classList.remove('is-selected');
+				}
+				line.classList.add('is-selected');
 				showHint(row);
 			});
 			return line;
+		}
+
+		function syncSaveBar() {
+			saveBar.classList.toggle('is-shown', editable);
+			saveBtn.disabled = draft.size === 0;
+			if (draft.size > 0) {
+				saveStatus.classList.remove('is-error');
+				saveStatus.textContent = 'Изменено свойств: ' + draft.size;
+			}
 		}
 
 		function render() {
@@ -334,12 +520,39 @@ export class PropertyPaletteViewProvider implements vscode.WebviewViewProvider {
 			render();
 		});
 
+		saveBtn.addEventListener('click', () => {
+			if (draft.size === 0) { return; }
+			saveBtn.disabled = true;
+			saveStatus.classList.remove('is-error');
+			saveStatus.textContent = 'Записываем...';
+			vscode.postMessage({ type: 'apply', edits: Object.fromEntries(draft) });
+		});
+
+		function reset(state, canEdit) {
+			current = state;
+			editable = canEdit;
+			draft.clear();
+			selectedKey = undefined;
+			showHint(undefined);
+			syncSaveBar();
+			render();
+		}
+
 		window.addEventListener('message', (event) => {
-			if (event.data && event.data.type === 'state') {
-				current = event.data.state;
-				selectedKey = undefined;
-				showHint(undefined);
-				render();
+			const message = event.data;
+			if (!message) { return; }
+			if (message.type === 'state') {
+				reset(message.state, message.editable === true);
+				saveStatus.textContent = '';
+			} else if (message.type === 'applied') {
+				if (message.ok) {
+					reset(message.state || current, editable);
+					saveStatus.textContent = 'Записано';
+				} else {
+					saveBtn.disabled = draft.size === 0;
+					saveStatus.classList.add('is-error');
+					saveStatus.textContent = message.error || 'Не удалось записать';
+				}
 			}
 		});
 		vscode.postMessage({ type: 'ready' });

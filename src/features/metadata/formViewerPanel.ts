@@ -11,7 +11,7 @@ import * as path from 'node:path';
 import * as fs from 'node:fs/promises';
 import * as vscode from 'vscode';
 import { ensureMdSparrowRuntime } from './mdSparrowBootstrap';
-import { runMdSparrowParamsRead } from './mdSparrowParams';
+import { runMdSparrowParamsMutation, runMdSparrowParamsRead } from './mdSparrowParams';
 import { mdSparrowSchemaFlagFromConfigurationXml } from './mdSparrowSchemaVersion';
 import { logger } from '../../shared/logger';
 import { ensureBslModuleFile } from './bslModuleFile';
@@ -22,7 +22,7 @@ import type {
 	PropertyPaletteViewProvider,
 	PropertyRow,
 } from '../properties/propertyPaletteView';
-import { PROPERTY_GROUP_ORDER, propertyGroupName, propertyLabel } from './formItemPropertySpec';
+import { PROPERTY_GROUP_ORDER, enumValueLabel, propertyGroupName, propertyLabel } from './formItemPropertySpec';
 
 /** Обработчик события формы или элемента. */
 export interface FormEventDto {
@@ -38,6 +38,8 @@ export interface FormItemPropertySpecDto {
 	kind: string;
 	defaultValue?: string;
 	values?: string[];
+	/** Свойство записано атрибутом стартового тега: точечная запись его не меняет. */
+	attribute?: boolean;
 }
 
 /** Словарь: вид элемента формы -> состав его свойств. */
@@ -170,26 +172,17 @@ export async function openFormViewer(
 	}
 
 	const runtime = await ensureMdSparrowRuntime(context);
-	const [result, dictionary] = await Promise.all([
-		runMdSparrowParamsRead(
-			runtime,
-			{ op: 'cf-form-content-get', formXml: params.formXmlFsPath, schemaVersion: schema },
-			{ cwd: params.cwd }
-		),
-		loadItemPropertyDictionary(runtime, schema, params.cwd),
-	]);
-	if (result.exitCode !== 0) {
-		const errText = result.stderr.trim() || result.stdout.trim() || `код ${result.exitCode}`;
-		void vscode.window.showErrorMessage(`Не удалось прочитать форму. ${errText}`.slice(0, ERR_PREVIEW));
-		return;
-	}
-
 	let content: FormContentDto;
+	let dictionary: FormItemPropertyDictionary | undefined;
 	try {
-		content = JSON.parse(result.stdout.trim()) as FormContentDto;
+		[content, dictionary] = await Promise.all([
+			readFormContent(runtime, params.formXmlFsPath, schema, params.cwd),
+			loadItemPropertyDictionary(runtime, schema, params.cwd),
+		]);
 	} catch (e) {
-		log.error(`форма: некорректный JSON от md-sparrow: ${e instanceof Error ? e.message : String(e)}`);
-		void vscode.window.showErrorMessage('Не удалось разобрать ответ md-sparrow по форме.');
+		void vscode.window.showErrorMessage(
+			`Не удалось прочитать форму. ${e instanceof Error ? e.message : String(e)}`.slice(0, ERR_PREVIEW)
+		);
 		return;
 	}
 
@@ -201,6 +194,47 @@ export async function openFormViewer(
 	});
 
 	const paletteOwner = params.formXmlFsPath;
+
+	const showProperties = (item: FormItemDto): void => {
+		const specs = dictionary?.[item.type ?? ''] ?? [];
+		const itemId = item.id;
+		params.propertyPalette?.show(
+			paletteOwner,
+			formItemProperties(item, dictionary),
+			itemId === undefined ? undefined : (edits) => applyEdits(itemId, specs, edits)
+		);
+	};
+
+	/** Записывает правки палитры и отдаёт свойства элемента из перечитанной формы. */
+	const applyEdits = async (
+		itemId: string,
+		specs: FormItemPropertySpecDto[],
+		edits: Record<string, string>
+	): Promise<PropertyPaletteState> => {
+		const changes = Object.entries(edits).map(([property, value]) => ({
+			itemId,
+			property,
+			// Значение по умолчанию платформа в файл не пишет, поэтому такое свойство убираем из файла.
+			value: isDefaultValue(specs, property, value) ? undefined : value,
+		}));
+		const written = await runMdSparrowParamsMutation(
+			runtime,
+			{
+				op: 'cf-form-item-properties-set',
+				formXml: params.formXmlFsPath,
+				schemaVersion: schema,
+				payloadJson: JSON.stringify(changes),
+			},
+			{ cwd: params.cwd }
+		);
+		if (written.exitCode !== 0) {
+			throw new Error(written.stderr.trim() || written.stdout.trim() || `код ${written.exitCode}`);
+		}
+		content = await readFormContent(runtime, params.formXmlFsPath, schema, params.cwd);
+		void panel.webview.postMessage({ type: 'content', content });
+		return formItemProperties(findItemById(content.items ?? [], itemId) ?? {}, dictionary);
+	};
+
 	panel.webview.onDidReceiveMessage(
 		async (message: { type?: string; handler?: string; item?: FormItemDto }) => {
 			if (message?.type === 'openHandler' || message?.type === 'openModule') {
@@ -209,7 +243,7 @@ export async function openFormViewer(
 			}
 			if (message?.type === 'select') {
 				if (message.item) {
-					params.propertyPalette?.show(paletteOwner, formItemProperties(message.item, dictionary));
+					showProperties(message.item);
 				} else {
 					params.propertyPalette?.clear(paletteOwner);
 				}
@@ -231,6 +265,48 @@ export async function openFormViewer(
 		void vscode.window.showErrorMessage('Не удалось загрузить просмотр формы.');
 		panel.dispose();
 	}
+}
+
+/** Содержимое формы от md-sparrow; ошибка чтения приходит текстом. */
+async function readFormContent(
+	runtime: Awaited<ReturnType<typeof ensureMdSparrowRuntime>>,
+	formXmlFsPath: string,
+	schema: string,
+	cwd: string
+): Promise<FormContentDto> {
+	const result = await runMdSparrowParamsRead(
+		runtime,
+		{ op: 'cf-form-content-get', formXml: formXmlFsPath, schemaVersion: schema },
+		{ cwd }
+	);
+	if (result.exitCode !== 0) {
+		throw new Error(result.stderr.trim() || result.stdout.trim() || `код ${result.exitCode}`);
+	}
+	try {
+		return JSON.parse(result.stdout.trim()) as FormContentDto;
+	} catch (e) {
+		log.error(`форма: некорректный JSON от md-sparrow: ${e instanceof Error ? e.message : String(e)}`);
+		throw new Error('ответ md-sparrow по форме не разобран');
+	}
+}
+
+/** Элемент формы по идентификатору: он уникален среди элементов формы. */
+function findItemById(items: FormItemDto[], itemId: string): FormItemDto | undefined {
+	for (const item of items) {
+		if (item.id === itemId) {
+			return item;
+		}
+		const nested = findItemById(item.items ?? [], itemId);
+		if (nested) {
+			return nested;
+		}
+	}
+	return undefined;
+}
+
+/** Значение совпало со значением по умолчанию: в файле такого свойства быть не должно. */
+function isDefaultValue(specs: FormItemPropertySpecDto[], property: string, value: string): boolean {
+	return value === '' || value === (specs.find((spec) => spec.name === property)?.defaultValue ?? '');
 }
 
 /** Вид элемента формы по-русски: то же название, что в дереве элементов. */
@@ -259,17 +335,6 @@ const ITEM_KIND_LABELS: Record<string, string> = {
 	ViewStatusAddition: 'Состояние просмотра',
 };
 
-/** Значение свойства для показа: булево словом, пустое - как есть. */
-function propertyValueText(value: string | undefined, kind: string): string | undefined {
-	if (value === undefined || value === '') {
-		return undefined;
-	}
-	if (kind === 'boolean') {
-		return value === 'true' ? 'Да' : value === 'false' ? 'Нет' : value;
-	}
-	return value;
-}
-
 function controlKind(kind: string): PropertyControlKind {
 	switch (kind) {
 		case 'boolean':
@@ -279,10 +344,16 @@ function controlKind(kind: string): PropertyControlKind {
 		case 'enum':
 			return 'select';
 		case 'localString':
+		case 'formattedString':
 			return 'multiline';
 		default:
 			return 'text';
 	}
+}
+
+/** Свойства, которые md-sparrow пишет точечно: атрибуты и составные значения он не меняет. */
+function editableSpec(spec: FormItemPropertySpecDto): boolean {
+	return spec.attribute !== true && spec.kind !== 'complex';
 }
 
 /**
@@ -299,15 +370,15 @@ export function formItemProperties(item: FormItemDto, dictionary?: FormItemPrope
 
 	const byGroup = new Map<string, PropertyRow[]>();
 	for (const spec of specs) {
-		const value = propertyValueText(written[spec.name] ?? spec.defaultValue, spec.kind);
+		const value = written[spec.name] ?? spec.defaultValue;
 		const row: PropertyRow = {
 			key: spec.name,
 			label: propertyLabel(spec.name),
 			kind: controlKind(spec.kind),
-			value: value,
-			readonly: true,
+			value: value === '' ? undefined : value,
+			readonly: !editableSpec(spec),
 			hint: written[spec.name] === undefined ? `${spec.name}, по умолчанию` : spec.name,
-			options: spec.values?.map((constant) => ({ value: constant, label: constant })),
+			options: spec.values?.map((constant) => ({ value: constant, label: enumValueLabel(spec.name, constant) })),
 		};
 		const group = propertyGroupName(spec.name);
 		byGroup.set(group, [...(byGroup.get(group) ?? []), row]);

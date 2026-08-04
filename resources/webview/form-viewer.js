@@ -6,7 +6,7 @@
 
 	const vscode = acquireVsCodeApi();
 	const data = window.__FORM_DATA__ || {};
-	const content = data.content || {};
+	let content = data.content || {};
 
 	/** Элементы, которые в конфигураторе видны, но на превью только мешают. */
 	const SERVICE_TYPES = new Set(['ExtendedTooltip', 'ContextMenu']);
@@ -65,7 +65,7 @@
 		});
 	}
 
-	const tree = withKeys(content.items, '');
+	let tree = withKeys(content.items, '');
 
 	function typeLabel(type) {
 		return TYPE_LABELS[type] || type || 'Элемент';
@@ -488,6 +488,21 @@
 	document.getElementById('tabForm').addEventListener('click', () => {
 		document.getElementById('tabForm').classList.add('is-active');
 		document.getElementById('tabModule').classList.remove('is-active');
+	});
+
+	// После записи свойств расширение присылает перечитанную форму: выделение остаётся на месте.
+	window.addEventListener('message', (event) => {
+		if (!event.data || event.data.type !== 'content') {
+			return;
+		}
+		content = event.data.content || {};
+		tree = withKeys(content.items, '');
+		if (state.selected && !findNode(tree, state.selected)) {
+			state.selected = null;
+		}
+		renderTree();
+		renderPreview();
+		renderData();
 	});
 
 	renderTree();

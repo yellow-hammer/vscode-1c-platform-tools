@@ -8,6 +8,7 @@ import {
 	formModulePath,
 	objectFormXmlPath,
 } from '../../features/metadata/formViewerPanel';
+import { enumValueLabel, propertyLabel } from '../../features/metadata/formItemPropertySpec';
 
 suite('Просмотр формы: пути и переход к обработчику', () => {
 	const objectXml = path.join('C:', 'проект', 'src', 'cf', 'Catalogs', 'Валюты.xml');
@@ -101,13 +102,32 @@ suite('Свойства элемента формы для палитры', () =
 		assert.strictEqual(rows.length, 6, 'состав берётся из словаря, а не из файла');
 		const byKey = new Map(rows.map((row) => [row.key, row]));
 		assert.strictEqual(byKey.get('Width')?.value, '3', 'записанное значение важнее умолчания');
-		assert.strictEqual(byKey.get('Visible')?.value, 'Да', 'умолчание булева показывается словом');
+		assert.strictEqual(byKey.get('Visible')?.value, 'true', 'значение отдаём как в файле, словом его назовёт панель');
 		assert.strictEqual(byKey.get('TitleLocation')?.value, 'Auto');
 		assert.deepStrictEqual(
-			byKey.get('TitleLocation')?.options?.map((option) => option.value),
-			['Auto', 'None']
+			byKey.get('TitleLocation')?.options,
+			[
+				{ value: 'Auto', label: 'Авто' },
+				{ value: 'None', label: 'Нет' },
+			],
+			'константы перечисления показываются по-русски'
 		);
 		assert.ok(byKey.get('Visible')?.hint?.includes('по умолчанию'), 'видно, что значение не записано');
+	});
+
+	test('правятся только те свойства, которые md-sparrow пишет точечно', () => {
+		const state = formItemProperties({ type: 'InputField', name: 'Код' }, {
+			InputField: [
+				{ name: 'name', kind: 'string', attribute: true },
+				{ name: 'Visible', kind: 'boolean', defaultValue: 'true' },
+				{ name: 'Font', kind: 'complex' },
+			],
+		});
+
+		const byKey = new Map(state.groups.flatMap((group) => group.rows).map((row) => [row.key, row]));
+		assert.strictEqual(byKey.get('name')?.readonly, true, 'имя элемента записано атрибутом');
+		assert.strictEqual(byKey.get('Font')?.readonly, true, 'составное значение палитра не правит');
+		assert.strictEqual(byKey.get('Visible')?.readonly, false);
 	});
 
 	test('свойства разложены по группам палитры', () => {
@@ -115,8 +135,19 @@ suite('Свойства элемента формы для палитры', () =
 
 		assert.deepStrictEqual(
 			state.groups.map((group) => group.title),
-			['Основные', 'Использование', 'Расположение', 'Данные', 'Прочие'],
-			'свойство без описания попадает в «Прочие», а не теряется'
+			['Основные', 'Использование', 'Расположение', 'Оформление', 'Данные'],
+			'группы идут в порядке палитры'
+		);
+	});
+
+	test('свойство без описания попадает в «Прочие», а не теряется', () => {
+		const state = formItemProperties({ type: 'InputField', name: 'Код' }, {
+			InputField: [{ name: 'ПоканеизвестноеСвойство', kind: 'string' }],
+		});
+
+		assert.deepStrictEqual(
+			state.groups.map((group) => group.title),
+			['Прочие']
 		);
 	});
 
@@ -140,5 +171,31 @@ suite('Свойства элемента формы для палитры', () =
 		const state = formItemProperties({ type: 'AutoCommandBar' });
 
 		assert.strictEqual(state.title, 'Командная панель');
+	});
+});
+
+suite('Подписи свойств и значений элемента формы', () => {
+	test('подпись свойства из словаря, неизвестное - именем узла', () => {
+		assert.strictEqual(propertyLabel('TitleLocation'), 'Положение заголовка');
+		assert.strictEqual(propertyLabel('MinWidth'), 'Минимальная ширина');
+		assert.strictEqual(propertyLabel('ПоканеизвестноеСвойство'), 'ПоканеизвестноеСвойство');
+	});
+
+	test('значения «да/нет/авто» одинаковы у всех свойств', () => {
+		assert.strictEqual(enumValueLabel('SkipOnInput', 'true'), 'Да');
+		assert.strictEqual(enumValueLabel('HorizontalStretch', 'false'), 'Нет');
+		assert.strictEqual(enumValueLabel('MultiLine', 'auto'), 'Авто');
+	});
+
+	test('одна и та же константа у разных свойств названа по-своему', () => {
+		assert.strictEqual(enumValueLabel('Group', 'Horizontal'), 'Горизонтальная');
+		assert.strictEqual(enumValueLabel('Representation', 'Text'), 'Текст');
+		assert.strictEqual(enumValueLabel('Representation', 'Line'), 'Линия');
+		assert.strictEqual(enumValueLabel('HorizontalSpacing', 'Single'), 'Одинарный');
+		assert.strictEqual(enumValueLabel('SelectionMode', 'Single'), 'Одиночный');
+	});
+
+	test('незнакомая константа остаётся как есть', () => {
+		assert.strictEqual(enumValueLabel('Representation', 'ПоканеизвестноеЗначение'), 'ПоканеизвестноеЗначение');
 	});
 });

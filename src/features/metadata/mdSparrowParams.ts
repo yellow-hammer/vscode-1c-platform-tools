@@ -68,6 +68,7 @@ export type MdSparrowOp =
 	| 'cf-md-command-reorder'
 	| 'cf-md-object-set'
 	| 'cf-configuration-properties-set'
+	| 'cf-form-item-properties-set'
 	| 'init-empty-cf'
 	| 'init-empty-cfe'
 	| 'add-md-object'
