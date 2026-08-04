@@ -636,6 +636,12 @@
         "category": "1C: Метаданные"
       },
       {
+        "command": "1c-platform-tools.metadata.openForm",
+        "title": "Открыть форму",
+        "shortTitle": "Форма",
+        "category": "1C: Метаданные"
+      },
+      {
         "command": "1c-platform-tools.metadata.openSourceProperties",
         "title": "Свойства",
         "category": "1C: Метаданные"
@@ -1802,6 +1808,10 @@
           "when": "false"
         },
         {
+          "command": "1c-platform-tools.metadata.openForm",
+          "when": "false"
+        },
+        {
           "command": "1c-platform-tools.metadata.openSourceProperties",
           "when": "false"
         },
@@ -2604,6 +2614,11 @@
           "command": "1c-platform-tools.metadata.openManagerModule",
           "when": "view == 1c-platform-tools-metadata-tree && viewItem =~ /(^| )mdMgrModule( |$)/",
           "group": "1_modules@2"
+        },
+        {
+          "command": "1c-platform-tools.metadata.openForm",
+          "when": "view == 1c-platform-tools-metadata-tree && viewItem =~ /(^| )mdForm( |$)/",
+          "group": "1_modules@0"
         },
         {
           "command": "1c-platform-tools.metadata.openFormModule",

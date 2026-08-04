@@ -23,6 +23,7 @@ import type { MetadataFilterViewProvider } from './metadataFilterView';
 import { MetadataSearchViewProvider } from './metadataSearchView';
 import { computeSubsystemFilter, findSubsystemByName, loadSubsystemTrees } from './metadataSubsystemFilter';
 import { openMetadataObjectPropertiesEditor } from './metadataObjectPropertiesPanel';
+import { formModulePath, objectFormXmlPath, openFormViewer } from './formViewerPanel';
 import {
 	openMetadataSourcePropertiesPanel,
 	type SourcePropertiesDto,
@@ -1473,6 +1474,29 @@ export function registerMetadataFeature(
 		vscode.commands.registerCommand(
 			'1c-platform-tools.metadata.openFormModule',
 			(item?: MetadataLeafTreeItem) => openObjectModuleOfKind(item, 'form')
+		),
+		vscode.commands.registerCommand(
+			'1c-platform-tools.metadata.openForm',
+			async (item?: MetadataObjectNodeTreeItem) => {
+				const node = item ?? metadataTreeView.selection[0];
+				if (!(node instanceof MetadataObjectNodeTreeItem) || node.nodeKind !== 'form') {
+					void vscode.window.showInformationMessage('Выберите форму в дереве метаданных.');
+					return;
+				}
+				const owner = node.owner;
+				if (!owner.resourceUri) {
+					void vscode.window.showInformationMessage('У формы нет объекта-владельца.');
+					return;
+				}
+				const formXml = objectFormXmlPath(owner.resourceUri.fsPath, owner.name, node.name);
+				await openFormViewer(context, {
+					formXmlFsPath: formXml,
+					moduleFsPath: formModulePath(formXml),
+					title: `${owner.name}.${node.name}`,
+					cwd: owner.metadataRootAbs ?? path.dirname(owner.resourceUri.fsPath),
+					cfgPath: owner.configurationXmlAbs,
+				});
+			}
 		),
 		vscode.commands.registerCommand(
 			'1c-platform-tools.metadata.openSourceProperties',

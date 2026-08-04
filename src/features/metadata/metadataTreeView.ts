@@ -561,7 +561,7 @@ export class MetadataObjectNodeTreeItem extends vscode.TreeItem {
 			this.iconPath = metadataSvgIcon(extensionUri, 'attribute.svg');
 			return;
 		}
-		this.contextValue = 'metadataObjectChildReadonly';
+		this.contextValue = nodeKind === 'form' ? 'metadataObjectChildReadonly mdForm' : 'metadataObjectChildReadonly';
 		this.iconPath = metadataNodeKindIcon(nodeKind, extensionUri);
 	}
 }
