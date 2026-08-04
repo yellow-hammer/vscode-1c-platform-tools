@@ -24,6 +24,8 @@ export interface PropertyRow {
 	readonly options?: readonly { readonly value: string; readonly label: string }[];
 	/** Свойство только для чтения: источник его не записывает. */
 	readonly readonly?: boolean;
+	/** Пояснение к свойству: показывается внизу панели у выделенной строки. */
+	readonly hint?: string;
 }
 
 /** Группа свойств: заголовок и строки в порядке источника. */
@@ -104,11 +106,6 @@ export class PropertyPaletteViewProvider implements vscode.WebviewViewProvider {
 		this.syncHeader();
 	}
 
-	/** Открывает панель, не забирая фокус: без этого свойства уходят в скрытую панель. */
-	reveal(): void {
-		void vscode.commands.executeCommand(`${PROPERTY_PALETTE_VIEW_ID}.focus`, { preserveFocus: true });
-	}
-
 	/** Убирает свойства, если панель показывает выделение этого источника. */
 	clear(ownerId: string): void {
 		if (this._ownerId !== ownerId) {
@@ -139,15 +136,54 @@ export class PropertyPaletteViewProvider implements vscode.WebviewViewProvider {
 <style>
 	body {
 		margin: 0;
-		padding: 6px 0;
+		padding: 0;
 		font-family: var(--vscode-font-family);
 		font-size: var(--vscode-font-size);
 		color: var(--vscode-foreground);
+		display: flex;
+		flex-direction: column;
+		height: 100vh;
+		box-sizing: border-box;
+	}
+	.toolbar {
+		display: flex;
+		gap: 4px;
+		align-items: center;
+		padding: 6px 8px;
+	}
+	.toolbar input {
+		flex: 1;
+		min-width: 0;
+		padding: 3px 6px;
+		border-radius: 2px;
+		border: 1px solid var(--vscode-input-border, transparent);
+		background: var(--vscode-input-background);
+		color: var(--vscode-input-foreground);
+		font-family: inherit;
+		font-size: inherit;
+	}
+	.toolbar input:focus {
+		outline: 1px solid var(--vscode-focusBorder);
+		outline-offset: -1px;
+	}
+	.toolbar button {
+		flex: none;
+		background: transparent;
+		border: 1px solid transparent;
+		border-radius: 3px;
+		color: var(--vscode-foreground);
+		font-family: inherit;
+		font-size: 11px;
+		padding: 3px 6px;
+		cursor: pointer;
+		opacity: 0.7;
+	}
+	.toolbar button.is-active {
+		opacity: 1;
+		border-color: var(--vscode-focusBorder);
 	}
 	.header {
 		padding: 0 10px 6px 10px;
-		border-bottom: 1px solid var(--vscode-panel-border);
-		margin-bottom: 6px;
 	}
 	.title {
 		font-weight: 600;
@@ -156,6 +192,13 @@ export class PropertyPaletteViewProvider implements vscode.WebviewViewProvider {
 	.subtitle {
 		font-size: 11px;
 		opacity: 0.7;
+	}
+	.list {
+		flex: 1;
+		min-height: 0;
+		overflow: auto;
+		border-top: 1px solid var(--vscode-panel-border);
+		padding-bottom: 4px;
 	}
 	.group-title {
 		padding: 6px 10px 2px 10px;
@@ -169,9 +212,14 @@ export class PropertyPaletteViewProvider implements vscode.WebviewViewProvider {
 		gap: 8px;
 		padding: 2px 10px;
 		align-items: baseline;
+		cursor: default;
 	}
 	.row:hover {
 		background: var(--vscode-list-hoverBackground);
+	}
+	.row.is-selected {
+		background: var(--vscode-list-activeSelectionBackground);
+		color: var(--vscode-list-activeSelectionForeground);
 	}
 	.row-label {
 		flex: 0 0 45%;
@@ -182,6 +230,16 @@ export class PropertyPaletteViewProvider implements vscode.WebviewViewProvider {
 		flex: 1;
 		word-break: break-word;
 	}
+	.hint {
+		border-top: 1px solid var(--vscode-panel-border);
+		padding: 6px 10px;
+		min-height: 32px;
+		font-size: 11px;
+		opacity: 0.8;
+	}
+	.hint-name {
+		font-weight: 600;
+	}
 	.empty {
 		padding: 8px 10px;
 		opacity: 0.6;
@@ -189,10 +247,23 @@ export class PropertyPaletteViewProvider implements vscode.WebviewViewProvider {
 </style>
 </head>
 <body>
-	<div id="root"><div class="empty">Ничего не выделено</div></div>
+	<div class="toolbar">
+		<input id="search" type="text" placeholder="Поиск свойства" />
+		<button id="sortToggle" type="button" title="По алфавиту">А-Я</button>
+	</div>
+	<div id="header" class="header"></div>
+	<div id="list" class="list"><div class="empty">Ничего не выделено</div></div>
+	<div id="hint" class="hint"></div>
 	<script>
 		const vscode = acquireVsCodeApi();
-		const root = document.getElementById('root');
+		const header = document.getElementById('header');
+		const list = document.getElementById('list');
+		const hint = document.getElementById('hint');
+		const search = document.getElementById('search');
+		const sortToggle = document.getElementById('sortToggle');
+		let current;
+		let selectedKey;
+		let alphabetical = false;
 
 		function element(tag, className, text) {
 			const el = document.createElement(tag);
@@ -201,29 +272,75 @@ export class PropertyPaletteViewProvider implements vscode.WebviewViewProvider {
 			return el;
 		}
 
-		function render(state) {
-			root.textContent = '';
-			if (!state || !state.groups || state.groups.length === 0) {
-				root.append(element('div', 'empty', 'Ничего не выделено'));
-				return;
-			}
-			const header = element('div', 'header');
-			header.append(element('div', 'title', state.title));
-			if (state.subtitle) { header.append(element('div', 'subtitle', state.subtitle)); }
-			root.append(header);
-			for (const group of state.groups) {
-				root.append(element('div', 'group-title', group.title));
-				for (const row of group.rows) {
-					const line = element('div', 'row');
-					line.append(element('div', 'row-label', row.label));
-					line.append(element('div', 'row-value', row.value ?? ''));
-					root.append(line);
-				}
-			}
+		function matches(row, query) {
+			if (!query) { return true; }
+			return (row.label + ' ' + (row.value || '')).toLowerCase().includes(query);
 		}
 
+		function showHint(row) {
+			hint.textContent = '';
+			if (!row) { return; }
+			hint.append(element('div', 'hint-name', row.label));
+			hint.append(element('div', null, row.hint || row.key));
+		}
+
+		function renderRow(row) {
+			const line = element('div', 'row' + (selectedKey === row.key ? ' is-selected' : ''));
+			line.append(element('div', 'row-label', row.label));
+			line.append(element('div', 'row-value', row.value || ''));
+			line.addEventListener('click', () => {
+				selectedKey = row.key;
+				render();
+				showHint(row);
+			});
+			return line;
+		}
+
+		function render() {
+			list.textContent = '';
+			header.textContent = '';
+			if (!current || !current.groups || current.groups.length === 0) {
+				list.append(element('div', 'empty', 'Ничего не выделено'));
+				return;
+			}
+			header.append(element('div', 'title', current.title));
+			if (current.subtitle) { header.append(element('div', 'subtitle', current.subtitle)); }
+
+			const query = search.value.trim().toLowerCase();
+			if (alphabetical) {
+				const rows = current.groups
+					.flatMap((group) => group.rows)
+					.filter((row) => matches(row, query))
+					.sort((a, b) => a.label.localeCompare(b.label, 'ru'));
+				if (rows.length === 0) { list.append(element('div', 'empty', 'Ничего не найдено')); return; }
+				rows.forEach((row) => list.append(renderRow(row)));
+				return;
+			}
+			let shown = 0;
+			for (const group of current.groups) {
+				const rows = group.rows.filter((row) => matches(row, query));
+				if (rows.length === 0) { continue; }
+				shown += rows.length;
+				list.append(element('div', 'group-title', group.title));
+				rows.forEach((row) => list.append(renderRow(row)));
+			}
+			if (shown === 0) { list.append(element('div', 'empty', 'Ничего не найдено')); }
+		}
+
+		search.addEventListener('input', render);
+		sortToggle.addEventListener('click', () => {
+			alphabetical = !alphabetical;
+			sortToggle.classList.toggle('is-active', alphabetical);
+			render();
+		});
+
 		window.addEventListener('message', (event) => {
-			if (event.data && event.data.type === 'state') { render(event.data.state); }
+			if (event.data && event.data.type === 'state') {
+				current = event.data.state;
+				selectedKey = undefined;
+				showHint(undefined);
+				render();
+			}
 		});
 		vscode.postMessage({ type: 'ready' });
 	</script>

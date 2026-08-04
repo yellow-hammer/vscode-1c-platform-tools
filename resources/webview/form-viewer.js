@@ -114,6 +114,56 @@
 		return own;
 	}
 
+	/** Значки элементов: рисуем сами, цвет наследуется от темы. */
+	const ICON_SHAPES = {
+		group: '<path d="M4 10h14l4 4h22v24H4z"/>',
+		field: '<path d="M4 16h40v16H4zm3 3v10h34V19z"/>',
+		label: '<path d="M6 14h36v4H6zm0 10h26v4H6zm0 10h32v4H6z"/>',
+		button: '<path d="M4 16h40v16H4zm4 4v8h32v-8z"/>',
+		table: '<path d="M4 10h40v28H4zm4 4v6h12v-6zm16 0v6h16v-6zM8 24v10h12V24zm16 0v10h16V24z"/>',
+		bar: '<path d="M4 14h40v8H4zm0 14h24v6H4z"/>',
+		page: '<path d="M10 6h18l10 10v26H10zm16 3v9h9z"/>',
+		checkbox: '<path d="M8 8h32v32H8zm5 5v22h22V13zm4 11 4-4 4 4 7-7 4 4-11 11z"/>',
+		radio: '<path d="M24 8a16 16 0 1 0 0 32 16 16 0 0 0 0-32zm0 4a12 12 0 1 1 0 24 12 12 0 0 1 0-24zm0 5a7 7 0 1 0 0 14 7 7 0 0 0 0-14z"/>',
+		search: '<path d="M20 6a14 14 0 1 0 8.5 25.1l9.7 9.7 3-3-9.7-9.7A14 14 0 0 0 20 6zm0 4a10 10 0 1 1 0 20 10 10 0 0 1 0-20z"/>',
+		tooltip: '<path d="M6 8h36v24H24l-8 8v-8H6z"/>',
+		type: '<path d="M6 12h36v6H6zm6 12h24v6H12zm6 12h12v6H18z"/>',
+	};
+
+	const ICON_BY_TYPE = {
+		UsualGroup: 'group',
+		ColumnGroup: 'group',
+		ButtonGroup: 'bar',
+		Popup: 'bar',
+		CommandBar: 'bar',
+		AutoCommandBar: 'bar',
+		ContextMenu: 'bar',
+		Pages: 'page',
+		Page: 'page',
+		Button: 'button',
+		Table: 'table',
+		LabelDecoration: 'label',
+		LabelField: 'label',
+		PictureDecoration: 'label',
+		CheckBoxField: 'checkbox',
+		RadioButtonField: 'radio',
+		SearchStringAddition: 'search',
+		SearchControlAddition: 'search',
+		ViewStatusAddition: 'search',
+		ExtendedTooltip: 'tooltip',
+	};
+
+	function icon(shapeKey) {
+		const box = element('span', 'item-icon');
+		const shape = ICON_SHAPES[shapeKey] || ICON_SHAPES.field;
+		box.innerHTML = '<svg viewBox="0 0 48 48" aria-hidden="true">' + shape + '</svg>';
+		return box;
+	}
+
+	function itemIcon(type) {
+		return icon(ICON_BY_TYPE[type] || 'field');
+	}
+
 	// Дерево элементов
 
 	function renderTree() {
@@ -146,6 +196,7 @@
 				});
 			}
 			row.append(twisty);
+			row.append(itemIcon(node.item.type));
 			row.append(element('span', 'tree-name', node.item.name || typeLabel(node.item.type)));
 			row.append(element('span', 'tree-type', typeLabel(node.item.type)));
 			row.addEventListener('click', () => select(node.key));
@@ -307,10 +358,11 @@
 				host.append(element('div', 'empty-note', 'Реквизитов нет'));
 				return;
 			}
+			list.append(dataHead('Реквизит', 'Тип'));
 			for (const attribute of attributes) {
-				list.append(dataRow(attribute.name, typeText(attribute.type), attribute.main ? 'основной' : ''));
+				list.append(dataRow(attribute.name, typeText(attribute.type), attribute.main ? 'основной' : '', 'type'));
 				for (const column of attribute.columns || []) {
-					const row = dataRow(column.name, typeText(column.type), '');
+					const row = dataRow(column.name, typeText(column.type), '', 'type');
 					row.classList.add('is-column');
 					list.append(row);
 				}
@@ -321,12 +373,16 @@
 				host.append(element('div', 'empty-note', 'Команд нет'));
 				return;
 			}
+			list.append(dataHead('Команда', 'Действие'));
 			for (const command of commands) {
 				const row = element('div', 'data-row');
-				row.append(element('span', 'data-name', command.name));
+				row.append(icon('button'));
+				row.append(element('span', 'data-name', command.title || command.name));
+				const action = element('span', 'data-note');
 				if (command.action) {
-					row.append(handlerLink(command.action));
+					action.append(handlerLink(command.action));
 				}
+				row.append(action);
 				list.append(row);
 			}
 		} else if (state.dataTab === 'parameters') {
@@ -335,8 +391,9 @@
 				host.append(element('div', 'empty-note', 'Параметров нет'));
 				return;
 			}
+			list.append(dataHead('Параметр', 'Тип'));
 			for (const parameter of parameters) {
-				list.append(dataRow(parameter.name, typeText(parameter.type), parameter.key ? 'ключевой' : ''));
+				list.append(dataRow(parameter.name, typeText(parameter.type), parameter.key ? 'ключевой' : '', 'type'));
 			}
 		} else {
 			const events = content.events || [];
@@ -344,23 +401,34 @@
 				host.append(element('div', 'empty-note', 'Обработчиков нет'));
 				return;
 			}
+			list.append(dataHead('Событие', 'Обработчик'));
 			for (const event of events) {
 				const row = element('div', 'data-row');
 				row.append(element('span', 'data-name', event.name));
-				row.append(handlerLink(event.handler));
+				const handler = element('span', 'data-note');
+				handler.append(handlerLink(event.handler));
+				row.append(handler);
 				list.append(row);
 			}
 		}
 		host.append(list);
 	}
 
-	function dataRow(name, note, extra) {
+	function dataHead(nameTitle, noteTitle) {
+		const head = element('div', 'data-head');
+		head.append(element('span', 'data-name', nameTitle));
+		head.append(element('span', 'data-note', noteTitle));
+		return head;
+	}
+
+	function dataRow(name, note, extra, shapeKey) {
 		const row = element('div', 'data-row');
+		if (shapeKey) {
+			row.append(icon(shapeKey));
+		}
 		row.append(element('span', 'data-name', name));
 		const noteText = [note, extra].filter(Boolean).join(', ');
-		if (noteText) {
-			row.append(element('span', 'data-note', noteText));
-		}
+		row.append(element('span', 'data-note', noteText));
 		return row;
 	}
 

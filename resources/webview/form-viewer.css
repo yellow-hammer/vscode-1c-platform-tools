@@ -88,6 +88,13 @@ body {
 	border-bottom: 1px solid var(--vscode-panel-border);
 }
 
+/* Закладки конфигуратора живут под списком, а не над ним. */
+.pane-tabs-bottom {
+	border-bottom: none;
+	border-top: 1px solid var(--vscode-panel-border);
+	padding: 3px 6px;
+}
+
 .pane-tab {
 	background: transparent;
 	border: none;
@@ -110,6 +117,24 @@ body {
 	min-height: 0;
 	overflow: auto;
 	padding: 6px 8px;
+}
+
+/* Дерево элементов и списки данных */
+
+.item-icon {
+	flex: none;
+	width: 14px;
+	height: 14px;
+	opacity: 0.85;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+}
+
+.item-icon svg {
+	width: 13px;
+	height: 13px;
+	fill: currentColor;
 }
 
 /* Дерево элементов */
@@ -157,7 +182,7 @@ body {
 /* Превью */
 
 .pv-group {
-	border: 1px dashed var(--vscode-panel-border);
+	border: 1px solid var(--vscode-panel-border);
 	border-radius: 4px;
 	padding: 6px;
 	display: flex;
@@ -178,7 +203,10 @@ body {
 .pv-group-title {
 	font-size: 11px;
 	opacity: 0.7;
-	margin-bottom: 2px;
+	margin: -12px 0 2px 4px;
+	padding: 0 4px;
+	align-self: flex-start;
+	background: var(--vscode-editorWidget-background);
 }
 
 .pv-field {
@@ -254,6 +282,10 @@ body {
 	opacity: 0.45;
 }
 
+.pv-table-row:nth-child(odd) {
+	background: var(--vscode-list-hoverBackground);
+}
+
 .pv-radio {
 	font-size: 12px;
 }
@@ -276,14 +308,27 @@ body {
 .data-list {
 	display: flex;
 	flex-direction: column;
-	gap: 1px;
+}
+
+.data-head {
+	display: flex;
+	gap: 8px;
+	padding: 2px 4px;
+	font-size: 11px;
+	text-transform: uppercase;
+	letter-spacing: 0.03em;
+	opacity: 0.6;
+	border-bottom: 1px solid var(--vscode-panel-border);
+	margin-bottom: 2px;
 }
 
 .data-row {
 	display: flex;
-	gap: 8px;
+	align-items: center;
+	gap: 6px;
 	padding: 2px 4px;
 	border-radius: 4px;
+	cursor: default;
 }
 
 .data-row:hover {
@@ -295,6 +340,7 @@ body {
 }
 
 .data-name {
+	flex: 1;
 	min-width: 0;
 	overflow: hidden;
 	text-overflow: ellipsis;
@@ -302,9 +348,11 @@ body {
 }
 
 .data-note {
-	margin-left: auto;
+	flex: 0 0 45%;
 	font-size: 11px;
-	opacity: 0.65;
+	opacity: 0.7;
+	overflow: hidden;
+	text-overflow: ellipsis;
 	white-space: nowrap;
 }
 

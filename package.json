@@ -656,6 +656,12 @@
         "category": "1C: Метаданные"
       },
       {
+        "command": "1c-platform-tools.properties.show",
+        "title": "Открыть панель свойств",
+        "shortTitle": "Свойства",
+        "category": "1C: Метаданные"
+      },
+      {
         "command": "1c-platform-tools.metadata.openSourceProperties",
         "title": "Свойства",
         "category": "1C: Метаданные"

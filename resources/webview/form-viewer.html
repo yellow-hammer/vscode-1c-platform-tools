@@ -18,8 +18,10 @@
 
 		<div class="form-layout">
 			<section class="pane pane-tree">
-				<div class="pane-title">Элементы формы</div>
 				<div class="pane-body" id="elementsTree"></div>
+				<div class="pane-tabs pane-tabs-bottom">
+					<button class="pane-tab is-active" type="button">Элементы</button>
+				</div>
 			</section>
 
 			<section class="pane pane-preview">
@@ -28,13 +30,13 @@
 			</section>
 
 			<section class="pane pane-data">
-				<div class="pane-tabs" id="dataTabs">
+				<div class="pane-body" id="dataBody"></div>
+				<div class="pane-tabs pane-tabs-bottom" id="dataTabs">
 					<button class="pane-tab is-active" type="button" data-tab="attributes">Реквизиты</button>
 					<button class="pane-tab" type="button" data-tab="commands">Команды</button>
 					<button class="pane-tab" type="button" data-tab="parameters">Параметры</button>
 					<button class="pane-tab" type="button" data-tab="events">События</button>
 				</div>
-				<div class="pane-body" id="dataBody"></div>
 			</section>
 
 		</div>

@@ -12,5 +12,10 @@ export function registerPropertiesFlow(context: vscode.ExtensionContext): Proper
 			webviewOptions: { retainContextWhenHidden: true },
 		})
 	);
+	context.subscriptions.push(
+		vscode.commands.registerCommand('1c-platform-tools.properties.show', () => {
+			void vscode.commands.executeCommand(`${PROPERTY_PALETTE_VIEW_ID}.focus`);
+		})
+	);
 	return propertyPaletteProvider;
 }
