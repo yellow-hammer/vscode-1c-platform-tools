@@ -42,11 +42,12 @@ body {
 	flex: 1;
 	min-height: 0;
 	display: grid;
-	grid-template-columns: minmax(220px, 1fr) minmax(360px, 3fr);
-	grid-template-rows: 2fr 1fr;
+	/* Раскладка конфигуратора: сверху элементы и данные формы, снизу сама форма. */
+	grid-template-columns: minmax(260px, 1fr) minmax(260px, 1fr);
+	grid-template-rows: minmax(120px, 2fr) minmax(160px, 3fr);
 	grid-template-areas:
-		"tree preview"
-		"tree data";
+		"tree data"
+		"preview preview";
 	gap: 8px;
 }
 
