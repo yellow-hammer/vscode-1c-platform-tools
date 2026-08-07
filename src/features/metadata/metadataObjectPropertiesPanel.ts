@@ -366,7 +366,7 @@ const VALUE_LABEL_BY_KEY: Record<string, Record<string, string>> = {
 	},
 };
 
-const MD_REF_KIND_LABEL_BY_PREFIX: Record<string, string> = {
+export const MD_REF_KIND_LABEL_BY_PREFIX: Record<string, string> = {
 	Catalog: 'Справочник',
 	CatalogRef: 'Справочник',
 	Document: 'Документ',
@@ -1640,6 +1640,28 @@ export async function openMetadataObjectPropertiesEditor(
 		void vscode.window.showErrorMessage('Не удалось загрузить панель свойств.');
 		panel.dispose();
 	}
+}
+
+/**
+ * Вкладки спеки для палитры свойств.
+ *
+ * Подбор ссылок из конфигурации сюда не идёт: он читает всю конфигурацию, а палитра показывает
+ * свойства на каждое выделение в дереве. Поля со ссылками остаются в панели-вкладке.
+ */
+export function objectPaletteTabs(
+	props: unknown,
+	structure: unknown,
+	internalName: string,
+	enums: unknown
+): readonly MetadataEditTabSpec[] {
+	const model = buildEditableModel(
+		props as MdObjectPropertiesDto | null,
+		structure as MdObjectStructureDto | null,
+		internalName,
+		EMPTY_CANDIDATES,
+		enums as MetadataEnumDictionary
+	);
+	return model?.tabs ?? [];
 }
 
 /** Виды, для которых панель подбирает ссылки из конфигурации. */
