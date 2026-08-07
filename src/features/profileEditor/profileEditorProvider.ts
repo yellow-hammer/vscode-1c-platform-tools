@@ -15,6 +15,8 @@ import { SettingsSchema } from '../../shared/envProfiles';
 import { loadEditorSections, EditorSection, OptionGroup, CatalogOption } from './optionsCatalog';
 import { chromeStyles, CHROME_LABELS } from '../editors/webviewChrome';
 
+import { pickerFor } from './valuePickers';
+
 export const PROFILE_EDITOR_VIEW_TYPE = '1c-platform-tools.profileEditor';
 
 /** Заданный в файле параметр секции (для модели формы). */
@@ -30,6 +32,8 @@ interface ModelEntry {
 	group: string;
 	/** Ключ найден в каталоге опций (иначе — нестандартный параметр) */
 	known: boolean;
+	/** Подпись кнопки подбора значения; без неё параметр только вписывается руками. */
+	picker?: string;
 }
 
 interface ModelSection {
@@ -55,6 +59,7 @@ interface EditorModel {
 type WebviewMessage =
 	| { type: 'set'; sectionId: string; key: string; value: unknown }
 	| { type: 'remove'; sectionId: string; key: string }
+	| { type: 'pick'; sectionId: string; key: string }
 	| { type: 'pickAdd'; sectionId: string }
 	| { type: 'pickSection' }
 	| { type: 'openJson' };
@@ -99,6 +104,9 @@ export class ProfileEditorProvider implements vscode.CustomTextEditorProvider {
 				case 'remove':
 					await this.setValue(document, message.sectionId, message.key, undefined);
 					return;
+				case 'pick':
+					await this.pickValue(document, message.sectionId, message.key);
+					return;
 				case 'pickAdd':
 					await this.pickAndAddOption(document, message.sectionId);
 					return;
@@ -113,6 +121,14 @@ export class ProfileEditorProvider implements vscode.CustomTextEditorProvider {
 
 	private sectionsFor(document: vscode.TextDocument): { sections: EditorSection[]; groups: OptionGroup[] } {
 		return loadEditorSections(this.extensionPath, detectSchema(document));
+	}
+
+	/** Подставляет подобранное значение в параметр; отказ пользователя ничего не меняет. */
+	private async pickValue(document: vscode.TextDocument, sectionId: string, key: string): Promise<void> {
+		const value = await pickerFor(key)?.pick();
+		if (value !== undefined) {
+			await this.setValue(document, sectionId, key, value);
+		}
 	}
 
 	private async setValue(
@@ -235,6 +251,7 @@ export class ProfileEditorProvider implements vscode.CustomTextEditorProvider {
 					itemsEnum: option?.itemsEnum,
 					group: option?.group ?? 'other',
 					known: option !== undefined,
+					picker: pickerFor(key)?.label,
 				});
 			}
 			entries.sort((a, b) => {
@@ -366,6 +383,8 @@ ${chromeStyles()}
 	.key .badge { font-family: var(--vscode-font-family); font-size: 0.75em; color: var(--vscode-descriptionForeground); border: 1px solid var(--vscode-widget-border, #5555); border-radius: 8px; padding: 0 6px; margin-left: 6px; }
 	.control { flex: 1; min-width: 0; display: flex; gap: 14px; align-items: center; flex-wrap: wrap; }
 	.control input[type=text], .control select, .control textarea { width: 100%; }
+	.control:has(> .pick) { display: flex; gap: 6px; align-items: center; }
+	.control > .pick { flex: none; }
 	.control label.radio { display: inline-flex; gap: 5px; align-items: center; cursor: pointer; white-space: nowrap; }
 	.remove { background: none; color: var(--vscode-descriptionForeground); padding: 0 4px; font-size: 1.05em; flex-shrink: 0; }
 	.remove:hover { color: var(--vscode-errorForeground); background: none; }
@@ -472,6 +491,15 @@ function control(sectionId, entry) {
 		}
 		input.addEventListener('change', () => send(entry.type === 'number' || entry.type === 'integer' ? Number(input.value) : input.value));
 		wrap.appendChild(input);
+		// Подбор только подставляет значение: поле остаётся обычным, вписать своё можно всегда.
+		if (entry.picker) {
+			const pick = document.createElement('button');
+			pick.type = 'button';
+			pick.className = 'pick';
+			pick.textContent = entry.picker;
+			pick.addEventListener('click', () => post({ type: 'pick', sectionId, key: entry.key }));
+			wrap.appendChild(pick);
+		}
 	}
 	return wrap;
 }
