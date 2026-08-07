@@ -90,6 +90,28 @@ export function registerMetadataFeature(
 		propertyPaletteProvider,
 	});
 
+	/**
+	 * Показывает в дереве объект, которому принадлежит файл: сам XML, модуль, форму или макет.
+	 * Дерево читается один раз за сеанс, поэтому пустое сперва обновляем.
+	 */
+	async function revealMetadataObjectInTree(uri: vscode.Uri | undefined): Promise<void> {
+		if (!uri || uri.scheme !== 'file') {
+			void vscode.window.showInformationMessage('Нет открытого файла, для которого искать объект метаданных.');
+			return;
+		}
+		if (!metadataTreeProvider.getCachedTree()) {
+			await metadataTreeProvider.refresh();
+		}
+		const leaf = await metadataTreeProvider.findNodeForFile(uri.fsPath);
+		if (!leaf) {
+			void vscode.window.showInformationMessage(
+				`Объект метаданных для файла не найден: ${path.basename(uri.fsPath)}`
+			);
+			return;
+		}
+		await vscode.commands.executeCommand('1c-platform-tools-metadata-tree.focus');
+		await metadataTreeView.reveal(leaf, { select: true, focus: true, expand: false });
+	}
 
 	const runMdSparrowMutation = createMdSparrowMutationRunner();
 
@@ -786,6 +808,9 @@ export function registerMetadataFeature(
 		}),
 		vscode.commands.registerCommand('1c-platform-tools.metadata.refresh', () => {
 			void metadataTreeProvider.refresh();
+		}),
+		vscode.commands.registerCommand('1c-platform-tools.metadata.revealInTree', async (uri?: vscode.Uri) => {
+			await revealMetadataObjectInTree(uri ?? vscode.window.activeTextEditor?.document.uri);
 		}),
 		vscode.commands.registerCommand('1c-platform-tools.metadata.filters.reset', () => {
 			metadataFilterProvider.clear();

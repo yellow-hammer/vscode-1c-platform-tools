@@ -243,6 +243,54 @@ export class MetadataMdSubgroupTreeItem extends vscode.TreeItem {
 }
 
 /** Лист: объект метаданных или внешний отчёт/обработка. */
+/**
+ * Файл принадлежит объекту метаданных: это сам XML объекта либо файл из каталога рядом с ним.
+ * Выгрузка кладёт модули, формы и макеты объекта в каталог с тем же именем, что у XML.
+ */
+export function metadataObjectOwnsFile(objectXmlAbs: string, fileAbs: string): boolean {
+	const object = path.normalize(objectXmlAbs);
+	const file = path.normalize(fileAbs);
+	if (object.toLowerCase() === file.toLowerCase()) {
+		return true;
+	}
+	const dir = object.replace(/\.xml$/i, '') + path.sep;
+	return file.toLowerCase().startsWith(dir.toLowerCase());
+}
+
+/** Каталог раздела в выгрузке -> раздел объекта в дереве. */
+const SECTION_KIND_BY_OBJECT_SUBDIR: Readonly<Record<string, MetadataSectionKind>> = {
+	forms: 'forms',
+	commands: 'commands',
+	templates: 'templates',
+};
+
+/**
+ * Узел объекта, которому принадлежит файл: раздел и имя.
+ *
+ * Выгрузка раскладывает формы, команды и макеты одинаково: `<Объект>/<Раздел>/<Имя>.xml` рядом с
+ * каталогом `<Объект>/<Раздел>/<Имя>/…`, где лежат содержимое и модуль. Поэтому и файл описания,
+ * и содержимое, и модуль ведут к одному узлу дерева.
+ *
+ * <p>У общей формы и общего модуля такого раздела нет - они сами объекты метаданных.
+ */
+export function objectChildFromFilePath(
+	objectXmlAbs: string,
+	fileAbs: string
+): { readonly sectionKind: MetadataSectionKind; readonly name: string } | undefined {
+	const dir = path.normalize(objectXmlAbs).replace(/\.xml$/i, '') + path.sep;
+	const file = path.normalize(fileAbs);
+	if (!file.toLowerCase().startsWith(dir.toLowerCase())) {
+		return undefined;
+	}
+	const parts = file.slice(dir.length).split(path.sep);
+	const sectionKind = parts.length >= 2 ? SECTION_KIND_BY_OBJECT_SUBDIR[parts[0].toLowerCase()] : undefined;
+	if (!sectionKind) {
+		return undefined;
+	}
+	const name = parts[1].replace(/\.[^.]+$/, '');
+	return name.length > 0 ? { sectionKind, name } : undefined;
+}
+
 export class MetadataLeafTreeItem extends vscode.TreeItem {
 	constructor(
 		public readonly sourceId: string,
@@ -1530,6 +1578,71 @@ export class MetadataTreeDataProvider implements vscode.TreeDataProvider<vscode.
 			return true;
 		}
 		return this._subsystemFilter.allowedObjectNames.has(leaf.name);
+	}
+
+	/**
+	 * Лист дерева, которому принадлежит файл: сам XML объекта либо что-то из его каталога
+	 * (модуль, форма, макет).
+	 *
+	 * @param fileAbs Абсолютный путь открытого файла.
+	 */
+	findLeafForFile(fileAbs: string): MetadataLeafTreeItem | undefined {
+		const groups: Iterable<MetadataLeafTreeItem[]> = [
+			...this._flatLeavesBySource.values(),
+			...this._leavesByGroup.values(),
+			...this._leavesBySubgroup.values(),
+		];
+		for (const leaves of groups) {
+			for (const leaf of leaves) {
+				const objectXml = leaf.resourceUri?.fsPath;
+				if (objectXml && metadataObjectOwnsFile(objectXml, fileAbs)) {
+					return leaf;
+				}
+			}
+		}
+		return undefined;
+	}
+
+	/**
+	 * Узел дерева, которому принадлежит файл: у формы это её узел под объектом, у остального - сам объект.
+	 *
+	 * Состав объекта дерево читает по мере раскрытия, поэтому секции здесь загружаются явно.
+	 *
+	 * @param fileAbs Абсолютный путь открытого файла.
+	 */
+	async findNodeForFile(fileAbs: string): Promise<vscode.TreeItem | undefined> {
+		const leaf = this.findLeafForFile(fileAbs);
+		if (!leaf?.resourceUri) {
+			return leaf ?? this.findSourceForFile(fileAbs);
+		}
+		const child = objectChildFromFilePath(leaf.resourceUri.fsPath, fileAbs);
+		if (!child) {
+			return leaf;
+		}
+		const sections = await this.getChildren(leaf);
+		const section = sections.find(
+			(item): item is MetadataObjectSectionTreeItem =>
+				item instanceof MetadataObjectSectionTreeItem && item.sectionKind === child.sectionKind
+		);
+		if (!section) {
+			return leaf;
+		}
+		const nodes = await this.getChildren(section);
+		const node = nodes.find(
+			(item): item is MetadataObjectNodeTreeItem =>
+				item instanceof MetadataObjectNodeTreeItem && item.name === child.name
+		);
+		return node ?? leaf;
+	}
+
+	/** Корень выгрузки: `Configuration.xml` объектом метаданных не является, но в дереве у него свой узел. */
+	private findSourceForFile(fileAbs: string): MetadataSourceTreeItem | undefined {
+		const file = path.normalize(fileAbs).toLowerCase();
+		return this._sourceItems.find(
+			(source) =>
+				source.configurationXmlAbs !== undefined &&
+				path.normalize(source.configurationXmlAbs).toLowerCase() === file
+		);
 	}
 
 	getParent(element: vscode.TreeItem): vscode.TreeItem | undefined {
