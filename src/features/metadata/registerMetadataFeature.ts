@@ -109,6 +109,18 @@ export function registerMetadataFeature(
 			);
 			return;
 		}
+		if (metadataTreeProvider.isHiddenByFilter(leaf)) {
+			const reset = 'Сбросить отбор';
+			const answer = await vscode.window.showWarningMessage(
+				'Объект скрыт поиском или отбором по подсистемам, поэтому в дереве его не видно.',
+				reset
+			);
+			if (answer !== reset) {
+				return;
+			}
+			metadataTreeProvider.setTextFilter('');
+			metadataFilterProvider.clear();
+		}
 		await vscode.commands.executeCommand('1c-platform-tools-metadata-tree.focus');
 		await metadataTreeView.reveal(leaf, { select: true, focus: true, expand: false });
 	}

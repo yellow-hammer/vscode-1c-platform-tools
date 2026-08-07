@@ -1568,6 +1568,25 @@ export class MetadataTreeDataProvider implements vscode.TreeDataProvider<vscode.
 			: vscode.TreeItemCollapsibleState.Collapsed;
 	}
 
+	/**
+	 * Узел скрыт активным поиском или отбором по подсистемам.
+	 *
+	 * Дерево такой узел не покажет, поэтому переход к нему молча ничего не сделает - о причине
+	 * нужно сказать вслух.
+	 */
+	isHiddenByFilter(item: vscode.TreeItem): boolean {
+		if (!this._subsystemFilter && !this._textFilter) {
+			return false;
+		}
+		const leaf = item instanceof MetadataObjectNodeTreeItem || item instanceof MetadataObjectSectionTreeItem
+			? item.owner
+			: item;
+		if (!(leaf instanceof MetadataLeafTreeItem)) {
+			return false;
+		}
+		return this.filterLeaves([leaf]).length === 0;
+	}
+
 	private filterLeaves(leaves: MetadataLeafTreeItem[]): MetadataLeafTreeItem[] {
 		if (!this._subsystemFilter && !this._textFilter) {
 			return leaves;
