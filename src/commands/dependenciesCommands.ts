@@ -206,6 +206,18 @@ async function showGitAdminCommands(): Promise<void> {
 /**
  * Команды для управления зависимостями проекта
  */
+/**
+ * Аргументы вызова `git config`.
+ *
+ * Флаг области идёт после подкоманды: перед ней git считает его своей опцией и падает с
+ * «unknown option».
+ *
+ * @param scopeArgs Флаги области: `--global` либо пусто для настроек текущего репозитория.
+ */
+export function gitConfigArgs(scopeArgs: readonly string[], key: string, value: string): string[] {
+	return ['config', ...scopeArgs, key, value];
+}
+
 export class DependenciesCommands extends BaseCommand {
 	/** Контекст нужен для кэша компонентов: OVM берём оттуда. */
 	constructor(private readonly context: vscode.ExtensionContext) {
@@ -363,10 +375,13 @@ export class DependenciesCommands extends BaseCommand {
 			};
 		};
 
-		/** Применяет список настроек git config с заданными флагами области видимости. При ошибке показывает сообщение и возвращает false. */
+		/**
+		 * Применяет список настроек git config с заданными флагами области видимости.
+		 * При ошибке показывает сообщение и возвращает false.
+		 */
 		const applyGitConfigs = (configs: [string, string][], args: string[]): boolean => {
 			for (const [key, value] of configs) {
-				const { ok, stderr } = runGitConfig([...args, 'config', key, value]);
+				const { ok, stderr } = runGitConfig(gitConfigArgs(args, key, value));
 				if (!ok) {
 					log.error(`Git config ${args.join(' ') || '(local)'} ${key}=${value}: ${stderr}`);
 					vscode.window.showErrorMessage(`Ошибка настройки Git (${key}): ${stderr || 'неизвестная ошибка'}`);
