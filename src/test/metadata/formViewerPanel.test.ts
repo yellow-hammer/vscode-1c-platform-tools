@@ -7,6 +7,9 @@ import {
 	formItemProperties,
 	formModulePath,
 	objectFormXmlPath,
+	ownerObjectXmlPath,
+	dataPathTitles,
+	commandTitles,
 } from '../../features/metadata/formViewerPanel';
 import { enumValueLabel, propertyLabel } from '../../features/metadata/formItemPropertySpec';
 
@@ -197,5 +200,70 @@ suite('Подписи свойств и значений элемента фор
 
 	test('незнакомая константа остаётся как есть', () => {
 		assert.strictEqual(enumValueLabel('Representation', 'ПоканеизвестноеЗначение'), 'ПоканеизвестноеЗначение');
+	});
+});
+
+suite('Подписи полей формы по синонимам реквизитов', () => {
+	test('объект-владелец находится по пути формы', () => {
+		const form = path.join('C:', 'п', 'src', 'cf', 'Catalogs', 'Валюты', 'Forms', 'ФормаЭлемента', 'Ext', 'Form.xml');
+		assert.strictEqual(ownerObjectXmlPath(form), path.join('C:', 'п', 'src', 'cf', 'Catalogs', 'Валюты.xml'));
+	});
+
+	test('у общей формы владельца нет', () => {
+		const form = path.join('C:', 'п', 'src', 'cf', 'CommonForms', 'МояФорма', 'Ext', 'Form.xml');
+		assert.strictEqual(ownerObjectXmlPath(form), undefined);
+	});
+
+	test('синоним берётся и у обычного, и у стандартного реквизита', () => {
+		const titles = dataPathTitles(
+			{
+				attributes: [{ name: 'НаименованиеПолное', synonymRu: 'Наименование валюты' }],
+				standardAttributeSynonyms: { Code: 'Цифровой код', Description: 'Символьный код' },
+				tabularSections: [
+					{ name: 'Курсы', synonymRu: 'Курсы валют', attributes: [{ name: 'Курс', synonymRu: 'Курс валюты' }] },
+				],
+			},
+			'Объект'
+		);
+
+		assert.strictEqual(titles['Объект.НаименованиеПолное'], 'Наименование валюты');
+		assert.strictEqual(titles['Объект.Code'], 'Цифровой код');
+		assert.strictEqual(titles['Объект.Description'], 'Символьный код');
+		assert.strictEqual(titles['Объект.Курсы.Курс'], 'Курс валюты');
+	});
+
+	test('без главного реквизита остаются подписи реквизитов формы', () => {
+		const titles = dataPathTitles({ attributes: [{ name: 'А', synonymRu: 'Б' }] }, '', [
+			{ name: 'Список', title: 'Список валют' },
+		]);
+
+		assert.deepStrictEqual(titles, { 'Список': 'Список валют' }, 'реквизит объекта без главного не подписать');
+	});
+
+	test('реквизиты формы и их колонки подписываются своими заголовками', () => {
+		const titles = dataPathTitles({}, 'Объект', [
+			{ name: 'Список', title: 'Список валют', columns: [{ name: 'Курс', title: 'Курс на дату' }] },
+		]);
+
+		assert.strictEqual(titles['Список'], 'Список валют');
+		assert.strictEqual(titles['Список.Курс'], 'Курс на дату');
+	});
+});
+
+suite('Подписи кнопок по синонимам команд', () => {
+	test('команда формы подписывается своим заголовком', () => {
+		const titles = commandTitles({}, [{ name: 'Обновить', title: 'Обновить курсы' }]);
+
+		assert.strictEqual(titles['Form.Command.Обновить'], 'Обновить курсы');
+	});
+
+	test('команда объекта подписывается синонимом из его структуры', () => {
+		const titles = commandTitles({ commandSynonyms: { ОтветитьВсем: 'Ответить всем' } });
+
+		assert.strictEqual(titles['Command.ОтветитьВсем'], 'Ответить всем');
+	});
+
+	test('без заголовков и синонимов подписей нет', () => {
+		assert.deepStrictEqual(commandTitles({}, [{ name: 'Обновить' }]), {});
 	});
 });

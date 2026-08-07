@@ -7,6 +7,12 @@
 	const vscode = acquireVsCodeApi();
 	const data = window.__FORM_DATA__ || {};
 	let content = data.content || {};
+	// Умолчания раскладки: в файле лежит только изменённое, поэтому пустое свойство берём отсюда.
+	const layoutDefaults = data.layoutDefaults || {};
+	// Без заголовка платформа подписывает поле синонимом реквизита, а не именем элемента.
+	const dataPathTitles = data.dataPathTitles || {};
+	// Кнопку без заголовка платформа подписывает синонимом команды, на которую та ссылается.
+	const commandTitles = data.commandTitles || {};
 
 	/** Элементы, которые в конфигураторе видны, но на превью только мешают. */
 	const SERVICE_TYPES = new Set(['ExtendedTooltip', 'ContextMenu']);
@@ -69,6 +75,15 @@
 
 	function typeLabel(type) {
 		return TYPE_LABELS[type] || type || 'Элемент';
+	}
+
+	/** Значение свойства с учётом умолчания вида элемента. */
+	function effective(item, property, value) {
+		if (value !== undefined && value !== null && value !== '') {
+			return value;
+		}
+		const defaults = layoutDefaults[item.type];
+		return defaults ? defaults[property] : undefined;
 	}
 
 	function visibleNodes(nodes) {
@@ -241,13 +256,13 @@
 		} else if (type === 'SearchStringAddition' || type === 'SearchControlAddition' || type === 'ViewStatusAddition') {
 			box = previewAddition(node);
 		} else if (type === 'Button') {
-			box = element('button', 'pv-button', item.title || item.name);
+			box = element('button', 'pv-button', buttonLabel(item));
 		} else if (type === 'LabelDecoration' || type === 'PictureDecoration') {
 			box = element('div', 'pv-decoration', item.title || item.name);
 		} else if (type === 'CheckBoxField') {
-			box = element('div', 'pv-radio', '☐ ' + (item.title || fieldLabel(item)));
+			box = element('div', 'pv-radio', '☐ ' + choiceLabel(item));
 		} else if (type === 'RadioButtonField') {
-			box = element('div', 'pv-radio', '◉ ' + (item.title || fieldLabel(item)));
+			box = element('div', 'pv-radio', '◉ ' + choiceLabel(item));
 		} else if (type) {
 			box = previewField(node);
 		} else {
@@ -272,6 +287,10 @@
 		if (item.title) {
 			return item.title;
 		}
+		const synonym = dataPathTitles[item.dataPath];
+		if (synonym) {
+			return synonym;
+		}
 		if (item.name) {
 			return item.name;
 		}
@@ -279,9 +298,33 @@
 		return parts[parts.length - 1];
 	}
 
+	/**
+	 * Подпись кнопки: заголовок, иначе синоним команды.
+	 * Имя команды записано ссылкой, поэтому ищем и по ней целиком, и по хвосту `Command.<Имя>`.
+	 */
+	function buttonLabel(item) {
+		if (item.title) {
+			return item.title;
+		}
+		const command = item.properties && item.properties.CommandName;
+		if (command) {
+			const tail = command.slice(command.indexOf('Command.'));
+			const synonym = commandTitles[command] || commandTitles[tail];
+			if (synonym) {
+				return synonym;
+			}
+		}
+		return item.name;
+	}
+
+	// Текст рядом с переключателем и флажком платформа берёт из списка выбора, а не из заголовка.
+	function choiceLabel(item) {
+		return item.choicePresentation || item.title || fieldLabel(item);
+	}
+
 	function previewField(node) {
 		const row = element('div', 'pv-field');
-		if (node.item.titleLocation !== 'None') {
+		if (effective(node.item, 'TitleLocation', node.item.titleLocation) !== 'None') {
 			row.append(element('span', 'pv-label', fieldLabel(node.item)));
 		}
 		const input = element('div', 'pv-input', '');
@@ -300,13 +343,32 @@
 		return box;
 	}
 
+	/** Как платформа выделяет группу: рамкой с заголовком, фоном, линией или отступом. */
+	function groupDecoration(representation) {
+		if (representation === 'GroupBox') {
+			return ' is-framed';
+		}
+		if (representation === 'StrongSeparation' || representation === 'NormalSeparation'
+			|| representation === 'WeakSeparation') {
+			return ' is-separated';
+		}
+		if (representation === 'Line') {
+			return ' is-lined';
+		}
+		if (representation === 'Margin') {
+			return ' is-margined';
+		}
+		return '';
+	}
+
 	function previewGroup(node) {
-		const horizontal = node.item.group === 'Horizontal' || node.item.group === 'HorizontalIfPossible';
-		// Рамку платформа рисует только у выделенных групп: у обычных виден лишь отступ.
-		const framed = node.item.representation && node.item.representation !== 'None';
-		const box = element('div', 'pv-group ' + (horizontal ? 'is-horizontal' : 'is-vertical')
-			+ (framed ? ' is-framed' : ''));
-		if (node.item.title && node.item.showTitle !== 'false' && framed) {
+		const group = effective(node.item, 'Group', node.item.group);
+		const horizontal = group === 'Horizontal' || group === 'HorizontalIfPossible' || group === 'AlwaysHorizontal';
+		const representation = effective(node.item, 'Representation', node.item.representation);
+		const decoration = groupDecoration(representation);
+		const box = element('div', 'pv-group ' + (horizontal ? 'is-horizontal' : 'is-vertical') + decoration);
+		const showTitle = effective(node.item, 'ShowTitle', node.item.showTitle);
+		if (node.item.title && showTitle !== 'false' && decoration === ' is-framed') {
 			box.append(element('div', 'pv-group-title', node.item.title));
 		}
 		for (const child of visibleNodes(node.children)) {

@@ -62,6 +62,8 @@ export interface FormItemDto {
 	height?: string;
 	horizontalStretch?: string;
 	verticalStretch?: string;
+	/** Представление значения списка выбора: текст рядом с переключателем и флажком. */
+	choicePresentation?: string;
 	events?: FormEventDto[];
 	items?: FormItemDto[];
 	/** Свойства, записанные в файле: имя узла XML -> значение. */
@@ -186,6 +188,8 @@ export async function openFormViewer(
 		return;
 	}
 
+	const titles = await loadTitles(runtime, params, schema, content);
+
 	const webviewRoot = vscode.Uri.joinPath(context.extensionUri, 'resources', 'webview');
 	const panel = vscode.window.createWebviewPanel('1cFormViewer', params.title, vscode.ViewColumn.Active, {
 		enableScripts: true,
@@ -259,12 +263,76 @@ export async function openFormViewer(
 			title: params.title,
 			formTitle: content.title ?? '',
 			content,
+			layoutDefaults: layoutDefaults(dictionary),
+			dataPathTitles: titles.dataPaths,
+			commandTitles: titles.commands,
 		});
 	} catch (e) {
 		log.error(`шаблон формы: ${e instanceof Error ? e.message : String(e)}`);
 		void vscode.window.showErrorMessage('Не удалось загрузить просмотр формы.');
 		panel.dispose();
 	}
+}
+
+/**
+ * Подписи кнопок: имя команды -> её синоним.
+ *
+ * Команда формы подписывается своим заголовком, команда объекта - синонимом из его структуры.
+ * Имя команды в кнопке записано ссылкой: `Form.Command.<Имя>` или `<Вид>.<Объект>.Command.<Имя>`.
+ */
+export function commandTitles(
+	structure: OwnerStructureDto,
+	formCommands: readonly { name?: string; title?: string }[] = []
+): Record<string, string> {
+	const out: Record<string, string> = {};
+	for (const command of formCommands) {
+		if (command.name && command.title) {
+			out[`Form.Command.${command.name}`] = command.title;
+		}
+	}
+	for (const [name, synonym] of Object.entries(structure.commandSynonyms ?? {})) {
+		out[`Command.${name}`] = synonym;
+	}
+	return out;
+}
+
+/**
+ * Подписи полей формы: читает структуру объекта-владельца.
+ *
+ * Формы без владельца (общие) и объекты, которых md-sparrow не разбирает, просто остаются без
+ * подписей: поле подпишется именем элемента, как и раньше.
+ */
+async function loadTitles(
+	runtime: Awaited<ReturnType<typeof ensureMdSparrowRuntime>>,
+	params: OpenFormViewerParams,
+	schema: string,
+	content: FormContentDto
+): Promise<{ dataPaths: Record<string, string>; commands: Record<string, string> }> {
+	const objectXml = ownerObjectXmlPath(params.formXmlFsPath);
+	const main = content.attributes?.find((attribute) => attribute.main)?.name ?? '';
+	const formAttributes = content.attributes ?? [];
+	const formCommands = content.commands ?? [];
+	let structure: OwnerStructureDto = {};
+	if (objectXml) {
+		const result = await runMdSparrowParamsRead(
+			runtime,
+			{ op: 'cf-md-object-structure-get', objectXml, schemaVersion: schema },
+			{ cwd: params.cwd }
+		);
+		if (result.exitCode === 0) {
+			try {
+				structure = JSON.parse(result.stdout.trim()) as OwnerStructureDto;
+			} catch {
+				log.warn('форма: структура объекта не разобрана, подписи останутся именами элементов');
+			}
+		} else {
+			log.warn('форма: структура объекта не прочитана, подписи останутся именами элементов');
+		}
+	}
+	return {
+		dataPaths: dataPathTitles(structure, main, formAttributes),
+		commands: commandTitles(structure, formCommands),
+	};
 }
 
 /** Содержимое формы от md-sparrow; ошибка чтения приходит текстом. */
@@ -451,6 +519,111 @@ interface FormViewerViewModel {
 	title: string;
 	formTitle: string;
 	content: FormContentDto;
+	/** Умолчания раскладки по видам элементов: в файле лежит только изменённое. */
+	layoutDefaults: LayoutDefaults;
+	/** Путь к данным -> синоним реквизита: платформа подписывает поле им. */
+	dataPathTitles: Record<string, string>;
+	/** Имя команды -> её синоним: кнопку без заголовка платформа подписывает им. */
+	commandTitles: Record<string, string>;
+}
+
+/** Структура объекта-владельца: нужны имена и синонимы реквизитов. */
+interface OwnerStructureDto {
+	attributes?: { name?: string; synonymRu?: string }[];
+	tabularSections?: { name?: string; synonymRu?: string; attributes?: { name?: string; synonymRu?: string }[] }[];
+	standardAttributeSynonyms?: Record<string, string>;
+	commandSynonyms?: Record<string, string>;
+}
+
+/** XML объекта, которому принадлежит форма: `<Объект>/Forms/<Имя>/Ext/Form.xml`. */
+export function ownerObjectXmlPath(formXmlFsPath: string): string | undefined {
+	const parts = formXmlFsPath.split(/[\\/]/);
+	const forms = parts.lastIndexOf('Forms');
+	if (forms < 1) {
+		return undefined;
+	}
+	return path.join(...parts.slice(0, forms)) + '.xml';
+}
+
+/**
+ * Подписи полей по пути к данным.
+ *
+ * Без заголовка платформа подписывает поле синонимом реквизита, а не его именем: у справочника
+ * валют `Объект.Code` показывается как «Цифровой код». Синонимы стандартных реквизитов лежат
+ * рядом с обычными, поэтому берутся из той же структуры.
+ *
+ * @param mainAttribute Имя главного реквизита формы: с него начинается путь к данным объекта.
+ */
+export function dataPathTitles(
+	structure: OwnerStructureDto,
+	mainAttribute: string,
+	formAttributes: readonly FormAttributeDto[] = []
+): Record<string, string> {
+	const out: Record<string, string> = {};
+	// Реквизиты самой формы: путь к данным начинается с их имени.
+	for (const attribute of formAttributes) {
+		if (attribute.name && attribute.title) {
+			out[attribute.name] = attribute.title;
+		}
+		for (const column of attribute.columns ?? []) {
+			if (attribute.name && column.name && column.title) {
+				out[`${attribute.name}.${column.name}`] = column.title;
+			}
+		}
+	}
+	if (!mainAttribute) {
+		return out;
+	}
+	for (const attribute of structure.attributes ?? []) {
+		if (attribute.name && attribute.synonymRu) {
+			out[`${mainAttribute}.${attribute.name}`] = attribute.synonymRu;
+		}
+	}
+	for (const [name, synonym] of Object.entries(structure.standardAttributeSynonyms ?? {})) {
+		out[`${mainAttribute}.${name}`] = synonym;
+	}
+	for (const section of structure.tabularSections ?? []) {
+		if (!section.name) {
+			continue;
+		}
+		if (section.synonymRu) {
+			out[`${mainAttribute}.${section.name}`] = section.synonymRu;
+		}
+		for (const column of section.attributes ?? []) {
+			if (column.name && column.synonymRu) {
+				out[`${mainAttribute}.${section.name}.${column.name}`] = column.synonymRu;
+			}
+		}
+	}
+	return out;
+}
+
+/** Вид элемента -> имя свойства -> значение по умолчанию. */
+export type LayoutDefaults = Record<string, Record<string, string>>;
+
+/** Свойства, от которых зависит раскладка превью; остальные умолчания webview не нужны. */
+const LAYOUT_PROPERTIES = ['Group', 'Representation', 'ShowTitle', 'TitleLocation'];
+
+/**
+ * Умолчания раскладки из словаря формата.
+ *
+ * Платформа пишет в файл только изменённые свойства, поэтому без умолчаний превью раскладывало бы
+ * группу без записанной группировки вертикально, а платформа кладёт её элементы в строку.
+ */
+export function layoutDefaults(dictionary?: FormItemPropertyDictionary): LayoutDefaults {
+	const out: LayoutDefaults = {};
+	for (const [type, specs] of Object.entries(dictionary ?? {})) {
+		const byName: Record<string, string> = {};
+		for (const spec of specs) {
+			if (LAYOUT_PROPERTIES.includes(spec.name) && spec.defaultValue !== undefined && spec.defaultValue !== '') {
+				byName[spec.name] = spec.defaultValue;
+			}
+		}
+		if (Object.keys(byName).length > 0) {
+			out[type] = byName;
+		}
+	}
+	return out;
 }
 
 async function loadFormViewerHtml(
