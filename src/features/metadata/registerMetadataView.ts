@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 import {
 	MetadataLeafTreeItem,
+	MetadataSourceTreeItem,
 	MetadataTreeDataProvider,
 } from './metadataTreeView';
 import { METADATA_SEARCH_VIEW_ID, MetadataSearchViewProvider } from './metadataSearchView';
@@ -42,6 +43,19 @@ export function registerMetadataView(
 		showCollapseAll: true,
 	});
 	context.subscriptions.push(metadataTreeView);
+	// Раскрытие верхнего уровня переживает обновление дерева: оно перестраивается целиком.
+	context.subscriptions.push(
+		metadataTreeView.onDidExpandElement((e) => {
+			if (e.element instanceof MetadataSourceTreeItem) {
+				metadataTreeProvider.rememberSourceExpanded(e.element.sourceId, true);
+			}
+		}),
+		metadataTreeView.onDidCollapseElement((e) => {
+			if (e.element instanceof MetadataSourceTreeItem) {
+				metadataTreeProvider.rememberSourceExpanded(e.element.sourceId, false);
+			}
+		})
+	);
 
 	const metadataSearchProvider = new MetadataSearchViewProvider(context.extensionUri, (query) => {
 		metadataTreeProvider.setTextFilter(query);
