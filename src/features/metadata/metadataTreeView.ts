@@ -178,11 +178,12 @@ export class MetadataSourceTreeItem extends vscode.TreeItem {
 		label: string,
 		public readonly sourceKind: string,
 		public readonly configurationXmlAbs: string | undefined,
-		public readonly metadataRootAbs: string | undefined
+		public readonly metadataRootAbs: string | undefined,
+		expanded?: boolean
 	) {
 		super(
 			label,
-			sourceKind === 'main'
+			(expanded ?? sourceKind === 'main')
 				? vscode.TreeItemCollapsibleState.Expanded
 				: vscode.TreeItemCollapsibleState.Collapsed
 		);
@@ -1096,6 +1097,9 @@ function themeIconFromGroupHint(hint: string): vscode.ThemeIcon {
 	return new vscode.ThemeIcon(id);
 }
 
+/** Ключ состояния рабочей области: какие источники дерева раскрыты. */
+const EXPANDED_SOURCES_KEY = '1c-platform-tools.metadata.expandedSources';
+
 export class MetadataTreeDataProvider implements vscode.TreeDataProvider<vscode.TreeItem> {
 	private readonly _onDidChange = new vscode.EventEmitter<vscode.TreeItem | undefined | null | void>();
 	readonly onDidChangeTreeData = this._onDidChange.event;
@@ -1116,6 +1120,11 @@ export class MetadataTreeDataProvider implements vscode.TreeDataProvider<vscode.
 
 	/** Кэш последнего успешного дерева (для API). */
 	private _sourceItems: MetadataSourceTreeItem[] = [];
+	/**
+	 * Раскрытые источники: дерево перестраивается целиком, и без этого каждое обновление
+	 * возвращало бы раскрытой основную конфигурацию, а свёрнутыми - расширения.
+	 */
+	private _expandedSources: Set<string> | undefined;
 	private readonly _groupsBySource = new Map<string, MetadataMdGroupTreeItem[]>();
 	private readonly _subgroupsByGroup = new Map<string, MetadataMdSubgroupTreeItem[]>();
 	private readonly _leavesByGroup = new Map<string, MetadataLeafTreeItem[]>();
@@ -1129,6 +1138,34 @@ export class MetadataTreeDataProvider implements vscode.TreeDataProvider<vscode.
 	private readonly _subsystemsBySource = new Map<string, Map<string, MetadataLeafTreeItem>>();
 
 	constructor(private readonly _context: vscode.ExtensionContext) {}
+
+	/** Раскрытые источники из состояния рабочей области; пусто - состояние ещё не сохраняли. */
+	private expandedSources(): Set<string> | undefined {
+		if (this._expandedSources === undefined) {
+			const saved = this._context.workspaceState.get<string[]>(EXPANDED_SOURCES_KEY);
+			this._expandedSources = saved === undefined ? undefined : new Set(saved);
+		}
+		return this._expandedSources;
+	}
+
+	/**
+	 * Запоминает, раскрыт ли источник. Хранится только верхний уровень: глубже узлы создаются
+	 * по мере раскрытия, и восстанавливать их всё равно нечем.
+	 *
+	 * @param sourceId Идентификатор источника: основная конфигурация, расширение, внешние файлы.
+	 */
+	rememberSourceExpanded(sourceId: string, expanded: boolean): void {
+		const current = this.expandedSources() ?? new Set(
+			this._sourceItems.filter((s) => s.sourceKind === 'main').map((s) => s.sourceId)
+		);
+		if (expanded) {
+			current.add(sourceId);
+		} else {
+			current.delete(sourceId);
+		}
+		this._expandedSources = current;
+		void this._context.workspaceState.update(EXPANDED_SOURCES_KEY, [...current]);
+	}
 
 	/**
 	 * Последнее дерево после успешного refresh; иначе `undefined`.
@@ -1262,7 +1299,9 @@ export class MetadataTreeDataProvider implements vscode.TreeDataProvider<vscode.
 			const cfgRel = src.configurationXmlRelativePath;
 			const cfgAbs = cfgRel.length > 0 ? path.join(workspaceRoot, cfgRel) : undefined;
 			const metaAbs = path.join(workspaceRoot, src.metadataRootRelativePath);
-			const sItem = new MetadataSourceTreeItem(src.id, src.label, src.kind, cfgAbs, metaAbs);
+			const expanded = this.expandedSources();
+			const sItem = new MetadataSourceTreeItem(
+				src.id, src.label, src.kind, cfgAbs, metaAbs, expanded?.has(src.id));
 			sItem.iconPath = metadataSourceIcon(src.kind, this._context.extensionUri);
 			this._sourceItems.push(sItem);
 
