@@ -1,0 +1,8 @@
+﻿[Общая]
+Connect=Srvr="srv-corp";Ref="buh";
+ID=00000000-0000-0000-0000-000000000005
+Folder=/
+[Рабочая]
+Connect=Srvr="srv-1c:1541";Ref="erp";
+ID=00000000-0000-0000-0000-000000000003
+Folder=/
