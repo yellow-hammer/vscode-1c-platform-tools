@@ -1,0 +1,463 @@
+body {
+	margin: 0;
+	padding: 0;
+	font-family: var(--vscode-font-family);
+	font-size: var(--vscode-font-size);
+	color: var(--vscode-foreground);
+	background: var(--vscode-editor-background);
+}
+
+.form-page {
+	display: flex;
+	flex-direction: column;
+	height: 100vh;
+	box-sizing: border-box;
+	padding: 10px 12px 12px 12px;
+}
+
+.form-header {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 12px;
+	margin-bottom: 8px;
+}
+
+.form-title {
+	margin: 0;
+	font-size: 15px;
+	font-weight: 600;
+}
+
+.form-toggle {
+	font-size: 12px;
+	opacity: 0.85;
+	display: inline-flex;
+	align-items: center;
+	gap: 5px;
+	cursor: pointer;
+}
+
+.form-layout {
+	flex: 1;
+	min-height: 0;
+	display: grid;
+	/* Раскладка конфигуратора: сверху элементы и данные формы, снизу сама форма. */
+	grid-template-columns: minmax(260px, 1fr) minmax(260px, 1fr);
+	grid-template-rows: minmax(120px, 2fr) minmax(160px, 3fr);
+	grid-template-areas:
+		"tree data"
+		"preview preview";
+	gap: 8px;
+}
+
+.pane-tree {
+	grid-area: tree;
+}
+
+.pane-preview {
+	grid-area: preview;
+}
+
+.pane-preview .pane-body {
+	background: var(--vscode-editor-background);
+	padding: 10px 12px;
+}
+
+.pane-data {
+	grid-area: data;
+}
+
+.pane {
+	display: flex;
+	flex-direction: column;
+	min-height: 0;
+	border: 1px solid var(--vscode-panel-border);
+	border-radius: 6px;
+	background: var(--vscode-editorWidget-background);
+}
+
+.pane-title {
+	padding: 6px 10px;
+	font-size: 11px;
+	text-transform: uppercase;
+	letter-spacing: 0.03em;
+	opacity: 0.75;
+	border-bottom: 1px solid var(--vscode-panel-border);
+}
+
+.pane-tabs {
+	display: flex;
+	gap: 2px;
+	padding: 4px 6px 0 6px;
+	border-bottom: 1px solid var(--vscode-panel-border);
+}
+
+/* Закладки конфигуратора живут под списком, а не над ним. */
+.pane-tabs-bottom {
+	border-bottom: none;
+	border-top: 1px solid var(--vscode-panel-border);
+	padding: 3px 6px;
+}
+
+.pane-tab {
+	background: transparent;
+	border: none;
+	border-bottom: 2px solid transparent;
+	color: var(--vscode-foreground);
+	font-family: inherit;
+	font-size: 12px;
+	padding: 4px 8px;
+	cursor: pointer;
+	opacity: 0.7;
+}
+
+.pane-tab.is-active {
+	opacity: 1;
+	border-bottom-color: var(--vscode-focusBorder);
+}
+
+.pane-body {
+	flex: 1;
+	min-height: 0;
+	overflow: auto;
+	padding: 6px 8px;
+}
+
+/* Дерево элементов и списки данных */
+
+.item-icon {
+	flex: none;
+	width: 14px;
+	height: 14px;
+	opacity: 0.85;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+}
+
+.item-icon svg {
+	width: 13px;
+	height: 13px;
+	fill: currentColor;
+}
+
+/* Дерево элементов */
+
+.tree-row {
+	display: flex;
+	align-items: center;
+	gap: 4px;
+	padding: 2px 4px;
+	border-radius: 4px;
+	cursor: pointer;
+	white-space: nowrap;
+}
+
+.tree-row:hover {
+	background: var(--vscode-list-hoverBackground);
+}
+
+.tree-row.is-selected {
+	background: var(--vscode-list-activeSelectionBackground);
+	color: var(--vscode-list-activeSelectionForeground);
+}
+
+.tree-twisty {
+	width: 12px;
+	text-align: center;
+	opacity: 0.7;
+	flex: none;
+}
+
+.tree-name {
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.tree-type {
+	font-size: 11px;
+	opacity: 0.6;
+}
+
+.tree-children.is-collapsed {
+	display: none;
+}
+
+/* Превью */
+
+/* Группа без выделения не даёт ни рамки, ни отступа: иначе вложенные группы уводят элементы вправо. */
+.pv-group {
+	border: none;
+	border-radius: 4px;
+	padding: 0;
+	display: flex;
+	gap: 6px 12px;
+	min-width: 0;
+}
+
+/* Рамку и заголовок платформа рисует только у группы с рамкой. */
+.pv-group.is-framed {
+	border: 1px solid var(--vscode-panel-border);
+	padding: 10px 8px 8px 8px;
+}
+
+/* Выделение группы фоном, а не отступом: отступ у вложенных групп уводил бы элементы вправо. */
+.pv-group.is-separated {
+	background: var(--vscode-editorWidget-background);
+	border-radius: 3px;
+}
+
+.pv-group.is-lined {
+	border-top: 1px solid var(--vscode-panel-border);
+}
+
+.pv-group.is-margined {
+	margin-left: 12px;
+}
+
+.pv-group.is-vertical {
+	flex-direction: column;
+}
+
+.pv-group.is-horizontal {
+	flex-direction: row;
+	flex-wrap: wrap;
+	align-items: flex-start;
+}
+
+.pv-group-title {
+	font-size: 11px;
+	opacity: 0.7;
+	margin: -12px 0 2px 4px;
+	padding: 0 4px;
+	align-self: flex-start;
+	background: var(--vscode-editorWidget-background);
+}
+
+.pv-field {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	min-width: 0;
+}
+
+/* В вертикальной группе подписи полей выстраиваются в колонку, как на форме. */
+.pv-group.is-vertical > .pv-field > .pv-label {
+	flex: 0 0 auto;
+	min-width: 120px;
+	text-align: right;
+}
+
+.pv-label {
+	font-size: 12px;
+	opacity: 0.9;
+	white-space: nowrap;
+}
+
+.pv-label::after {
+	content: ':';
+}
+
+.pv-addition {
+	display: inline-flex;
+	align-items: center;
+	padding: 2px 8px;
+	min-width: 140px;
+	border: 1px solid var(--vscode-input-border, var(--vscode-panel-border));
+	border-radius: 3px;
+	background: var(--vscode-input-background);
+}
+
+.pv-addition-text {
+	font-size: 12px;
+	opacity: 0.5;
+}
+
+.pv-hidden {
+	opacity: 0.45;
+}
+
+.pv-input {
+	flex: 1;
+	min-width: 60px;
+	border: 1px solid var(--vscode-input-border, var(--vscode-panel-border));
+	background: var(--vscode-input-background);
+	color: var(--vscode-input-foreground);
+	border-radius: 3px;
+	padding: 2px 6px;
+	font-size: 12px;
+	min-height: 18px;
+}
+
+.pv-decoration {
+	font-size: 12px;
+}
+
+.pv-commandbar {
+	display: flex;
+	gap: 6px;
+	flex-wrap: wrap;
+	padding: 4px;
+	border-bottom: 1px solid var(--vscode-panel-border);
+}
+
+.pv-button {
+	border: 1px solid var(--vscode-button-border, transparent);
+	background: var(--vscode-button-secondaryBackground, var(--vscode-badge-background));
+	color: var(--vscode-button-secondaryForeground, var(--vscode-badge-foreground));
+	border-radius: 3px;
+	padding: 2px 8px;
+	font-size: 12px;
+}
+
+.pv-table {
+	border: 1px solid var(--vscode-panel-border);
+	border-radius: 4px;
+	overflow: hidden;
+}
+
+.pv-table-head {
+	display: flex;
+	background: var(--vscode-editorWidget-background);
+	border-bottom: 1px solid var(--vscode-panel-border);
+}
+
+.pv-table-cell {
+	flex: 1;
+	padding: 3px 6px;
+	font-size: 12px;
+	border-right: 1px solid var(--vscode-panel-border);
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.pv-table-row {
+	display: flex;
+	min-height: 18px;
+}
+
+.pv-table-row:nth-child(odd) {
+	background: var(--vscode-list-hoverBackground);
+}
+
+.pv-radio {
+	font-size: 12px;
+}
+
+.pv-selected {
+	outline: 1px solid var(--vscode-focusBorder);
+	outline-offset: 1px;
+}
+
+.pv-unknown {
+	font-size: 11px;
+	opacity: 0.6;
+	border: 1px dotted var(--vscode-panel-border);
+	border-radius: 3px;
+	padding: 1px 5px;
+}
+
+/* Данные и свойства */
+
+.data-list {
+	display: flex;
+	flex-direction: column;
+}
+
+.data-head {
+	display: flex;
+	gap: 8px;
+	padding: 2px 4px;
+	font-size: 11px;
+	text-transform: uppercase;
+	letter-spacing: 0.03em;
+	opacity: 0.6;
+	border-bottom: 1px solid var(--vscode-panel-border);
+	margin-bottom: 2px;
+}
+
+.data-row {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	padding: 2px 4px;
+	border-radius: 4px;
+	cursor: default;
+}
+
+.data-row:hover {
+	background: var(--vscode-list-hoverBackground);
+}
+
+.data-row.is-column {
+	padding-left: 18px;
+}
+
+.data-name {
+	flex: 1;
+	min-width: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.data-note {
+	flex: 0 0 45%;
+	font-size: 11px;
+	opacity: 0.7;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.link-button {
+	background: none;
+	border: none;
+	padding: 0;
+	color: var(--vscode-textLink-foreground);
+	font-family: inherit;
+	font-size: 12px;
+	cursor: pointer;
+	text-align: left;
+}
+
+.link-button:hover {
+	text-decoration: underline;
+}
+
+.empty-note {
+	font-size: 12px;
+	opacity: 0.6;
+	padding: 4px;
+}
+
+/* Нижние вкладки: форма и её модуль */
+
+.form-tabs {
+	display: flex;
+	gap: 2px;
+	margin-top: 8px;
+	border-top: 1px solid var(--vscode-panel-border);
+	padding-top: 6px;
+}
+
+.form-tab {
+	background: transparent;
+	border: 1px solid transparent;
+	border-radius: 4px 4px 0 0;
+	color: var(--vscode-foreground);
+	font-family: inherit;
+	font-size: 12px;
+	padding: 4px 14px;
+	cursor: pointer;
+	opacity: 0.75;
+}
+
+.form-tab.is-active {
+	opacity: 1;
+	background: var(--vscode-editorWidget-background);
+	border-color: var(--vscode-panel-border);
+	border-bottom-color: transparent;
+}

@@ -9,6 +9,8 @@ import {
 	MetadataTreeDataProvider,
 	objectModuleFilePath,
 	objectModuleKindsForType,
+	metadataObjectOwnsFile,
+	objectChildFromFilePath,
 } from '../../features/metadata/metadataTreeView';
 import { createMockExtensionContext } from '../fixtures/mocks/vscodeMocks';
 
@@ -297,6 +299,44 @@ suite('metadataTreeView nested nodes', () => {
 		assert.strictEqual(ts.contextValue, 'metadataTabularSection');
 		assert.strictEqual(tsAttr.contextValue, 'metadataTabularAttribute');
 	});
+
+	test('форма открывается кликом по узлу', () => {
+		const context = createMockExtensionContext();
+		const owner = new MetadataLeafTreeItem(
+			'main',
+			'catalogs',
+			undefined,
+			'Catalog',
+			'Валюты',
+			'src/cf/Catalogs/Валюты.xml',
+			'C:/ws',
+			context.extensionUri,
+			'C:/ws/src/cf/Configuration.xml',
+			'C:/ws/src/cf'
+		);
+		const form = new MetadataObjectNodeTreeItem(
+			'k4',
+			'form',
+			'ФормаСписка',
+			'ФормаСписка',
+			false,
+			context.extensionUri,
+			owner
+		);
+		const template = new MetadataObjectNodeTreeItem(
+			'k5',
+			'template',
+			'Печать',
+			'Печать',
+			false,
+			context.extensionUri,
+			owner
+		);
+
+		assert.strictEqual(form.command?.command, '1c-platform-tools.metadata.openForm');
+		assert.deepStrictEqual(form.command?.arguments, [form]);
+		assert.strictEqual(template.command, undefined, 'клик открывает только форму');
+	});
 });
 
 suite('metadataTreeView object modules', () => {
@@ -354,5 +394,84 @@ suite('metadataTreeView object modules', () => {
 			objectModuleFilePath('C:/ws/src/cf/CommonForms/Форма.xml', 'Форма', 'form'),
 			path.join('C:/ws/src/cf/CommonForms', 'Форма', 'Ext', 'Form', 'Module.bsl')
 		);
+	});
+});
+
+suite('Объект метаданных по открытому файлу', () => {
+	const objectXml = path.join('C:', 'проект', 'src', 'cf', 'Catalogs', 'Валюты.xml');
+
+	test('сам XML объекта', () => {
+		assert.strictEqual(metadataObjectOwnsFile(objectXml, objectXml), true);
+	});
+
+	test('модуль, форма и макет из каталога объекта', () => {
+		const dir = path.join('C:', 'проект', 'src', 'cf', 'Catalogs', 'Валюты');
+		assert.strictEqual(metadataObjectOwnsFile(objectXml, path.join(dir, 'Ext', 'ObjectModule.bsl')), true);
+		assert.strictEqual(
+			metadataObjectOwnsFile(objectXml, path.join(dir, 'Forms', 'ФормаСписка', 'Ext', 'Form.xml')),
+			true
+		);
+		assert.strictEqual(metadataObjectOwnsFile(objectXml, path.join(dir, 'Templates', 'Печать.xml')), true);
+	});
+
+	test('чужой объект с тем же началом имени не считается своим', () => {
+		const other = path.join('C:', 'проект', 'src', 'cf', 'Catalogs', 'ВалютыДопы', 'Ext', 'ObjectModule.bsl');
+		assert.strictEqual(metadataObjectOwnsFile(objectXml, other), false);
+		assert.strictEqual(
+			metadataObjectOwnsFile(objectXml, path.join('C:', 'проект', 'src', 'cf', 'Catalogs', 'Склады.xml')),
+			false
+		);
+	});
+});
+
+suite('Узел объекта по пути файла', () => {
+	const objectXml = path.join('C:', 'проект', 'src', 'cf', 'Catalogs', 'Валюты.xml');
+	const dir = path.join('C:', 'проект', 'src', 'cf', 'Catalogs', 'Валюты');
+
+	test('форма: описание, содержимое и модуль ведут к одному узлу', () => {
+		assert.deepStrictEqual(objectChildFromFilePath(objectXml, path.join(dir, 'Forms', 'ФормаСписка.xml')), {
+			sectionKind: 'forms',
+			name: 'ФормаСписка',
+		});
+		assert.deepStrictEqual(
+			objectChildFromFilePath(objectXml, path.join(dir, 'Forms', 'ФормаСписка', 'Ext', 'Form.xml')),
+			{ sectionKind: 'forms', name: 'ФормаСписка' }
+		);
+		assert.deepStrictEqual(
+			objectChildFromFilePath(objectXml, path.join(dir, 'Forms', 'ФормаЭлемента', 'Ext', 'Form', 'Module.bsl')),
+			{ sectionKind: 'forms', name: 'ФормаЭлемента' }
+		);
+	});
+
+	test('макет и команда разбираются так же', () => {
+		assert.deepStrictEqual(objectChildFromFilePath(objectXml, path.join(dir, 'Templates', 'Печать.xml')), {
+			sectionKind: 'templates',
+			name: 'Печать',
+		});
+		assert.deepStrictEqual(
+			objectChildFromFilePath(objectXml, path.join(dir, 'Templates', 'Печать', 'Ext', 'Template.xml')),
+			{ sectionKind: 'templates', name: 'Печать' }
+		);
+		assert.deepStrictEqual(
+			objectChildFromFilePath(objectXml, path.join(dir, 'Commands', 'Ответить', 'Ext', 'CommandModule.bsl')),
+			{ sectionKind: 'commands', name: 'Ответить' }
+		);
+	});
+
+	test('модули самого объекта узлом состава не считаются', () => {
+		assert.strictEqual(objectChildFromFilePath(objectXml, objectXml), undefined);
+		assert.strictEqual(objectChildFromFilePath(objectXml, path.join(dir, 'Ext', 'ObjectModule.bsl')), undefined);
+		assert.strictEqual(objectChildFromFilePath(objectXml, path.join(dir, 'Ext', 'ManagerModule.bsl')), undefined);
+		assert.strictEqual(objectChildFromFilePath(objectXml, path.join(dir, 'Ext', 'Help.xml')), undefined);
+	});
+
+	test('общая форма и общий модуль - сами объекты', () => {
+		const commonForm = path.join('C:', 'проект', 'src', 'cf', 'CommonForms', 'МояФорма.xml');
+		const content = path.join('C:', 'проект', 'src', 'cf', 'CommonForms', 'МояФорма', 'Ext', 'Form.xml');
+		assert.strictEqual(objectChildFromFilePath(commonForm, content), undefined);
+
+		const commonModule = path.join('C:', 'проект', 'src', 'cf', 'CommonModules', 'Общий.xml');
+		const moduleFile = path.join('C:', 'проект', 'src', 'cf', 'CommonModules', 'Общий', 'Ext', 'Module.bsl');
+		assert.strictEqual(objectChildFromFilePath(commonModule, moduleFile), undefined);
 	});
 });

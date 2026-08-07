@@ -114,6 +114,12 @@
           "title": "Метаданные 1С",
           "icon": "resources/1c-icon.svg",
           "when": "1c-platform-tools.is1CProject == true"
+        },
+        {
+          "id": "1c-platform-tools-properties",
+          "title": "Свойства 1С",
+          "icon": "resources/property-palette.svg",
+          "when": "1c-platform-tools.is1CProject == true"
         }
       ],
       "panel": [
@@ -195,6 +201,14 @@
           "contextualTitle": "Помощь",
           "when": "1c-platform-tools.is1CProject == true",
           "visibility": "collapsed"
+        }
+      ],
+      "1c-platform-tools-properties": [
+        {
+          "id": "1c-platform-tools-properties",
+          "name": "Палитра",
+          "type": "webview",
+          "icon": "resources/property-palette.svg"
         }
       ],
       "1c-platform-tools-todo": [
@@ -532,6 +546,12 @@
         "category": "1C: Метаданные"
       },
       {
+        "command": "1c-platform-tools.metadata.revealInTree",
+        "title": "Показать в дереве метаданных",
+        "category": "1C: Метаданные",
+        "icon": "$(list-tree)"
+      },
+      {
         "command": "1c-platform-tools.metadata.filters.collapseAll",
         "title": "Свернуть дерево",
         "category": "1C: Метаданные",
@@ -633,6 +653,18 @@
         "command": "1c-platform-tools.metadata.openFormModule",
         "title": "Открыть модуль формы",
         "shortTitle": "Модуль формы",
+        "category": "1C: Метаданные"
+      },
+      {
+        "command": "1c-platform-tools.metadata.openForm",
+        "title": "Открыть форму",
+        "shortTitle": "Форма",
+        "category": "1C: Метаданные"
+      },
+      {
+        "command": "1c-platform-tools.properties.show",
+        "title": "Открыть панель свойств",
+        "shortTitle": "Свойства",
         "category": "1C: Метаданные"
       },
       {
@@ -1802,6 +1834,10 @@
           "when": "false"
         },
         {
+          "command": "1c-platform-tools.metadata.openForm",
+          "when": "false"
+        },
+        {
           "command": "1c-platform-tools.metadata.openSourceProperties",
           "when": "false"
         },
@@ -2743,6 +2779,11 @@
           "command": "1c-platform-tools.artifacts.decompileReport.fromEditor",
           "when": "1c-platform-tools.is1CProject == true && (resourceExtname == '.erf' || resourcePath =~ /.*\\.erf$/i)",
           "group": "1c_artifacts@1"
+        },
+        {
+          "command": "1c-platform-tools.metadata.revealInTree",
+          "when": "1c-platform-tools.is1CProject == true && resourceScheme == 'file' && (resourceExtname == '.xml' || resourceExtname == '.bsl' || resourceExtname == '.os')",
+          "group": "1c_metadata@1"
         }
       ],
       "1c-platform-tools.projects.viewAndSortMenu": [
@@ -2788,6 +2829,20 @@
           "command": "1c-platform-tools.components.update",
           "group": "1_md_overflow@2"
         }
+      ],
+      "editor/title/context": [
+        {
+          "command": "1c-platform-tools.metadata.revealInTree",
+          "when": "1c-platform-tools.is1CProject == true && resourceScheme == 'file' && (resourceExtname == '.xml' || resourceExtname == '.bsl' || resourceExtname == '.os')",
+          "group": "1c_metadata@1"
+        }
+      ],
+      "explorer/context": [
+        {
+          "command": "1c-platform-tools.metadata.revealInTree",
+          "when": "1c-platform-tools.is1CProject == true && resourceScheme == 'file' && (resourceExtname == '.xml' || resourceExtname == '.bsl' || resourceExtname == '.os')",
+          "group": "1c_metadata@1"
+        }
       ]
     },
     "submenus": [
@@ -2823,6 +2878,12 @@
         "key": "ctrl+s",
         "mac": "cmd+s",
         "when": "activeCustomEditorId == '1c-platform-tools.pipelineEditor' || activeCustomEditorId == '1c-platform-tools.hooksEditor' || activeWebviewPanelId == '1cMetadataObjectProperties' || activeWebviewPanelId == '1cMetadataSourceProperties' || activeWebviewPanelId == '1cExternalArtifactProperties'"
+      },
+      {
+        "command": "1c-platform-tools.metadata.revealInTree",
+        "key": "ctrl+alt+t",
+        "mac": "cmd+alt+t",
+        "when": "1c-platform-tools.is1CProject == true && editorTextFocus"
       }
     ],
     "walkthroughs": [
