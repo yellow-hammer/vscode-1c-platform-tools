@@ -25,7 +25,7 @@ suite('Принадлежность объекта расширения', () => 
 	test('значок встаёт в правый верхний угол холста', () => {
 		const marked = composeAdoptedSvg(icon('0 0 48 48'));
 
-		assert.ok(marked.includes('>З<'), 'значка нет в разметке');
+		assert.ok(marked.includes('>&#1040;<'), 'значка нет в разметке');
 		assert.ok(attr(marked, 'cx') > 24 && attr(marked, 'cx') < 48, 'значок ушёл из правой половины');
 		assert.ok(attr(marked, 'cy') > 0 && attr(marked, 'cy') < 24, 'значок ушёл из верхней половины');
 		assert.ok(marked.indexOf('<circle') > marked.indexOf('<path'), 'значок должен лежать поверх пиктограммы');
