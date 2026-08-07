@@ -49,6 +49,8 @@ export interface MetadataItemDto {
 	readonly objectType: string;
 	readonly name: string;
 	readonly relativePath: string;
+	/** Принадлежность объекта расширения: `Adopted` у заимствованного; у конфигурации пусто. */
+	readonly objectBelonging?: string;
 }
 
 /**

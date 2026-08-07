@@ -58,6 +58,7 @@ import {
 } from './metadataObjectPropertyProfiles';
 import { type MetadataObjectSectionSource } from './metadataObjectSectionProfiles';
 import { notifyQuiet } from '../../shared/notify';
+import { isAdopted } from './objectBelonging';
 
 const log = logger.scope('metadata');
 
@@ -1221,7 +1222,7 @@ function buildEditableModelBySpec(
 	}
 	if (props.kind === 'catalog' && isRecord(props.catalog)) {
 		const catalog = props.catalog as Record<string, unknown>;
-		if (catalog.objectBelonging === 'ADOPTED') {
+		if (isAdopted(catalog.objectBelonging)) {
 			// Заимствованные объекты расширений: свои правила состава XML, редактирование пока не включаем.
 			return undefined;
 		}
@@ -1244,7 +1245,7 @@ function buildEditableModelBySpec(
 	}
 	if (props.kind === 'document' && isRecord(props.document)) {
 		const document = props.document as Record<string, unknown>;
-		if (document.objectBelonging === 'ADOPTED') {
+		if (isAdopted(document.objectBelonging)) {
 			return undefined;
 		}
 		return {
@@ -1279,7 +1280,7 @@ function buildSimpleEditableTabs(
 	candidates: MetadataEditCandidates = EMPTY_CANDIDATES
 ): MetadataEditTabSpec[] | undefined {
 	const kindProps = simpleKindProps(props);
-	if (!kindProps || kindProps.objectBelonging === 'ADOPTED') {
+	if (!kindProps || isAdopted(kindProps.objectBelonging)) {
 		return undefined;
 	}
 	const input = {

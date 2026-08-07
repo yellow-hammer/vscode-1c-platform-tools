@@ -12,6 +12,7 @@ import { loadProjectMetadataTree, type ProjectMetadataTreeDto } from './metadata
 import { ensureMdSparrowRuntime } from './mdSparrowBootstrap';
 import { runMdSparrowParamsRead } from './mdSparrowParams';
 import { mdSparrowSchemaFlagFromConfigurationXml } from './mdSparrowSchemaVersion';
+import { ADOPTED_HINT, adoptedIcon, initAdoptedIcons, isAdopted } from './objectBelonging';
 import {
 	METADATA_OBJECT_NON_EXPANDABLE_TYPES,
 	METADATA_OBJECT_SECTION_SOURCES_BY_TYPE,
@@ -300,6 +301,8 @@ export class MetadataLeafTreeItem extends vscode.TreeItem {
 		public readonly objectType: string,
 		public readonly name: string,
 		public readonly relativePath: string | undefined,
+		/** Принадлежность объекта расширения; у основной конфигурации пусто. */
+		public readonly objectBelonging: string | undefined,
 		workspaceRoot: string,
 		extensionUri: vscode.Uri,
 		public readonly configurationXmlAbs: string | undefined,
@@ -350,7 +353,11 @@ export class MetadataLeafTreeItem extends vscode.TreeItem {
 				this.contextValue = [this.contextValue, ...tokens].join(' ');
 			}
 		}
-		this.iconPath = metadataObjectTypeIcon(normalizedObjectType, extensionUri, groupId, subgroupId);
+		this.iconPath = metadataObjectTypeIcon(normalizedObjectType, extensionUri, objectBelonging, groupId, subgroupId);
+		if (isAdopted(objectBelonging)) {
+			this.tooltip = this.tooltip ? `${ADOPTED_HINT}
+${this.tooltip}` : ADOPTED_HINT;
+		}
 		this.description = '';
 	}
 
@@ -433,6 +440,7 @@ export class MetadataSubsystemChildTreeItem extends MetadataLeafTreeItem {
 		objectType: string,
 		name: string,
 		relativePath: string | undefined,
+		objectBelonging: string | undefined,
 		workspaceRoot: string,
 		extensionUri: vscode.Uri,
 		configurationXmlAbs: string | undefined,
@@ -445,6 +453,7 @@ export class MetadataSubsystemChildTreeItem extends MetadataLeafTreeItem {
 			objectType,
 			name,
 			relativePath,
+			objectBelonging,
 			workspaceRoot,
 			extensionUri,
 			configurationXmlAbs,
@@ -984,11 +993,12 @@ function preferredObjectType(
 function metadataObjectTypeIcon(
 	objectType: string,
 	extensionUri: vscode.Uri,
+	objectBelonging: string | undefined,
 	groupId?: string,
 	subgroupId?: string
 ): vscode.ThemeIcon | { light: vscode.Uri; dark: vscode.Uri } {
-	const fileName = metadataObjectTypeIconFileName(objectType, groupId, subgroupId);
-	return metadataSvgIcon(extensionUri, fileName);
+	const icon = metadataSvgIcon(extensionUri, metadataObjectTypeIconFileName(objectType, groupId, subgroupId));
+	return isAdopted(objectBelonging) ? adoptedIcon(icon) : icon;
 }
 
 function metadataGroupIcon(
@@ -1137,7 +1147,8 @@ export class MetadataTreeDataProvider implements vscode.TreeDataProvider<vscode.
 	private readonly _nestedSubsystemChildrenByLeaf = new Map<string, MetadataSubsystemChildTreeItem[]>();
 	private readonly _subsystemsBySource = new Map<string, Map<string, MetadataLeafTreeItem>>();
 
-	constructor(private readonly _context: vscode.ExtensionContext) {}
+	constructor(private readonly _context: vscode.ExtensionContext) {
+		initAdoptedIcons(path.join(_context.globalStorageUri.fsPath, 'metadata-tree-icons'));}
 
 	/** Раскрытые источники из состояния рабочей области; пусто - состояние ещё не сохраняли. */
 	private expandedSources(): Set<string> | undefined {
@@ -1318,6 +1329,7 @@ export class MetadataTreeDataProvider implements vscode.TreeDataProvider<vscode.
 								it.objectType,
 								it.name,
 								rel,
+								it.objectBelonging,
 								workspaceRoot,
 								this._context.extensionUri,
 								undefined,
@@ -1388,6 +1400,7 @@ export class MetadataTreeDataProvider implements vscode.TreeDataProvider<vscode.
 								it.objectType,
 								it.name,
 								rel,
+								it.objectBelonging,
 								workspaceRoot,
 								this._context.extensionUri,
 								cfgAbs,
@@ -1412,6 +1425,7 @@ export class MetadataTreeDataProvider implements vscode.TreeDataProvider<vscode.
 								it.objectType,
 								it.name,
 								rel,
+								it.objectBelonging,
 								workspaceRoot,
 								this._context.extensionUri,
 								cfgAbs,
@@ -1432,6 +1446,7 @@ export class MetadataTreeDataProvider implements vscode.TreeDataProvider<vscode.
 								it.objectType,
 								it.name,
 								rel,
+								it.objectBelonging,
 								workspaceRoot,
 								this._context.extensionUri,
 								cfgAbs,
@@ -1941,6 +1956,7 @@ export class MetadataTreeDataProvider implements vscode.TreeDataProvider<vscode.
 						childTemplate.objectType,
 						childTemplate.name,
 						childTemplate.relativePath,
+						childTemplate.objectBelonging,
 						this._workspaceRoot ?? '',
 						this._context.extensionUri,
 						childTemplate.configurationXmlAbs,
@@ -1990,6 +2006,7 @@ export class MetadataTreeDataProvider implements vscode.TreeDataProvider<vscode.
 			'Subsystem',
 			nestedName,
 			rel,
+			parentLeaf.objectBelonging,
 			this._workspaceRoot,
 			this._context.extensionUri,
 			parentLeaf.configurationXmlAbs,

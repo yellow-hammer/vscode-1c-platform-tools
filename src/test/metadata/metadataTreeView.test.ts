@@ -56,6 +56,7 @@ suite('metadataTreeView subsystem filter', () => {
 			'Catalog',
 			'Номенклатура',
 			undefined,
+			undefined,
 			'C:/ws',
 			context.extensionUri,
 			'C:/ws/src/cf/Configuration.xml',
@@ -68,6 +69,7 @@ suite('metadataTreeView subsystem filter', () => {
 			'Catalog',
 			'Контрагенты',
 			undefined,
+			undefined,
 			'C:/ws',
 			context.extensionUri,
 			'C:/ws/src/cf/Configuration.xml',
@@ -79,6 +81,7 @@ suite('metadataTreeView subsystem filter', () => {
 			undefined,
 			'Subsystem',
 			'Продажи',
+			undefined,
 			undefined,
 			'C:/ws',
 			context.extensionUri,
@@ -162,6 +165,7 @@ suite('metadataTreeView поиск по имени', () => {
 				'CommonModule',
 				name,
 				undefined,
+				undefined,
 				'C:/ws',
 				context.extensionUri,
 				'C:/ws/src/cf/Configuration.xml',
@@ -244,6 +248,7 @@ suite('metadataTreeView nested nodes', () => {
 			'Catalog',
 			'Номенклатура',
 			'src/cf/Catalogs/Номенклатура.xml',
+			undefined,
 			'C:/ws',
 			context.extensionUri,
 			'C:/ws/src/cf/Configuration.xml',
@@ -261,6 +266,7 @@ suite('metadataTreeView nested nodes', () => {
 			'Catalog',
 			'Номенклатура',
 			'src/cf/Catalogs/Номенклатура.xml',
+			undefined,
 			'C:/ws',
 			context.extensionUri,
 			'C:/ws/src/cf/Configuration.xml',
@@ -309,6 +315,7 @@ suite('metadataTreeView nested nodes', () => {
 			'Catalog',
 			'Валюты',
 			'src/cf/Catalogs/Валюты.xml',
+			undefined,
 			'C:/ws',
 			context.extensionUri,
 			'C:/ws/src/cf/Configuration.xml',
@@ -350,6 +357,7 @@ suite('metadataTreeView object modules', () => {
 			objectType,
 			name,
 			relativePath,
+			undefined,
 			'C:/ws',
 			context.extensionUri,
 			'C:/ws/src/cf/Configuration.xml',
@@ -482,7 +490,7 @@ suite('Скрытые отбором узлы', () => {
 		const provider = new MetadataTreeDataProvider(context);
 		const leaf = new MetadataLeafTreeItem(
 			'cf', 'catalogs', undefined, 'Catalog', 'Валюты', 'src/cf/Catalogs/Валюты.xml',
-			'C:/ws', context.extensionUri, undefined, 'C:/ws/src/cf'
+			undefined, 'C:/ws', context.extensionUri, undefined, 'C:/ws/src/cf'
 		);
 		return { provider, leaf };
 	}
