@@ -475,3 +475,35 @@ suite('Узел объекта по пути файла', () => {
 		assert.strictEqual(objectChildFromFilePath(commonModule, moduleFile), undefined);
 	});
 });
+
+suite('Скрытые отбором узлы', () => {
+	function providerWithLeaf(): { provider: MetadataTreeDataProvider; leaf: MetadataLeafTreeItem } {
+		const context = createMockExtensionContext();
+		const provider = new MetadataTreeDataProvider(context);
+		const leaf = new MetadataLeafTreeItem(
+			'cf', 'catalogs', undefined, 'Catalog', 'Валюты', 'src/cf/Catalogs/Валюты.xml',
+			'C:/ws', context.extensionUri, undefined, 'C:/ws/src/cf'
+		);
+		return { provider, leaf };
+	}
+
+	test('без отбора ничего не скрыто', () => {
+		const { provider, leaf } = providerWithLeaf();
+
+		assert.strictEqual(provider.isHiddenByFilter(leaf), false);
+	});
+
+	test('поиск не по этому объекту прячет его', () => {
+		const { provider, leaf } = providerWithLeaf();
+		provider.setTextFilter('Склады');
+
+		assert.strictEqual(provider.isHiddenByFilter(leaf), true);
+	});
+
+	test('поиск по имени объекта его не прячет', () => {
+		const { provider, leaf } = providerWithLeaf();
+		provider.setTextFilter('Валюты');
+
+		assert.strictEqual(provider.isHiddenByFilter(leaf), false);
+	});
+});
