@@ -52,6 +52,8 @@ export interface PropertyPaletteState {
 	/** Вид выделенного: тип элемента формы, вид объекта метаданных. */
 	readonly subtitle?: string;
 	readonly groups: readonly PropertyGroup[];
+	/** Что показать вместо списка, когда свойств нет: иначе панель скажет «ничего не выделено». */
+	readonly emptyText?: string;
 }
 
 export class PropertyPaletteViewProvider implements vscode.WebviewViewProvider {
@@ -60,11 +62,25 @@ export class PropertyPaletteViewProvider implements vscode.WebviewViewProvider {
 	/** Кто последним показал свойства: чужой источник не гасит чужое выделение. */
 	private _ownerId: string | undefined;
 	private _onApply: PropertyApplyHandler | undefined;
+	private readonly _onDidChangeVisibility = new vscode.EventEmitter<void>();
+
+	/** Панель открыта: пока она закрыта, источникам незачем читать свойства. */
+	readonly onDidChangeVisibility = this._onDidChangeVisibility.event;
 
 	constructor(private readonly _extensionUri: vscode.Uri) {}
 
+	get visible(): boolean {
+		return this._view?.visible === true;
+	}
+
+	/** Кто сейчас показан: источник не должен перебивать чужое выделение без действия пользователя. */
+	get owner(): string | undefined {
+		return this._ownerId;
+	}
+
 	resolveWebviewView(view: vscode.WebviewView): void {
 		this._view = view;
+		view.onDidChangeVisibility(() => this._onDidChangeVisibility.fire());
 		view.webview.options = {
 			enableScripts: true,
 			localResourceRoots: [vscode.Uri.joinPath(this._extensionUri, 'resources')],
@@ -82,6 +98,7 @@ export class PropertyPaletteViewProvider implements vscode.WebviewViewProvider {
 			this._view = undefined;
 		});
 		this.push();
+		this._onDidChangeVisibility.fire();
 	}
 
 	/**
@@ -485,12 +502,16 @@ export class PropertyPaletteViewProvider implements vscode.WebviewViewProvider {
 		function render() {
 			list.textContent = '';
 			header.textContent = '';
-			if (!current || !current.groups || current.groups.length === 0) {
+			if (!current) {
 				list.append(element('div', 'empty', 'Ничего не выделено'));
 				return;
 			}
 			header.append(element('div', 'title', current.title));
 			if (current.subtitle) { header.append(element('div', 'subtitle', current.subtitle)); }
+			if (!current.groups || current.groups.length === 0) {
+				list.append(element('div', 'empty', current.emptyText || 'Свойств нет'));
+				return;
+			}
 
 			const query = search.value.trim().toLowerCase();
 			if (alphabetical) {

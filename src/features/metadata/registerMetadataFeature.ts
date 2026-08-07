@@ -26,6 +26,7 @@ import { openMetadataObjectPropertiesEditor } from './metadataObjectPropertiesPa
 import { formModulePath, objectFormXmlPath, openFormViewer } from './formViewerPanel';
 import { ensureBslModuleFile } from './bslModuleFile';
 import type { PropertyPaletteViewProvider } from '../properties/propertyPaletteView';
+import { registerMetadataPaletteSource } from '../properties/metadataPaletteSource';
 import {
 	openMetadataSourcePropertiesPanel,
 	type SourcePropertiesDto,
@@ -80,6 +81,15 @@ export function registerMetadataFeature(
 	} = params;
 
 	const MD_SPARROW_CLI_ERR_PREVIEW = 500;
+
+	// Палитра показывает свойства выделенного в дереве: объект, конфигурацию, внешний отчёт.
+	const paletteSource = registerMetadataPaletteSource({
+		context,
+		metadataTreeProvider,
+		metadataTreeView,
+		propertyPaletteProvider,
+	});
+
 
 	const runMdSparrowMutation = createMdSparrowMutationRunner();
 
@@ -1942,5 +1952,5 @@ export function registerMetadataFeature(
 		}),
 	];
 
-	return metadataDisposables;
+	return [...metadataDisposables, ...paletteSource];
 }
