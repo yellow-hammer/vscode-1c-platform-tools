@@ -114,6 +114,12 @@
           "title": "Метаданные 1С",
           "icon": "resources/1c-icon.svg",
           "when": "1c-platform-tools.is1CProject == true"
+        },
+        {
+          "id": "1c-platform-tools-properties",
+          "title": "Свойства 1С",
+          "icon": "resources/property-palette.svg",
+          "when": "1c-platform-tools.is1CProject == true"
         }
       ],
       "panel": [
@@ -195,6 +201,14 @@
           "contextualTitle": "Помощь",
           "when": "1c-platform-tools.is1CProject == true",
           "visibility": "collapsed"
+        }
+      ],
+      "1c-platform-tools-properties": [
+        {
+          "id": "1c-platform-tools-properties",
+          "name": "Палитра",
+          "type": "webview",
+          "icon": "resources/property-palette.svg"
         }
       ],
       "1c-platform-tools-todo": [
@@ -633,6 +647,18 @@
         "command": "1c-platform-tools.metadata.openFormModule",
         "title": "Открыть модуль формы",
         "shortTitle": "Модуль формы",
+        "category": "1C: Метаданные"
+      },
+      {
+        "command": "1c-platform-tools.metadata.openForm",
+        "title": "Открыть форму",
+        "shortTitle": "Форма",
+        "category": "1C: Метаданные"
+      },
+      {
+        "command": "1c-platform-tools.properties.show",
+        "title": "Открыть панель свойств",
+        "shortTitle": "Свойства",
         "category": "1C: Метаданные"
       },
       {
@@ -1799,6 +1825,10 @@
         },
         {
           "command": "1c-platform-tools.metadata.openFormModule",
+          "when": "false"
+        },
+        {
+          "command": "1c-platform-tools.metadata.openForm",
           "when": "false"
         },
         {

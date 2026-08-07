@@ -23,6 +23,9 @@ import type { MetadataFilterViewProvider } from './metadataFilterView';
 import { MetadataSearchViewProvider } from './metadataSearchView';
 import { computeSubsystemFilter, findSubsystemByName, loadSubsystemTrees } from './metadataSubsystemFilter';
 import { openMetadataObjectPropertiesEditor } from './metadataObjectPropertiesPanel';
+import { formModulePath, objectFormXmlPath, openFormViewer } from './formViewerPanel';
+import { ensureBslModuleFile } from './bslModuleFile';
+import type { PropertyPaletteViewProvider } from '../properties/propertyPaletteView';
 import {
 	openMetadataSourcePropertiesPanel,
 	type SourcePropertiesDto,
@@ -58,6 +61,7 @@ export interface RegisterMetadataFeatureParams {
 	metadataTreeView: vscode.TreeView<vscode.TreeItem>;
 	metadataSearchProvider: MetadataSearchViewProvider;
 	metadataFilterProvider: MetadataFilterViewProvider;
+	propertyPaletteProvider: PropertyPaletteViewProvider;
 }
 
 /**
@@ -66,9 +70,18 @@ export interface RegisterMetadataFeatureParams {
 export function registerMetadataFeature(
 	params: RegisterMetadataFeatureParams
 ): vscode.Disposable[] {
-	const { context, metadataTreeProvider, metadataTreeView, metadataSearchProvider, metadataFilterProvider } = params;
+	const {
+		context,
+		metadataTreeProvider,
+		metadataTreeView,
+		metadataSearchProvider,
+		metadataFilterProvider,
+		propertyPaletteProvider,
+	} = params;
 
 	const MD_SPARROW_CLI_ERR_PREVIEW = 500;
+
+
 
 	const runMdSparrowMutation = createMdSparrowMutationRunner();
 
@@ -165,23 +178,6 @@ export function registerMetadataFeature(
 	async function openTextFile(pathToOpen: string): Promise<void> {
 		const doc = await vscode.workspace.openTextDocument(vscode.Uri.file(pathToOpen));
 		await vscode.window.showTextDocument(doc, { preview: false });
-	}
-
-	/**
-	 * Гарантирует существование файла модуля .bsl. Если файла нет — создаёт пустой
-	 * (UTF-8 BOM, как у конфигуратора) вместе с каталогом `Ext`. Возвращает true,
-	 * если файл был создан.
-	 */
-	async function ensureBslModuleFile(modulePath: string): Promise<boolean> {
-		try {
-			await fs.promises.access(modulePath);
-			return false;
-		} catch {
-			/* файла нет — создаём ниже */
-		}
-		await fs.promises.mkdir(path.dirname(modulePath), { recursive: true });
-		await fs.promises.writeFile(modulePath, Buffer.from([0xef, 0xbb, 0xbf]));
-		return true;
 	}
 
 	/**
@@ -1473,6 +1469,30 @@ export function registerMetadataFeature(
 		vscode.commands.registerCommand(
 			'1c-platform-tools.metadata.openFormModule',
 			(item?: MetadataLeafTreeItem) => openObjectModuleOfKind(item, 'form')
+		),
+		vscode.commands.registerCommand(
+			'1c-platform-tools.metadata.openForm',
+			async (item?: MetadataObjectNodeTreeItem) => {
+				const node = item ?? metadataTreeView.selection[0];
+				if (!(node instanceof MetadataObjectNodeTreeItem) || node.nodeKind !== 'form') {
+					void vscode.window.showInformationMessage('Выберите форму в дереве метаданных.');
+					return;
+				}
+				const owner = node.owner;
+				if (!owner.resourceUri) {
+					void vscode.window.showInformationMessage('У формы нет объекта-владельца.');
+					return;
+				}
+				const formXml = objectFormXmlPath(owner.resourceUri.fsPath, owner.name, node.name);
+				await openFormViewer(context, {
+					formXmlFsPath: formXml,
+					moduleFsPath: formModulePath(formXml),
+					title: `${owner.name}.${node.name}`,
+					cwd: owner.metadataRootAbs ?? path.dirname(owner.resourceUri.fsPath),
+					cfgPath: owner.configurationXmlAbs,
+					propertyPalette: propertyPaletteProvider,
+				});
+			}
 		),
 		vscode.commands.registerCommand(
 			'1c-platform-tools.metadata.openSourceProperties',

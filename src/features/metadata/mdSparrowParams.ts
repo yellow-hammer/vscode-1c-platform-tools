@@ -68,6 +68,7 @@ export type MdSparrowOp =
 	| 'cf-md-command-reorder'
 	| 'cf-md-object-set'
 	| 'cf-configuration-properties-set'
+	| 'cf-form-item-properties-set'
 	| 'init-empty-cf'
 	| 'init-empty-cfe'
 	| 'add-md-object'
@@ -75,6 +76,8 @@ export type MdSparrowOp =
 	| 'cf-md-object-get'
 	| 'cf-md-object-enums'
 	| 'cf-md-object-structure-get'
+	| 'cf-form-content-get'
+	| 'cf-form-item-properties'
 	| 'external-artifact-properties-get'
 	| 'cf-configuration-properties-get'
 	| 'cf-list-child-objects'
@@ -89,6 +92,8 @@ export interface MdSparrowParams {
 	op: MdSparrowOp;
 	configurationXml?: string;
 	objectXml?: string;
+	/** Файл содержимого формы: `Forms/<Имя>/Ext/Form.xml`. */
+	formXml?: string;
 	artifactsRoot?: string;
 	targetCfRoot?: string;
 	/** Каталог проверяемой выгрузки: src/cf или каталог расширения. */

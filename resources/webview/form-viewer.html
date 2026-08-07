@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="ru">
+<head>
+	<meta charset="UTF-8">
+	<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src {{CSP_SOURCE}}; script-src 'nonce-{{NONCE}}';">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>Форма</title>
+	<link rel="stylesheet" href="{{CSS_URI}}">
+</head>
+<body>
+	<div class="form-page">
+		<header class="form-header">
+			<h1 class="form-title">{{FORM_TITLE}}</h1>
+			<div class="form-tools">
+				<label class="form-toggle"><input type="checkbox" id="showService"> Служебные элементы</label>
+			</div>
+		</header>
+
+		<div class="form-layout">
+			<section class="pane pane-tree">
+				<div class="pane-body" id="elementsTree"></div>
+				<div class="pane-tabs pane-tabs-bottom">
+					<button class="pane-tab is-active" type="button">Элементы</button>
+				</div>
+			</section>
+
+			<section class="pane pane-preview">
+				<div class="pane-title">Форма</div>
+				<div class="pane-body" id="preview"></div>
+			</section>
+
+			<section class="pane pane-data">
+				<div class="pane-body" id="dataBody"></div>
+				<div class="pane-tabs pane-tabs-bottom" id="dataTabs">
+					<button class="pane-tab is-active" type="button" data-tab="attributes">Реквизиты</button>
+					<button class="pane-tab" type="button" data-tab="commands">Команды</button>
+					<button class="pane-tab" type="button" data-tab="parameters">Параметры</button>
+					<button class="pane-tab" type="button" data-tab="events">События</button>
+				</div>
+			</section>
+
+		</div>
+
+		<footer class="form-tabs">
+			<button class="form-tab is-active" type="button" id="tabForm">Форма</button>
+			<button class="form-tab" type="button" id="tabModule">Модуль</button>
+		</footer>
+	</div>
+
+	<script nonce="{{NONCE}}">
+		window.__FORM_DATA__ = {{INITIAL_JSON}};
+	</script>
+	<script nonce="{{NONCE}}" src="{{JS_URI}}"></script>
+</body>
+</html>
