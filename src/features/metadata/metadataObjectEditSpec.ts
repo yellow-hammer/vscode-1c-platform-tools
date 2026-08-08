@@ -4351,9 +4351,14 @@ export function applyEnumDictionary(
 		groups: tab.groups.map((group) => ({
 			...group,
 			fields: group.fields.map((field) => {
-				const known = dictionary[field.path];
-				if (field.control !== 'select' || !known) {
+				if (field.control !== 'select') {
 					return field;
+				}
+				const known = dictionary[field.path];
+				if (!known) {
+					// Варианты приходят от md-sparrow: пока их нет, показываем значение полем ввода,
+					// иначе список был бы пустым и свойство не посмотреть.
+					return (field.options ?? []).length > 0 ? field : { ...field, control: 'text' as const };
 				}
 				const fromSpec = (field.options ?? []).filter(
 					(option) => option.value === '' || known.includes(option.value)
