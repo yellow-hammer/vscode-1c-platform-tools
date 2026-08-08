@@ -67,6 +67,11 @@ export const SOURCE_PROPERTIES_TABS: readonly MetadataEditTabSpec[] = [
 					},
 					{ path: 'interfaceCompatibilityMode', label: 'Режим совместимости интерфейса', control: 'select' },
 					{ path: 'compatibilityMode', label: 'Режим совместимости', control: 'select' },
+					{
+						path: 'configurationExtensionCompatibilityMode',
+						label: 'Режим совместимости расширения',
+						control: 'select',
+					},
 				],
 			},
 			{
