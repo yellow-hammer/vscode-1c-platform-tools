@@ -74,6 +74,7 @@ export type MdSparrowOp =
 	| 'add-md-object'
 	// чтение (read-json)
 	| 'cf-md-object-get'
+	| 'cf-enum-labels'
 	| 'cf-md-object-enums'
 	| 'cf-md-object-structure-get'
 	| 'cf-form-content-get'

@@ -4327,9 +4327,24 @@ export type MetadataEnumDictionary = Readonly<Record<string, readonly string[]>>
  * константой - лучше непривычная подпись, чем недоступное свойство.
  * Свойства вне словаря (ссылки на формы, хранилища и прочее) остаются как в спеке.
  */
+/**
+ * Подписи значений перечислимых свойств от md-sparrow: общие и у свойств, где значение называется
+ * иначе. Своего словаря расширение не держит: он бы разошёлся с форматом.
+ */
+export interface EnumValueLabels {
+	readonly values?: Readonly<Record<string, string>>;
+	readonly byProperty?: Readonly<Record<string, Readonly<Record<string, string>>>>;
+}
+
+/** Подпись значения; без подписи остаётся само значение. */
+export function labelOf(labels: EnumValueLabels, property: string, value: string): string {
+	return labels.byProperty?.[property]?.[value] ?? labels.values?.[value] ?? value;
+}
+
 export function applyEnumDictionary(
 	tabs: readonly MetadataEditTabSpec[],
-	dictionary: MetadataEnumDictionary
+	dictionary: MetadataEnumDictionary,
+	labels: EnumValueLabels = {}
 ): MetadataEditTabSpec[] {
 	return tabs.map((tab) => ({
 		...tab,
@@ -4344,7 +4359,9 @@ export function applyEnumDictionary(
 					(option) => option.value === '' || known.includes(option.value)
 				);
 				const labelled = new Set(fromSpec.map((option) => option.value));
-				const rest = known.filter((value) => !labelled.has(value)).map((value) => ({ value, label: value }));
+				const rest = known
+					.filter((value) => !labelled.has(value))
+					.map((value) => ({ value, label: labelOf(labels, field.path, value) }));
 				return { ...field, options: [...fromSpec, ...rest] };
 			}),
 		})),
