@@ -19,6 +19,8 @@ import {
 import {
 	applyEditedScalars,
 	applyEnumDictionary,
+	labelOf,
+	type EnumValueLabels,
 	ensureCurrentSelectValues,
 	findUnknownEnumValues,
 	normalizeTabLayout,
@@ -294,79 +296,6 @@ const PROPERTY_LABEL_BY_KEY: Record<string, string> = {
 
 const XML_FRAGMENT_KEYS = new Set<string>(['standardAttributesXml', 'characteristicsXml']);
 
-const GENERIC_VALUE_LABEL_BY_VALUE: Record<string, string> = {
-	Use: 'Использовать',
-	DontUse: 'Не использовать',
-	Auto: 'Авто',
-	Managed: 'Управляемый',
-	Directly: 'Непосредственно',
-	Begin: 'С начала',
-	BothWays: 'Оба способа',
-	String: 'Строка',
-	Number: 'Число',
-	Variable: 'Переменная',
-	Fixed: 'Фиксированная',
-	Items: 'Элементы',
-	Folders: 'Группы',
-	FoldersAndItems: 'Группы и элементы',
-	ToItems: 'К элементам',
-	ToFolders: 'К группам',
-	ToFoldersAndItems: 'К группам и элементам',
-	AsDescription: 'Как наименование',
-	AsCode: 'Как код',
-	WholeCatalog: 'Во всем справочнике',
-	Adopted: 'Заимствованный',
-	HierarchyFoldersAndItems: 'Иерархия групп и элементов',
-};
-
-const VALUE_LABEL_BY_KEY: Record<string, Record<string, string>> = {
-	objectBelonging: {
-		Adopted: 'Заимствованный',
-	},
-	hierarchyType: {
-		HierarchyFoldersAndItems: 'Иерархия групп и элементов',
-		HierarchyItems: 'Иерархия элементов',
-		HierarchyFolders: 'Иерархия групп',
-	},
-	subordinationUse: {
-		ToItems: 'К элементам',
-		ToFolders: 'К группам',
-		ToFoldersAndItems: 'К группам и элементам',
-	},
-	choiceMode: {
-		BothWays: 'Оба способа',
-	},
-	choiceFoldersAndItems: {
-		Items: 'Элементы',
-		Folders: 'Группы',
-		FoldersAndItems: 'Группы и элементы',
-	},
-	searchStringModeOnInputByString: {
-		Begin: 'С начала',
-	},
-	choiceDataGetModeOnInputByString: {
-		Directly: 'Непосредственно',
-	},
-	dataLockControlMode: {
-		Managed: 'Управляемый',
-	},
-	defaultPresentation: {
-		AsDescription: 'Как наименование',
-		AsCode: 'Как код',
-	},
-	codeType: {
-		String: 'Строка',
-		Number: 'Число',
-	},
-	codeAllowedLength: {
-		Variable: 'Переменная',
-		Fixed: 'Фиксированная',
-	},
-	codeSeries: {
-		WholeCatalog: 'Во всем справочнике',
-	},
-};
-
 export const MD_REF_KIND_LABEL_BY_PREFIX: Record<string, string> = {
 	Catalog: 'Справочник',
 	CatalogRef: 'Справочник',
@@ -486,7 +415,7 @@ function humanizeMetadataReference(value: string): string | null {
 	return `${label}: ${name}`;
 }
 
-function humanizeStandaloneString(value: string): string {
+function humanizeStandaloneString(value: string, key = ''): string {
 	const trimmed = value.trim();
 	if (!trimmed) {
 		return '';
@@ -495,7 +424,7 @@ function humanizeStandaloneString(value: string): string {
 	if (metadataRef) {
 		return metadataRef;
 	}
-	return GENERIC_VALUE_LABEL_BY_VALUE[trimmed] ?? trimmed;
+	return labelOf(valueLabels, key, trimmed);
 }
 
 function metadataRefType(value: string): string {
@@ -527,11 +456,7 @@ function humanizeValueByKey(key: string, value: unknown): unknown {
 	if (XML_FRAGMENT_KEYS.has(key)) {
 		return trimmed.length > 0 ? 'XML-фрагмент (см. технические данные)' : '';
 	}
-	const keySpecific = VALUE_LABEL_BY_KEY[key]?.[trimmed];
-	if (keySpecific) {
-		return keySpecific;
-	}
-	return humanizeStandaloneString(trimmed);
+	return humanizeStandaloneString(trimmed, key);
 }
 
 function panelTitleForKind(kind: string, internalName: string): string {
@@ -829,6 +754,25 @@ async function runMdSparrowJson<T>(
 
 /** Словари формата в рамках сеанса: набор констант меняется только вместе с версией формата. */
 const enumDictionaryCache = new Map<string, MetadataEnumDictionary>();
+
+/**
+ * Подписи значений от md-sparrow: набор значений задаёт формат выгрузки, и разбираться в нём должна
+ * библиотека формата. Пока библиотека не ответила, значение показывается как есть.
+ */
+let valueLabels: EnumValueLabels = {};
+
+/** Читает подписи значений; они зависят от библиотеки, а не от версии формата. */
+async function loadValueLabels(
+	runtime: Awaited<ReturnType<typeof ensureMdSparrowRuntime>>,
+	cwd: string
+): Promise<void> {
+	const res = await runMdSparrowJson<EnumValueLabels>(runtime, { op: 'cf-enum-labels' }, cwd);
+	if (res.ok) {
+		valueLabels = res.value;
+	} else {
+		log.warn(`подписи значений: ${res.error}`);
+	}
+}
 
 /**
  * Допустимые значения перечислимых свойств для версии формата.
@@ -1610,6 +1554,7 @@ export async function openMetadataObjectPropertiesEditor(
 			? loadEditCandidates(runtime, params, schema, editableType)
 			: Promise.resolve(EMPTY_CANDIDATES),
 		loadEnumDictionary(runtime, params.cwd, schema),
+		loadValueLabels(runtime, params.cwd),
 	]);
 
 	const { propsDto, structureDto, warnings, fatalReason } = collectMetadataReadState(propsResult, structureResult);
