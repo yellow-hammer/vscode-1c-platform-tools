@@ -5,24 +5,13 @@
  * панель-вкладка нарисована разметкой. Палитре нужна та же форма описания, поэтому набор полей
  * вынесен сюда - подписи те же, что в панели.
  *
+ * Варианты выпадающих списков спека не перечисляет: их вместе с подписями отдаёт md-sparrow, а свой
+ * список разошёлся бы с форматом.
+ *
  * @module sourcePropertiesSpec
  */
 
-import type { MetadataEditOption, MetadataEditTabSpec } from '../metadata/metadataObjectEditSpec';
-
-function opts(...values: readonly string[]): MetadataEditOption[] {
-	return values.map((value) => ({ value, label: value }));
-}
-
-/** Режимы совместимости платформы; порядок как в конфигураторе - от новых к старым. */
-const COMPATIBILITY_MODES = [
-	'DONT_USE', 'VERSION_8_3_27', 'VERSION_8_3_26', 'VERSION_8_3_25', 'VERSION_8_3_24',
-	'VERSION_8_3_23', 'VERSION_8_3_22', 'VERSION_8_3_21', 'VERSION_8_3_20', 'VERSION_8_3_19',
-	'VERSION_8_3_18', 'VERSION_8_3_17', 'VERSION_8_3_16', 'VERSION_8_3_15', 'VERSION_8_3_14',
-	'VERSION_8_3_13', 'VERSION_8_3_12', 'VERSION_8_3_11', 'VERSION_8_3_10', 'VERSION_8_3_9',
-	'VERSION_8_3_8', 'VERSION_8_3_7', 'VERSION_8_3_6', 'VERSION_8_3_5', 'VERSION_8_3_4',
-	'VERSION_8_3_3', 'VERSION_8_3_2', 'VERSION_8_3_1', 'VERSION_8_2_16', 'VERSION_8_2_13', 'VERSION_8_1',
-];
+import type { MetadataEditTabSpec } from '../metadata/metadataObjectEditSpec';
 
 /**
  * Свойства конфигурации и расширения.
@@ -41,8 +30,8 @@ export const SOURCE_PROPERTIES_TABS: readonly MetadataEditTabSpec[] = [
 					{ path: 'name', label: 'Имя', control: 'text' },
 					{ path: 'synonymRu', label: 'Синоним', control: 'text' },
 					{ path: 'comment', label: 'Комментарий', control: 'text' },
-					{ path: 'defaultRunMode', label: 'Основной режим запуска', control: 'select', options: opts('MANAGED_APPLICATION', 'ORDINARY_APPLICATION') },
-					{ path: 'scriptVariant', label: 'Вариант встроенного языка', control: 'select', options: opts('RUSSIAN', 'ENGLISH') },
+					{ path: 'defaultRunMode', label: 'Основной режим запуска', control: 'select' },
+					{ path: 'scriptVariant', label: 'Вариант встроенного языка', control: 'select' },
 					{ path: 'usePurposes', label: 'Назначение использования', control: 'staticList' },
 					{ path: 'defaultRoles', label: 'Основные роли', control: 'staticList' },
 				],
@@ -68,17 +57,21 @@ export const SOURCE_PROPERTIES_TABS: readonly MetadataEditTabSpec[] = [
 			{
 				title: 'Совместимость',
 				fields: [
-					{ path: 'dataLockControlMode', label: 'Режим управления блокировкой данных', control: 'select', options: opts('AUTOMATIC', 'MANAGED', 'AUTOMATIC_AND_MANAGED') },
-					{ path: 'objectAutonumerationMode', label: 'Режим автонумерации объектов', control: 'select', options: opts('AUTO_FREE', 'NOT_AUTO_FREE') },
-					{ path: 'modalityUseMode', label: 'Режим использования модальности', control: 'select', options: opts('USE', 'USE_WITH_WARNINGS', 'DONT_USE') },
+					{ path: 'dataLockControlMode', label: 'Режим управления блокировкой данных', control: 'select' },
+					{ path: 'objectAutonumerationMode', label: 'Режим автонумерации объектов', control: 'select' },
+					{ path: 'modalityUseMode', label: 'Режим использования модальности', control: 'select' },
 					{
 						path: 'synchronousPlatformExtensionAndAddInCallUseMode',
 						label: 'Режим использования синхронных вызовов расширений',
 						control: 'select',
-						options: opts('USE', 'USE_WITH_WARNINGS', 'DONT_USE'),
 					},
-					{ path: 'interfaceCompatibilityMode', label: 'Режим совместимости интерфейса', control: 'select', options: opts('TAXI', 'TAXI_ENABLE_VERSION_8_2', 'VERSION_8_2_ENABLE_TAXI', 'VERSION_8_2') },
-					{ path: 'compatibilityMode', label: 'Режим совместимости', control: 'select', options: opts(...COMPATIBILITY_MODES) },
+					{ path: 'interfaceCompatibilityMode', label: 'Режим совместимости интерфейса', control: 'select' },
+					{ path: 'compatibilityMode', label: 'Режим совместимости', control: 'select' },
+					{
+						path: 'configurationExtensionCompatibilityMode',
+						label: 'Режим совместимости расширения',
+						control: 'select',
+					},
 				],
 			},
 			{

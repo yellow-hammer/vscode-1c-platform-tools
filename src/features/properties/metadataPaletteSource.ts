@@ -25,6 +25,7 @@ import { mdSparrowSchemaFlagFromConfigurationXml } from '../metadata/mdSparrowSc
 import { logger } from '../../shared/logger';
 import { applyPaletteEdits, paletteGroupsFromSpec } from './propertyPaletteSpec';
 import { EXTERNAL_ARTIFACT_TABS, SOURCE_PROPERTIES_TABS } from './sourcePropertiesSpec';
+import { applyEnumDictionary } from '../metadata/metadataObjectEditSpec';
 import {
 	applyChildNodeEdits,
 	childNodeDtoList,
@@ -236,7 +237,18 @@ async function readProperties(context: vscode.ExtensionContext, target: PaletteT
 	const runtime = await ensureMdSparrowRuntime(context);
 	const dto = await readJson(runtime, target.readOp, target, schema);
 	if (target.readOp === 'cf-configuration-properties-get') {
-		return { dto, tabs: SOURCE_PROPERTIES_TABS, schema };
+		// Ключи словаря перечислений идут с видом объекта, а пути полей конфигурации - без него.
+		const [enums, labels] = await Promise.all([
+			readJson(runtime, 'cf-md-object-enums', target, schema).catch(() => ({})),
+			readJson(runtime, 'cf-enum-labels', target, schema).catch(() => ({})),
+		]);
+		const forConfiguration: Record<string, string[]> = {};
+		for (const [key, values] of Object.entries(enums)) {
+			if (key.startsWith('configuration.') && Array.isArray(values)) {
+				forConfiguration[key.slice('configuration.'.length)] = values as string[];
+			}
+		}
+		return { dto, tabs: applyEnumDictionary(SOURCE_PROPERTIES_TABS, forConfiguration, labels), schema };
 	}
 	if (target.readOp === 'external-artifact-properties-get') {
 		return { dto, tabs: EXTERNAL_ARTIFACT_TABS, schema };
