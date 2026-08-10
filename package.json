@@ -3523,6 +3523,20 @@
             "default": "ib",
             "description": "Базовый путь публикации информационной базы. Например ib даёт http://localhost:8314/ib/. Пусто или / означает корень сайта."
           },
+          "1c-platform-tools.server.directRegPort": {
+            "type": "string",
+            "default": "",
+            "pattern": "^$|^[0-9]{1,5}$",
+            "patternErrorMessage": "Укажите номер порта или оставьте пусто.",
+            "description": "Порт регистрации прямого соединения (--direct-regport). Пусто: умолчание платформы 1541. Задайте свой, если порт занят установленным сервером 1С."
+          },
+          "1c-platform-tools.server.directRange": {
+            "type": "string",
+            "default": "",
+            "pattern": "^$|^[0-9]{1,5}:[0-9]{1,5}$",
+            "patternErrorMessage": "Укажите диапазон в формате нижний:верхний, например 1660:1691.",
+            "description": "Диапазон портов прямого соединения (--direct-range) в формате нижний:верхний. Пусто: умолчание платформы 1560:1591."
+          },
           "1c-platform-tools.server.dataPath": {
             "type": "string",
             "default": "",
