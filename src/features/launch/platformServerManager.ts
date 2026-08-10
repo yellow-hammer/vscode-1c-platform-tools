@@ -56,8 +56,21 @@ export interface PublicationSelection {
 /** Состояние автономного сервера. */
 export type ServerState = 'stopped' | 'starting' | 'running' | 'error';
 
+/**
+ * Настройки, влияющие на аргументы командной строки ibsrv.
+ *
+ * Пустые `directRegPort`/`directRange` означают умолчания платформы: аргумент не
+ * передаётся вовсе.
+ */
+export interface ServerArgsSettings {
+	debug: boolean;
+	debugPort: number;
+	directRegPort: string;
+	directRange: string;
+}
+
 /** Разобранные настройки сервера. */
-interface ServerSettings {
+interface ServerSettings extends ServerArgsSettings {
 	platformPath: string;
 	platformVersion: string;
 	host: string;
@@ -65,8 +78,6 @@ interface ServerSettings {
 	httpBase: string;
 	dataPath: string;
 	distributeLicenses: boolean;
-	debug: boolean;
-	debugPort: number;
 	publication: PublicationOptions;
 }
 
@@ -104,6 +115,37 @@ function findServerBinary(
 		}
 	}
 	return { binary: undefined, bases };
+}
+
+/**
+ * Собирает аргументы запуска ibsrv.
+ *
+ * Параметры сервера и публикации берутся из конфига; командной строкой передаём
+ * каталог данных, конфиг, порты прямого соединения и (опционально) отладку.
+ * Порты прямого соединения конфиг не поддерживает, поэтому только аргументы;
+ * пустая настройка означает умолчание платформы и аргумент не добавляет.
+ *
+ * @param dataDir - Каталог данных сервера
+ * @param configPath - Путь к конфигу публикации
+ * @param settings - Настройки, влияющие на командную строку
+ * @returns Аргументы запуска
+ */
+export function buildServerArgs(
+	dataDir: string,
+	configPath: string,
+	settings: ServerArgsSettings
+): string[] {
+	const args = [`--data=${dataDir}`, `--config=${configPath}`];
+	if (settings.directRegPort) {
+		args.push(`--direct-regport=${settings.directRegPort}`);
+	}
+	if (settings.directRange) {
+		args.push(`--direct-range=${settings.directRange}`);
+	}
+	if (settings.debug) {
+		args.push('--debug=http', `--debug-port=${settings.debugPort}`);
+	}
+	return args;
 }
 
 export class PlatformServerManager {
@@ -227,7 +269,7 @@ export class PlatformServerManager {
 		}
 		this.publicationConfigPath = configPath;
 
-		const args = this.buildArgs(dataDir, configPath, settings);
+		const args = buildServerArgs(dataDir, configPath, settings);
 		this.output.appendLine(`Аргументы: ${args.join(' ')}`);
 
 		const child = spawn(binary, args, { windowsHide: true });
@@ -387,6 +429,8 @@ export class PlatformServerManager {
 			distributeLicenses: config.get<boolean>('distributeLicenses', true),
 			debug: config.get<boolean>('debug', false),
 			debugPort: config.get<number>('debugPort', 1550),
+			directRegPort: config.get<string>('directRegPort', '').trim(),
+			directRange: config.get<string>('directRange', '').trim(),
 			publication: this.resolvePublication(),
 		};
 	}
@@ -608,20 +652,6 @@ export class PlatformServerManager {
 			base: parsed.base ?? settings.httpBase,
 			distributeLicenses: parsed.distributeLicenses ?? settings.distributeLicenses,
 		};
-	}
-
-	/**
-	 * Собирает аргументы запуска ibsrv.
-	 *
-	 * Параметры сервера и публикации берутся из конфига; командной строкой
-	 * передаём только каталог данных, конфиг и (опционально) отладку.
-	 */
-	private buildArgs(dataDir: string, configPath: string, settings: ServerSettings): string[] {
-		const args = [`--data=${dataDir}`, `--config=${configPath}`];
-		if (settings.debug) {
-			args.push('--debug=http', `--debug-port=${settings.debugPort}`);
-		}
-		return args;
 	}
 
 	/**
