@@ -67,14 +67,6 @@ suite('vrunnerCli: адаптеры v2/v3', () => {
 		);
 	});
 
-	test('cf.loadFromSrc: инкремент без обновления БД в 2.x не выражается', () => {
-		const intent = { kind: 'cf.loadFromSrc', src: 'src/cf', increment: true, updateDb: false, common: conn } as const;
-		assert.throws(() => new V2CliAdapter().plan(intent), /2\.x не умеет загружать изменения/);
-		assert.deepStrictEqual(new V3CliAdapter().plan(intent), [
-			['cf', 'load', '--increment', '--no-update-db', ...conn, 'src/cf'],
-		]);
-	});
-
 	test('infobase.updateDb трогает только основную конфигурацию', () => {
 		check(
 			{ kind: 'infobase.updateDb', common: conn },

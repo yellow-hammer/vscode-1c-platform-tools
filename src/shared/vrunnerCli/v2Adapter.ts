@@ -46,14 +46,8 @@ export class V2CliAdapter implements VRunnerCliAdapter {
 					return plan;
 				}
 				if (!intent.updateDb) {
-					if (intent.increment) {
-						// Список изменённых файлов для инкремента собирает сам update-dev,
-						// а он всегда завершается обновлением конфигурации БД.
-						throw new Error(
-							'vanessa-runner 2.x не умеет загружать изменения без обновления конфигурации БД: ' +
-							'обновите vanessa-runner до 3.x либо загрузите исходники целиком.'
-						);
-					}
+					// Инкремент сюда не доходит: планировщик снимает его для 2.x, потому что
+					// список изменённых файлов собирает update-dev вместе с обновлением БД.
 					// update-dev всегда завершается UpdateDBCfg, отключить это нечем:
 					// загрузка без обновления остаётся только через конфигуратор.
 					const additional = `/LoadConfigFromFiles ${intent.src} -updateConfigDumpInfo`;
