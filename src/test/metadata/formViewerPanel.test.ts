@@ -12,8 +12,13 @@ import {
 	dataPathTypes,
 	commandTitles,
 	commandsAtRight,
+	autoCommandBarButtons,
+	mainAttributeKind,
+	knowsAutoCommandBar,
+	tableDataKinds,
 	layoutDefaults,
 } from '../../features/metadata/formViewerPanel';
+import type { FormItemDto } from '../../features/metadata/formViewerPanel';
 import { enumValueLabel, propertyLabel } from '../../features/metadata/formItemPropertySpec';
 
 suite('Просмотр формы: пути и переход к обработчику', () => {
@@ -756,6 +761,20 @@ suite('Подписи кнопок по синонимам команд', () => 
 		assert.strictEqual(titles['Form.StandardCommand.Записать'], 'Записать', 'команды лежат по разным ссылкам');
 	});
 
+	test('стандартную команду таблицы подписывает свой словарь', () => {
+		const titles = commandTitles({}, [], { Find: 'Найти' }, { Find: 'Расширенный поиск', Add: 'Добавить' });
+
+		assert.strictEqual(titles['Form.Item.StandardCommand.Find'], 'Расширенный поиск');
+		assert.strictEqual(titles['Form.Item.StandardCommand.Add'], 'Добавить');
+		assert.strictEqual(titles['Form.StandardCommand.Find'], 'Найти', 'команда формы подписана своим');
+	});
+
+	test('имя таблицы в ключ подписи не входит', () => {
+		const titles = commandTitles({}, [], {}, { Add: 'Добавить' });
+
+		assert.deepStrictEqual(Object.keys(titles), ['Form.Item.StandardCommand.Add']);
+	});
+
 	test('без заголовков и синонимов подписей нет', () => {
 		assert.deepStrictEqual(commandTitles({}, [{ name: 'Обновить' }]), {});
 	});
@@ -779,5 +798,132 @@ suite('Стандартные команды правой части панел�
 	test('без словаря правой части нет', () => {
 		assert.deepStrictEqual(commandsAtRight(), []);
 		assert.deepStrictEqual(commandsAtRight({ labels: { Help: 'Справка' } }), []);
+	});
+});
+
+suite('Чем платформа наполняет командную панель', () => {
+	const dictionary = {
+		autoCommandBar: {
+			CatalogObject: [{ command: 'WriteAndClose', defaultButton: true }, { command: 'Write' }, { command: 'Help' }],
+			DynamicList: [{ command: 'Refresh' }, { command: 'Help' }],
+		},
+	};
+	const form = (type: string, items: FormItemDto[] = []) => ({
+		items,
+		attributes: [{ name: 'Объект', main: true, type: { types: [type] } }],
+	});
+
+	test('вид берётся из типа главного реквизита', () => {
+		assert.strictEqual(mainAttributeKind(form('cfg:CatalogObject.Валюты')), 'CatalogObject');
+		assert.strictEqual(mainAttributeKind(form('cfg:DynamicList')), 'DynamicList');
+	});
+
+	test('без главного реквизита вида нет', () => {
+		assert.strictEqual(mainAttributeKind({}), '');
+		assert.strictEqual(mainAttributeKind({ attributes: [{ name: 'Список' }] }), '');
+	});
+
+	test('набор идёт по виду главного реквизита', () => {
+		const buttons = autoCommandBarButtons(form('cfg:CatalogObject.Валюты'), dictionary);
+
+		assert.deepStrictEqual(
+			buttons.map((button) => button.command),
+			['WriteAndClose', 'Write', 'Help']
+		);
+	});
+
+	test('команда, положенная кнопкой формы, из набора выпадает', () => {
+		const items = [
+			{
+				type: 'AutoCommandBar',
+				items: [{ type: 'Button', properties: { CommandName: 'Form.StandardCommand.Write' } }],
+			},
+		];
+		const buttons = autoCommandBarButtons(form('cfg:CatalogObject.Валюты', items), dictionary);
+
+		assert.deepStrictEqual(
+			buttons.map((button) => button.command),
+			['WriteAndClose', 'Help']
+		);
+	});
+
+	test('без справочной информации у объекта справки в наборе нет', () => {
+		const buttons = autoCommandBarButtons(form('cfg:CatalogObject.Валюты'), dictionary, false);
+
+		assert.deepStrictEqual(
+			buttons.map((button) => button.command),
+			['WriteAndClose', 'Write']
+		);
+	});
+
+	test('неизвестный ответ про справку её оставляет', () => {
+		const buttons = autoCommandBarButtons(form('cfg:CatalogObject.Валюты'), dictionary, undefined);
+
+		assert.ok(buttons.some((button) => button.command === 'Help'));
+	});
+
+	test('у формы списка справка остаётся и без справочной информации объекта', () => {
+		const buttons = autoCommandBarButtons(form('cfg:DynamicList'), dictionary, false);
+
+		assert.deepStrictEqual(
+			buttons.map((button) => button.command),
+			['Refresh', 'Help']
+		);
+	});
+
+	test('снятый вид отличается от неснятого и с пустым набором', () => {
+		assert.strictEqual(knowsAutoCommandBar(form('cfg:CatalogObject.Валюты'), dictionary), true);
+		assert.strictEqual(knowsAutoCommandBar(form('cfg:TaskObject.Задача'), dictionary), false);
+		assert.strictEqual(knowsAutoCommandBar(form('cfg:CatalogObject.Валюты')), false);
+	});
+
+	test('неснятый вид набора не имеет', () => {
+		assert.deepStrictEqual(autoCommandBarButtons(form('cfg:TaskObject.Задача'), dictionary), []);
+		assert.deepStrictEqual(autoCommandBarButtons(form('cfg:CatalogObject.Валюты')), []);
+	});
+});
+
+suite('Вид данных таблицы', () => {
+	const structure = {
+		internalName: 'Подразделения',
+		tabularSections: [{ name: 'Сотрудники' }, { name: 'Контакты' }],
+	};
+	const main = [{ name: 'Объект', main: true, type: { types: ['cfg:CatalogObject.Подразделения'] } }];
+
+	test('табличная часть объекта опознаётся по структуре', () => {
+		assert.deepStrictEqual(tableDataKinds(structure, 'Объект', main), {
+			'Объект.Сотрудники': 'ObjectTablePart',
+			'Объект.Контакты': 'ObjectTablePart',
+		});
+	});
+
+	test('без главного реквизита видов нет', () => {
+		assert.deepStrictEqual(tableDataKinds(structure, '', main), {});
+	});
+
+	test('список над другим объектом видов не даёт', () => {
+		const list = [{ name: 'Список', main: true, mainTable: 'Справочник.Валюты' }];
+
+		assert.deepStrictEqual(tableDataKinds(structure, 'Список', list), {});
+	});
+
+	test('объект без табличных частей видов не даёт', () => {
+		assert.deepStrictEqual(tableDataKinds({ internalName: 'Подразделения' }, 'Объект', main), {});
+	});
+
+	test('динамический список опознаётся по типу реквизита формы', () => {
+		const list = [{ name: 'Список', main: true, type: { types: ['cfg:DynamicList'] } }];
+
+		assert.deepStrictEqual(tableDataKinds({}, 'Список', list), { 'Список': 'DynamicList' });
+	});
+
+	test('список рядом с объектом не мешает табличным частям', () => {
+		const attributes = [...main, { name: 'Связанные', type: { types: ['cfg:DynamicList'] } }];
+
+		assert.deepStrictEqual(tableDataKinds(structure, 'Объект', attributes), {
+			'Связанные': 'DynamicList',
+			'Объект.Сотрудники': 'ObjectTablePart',
+			'Объект.Контакты': 'ObjectTablePart',
+		});
 	});
 });

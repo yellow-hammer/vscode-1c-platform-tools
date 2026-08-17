@@ -623,6 +623,22 @@ body {
 	font-size: 12px;
 }
 
+/* Кнопку набора платформы в файле формы не найти: её отличает пунктирная рамка. */
+.pv-button.is-standard {
+	border-style: dashed;
+	background: transparent;
+	color: var(--vscode-foreground);
+	opacity: 0.75;
+}
+
+/* Кнопку со значком платформа не подписывает: место она занимает, а назвать её нечем. */
+.pv-button.is-picture {
+	width: 22px;
+	padding: 2px 0;
+	text-align: center;
+	line-height: 1;
+}
+
 /* Кнопку по умолчанию платформа выделяет цветом; в теме редактора это акцентный цвет кнопки. */
 .pv-button.is-default {
 	background: var(--vscode-button-background, var(--vscode-focusBorder));
@@ -638,6 +654,18 @@ body {
 	border: 1px dotted var(--vscode-panel-border);
 	border-radius: 3px;
 	white-space: nowrap;
+}
+
+/* Служебные части таблицы стоят в её панели, перед «Еще», у того же правого края. */
+.pv-commandbar-additions {
+	display: flex;
+	gap: 6px;
+	align-items: center;
+	margin-left: auto;
+}
+
+.pv-commandbar > .pv-commandbar-additions + .pv-commandbar-more {
+	margin-left: 0;
 }
 
 /* «Еще» платформа держит у правого края командной панели. */

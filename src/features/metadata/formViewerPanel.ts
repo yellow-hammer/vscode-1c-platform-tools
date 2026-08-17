@@ -144,12 +144,34 @@ async function loadItemPropertyDictionary(
 	}
 }
 
-/** Что платформа знает про стандартные команды формы: подписи и сторона панели. */
+/** Кнопка набора, которым платформа наполняет командную панель. */
+export interface StandardCommandDto {
+	/** Имя команды без приставки; не задано, если назвать команду не вышло. */
+	command?: string;
+	/** Подпись, когда команду назвать не вышло; иначе она берётся из словаря подписей. */
+	label?: string;
+	/** Как платформа рисует кнопку: `Text` или `Picture`. */
+	representation?: string;
+	/** Кнопка по умолчанию. */
+	defaultButton?: boolean;
+	/** Кнопка раскрывает подменю. */
+	submenu?: boolean;
+	/** Кнопка стоит после записанных кнопок панели, а не перед ними. */
+	afterOwnButtons?: boolean;
+}
+
+/** Что платформа знает про стандартные команды формы: подписи, сторона панели и наборы. */
 export interface StandardCommandsDto {
 	/** Имя команды без приставки -> подпись, которую ставит платформа. */
 	labels?: Record<string, string>;
+	/** То же для стандартных команд таблицы: у них своя приставка и свои подписи. */
+	tableLabels?: Record<string, string>;
 	/** Команды у правого края панели, в том порядке, в каком они там идут. */
 	atRight?: string[];
+	/** Вид главного реквизита формы -> кнопки, которыми платформа наполнит её панель. */
+	autoCommandBar?: Record<string, StandardCommandDto[]>;
+	/** Вид данных таблицы -> кнопки, которыми платформа наполнит панель самой таблицы. */
+	tableCommandBar?: Record<string, StandardCommandDto[]>;
 }
 
 /** Стандартные команды задаёт платформа, а не файл, поэтому читаем их один раз за сеанс. */
@@ -318,6 +340,10 @@ export async function openFormViewer(
 			dataPathTypes: titles.types,
 			commandTitles: titles.commands,
 			commandsAtRight: titles.commandsAtRight,
+			autoCommandBar: titles.autoCommandBar,
+			tableCommandBar: titles.tableCommandBar,
+			tableKinds: titles.tableKinds,
+			autoCommandBarKnown: titles.autoCommandBarKnown,
 		});
 	} catch (e) {
 		log.error(`шаблон формы: ${e instanceof Error ? e.message : String(e)}`);
@@ -333,16 +359,25 @@ export async function openFormViewer(
  * а стандартную команду называет сама платформа. Имя команды в кнопке записано ссылкой:
  * `Form.Command.<Имя>`, `<Вид>.<Объект>.Command.<Имя>` или `Form.StandardCommand.<Имя>`.
  *
+ * Стандартная команда таблицы идёт через сам элемент - `Form.Item.<Таблица>.StandardCommand.<Имя>` -
+ * и подписана иначе, чем одноимённая команда формы. Имя таблицы в ключ не берём: подпись у команды
+ * одна на все таблицы, а превью приводит имя команды к тому же виду.
+ *
  * @param standardCommands Подписи стандартных команд формы от md-sparrow: в файле формы их нет.
+ * @param tableCommands Подписи стандартных команд таблицы оттуда же.
  */
 export function commandTitles(
 	structure: OwnerStructureDto,
 	formCommands: readonly { name?: string; title?: string }[] = [],
-	standardCommands: Record<string, string> = {}
+	standardCommands: Record<string, string> = {},
+	tableCommands: Record<string, string> = {}
 ): Record<string, string> {
 	const out: Record<string, string> = {};
 	for (const [name, label] of Object.entries(standardCommands)) {
 		out[`Form.StandardCommand.${name}`] = label;
+	}
+	for (const [name, label] of Object.entries(tableCommands)) {
+		out[`Form.Item.StandardCommand.${name}`] = label;
 	}
 	for (const command of formCommands) {
 		if (command.name && command.title) {
@@ -367,6 +402,121 @@ export function commandsAtRight(standardCommands: StandardCommandsDto = {}): str
 }
 
 /**
+ * Вид главного реквизита формы: по нему платформа набирает командную панель.
+ *
+ * Вид объекта-владельца тут ни при чём: форма обработки с главным реквизитом-справочником
+ * получает набор справочника. Тип записан ссылкой на конфигурацию: `cfg:CatalogObject.Валюты`.
+ */
+export function mainAttributeKind(content: FormContentDto): string {
+	const type = content.attributes?.find((attribute) => attribute.main)?.type?.types?.[0] ?? '';
+	const name = type.startsWith('cfg:') ? type.slice('cfg:'.length) : '';
+	const dot = name.indexOf('.');
+	return dot < 0 ? name : name.slice(0, dot);
+}
+
+/**
+ * Чем платформа наполнит командную панель формы.
+ *
+ * Набор идёт по виду главного реквизита, а команды, которые форма положила своими кнопками,
+ * из него выпадают: их платформа второй раз не набирает. Вид без снятого набора остаётся пустым,
+ * и превью помечает панель тем, что её наполняет платформа, не называя команд.
+ *
+ * Справку платформа ставит там, где у объекта записана справочная информация. Объект без неё
+ * кнопки не получает, а неизвестный ответ её оставляет: у общей формы объекта-владельца нет.
+ * Форма списка справку показывает и без неё: у списка справка идёт не от объекта.
+ */
+export function autoCommandBarButtons(
+	content: FormContentDto,
+	standardCommands: StandardCommandsDto = {},
+	ownerHasHelp: boolean | undefined = undefined
+): StandardCommandDto[] {
+	const kind = mainAttributeKind(content);
+	const set = standardCommands.autoCommandBar?.[kind] ?? [];
+	const placed = placedStandardCommands(content.items ?? []);
+	return set
+		.filter((button) => !button.command || !placed.has(button.command))
+		.filter((button) => button.command !== 'Help' || ownerHasHelp !== false || kind === 'DynamicList');
+}
+
+/**
+ * Записана ли у объекта-владельца справочная информация.
+ *
+ * Кнопку справки платформа ставит в командную панель только объекту со справкой; в выгрузке та
+ * лежит каталогом `Ext/Help` рядом с объектом. У формы без объекта-владельца ответа нет.
+ */
+async function ownerHasHelp(objectXml: string | undefined): Promise<boolean | undefined> {
+	if (!objectXml) {
+		return undefined;
+	}
+	const help = path.join(objectXml.slice(0, -path.extname(objectXml).length), 'Ext', 'Help');
+	try {
+		return (await fs.stat(help)).isDirectory();
+	} catch {
+		return false;
+	}
+}
+
+/**
+ * Снят ли набор для этой формы.
+ *
+ * Набор бывает пустым и у снятого вида: например у обработки без справочной информации в нём не
+ * остаётся ни одной кнопки. Превью помечает панель только там, где набор не снят вовсе, поэтому
+ * пустой набор и неизвестный вид приходится различать.
+ */
+export function knowsAutoCommandBar(
+	content: FormContentDto,
+	standardCommands: StandardCommandsDto = {}
+): boolean {
+	return Boolean(standardCommands.autoCommandBar?.[mainAttributeKind(content)]);
+}
+
+/**
+ * Пути к данным, по которым лежат таблицы со своим набором команд.
+ *
+ * Панель такой таблицы платформа наполняет своим набором, и набор этот идёт по виду данных
+ * таблицы, а не по главному реквизиту формы. У динамического списка вид записан типом реквизита
+ * формы, у табличной части типа нет вовсе, и её приходится называть здесь: в структуре объекта она
+ * лежит своим списком.
+ */
+export function tableDataKinds(
+	structure: OwnerStructureDto,
+	mainAttribute: string,
+	formAttributes: readonly FormAttributeDto[] = []
+): Record<string, string> {
+	const out: Record<string, string> = {};
+	for (const attribute of formAttributes) {
+		if (attribute.name && attribute.type?.types?.[0] === 'cfg:DynamicList') {
+			out[attribute.name] = 'DynamicList';
+		}
+	}
+	if (!mainAttribute || !readsOwner(formAttributes.find((attribute) => attribute.name === mainAttribute), structure)) {
+		return out;
+	}
+	for (const section of structure.tabularSections ?? []) {
+		if (section.name) {
+			out[`${mainAttribute}.${section.name}`] = 'ObjectTablePart';
+		}
+	}
+	return out;
+}
+
+/** Стандартные команды, которые форма положила своими кнопками. */
+function placedStandardCommands(items: readonly FormItemDto[]): Set<string> {
+	const placed = new Set<string>();
+	const walk = (nodes: readonly FormItemDto[]) => {
+		for (const item of nodes) {
+			const command = item.properties?.CommandName ?? '';
+			if (command.startsWith('Form.StandardCommand.')) {
+				placed.add(command.slice('Form.StandardCommand.'.length));
+			}
+			walk(item.items ?? []);
+		}
+	};
+	walk(items);
+	return placed;
+}
+
+/**
  * Подписи полей формы: читает структуру объекта-владельца.
  *
  * Формы без владельца (общие) и объекты, которых md-sparrow не разбирает, просто остаются без
@@ -382,6 +532,10 @@ async function loadTitles(
 	types: Record<string, string[]>;
 	commands: Record<string, string>;
 	commandsAtRight: string[];
+	autoCommandBar: StandardCommandDto[];
+	tableCommandBar: Record<string, StandardCommandDto[]>;
+	tableKinds: Record<string, string>;
+	autoCommandBarKnown: boolean;
 }> {
 	const objectXml = ownerObjectXmlPath(params.formXmlFsPath);
 	const main = content.attributes?.find((attribute) => attribute.main)?.name ?? '';
@@ -408,8 +562,17 @@ async function loadTitles(
 	return {
 		dataPaths: dataPathTitles(structure, main, formAttributes),
 		types: dataPathTypes(structure, main, formAttributes),
-		commands: commandTitles(structure, formCommands, standardCommands.labels ?? {}),
+		commands: commandTitles(
+			structure,
+			formCommands,
+			standardCommands.labels ?? {},
+			standardCommands.tableLabels ?? {}
+		),
 		commandsAtRight: commandsAtRight(standardCommands),
+		autoCommandBar: autoCommandBarButtons(content, standardCommands, await ownerHasHelp(objectXml)),
+		tableCommandBar: standardCommands.tableCommandBar ?? {},
+		tableKinds: tableDataKinds(structure, main, formAttributes),
+		autoCommandBarKnown: knowsAutoCommandBar(content, standardCommands),
 	};
 }
 
@@ -607,6 +770,14 @@ interface FormViewerViewModel {
 	commandTitles: Record<string, string>;
 	/** Имена команд, кнопки которых платформа держит у правого края командной панели. */
 	commandsAtRight: string[];
+	/** Кнопки, которыми платформа наполнит командную панель самой формы. */
+	autoCommandBar: StandardCommandDto[];
+	/** Вид данных таблицы -> кнопки, которыми платформа наполнит панель самой таблицы. */
+	tableCommandBar: Record<string, StandardCommandDto[]>;
+	/** Путь к данным таблицы -> вид её данных: по нему берётся набор панели. */
+	tableKinds: Record<string, string>;
+	/** Снят ли набор панели формы: пустой набор и неснятый вид рисуются по-разному. */
+	autoCommandBarKnown: boolean;
 }
 
 /** Реквизит объекта-владельца: имя, синоним и тип значения. */

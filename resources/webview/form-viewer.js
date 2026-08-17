@@ -17,6 +17,25 @@
 	const commandTitles = data.commandTitles || {};
 	// Кнопки этих команд платформа держит у правого края панели: своего выравнивания у них нет.
 	const commandsAtRight = new Set(data.commandsAtRight || []);
+	// Чем платформа наполнит командную панель самой формы: в файле формы этого набора нет.
+	const autoCommandBar = data.autoCommandBar || [];
+	// То же для панели таблицы: набор идёт по виду её данных, а не по главному реквизиту формы.
+	const tableCommandBar = data.tableCommandBar || {};
+	const tableKinds = data.tableKinds || {};
+	// Набор бывает пустым и у снятого вида: пометку ставим только там, где он не снят вовсе.
+	const autoCommandBarKnown = Boolean(data.autoCommandBarKnown);
+	// Панели самой формы: набор платформы достаётся им, а не панелям таблиц внутри формы.
+	const formOwnBars = new Set();
+	// Панели и группы кнопок, которым тот же набор достаётся записанным источником команд.
+	const formSourceBars = new Set();
+	// Панели таблиц: у каждой свой вид данных, по нему и берётся набор.
+	const tableBarKinds = new Map();
+	// Панель таблицы -> имя самой таблицы: по нему из набора вычитаются записанные кнопками команды.
+	const tableBarNames = new Map();
+	// Стандартные команды таблицы, которые форма положила своими кнопками: таблица -> имена команд.
+	const tablePlacedCommands = new Map();
+	// Служебные части таблиц, которые платформа держит в командной панели: панель -> её части.
+	const barAdditions = new Map();
 
 	/**
 	 * Служебные элементы: показываются переключателем в шапке.
@@ -33,6 +52,12 @@
 		ViewStatusAddition: 'ViewStatusLocation',
 		SearchControlAddition: 'SearchControlLocation',
 	};
+
+	/** Служебные части, у которых в модели есть значение «в командной панели»: там же их «авто». */
+	const IN_COMMAND_BAR_ADDITIONS = new Set(['SearchStringAddition', 'SearchControlAddition']);
+
+	/** Часть, которую платформа при «авто» заводит только динамическому списку. */
+	const DYNAMIC_LIST_ADDITIONS = new Set(['SearchControlAddition']);
 
 	const TYPE_LABELS = {
 		UsualGroup: 'Группа',
@@ -422,7 +447,19 @@
 		const place = formCommandBarPlace();
 		const auto = (node) => node.item.type === 'AutoCommandBar';
 		const bars = place === '' ? [] : nodes.filter(auto);
+		formOwnBars.clear();
+		formSourceBars.clear();
+		tableBarKinds.clear();
+		tableBarNames.clear();
+		tablePlacedCommands.clear();
+		barAdditions.clear();
+		collectTableCommands(nodes);
+		for (const bar of bars) {
+			formOwnBars.add(bar.item);
+		}
+		collectCommandSources(nodes, bars.some((bar) => autoFilled(bar.item)));
 		const body = nodes.filter((node) => !auto(node));
+		assignBarAdditions(body, bars.map((bar) => bar.item));
 		const boxes = body.map((node) => previewNode(node));
 		if (layout.indexOf('is-horizontal') === 0) {
 			stretchRow(body, boxes);
@@ -449,6 +486,46 @@
 		foldTightGroups(host);
 		alignGroupTitles(host);
 		alignLabelColumns(host);
+	}
+
+	/**
+	 * Раскладывает служебные части таблиц по обслуживающим их командным панелям.
+	 *
+	 * Строку поиска платформа рисует не отдельной строкой, а внутри той панели, которая обслуживает
+	 * таблицу: собственной панели таблицы, а если та не показана - панели, которую платформа
+	 * наполняет сама. На форме списка это записанная панель с источником команд, а не пустая
+	 * автоматическая панель формы, и лежать она может выше самой таблицы, поэтому раскладка идёт
+	 * до отрисовки.
+	 */
+	function assignBarAdditions(body, formBars) {
+		const filled = formBars.filter((bar) => autoFilled(bar));
+		const tables = [];
+		const walk = (nodes, inTable) => {
+			for (const node of visibleNodes(nodes)) {
+				if (node.item.type === 'Table') {
+					tables.push(node);
+					walk(node.children, true);
+					continue;
+				}
+				if (!inTable && isCommandBar(node.item.type) && autoFilled(node.item)) {
+					filled.push(node.item);
+				}
+				walk(node.children, inTable);
+			}
+		};
+		walk(body, false);
+		for (const table of tables) {
+			const location = effective(table.item, 'CommandBarLocation', written(table.item, 'CommandBarLocation'));
+			const children = visibleNodes(table.children);
+			const own = location === 'None' ? undefined : children.find((child) => isCommandBar(child.item.type));
+			const serving = own ? own.item : filled[0];
+			const additions = children.filter((child) => isBar(child.item.type)
+				&& !isCommandBar(child.item.type)
+				&& additionPlace(table.item, child.item.type) === 'bar');
+			if (serving && additions.length) {
+				barAdditions.set(serving, (barAdditions.get(serving) || []).concat(additions));
+			}
+		}
 	}
 
 	/**
@@ -834,12 +911,88 @@
 		const command = item.properties && item.properties.CommandName;
 		if (command) {
 			const tail = command.slice(command.indexOf('Command.'));
-			const synonym = commandTitles[command] || commandTitles[tail];
+			const synonym = commandTitles[tableCommandKey(command)] || commandTitles[command] || commandTitles[tail];
 			if (synonym) {
 				return synonym;
 			}
 		}
 		return item.name;
+	}
+
+	/**
+	 * Ключ подписи стандартной команды таблицы.
+	 *
+	 * Записана она через сам элемент - `Form.Item.<Таблица>.StandardCommand.<Имя>`, - а подпись у
+	 * такой команды одна на все таблицы, поэтому имя таблицы из ключа выпадает. Команда, записанная
+	 * иначе, ключа не получает.
+	 */
+	function tableCommandKey(command) {
+		const at = String(command).indexOf('.StandardCommand.');
+		if (at < 0 || !String(command).startsWith('Form.Item.')) {
+			return '';
+		}
+		return 'Form.Item' + String(command).slice(at);
+	}
+
+	/**
+	 * Какие стандартные команды таблицы форма положила своими кнопками.
+	 *
+	 * Второй раз платформа их в панель не набирает, а кнопка может лежать где угодно, не только в
+	 * самой панели таблицы, поэтому форма обходится целиком до отрисовки.
+	 */
+	function collectTableCommands(nodes) {
+		for (const node of nodes) {
+			const command = String((node.item.properties && node.item.properties.CommandName) || '');
+			const at = command.indexOf('.StandardCommand.');
+			if (at >= 0 && command.startsWith('Form.Item.')) {
+				const table = command.slice('Form.Item.'.length, at);
+				if (!tablePlacedCommands.has(table)) {
+					tablePlacedCommands.set(table, new Set());
+				}
+				tablePlacedCommands.get(table).add(command.slice(at + '.StandardCommand.'.length));
+			}
+			collectTableCommands(node.children || []);
+		}
+	}
+
+	/**
+	 * Панели и группы кнопок с записанным источником команд: чей набор в них ложится.
+	 *
+	 * Источник `Form` берёт набор самой формы, `Item.<Таблица>` - набор этой таблицы. Панель формы
+	 * своим автозаполнением занята тем же набором, и когда она его уже показывает, источник его не
+	 * повторяет: платформа кладёт набор один раз. Прочие источники, вроде общих команд конфигурации,
+	 * остаются без набора: он не снят.
+	 *
+	 * @param formBarFilled Панель самой формы уже наполняется платформой.
+	 */
+	function collectCommandSources(nodes, formBarFilled) {
+		const kindOfTable = new Map();
+		const tables = (list) => {
+			for (const node of list) {
+				if (node.item.type === 'Table' && node.item.name) {
+					kindOfTable.set(String(node.item.name), tableKinds[String(node.item.dataPath || '')]);
+				}
+				tables(node.children || []);
+			}
+		};
+		tables(nodes);
+		const walk = (list) => {
+			for (const node of list) {
+				const source = String(written(node.item, 'CommandSource') || '');
+				if (source === 'Form' && !formBarFilled) {
+					formSourceBars.add(node.item);
+				} else if (source.indexOf('Item.') === 0) {
+					const table = source.slice('Item.'.length);
+					const kind = kindOfTable.get(table);
+					if (kind) {
+						tableBarKinds.set(node.item, kind);
+						tableBarNames.set(node.item, table);
+					}
+				}
+				walk(node.children || []);
+			}
+		};
+		walk(nodes);
 	}
 
 	// Текст рядом с переключателем и флажком платформа берёт из списка выбора, а не из заголовка.
@@ -1168,9 +1321,17 @@
 	function previewCommandBar(node) {
 		const box = element('div', 'pv-commandbar' + commandBarAlign(node.item));
 		const right = [];
-		// Набранные платформой команды стоят перед записанными кнопками, а не после них.
-		if (autoFilled(node.item)) {
-			box.append(standardCommandsNote());
+		// Набранные платформой команды стоят перед записанными кнопками, кроме помеченных стороной.
+		const filled = autoFilled(node.item) ? standardCommandButtons(node.item) : null;
+		if (filled) {
+			for (const button of filled.before) {
+				box.append(button);
+			}
+			right.push(...filled.right);
+			if (filled.before.length + filled.after.length + filled.right.length === 0
+				&& !knowsStandardCommands(node.item)) {
+				box.append(standardCommandsNote());
+			}
 		}
 		let inSubmenu = 0;
 		for (const child of visibleNodes(node.children)) {
@@ -1179,18 +1340,30 @@
 				continue;
 			}
 			if (atRightOfCommandBar(child.item)) {
-				right.push(child);
+				right.push(previewNode(child));
 				continue;
 			}
 			box.append(previewNode(child));
+		}
+		for (const button of filled ? filled.after : []) {
+			box.append(button);
+		}
+		// Строка поиска таблицы стоит в панели, у правого края: своей строкой платформа её не рисует.
+		const additions = barAdditions.get(node.item) || [];
+		if (additions.length) {
+			const tail = element('div', 'pv-commandbar-additions');
+			for (const addition of additions) {
+				tail.append(previewNode(addition));
+			}
+			box.append(tail);
 		}
 		if (hasMoreMenu(node.item, inSubmenu, node.children)) {
 			box.append(element('span', 'pv-commandbar-more', 'Еще ▾'));
 		}
 		if (right.length) {
 			const tail = element('div', 'pv-commandbar-right');
-			for (const child of right) {
-				tail.append(previewNode(child));
+			for (const button of right) {
+				tail.append(button);
 			}
 			box.append(tail);
 		}
@@ -1199,6 +1372,83 @@
 			box.classList.add('is-empty');
 		}
 		return box;
+	}
+
+	/**
+	 * Кнопки, которыми платформа наполняет панель самой формы.
+	 *
+	 * Набор приходит из md-sparrow по виду главного реквизита формы, а у панели таблицы - по виду
+	 * её данных; из него уже вычтены команды, которые форма положила своими кнопками. Группа кнопок
+	 * берёт набор того источника команд, который у неё записан.
+	 *
+	 * Команды панели таблицы записаны через сам элемент и подписаны своим словарём, поэтому имя
+	 * команды приводится к ключу той панели, в которую кнопка встаёт.
+	 *
+	 * Кнопки расходятся на три части: перед записанными кнопками панели, после них и у правого
+	 * края. Сторону задаёт сам набор, а правый край - список стандартных команд правой части.
+	 */
+	function standardCommandButtons(item) {
+		const before = [];
+		const after = [];
+		const right = [];
+		const prefix = ownsFormSet(item) ? 'Form.StandardCommand.' : 'Form.Item.StandardCommand.';
+		for (const button of standardCommandSet(item)) {
+			const name = button.command ? prefix + button.command : '';
+			const label = button.label || commandTitles[name] || button.command || '';
+			// Значка у команды нет, и назвать её нечем: на месте подписи встаёт нейтральная точка.
+			const box = label
+				? element('button', 'pv-button is-standard', button.submenu ? label + ' ▾' : label)
+				: element('button', 'pv-button is-standard is-picture', '•');
+			box.title = label
+				? 'Кнопку ставит платформа: в файле формы её нет'
+				: 'Кнопку со значком ставит платформа: команду по ней не назвать';
+			if (button.defaultButton) {
+				box.classList.add('is-default');
+			}
+			if (name && commandsAtRight.has(name)) {
+				right.push(box);
+			} else {
+				(button.afterOwnButtons ? after : before).push(box);
+			}
+		}
+		return { before, after, right };
+	}
+
+	/** Набор самой формы достаётся её панели и группе кнопок с источником команд «Форма». */
+	function ownsFormSet(item) {
+		return formOwnBars.has(item) || formSourceBars.has(item);
+	}
+
+	/**
+	 * Набор, которым платформа наполнит эту панель.
+	 *
+	 * У панели самой формы набор идёт по виду главного реквизита, у панели таблицы - по виду её
+	 * данных. Панель с записанным источником команд берёт набор своего источника.
+	 *
+	 * Из набора таблицы выпадают команды, которые форма положила своими кнопками: их платформа
+	 * второй раз не набирает. У панели формы то же вычитание сделано до отправки в превью.
+	 */
+	function standardCommandSet(item) {
+		if (ownsFormSet(item)) {
+			return autoCommandBar;
+		}
+		const set = tableCommandBar[tableBarKinds.get(item)] || [];
+		const placed = tablePlacedCommands.get(tableBarNames.get(item));
+		return placed ? set.filter((button) => !button.command || !placed.has(button.command)) : set;
+	}
+
+	/**
+	 * Набор этой панели снят, пусть даже он пуст.
+	 *
+	 * Пустым набор бывает и у снятого вида: у обработки без справочной информации в нём не остаётся
+	 * ни одной кнопки. Пометка «Стандартные команды» нужна только там, где набора нет вовсе.
+	 */
+	function knowsStandardCommands(item) {
+		if (ownsFormSet(item)) {
+			return autoCommandBarKnown;
+		}
+		const kind = tableBarKinds.get(item);
+		return Boolean(kind && tableCommandBar[kind]);
 	}
 
 	/**
@@ -1228,9 +1478,9 @@
 	/**
 	 * Пометка о том, что панель наполняет платформа.
 	 *
-	 * Стандартные команды она набирает по виду формы и её объекту, а в файле формы их нет: ни списка,
-	 * ни вида формы. Поэтому вместо кнопок показываем, чем панель наполнится, иначе пустая строка
-	 * с одним «Еще» выглядит ошибкой.
+	 * Ставится там, где набор команд неизвестен: у панели таблицы, у группы кнопок с источником
+	 * команд и у формы, вид главного реквизита которой не снят. Иначе пустая строка с одним «Еще»
+	 * выглядит ошибкой.
 	 */
 	function standardCommandsNote() {
 		const note = element('span', 'pv-commandbar-auto', 'Стандартные команды');
@@ -1278,7 +1528,9 @@
 	 * Командную панель таблицы платформа ставит по свойству `CommandBarLocation`.
 	 *
 	 * С положением «нет» панели не видно совсем: её команды остаются в контекстном меню, а команды
-	 * таблицы обычно вынесены отдельной командной панелью формы.
+	 * таблицы обычно вынесены отдельной командной панелью формы. Служебные части таблицы платформа
+	 * держит в той панели, которая эту таблицу обслуживает: в её собственной, а если та не
+	 * показана - в панели самой формы.
 	 */
 	function previewTable(node) {
 		const box = element('div', 'pv-table');
@@ -1286,10 +1538,18 @@
 		const children = visibleNodes(node.children);
 		const bars = children.filter((child) => isBar(child.item.type)
 			&& !(location === 'None' && isCommandBar(child.item.type))
-			&& additionPlace(node.item, child.item.type) !== '');
+			&& (isCommandBar(child.item.type) || ['top', 'bottom'].indexOf(additionPlace(node.item, child.item.type)) >= 0));
 		const atBottom = (child) => (isCommandBar(child.item.type)
 			? location === 'Bottom'
 			: additionPlace(node.item, child.item.type) === 'bottom');
+		// Набор панели таблицы идёт по виду её данных: панель узнаёт его по своей таблице.
+		const kind = tableKinds[String(node.item.dataPath || '')];
+		for (const bar of bars) {
+			if (kind && isCommandBar(bar.item.type)) {
+				tableBarKinds.set(bar.item, kind);
+				tableBarNames.set(bar.item, String(node.item.name || ''));
+			}
+		}
 		for (const bar of bars.filter((child) => !atBottom(child))) {
 			box.append(previewNode(bar));
 		}
@@ -1316,11 +1576,13 @@
 	}
 
 	/**
-	 * Где платформа рисует служебную часть таблицы: сверху, снизу или нигде.
+	 * Где платформа рисует служебную часть таблицы: в командной панели, сверху, снизу или нигде.
 	 *
-	 * Положение задано свойством таблицы. Значение «авто» платформа решает по источнику данных:
-	 * у динамического списка строка поиска и состояние просмотра есть, у таблицы реквизита формы
-	 * их не видно. Командной панели это не касается, у неё своё свойство.
+	 * Положение задано свойством таблицы. Строка поиска и управление поиском умеют стоять в
+	 * командной панели, и «авто» платформа решает именно так. Строку поиска она заводит любой
+	 * таблице, а управление поиском - только динамическому списку: у табличной части его на снимке
+	 * нет. Состояние просмотра значения «в панели» не имеет и при «авто» не рисуется: его не видно
+	 * ни на одном снимке. Командной панели это не касается, у неё своё свойство.
 	 */
 	function additionPlace(table, type) {
 		const property = ADDITION_LOCATIONS[type];
@@ -1331,8 +1593,14 @@
 		if (value === 'None') {
 			return '';
 		}
+		if (value === 'CommandBar') {
+			return 'bar';
+		}
 		if (value === undefined || value === 'Auto') {
-			return isDynamicListPath(table.dataPath) ? 'top' : '';
+			if (!IN_COMMAND_BAR_ADDITIONS.has(type)) {
+				return '';
+			}
+			return DYNAMIC_LIST_ADDITIONS.has(type) && !isDynamicListPath(table.dataPath) ? '' : 'bar';
 		}
 		return value === 'Bottom' ? 'bottom' : 'top';
 	}
