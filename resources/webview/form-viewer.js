@@ -56,6 +56,14 @@
 		PDFDocumentField: 'Поле документа PDF',
 	};
 
+	/**
+	 * Ключ хранения положения границ панелей.
+	 *
+	 * Номер в ключе меняем вместе со способом счёта долей: положение прошлых сеансов посчитано
+	 * по-старому и перекосило бы раскладку.
+	 */
+	const SPLIT_STORAGE_KEY = 'form-viewer.split.2.';
+
 	const state = {
 		selected: null,
 		collapsed: new Set(),
@@ -567,7 +575,85 @@
 		renderData();
 	});
 
+	setUpSplitters();
+
 	renderTree();
 	renderPreview();
 	renderData();
+
+	/**
+	 * Границы панелей тянутся мышью.
+	 *
+	 * Положение держим долями, а не пикселями: окно меняет размер, а раскладка должна оставаться
+	 * такой же по виду. Запоминаем на форму, чтобы у списка и у элемента были свои пропорции.
+	 */
+	function setUpSplitters() {
+		const layout = document.getElementById('layout');
+		if (!layout) {
+			return;
+		}
+		const key = SPLIT_STORAGE_KEY + (document.title || '');
+		const saved = readSplit(key);
+		if (saved.x) {
+			layout.style.setProperty('--split-x', saved.x);
+		}
+		if (saved.y) {
+			layout.style.setProperty('--split-y', saved.y);
+		}
+		drag(document.getElementById('splitV'), 'x');
+		drag(document.getElementById('splitH'), 'y');
+
+		function drag(handle, axis) {
+			if (!handle) {
+				return;
+			}
+			handle.addEventListener('pointerdown', (event) => {
+				event.preventDefault();
+				handle.setPointerCapture(event.pointerId);
+				handle.classList.add('is-dragging');
+				const grabbed = handle.getBoundingClientRect();
+				// Место захвата внутри разделителя: без него граница прыгает под курсор при нажатии.
+				const grab = axis === 'x' ? event.clientX - grabbed.left : event.clientY - grabbed.top;
+				const thickness = axis === 'x' ? grabbed.width : grabbed.height;
+				const move = (moveEvent) => {
+					const box = layout.getBoundingClientRect();
+					// Разделитель занимает своё место в раскладке, поэтому доли делят остаток.
+					const whole = (axis === 'x' ? box.width : box.height) - thickness;
+					const pointer = axis === 'x' ? moveEvent.clientX - box.left : moveEvent.clientY - box.top;
+					const share = Math.min(0.85, Math.max(0.15, (pointer - grab) / whole));
+					// Вторая доля остаётся 1fr, поэтому храним отношение первой ко второй, а не проценты.
+					const value = (share / (1 - share)).toFixed(4) + 'fr';
+					layout.style.setProperty(axis === 'x' ? '--split-x' : '--split-y', value);
+				};
+				const up = () => {
+					handle.classList.remove('is-dragging');
+					window.removeEventListener('pointermove', move);
+					window.removeEventListener('pointerup', up);
+					writeSplit(key, {
+						x: layout.style.getPropertyValue('--split-x'),
+						y: layout.style.getPropertyValue('--split-y'),
+					});
+				};
+				window.addEventListener('pointermove', move);
+				window.addEventListener('pointerup', up);
+			});
+		}
+	}
+
+	/** Положение границ прошлого сеанса; недоступное хранилище просто означает раскладку по умолчанию. */
+	function readSplit(key) {
+		try {
+			return JSON.parse(localStorage.getItem(key) || '{}');
+		} catch (error) {
+			return {};
+		}
+	}
+
+	function writeSplit(key, value) {
+		try {
+			localStorage.setItem(key, JSON.stringify(value));
+		} catch (error) {
+			// Хранилище может быть недоступно: раскладка просто не запомнится.
+		}
+	}
 })();

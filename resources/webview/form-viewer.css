@@ -43,12 +43,61 @@ body {
 	min-height: 0;
 	display: grid;
 	/* Раскладка конфигуратора: сверху элементы и данные формы, снизу сама форма. */
-	grid-template-columns: minmax(260px, 1fr) minmax(260px, 1fr);
-	grid-template-rows: minmax(120px, 2fr) minmax(160px, 3fr);
+	/* Вторая полоса обеих осей - 1fr: доля из переменной считается отношением к ней. */
+	grid-template-columns: minmax(180px, var(--split-x, 1fr)) 8px minmax(180px, 1fr);
+	grid-template-rows: minmax(80px, var(--split-y, 0.6667fr)) 8px minmax(120px, 1fr);
 	grid-template-areas:
-		"tree data"
-		"preview preview";
-	gap: 8px;
+		"tree vsplit data"
+		"hsplit hsplit hsplit"
+		"preview preview preview";
+	gap: 0;
+}
+
+/* Границы панелей тянутся мышью: на длинной форме без этого не поработать. */
+.pane-split {
+	background: transparent;
+	position: relative;
+}
+
+.pane-split::after {
+	content: '';
+	position: absolute;
+	inset: 0;
+	margin: auto;
+	background: var(--vscode-panel-border);
+}
+
+.pane-split-v {
+	grid-area: vsplit;
+	cursor: col-resize;
+}
+
+.pane-split-v::after {
+	width: 1px;
+}
+
+.pane-split-h {
+	grid-area: hsplit;
+	cursor: row-resize;
+}
+
+.pane-split-h::after {
+	height: 1px;
+}
+
+.pane-split:hover::after,
+.pane-split.is-dragging::after {
+	background: var(--vscode-focusBorder);
+}
+
+.pane-split-v:hover::after,
+.pane-split-v.is-dragging::after {
+	width: 2px;
+}
+
+.pane-split-h:hover::after,
+.pane-split-h.is-dragging::after {
+	height: 2px;
 }
 
 .pane-tree {
