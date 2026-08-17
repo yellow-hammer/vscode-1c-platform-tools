@@ -61,6 +61,7 @@ Read-only инструмент `env_status` возвращает JSON: акти�
 | Задача                         | Инструмент MCP                 |
 |--------------------------------|--------------------------------|
 | Загрузить из исходников        | `configuration_loadFromSrc`    |
+| Обновить конфигурацию БД              | `infobase_updateInfobase`            |
 | Загрузить изменения (git diff) | `configuration_loadIncFromSrc` |
 | Загрузить из objlist.txt       | `configuration_loadFromFiles`  |
 | Загрузить из 1Cv8.cf           | `configuration_loadFromCf`     |
@@ -101,7 +102,8 @@ Read-only инструмент `env_status` возвращает JSON: акти�
 
 ## Примеры
 
-- Вызови `configuration_loadFromSrc` с `projectPath` = корень проекта 1С — загрузка конфигурации из исходников.
+- Вызови `configuration_loadFromSrc` с `projectPath` = корень проекта 1С — загрузка конфигурации из исходников и обновление БД.
+- Вызови `configuration_loadFromSrc`, затем `infobase_updateInfobase`: загрузка не трогает конфигурацию БД, пока не передан `updateDb: true`.
 - Вызови `run_designer` с `projectPath` — запуск Конфигуратора (если пользователь просит открыть конфигуратор).
 - Вызови `deps_install` с `projectPath` — установка зависимостей packagedef/vrunner.
 

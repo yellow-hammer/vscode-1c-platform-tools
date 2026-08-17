@@ -433,9 +433,13 @@ export function getDecompileTestEpfCommandName(): CommandNameAndTitle {
 // ============================================================================
 
 /**
- * Получить название и заголовок для команды загрузки конфигурации из src/cf
+ * Получить название и заголовок для команды загрузки конфигурации из src/cf.
+ *
+ * `load` — загрузка в существующую ИБ, `init` — загрузка в пустую.
  */
-export function getLoadConfigurationFromSrcCommandName(mode: 'init' | 'update' = 'update'): CommandNameAndTitle {
+export function getLoadConfigurationFromSrcCommandName(
+	mode: 'init' | 'load' = 'load'
+): CommandNameAndTitle {
 	if (mode === 'init') {
 		return {
 			id: '1c-platform-tools.configuration.loadFromSrc.init',
@@ -445,7 +449,7 @@ export function getLoadConfigurationFromSrcCommandName(mode: 'init' | 'update' =
 	}
 	return {
 		id: '1c-platform-tools.configuration.loadFromSrc',
-		name: 'Обновление конфигурации',
+		name: 'Загрузить конфигурацию из src/cf',
 		title: 'Загрузить конфигурацию из src/cf'
 	};
 }

@@ -147,6 +147,7 @@ suite('схема пользовательских хуков', () => {
 			'1c-platform-tools.test.xunit',
 			'1c-platform-tools.env.selectProfile',
 			'1c-platform-tools.configuration.loadFromSrc',
+			'1c-platform-tools.infobase.updateInfobase',
 		]) {
 			assert.ok(allowed.has(id), `команда ${id} должна быть в подсказках хуков`);
 		}

@@ -10,6 +10,7 @@ suite('mcpCommandPolicy', () => {
 	test('рабочие команды публикуются', () => {
 		for (const id of [
 			'1c-platform-tools.configuration.loadFromSrc',
+			'1c-platform-tools.infobase.updateInfobase',
 			'1c-platform-tools.test.runXUnit',
 			'1c-platform-tools.env.status',
 			'1c-platform-tools.externalProcessors.run',
@@ -43,6 +44,7 @@ suite('mcpCommandPolicy', () => {
 	test('команды vanessa-runner возвращают исход операции', () => {
 		for (const id of [
 			'1c-platform-tools.configuration.loadFromSrc',
+			'1c-platform-tools.infobase.updateInfobase',
 			'1c-platform-tools.test.syntaxCheck',
 			'1c-platform-tools.extensions.build',
 			'1c-platform-tools.env.selectProfile',

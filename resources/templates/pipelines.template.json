@@ -18,14 +18,20 @@
 					"type": "command",
 					"command": "1c-platform-tools.configuration.loadFromSrc",
 					"x": 330,
-					"y": 60
+					"y": 60,
+					"options": {
+						"updateDb": true
+					}
 				},
 				{
 					"id": "loadCfe",
 					"type": "command",
 					"command": "1c-platform-tools.extensions.loadFromSrc",
 					"x": 600,
-					"y": 60
+					"y": 60,
+					"options": {
+						"updateDb": true
+					}
 				},
 				{
 					"id": "updateDb",
@@ -85,14 +91,20 @@
 					"type": "command",
 					"command": "1c-platform-tools.configuration.loadFromSrc",
 					"x": 600,
-					"y": 60
+					"y": 60,
+					"options": {
+						"updateDb": true
+					}
 				},
 				{
 					"id": "loadCfe",
 					"type": "command",
 					"command": "1c-platform-tools.extensions.loadFromSrc",
 					"x": 870,
-					"y": 60
+					"y": 60,
+					"options": {
+						"updateDb": true
+					}
 				},
 				{
 					"id": "unlock",

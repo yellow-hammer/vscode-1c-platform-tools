@@ -21,7 +21,7 @@ description: Операции с информационными базами 1С
 | Задача                                | Command ID                                          |
 |---------------------------------------|-----------------------------------------------------|
 | Создать пустую ИБ                     | `1c-platform-tools.infobase.createEmpty`            |
-| Обновить ИБ                           | `1c-platform-tools.infobase.updateInfobase`         |
+| Обновить конфигурацию в ИБ            | `1c-platform-tools.infobase.updateInfobase`         |
 | Постобработка обновления              | `1c-platform-tools.infobase.updateDatabase`         |
 | Запретить работу с внешними ресурсами | `1c-platform-tools.infobase.blockExternalResources` |
 | Инициализировать данные               | `1c-platform-tools.infobase.initialize`             |
@@ -31,4 +31,4 @@ description: Операции с информационными базами 1С
 ## Примеры
 
 - Выполни `1c-platform-tools.infobase.createEmpty` — создание пустой ИБ (параметры из env.json).
-- Выполни `1c-platform-tools.infobase.updateInfobase` для обновления конфигурации в базе текущего проекта.
+- Выполни `1c-platform-tools.infobase.updateInfobase` для обновления конфигурации БД текущего проекта.

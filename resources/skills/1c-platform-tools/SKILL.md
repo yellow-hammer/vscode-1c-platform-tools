@@ -14,7 +14,7 @@ description: Операции с платформой 1С в этом проек
 | Задача                                | Command ID                                          |
 |---------------------------------------|-----------------------------------------------------|
 | Создать пустую ИБ                     | `1c-platform-tools.infobase.createEmpty`            |
-| Обновить ИБ                           | `1c-platform-tools.infobase.updateInfobase`         |
+| Обновить конфигурацию в ИБ            | `1c-platform-tools.infobase.updateInfobase`         |
 | Постобработка обновления              | `1c-platform-tools.infobase.updateDatabase`         |
 | Запретить работу с внешними ресурсами | `1c-platform-tools.infobase.blockExternalResources` |
 | Инициализировать данные               | `1c-platform-tools.infobase.initialize`             |

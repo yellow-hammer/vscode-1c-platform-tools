@@ -225,7 +225,7 @@ export function registerCommands(
 	// Команды конфигурации
 	const configurationCommands = [
 		registerVRunnerCommand('1c-platform-tools.configuration.loadFromSrc', (opts) =>
-			commands.configuration.loadFromSrc('update', opts)
+			commands.configuration.loadFromSrc('load', opts)
 		),
 		registerVRunnerCommand('1c-platform-tools.configuration.loadFromSrc.init', (opts) =>
 			commands.configuration.loadFromSrc('init', opts)

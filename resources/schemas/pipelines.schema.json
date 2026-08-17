@@ -164,7 +164,7 @@
                 },
                 "options": {
                   "type": "object",
-                  "description": "Параметры вызова команды, например settingsFile или lockMessage (type: command)"
+                  "description": "Параметры вызова команды, например updateDb, settingsFile или lockMessage (type: command)"
                 },
                 "script": {
                   "type": "string",
