@@ -29,6 +29,48 @@ class OnecDebugAdapterDescriptorFactory implements vscode.DebugAdapterDescriptor
 	}
 }
 
+/** Куда смотреть за подробностями; добавляется к уведомлениям о проблемах адаптера. */
+const ADAPTER_FAILURE_HINT = 'Подробности в панели Output, канал 1C: Platform Tools.';
+
+/**
+ * Текст об аварийном завершении процесса адаптера; undefined, если адаптер завершился штатно.
+ */
+export function adapterExitMessage(code?: number, signal?: string): string | undefined {
+	if (code === 0) {
+		return undefined;
+	}
+	const reason = code === undefined ? `сигнал ${signal ?? 'неизвестен'}` : `код возврата ${code}`;
+	return `процесс адаптера отладки завершился аварийно: ${reason}`;
+}
+
+/**
+ * Отслеживает жизненный цикл процесса адаптера. Без этого аварийное завершение адаптера выглядит как
+ * молчаливое закрытие сессии: панель отладки исчезает, консоль отладки пуста, в Output ничего нет.
+ */
+class OnecDebugAdapterTrackerFactory implements vscode.DebugAdapterTrackerFactory {
+	createDebugAdapterTracker(): vscode.DebugAdapterTracker {
+		return {
+			onError(error: Error) {
+				const message = `ошибка процесса адаптера отладки: ${error.message}`;
+				log.error(message);
+				void vscode.window.showErrorMessage(`${capitalize(message)}. ${ADAPTER_FAILURE_HINT}`);
+			},
+			onExit(code: number | undefined, signal: string | undefined) {
+				const message = adapterExitMessage(code, signal);
+				if (!message) {
+					return;
+				}
+				log.error(message);
+				void vscode.window.showErrorMessage(`${capitalize(message)}. ${ADAPTER_FAILURE_HINT}`);
+			},
+		};
+	}
+}
+
+function capitalize(text: string): string {
+	return text.charAt(0).toUpperCase() + text.slice(1);
+}
+
 /**
  * Регистрирует интеграцию DAP 1С и обновление debug targets.
  */
@@ -42,6 +84,9 @@ export function registerDebugFeature(context: vscode.ExtensionContext): void {
 			DEBUG_TYPE,
 			new OnecDebugAdapterDescriptorFactory(context)
 		)
+	);
+	context.subscriptions.push(
+		vscode.debug.registerDebugAdapterTrackerFactory(DEBUG_TYPE, new OnecDebugAdapterTrackerFactory())
 	);
 	watchTargetTypesChanged(context);
 	context.subscriptions.push(
