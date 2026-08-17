@@ -20,7 +20,7 @@ export interface CommandExecutionOptions {
 	/**
 	 * Обновлять ли конфигурацию БД тем же вызовом после загрузки.
 	 *
-	 * Без явного значения решает настройка `configuration.updateDbAfterLoad`;
+	 * Без явного значения решает настройка `cf.updateDbAfterLoad`;
 	 * вопрос при этом задаётся только интерактивному пользователю.
 	 */
 	updateDb?: boolean;

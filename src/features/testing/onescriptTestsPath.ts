@@ -5,7 +5,7 @@ import { logger } from '../../shared/logger';
 const log = logger.scope('testing');
 
 /** Устаревшая настройка каталога тестов OneScript. */
-const LEGACY_SETTING = 'testing.onescriptTestsPath';
+const LEGACY_SETTING = 'test.onescriptTestsPath';
 
 /** Сообщали ли про устаревшую настройку в этом сеансе. */
 let warned = false;
@@ -15,7 +15,7 @@ let warned = false;
  *
  * Каталог тестов один - `paths.tests`: в его корне лежат `*.os`, а рядом
  * подкаталоги с исходниками тестовых расширений и обработок. Отдельная
- * настройка `testing.onescriptTestsPath` описывала то же самое и осталась ради
+ * настройка `test.onescriptTestsPath` описывала то же самое и осталась ради
  * проектов, где её уже задали: заданное значение выигрывает, но об этом
  * говорится в журнале, чтобы настройка не жила незамеченной.
  *

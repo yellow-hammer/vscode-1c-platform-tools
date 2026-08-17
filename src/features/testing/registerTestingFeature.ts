@@ -38,7 +38,7 @@ export function registerTestingFeature(params: {
 	const configureCommand = registerConfigureTestingCommand(vrunner);
 
 	const config = vscode.workspace.getConfiguration('1c-platform-tools');
-	if (!config.get<boolean>('testing.enabled', true)) {
+	if (!config.get<boolean>('test.enabled', true)) {
 		return { disposables: [configureCommand], rebuild: () => undefined };
 	}
 	const adapters: TestFrameworkAdapter[] = [

@@ -53,7 +53,7 @@ export class XUnitAdapter implements TestFrameworkAdapter {
 
 	public isEnabled(): boolean {
 		const config = vscode.workspace.getConfiguration('1c-platform-tools');
-		if (!config.get<boolean>('testing.frameworks.xunit', true)) {
+		if (!config.get<boolean>('test.frameworks.xunit', true)) {
 			return false;
 		}
 		return hasConfigurationSources(this.vrunner);

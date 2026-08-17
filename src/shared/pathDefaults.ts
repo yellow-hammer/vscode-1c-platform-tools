@@ -84,15 +84,15 @@ export const BUILD_SUBDIRS = {
 	testsEpf: 'tests/epf'
 } as const;
 
-/** Дефолты путей группы 1c-platform-tools.testing.* */
+/** Дефолты путей группы 1c-platform-tools.test.* */
 export const DEFAULT_TESTING = {
-	/** Каталог feature-файлов (testing.featuresPath) */
+	/** Каталог feature-файлов (test.featuresPath) */
 	featuresPath: 'features',
 	/** Каталог тестов OneScript: устарел, каталог задаётся в paths.tests */
 	onescriptTestsPath: 'tests',
-	/** Каталог временных файлов прогонов (testing.reportsPath) */
+	/** Каталог временных файлов прогонов (test.reportsPath) */
 	reportsPath: 'build/out/testapi',
-	/** Базовый конфиг YAxUnit (testing.yaxunitConfigPath) */
+	/** Базовый конфиг YAxUnit (test.yaxunitConfigPath) */
 	yaxunitConfigPath: 'tools/yaxunit.json'
 } as const;
 

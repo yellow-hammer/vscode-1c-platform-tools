@@ -9,7 +9,7 @@
  * Источники решения по убыванию приоритета, как у выбора расширений
  * ({@link ../extensions/extensionPicker}):
  * 1. Явное значение в опциях вызова (агент, MCP, шаг цепочки, хук).
- * 2. Настройка `1c-platform-tools.configuration.updateDbAfterLoad`.
+ * 2. Настройка `1c-platform-tools.cf.updateDbAfterLoad`.
  * 3. Вопрос пользователю — только при интерактивном запуске.
  * @module updateDbDecision
  */
@@ -23,7 +23,7 @@ export type UpdateDbAfterLoad = 'ask' | 'always' | 'never';
 /** Что делать команде загрузки. */
 export type UpdateDbDecision = 'update' | 'loadOnly' | 'ask';
 
-const SETTING_KEY = 'configuration.updateDbAfterLoad';
+const SETTING_KEY = 'cf.updateDbAfterLoad';
 
 /**
  * Решение без обращения к интерфейсу.

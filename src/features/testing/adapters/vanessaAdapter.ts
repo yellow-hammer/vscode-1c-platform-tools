@@ -40,7 +40,7 @@ export class VanessaAdapter implements TestFrameworkAdapter {
 
 	public isEnabled(): boolean {
 		const config = vscode.workspace.getConfiguration('1c-platform-tools');
-		if (!config.get<boolean>('testing.frameworks.vanessa', true)) {
+		if (!config.get<boolean>('test.frameworks.vanessa', true)) {
 			return false;
 		}
 		// VA выполняет сценарии в информационной базе — без конфигурации
@@ -50,7 +50,7 @@ export class VanessaAdapter implements TestFrameworkAdapter {
 
 	public getIncludeGlobs(): string[] {
 		const config = vscode.workspace.getConfiguration('1c-platform-tools');
-		const base = normalizeGlobBase(config.get<string>('testing.featuresPath', DEFAULT_TESTING.featuresPath));
+		const base = normalizeGlobBase(config.get<string>('test.featuresPath', DEFAULT_TESTING.featuresPath));
 		return [`${base}/**/*.feature`];
 	}
 
@@ -60,7 +60,7 @@ export class VanessaAdapter implements TestFrameworkAdapter {
 
 	public describeFileLocation(fileUri: vscode.Uri, workspaceRoot: string) {
 		const config = vscode.workspace.getConfiguration('1c-platform-tools');
-		const base = config.get<string>('testing.featuresPath', DEFAULT_TESTING.featuresPath);
+		const base = config.get<string>('test.featuresPath', DEFAULT_TESTING.featuresPath);
 		return { segments: directorySegments(fileUri.fsPath, base, workspaceRoot) };
 	}
 

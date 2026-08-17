@@ -3075,7 +3075,7 @@
             "default": "src/cfe",
             "description": "Путь к исходному коду расширений"
           },
-          "1c-platform-tools.extensions.selected": {
+          "1c-platform-tools.cfe.selected": {
             "type": "array",
             "items": {
               "type": "string"
@@ -3083,7 +3083,7 @@
             "default": [],
             "markdownDescription": "Список расширений (имена каталогов в `src/cfe`), с которыми работают команды группы «Расширения» и установка версии расширений. Заданный список команды используют без интерактивного выбора. Если он пуст, при запуске команды показывается окно выбора с чекбоксами, а выбор запоминается для проекта."
           },
-          "1c-platform-tools.configuration.updateDbAfterLoad": {
+          "1c-platform-tools.cf.updateDbAfterLoad": {
             "type": "string",
             "enum": [
               "ask",
@@ -3096,7 +3096,7 @@
               "Только загружать; обновление конфигурации БД остаётся отдельной командой"
             ],
             "default": "ask",
-            "description": "Обновлять ли конфигурацию БД (UpdateDBCfg) сразу после загрузки конфигурации из исходников, из 1Cv8.cf или по objlist.txt. Заданное значение убирает вопрос так же, как список в 1c-platform-tools.extensions.selected убирает окно выбора расширений."
+            "description": "Обновлять ли конфигурацию БД (UpdateDBCfg) сразу после загрузки конфигурации из исходников, из 1Cv8.cf или по objlist.txt. Заданное значение убирает вопрос."
           },
           "1c-platform-tools.paths.epf": {
             "type": "string",
@@ -3418,31 +3418,31 @@
         "id": "1c-platform-tools.testing",
         "order": 7,
         "properties": {
-          "1c-platform-tools.testing.enabled": {
+          "1c-platform-tools.test.enabled": {
             "type": "boolean",
             "default": true,
             "description": "Интеграция тестов 1С с панелью тестирования VS Code (Test Explorer): дерево тестов, кнопки запуска в редакторе, статусы и переход к месту падения."
           },
-          "1c-platform-tools.testing.featuresPath": {
+          "1c-platform-tools.test.featuresPath": {
             "type": "string",
             "default": "features",
             "description": "Каталог feature-файлов Vanessa Automation (относительно корня проекта)."
           },
-          "1c-platform-tools.testing.onescriptTestsPath": {
+          "1c-platform-tools.test.onescriptTestsPath": {
             "type": "string",
             "default": "tests",
             "markdownDescription": "Каталог тестов OneScript (1testrunner/OneUnit), относительно корня проекта.",
             "markdownDeprecationMessage": "Каталог тестов задаётся в `#1c-platform-tools.paths.tests#`. Заданное здесь значение пока используется, о чём пишется в журнал."
           },
-          "1c-platform-tools.testing.selectedExtensions": {
+          "1c-platform-tools.test.selectedExtensions": {
             "type": "array",
             "items": {
               "type": "string"
             },
             "default": [],
-            "markdownDescription": "Список тестовых расширений (имена каталогов в `tests/cfe`), с которыми работают команды тестовых расширений. Заданный список команды используют без интерактивного выбора. Если он пуст, при запуске команды показывается окно выбора с чекбоксами, а выбор запоминается для проекта. Расширения решения перечисляет `#1c-platform-tools.extensions.selected#`."
+            "markdownDescription": "Список тестовых расширений (имена каталогов в `tests/cfe`), с которыми работают команды тестовых расширений. Заданный список команды используют без интерактивного выбора. Если он пуст, при запуске команды показывается окно выбора с чекбоксами, а выбор запоминается для проекта. Расширения решения перечисляет `#1c-platform-tools.cfe.selected#`."
           },
-          "1c-platform-tools.testing.exclude": {
+          "1c-platform-tools.test.exclude": {
             "type": "array",
             "items": {
               "type": "string"
@@ -3453,42 +3453,42 @@
             ],
             "description": "Сегменты пути, исключаемые при поиске тестов в панели тестирования (например: oscript_modules, build, vendor). build исключён, чтобы не находить собранные обработки и отчёты прогонов."
           },
-          "1c-platform-tools.testing.reportsPath": {
+          "1c-platform-tools.test.reportsPath": {
             "type": "string",
             "default": "build/out/testapi",
             "description": "Каталог временных файлов прогонов из панели тестирования (относительно корня проекта; должен быть внутри workspace для работы в Docker). Используется, только если пути отчётов не настроены в env.json/tools проекта."
           },
-          "1c-platform-tools.testing.yaxunitConfigPath": {
+          "1c-platform-tools.test.yaxunitConfigPath": {
             "type": "string",
             "default": "tools/yaxunit.json",
             "description": "Базовый конфиг YAxUnit (RunUnitTests). Панель тестирования накладывает на него фильтр по выбранному модулю/тесту и берёт из него reportPath."
           },
-          "1c-platform-tools.testing.frameworks.vanessa": {
+          "1c-platform-tools.test.frameworks.vanessa": {
             "type": "boolean",
             "default": true,
             "description": "Показывать в панели тестирования сценарии Vanessa Automation (.feature)."
           },
-          "1c-platform-tools.testing.frameworks.xunit": {
+          "1c-platform-tools.test.frameworks.xunit": {
             "type": "boolean",
             "default": true,
             "description": "Показывать в панели тестирования тестовые обработки xUnit/Vanessa-ADD (исходники в tests/epf; перед прогоном собираются в .epf). Активен только при наличии исходников конфигурации (paths.cf): тесты выполняются в информационной базе."
           },
-          "1c-platform-tools.testing.frameworks.yaxunit": {
+          "1c-platform-tools.test.frameworks.yaxunit": {
             "type": "boolean",
             "default": true,
             "description": "Показывать в панели тестирования тесты YAxUnit (общие модули тестового расширения в каталоге расширений)."
           },
-          "1c-platform-tools.testing.frameworks.onescript": {
+          "1c-platform-tools.test.frameworks.onescript": {
             "type": "boolean",
             "default": true,
             "description": "Показывать в панели тестирования тесты OneScript (*.os в каталоге тестов): классический стиль (ИсполняемыеСценарии) и аннотации &Тест."
           },
-          "1c-platform-tools.testing.frameworks.onebdd": {
+          "1c-platform-tools.test.frameworks.onebdd": {
             "type": "boolean",
             "default": true,
             "description": "Показывать в панели тестирования BDD-сценарии 1bdd (.feature в OneScript-проектах). Активен только в проектах без исходников конфигурации: в проектах 1С фичи относятся к Vanessa Automation."
           },
-          "1c-platform-tools.testing.onescriptRunner": {
+          "1c-platform-tools.test.onescriptRunner": {
             "type": "string",
             "enum": [
               "auto",
@@ -3498,12 +3498,12 @@
             "default": "auto",
             "description": "Раннер тестов OneScript. auto выбирает OneUnit при наличии в oscript_modules/bin, иначе 1testrunner. Оба пишут jUnit-отчёт: 1testrunner через xddReportPath, OneUnit через --junit."
           },
-          "1c-platform-tools.testing.onescriptRunnerPath": {
+          "1c-platform-tools.test.onescriptRunnerPath": {
             "type": "string",
             "default": "",
             "description": "Путь к раннеру тестов OneScript (1testrunner/oneunit). Поддерживаются относительные пути от корня проекта (например ./oscript_modules/bin/oneunit.bat). Пусто: локальная установка oscript_modules/bin, затем PATH."
           },
-          "1c-platform-tools.testing.onebddPath": {
+          "1c-platform-tools.test.onebddPath": {
             "type": "string",
             "default": "",
             "description": "Путь к раннеру 1bdd. Поддерживаются относительные пути от корня проекта. Пусто: локальная установка oscript_modules/bin, затем PATH."

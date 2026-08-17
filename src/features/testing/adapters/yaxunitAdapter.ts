@@ -34,7 +34,7 @@ export class YaxunitAdapter implements TestFrameworkAdapter {
 
 	public isEnabled(): boolean {
 		const config = vscode.workspace.getConfiguration('1c-platform-tools');
-		return config.get<boolean>('testing.frameworks.yaxunit', true);
+		return config.get<boolean>('test.frameworks.yaxunit', true);
 	}
 
 	public getIncludeGlobs(): string[] {
@@ -220,7 +220,7 @@ export class YaxunitAdapter implements TestFrameworkAdapter {
 		}
 
 		const config = vscode.workspace.getConfiguration('1c-platform-tools');
-		const configured = config.get<string>('testing.yaxunitConfigPath', DEFAULT_TESTING.yaxunitConfigPath);
+		const configured = config.get<string>('test.yaxunitConfigPath', DEFAULT_TESTING.yaxunitConfigPath);
 		const configPath = resolveConfigPath(configured, workspaceRoot);
 
 		try {

@@ -67,7 +67,7 @@ export function registerConfigureTestingCommand(vrunner: VRunnerManager): vscode
 		const wait = opts?.wait === true;
 
 		const config = vscode.workspace.getConfiguration('1c-platform-tools');
-		const featuresPath = config.get<string>('testing.featuresPath', DEFAULT_TESTING.featuresPath);
+		const featuresPath = config.get<string>('test.featuresPath', DEFAULT_TESTING.featuresPath);
 		const onescriptPath = resolveOnescriptTestsPath();
 
 		const frameworks: FrameworkPick[] = [
@@ -137,7 +137,7 @@ export function registerConfigureTestingCommand(vrunner: VRunnerManager): vscode
 		} else {
 			const picks = frameworks.map((framework) => ({
 				...framework,
-				picked: config.get<boolean>(`testing.frameworks.${framework.key}`, framework.defaultEnabled)
+				picked: config.get<boolean>(`test.frameworks.${framework.key}`, framework.defaultEnabled)
 			}));
 
 			const selected = await vscode.window.showQuickPick(picks, {
@@ -153,13 +153,13 @@ export function registerConfigureTestingCommand(vrunner: VRunnerManager): vscode
 
 		for (const framework of frameworks) {
 			await config.update(
-				`testing.frameworks.${framework.key}`,
+				`test.frameworks.${framework.key}`,
 				selectedKeys.has(framework.key),
 				vscode.ConfigurationTarget.Workspace
 			);
 		}
-		if (!config.get<boolean>('testing.enabled', true)) {
-			await config.update('testing.enabled', true, vscode.ConfigurationTarget.Workspace);
+		if (!config.get<boolean>('test.enabled', true)) {
+			await config.update('test.enabled', true, vscode.ConfigurationTarget.Workspace);
 		}
 
 		// Недостающие каталоги выбранных фреймворков: в неинтерактивном режиме
