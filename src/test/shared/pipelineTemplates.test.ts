@@ -118,10 +118,10 @@ suite('pipelineTemplates: поставляемые цепочки', () => {
 		assert.deepStrictEqual(
 			delivery.nodes.map((node) => node.command),
 			[
-				'1c-platform-tools.configuration.build',
-				'1c-platform-tools.extensions.build',
-				'1c-platform-tools.externalProcessors.build',
-				'1c-platform-tools.externalReports.build',
+				'1c-platform-tools.cf.compile',
+				'1c-platform-tools.cfe.compile',
+				'1c-platform-tools.epf.compileProcessor',
+				'1c-platform-tools.epf.compileReport',
 			]
 		);
 	});
@@ -134,10 +134,10 @@ suite('pipelineTemplates: поставляемые цепочки', () => {
 		assert.deepStrictEqual(
 			deploy.nodes.map((node) => node.command),
 			[
-				'1c-platform-tools.infobase.createEmpty',
-				'1c-platform-tools.configuration.loadFromSrc',
-				'1c-platform-tools.extensions.loadFromSrc',
-				'1c-platform-tools.infobase.updateDatabase',
+				'1c-platform-tools.infobase.create',
+				'1c-platform-tools.cf.load',
+				'1c-platform-tools.cfe.load',
+				'1c-platform-tools.infobase.runUpdateHandlers',
 				'1c-platform-tools.infobase.initialize',
 			]
 		);

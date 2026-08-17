@@ -158,13 +158,13 @@ export function registerCommands(
 
 	// Команды информационных баз
 	const infobaseCommands = [
-		registerVRunnerCommand('1c-platform-tools.infobase.createEmpty', (opts) =>
+		registerVRunnerCommand('1c-platform-tools.infobase.create', (opts) =>
 			commands.infobase.createEmptyInfobase(opts)
 		),
-		registerVRunnerCommand('1c-platform-tools.infobase.updateInfobase', (opts) =>
+		registerVRunnerCommand('1c-platform-tools.infobase.updateDb', (opts) =>
 			commands.infobase.updateInfobase(opts)
 		),
-		registerVRunnerCommand('1c-platform-tools.infobase.updateDatabase', (opts) =>
+		registerVRunnerCommand('1c-platform-tools.infobase.runUpdateHandlers', (opts) =>
 			commands.infobase.updateDatabase(opts)
 		),
 		registerVRunnerCommand('1c-platform-tools.infobase.blockExternalResources', (opts) =>
@@ -173,10 +173,10 @@ export function registerCommands(
 		registerVRunnerCommand('1c-platform-tools.infobase.initialize', (opts) =>
 			commands.infobase.initialize(opts)
 		),
-		registerVRunnerCommand('1c-platform-tools.infobase.dumpToDt', (opts) =>
+		registerVRunnerCommand('1c-platform-tools.infobase.dumpDt', (opts) =>
 			commands.infobase.dumpToDt(opts)
 		),
-		registerVRunnerCommand('1c-platform-tools.infobase.loadFromDt', (opts) =>
+		registerVRunnerCommand('1c-platform-tools.infobase.restoreDt', (opts) =>
 			commands.infobase.loadFromDt(opts)
 		),
 	];
@@ -224,84 +224,84 @@ export function registerCommands(
 
 	// Команды конфигурации
 	const configurationCommands = [
-		registerVRunnerCommand('1c-platform-tools.configuration.loadFromSrc', (opts) =>
+		registerVRunnerCommand('1c-platform-tools.cf.load', (opts) =>
 			commands.configuration.loadFromSrc('load', opts)
 		),
-		registerVRunnerCommand('1c-platform-tools.configuration.loadFromSrc.init', (opts) =>
+		registerVRunnerCommand('1c-platform-tools.infobase.initFromSrc', (opts) =>
 			commands.configuration.loadFromSrc('init', opts)
 		),
-		registerVRunnerCommand('1c-platform-tools.configuration.loadIncrementFromSrc', (opts) =>
+		registerVRunnerCommand('1c-platform-tools.cf.loadIncrement', (opts) =>
 			commands.configuration.loadIncrementFromSrc(opts)
 		),
-		registerVRunnerCommand('1c-platform-tools.configuration.loadFromFilesByList', (opts) =>
+		registerVRunnerCommand('1c-platform-tools.cf.loadByList', (opts) =>
 			commands.configuration.loadFromFilesByList(opts)
 		),
-		registerVRunnerCommand('1c-platform-tools.configuration.loadFromCf', (opts) =>
+		registerVRunnerCommand('1c-platform-tools.cf.loadFile', (opts) =>
 			commands.configuration.loadFromCf(opts)
 		),
-		registerVRunnerCommand('1c-platform-tools.configuration.dumpToSrc', (opts) =>
+		registerVRunnerCommand('1c-platform-tools.cf.dump', (opts) =>
 			commands.configuration.dumpToSrc(opts)
 		),
-		registerVRunnerCommand('1c-platform-tools.configuration.dumpIncrementToSrc', (opts) =>
+		registerVRunnerCommand('1c-platform-tools.cf.dumpIncrement', (opts) =>
 			commands.configuration.dumpIncrementToSrc(opts)
 		),
-		registerVRunnerCommand('1c-platform-tools.configuration.dumpToCf', (opts) =>
+		registerVRunnerCommand('1c-platform-tools.cf.unload', (opts) =>
 			commands.configuration.dumpToCf(opts)
 		),
-		registerVRunnerCommand('1c-platform-tools.configuration.dumpToDist', (opts) =>
+		registerVRunnerCommand('1c-platform-tools.cf.makeDist', (opts) =>
 			commands.configuration.dumpToDist(opts)
 		),
-		registerVRunnerCommand('1c-platform-tools.configuration.build', (opts) =>
+		registerVRunnerCommand('1c-platform-tools.cf.compile', (opts) =>
 			commands.configuration.compile(opts)
 		),
-		registerVRunnerCommand('1c-platform-tools.configuration.decompile', (opts) =>
+		registerVRunnerCommand('1c-platform-tools.cf.decompile', (opts) =>
 			commands.configuration.decompile(opts)
 		),
 	];
 
 	// Команды расширений
 	const extensionsCommands = [
-		registerVRunnerCommand('1c-platform-tools.extensions.loadFromSrc', (opts) =>
+		registerVRunnerCommand('1c-platform-tools.cfe.load', (opts) =>
 			commands.extensions.loadFromSrc(opts)
 		),
-		registerVRunnerCommand('1c-platform-tools.extensions.loadFromFilesByList', (opts) =>
+		registerVRunnerCommand('1c-platform-tools.cfe.loadByList', (opts) =>
 			commands.extensions.loadFromFilesByList(opts)
 		),
-		registerVRunnerCommand('1c-platform-tools.extensions.loadFromCfe', (opts) =>
+		registerVRunnerCommand('1c-platform-tools.cfe.loadFile', (opts) =>
 			commands.extensions.loadFromCfe(opts)
 		),
-		registerVRunnerCommand('1c-platform-tools.extensions.dumpToSrc', (opts) =>
+		registerVRunnerCommand('1c-platform-tools.cfe.dump', (opts) =>
 			commands.extensions.dumpToSrc(opts)
 		),
-		registerVRunnerCommand('1c-platform-tools.extensions.dumpToCfe', (opts) =>
+		registerVRunnerCommand('1c-platform-tools.cfe.unload', (opts) =>
 			commands.extensions.dumpToCfe(opts)
 		),
-		registerVRunnerCommand('1c-platform-tools.extensions.build', (opts) =>
+		registerVRunnerCommand('1c-platform-tools.cfe.compile', (opts) =>
 			commands.extensions.compile(opts)
 		),
-		registerVRunnerCommand('1c-platform-tools.extensions.decompile', (opts) =>
+		registerVRunnerCommand('1c-platform-tools.cfe.decompile', (opts) =>
 			commands.extensions.decompile(opts)
 		),
-		registerVRunnerCommand('1c-platform-tools.extensions.updateInInfobase', (opts) =>
+		registerVRunnerCommand('1c-platform-tools.cfe.updateDb', (opts) =>
 			commands.extensions.updateInInfobase(opts)
 		),
 	];
 
 	// Команды внешних файлов
 	const externalFilesCommands = [
-		registerVRunnerCommand('1c-platform-tools.externalProcessors.build', (opts) =>
+		registerVRunnerCommand('1c-platform-tools.epf.compileProcessor', (opts) =>
 			commands.externalFiles.compile('processor', opts)
 		),
-		registerVRunnerCommand('1c-platform-tools.externalProcessors.decompile', (opts) =>
+		registerVRunnerCommand('1c-platform-tools.epf.decompileProcessor', (opts) =>
 			commands.externalFiles.decompile('processor', opts)
 		),
-		registerVRunnerCommand('1c-platform-tools.externalReports.build', (opts) =>
+		registerVRunnerCommand('1c-platform-tools.epf.compileReport', (opts) =>
 			commands.externalFiles.compile('report', opts)
 		),
-		registerVRunnerCommand('1c-platform-tools.externalReports.decompile', (opts) =>
+		registerVRunnerCommand('1c-platform-tools.epf.decompileReport', (opts) =>
 			commands.externalFiles.decompile('report', opts)
 		),
-		registerVRunnerCommand('1c-platform-tools.externalFiles.clearCache', (opts) =>
+		registerVRunnerCommand('1c-platform-tools.epf.clearCache', (opts) =>
 			commands.externalFiles.clearCache(opts)
 		),
 	];
@@ -401,7 +401,7 @@ export function registerCommands(
 		registerVRunnerCommand('1c-platform-tools.test.decompileEpf', (opts) =>
 			commands.test.decompileTestEpf(opts)
 		),
-		registerVRunnerCommand('1c-platform-tools.externalProcessors.run', (opts) =>
+		registerVRunnerCommand('1c-platform-tools.epf.run', (opts) =>
 			commands.test.runEnterpriseProcessor(opts)
 		),
 	];

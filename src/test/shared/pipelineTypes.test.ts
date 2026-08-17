@@ -15,7 +15,7 @@ suite('разбор файла пайплайнов', () => {
 						{
 							id: 'load',
 							type: 'command',
-							command: '1c-platform-tools.configuration.loadFromSrc',
+							command: '1c-platform-tools.cf.load',
 							name: 'Загрузить',
 							options: { settingsFile: 'env.test.json' },
 							x: 100,
@@ -38,7 +38,7 @@ suite('разбор файла пайплайнов', () => {
 				id: 'load',
 				type: 'command',
 				name: 'Загрузить',
-				command: '1c-platform-tools.configuration.loadFromSrc',
+				command: '1c-platform-tools.cf.load',
 				options: { settingsFile: 'env.test.json' },
 				x: 100,
 				y: 40,

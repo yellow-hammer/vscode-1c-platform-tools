@@ -11,13 +11,13 @@ description: Загрузка и выгрузка расширений конф�
 
 | Задача                          | Command ID                                         |
 |---------------------------------|----------------------------------------------------|
-| Загрузить расширение из src/cfe | `1c-platform-tools.extensions.loadFromSrc`         |
-| Загрузить из objlist.txt        | `1c-platform-tools.extensions.loadFromFilesByList` |
-| Загрузить из *.cfe              | `1c-platform-tools.extensions.loadFromCfe`         |
-| Выгрузить расширение в src/cfe  | `1c-platform-tools.extensions.dumpToSrc`           |
-| Выгрузить в *.cfe               | `1c-platform-tools.extensions.dumpToCfe`           |
-| Собрать *.cfe из src/cfe        | `1c-platform-tools.extensions.build`               |
-| Разобрать *.cfe в src/cfe       | `1c-platform-tools.extensions.decompile`           |
+| Загрузить расширение из src/cfe | `1c-platform-tools.cfe.load`         |
+| Загрузить из objlist.txt        | `1c-platform-tools.cfe.loadByList` |
+| Загрузить из *.cfe              | `1c-platform-tools.cfe.loadFile`         |
+| Выгрузить расширение в src/cfe  | `1c-platform-tools.cfe.dump`           |
+| Выгрузить в *.cfe               | `1c-platform-tools.cfe.unload`           |
+| Собрать *.cfe из src/cfe        | `1c-platform-tools.cfe.compile`               |
+| Разобрать *.cfe в src/cfe       | `1c-platform-tools.cfe.decompile`           |
 
 ## Тестовые расширения
 
@@ -37,7 +37,7 @@ description: Загрузка и выгрузка расширений конф�
 
 ## MCP (mcp-1c-platform-tools)
 
-Если доступны инструменты MCP, используй их: `extensions_loadFromSrc`, `extensions_dumpToSrc`, `extensions_loadFromFiles`, `extensions_loadFromCfe`, `extensions_dumpToCfe`, `extensions_build`, `extensions_decompile` и т.д.
+Если доступны инструменты MCP, используй их: `cfe_load`, `cfe_dump`, `cfe_loadByList`, `cfe_loadFile`, `cfe_unload`, `cfe_compile`, `cfe_decompile` и т.д.
 
 ### Параметр projectPath
 
@@ -49,6 +49,6 @@ description: Загрузка и выгрузка расширений конф�
 
 ## Примеры
 
-- Загрузить расширение из исходников: MCP `extensions_loadFromSrc` или команда `1c-platform-tools.extensions.loadFromSrc` с projectPath.
-- Выгрузить в cfe: `extensions_dumpToCfe` (MCP) или `1c-platform-tools.extensions.dumpToCfe` (команда).
-- Загрузить только одно расширение: `extensions_loadFromSrc` с `extensions: ["МоёРасширение"]`.
+- Загрузить расширение из исходников: MCP `cfe_load` или команда `1c-platform-tools.cfe.load` с projectPath.
+- Выгрузить в cfe: `cfe_unload` (MCP) или `1c-platform-tools.cfe.unload` (команда).
+- Загрузить только одно расширение: `cfe_load` с `extensions: ["МоёРасширение"]`.

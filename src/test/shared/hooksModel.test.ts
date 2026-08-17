@@ -9,13 +9,13 @@ suite('модель хуков', () => {
 	test('короткая запись приводится к списку шагов', () => {
 		const model = normalizeHooks({
 			hooks: {
-				'1c-platform-tools.configuration.build': {
+				'1c-platform-tools.cf.compile': {
 					pre: 'npm run prepare',
 					post: ['npm run notify', { command: 'npm run clean', continueOnError: true, timeout: 15 }],
 				},
 			},
 		});
-		assert.deepStrictEqual(model.hooks['1c-platform-tools.configuration.build'], {
+		assert.deepStrictEqual(model.hooks['1c-platform-tools.cf.compile'], {
 			pre: [{ command: 'npm run prepare' }],
 			post: [
 				{ command: 'npm run notify' },

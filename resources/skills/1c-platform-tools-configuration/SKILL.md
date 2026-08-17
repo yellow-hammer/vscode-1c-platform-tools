@@ -11,28 +11,28 @@ description: Загрузка и выгрузка конфигурации 1С. 
 
 | Задача                                | Command ID                                             |
 |---------------------------------------|--------------------------------------------------------|
-| Загрузить конфигурацию из src/cf      | `1c-platform-tools.configuration.loadFromSrc`          |
-| Обновить конфигурацию в ИБ            | `1c-platform-tools.infobase.updateInfobase`            |
-| Загрузить только изменения (git diff) | `1c-platform-tools.configuration.loadIncrementFromSrc` |
-| Загрузить из objlist.txt              | `1c-platform-tools.configuration.loadFromFilesByList`  |
-| Загрузить из 1Cv8.cf                  | `1c-platform-tools.configuration.loadFromCf`           |
-| Выгрузить конфигурацию в src/cf       | `1c-platform-tools.configuration.dumpToSrc`            |
-| Выгрузить изменения в src/cf          | `1c-platform-tools.configuration.dumpIncrementToSrc`   |
-| Выгрузить в 1Cv8.cf                   | `1c-platform-tools.configuration.dumpToCf`             |
-| Собрать 1Cv8.cf из src/cf             | `1c-platform-tools.configuration.build`                |
-| Разобрать 1Cv8.cf в src/cf            | `1c-platform-tools.configuration.decompile`            |
+| Загрузить конфигурацию из src/cf      | `1c-platform-tools.cf.load`          |
+| Обновить конфигурацию в ИБ            | `1c-platform-tools.infobase.updateDb`            |
+| Загрузить только изменения (git diff) | `1c-platform-tools.cf.loadIncrement` |
+| Загрузить из objlist.txt              | `1c-platform-tools.cf.loadByList`  |
+| Загрузить из 1Cv8.cf                  | `1c-platform-tools.cf.loadFile`           |
+| Выгрузить конфигурацию в src/cf       | `1c-platform-tools.cf.dump`            |
+| Выгрузить изменения в src/cf          | `1c-platform-tools.cf.dumpIncrement`   |
+| Выгрузить в 1Cv8.cf                   | `1c-platform-tools.cf.unload`             |
+| Собрать 1Cv8.cf из src/cf             | `1c-platform-tools.cf.compile`                |
+| Разобрать 1Cv8.cf в src/cf            | `1c-platform-tools.cf.decompile`            |
 
 ## Загрузка изменений (git diff) без интерактива
 
 `loadIncrementFromSrc` без аргументов запрашивает SHA коммита в UI. Чтобы выполнить без запроса, передай аргументом объект с `sha`:
 
-- MCP: `configuration_loadIncFromSrc` с параметром `sha` (пустая строка — полная загрузка), либо Execute Command `1c-platform-tools.configuration.loadIncrementFromSrc` с тем же аргументом.
+- MCP: `cf_loadInc` с параметром `sha` (пустая строка — полная загрузка), либо Execute Command `1c-platform-tools.cf.loadIncrement` с тем же аргументом.
 
 SHA — коммит последней загрузки: изменения возьмутся от него до текущего состояния. Текущее значение хранится в `src/cf/lastUploadedCommit.txt`. Обычно нужен SHA HEAD на момент прошлой загрузки; получить текущий — `git rev-parse HEAD`.
 
 ## MCP (mcp-1c-platform-tools)
 
-Если доступны инструменты MCP, используй их для тех же операций: `configuration_loadFromSrc`, `infobase_updateInfobase` (только обновление БД), `configuration_dumpToSrc`, `configuration_loadIncFromSrc`, `configuration_dumpIncToSrc`, `configuration_loadFromFiles`, `configuration_loadFromCf`, `configuration_dumpToCf`, `configuration_build`, `configuration_decompileCfg` и т.д. **Всегда передавай параметр `projectPath`** — корень проекта 1С (каталог с `packagedef`).
+Если доступны инструменты MCP, используй их для тех же операций: `cf_load`, `infobase_updateDb` (только обновление БД), `cf_dump`, `cf_loadInc`, `cf_dumpInc`, `cf_loadByList`, `cf_loadFile`, `cf_unload`, `cf_compile`, `cf_decompile` и т.д. **Всегда передавай параметр `projectPath`** — корень проекта 1С (каталог с `packagedef`).
 
 ## Правило
 

@@ -27,7 +27,7 @@ description: Тестирование 1С. Используй, когда пол
 | Allure отчёт                  | `1c-platform-tools.test.allure`       |
 | Собрать unit тесты            | `1c-platform-tools.test.buildEpf`     |
 | Разобрать unit тесты          | `1c-platform-tools.test.decompileEpf` |
-| Запустить EPF в Предприятии   | `1c-platform-tools.externalProcessors.run`    |
+| Запустить EPF в Предприятии   | `1c-platform-tools.epf.run`    |
 | Настроить тестовые фреймворки | `1c-platform-tools.test.configure` |
 | Загрузить тестовые расширения | `1c-platform-tools.test.loadExtensions`  |
 | Выгрузить тестовые расширения | `1c-platform-tools.test.dumpExtensions`  |
@@ -44,9 +44,9 @@ description: Тестирование 1С. Используй, когда пол
 
 Тесты также отображаются в нативной панели «Тестирование» (Test Explorer): Vanessa (.feature), xUnit (тестовые обработки в tests/epf), YAxUnit, OneScript (.os в tests), 1bdd — с запуском отдельных тестов и статусами. Для интерактивной работы пользователя направляй туда; команды выше — для прогона «всего сразу» и агентных циклов.
 
-## Запуск обработок в Предприятии (externalProcessors.run)
+## Запуск обработок в Предприятии (epf.run)
 
-Служебные шаги (загрузка фикстур, инициализация ИБ внешней обработкой) — MCP `externalProcs_run` или Execute Command `1c-platform-tools.externalProcessors.run`:
+Служебные шаги (загрузка фикстур, инициализация ИБ внешней обработкой) — MCP `epf_run` или Execute Command `1c-platform-tools.epf.run`:
 
 ```
 { "projectPath": "...", "execute": "./build/out/epf/ЗагрузкаФикстур.epf",
@@ -63,7 +63,7 @@ description: Тестирование 1С. Используй, когда пол
 
 ## MCP (mcp-1c-platform-tools)
 
-Если доступны инструменты MCP, используй их: `test_xunit`, `test_syntaxCheck`, `test_vanessa`, `test_yaxunit`, `test_allure`, `externalProcs_run`, `test_configure`, а для тестовых расширений - `test_loadExts`, `test_dumpExts`, `test_buildExts`, `test_decompileExts`.
+Если доступны инструменты MCP, используй их: `test_xunit`, `test_syntaxCheck`, `test_vanessa`, `test_yaxunit`, `test_allure`, `epf_run`, `test_configure`, а для тестовых расширений - `test_loadExts`, `test_dumpExts`, `test_buildExts`, `test_decompileExts`.
 
 ### Параметр projectPath
 
@@ -102,7 +102,7 @@ description: Тестирование 1С. Используй, когда пол
 | `test_xunit`      | ✅          |
 | `test_vanessa`    | ✅          |
 | `test_yaxunit`    | ✅          |
-| `externalProcs_run`  | ✅          |
+| `epf_run`  | ✅          |
 | `test_configure`| ✅ (с параметром `frameworks`) |
 | `test_allure`     | ❌ (открывает браузер) |
 

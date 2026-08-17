@@ -13,7 +13,7 @@ description: Поддержка конфигурации и поставка. И
 
 | Задача                  | Command ID                                    |
 |-------------------------|-----------------------------------------------|
-| Выгрузить в 1Cv8dist.cf | `1c-platform-tools.configuration.dumpToDist`  |
+| Выгрузить в 1Cv8dist.cf | `1c-platform-tools.cf.makeDist`  |
 | Загрузить из cf/cfu     | `1c-platform-tools.support.updateCfg`         |
 | Удалить поддержку       | `1c-platform-tools.support.disableCfgSupport` |
 
@@ -28,7 +28,7 @@ description: Поддержка конфигурации и поставка. И
 
 ## MCP (mcp-1c-platform-tools)
 
-Если доступны инструменты MCP, используй их для тех же операций (имена формируются из command ID: configuration_dumpToDist, support_updateCfg и т.д.).
+Если доступны инструменты MCP, используй их для тех же операций (имена формируются из command ID: cf_makeDist, support_updateCfg и т.д.).
 
 ### Параметр projectPath
 
@@ -36,5 +36,5 @@ description: Поддержка конфигурации и поставка. И
 
 ## Примеры
 
-- Вызови `configuration_dumpToDist` или команду `1c-platform-tools.configuration.dumpToDist` с projectPath корня проекта.
+- Вызови `cf_makeDist` или команду `1c-platform-tools.cf.makeDist` с projectPath корня проекта.
 - Для создания комплекта поставки — `support_createDistributivePackage` (MCP) или `1c-platform-tools.support.createDistributivePackage` (команда).

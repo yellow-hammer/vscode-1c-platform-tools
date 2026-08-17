@@ -9,14 +9,14 @@
 				{
 					"id": "create",
 					"type": "command",
-					"command": "1c-platform-tools.infobase.createEmpty",
+					"command": "1c-platform-tools.infobase.create",
 					"x": 60,
 					"y": 60
 				},
 				{
 					"id": "loadCf",
 					"type": "command",
-					"command": "1c-platform-tools.configuration.loadFromSrc",
+					"command": "1c-platform-tools.cf.load",
 					"x": 330,
 					"y": 60,
 					"options": {
@@ -26,7 +26,7 @@
 				{
 					"id": "loadCfe",
 					"type": "command",
-					"command": "1c-platform-tools.extensions.loadFromSrc",
+					"command": "1c-platform-tools.cfe.load",
 					"x": 600,
 					"y": 60,
 					"options": {
@@ -36,7 +36,7 @@
 				{
 					"id": "updateDb",
 					"type": "command",
-					"command": "1c-platform-tools.infobase.updateDatabase",
+					"command": "1c-platform-tools.infobase.runUpdateHandlers",
 					"x": 870,
 					"y": 60
 				},
@@ -89,7 +89,7 @@
 				{
 					"id": "loadCf",
 					"type": "command",
-					"command": "1c-platform-tools.configuration.loadFromSrc",
+					"command": "1c-platform-tools.cf.load",
 					"x": 600,
 					"y": 60,
 					"options": {
@@ -99,7 +99,7 @@
 				{
 					"id": "loadCfe",
 					"type": "command",
-					"command": "1c-platform-tools.extensions.loadFromSrc",
+					"command": "1c-platform-tools.cfe.load",
 					"x": 870,
 					"y": 60,
 					"options": {
@@ -233,28 +233,28 @@
 				{
 					"id": "buildCf",
 					"type": "command",
-					"command": "1c-platform-tools.configuration.build",
+					"command": "1c-platform-tools.cf.compile",
 					"x": 60,
 					"y": 60
 				},
 				{
 					"id": "buildCfe",
 					"type": "command",
-					"command": "1c-platform-tools.extensions.build",
+					"command": "1c-platform-tools.cfe.compile",
 					"x": 330,
 					"y": 60
 				},
 				{
 					"id": "buildEpf",
 					"type": "command",
-					"command": "1c-platform-tools.externalProcessors.build",
+					"command": "1c-platform-tools.epf.compileProcessor",
 					"x": 600,
 					"y": 60
 				},
 				{
 					"id": "buildErf",
 					"type": "command",
-					"command": "1c-platform-tools.externalReports.build",
+					"command": "1c-platform-tools.epf.compileReport",
 					"x": 870,
 					"y": 60
 				}
@@ -282,14 +282,14 @@
 				{
 					"id": "dumpCf",
 					"type": "command",
-					"command": "1c-platform-tools.configuration.dumpToSrc",
+					"command": "1c-platform-tools.cf.dump",
 					"x": 60,
 					"y": 60
 				},
 				{
 					"id": "dumpCfe",
 					"type": "command",
-					"command": "1c-platform-tools.extensions.dumpToSrc",
+					"command": "1c-platform-tools.cfe.dump",
 					"x": 330,
 					"y": 60
 				},
@@ -303,14 +303,14 @@
 				{
 					"id": "decompileEpf",
 					"type": "command",
-					"command": "1c-platform-tools.externalProcessors.decompile",
+					"command": "1c-platform-tools.epf.decompileProcessor",
 					"x": 870,
 					"y": 60
 				},
 				{
 					"id": "decompileErf",
 					"type": "command",
-					"command": "1c-platform-tools.externalReports.decompile",
+					"command": "1c-platform-tools.epf.decompileReport",
 					"x": 1140,
 					"y": 60
 				}

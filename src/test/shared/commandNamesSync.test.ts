@@ -16,10 +16,10 @@ const INTENDED_DIFFERENCES = new Map<string, string>([
 	['1c-platform-tools.artifacts.buildReport', 'в меню артефакта достаточно «Собрать»'],
 	['1c-platform-tools.artifacts.decompileProcessor', 'в меню артефакта достаточно «Разобрать»'],
 	['1c-platform-tools.artifacts.decompileReport', 'в меню артефакта достаточно «Разобрать»'],
-	['1c-platform-tools.configuration.build', 'в журнале без путей: «Собрать конфигурацию»'],
-	['1c-platform-tools.configuration.decompile', 'в журнале без путей: «Разобрать конфигурацию»'],
-	['1c-platform-tools.extensions.build', 'в журнале без путей: «Собрать расширения»'],
-	['1c-platform-tools.extensions.decompile', 'в журнале без путей: «Разобрать расширения»'],
+	['1c-platform-tools.cf.compile', 'в журнале без путей: «Собрать конфигурацию»'],
+	['1c-platform-tools.cf.decompile', 'в журнале без путей: «Разобрать конфигурацию»'],
+	['1c-platform-tools.cfe.compile', 'в журнале без путей: «Собрать расширения»'],
+	['1c-platform-tools.cfe.decompile', 'в журнале без путей: «Разобрать расширения»'],
 ]);
 
 /**

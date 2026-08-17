@@ -9,11 +9,11 @@ suite('mcpCommandPolicy', () => {
 
 	test('рабочие команды публикуются', () => {
 		for (const id of [
-			'1c-platform-tools.configuration.loadFromSrc',
-			'1c-platform-tools.infobase.updateInfobase',
+			'1c-platform-tools.cf.load',
+			'1c-platform-tools.infobase.updateDb',
 			'1c-platform-tools.test.runXUnit',
 			'1c-platform-tools.env.status',
-			'1c-platform-tools.externalProcessors.run',
+			'1c-platform-tools.epf.run',
 		]) {
 			assert.strictEqual(isCommandExposedToMcp(id), true, id);
 		}
@@ -43,10 +43,10 @@ suite('mcpCommandPolicy', () => {
 
 	test('команды vanessa-runner возвращают исход операции', () => {
 		for (const id of [
-			'1c-platform-tools.configuration.loadFromSrc',
-			'1c-platform-tools.infobase.updateInfobase',
+			'1c-platform-tools.cf.load',
+			'1c-platform-tools.infobase.updateDb',
 			'1c-platform-tools.test.syntaxCheck',
-			'1c-platform-tools.extensions.build',
+			'1c-platform-tools.cfe.compile',
 			'1c-platform-tools.env.selectProfile',
 			'1c-platform-tools.env.clearOverrides',
 			'1c-platform-tools.test.configure',
@@ -93,14 +93,14 @@ suite('mcpCommandPolicy: служебные команды VS Code', () => {
 suite('mcpCommandPolicy: сборка и разбор', () => {
 	test('доступна одна команда на действие, в домене объекта', () => {
 		for (const id of [
-			'1c-platform-tools.configuration.build',
-			'1c-platform-tools.configuration.decompile',
-			'1c-platform-tools.extensions.build',
-			'1c-platform-tools.extensions.decompile',
-			'1c-platform-tools.externalProcessors.build',
-			'1c-platform-tools.externalProcessors.decompile',
-			'1c-platform-tools.externalReports.build',
-			'1c-platform-tools.externalReports.decompile',
+			'1c-platform-tools.cf.compile',
+			'1c-platform-tools.cf.decompile',
+			'1c-platform-tools.cfe.compile',
+			'1c-platform-tools.cfe.decompile',
+			'1c-platform-tools.epf.compileProcessor',
+			'1c-platform-tools.epf.decompileProcessor',
+			'1c-platform-tools.epf.compileReport',
+			'1c-platform-tools.epf.decompileReport',
 		]) {
 			assert.strictEqual(isCommandExposedToMcp(id), true, id);
 		}

@@ -11,15 +11,15 @@ description: Сборка и разборка внешних обработок 
 
 | Задача                      | Command ID                                       |
 |-----------------------------|--------------------------------------------------|
-| Собрать внешнюю обработку   | `1c-platform-tools.externalProcessors.build`     |
-| Разобрать внешнюю обработку | `1c-platform-tools.externalProcessors.decompile` |
-| Собрать внешний отчёт       | `1c-platform-tools.externalReports.build`        |
-| Разобрать внешний отчёт     | `1c-platform-tools.externalReports.decompile`    |
-| Удалить кэш                 | `1c-platform-tools.externalFiles.clearCache`     |
+| Собрать внешнюю обработку   | `1c-platform-tools.epf.compileProcessor`     |
+| Разобрать внешнюю обработку | `1c-platform-tools.epf.decompileProcessor` |
+| Собрать внешний отчёт       | `1c-platform-tools.epf.compileReport`        |
+| Разобрать внешний отчёт     | `1c-platform-tools.epf.decompileReport`    |
+| Удалить кэш                 | `1c-platform-tools.epf.clearCache`     |
 
 ## MCP (mcp-1c-platform-tools)
 
-Если доступны инструменты MCP, используй их: `externalProcs_build`, `externalProcs_decompile`, `externalReports_build`, `externalReports_decompile`, `externalFiles_clearCache` и т.д.
+Если доступны инструменты MCP, используй их: `epf_compileProc`, `epf_decompileProc`, `epf_compileReport`, `epf_decompileReport`, `epf_clearCache` и т.д.
 
 ### Параметр projectPath
 
@@ -27,5 +27,5 @@ description: Сборка и разборка внешних обработок 
 
 ## Примеры
 
-- Собрать обработку: MCP `externalProcs_build` или команда `1c-platform-tools.externalProcessors.build` с projectPath корня проекта.
-- Разобрать отчёт в исходники: `externalReports_decompile` (MCP) или `1c-platform-tools.externalReports.decompile` (команда).
+- Собрать обработку: MCP `epf_compileProc` или команда `1c-platform-tools.epf.compileProcessor` с projectPath корня проекта.
+- Разобрать отчёт в исходники: `epf_decompileReport` (MCP) или `1c-platform-tools.epf.decompileReport` (команда).

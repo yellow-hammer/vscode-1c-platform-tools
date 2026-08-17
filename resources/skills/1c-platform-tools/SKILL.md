@@ -13,39 +13,39 @@ description: Операции с платформой 1С в этом проек
 
 | Задача                                | Command ID                                          |
 |---------------------------------------|-----------------------------------------------------|
-| Создать пустую ИБ                     | `1c-platform-tools.infobase.createEmpty`            |
-| Обновить конфигурацию в ИБ            | `1c-platform-tools.infobase.updateInfobase`         |
-| Постобработка обновления              | `1c-platform-tools.infobase.updateDatabase`         |
+| Создать пустую ИБ                     | `1c-platform-tools.infobase.create`            |
+| Обновить конфигурацию в ИБ            | `1c-platform-tools.infobase.updateDb`         |
+| Постобработка обновления              | `1c-platform-tools.infobase.runUpdateHandlers`         |
 | Запретить работу с внешними ресурсами | `1c-platform-tools.infobase.blockExternalResources` |
 | Инициализировать данные               | `1c-platform-tools.infobase.initialize`             |
-| Выгрузить в dt                        | `1c-platform-tools.infobase.dumpToDt`               |
-| Загрузить из dt                       | `1c-platform-tools.infobase.loadFromDt`             |
+| Выгрузить в dt                        | `1c-platform-tools.infobase.dumpDt`               |
+| Загрузить из dt                       | `1c-platform-tools.infobase.restoreDt`             |
 
 ## Конфигурация
 
 | Задача                                | Command ID                                             |
 |---------------------------------------|--------------------------------------------------------|
-| Загрузить конфигурацию из src/cf      | `1c-platform-tools.configuration.loadFromSrc`          |
-| Загрузить только изменения (git diff) | `1c-platform-tools.configuration.loadIncrementFromSrc` |
-| Загрузить из objlist.txt              | `1c-platform-tools.configuration.loadFromFilesByList`  |
-| Загрузить из 1Cv8.cf                  | `1c-platform-tools.configuration.loadFromCf`           |
-| Выгрузить конфигурацию в src/cf       | `1c-platform-tools.configuration.dumpToSrc`            |
-| Выгрузить изменения в src/cf          | `1c-platform-tools.configuration.dumpIncrementToSrc`   |
-| Выгрузить в 1Cv8.cf                   | `1c-platform-tools.configuration.dumpToCf`             |
-| Собрать 1Cv8.cf из src/cf             | `1c-platform-tools.configuration.build`                |
-| Разобрать 1Cv8.cf в src/cf            | `1c-platform-tools.configuration.decompile`            |
+| Загрузить конфигурацию из src/cf      | `1c-platform-tools.cf.load`          |
+| Загрузить только изменения (git diff) | `1c-platform-tools.cf.loadIncrement` |
+| Загрузить из objlist.txt              | `1c-platform-tools.cf.loadByList`  |
+| Загрузить из 1Cv8.cf                  | `1c-platform-tools.cf.loadFile`           |
+| Выгрузить конфигурацию в src/cf       | `1c-platform-tools.cf.dump`            |
+| Выгрузить изменения в src/cf          | `1c-platform-tools.cf.dumpIncrement`   |
+| Выгрузить в 1Cv8.cf                   | `1c-platform-tools.cf.unload`             |
+| Собрать 1Cv8.cf из src/cf             | `1c-platform-tools.cf.compile`                |
+| Разобрать 1Cv8.cf в src/cf            | `1c-platform-tools.cf.decompile`            |
 
 ## Расширения
 
 | Задача                          | Command ID                                         |
 |---------------------------------|----------------------------------------------------|
-| Загрузить расширение из src/cfe | `1c-platform-tools.extensions.loadFromSrc`         |
-| Загрузить из objlist.txt        | `1c-platform-tools.extensions.loadFromFilesByList` |
-| Загрузить из *.cfe              | `1c-platform-tools.extensions.loadFromCfe`         |
-| Выгрузить расширение в src/cfe  | `1c-platform-tools.extensions.dumpToSrc`           |
-| Выгрузить в *.cfe               | `1c-platform-tools.extensions.dumpToCfe`           |
-| Собрать *.cfe из src/cfe        | `1c-platform-tools.extensions.build`               |
-| Разобрать *.cfe в src/cfe       | `1c-platform-tools.extensions.decompile`           |
+| Загрузить расширение из src/cfe | `1c-platform-tools.cfe.load`         |
+| Загрузить из objlist.txt        | `1c-platform-tools.cfe.loadByList` |
+| Загрузить из *.cfe              | `1c-platform-tools.cfe.loadFile`         |
+| Выгрузить расширение в src/cfe  | `1c-platform-tools.cfe.dump`           |
+| Выгрузить в *.cfe               | `1c-platform-tools.cfe.unload`           |
+| Собрать *.cfe из src/cfe        | `1c-platform-tools.cfe.compile`               |
+| Разобрать *.cfe в src/cfe       | `1c-platform-tools.cfe.decompile`           |
 
 Тестовые расширения (YAxUnit и расширение с тестами) лежат отдельно, в `tests/cfe`
 (подкаталог корня тестов `paths.tests`), и обслуживаются своими командами: `1c-platform-tools.test.loadExtensions`,
@@ -55,17 +55,17 @@ description: Операции с платформой 1С в этом проек
 
 | Задача                      | Command ID                                       |
 |-----------------------------|--------------------------------------------------|
-| Собрать внешнюю обработку   | `1c-platform-tools.externalProcessors.build`     |
-| Разобрать внешнюю обработку | `1c-platform-tools.externalProcessors.decompile` |
-| Собрать внешний отчёт       | `1c-platform-tools.externalReports.build`        |
-| Разобрать внешний отчёт     | `1c-platform-tools.externalReports.decompile`    |
-| Удалить кэш                 | `1c-platform-tools.externalFiles.clearCache`     |
+| Собрать внешнюю обработку   | `1c-platform-tools.epf.compileProcessor`     |
+| Разобрать внешнюю обработку | `1c-platform-tools.epf.decompileProcessor` |
+| Собрать внешний отчёт       | `1c-platform-tools.epf.compileReport`        |
+| Разобрать внешний отчёт     | `1c-platform-tools.epf.decompileReport`    |
+| Удалить кэш                 | `1c-platform-tools.epf.clearCache`     |
 
 ## Поддержка и поставка
 
 | Задача                                       | Command ID                                                |
 |----------------------------------------------|-----------------------------------------------------------|
-| Выгрузить в 1Cv8dist.cf                      | `1c-platform-tools.configuration.dumpToDist`              |
+| Выгрузить в 1Cv8dist.cf                      | `1c-platform-tools.cf.makeDist`              |
 | Загрузить из cf/cfu                          | `1c-platform-tools.support.updateCfg`                     |
 | Удалить поддержку                            | `1c-platform-tools.support.disableCfgSupport`             |
 | Создать файл описания шаблона поставки       | `1c-platform-tools.support.createDeliveryDescriptionFile` |
@@ -135,7 +135,7 @@ description: Операции с платформой 1С в этом проек
 
 ## MCP
 
-Если у тебя есть инструменты MCP **mcp-1c-platform-tools**, используй их для тех же операций: загрузка конфигурации — `configuration_loadFromSrc`, выгрузка — `configuration_dumpToSrc`, расширения — `extensions_loadFromSrc` / `extensions_dumpToSrc`, сборка/разбор обработок и отчётов — `externalProcs_build`, `externalReports_build`, `externalProcs_decompile`, `externalReports_decompile` и т.д. **Для зависимостей** — в первую очередь вызывай **deps_install** и **deps_installOscript**; не переходи в терминал с `opm install add`, пока не убедился, что MCP недоступен. В каждый вызов передавай `projectPath` — корень проекта 1С (каталог с `packagedef`). Имена формируются из command ID: убирается префикс, точки → `_`, длинные слова сокращаются (`dependencies` → `deps`, `Processors` → `Procs`). Полный список возвращается сервером при подключении.
+Если у тебя есть инструменты MCP **mcp-1c-platform-tools**, используй их для тех же операций: загрузка конфигурации — `cf_load`, выгрузка — `cf_dump`, расширения — `cfe_load` / `cfe_dump`, сборка/разбор обработок и отчётов — `epf_compileProc`, `epf_compileReport`, `epf_decompileProc`, `epf_decompileReport` и т.д. **Для зависимостей** — в первую очередь вызывай **deps_install** и **deps_installOscript**; не переходи в терминал с `opm install add`, пока не убедился, что MCP недоступен. В каждый вызов передавай `projectPath` — корень проекта 1С (каталог с `packagedef`). Имена формируются из command ID: убирается префикс, точки → `_`, длинные слова сокращаются (`dependencies` → `deps`, `Processors` → `Procs`). Полный список возвращается сервером при подключении.
 
 ## Дополнительные навыки (Claude Code)
 
