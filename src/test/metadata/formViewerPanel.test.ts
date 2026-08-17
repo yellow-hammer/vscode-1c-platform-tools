@@ -95,6 +95,47 @@ suite('Просмотр формы: разметка и скрипт', () => {
 		}
 	});
 
+	test('служебные части таблицы стоят по свойствам положения, а не под переключателем', () => {
+		const script = read('form-viewer.js');
+		const service = listBetween(script, 'const SERVICE_TYPES', ']);', /'(\w+)'/g);
+		const locations = listBetween(script, 'const ADDITION_LOCATIONS', '\n\t};', /(\w+):/g);
+
+		for (const addition of ['SearchStringAddition', 'ViewStatusAddition', 'SearchControlAddition']) {
+			assert.ok(!service.includes(addition), `${addition} редактор формы показывает`);
+			assert.ok(locations.includes(addition), `${addition} без свойства положения рисовался бы всегда`);
+		}
+	});
+
+	test('положение служебной части таблицы читается свойством таблицы', () => {
+		const script = read('form-viewer.js');
+		const properties = listBetween(script, 'const ADDITION_LOCATIONS', '\n\t};', /: '(\w+)'/g);
+
+		assert.deepStrictEqual(
+			properties.sort(),
+			['SearchControlLocation', 'SearchStringLocation', 'ViewStatusLocation'],
+			'положение задаёт таблица, а не сама служебная часть'
+		);
+	});
+
+	test('группа колонок раскладывается по своей группировке', () => {
+		const script = read('form-viewer.js');
+		const grouping = script.slice(script.indexOf('function tableColumnHead'));
+
+		assert.ok(grouping.includes("'Group'"), 'без свойства группировки ярусы были бы у любой группы');
+		assert.ok(grouping.includes("'Horizontal'"), 'горизонтальная группа разводит колонки соседними');
+		assert.ok(grouping.includes("'InCell'"), 'группа «в ячейке» ставит колонки рядом в одной ячейке');
+	});
+
+	test('над горизонтальной группой колонок общего заголовка нет', () => {
+		const script = read('form-viewer.js');
+		const css = read('form-viewer.css');
+		const head = script.slice(script.indexOf('function tableColumnHead'), script.indexOf('function tableColumnBody'));
+
+		// Конфигуратор полосу с заголовком группы не рисует: колонки просто стоят соседними.
+		assert.ok(!head.includes('is-colgroup-title'), 'полоса с заголовком группы платформе неизвестна');
+		assert.ok(!css.includes('is-colgroup-title'), 'оформление ненарисованной полосы осталось бы мусором');
+	});
+
 	test('заголовок группы с рамкой встаёт слева только у необъединённой группы в одну строку', () => {
 		const script = read('form-viewer.js');
 		const place = script.slice(script.indexOf('function placeGroupTitle'));
@@ -159,6 +200,26 @@ suite('Просмотр формы: разметка и скрипт', () => {
 		assert.ok(place.includes("'CommandBarLocation'"), 'без свойства панель всегда стояла бы сверху');
 		assert.ok(place.includes("'Bottom'"), 'конфигуратор ставит панель вниз по записанному положению');
 		assert.ok(place.includes("'None'"), 'с положением «нет» панели не видно совсем');
+	});
+
+	test('колонка со снятым расположением заголовка стоит с пустой шапкой', () => {
+		const script = read('form-viewer.js');
+		const title = script.slice(script.indexOf('function columnTitle'));
+
+		assert.ok(title.includes('titleSide'), 'подпись колонки решает расположение заголовка');
+		assert.ok(/'none'/.test(title.slice(0, title.indexOf('\n\t}'))), 'служебная колонка отступа идёт без подписи');
+	});
+
+	test('ширина колонки берётся из файла, а не делится на всю таблицу', () => {
+		const script = read('form-viewer.js');
+		const css = read('form-viewer.css');
+		const width = script.slice(script.indexOf('function columnWidth'), script.indexOf('function tableHeadCell'));
+
+		assert.ok(width.includes('item.width'), 'без записанной ширины колонки встали бы поровну');
+		assert.ok(width.includes("flex = 'none'"), 'колонка с шириной не сжимается под ширину таблицы');
+		const table = /\.pv-table(?![\w-])[^{]*\{([^}]*)\}/.exec(css);
+		assert.ok(table, 'оформление таблицы не разобрано');
+		assert.ok(/overflow-x:\s*auto/.test(table[1]), 'колонки шире таблицы уходят под горизонтальную прокрутку');
 	});
 
 	test('свободное место строки делят все растянутые элементы', () => {
@@ -246,7 +307,8 @@ suite('Просмотр формы: разметка и скрипт', () => {
 /**
  * Имена свойств, которые скрипт превью читает у элемента формы.
  *
- * Скрипт берёт их либо прямым обращением к записанному свойству, либо через таблицу кнопок поля.
+ * Скрипт берёт их либо прямым обращением к записанному свойству, либо через таблицу кнопок поля
+ * и таблицу положений служебных частей.
  */
 function previewProperties(script: string): string[] {
 	const direct = [
@@ -254,7 +316,13 @@ function previewProperties(script: string): string[] {
 		// Свойства самой формы приходят умолчаниями того же словаря, только видом Form.
 		...script.matchAll(/formProperty\('(\w+)'/g),
 	].map((match) => match[1]);
-	return [...new Set([...direct, ...listBetween(script, 'const FIELD_BUTTONS', '];', /\['(\w+)'/g)])];
+	return [
+		...new Set([
+			...direct,
+			...listBetween(script, 'const FIELD_BUTTONS', '];', /\['(\w+)'/g),
+			...listBetween(script, 'const ADDITION_LOCATIONS', '\n\t};', /: '(\w+)'/g),
+		]),
+	];
 }
 
 /** Значения из объявления скрипта: от `start` до ближайшего `end`. */

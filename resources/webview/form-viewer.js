@@ -14,8 +14,21 @@
 	// Кнопку без заголовка платформа подписывает синонимом команды, на которую та ссылается.
 	const commandTitles = data.commandTitles || {};
 
-	/** Элементы, которые в конфигураторе видны, но на превью только мешают. */
+	/**
+	 * Служебные элементы: показываются переключателем в шапке.
+	 *
+	 * Расширенную подсказку и контекстное меню редактор формы отдельными элементами не рисует.
+	 * Строка поиска, состояние просмотра и управление поиском видны, но по свойствам положения
+	 * у таблицы, а не всегда.
+	 */
 	const SERVICE_TYPES = new Set(['ExtendedTooltip', 'ContextMenu']);
+
+	/** Служебная часть таблицы -> свойство таблицы, которым платформа задаёт её положение. */
+	const ADDITION_LOCATIONS = {
+		SearchStringAddition: 'SearchStringLocation',
+		ViewStatusAddition: 'ViewStatusLocation',
+		SearchControlAddition: 'SearchControlLocation',
+	};
 
 	const TYPE_LABELS = {
 		UsualGroup: 'Группа',
@@ -944,7 +957,9 @@
 	/** Строка поиска и состояние просмотра платформа рисует прямо в командной панели. */
 	function previewAddition(node) {
 		const box = element('div', 'pv-addition');
-		box.append(element('span', 'pv-addition-text', node.item.type === 'ViewStatusAddition' ? 'Состояние просмотра' : 'Поиск'));
+		const type = node.item.type;
+		const text = type === 'SearchStringAddition' ? 'Поиск (Ctrl+F)' : typeLabel(type);
+		box.append(element('span', 'pv-addition-text', text));
 		return box;
 	}
 
@@ -1211,39 +1226,193 @@
 		const location = effective(node.item, 'CommandBarLocation', written(node.item, 'CommandBarLocation'));
 		const children = visibleNodes(node.children);
 		const bars = children.filter((child) => isBar(child.item.type)
-			&& !(location === 'None' && isCommandBar(child.item.type)));
-		if (location !== 'Bottom') {
-			for (const bar of bars) {
-				box.append(previewNode(bar));
-			}
+			&& !(location === 'None' && isCommandBar(child.item.type))
+			&& additionPlace(node.item, child.item.type) !== '');
+		const atBottom = (child) => (isCommandBar(child.item.type)
+			? location === 'Bottom'
+			: additionPlace(node.item, child.item.type) === 'bottom');
+		for (const bar of bars.filter((child) => !atBottom(child))) {
+			box.append(previewNode(bar));
 		}
-		const head = element('div', 'pv-table-head');
 		const columns = children.filter((child) => !isBar(child.item.type));
+		const head = element('div', 'pv-table-head');
 		for (const column of columns) {
-			const cell = element('div', 'pv-table-cell', fieldLabel(column.item));
-			cell.addEventListener('click', (event) => {
-				event.stopPropagation();
-				select(column.key);
-			});
-			if (state.selected === column.key) {
-				cell.classList.add('pv-selected');
-			}
-			head.append(cell);
+			head.append(tableColumnHead(column));
 		}
 		box.append(head);
 		for (let i = 0; i < 3; i += 1) {
 			const row = element('div', 'pv-table-row');
-			for (let c = 0; c < Math.max(columns.length, 1); c += 1) {
-				row.append(element('div', 'pv-table-cell', ' '));
+			if (columns.length === 0) {
+				row.append(element('div', 'pv-table-cell', ' '));
+			}
+			for (const column of columns) {
+				row.append(tableColumnBody(column));
 			}
 			box.append(row);
 		}
-		if (location === 'Bottom') {
-			for (const bar of bars) {
-				box.append(previewNode(bar));
-			}
+		for (const bar of bars.filter(atBottom)) {
+			box.append(previewNode(bar));
 		}
 		return box;
+	}
+
+	/**
+	 * Где платформа рисует служебную часть таблицы: сверху, снизу или нигде.
+	 *
+	 * Положение задано свойством таблицы. Значение «авто» платформа решает по источнику данных:
+	 * у динамического списка строка поиска и состояние просмотра есть, у таблицы реквизита формы
+	 * их не видно. Командной панели это не касается, у неё своё свойство.
+	 */
+	function additionPlace(table, type) {
+		const property = ADDITION_LOCATIONS[type];
+		if (!property) {
+			return 'top';
+		}
+		const value = effective(table, property, written(table, property));
+		if (value === 'None') {
+			return '';
+		}
+		if (value === undefined || value === 'Auto') {
+			return isDynamicListPath(table.dataPath) ? 'top' : '';
+		}
+		return value === 'Bottom' ? 'bottom' : 'top';
+	}
+
+	/**
+	 * Данные таблицы - сам динамический список: поиск и отборы платформа заводит ему сама.
+	 *
+	 * Путь внутрь списка сюда не годится: по нему идут таблицы настроек списка, а не он сам.
+	 */
+	function isDynamicListPath(dataPath) {
+		const types = dataTypes.get(String(dataPath || '')) || [];
+		return types.some((type) => type.indexOf('DynamicList') >= 0);
+	}
+
+	/**
+	 * Шапка колонки таблицы.
+	 *
+	 * Группу колонок платформа раскладывает по её свойству группировки: вертикальная держит колонки
+	 * ярусами внутри одной колонки таблицы, горизонтальная разводит их соседними колонками под общим
+	 * заголовком, «в ячейке» ставит их рядом в одной ячейке.
+	 */
+	function tableColumnHead(node) {
+		const item = node.item;
+		const columns = columnGroupChildren(node);
+		if (columns.length === 0) {
+			return tableHeadCell(node, columnTitle(item));
+		}
+		if (columnGrouping(item) === 'InCell') {
+			return tableHeadCell(node, inCellTitle(columns), 'is-incell-head');
+		}
+		const box = columnGroupBox(item);
+		if (columnGrouping(item) !== 'Horizontal') {
+			for (const column of columns) {
+				box.append(tableColumnHead(column));
+			}
+			return box;
+		}
+		// Полосы с общим заголовком над горизонтальной группой платформа не рисует: её колонки
+		// просто стоят соседними, а собственный заголовок группы в шапку не попадает.
+		const row = element('div', 'pv-table-colgroup-row');
+		for (const column of columns) {
+			row.append(tableColumnHead(column));
+		}
+		box.append(row);
+		return box;
+	}
+
+	/** Пустая ячейка строки: повторяет укладку шапки, чтобы колонки стояли в общих границах. */
+	function tableColumnBody(node) {
+		const columns = columnGroupChildren(node);
+		if (columns.length === 0) {
+			return columnWidth(node.item, element('div', 'pv-table-cell', ' '));
+		}
+		// «В ячейке» шапка занимает одну ячейку, поэтому и строка под ней должна быть одной ячейкой.
+		if (columnGrouping(node.item) === 'InCell') {
+			return element('div', 'pv-table-cell', ' ');
+		}
+		const box = columnGroupBox(node.item);
+		const host = columnGrouping(node.item) === 'Horizontal' ? element('div', 'pv-table-colgroup-row') : box;
+		for (const column of columns) {
+			host.append(tableColumnBody(column));
+		}
+		if (host !== box) {
+			box.append(host);
+		}
+		return box;
+	}
+
+	/**
+	 * Заголовок колонки, собранной группировкой «в ячейке».
+	 *
+	 * Собственный заголовок группы платформа в шапку не выносит: она перечисляет через запятую
+	 * заголовки колонок, которые свела в одну ячейку.
+	 */
+	function inCellTitle(columns) {
+		const titles = [];
+		for (const column of columns) {
+			const title = columnGroupChildren(column).length > 0
+				? inCellTitle(columnGroupChildren(column))
+				: columnTitle(column.item);
+			if (title) {
+				titles.push(title);
+			}
+		}
+		return titles.join(', ');
+	}
+
+	/**
+	 * Подпись колонки таблицы.
+	 *
+	 * Со снятым расположением заголовка платформа шапку колонки не подписывает: служебная колонка
+	 * отступа стоит с пустой шапкой, хотя заголовок у элемента записан.
+	 */
+	function columnTitle(item) {
+		return titleSide(item) === 'none' ? '' : fieldLabel(item);
+	}
+
+	function columnGroupChildren(node) {
+		if (node.item.type !== 'ColumnGroup') {
+			return [];
+		}
+		return visibleNodes(node.children).filter((child) => !isBar(child.item.type));
+	}
+
+	function columnGroupBox(item) {
+		return element('div', 'pv-table-colgroup' + (columnGrouping(item) === 'InCell' ? ' is-incell' : ''));
+	}
+
+	function columnGrouping(item) {
+		return effective(item, 'Group', written(item, 'Group'));
+	}
+
+	/**
+	 * Ширина колонки в знаках.
+	 *
+	 * Колонку с записанной шириной платформа держит ровно такой, а не делит на неё ширину таблицы:
+	 * колонки шире таблицы уводят её в горизонтальную прокрутку.
+	 */
+	function columnWidth(item, cell) {
+		if (item.width) {
+			// Колонке в один знак платформа отводит ровно знак: у поля такой нижней границы нет.
+			const px = Math.max(8, Number(item.width) * 8) + 'px';
+			cell.style.flex = 'none';
+			cell.style.width = px;
+			cell.style.minWidth = px;
+		}
+		return cell;
+	}
+
+	function tableHeadCell(node, text, extra) {
+		const cell = columnWidth(node.item, element('div', 'pv-table-cell' + (extra ? ' ' + extra : ''), text));
+		cell.addEventListener('click', (event) => {
+			event.stopPropagation();
+			select(node.key);
+		});
+		if (state.selected === node.key) {
+			cell.classList.add('pv-selected');
+		}
+		return cell;
 	}
 
 	function isCommandBar(type) {

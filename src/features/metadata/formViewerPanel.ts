@@ -634,6 +634,10 @@ const LAYOUT_PROPERTIES = [
 	// Выравнивание кнопок: у автоматической панели своё свойство, у обычной своё.
 	'HorizontalAlign',
 	'HorizontalLocation',
+	// Служебные части таблицы: строка поиска, состояние просмотра и управление поиском.
+	'SearchStringLocation',
+	'ViewStatusLocation',
+	'SearchControlLocation',
 	// Кнопки поля ввода: платформа рисует их справа от поля.
 	'ChoiceButton',
 	'ChoiceListButton',

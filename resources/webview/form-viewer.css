@@ -637,10 +637,12 @@ body {
 	white-space: nowrap;
 }
 
+/* Колонки шире таблицы платформа не сжимает: лишние уходят за правый край под прокрутку. */
 .pv-table {
 	border: 1px solid var(--vscode-panel-border);
 	border-radius: 4px;
-	overflow: hidden;
+	overflow-x: auto;
+	overflow-y: hidden;
 }
 
 /* Панель под таблицей отделена линией сверху, а не снизу. */
@@ -655,8 +657,15 @@ body {
 	border-bottom: 1px solid var(--vscode-panel-border);
 }
 
+/* Шапка и строки идут одной шириной: колонки с записанной шириной складываются в неё целиком. */
+.pv-table-head,
+.pv-table-row {
+	width: max-content;
+	min-width: 100%;
+}
+
 .pv-table-cell {
-	flex: 1;
+	flex: 1 1 auto;
 	padding: 3px 6px;
 	font-size: 12px;
 	border-right: 1px solid var(--vscode-panel-border);
@@ -664,6 +673,36 @@ body {
 	overflow: hidden;
 	text-overflow: ellipsis;
 }
+
+/* Группа колонок: вертикальная стоит ярусами, горизонтальная разводит колонки под общий заголовок. */
+.pv-table-colgroup {
+	flex: 1 1 auto;
+	display: flex;
+	flex-direction: column;
+	min-width: 0;
+	border-right: 1px solid var(--vscode-panel-border);
+}
+
+.pv-table-colgroup > .pv-table-cell:last-child,
+.pv-table-colgroup-row > :last-child {
+	border-right: none;
+}
+
+/* Группировка «в ячейке»: колонки стоят рядом в одной ячейке, а не отдельными колонками. */
+.pv-table-colgroup.is-incell {
+	flex-direction: row;
+}
+
+.pv-table-colgroup.is-incell > .pv-table-cell {
+	border-right: none;
+}
+
+.pv-table-colgroup-row {
+	display: flex;
+	flex: 1;
+	min-width: 0;
+}
+
 
 .pv-table-row {
 	display: flex;
