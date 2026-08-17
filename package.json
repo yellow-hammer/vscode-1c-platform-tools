@@ -3358,7 +3358,7 @@
           "1c-platform-tools.components.adapterFile": {
             "type": "string",
             "default": "",
-            "description": "Отладчик: полный путь к локальной сборке OnecDebugAdapter.dll. Пусто: используется загруженный с GitHub."
+            "description": "Отладчик: полный путь к локальной сборке адаптера, исполняемый файл OnecDebugAdapter или OnecDebugAdapter.dll (запускается через dotnet). Пусто: используется загруженный с GitHub."
           },
           "1c-platform-tools.components.metadataJarAutoload": {
             "type": "boolean",

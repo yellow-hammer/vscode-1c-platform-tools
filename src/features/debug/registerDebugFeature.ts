@@ -25,7 +25,7 @@ class OnecDebugAdapterDescriptorFactory implements vscode.DebugAdapterDescriptor
 
 	async createDebugAdapterDescriptor(): Promise<vscode.DebugAdapterDescriptor> {
 		const runtime = await ensureOnecDebugAdapter(this.context);
-		return new vscode.DebugAdapterExecutable('dotnet', [runtime.dllPath]);
+		return new vscode.DebugAdapterExecutable(runtime.command, runtime.args);
 	}
 }
 

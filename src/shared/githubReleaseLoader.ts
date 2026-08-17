@@ -42,8 +42,8 @@ export interface ReleaseComponentSpec {
 	cacheSubdir: string;
 	/** Имя файла-штампа с информацией о загрузке. */
 	stampName: string;
-	/** Регэксп имени нужного asset'а релиза. */
-	assetRegex: RegExp;
+	/** Регэксп имени нужного asset'а релиза; массив задаёт приоритет: берётся первый совпавший. */
+	assetRegex: RegExp | RegExp[];
 	/** Человекочитаемое имя для статус-бара/логов. */
 	label: string;
 	/** Распаковать архив (true) или сохранить файл как есть (false). */
@@ -223,8 +223,20 @@ export function showStatus(message: string): vscode.Disposable {
 	return vscode.window.setStatusBarMessage(`$(sync~spin) ${message}`);
 }
 
+/** Артефакт релиза по первому подошедшему регэкспу спецификации; undefined — совпадений нет. */
+export function findAsset(assets: GithubAsset[] | undefined, assetRegex: RegExp | RegExp[]): GithubAsset | undefined {
+	const patterns = Array.isArray(assetRegex) ? assetRegex : [assetRegex];
+	for (const pattern of patterns) {
+		const asset = assets?.find((a) => pattern.test(a.name));
+		if (asset) {
+			return asset;
+		}
+	}
+	return undefined;
+}
+
 function pickAsset(rel: GithubRelease, spec: ReleaseComponentSpec): GithubAsset {
-	const asset = rel.assets?.find((a) => spec.assetRegex.test(a.name));
+	const asset = findAsset(rel.assets, spec.assetRegex);
 	if (!asset) {
 		throw new Error(
 			`В релизе ${rel.tag_name} (${spec.repoSlug}) нет артефакта ${spec.assetRegex}. Опубликуйте релиз с нужным asset'ом.`
