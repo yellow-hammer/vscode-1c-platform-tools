@@ -82,7 +82,35 @@ suite('Просмотр формы: разметка и скрипт', () => {
 			assert.ok(html.includes(placeholder), `в шаблоне нет ${placeholder}`);
 		}
 	});
+
+	test('свойства, которые читает превью, доходят до него умолчаниями', () => {
+		const used = previewProperties(read('form-viewer.js'));
+		assert.ok(used.length > 0, 'свойства из скрипта не разобраны');
+
+		// Умолчания собирает layoutDefaults: свойства не из его списка до превью не доедут,
+		// и незаписанное свойство осталось бы пустым вместо значения по умолчанию.
+		const defaults =
+			layoutDefaults({ InputField: used.map((name) => ({ name, kind: 'enum', defaultValue: 'auto' })) }).InputField ??
+			{};
+
+		const missing = used.filter((name) => defaults[name] === undefined);
+		assert.deepStrictEqual(missing, [], `нет в списке свойств превью: ${missing.join(', ')}`);
+	});
 });
+
+/**
+ * Имена свойств, которые скрипт превью читает у элемента формы.
+ *
+ * Скрипт берёт их либо прямым обращением к записанному свойству, либо через таблицу кнопок поля.
+ */
+function previewProperties(script: string): string[] {
+	const direct = [
+		...script.matchAll(/(?:written|effective)\(\w+(?:\.\w+)*, '(\w+)'/g),
+	].map((match) => match[1]);
+	const table = script.slice(script.indexOf('const FIELD_BUTTONS'));
+	const buttons = [...table.slice(0, table.indexOf('];')).matchAll(/\['(\w+)'/g)].map((match) => match[1]);
+	return [...new Set([...direct, ...buttons])];
+}
 
 suite('Свойства элемента формы для палитры', () => {
 	const dictionary = {

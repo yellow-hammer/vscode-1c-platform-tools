@@ -410,6 +410,18 @@ body {
 	text-align: right;
 }
 
+/* Надпись без заголовка на форме не видна: значение подставляется при работе. */
+.pv-labelfield.is-empty {
+	display: none;
+}
+
+/* Выделенную в дереве надпись показываем, иначе непонятно, где она стоит. */
+.pv-labelfield.is-empty.pv-selected {
+	display: inline-block;
+	min-width: 16px;
+	min-height: 14px;
+}
+
 .pv-label {
 	font-size: 12px;
 	opacity: 0.9;
@@ -439,9 +451,17 @@ body {
 	opacity: 0.45;
 }
 
-.pv-input {
+/* Поле с кнопками: кнопки платформа рисует вплотную к правому краю поля ввода. */
+.pv-control {
+	display: flex;
 	flex: 1;
 	min-width: 60px;
+	align-items: stretch;
+}
+
+.pv-input {
+	flex: 1;
+	min-width: 40px;
 	border: 1px solid var(--vscode-input-border, var(--vscode-panel-border));
 	background: var(--vscode-input-background);
 	color: var(--vscode-input-foreground);
@@ -449,6 +469,40 @@ body {
 	padding: 2px 6px;
 	font-size: 12px;
 	min-height: 18px;
+}
+
+.pv-control > .pv-input:not(:last-child) {
+	border-radius: 3px 0 0 3px;
+}
+
+.pv-field-button {
+	flex: none;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	min-width: 16px;
+	padding: 0 3px;
+	font-size: 11px;
+	line-height: 1;
+	border: 1px solid var(--vscode-input-border, var(--vscode-panel-border));
+	border-left: none;
+	border-radius: 0;
+	background: var(--vscode-button-secondaryBackground, var(--vscode-badge-background));
+	color: var(--vscode-button-secondaryForeground, var(--vscode-badge-foreground));
+}
+
+.pv-field-button:last-child {
+	border-radius: 0 3px 3px 0;
+}
+
+.pv-field-button .item-icon {
+	width: 11px;
+	height: 11px;
+}
+
+.pv-field-button .item-icon svg {
+	width: 11px;
+	height: 11px;
 }
 
 .pv-decoration {

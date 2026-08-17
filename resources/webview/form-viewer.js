@@ -57,6 +57,43 @@
 	};
 
 	/**
+	 * Кнопки поля ввода: свойство элемента -> вид кнопки.
+	 *
+	 * Платформа рисует кнопку, когда свойство включено. Со значением `auto` она решает по типу
+	 * поля, а тип модель формы даёт только у реквизитов самой формы: у путей к данным объекта
+	 * его нет, поэтому там кнопка по `auto` не появляется.
+	 */
+	const FIELD_BUTTONS = [
+		['ChoiceButton', 'choice'],
+		['ChoiceListButton', 'list'],
+		['DropListButton', 'list'],
+		['CreateButton', 'create'],
+		['OpenButton', 'open'],
+		['ClearButton', 'clear'],
+		['SpinButton', 'spin'],
+	];
+
+	/** Кнопка выбора у поля даты выглядит календарём, поэтому у неё свой значок. */
+	const FIELD_BUTTON_GLYPHS = {
+		choice: '…',
+		list: '▾',
+		create: '+',
+		open: '→',
+		clear: '×',
+		spin: '⇕',
+	};
+
+	const FIELD_BUTTON_TITLES = {
+		choice: 'Кнопка выбора',
+		calendar: 'Кнопка календаря',
+		list: 'Кнопка выбора из списка',
+		create: 'Кнопка создания',
+		open: 'Кнопка открытия',
+		clear: 'Кнопка очистки',
+		spin: 'Кнопка регулирования',
+	};
+
+	/**
 	 * Ключ хранения положения границ панелей.
 	 *
 	 * Номер в ключе меняем вместе со способом счёта долей: положение прошлых сеансов посчитано
@@ -82,6 +119,29 @@
 	}
 
 	let tree = withKeys(content.items, '');
+
+	/**
+	 * Типы реквизитов формы по пути к данным.
+	 *
+	 * Реквизиты объекта сюда не попадают: их типы лежат в структуре объекта, а не в модели формы.
+	 */
+	function attributeTypes() {
+		const out = new Map();
+		for (const attribute of content.attributes || []) {
+			if (!attribute.name) {
+				continue;
+			}
+			out.set(attribute.name, (attribute.type || {}).types || []);
+			for (const column of attribute.columns || []) {
+				if (column.name) {
+					out.set(attribute.name + '.' + column.name, (column.type || {}).types || []);
+				}
+			}
+		}
+		return out;
+	}
+
+	let dataTypes = attributeTypes();
 
 	function typeLabel(type) {
 		return TYPE_LABELS[type] || type || 'Элемент';
@@ -186,6 +246,7 @@
 		search: '<path d="M20 6a14 14 0 1 0 8.5 25.1l9.7 9.7 3-3-9.7-9.7A14 14 0 0 0 20 6zm0 4a10 10 0 1 1 0 20 10 10 0 0 1 0-20z"/>',
 		tooltip: '<path d="M6 8h36v24H24l-8 8v-8H6z"/>',
 		type: '<path d="M6 12h36v6H6zm6 12h24v6H12zm6 12h12v6H18z"/>',
+		calendar: '<path d="M12 4h5v5h14V4h5v5h6v35H6V9h6zm-2 14v22h28V18z"/>',
 	};
 
 	const ICON_BY_TYPE = {
@@ -294,6 +355,8 @@
 			box = previewPages(node);
 		} else if (type === 'UsualGroup' || type === 'Page' || type === 'ColumnGroup') {
 			box = previewGroup(node);
+		} else if (type === 'LabelField') {
+			box = previewLabelField(node);
 		} else if (type === 'CommandBar' || type === 'AutoCommandBar' || type === 'ButtonGroup' || type === 'Popup') {
 			box = previewCommandBar(node);
 		} else if (type === 'Table') {
@@ -367,17 +430,91 @@
 		return item.choicePresentation || item.title || fieldLabel(item);
 	}
 
+	/**
+	 * Кнопка выбора, которую платформа даёт полю по типу реквизита формы.
+	 *
+	 * У даты это календарь, у перечисления - список, у прочих ссылочных типов - «…».
+	 * Тип реквизита объекта модель формы не отдаёт, поэтому такому полю кнопка не достаётся.
+	 */
+	function autoChoiceKind(dataPath) {
+		const types = dataTypes.get(dataPath);
+		if (!types || types.length === 0) {
+			return '';
+		}
+		if (types.some((type) => type.indexOf('xs:date') === 0)) {
+			return 'calendar';
+		}
+		if (types.some((type) => type.indexOf('EnumRef.') >= 0)) {
+			return 'list';
+		}
+		if (types.some((type) => type.indexOf('Ref.') > 0)) {
+			return 'choice';
+		}
+		return '';
+	}
+
+	/** Виды кнопок, которые платформа нарисует справа от поля. */
+	function fieldButtons(item) {
+		const auto = autoChoiceKind(item.dataPath);
+		const kinds = [];
+		const add = (kind) => {
+			if (kind && kinds.indexOf(kind) < 0) {
+				kinds.push(kind);
+			}
+		};
+		for (const pair of FIELD_BUTTONS) {
+			const value = effective(item, pair[0], written(item, pair[0]));
+			if (value === 'true') {
+				add(pair[1] === 'choice' && auto === 'calendar' ? 'calendar' : pair[1]);
+			} else if (value === 'auto' && pair[0] === 'ChoiceButton') {
+				add(auto);
+			}
+		}
+		return kinds;
+	}
+
+	function fieldButton(kind) {
+		const box = element('span', 'pv-field-button');
+		box.title = FIELD_BUTTON_TITLES[kind] || '';
+		if (kind === 'calendar') {
+			box.append(icon('calendar'));
+		} else {
+			box.textContent = FIELD_BUTTON_GLYPHS[kind] || '';
+		}
+		return box;
+	}
+
 	function previewField(node) {
 		const row = element('div', 'pv-field');
 		if (effective(node.item, 'TitleLocation', node.item.titleLocation) !== 'None') {
 			row.append(element('span', 'pv-label', fieldLabel(node.item)));
 		}
-		const input = element('div', 'pv-input', '');
-		if (node.item.width) {
-			input.style.flex = 'none';
-			input.style.width = Math.max(40, Number(node.item.width) * 8) + 'px';
+		const control = element('div', 'pv-control');
+		control.append(element('div', 'pv-input', ''));
+		for (const kind of fieldButtons(node.item)) {
+			control.append(fieldButton(kind));
 		}
-		row.append(input);
+		if (node.item.width) {
+			control.style.flex = 'none';
+			control.style.width = Math.max(40, Number(node.item.width) * 8) + 'px';
+		}
+		row.append(control);
+		return row;
+	}
+
+	/**
+	 * Поле надписи платформа рисует текстом, а не полем ввода.
+	 *
+	 * Значение подставляется при работе формы, поэтому в превью от надписи остаётся только
+	 * заголовок; надпись без заголовка места не занимает.
+	 */
+	function previewLabelField(node) {
+		const row = element('div', 'pv-field pv-labelfield');
+		if (effective(node.item, 'TitleLocation', node.item.titleLocation) === 'None') {
+			row.classList.add('is-empty');
+		} else {
+			row.append(element('span', 'pv-label', fieldLabel(node.item)));
+		}
 		return row;
 	}
 
@@ -667,6 +804,7 @@
 		}
 		content = event.data.content || {};
 		tree = withKeys(content.items, '');
+		dataTypes = attributeTypes();
 		if (state.selected && !findNode(tree, state.selected)) {
 			state.selected = null;
 		}

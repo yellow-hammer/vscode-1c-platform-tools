@@ -601,8 +601,22 @@ export function dataPathTitles(
 /** Вид элемента -> имя свойства -> значение по умолчанию. */
 export type LayoutDefaults = Record<string, Record<string, string>>;
 
-/** Свойства, от которых зависит раскладка превью; остальные умолчания webview не нужны. */
-const LAYOUT_PROPERTIES = ['Group', 'PagesRepresentation', 'Representation', 'ShowTitle', 'TitleLocation'];
+/** Свойства, от которых зависит вид превью; остальные умолчания webview не нужны. */
+const LAYOUT_PROPERTIES = [
+	'Group',
+	'PagesRepresentation',
+	'Representation',
+	'ShowTitle',
+	'TitleLocation',
+	// Кнопки поля ввода: платформа рисует их справа от поля.
+	'ChoiceButton',
+	'ChoiceListButton',
+	'DropListButton',
+	'CreateButton',
+	'OpenButton',
+	'ClearButton',
+	'SpinButton',
+];
 
 /**
  * Умолчания раскладки из словаря формата.
