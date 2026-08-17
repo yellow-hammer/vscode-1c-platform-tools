@@ -13,7 +13,7 @@ import { createWriteStream } from 'node:fs';
 import { pipeline } from 'node:stream/promises';
 import { Readable } from 'node:stream';
 import * as vscode from 'vscode';
-import extract from 'extract-zip';
+import { extractZip } from './zipExtract';
 import { logger } from './logger';
 
 const log = logger.scope('releases');
@@ -205,7 +205,7 @@ export async function extractArchive(archivePath: string, outDir: string): Promi
 	await fs.mkdir(outDir, { recursive: true });
 	const lower = archivePath.toLowerCase();
 	if (lower.endsWith('.zip')) {
-		await extract(archivePath, { dir: outDir });
+		await extractZip(archivePath, outDir);
 		return;
 	}
 	if (lower.endsWith('.tar.gz') || lower.endsWith('.tgz')) {
