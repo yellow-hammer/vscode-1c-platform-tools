@@ -43,12 +43,61 @@ body {
 	min-height: 0;
 	display: grid;
 	/* Раскладка конфигуратора: сверху элементы и данные формы, снизу сама форма. */
-	grid-template-columns: minmax(260px, 1fr) minmax(260px, 1fr);
-	grid-template-rows: minmax(120px, 2fr) minmax(160px, 3fr);
+	/* Вторая полоса обеих осей - 1fr: доля из переменной считается отношением к ней. */
+	grid-template-columns: minmax(180px, var(--split-x, 1fr)) 8px minmax(180px, 1fr);
+	grid-template-rows: minmax(80px, var(--split-y, 0.6667fr)) 8px minmax(120px, 1fr);
 	grid-template-areas:
-		"tree data"
-		"preview preview";
-	gap: 8px;
+		"tree vsplit data"
+		"hsplit hsplit hsplit"
+		"preview preview preview";
+	gap: 0;
+}
+
+/* Границы панелей тянутся мышью: на длинной форме без этого не поработать. */
+.pane-split {
+	background: transparent;
+	position: relative;
+}
+
+.pane-split::after {
+	content: '';
+	position: absolute;
+	inset: 0;
+	margin: auto;
+	background: var(--vscode-panel-border);
+}
+
+.pane-split-v {
+	grid-area: vsplit;
+	cursor: col-resize;
+}
+
+.pane-split-v::after {
+	width: 1px;
+}
+
+.pane-split-h {
+	grid-area: hsplit;
+	cursor: row-resize;
+}
+
+.pane-split-h::after {
+	height: 1px;
+}
+
+.pane-split:hover::after,
+.pane-split.is-dragging::after {
+	background: var(--vscode-focusBorder);
+}
+
+.pane-split-v:hover::after,
+.pane-split-v.is-dragging::after {
+	width: 2px;
+}
+
+.pane-split-h:hover::after,
+.pane-split-h.is-dragging::after {
+	height: 2px;
 }
 
 .pane-tree {
@@ -186,6 +235,17 @@ body {
 
 /* Превью */
 
+/* Сама форма: командная панель стоит над содержимым или под ним, содержимое лежит между ними. */
+/* Форма занимает просмотр целиком: иначе растянутой таблице нечего было бы занимать по высоте. */
+.pv-form {
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+	min-width: 0;
+	min-height: 100%;
+	box-sizing: border-box;
+}
+
 /* Группа без выделения не даёт ни рамки, ни отступа: иначе вложенные группы уводят элементы вправо. */
 .pv-group {
 	border: none;
@@ -196,10 +256,28 @@ body {
 	min-width: 0;
 }
 
-/* Рамку и заголовок платформа рисует только у группы с рамкой. */
-.pv-group.is-framed {
-	border: 1px solid var(--vscode-panel-border);
-	padding: 10px 8px 8px 8px;
+/* Заголовок платформа рисует только у группы с рамкой; самой рамки у неё нет. */
+.pv-groupbox {
+	display: flex;
+	min-width: 0;
+}
+
+/* Заголовок сверху: слева от содержимого платформа ведёт вертикальную линию. */
+.pv-groupbox.is-title-top {
+	flex-direction: column;
+	gap: 2px;
+}
+
+.pv-groupbox.is-title-top > .pv-group.is-framed {
+	border-left: 2px solid var(--vscode-panel-border);
+	padding-left: 8px;
+}
+
+/* Заголовок слева: содержимое идёт в ту же строку, линии перед ним нет. */
+.pv-groupbox.is-title-left {
+	flex-direction: row;
+	align-items: baseline;
+	gap: 12px;
 }
 
 /* Выделение группы фоном, а не отступом: отступ у вложенных групп уводил бы элементы вправо. */
@@ -226,13 +304,139 @@ body {
 	align-items: flex-start;
 }
 
+/* «Всегда горизонтальная» строку не рвёт: платформа раздвигает форму, а не переносит элементы. */
+.pv-group.is-horizontal.is-nowrap {
+	flex-wrap: nowrap;
+}
+
+/* Выравнивание «поля справа»: подписи остаются слева, поля прижаты к правому краю группы. */
+.pv-group.is-items-right > .pv-field > .pv-control {
+	margin-left: auto;
+	flex: none;
+}
+
 .pv-group-title {
 	font-size: 11px;
 	opacity: 0.7;
-	margin: -12px 0 2px 4px;
-	padding: 0 4px;
 	align-self: flex-start;
+	white-space: nowrap;
+}
+
+/* Страницы: закладки и содержимое открытой. Сторону задаёт отображение закладок группы. */
+.pv-pages {
+	display: flex;
+	min-width: 0;
+}
+
+.pv-pages.is-top {
+	flex-direction: column;
+}
+
+.pv-pages.is-bottom {
+	flex-direction: column-reverse;
+}
+
+.pv-pages.is-left {
+	flex-direction: row;
+}
+
+.pv-pages.is-right {
+	flex-direction: row-reverse;
+}
+
+.pv-tabs {
+	display: flex;
+	gap: 2px;
+	flex: none;
+}
+
+.pv-pages.is-top > .pv-tabs,
+.pv-pages.is-bottom > .pv-tabs {
+	flex-wrap: wrap;
+}
+
+.pv-pages.is-left > .pv-tabs,
+.pv-pages.is-right > .pv-tabs {
+	flex-direction: column;
+	align-items: stretch;
+}
+
+.pv-pages.is-top > .pv-tabs {
+	border-bottom: 1px solid var(--vscode-panel-border);
+}
+
+.pv-pages.is-bottom > .pv-tabs {
+	border-top: 1px solid var(--vscode-panel-border);
+}
+
+.pv-pages.is-left > .pv-tabs {
+	border-right: 1px solid var(--vscode-panel-border);
+}
+
+.pv-pages.is-right > .pv-tabs {
+	border-left: 1px solid var(--vscode-panel-border);
+}
+
+.pv-tab {
+	background: transparent;
+	border: 1px solid transparent;
+	border-radius: 4px 4px 0 0;
+	color: var(--vscode-foreground);
+	font-family: inherit;
+	font-size: 12px;
+	padding: 3px 10px;
+	cursor: pointer;
+	opacity: 0.75;
+	white-space: nowrap;
+	text-align: left;
+}
+
+.pv-pages.is-bottom > .pv-tabs > .pv-tab {
+	border-radius: 0 0 4px 4px;
+}
+
+.pv-pages.is-left > .pv-tabs > .pv-tab {
+	border-radius: 4px 0 0 4px;
+}
+
+.pv-pages.is-right > .pv-tabs > .pv-tab {
+	border-radius: 0 4px 4px 0;
+}
+
+.pv-tab:hover {
+	opacity: 1;
+}
+
+.pv-tab.is-active {
+	opacity: 1;
 	background: var(--vscode-editorWidget-background);
+	border-color: var(--vscode-panel-border);
+}
+
+/* Содержимое открытой закладки: столбиком, чтобы растянутый элемент забрал высоту страницы. */
+.pv-pages-body {
+	flex: 1;
+	min-width: 0;
+	min-height: 0;
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+}
+
+.pv-pages.is-top > .pv-pages-body {
+	padding-top: 8px;
+}
+
+.pv-pages.is-bottom > .pv-pages-body {
+	padding-bottom: 8px;
+}
+
+.pv-pages.is-left > .pv-pages-body {
+	padding-left: 8px;
+}
+
+.pv-pages.is-right > .pv-pages-body {
+	padding-right: 8px;
 }
 
 .pv-field {
@@ -242,14 +446,38 @@ body {
 	min-width: 0;
 }
 
-/* В вертикальной группе подписи полей выстраиваются в колонку, как на форме. */
-.pv-group.is-vertical > .pv-field > .pv-label {
-	flex: 0 0 auto;
-	min-width: 120px;
-	text-align: right;
+/* Заголовок сверху и снизу платформа кладёт отдельной строкой, поле занимает свою. */
+.pv-field.is-title-top,
+.pv-field.is-title-bottom {
+	flex-direction: column;
+	align-items: flex-start;
+	gap: 2px;
+}
+
+/* Растянутое поле занимает доставшуюся долю строки целиком, а не по содержимому. */
+.pv-field.is-stretched > .pv-control {
+	align-self: stretch;
+}
+
+/* Доставшуюся высоту поле занимает так же целиком: поле табличного документа встаёт во всю форму. */
+.pv-field.is-stretched-down > .pv-control {
+	align-self: stretch;
+}
+
+/* Надпись без заголовка на форме не видна: значение подставляется при работе. */
+.pv-labelfield.is-empty {
+	display: none;
+}
+
+/* Выделенную в дереве надпись показываем, иначе непонятно, где она стоит. */
+.pv-labelfield.is-empty.pv-selected {
+	display: inline-block;
+	min-width: 16px;
+	min-height: 14px;
 }
 
 .pv-label {
+	flex: none;
 	font-size: 12px;
 	opacity: 0.9;
 	white-space: nowrap;
@@ -257,6 +485,21 @@ body {
 
 .pv-label::after {
 	content: ':';
+}
+
+/* Заголовок после поля платформа пишет без двоеточия. */
+.pv-label.is-bare::after {
+	content: '';
+}
+
+/* Подписи соседей стоят в общей колонке: её ширину отмеряет скрипт по самой длинной подписи. */
+.pv-label.is-aligned {
+	text-align: left;
+}
+
+/* К правому краю колонки подпись прижимают только значения с «заголовки справа». */
+.pv-label.is-aligned.is-titles-right {
+	text-align: right;
 }
 
 .pv-addition {
@@ -278,9 +521,17 @@ body {
 	opacity: 0.45;
 }
 
-.pv-input {
+/* Поле с кнопками: кнопки платформа рисует вплотную к правому краю поля ввода. */
+.pv-control {
+	display: flex;
 	flex: 1;
 	min-width: 60px;
+	align-items: stretch;
+}
+
+.pv-input {
+	flex: 1;
+	min-width: 40px;
 	border: 1px solid var(--vscode-input-border, var(--vscode-panel-border));
 	background: var(--vscode-input-background);
 	color: var(--vscode-input-foreground);
@@ -288,6 +539,40 @@ body {
 	padding: 2px 6px;
 	font-size: 12px;
 	min-height: 18px;
+}
+
+.pv-control > .pv-input:not(:last-child) {
+	border-radius: 3px 0 0 3px;
+}
+
+.pv-field-button {
+	flex: none;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	min-width: 16px;
+	padding: 0 3px;
+	font-size: 11px;
+	line-height: 1;
+	border: 1px solid var(--vscode-input-border, var(--vscode-panel-border));
+	border-left: none;
+	border-radius: 0;
+	background: var(--vscode-button-secondaryBackground, var(--vscode-badge-background));
+	color: var(--vscode-button-secondaryForeground, var(--vscode-badge-foreground));
+}
+
+.pv-field-button:last-child {
+	border-radius: 0 3px 3px 0;
+}
+
+.pv-field-button .item-icon {
+	width: 11px;
+	height: 11px;
+}
+
+.pv-field-button .item-icon svg {
+	width: 11px;
+	height: 11px;
 }
 
 .pv-decoration {
@@ -302,6 +587,33 @@ body {
 	border-bottom: 1px solid var(--vscode-panel-border);
 }
 
+/* Панель без кнопок платформа не рисует: пустой полосы на форме не видно. */
+.pv-commandbar.is-empty {
+	display: none;
+}
+
+/* Выделенную в дереве панель показываем, иначе непонятно, где она стоит. */
+.pv-commandbar.is-empty.pv-selected {
+	display: block;
+	min-height: 14px;
+}
+
+/* Панель с выравниванием складывает кнопки к своему краю, «Еще» при этом остаётся последним. */
+.pv-commandbar.is-align-right {
+	justify-content: flex-end;
+}
+
+.pv-commandbar.is-align-center {
+	justify-content: center;
+}
+
+.pv-commandbar.is-align-right > .pv-commandbar-more,
+.pv-commandbar.is-align-center > .pv-commandbar-more,
+.pv-commandbar.is-align-right > .pv-commandbar-right,
+.pv-commandbar.is-align-center > .pv-commandbar-right {
+	margin-left: 0;
+}
+
 .pv-button {
 	border: 1px solid var(--vscode-button-border, transparent);
 	background: var(--vscode-button-secondaryBackground, var(--vscode-badge-background));
@@ -311,10 +623,85 @@ body {
 	font-size: 12px;
 }
 
+/* Кнопку набора платформы в файле формы не найти: её отличает пунктирная рамка. */
+.pv-button.is-standard {
+	border-style: dashed;
+	background: transparent;
+	color: var(--vscode-foreground);
+	opacity: 0.75;
+}
+
+/* Кнопку со значком платформа не подписывает: место она занимает, а назвать её нечем. */
+.pv-button.is-picture {
+	width: 22px;
+	padding: 2px 0;
+	text-align: center;
+	line-height: 1;
+}
+
+/* Кнопку по умолчанию платформа выделяет цветом; в теме редактора это акцентный цвет кнопки. */
+.pv-button.is-default {
+	background: var(--vscode-button-background, var(--vscode-focusBorder));
+	color: var(--vscode-button-foreground, var(--vscode-editor-background));
+}
+
+/* Панель с автозаполнением платформа наполняет сама: без пометки такая строка выглядит пустой. */
+.pv-commandbar-auto {
+	align-self: center;
+	padding: 1px 6px;
+	font-size: 11px;
+	opacity: 0.6;
+	border: 1px dotted var(--vscode-panel-border);
+	border-radius: 3px;
+	white-space: nowrap;
+}
+
+/* Служебные части таблицы стоят в её панели, перед «Еще», у того же правого края. */
+.pv-commandbar-additions {
+	display: flex;
+	gap: 6px;
+	align-items: center;
+	margin-left: auto;
+}
+
+.pv-commandbar > .pv-commandbar-additions + .pv-commandbar-more {
+	margin-left: 0;
+}
+
+/* «Еще» платформа держит у правого края командной панели. */
+.pv-commandbar-more {
+	margin-left: auto;
+	align-self: center;
+	padding: 2px 8px;
+	font-size: 12px;
+	opacity: 0.8;
+	white-space: nowrap;
+}
+
+/* Стандартные команды правой части идут за «Еще», у того же края. */
+.pv-commandbar-right {
+	display: flex;
+	gap: 6px;
+	align-items: center;
+	margin-left: auto;
+}
+
+.pv-commandbar > .pv-commandbar-more + .pv-commandbar-right {
+	margin-left: 0;
+}
+
+/* Колонки шире таблицы платформа не сжимает: лишние уходят за правый край под прокрутку. */
 .pv-table {
 	border: 1px solid var(--vscode-panel-border);
 	border-radius: 4px;
-	overflow: hidden;
+	overflow-x: auto;
+	overflow-y: hidden;
+}
+
+/* Панель под таблицей отделена линией сверху, а не снизу. */
+.pv-table > .pv-commandbar:last-child {
+	border-bottom: none;
+	border-top: 1px solid var(--vscode-panel-border);
 }
 
 .pv-table-head {
@@ -323,8 +710,15 @@ body {
 	border-bottom: 1px solid var(--vscode-panel-border);
 }
 
+/* Шапка и строки идут одной шириной: колонки с записанной шириной складываются в неё целиком. */
+.pv-table-head,
+.pv-table-row {
+	width: max-content;
+	min-width: 100%;
+}
+
 .pv-table-cell {
-	flex: 1;
+	flex: 1 1 auto;
 	padding: 3px 6px;
 	font-size: 12px;
 	border-right: 1px solid var(--vscode-panel-border);
@@ -332,6 +726,36 @@ body {
 	overflow: hidden;
 	text-overflow: ellipsis;
 }
+
+/* Группа колонок: вертикальная стоит ярусами, горизонтальная разводит колонки под общий заголовок. */
+.pv-table-colgroup {
+	flex: 1 1 auto;
+	display: flex;
+	flex-direction: column;
+	min-width: 0;
+	border-right: 1px solid var(--vscode-panel-border);
+}
+
+.pv-table-colgroup > .pv-table-cell:last-child,
+.pv-table-colgroup-row > :last-child {
+	border-right: none;
+}
+
+/* Группировка «в ячейке»: колонки стоят рядом в одной ячейке, а не отдельными колонками. */
+.pv-table-colgroup.is-incell {
+	flex-direction: row;
+}
+
+.pv-table-colgroup.is-incell > .pv-table-cell {
+	border-right: none;
+}
+
+.pv-table-colgroup-row {
+	display: flex;
+	flex: 1;
+	min-width: 0;
+}
+
 
 .pv-table-row {
 	display: flex;
