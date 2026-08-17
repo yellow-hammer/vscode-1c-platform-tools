@@ -95,6 +95,30 @@ suite('Просмотр формы: разметка и скрипт', () => {
 		}
 	});
 
+	test('заголовок группы с рамкой встаёт слева только у необъединённой группы в одну строку', () => {
+		const script = read('form-viewer.js');
+		const place = script.slice(script.indexOf('function placeGroupTitle'));
+
+		// Слева заголовок стоит только у группы со снятым объединением и содержимым в одну строку.
+		assert.ok(/United/.test(script.slice(script.indexOf('function previewGroup'))), 'объединение решает сторону');
+		assert.ok(place.includes('is-horizontal'), 'многострочной группе заголовок ставится сверху');
+		assert.ok(place.includes('is-title-left') && place.includes('is-title-top'), 'обе стороны разбираются');
+
+		// Сторону пересчитывает укладка: «по возможности горизонтальная» сворачивается по месту.
+		const fold = script.slice(script.indexOf('function foldTightGroups'));
+		assert.ok(fold.includes('placeGroupTitle'), 'свернувшейся группе заголовок уходит наверх');
+	});
+
+	test('у группы с рамкой рисуется линия слева, а не рамка вокруг', () => {
+		const css = read('form-viewer.css');
+		const framed = /\.pv-group\.is-framed[^{]*\{([^}]*)\}/.exec(css);
+		assert.ok(framed, 'оформление группы с рамкой не разобрано');
+
+		// Конфигуратор рамки не рисует: у заголовка сверху слева от содержимого идёт линия.
+		assert.ok(!/(?:^|;)\s*border\s*:/.test(framed[1]), 'рамки вокруг группы у платформы нет');
+		assert.ok(framed[1].includes('border-left'), 'линия слева от содержимого остаётся');
+	});
+
 	test('стороны заголовка названы константами, которые знает словарь значений', () => {
 		const sides = listBetween(read('form-viewer.js'), 'const TITLE_SIDES', '\n\t};', /(\w+):/g);
 
@@ -135,6 +159,63 @@ suite('Просмотр формы: разметка и скрипт', () => {
 		assert.ok(place.includes("'CommandBarLocation'"), 'без свойства панель всегда стояла бы сверху');
 		assert.ok(place.includes("'Bottom'"), 'конфигуратор ставит панель вниз по записанному положению');
 		assert.ok(place.includes("'None'"), 'с положением «нет» панели не видно совсем');
+	});
+
+	test('свободное место строки делят все растянутые элементы', () => {
+		const script = read('form-viewer.js');
+		const stretch = script.slice(script.indexOf('function stretchRow'), script.indexOf('function previewNode'));
+
+		assert.ok(stretch.includes('canStretch'), 'растяжение решает свойство элемента');
+		// Строка с парой растянутых полей делится пополам, а не остаётся по содержимому.
+		assert.ok(!/length === 1/.test(stretch), 'место достаётся не только единственному растянутому элементу');
+	});
+
+	test('свободное место строки группе со значением «авто» не достаётся', () => {
+		const script = read('form-viewer.js');
+		const stretch = script.slice(script.indexOf('function canStretch'), script.indexOf('function stretchRow'));
+
+		// Растянутая группа увела бы соседа к правому краю, а поля внутри - шире записанной ширины.
+		assert.ok(stretch.includes('CONTAINER_TYPES'), 'группа делит место строки наравне с полем');
+		assert.ok(
+			/const CONTAINER_TYPES[^;]*'UsualGroup'/.test(script),
+			'обычная группа в список контейнеров не попала'
+		);
+		// Умолчание вида читается целиком: у таблицы оно растянутое, у поля - «авто».
+		assert.ok(stretch.includes("value === 'true'"), 'записанное умолчание вида не читается');
+		assert.ok(stretch.includes("horizontalStretch === 'true'"), 'записанное растяжение сильнее умолчания');
+	});
+
+	test('свободную высоту занимает элемент с вертикальным растяжением', () => {
+		const script = read('form-viewer.js');
+		const css = read('form-viewer.css');
+		const down = script.slice(script.indexOf('function canStretchDown'), script.indexOf('function stretchColumn'));
+
+		assert.ok(down.includes("'VerticalStretch'"), 'высоту раздаёт свойство, а не вид элемента');
+		// У таблицы умолчание вида уже растянутое, поэтому она занимает всё, что осталось от полей.
+		assert.ok(down.includes("value === 'true'"), 'умолчание вида до раздачи высоты не доходит');
+		// Со значением «авто» высоту набирает содержимое: контейнер тянется вслед за вложенным.
+		assert.ok(down.includes('CONTAINER_TYPES'), 'группа над таблицей высоту не передаёт');
+		assert.ok(
+			/\.pv-form[^{]*\{[^}]*min-height:\s*100%/.test(css),
+			'без высоты формы растянутой таблице нечего занимать'
+		);
+	});
+
+	test('сторону заголовка в колонке задаёт имя значения выравнивания', () => {
+		const script = read('form-viewer.js');
+		const css = read('form-viewer.css');
+		const side = script.slice(script.indexOf('function markTitlesSide'), script.indexOf('function previewGroup'));
+
+		// «Элементы слева, заголовки слева»: к правому краю колонки идут только значения с TitlesRight.
+		assert.ok(side.includes("'TitlesRight'"), 'сторона заголовка читается из имени значения');
+		assert.ok(
+			/\.pv-label\.is-aligned(?![\w-])[^{]*\{[^}]*text-align:\s*left/.test(css),
+			'по умолчанию заголовки колонки прижаты не к левому краю'
+		);
+		assert.ok(
+			/\.pv-label\.is-aligned\.is-titles-right[^{]*\{[^}]*text-align:\s*right/.test(css),
+			'значение с заголовками справа колонку не разворачивает'
+		);
 	});
 
 	test('ширину колонки подписей отмеряет скрипт, а не стили', () => {
@@ -378,6 +459,16 @@ suite('Умолчания раскладки для превью формы', ()
 		});
 
 		assert.strictEqual(defaults.UsualGroup?.ChildrenAlign, 'Auto');
+	});
+
+	test('сквозное выравнивание уходит в превью: по нему группы-соседи держат общую колонку подписей', () => {
+		const defaults = layoutDefaults({
+			UsualGroup: [
+				{ name: 'ThroughAlign', kind: 'enum', defaultValue: 'Auto', values: ['Use', 'DontUse', 'Auto'] },
+			],
+		});
+
+		assert.strictEqual(defaults.UsualGroup?.ThroughAlign, 'Auto');
 	});
 
 	test('отображение закладок страниц уходит в превью: без него страницы рисуются подряд', () => {

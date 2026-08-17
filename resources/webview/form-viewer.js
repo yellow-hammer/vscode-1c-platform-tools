@@ -102,6 +102,18 @@
 	const CONTENT_SIZED_TYPES = new Set(['Button', 'LabelDecoration', 'PictureDecoration']);
 
 	/**
+	 * Виды, которые держат другие элементы.
+	 *
+	 * Свободное место строки платформа контейнеру со значением «авто» не отдаёт: группа занимает
+	 * ровно то место, что нужно её содержимому, сосед идёт сразу за ней, а остаток строки остаётся
+	 * в конце. Место контейнеру достаётся только с растяжением, записанным в файле.
+	 */
+	const CONTAINER_TYPES = new Set([
+		'UsualGroup', 'Pages', 'Page', 'ColumnGroup',
+		'CommandBar', 'AutoCommandBar', 'ButtonGroup', 'Popup', 'ContextMenu',
+	]);
+
+	/**
 	 * Ключ хранения положения границ панелей.
 	 *
 	 * Номер в ключе меняем вместе со способом счёта долей: положение прошлых сеансов посчитано
@@ -384,6 +396,7 @@
 		// Сама форма - такой же контейнер: у неё есть и группировка, и выравнивание дочерних элементов.
 		const layout = groupLayout(formProperty('Group'));
 		const root = element('div', 'pv-group ' + layout + alignClass(formProperty('ChildrenAlign')));
+		markTitlesSide(root, formProperty('ChildrenAlign'));
 		root.style.border = 'none';
 		const place = formCommandBarPlace();
 		const auto = (node) => node.item.type === 'AutoCommandBar';
@@ -392,9 +405,15 @@
 		const boxes = body.map((node) => previewNode(node));
 		if (layout.indexOf('is-horizontal') === 0) {
 			stretchRow(body, boxes);
+		} else {
+			stretchColumn(body, boxes);
 		}
 		for (const box of boxes) {
 			root.append(box);
+		}
+		// Содержимое формы занимает её целиком, поэтому свободная высота доходит до самого элемента.
+		if (boxes.some((box) => box.classList.contains('is-stretched-down'))) {
+			root.style.flex = '1 1 auto';
 		}
 		// Панель формы лежит над содержимым или под ним, а не внутри него, поэтому идёт соседом.
 		const form = element('div', 'pv-form');
@@ -407,6 +426,7 @@
 		}
 		host.append(form);
 		foldTightGroups(host);
+		alignGroupTitles(host);
 		alignLabelColumns(host);
 	}
 
@@ -429,33 +449,117 @@
 				group.classList.add('is-vertical', 'is-folded');
 			}
 		}
+		// Свернувшаяся группа стала многострочной, и её заголовок уходит наверх.
+		for (const framed of host.querySelectorAll('.pv-groupbox')) {
+			placeGroupTitle(framed);
+		}
+	}
+
+	/**
+	 * Общая колонка заголовков групп.
+	 *
+	 * Заголовок, вставший слева в строку, платформа держит колонкой на всех таких соседей: содержимое
+	 * групп начинается от одной границы, хотя заголовки разной длины. Ширину задаёт самый длинный
+	 * заголовок, а стоят они в колонке слева, в отличие от подписей полей.
+	 *
+	 * Сторону заголовка решает `foldTightGroups`, поэтому ширины сперва снимаем: свернувшаяся группа
+	 * уводит заголовок наверх и из колонки выходит.
+	 */
+	function alignGroupTitles(host) {
+		for (const title of host.querySelectorAll('.pv-group-title')) {
+			title.style.width = '';
+		}
+		const families = new Map();
+		for (const framed of host.querySelectorAll('.pv-groupbox.is-title-left')) {
+			const family = framed.parentElement;
+			if (family) {
+				families.set(family, (families.get(family) || []).concat(framed.firstElementChild));
+			}
+		}
+		for (const titles of families.values()) {
+			if (titles.length < 2) {
+				continue;
+			}
+			let width = 0;
+			for (const title of titles) {
+				width = Math.max(width, title.getBoundingClientRect().width);
+			}
+			for (const title of titles) {
+				title.style.width = Math.ceil(width) + 'px';
+			}
+		}
 	}
 
 	/**
 	 * Общая колонка подписей у соседних элементов.
 	 *
-	 * Платформа прижимает подписи соседей к правому краю одной колонки, и поля начинаются от общей
-	 * границы. Ширину колонки задаёт самая длинная подпись, поэтому меряем их по месту: знаки шрифта
-	 * формы разной ширины, а колонка должна вместить самую длинную подпись целиком.
+	 * Поля соседей начинаются от общей границы, а подпись встаёт к тому краю колонки, который назван
+	 * в выравнивании дочерних элементов. Ширину колонки задаёт самая длинная подпись, поэтому меряем
+	 * их по месту: знаки шрифта формы разной ширины, а колонка должна вместить самую длинную подпись
+	 * целиком.
 	 */
 	function alignLabelColumns(host) {
 		const inner = new Set();
+		const through = throughAlignColumns(host, inner);
 		for (const group of host.querySelectorAll('.pv-group.is-vertical')) {
-			if (inner.has(group) || group.classList.contains('is-align-none')) {
+			if (inner.has(group) || through.has(group) || group.classList.contains('is-align-none')) {
 				continue;
 			}
-			const labels = columnLabels(group, [], inner);
-			if (labels.length < 2) {
+			applyLabelColumn(columnLabels(group, [], inner), titlesSide(group));
+		}
+	}
+
+	/** Сторона подписи в общей колонке: её задаёт группа, у которой эта колонка собралась. */
+	function titlesSide(group) {
+		return group.dataset.titles === 'right' ? 'right' : 'left';
+	}
+
+	/**
+	 * Сквозное выравнивание: группы-соседи со значением «использовать» держат одну общую колонку.
+	 *
+	 * Общую границу задаёт самая длинная подпись среди таких групп. Соседи со значениями «не
+	 * использовать» и «авто» и группа без записанного свойства в общую колонку не идут: каждая из них
+	 * считает свою.
+	 */
+	function throughAlignColumns(host, inner) {
+		const families = new Map();
+		for (const group of host.querySelectorAll('.pv-group.is-vertical[data-through="use"]')) {
+			// Группа с рамкой лежит в обёртке с заголовком, и соседи у неё общие с этой обёрткой.
+			const slot = group.parentElement && group.parentElement.classList.contains('pv-groupbox')
+				? group.parentElement
+				: group;
+			const family = slot.parentElement;
+			if (!family || group.classList.contains('is-align-none')) {
 				continue;
 			}
-			let width = 0;
-			for (const label of labels) {
-				width = Math.max(width, label.getBoundingClientRect().width);
+			families.set(family, (families.get(family) || []).concat(group));
+		}
+		const done = new Set();
+		for (const groups of families.values()) {
+			const labels = [];
+			for (const group of groups) {
+				done.add(group);
+				columnLabels(group, labels, inner);
 			}
-			for (const label of labels) {
-				label.classList.add('is-aligned');
-				label.style.width = Math.ceil(width) + 'px';
-			}
+			// Колонка у соседей общая, поэтому и сторона подписи в ней одна: её задаёт первый сосед.
+			applyLabelColumn(labels, titlesSide(groups[0]));
+		}
+		return done;
+	}
+
+	/** Подписи одной колонки: ширину задаёт самая длинная, а сторону - выравнивание группы. */
+	function applyLabelColumn(labels, side) {
+		if (labels.length < 2) {
+			return;
+		}
+		let width = 0;
+		for (const label of labels) {
+			width = Math.max(width, label.getBoundingClientRect().width);
+		}
+		for (const label of labels) {
+			label.classList.add('is-aligned');
+			label.classList.toggle('is-titles-right', side === 'right');
+			label.style.width = Math.ceil(width) + 'px';
 		}
 	}
 
@@ -522,36 +626,110 @@
 	 *
 	 * Записанная ширина отменяет растяжение: элемент занимает ровно её. Надпись, картинку и кнопку
 	 * платформа держит по размеру содержимого, поэтому им место достаётся только с растяжением,
-	 * записанным в файле.
+	 * записанным в файле. Незаписанное свойство решает умолчание вида: у таблицы оно уже растянутое,
+	 * у поля - «авто», и место такому полю достаётся, а группе со значением «авто» нет.
 	 */
 	function canStretch(item) {
-		if (item.width || stretchValue(item) === undefined || item.horizontalStretch === 'false') {
+		if (item.width) {
 			return false;
 		}
-		return item.horizontalStretch === 'true' || !CONTENT_SIZED_TYPES.has(item.type);
+		if (item.horizontalStretch === 'true') {
+			return true;
+		}
+		if (item.horizontalStretch === 'false' || CONTENT_SIZED_TYPES.has(item.type)) {
+			return false;
+		}
+		const value = stretchValue(item);
+		if (value === undefined || value === 'false') {
+			return false;
+		}
+		return value === 'true' || !CONTAINER_TYPES.has(item.type);
 	}
 
 	/**
-	 * Свободное место строки достаётся растянутым элементам.
-	 *
-	 * Незаписанное растяжение платформа решает по типу поля, а типа в модели формы нет. Когда занять
-	 * место в строке может ровно один элемент, оно достаётся ему в любом случае - такую строку
-	 * раскладываем как платформа, а строку с несколькими незаписанными оставляем по естественной
-	 * ширине.
+	 * Свободное место строки достаётся растянутым элементам, и они делят его поровну.
 	 *
 	 * Доставшуюся долю растянутое поле занимает целиком: два одинаковых растянутых поля делят строку
-	 * ровно пополам, и рамка каждого идёт во всю его половину.
+	 * ровно пополам, и рамка каждого идёт во всю его половину. Элемент с записанной шириной и
+	 * элемент со снятым растяжением в дележе не участвуют: их ширину задаёт файл, и стоят они подряд
+	 * от левого края, а незанятое место остаётся в конце строки.
 	 */
 	function stretchRow(children, boxes) {
-		const able = children.filter((child) => canStretch(child.item));
 		for (let i = 0; i < children.length; i += 1) {
-			const item = children[i].item;
-			if (canStretch(item) && (item.horizontalStretch === 'true' || able.length === 1)) {
+			if (canStretch(children[i].item)) {
 				boxes[i].style.flex = '1 1 auto';
 				boxes[i].style.minWidth = '0';
 				boxes[i].classList.add('is-stretched');
 			}
+			// В строке высоту делить не с кем: растянутый элемент занимает её целиком.
+			if (canStretchDown(children[i])) {
+				boxes[i].style.alignSelf = 'stretch';
+			}
 		}
+	}
+
+	/**
+	 * Элемент может занять свободную высоту.
+	 *
+	 * Записанная высота растяжение отменяет. Со значением «авто» высоту набирает не сам элемент, а
+	 * его содержимое: контейнер тянется вслед за вложенным элементом, который тянется, а поле
+	 * остаётся в одну строку. У таблицы и поля табличного документа умолчание вида уже растянутое,
+	 * поэтому свободную высоту формы платформа отдаёт им и без записанного свойства.
+	 */
+	function canStretchDown(node) {
+		const item = node.item;
+		if (item.height) {
+			return false;
+		}
+		if (item.verticalStretch === 'true') {
+			return true;
+		}
+		if (item.verticalStretch === 'false' || CONTENT_SIZED_TYPES.has(item.type)) {
+			return false;
+		}
+		const value = effective(item, 'VerticalStretch', item.verticalStretch);
+		if (value === undefined || value === 'false') {
+			return false;
+		}
+		if (value === 'true') {
+			return true;
+		}
+		return CONTAINER_TYPES.has(item.type) && renderedChildren(node).some(canStretchDown);
+	}
+
+	/**
+	 * Свободная высота столбца достаётся растянутым элементам, и они делят её поровну.
+	 *
+	 * Таблица занимает всё, что осталось от полей, и отжимает нижнюю строку формы к низу. Без
+	 * растянутого элемента высота остаётся внизу: столбик полей стоит сверху.
+	 */
+	function stretchColumn(children, boxes) {
+		for (let i = 0; i < children.length; i += 1) {
+			if (canStretchDown(children[i])) {
+				boxes[i].style.flex = '1 1 auto';
+				boxes[i].classList.add('is-stretched-down');
+			}
+		}
+	}
+
+	/**
+	 * Дети, которые попадают на форму.
+	 *
+	 * У группы страниц это содержимое открытой закладки: остальные страницы платформа не рисует, и
+	 * высоту формы задаёт та, что видна.
+	 */
+	function renderedChildren(node) {
+		const children = visibleNodes(node.children);
+		if (node.item.type !== 'Pages') {
+			return children;
+		}
+		const representation = effective(node.item, 'PagesRepresentation', written(node.item, 'PagesRepresentation'));
+		const pages = children.filter((child) => child.item.type === 'Page');
+		if (representation === 'None' || pages.length === 0) {
+			return children;
+		}
+		const active = activePageKey(node.key, pages);
+		return children.filter((child) => child.item.type !== 'Page' || child.key === active);
 	}
 
 	function previewNode(node) {
@@ -814,8 +992,7 @@
 	 * Выравнивание дочерних элементов группы по свойству `ChildrenAlign`.
 	 *
 	 * Со значением «нет» платформа общую колонку подписей не заводит: поле идёт сразу за своей
-	 * подписью. Значения, начинающиеся с `ItemsRight`, прижимают сами поля к правому краю группы,
-	 * подписи при этом остаются слева.
+	 * подписью. Значения, начинающиеся с `ItemsRight`, прижимают сами поля к правому краю группы.
 	 */
 	function childrenAlign(item) {
 		return alignClass(effective(item, 'ChildrenAlign', written(item, 'ChildrenAlign')));
@@ -828,6 +1005,19 @@
 		return String(value || '').indexOf('ItemsRight') === 0 ? ' is-items-right' : '';
 	}
 
+	/**
+	 * Сторона, к которой платформа прижимает заголовок в общей колонке.
+	 *
+	 * Имя значения называет обе стороны сразу: `ItemsLeftTitlesLeft` это «элементы слева, заголовки
+	 * слева», то есть заголовок встаёт по левому краю колонки. К правому краю его прижимают только
+	 * значения с «заголовки справа»; со значением «авто» платформа ставит заголовки слева.
+	 */
+	function markTitlesSide(box, value) {
+		if (String(value || '').indexOf('TitlesRight') >= 0) {
+			box.dataset.titles = 'right';
+		}
+	}
+
 	function previewGroup(node) {
 		const group = effective(node.item, 'Group', node.item.group);
 		const layout = groupLayout(group);
@@ -835,19 +1025,47 @@
 		const representation = effective(node.item, 'Representation', node.item.representation);
 		const decoration = groupDecoration(representation);
 		const box = element('div', 'pv-group ' + layout + decoration + childrenAlign(node.item));
-		const showTitle = effective(node.item, 'ShowTitle', node.item.showTitle);
-		if (node.item.title && showTitle !== 'false' && decoration === ' is-framed') {
-			box.append(element('div', 'pv-group-title', node.item.title));
+		markTitlesSide(box, effective(node.item, 'ChildrenAlign', written(node.item, 'ChildrenAlign')));
+		if (effective(node.item, 'ThroughAlign', written(node.item, 'ThroughAlign')) === 'Use') {
+			box.dataset.through = 'use';
 		}
 		const children = visibleNodes(node.children);
 		const boxes = children.map((child) => previewNode(child));
 		if (horizontal) {
 			stretchRow(children, boxes);
+		} else {
+			stretchColumn(children, boxes);
 		}
 		for (const child of boxes) {
 			box.append(child);
 		}
-		return box;
+		const showTitle = effective(node.item, 'ShowTitle', node.item.showTitle);
+		if (!node.item.title || showTitle === 'false' || decoration !== ' is-framed') {
+			return box;
+		}
+		const framed = element('div', 'pv-groupbox');
+		if (effective(node.item, 'United', written(node.item, 'United')) === 'false') {
+			framed.dataset.titleLeft = 'true';
+		}
+		framed.append(element('div', 'pv-group-title', node.item.title));
+		framed.append(box);
+		placeGroupTitle(framed);
+		return framed;
+	}
+
+	/**
+	 * Сторона заголовка группы с рамкой.
+	 *
+	 * Слева в ту же строку платформа ставит его только у группы со снятым объединением, содержимое
+	 * которой лежит в одну строку. В остальных случаях заголовок стоит сверху, а слева от содержимого
+	 * идёт вертикальная линия. Уложилось содержимое в строку или свернулось в столбик, видно только
+	 * по месту, поэтому сторону пересчитывает `foldTightGroups` после укладки.
+	 */
+	function placeGroupTitle(framed) {
+		const content = framed.lastElementChild;
+		const left = framed.dataset.titleLeft === 'true' && content.classList.contains('is-horizontal');
+		framed.classList.toggle('is-title-left', left);
+		framed.classList.toggle('is-title-top', !left);
 	}
 
 	/**
@@ -881,10 +1099,11 @@
 		}
 		box.append(strip);
 		const body = element('div', 'pv-pages-body');
-		for (const child of children) {
-			if (child.item.type !== 'Page' || child.key === active) {
-				body.append(previewNode(child));
-			}
+		const shown = children.filter((child) => child.item.type !== 'Page' || child.key === active);
+		const boxes = shown.map((child) => previewNode(child));
+		stretchColumn(shown, boxes);
+		for (const child of boxes) {
+			body.append(child);
 		}
 		box.append(body);
 		return box;
@@ -1208,6 +1427,7 @@
 			}
 			known = width;
 			foldTightGroups(host);
+			alignGroupTitles(host);
 			alignLabelColumns(host);
 		}).observe(host);
 	}

@@ -236,11 +236,14 @@ body {
 /* Превью */
 
 /* Сама форма: командная панель стоит над содержимым или под ним, содержимое лежит между ними. */
+/* Форма занимает просмотр целиком: иначе растянутой таблице нечего было бы занимать по высоте. */
 .pv-form {
 	display: flex;
 	flex-direction: column;
 	gap: 6px;
 	min-width: 0;
+	min-height: 100%;
+	box-sizing: border-box;
 }
 
 /* Группа без выделения не даёт ни рамки, ни отступа: иначе вложенные группы уводят элементы вправо. */
@@ -253,10 +256,28 @@ body {
 	min-width: 0;
 }
 
-/* Рамку и заголовок платформа рисует только у группы с рамкой. */
-.pv-group.is-framed {
-	border: 1px solid var(--vscode-panel-border);
-	padding: 10px 8px 8px 8px;
+/* Заголовок платформа рисует только у группы с рамкой; самой рамки у неё нет. */
+.pv-groupbox {
+	display: flex;
+	min-width: 0;
+}
+
+/* Заголовок сверху: слева от содержимого платформа ведёт вертикальную линию. */
+.pv-groupbox.is-title-top {
+	flex-direction: column;
+	gap: 2px;
+}
+
+.pv-groupbox.is-title-top > .pv-group.is-framed {
+	border-left: 2px solid var(--vscode-panel-border);
+	padding-left: 8px;
+}
+
+/* Заголовок слева: содержимое идёт в ту же строку, линии перед ним нет. */
+.pv-groupbox.is-title-left {
+	flex-direction: row;
+	align-items: baseline;
+	gap: 12px;
 }
 
 /* Выделение группы фоном, а не отступом: отступ у вложенных групп уводил бы элементы вправо. */
@@ -297,10 +318,8 @@ body {
 .pv-group-title {
 	font-size: 11px;
 	opacity: 0.7;
-	margin: -12px 0 2px 4px;
-	padding: 0 4px;
 	align-self: flex-start;
-	background: var(--vscode-editorWidget-background);
+	white-space: nowrap;
 }
 
 /* Страницы: закладки и содержимое открытой. Сторону задаёт отображение закладок группы. */
@@ -394,9 +413,14 @@ body {
 	border-color: var(--vscode-panel-border);
 }
 
+/* Содержимое открытой закладки: столбиком, чтобы растянутый элемент забрал высоту страницы. */
 .pv-pages-body {
 	flex: 1;
 	min-width: 0;
+	min-height: 0;
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
 }
 
 .pv-pages.is-top > .pv-pages-body {
@@ -435,6 +459,11 @@ body {
 	align-self: stretch;
 }
 
+/* Доставшуюся высоту поле занимает так же целиком: поле табличного документа встаёт во всю форму. */
+.pv-field.is-stretched-down > .pv-control {
+	align-self: stretch;
+}
+
 /* Надпись без заголовка на форме не видна: значение подставляется при работе. */
 .pv-labelfield.is-empty {
 	display: none;
@@ -465,6 +494,11 @@ body {
 
 /* Подписи соседей стоят в общей колонке: её ширину отмеряет скрипт по самой длинной подписи. */
 .pv-label.is-aligned {
+	text-align: left;
+}
+
+/* К правому краю колонки подпись прижимают только значения с «заголовки справа». */
+.pv-label.is-aligned.is-titles-right {
 	text-align: right;
 }
 
