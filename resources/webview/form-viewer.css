@@ -235,6 +235,14 @@ body {
 
 /* Превью */
 
+/* Сама форма: командная панель стоит над содержимым или под ним, содержимое лежит между ними. */
+.pv-form {
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+	min-width: 0;
+}
+
 /* Группа без выделения не даёт ни рамки, ни отступа: иначе вложенные группы уводят элементы вправо. */
 .pv-group {
 	border: none;
@@ -545,6 +553,20 @@ body {
 	border-bottom: 1px solid var(--vscode-panel-border);
 }
 
+/* Панель с выравниванием складывает кнопки к своему краю, «Еще» при этом остаётся последним. */
+.pv-commandbar.is-align-right {
+	justify-content: flex-end;
+}
+
+.pv-commandbar.is-align-center {
+	justify-content: center;
+}
+
+.pv-commandbar.is-align-right > .pv-commandbar-more,
+.pv-commandbar.is-align-center > .pv-commandbar-more {
+	margin-left: 0;
+}
+
 .pv-button {
 	border: 1px solid var(--vscode-button-border, transparent);
 	background: var(--vscode-button-secondaryBackground, var(--vscode-badge-background));
@@ -554,10 +576,43 @@ body {
 	font-size: 12px;
 }
 
+/* Кнопку по умолчанию платформа выделяет цветом; в теме редактора это акцентный цвет кнопки. */
+.pv-button.is-default {
+	background: var(--vscode-button-background, var(--vscode-focusBorder));
+	color: var(--vscode-button-foreground, var(--vscode-editor-background));
+}
+
+/* Панель с автозаполнением платформа наполняет сама: без пометки такая строка выглядит пустой. */
+.pv-commandbar-auto {
+	align-self: center;
+	padding: 1px 6px;
+	font-size: 11px;
+	opacity: 0.6;
+	border: 1px dotted var(--vscode-panel-border);
+	border-radius: 3px;
+	white-space: nowrap;
+}
+
+/* «Еще» платформа держит у правого края командной панели. */
+.pv-commandbar-more {
+	margin-left: auto;
+	align-self: center;
+	padding: 2px 8px;
+	font-size: 12px;
+	opacity: 0.8;
+	white-space: nowrap;
+}
+
 .pv-table {
 	border: 1px solid var(--vscode-panel-border);
 	border-radius: 4px;
 	overflow: hidden;
+}
+
+/* Панель под таблицей отделена линией сверху, а не снизу. */
+.pv-table > .pv-commandbar:last-child {
+	border-bottom: none;
+	border-top: 1px solid var(--vscode-panel-border);
 }
 
 .pv-table-head {

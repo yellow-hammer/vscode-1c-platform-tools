@@ -178,6 +178,31 @@
 		return item.properties ? item.properties[property] : undefined;
 	}
 
+	/** Свойство самой формы: оно записано в корне файла, а не у элемента, и умолчание у него своё. */
+	function formProperty(property) {
+		const value = content.properties ? content.properties[property] : undefined;
+		if (value !== undefined && value !== null && value !== '') {
+			return value;
+		}
+		const defaults = layoutDefaults.Form;
+		return defaults ? defaults[property] : undefined;
+	}
+
+	/**
+	 * Где стоит автоматическая командная панель формы.
+	 *
+	 * Положение задано свойством самой формы, а не панели. «Авто» платформа рисует сверху, «нет»
+	 * панели не показывает совсем. Обычной командной панели это не касается: она стоит там, где
+	 * записана в составе формы.
+	 */
+	function formCommandBarPlace() {
+		const value = formProperty('CommandBarLocation');
+		if (value === 'None') {
+			return '';
+		}
+		return value === 'Bottom' ? 'bottom' : 'top';
+	}
+
 	function visibleNodes(nodes) {
 		return state.showService ? nodes : nodes.filter((node) => !SERVICE_TYPES.has(node.item.type));
 	}
@@ -356,12 +381,31 @@
 			host.append(element('div', 'empty-note', 'Форма пуста'));
 			return;
 		}
-		const root = element('div', 'pv-group is-vertical');
+		// Сама форма - такой же контейнер: у неё есть и группировка, и выравнивание дочерних элементов.
+		const layout = groupLayout(formProperty('Group'));
+		const root = element('div', 'pv-group ' + layout + alignClass(formProperty('ChildrenAlign')));
 		root.style.border = 'none';
-		for (const node of nodes) {
-			root.append(previewNode(node));
+		const place = formCommandBarPlace();
+		const auto = (node) => node.item.type === 'AutoCommandBar';
+		const bars = place === '' ? [] : nodes.filter(auto);
+		const body = nodes.filter((node) => !auto(node));
+		const boxes = body.map((node) => previewNode(node));
+		if (layout.indexOf('is-horizontal') === 0) {
+			stretchRow(body, boxes);
 		}
-		host.append(root);
+		for (const box of boxes) {
+			root.append(box);
+		}
+		// Панель формы лежит над содержимым или под ним, а не внутри него, поэтому идёт соседом.
+		const form = element('div', 'pv-form');
+		for (const bar of place === 'top' ? bars : []) {
+			form.append(previewNode(bar));
+		}
+		form.append(root);
+		for (const bar of place === 'bottom' ? bars : []) {
+			form.append(previewNode(bar));
+		}
+		host.append(form);
 		foldTightGroups(host);
 		alignLabelColumns(host);
 	}
@@ -528,6 +572,9 @@
 			box = previewAddition(node);
 		} else if (type === 'Button') {
 			box = element('button', 'pv-button', buttonLabel(item));
+			if (effective(item, 'DefaultButton', written(item, 'DefaultButton')) === 'true') {
+				box.classList.add('is-default');
+			}
 		} else if (type === 'LabelDecoration' || type === 'PictureDecoration') {
 			box = element('div', 'pv-decoration', item.title || item.name);
 		} else if (type === 'CheckBoxField') {
@@ -771,7 +818,10 @@
 	 * подписи при этом остаются слева.
 	 */
 	function childrenAlign(item) {
-		const value = effective(item, 'ChildrenAlign', written(item, 'ChildrenAlign'));
+		return alignClass(effective(item, 'ChildrenAlign', written(item, 'ChildrenAlign')));
+	}
+
+	function alignClass(value) {
 		if (value === 'None') {
 			return ' is-align-none';
 		}
@@ -863,25 +913,93 @@
 		return pages[0].key;
 	}
 
+	/**
+	 * Командная панель: кнопки, а справа - «Еще».
+	 *
+	 * Подменю «Еще» платформа держит у автоматической командной панели: туда уходят и команды,
+	 * которые она набирает сама, и кнопки с расположением в подменю. В самой панели такой кнопки
+	 * не видно, поэтому в превью её тоже нет.
+	 */
 	function previewCommandBar(node) {
-		const box = element('div', 'pv-commandbar');
+		const box = element('div', 'pv-commandbar' + commandBarAlign(node.item));
+		let inSubmenu = 0;
 		for (const child of visibleNodes(node.children)) {
+			if (effective(child.item, 'LocationInCommandBar', written(child.item, 'LocationInCommandBar')) === 'InAdditionalSubmenu') {
+				inSubmenu += 1;
+				continue;
+			}
 			box.append(previewNode(child));
 		}
-		if (box.childElementCount === 0 && node.item.type !== 'ButtonGroup') {
+		if (box.childElementCount === 0 && autoFilled(node.item)) {
+			box.append(standardCommandsNote());
+		} else if (box.childElementCount === 0 && inSubmenu === 0 && node.item.type !== 'ButtonGroup') {
 			box.append(element('span', 'pv-unknown', typeLabel(node.item.type)));
+		}
+		if (hasMoreMenu(node.item, inSubmenu)) {
+			box.append(element('span', 'pv-commandbar-more', 'Еще ▾'));
 		}
 		return box;
 	}
 
+	/**
+	 * Куда панель складывает кнопки: свойство `HorizontalAlign` у автоматической панели и
+	 * `HorizontalLocation` у обычной.
+	 */
+	function commandBarAlign(item) {
+		const property = item.type === 'CommandBar' ? 'HorizontalLocation' : 'HorizontalAlign';
+		const value = effective(item, property, written(item, property));
+		if (value === 'Right') {
+			return ' is-align-right';
+		}
+		return value === 'Center' ? ' is-align-center' : '';
+	}
+
+	/**
+	 * Пометка о том, что панель наполняет платформа.
+	 *
+	 * Стандартные команды она набирает по виду формы и её объекту, а в файле формы их нет: ни списка,
+	 * ни вида формы. Поэтому вместо кнопок показываем, чем панель наполнится, иначе пустая строка
+	 * с одним «Еще» выглядит ошибкой.
+	 */
+	function standardCommandsNote() {
+		const note = element('span', 'pv-commandbar-auto', 'Стандартные команды');
+		note.title = 'Состав команд платформа набирает сама по виду формы';
+		return note;
+	}
+
+	/** Автоматическая панель набирает стандартные команды сама, пока ей это не запретили. */
+	function autoFilled(item) {
+		return item.type === 'AutoCommandBar'
+			&& effective(item, 'Autofill', written(item, 'Autofill')) !== 'false';
+	}
+
+	/** «Еще» есть у автоматической командной панели: сама она набирает команды, если ей не запретить. */
+	function hasMoreMenu(item, inSubmenu) {
+		if (item.type !== 'AutoCommandBar') {
+			return false;
+		}
+		return autoFilled(item) || inSubmenu > 0;
+	}
+
+	/**
+	 * Командную панель таблицы платформа ставит по свойству `CommandBarLocation`.
+	 *
+	 * С положением «нет» панели не видно совсем: её команды остаются в контекстном меню, а команды
+	 * таблицы обычно вынесены отдельной командной панелью формы.
+	 */
 	function previewTable(node) {
 		const box = element('div', 'pv-table');
-		const bars = visibleNodes(node.children).filter((child) => isBar(child.item.type));
-		for (const bar of bars) {
-			box.append(previewNode(bar));
+		const location = effective(node.item, 'CommandBarLocation', written(node.item, 'CommandBarLocation'));
+		const children = visibleNodes(node.children);
+		const bars = children.filter((child) => isBar(child.item.type)
+			&& !(location === 'None' && isCommandBar(child.item.type)));
+		if (location !== 'Bottom') {
+			for (const bar of bars) {
+				box.append(previewNode(bar));
+			}
 		}
 		const head = element('div', 'pv-table-head');
-		const columns = visibleNodes(node.children).filter((child) => !isBar(child.item.type));
+		const columns = children.filter((child) => !isBar(child.item.type));
 		for (const column of columns) {
 			const cell = element('div', 'pv-table-cell', fieldLabel(column.item));
 			cell.addEventListener('click', (event) => {
@@ -901,11 +1019,20 @@
 			}
 			box.append(row);
 		}
+		if (location === 'Bottom') {
+			for (const bar of bars) {
+				box.append(previewNode(bar));
+			}
+		}
 		return box;
 	}
 
+	function isCommandBar(type) {
+		return type === 'CommandBar' || type === 'AutoCommandBar';
+	}
+
 	function isBar(type) {
-		return type === 'CommandBar' || type === 'AutoCommandBar' || type === 'SearchStringAddition'
+		return isCommandBar(type) || type === 'SearchStringAddition'
 			|| type === 'SearchControlAddition' || type === 'ViewStatusAddition' || type === 'ContextMenu';
 	}
 

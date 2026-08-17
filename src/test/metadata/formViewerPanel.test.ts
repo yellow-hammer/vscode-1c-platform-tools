@@ -115,6 +115,28 @@ suite('Просмотр формы: разметка и скрипт', () => {
 		assert.deepStrictEqual(missing, [], `нет оформления: ${missing.join(', ')}`);
 	});
 
+	test('пометку о стандартных командах превью ставит по автозаполнению панели', () => {
+		const script = read('form-viewer.js');
+		const filled = script.slice(script.indexOf('function autoFilled'));
+
+		assert.ok(filled.includes("'AutoCommandBar'"), 'обычную панель платформа не наполняет');
+		assert.ok(filled.includes("'Autofill'"), 'без автозаполнения панель остаётся такой, как записана');
+	});
+
+	test('положение командной панели формы превью берёт у самой формы, а не у панели', () => {
+		const script = read('form-viewer.js');
+		const place = script.slice(script.indexOf('function formCommandBarPlace'));
+
+		// Свойство записано в корне Form.xml: у панели его нет, и через свойства элемента не пройдёт.
+		assert.ok(
+			/function formProperty[\s\S]*content\.properties/.test(script),
+			'свойства самой формы приходят отдельным блоком содержимого'
+		);
+		assert.ok(place.includes("'CommandBarLocation'"), 'без свойства панель всегда стояла бы сверху');
+		assert.ok(place.includes("'Bottom'"), 'конфигуратор ставит панель вниз по записанному положению');
+		assert.ok(place.includes("'None'"), 'с положением «нет» панели не видно совсем');
+	});
+
 	test('ширину колонки подписей отмеряет скрипт, а не стили', () => {
 		const css = read('form-viewer.css');
 		const rules = [...css.matchAll(/\.pv-label(?![\w-])[^{]*\{([^}]*)\}/g)].map((match) => match[1]);
@@ -148,6 +170,8 @@ suite('Просмотр формы: разметка и скрипт', () => {
 function previewProperties(script: string): string[] {
 	const direct = [
 		...script.matchAll(/(?:written|effective)\(\w+(?:\.\w+)*, '(\w+)'/g),
+		// Свойства самой формы приходят умолчаниями того же словаря, только видом Form.
+		...script.matchAll(/formProperty\('(\w+)'/g),
 	].map((match) => match[1]);
 	return [...new Set([...direct, ...listBetween(script, 'const FIELD_BUTTONS', '];', /\['(\w+)'/g)])];
 }
@@ -362,6 +386,44 @@ suite('Умолчания раскладки для превью формы', ()
 		});
 
 		assert.strictEqual(defaults.Pages?.PagesRepresentation, 'TabsOnTop');
+	});
+
+	test('положение командной панели таблицы уходит в превью: с ним панели может не быть совсем', () => {
+		const defaults = layoutDefaults({
+			Table: [
+				{ name: 'CommandBarLocation', kind: 'enum', defaultValue: 'Auto', values: ['None', 'Auto', 'Top', 'Bottom'] },
+			],
+		});
+
+		assert.strictEqual(defaults.Table?.CommandBarLocation, 'Auto');
+	});
+
+	test('умолчания самой формы приходят таким же видом, как у элементов', () => {
+		const defaults = layoutDefaults({
+			Form: [
+				{ name: 'CommandBarLocation', kind: 'enum', defaultValue: 'Auto', values: ['None', 'Auto', 'Top', 'Bottom'] },
+				{ name: 'AutoTitle', kind: 'boolean', defaultValue: 'true' },
+			],
+		});
+
+		assert.strictEqual(defaults.Form?.CommandBarLocation, 'Auto');
+		assert.strictEqual(defaults.Form?.AutoTitle, undefined, 'на раскладку автозаголовок не влияет');
+	});
+
+	test('умолчания собираются по видам элементов отдельно', () => {
+		const defaults = layoutDefaults({
+			Button: [{ name: 'DefaultButton', kind: 'boolean', defaultValue: 'false' }],
+			AutoCommandBar: [{ name: 'Autofill', kind: 'boolean', defaultValue: 'true' }],
+			CheckBoxField: [{ name: 'TitleLocation', kind: 'enum', defaultValue: 'Auto' }],
+		});
+
+		assert.strictEqual(defaults.Button?.DefaultButton, 'false');
+		assert.strictEqual(defaults.AutoCommandBar?.Autofill, 'true');
+		assert.strictEqual(
+			defaults.CheckBoxField?.HorizontalStretch,
+			undefined,
+			'у вида без растяжения его быть не должно: по этому превью и понимает, что тянуть нечего'
+		);
 	});
 
 	test('вид без свойств раскладки в умолчания не попадает', () => {

@@ -82,6 +82,15 @@ export interface FormAttributeDto {
 /** Содержимое формы, как его отдаёт md-sparrow. */
 export interface FormContentDto {
 	title?: string;
+	/**
+	 * Свойства самой формы, записанные в корне файла: имя узла XML -> значение.
+	 *
+	 * Положение командной панели, автозаголовок и режим сохранения данных записаны у корня, а не у
+	 * элемента, поэтому приходят отдельно от свойств элементов.
+	 */
+	properties?: Record<string, string>;
+	/** Команды, исключённые из состава формы. */
+	excludedCommands?: string[];
 	items?: FormItemDto[];
 	attributes?: FormAttributeDto[];
 	commands?: { name?: string; title?: string; action?: string }[];
@@ -612,6 +621,14 @@ const LAYOUT_PROPERTIES = [
 	'ChildrenAlign',
 	// Растяжение: по нему свободное место строки достаётся элементу.
 	'HorizontalStretch',
+	// Командная панель: кнопка по умолчанию, состав подменю «Еще» и положение панели таблицы.
+	'DefaultButton',
+	'LocationInCommandBar',
+	'Autofill',
+	'CommandBarLocation',
+	// Выравнивание кнопок: у автоматической панели своё свойство, у обычной своё.
+	'HorizontalAlign',
+	'HorizontalLocation',
 	// Кнопки поля ввода: платформа рисует их справа от поля.
 	'ChoiceButton',
 	'ChoiceListButton',
