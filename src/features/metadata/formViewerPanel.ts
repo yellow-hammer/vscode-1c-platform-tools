@@ -602,7 +602,7 @@ export function dataPathTitles(
 export type LayoutDefaults = Record<string, Record<string, string>>;
 
 /** Свойства, от которых зависит раскладка превью; остальные умолчания webview не нужны. */
-const LAYOUT_PROPERTIES = ['Group', 'Representation', 'ShowTitle', 'TitleLocation'];
+const LAYOUT_PROPERTIES = ['Group', 'PagesRepresentation', 'Representation', 'ShowTitle', 'TitleLocation'];
 
 /**
  * Умолчания раскладки из словаря формата.

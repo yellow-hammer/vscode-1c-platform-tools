@@ -284,6 +284,118 @@ body {
 	background: var(--vscode-editorWidget-background);
 }
 
+/* Страницы: закладки и содержимое открытой. Сторону задаёт отображение закладок группы. */
+.pv-pages {
+	display: flex;
+	min-width: 0;
+}
+
+.pv-pages.is-top {
+	flex-direction: column;
+}
+
+.pv-pages.is-bottom {
+	flex-direction: column-reverse;
+}
+
+.pv-pages.is-left {
+	flex-direction: row;
+}
+
+.pv-pages.is-right {
+	flex-direction: row-reverse;
+}
+
+.pv-tabs {
+	display: flex;
+	gap: 2px;
+	flex: none;
+}
+
+.pv-pages.is-top > .pv-tabs,
+.pv-pages.is-bottom > .pv-tabs {
+	flex-wrap: wrap;
+}
+
+.pv-pages.is-left > .pv-tabs,
+.pv-pages.is-right > .pv-tabs {
+	flex-direction: column;
+	align-items: stretch;
+}
+
+.pv-pages.is-top > .pv-tabs {
+	border-bottom: 1px solid var(--vscode-panel-border);
+}
+
+.pv-pages.is-bottom > .pv-tabs {
+	border-top: 1px solid var(--vscode-panel-border);
+}
+
+.pv-pages.is-left > .pv-tabs {
+	border-right: 1px solid var(--vscode-panel-border);
+}
+
+.pv-pages.is-right > .pv-tabs {
+	border-left: 1px solid var(--vscode-panel-border);
+}
+
+.pv-tab {
+	background: transparent;
+	border: 1px solid transparent;
+	border-radius: 4px 4px 0 0;
+	color: var(--vscode-foreground);
+	font-family: inherit;
+	font-size: 12px;
+	padding: 3px 10px;
+	cursor: pointer;
+	opacity: 0.75;
+	white-space: nowrap;
+	text-align: left;
+}
+
+.pv-pages.is-bottom > .pv-tabs > .pv-tab {
+	border-radius: 0 0 4px 4px;
+}
+
+.pv-pages.is-left > .pv-tabs > .pv-tab {
+	border-radius: 4px 0 0 4px;
+}
+
+.pv-pages.is-right > .pv-tabs > .pv-tab {
+	border-radius: 0 4px 4px 0;
+}
+
+.pv-tab:hover {
+	opacity: 1;
+}
+
+.pv-tab.is-active {
+	opacity: 1;
+	background: var(--vscode-editorWidget-background);
+	border-color: var(--vscode-panel-border);
+}
+
+.pv-pages-body {
+	flex: 1;
+	min-width: 0;
+}
+
+.pv-pages.is-top > .pv-pages-body {
+	padding-top: 8px;
+}
+
+.pv-pages.is-bottom > .pv-pages-body {
+	padding-bottom: 8px;
+}
+
+.pv-pages.is-left > .pv-pages-body {
+	padding-left: 8px;
+}
+
+.pv-pages.is-right > .pv-pages-body {
+	padding-right: 8px;
+}
+
 .pv-field {
 	display: flex;
 	align-items: center;

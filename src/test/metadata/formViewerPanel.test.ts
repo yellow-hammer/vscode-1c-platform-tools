@@ -10,6 +10,7 @@ import {
 	ownerObjectXmlPath,
 	dataPathTitles,
 	commandTitles,
+	layoutDefaults,
 } from '../../features/metadata/formViewerPanel';
 import { enumValueLabel, propertyLabel } from '../../features/metadata/formItemPropertySpec';
 
@@ -247,6 +248,41 @@ suite('Подписи полей формы по синонимам реквиз
 
 		assert.strictEqual(titles['Список'], 'Список валют');
 		assert.strictEqual(titles['Список.Курс'], 'Курс на дату');
+	});
+});
+
+suite('Умолчания раскладки для превью формы', () => {
+	test('берутся только свойства, от которых зависит раскладка', () => {
+		const defaults = layoutDefaults({
+			UsualGroup: [
+				{ name: 'Group', kind: 'enum', defaultValue: 'HorizontalIfPossible' },
+				{ name: 'Representation', kind: 'enum', defaultValue: 'WeakSeparation' },
+				{ name: 'ToolTip', kind: 'localString' },
+				{ name: 'Width', kind: 'number', defaultValue: '0' },
+			],
+		});
+
+		assert.deepStrictEqual(defaults, {
+			UsualGroup: { Group: 'HorizontalIfPossible', Representation: 'WeakSeparation' },
+		});
+	});
+
+	test('отображение закладок страниц уходит в превью: без него страницы рисуются подряд', () => {
+		const defaults = layoutDefaults({
+			Pages: [{ name: 'PagesRepresentation', kind: 'enum', defaultValue: 'TabsOnTop', values: ['None', 'TabsOnTop'] }],
+		});
+
+		assert.strictEqual(defaults.Pages?.PagesRepresentation, 'TabsOnTop');
+	});
+
+	test('вид без свойств раскладки в умолчания не попадает', () => {
+		const defaults = layoutDefaults({ Button: [{ name: 'Title', kind: 'localString' }] });
+
+		assert.deepStrictEqual(defaults, {});
+	});
+
+	test('без словаря умолчаний нет', () => {
+		assert.deepStrictEqual(layoutDefaults(), {});
 	});
 });
 

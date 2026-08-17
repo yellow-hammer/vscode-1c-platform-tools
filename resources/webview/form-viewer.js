@@ -69,6 +69,8 @@
 		collapsed: new Set(),
 		showService: false,
 		dataTab: 'attributes',
+		/** Открытая закладка каждой группы страниц: ключ группы -> ключ страницы. */
+		activePage: new Map(),
 	};
 
 	/** Плоский список элементов с ключами пути: ключ переживает перерисовку. */
@@ -94,6 +96,11 @@
 		return defaults ? defaults[property] : undefined;
 	}
 
+	/** Свойство, записанное в файле: у него нет отдельного поля в модели формы. */
+	function written(item, property) {
+		return item.properties ? item.properties[property] : undefined;
+	}
+
 	function visibleNodes(nodes) {
 		return state.showService ? nodes : nodes.filter((node) => !SERVICE_TYPES.has(node.item.type));
 	}
@@ -111,6 +118,23 @@
 		return null;
 	}
 
+	/** Узлы от корня до элемента: ключ собран из положения элемента в дереве. */
+	function nodeChain(key) {
+		const chain = [];
+		let nodes = tree;
+		let current = '';
+		for (const part of String(key || '').split('/').slice(1)) {
+			current += '/' + part;
+			const node = nodes.find((candidate) => candidate.key === current);
+			if (!node) {
+				return chain;
+			}
+			chain.push(node);
+			nodes = node.children;
+		}
+		return chain;
+	}
+
 	function element(tag, className, text) {
 		const el = document.createElement(tag);
 		if (className) {
@@ -124,10 +148,21 @@
 
 	function select(key) {
 		state.selected = key;
+		revealPage(key);
 		renderTree();
 		renderPreview();
 		const node = findNode(tree, key);
 		vscode.postMessage({ type: 'select', item: node ? itemProperties(node.item) : undefined });
+	}
+
+	/** Выделенный элемент должен быть виден: закладки по пути к нему открываются на его странице. */
+	function revealPage(key) {
+		const chain = nodeChain(key);
+		for (let i = 0; i + 1 < chain.length; i += 1) {
+			if (chain[i].item.type === 'Pages' && chain[i + 1].item.type === 'Page') {
+				state.activePage.set(chain[i].key, chain[i + 1].key);
+			}
+		}
 	}
 
 	/** Свойства самого элемента, без вложенных: панель «Свойства» рисует только его. */
@@ -255,7 +290,9 @@
 		const item = node.item;
 		const type = item.type;
 		let box;
-		if (type === 'UsualGroup' || type === 'Page' || type === 'Pages' || type === 'ColumnGroup') {
+		if (type === 'Pages') {
+			box = previewPages(node);
+		} else if (type === 'UsualGroup' || type === 'Page' || type === 'ColumnGroup') {
 			box = previewGroup(node);
 		} else if (type === 'CommandBar' || type === 'AutoCommandBar' || type === 'ButtonGroup' || type === 'Popup') {
 			box = previewCommandBar(node);
@@ -383,6 +420,69 @@
 			box.append(previewNode(child));
 		}
 		return box;
+	}
+
+	/**
+	 * Страницы: ряд закладок, содержимое только у открытой.
+	 *
+	 * Отображение закладок выключают свойством `PagesRepresentation`: со значением `None` платформа
+	 * рисует страницы подряд, поэтому такая группа остаётся обычной.
+	 */
+	function previewPages(node) {
+		const representation = effective(node.item, 'PagesRepresentation', written(node.item, 'PagesRepresentation'));
+		const children = visibleNodes(node.children);
+		const pages = children.filter((child) => child.item.type === 'Page');
+		if (representation === 'None' || pages.length === 0) {
+			return previewGroup(node);
+		}
+		const box = element('div', 'pv-pages is-' + tabsSide(representation));
+		const active = activePageKey(node.key, pages);
+		const strip = element('div', 'pv-tabs');
+		for (const page of pages) {
+			const tab = element('button', 'pv-tab' + (page.key === active ? ' is-active' : ''), fieldLabel(page.item));
+			tab.type = 'button';
+			if (page.item.visible === false) {
+				tab.classList.add('pv-hidden');
+			}
+			tab.addEventListener('click', (event) => {
+				event.stopPropagation();
+				state.activePage.set(node.key, page.key);
+				select(page.key);
+			});
+			strip.append(tab);
+		}
+		box.append(strip);
+		const body = element('div', 'pv-pages-body');
+		for (const child of children) {
+			if (child.item.type !== 'Page' || child.key === active) {
+				body.append(previewNode(child));
+			}
+		}
+		box.append(body);
+		return box;
+	}
+
+	/** Сторона, с которой платформа рисует закладки страниц. */
+	function tabsSide(representation) {
+		if (representation === 'TabsOnBottom') {
+			return 'bottom';
+		}
+		if (representation === 'TabsOnLeftHorizontal') {
+			return 'left';
+		}
+		if (representation === 'TabsOnRightHorizontal') {
+			return 'right';
+		}
+		return 'top';
+	}
+
+	/** Открытая закладка: выбранная пользователем, иначе первая страница. */
+	function activePageKey(pagesKey, pages) {
+		const chosen = state.activePage.get(pagesKey);
+		if (chosen && pages.some((page) => page.key === chosen)) {
+			return chosen;
+		}
+		return pages[0].key;
 	}
 
 	function previewCommandBar(node) {
