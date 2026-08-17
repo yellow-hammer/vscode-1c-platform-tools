@@ -275,6 +275,17 @@ body {
 	align-items: flex-start;
 }
 
+/* «Всегда горизонтальная» строку не рвёт: платформа раздвигает форму, а не переносит элементы. */
+.pv-group.is-horizontal.is-nowrap {
+	flex-wrap: nowrap;
+}
+
+/* Выравнивание «поля справа»: подписи остаются слева, поля прижаты к правому краю группы. */
+.pv-group.is-items-right > .pv-field > .pv-control {
+	margin-left: auto;
+	flex: none;
+}
+
 .pv-group-title {
 	font-size: 11px;
 	opacity: 0.7;
@@ -403,11 +414,17 @@ body {
 	min-width: 0;
 }
 
-/* В вертикальной группе подписи полей выстраиваются в колонку, как на форме. */
-.pv-group.is-vertical > .pv-field > .pv-label {
-	flex: 0 0 auto;
-	min-width: 120px;
-	text-align: right;
+/* Заголовок сверху и снизу платформа кладёт отдельной строкой, поле занимает свою. */
+.pv-field.is-title-top,
+.pv-field.is-title-bottom {
+	flex-direction: column;
+	align-items: flex-start;
+	gap: 2px;
+}
+
+/* Растянутое поле занимает доставшуюся долю строки целиком, а не по содержимому. */
+.pv-field.is-stretched > .pv-control {
+	align-self: stretch;
 }
 
 /* Надпись без заголовка на форме не видна: значение подставляется при работе. */
@@ -423,6 +440,7 @@ body {
 }
 
 .pv-label {
+	flex: none;
 	font-size: 12px;
 	opacity: 0.9;
 	white-space: nowrap;
@@ -430,6 +448,16 @@ body {
 
 .pv-label::after {
 	content: ':';
+}
+
+/* Заголовок после поля платформа пишет без двоеточия. */
+.pv-label.is-bare::after {
+	content: '';
+}
+
+/* Подписи соседей стоят в общей колонке: её ширину отмеряет скрипт по самой длинной подписи. */
+.pv-label.is-aligned {
+	text-align: right;
 }
 
 .pv-addition {

@@ -83,6 +83,48 @@ suite('Просмотр формы: разметка и скрипт', () => {
 		}
 	});
 
+	test('наборы видов элементов названы теми же видами, что и список видов', () => {
+		const script = read('form-viewer.js');
+		const known = new Set(listBetween(script, 'const TYPE_LABELS', '\n\t};', /(\w+):/g));
+		assert.ok(known.size > 0, 'список видов элементов не разобран');
+
+		for (const set of ['const SERVICE_TYPES', 'const CONTENT_SIZED_TYPES']) {
+			const types = listBetween(script, set, ']);', /'(\w+)'/g);
+			const unknown = types.filter((type) => !known.has(type));
+			assert.deepStrictEqual(unknown, [], `${set}: вид с опечаткой ни на что не влияет: ${unknown.join(', ')}`);
+		}
+	});
+
+	test('стороны заголовка названы константами, которые знает словарь значений', () => {
+		const sides = listBetween(read('form-viewer.js'), 'const TITLE_SIDES', '\n\t};', /(\w+):/g);
+
+		assert.ok(sides.includes('Left'), 'без заголовка слева колонка подписей не соберётся');
+		const unknown = sides.filter((constant) => enumValueLabel('TitleLocation', constant) === constant);
+		assert.deepStrictEqual(unknown, [], `константа с опечаткой ни на что не влияет: ${unknown.join(', ')}`);
+	});
+
+	test('оформление классов превью лежит в стилях', () => {
+		const script = read('form-viewer.js');
+		const css = read('form-viewer.css');
+		const classes = new Set([
+			...[...script.matchAll(/element\('\w+', '([\w -]+)'/g)].flatMap((match) => match[1].trim().split(' ')),
+			...[...script.matchAll(/classList\.add\('([\w-]+)'\)/g)].map((match) => match[1]),
+		]);
+
+		const missing = [...classes].filter((name) => name.startsWith('pv-') && !css.includes(`.${name}`));
+		assert.deepStrictEqual(missing, [], `нет оформления: ${missing.join(', ')}`);
+	});
+
+	test('ширину колонки подписей отмеряет скрипт, а не стили', () => {
+		const css = read('form-viewer.css');
+		const rules = [...css.matchAll(/\.pv-label(?![\w-])[^{]*\{([^}]*)\}/g)].map((match) => match[1]);
+		assert.ok(rules.length > 0, 'оформление подписи не разобрано');
+
+		// Ширина колонки зависит от самой длинной подписи соседей, поэтому в стилях её быть не может.
+		const fixed = rules.filter((rule) => /(?:min-)?width\s*:/.test(rule));
+		assert.deepStrictEqual(fixed, [], 'постоянная ширина подписи разъезжается с шириной колонки');
+	});
+
 	test('свойства, которые читает превью, доходят до него умолчаниями', () => {
 		const used = previewProperties(read('form-viewer.js'));
 		assert.ok(used.length > 0, 'свойства из скрипта не разобраны');
@@ -107,9 +149,13 @@ function previewProperties(script: string): string[] {
 	const direct = [
 		...script.matchAll(/(?:written|effective)\(\w+(?:\.\w+)*, '(\w+)'/g),
 	].map((match) => match[1]);
-	const table = script.slice(script.indexOf('const FIELD_BUTTONS'));
-	const buttons = [...table.slice(0, table.indexOf('];')).matchAll(/\['(\w+)'/g)].map((match) => match[1]);
-	return [...new Set([...direct, ...buttons])];
+	return [...new Set([...direct, ...listBetween(script, 'const FIELD_BUTTONS', '];', /\['(\w+)'/g)])];
+}
+
+/** Значения из объявления скрипта: от `start` до ближайшего `end`. */
+function listBetween(script: string, start: string, end: string, pattern: RegExp): string[] {
+	const tail = script.slice(script.indexOf(start) + start.length);
+	return [...tail.slice(0, tail.indexOf(end)).matchAll(pattern)].map((match) => match[1]);
 }
 
 suite('Свойства элемента формы для палитры', () => {
@@ -293,6 +339,21 @@ suite('Умолчания раскладки для превью формы', ()
 		assert.deepStrictEqual(defaults, {
 			UsualGroup: { Group: 'HorizontalIfPossible', Representation: 'WeakSeparation' },
 		});
+	});
+
+	test('выравнивание дочерних элементов уходит в превью: со значением «нет» общей колонки подписей не будет', () => {
+		const defaults = layoutDefaults({
+			UsualGroup: [
+				{
+					name: 'ChildrenAlign',
+					kind: 'enum',
+					defaultValue: 'Auto',
+					values: ['Auto', 'None', 'ItemsLeftTitlesLeft', 'ItemsRightTitlesLeft'],
+				},
+			],
+		});
+
+		assert.strictEqual(defaults.UsualGroup?.ChildrenAlign, 'Auto');
 	});
 
 	test('отображение закладок страниц уходит в превью: без него страницы рисуются подряд', () => {

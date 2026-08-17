@@ -608,6 +608,10 @@ const LAYOUT_PROPERTIES = [
 	'Representation',
 	'ShowTitle',
 	'TitleLocation',
+	// Выравнивание в группе: по нему подписи и поля соседей встают в общие колонки.
+	'ChildrenAlign',
+	// Растяжение: по нему свободное место строки достаётся элементу.
+	'HorizontalStretch',
 	// Кнопки поля ввода: платформа рисует их справа от поля.
 	'ChoiceButton',
 	'ChoiceListButton',
