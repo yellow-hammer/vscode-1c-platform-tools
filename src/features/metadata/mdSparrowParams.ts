@@ -79,6 +79,7 @@ export type MdSparrowOp =
 	| 'cf-md-object-structure-get'
 	| 'cf-form-content-get'
 	| 'cf-form-item-properties'
+	| 'cf-form-standard-commands'
 	| 'external-artifact-properties-get'
 	| 'cf-configuration-properties-get'
 	| 'cf-list-child-objects'

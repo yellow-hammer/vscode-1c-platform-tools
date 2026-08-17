@@ -144,6 +144,45 @@ async function loadItemPropertyDictionary(
 	}
 }
 
+/** Что платформа знает про стандартные команды формы: подписи и сторона панели. */
+export interface StandardCommandsDto {
+	/** Имя команды без приставки -> подпись, которую ставит платформа. */
+	labels?: Record<string, string>;
+	/** Команды у правого края панели, в том порядке, в каком они там идут. */
+	atRight?: string[];
+}
+
+/** Стандартные команды задаёт платформа, а не файл, поэтому читаем их один раз за сеанс. */
+let standardCommandCache: StandardCommandsDto | undefined;
+
+/**
+ * Стандартные команды формы от md-sparrow.
+ *
+ * Кнопка без своего заголовка подписана тем, как платформа называет команду, на которую та
+ * ссылается, а часть таких кнопок платформа держит у правого края панели. Ни того, ни другого в
+ * файле формы нет, поэтому и подписи, и стороны приходят из библиотеки.
+ */
+async function loadStandardCommands(
+	runtime: Awaited<ReturnType<typeof ensureMdSparrowRuntime>>,
+	cwd: string
+): Promise<StandardCommandsDto> {
+	if (standardCommandCache) {
+		return standardCommandCache;
+	}
+	const result = await runMdSparrowParamsRead(runtime, { op: 'cf-form-standard-commands' }, { cwd });
+	if (result.exitCode !== 0) {
+		log.warn('стандартные команды недоступны: кнопки останутся подписаны именами элементов');
+		return {};
+	}
+	try {
+		standardCommandCache = JSON.parse(result.stdout.trim()) as StandardCommandsDto;
+		return standardCommandCache;
+	} catch (e) {
+		log.warn(`стандартные команды не разобраны: ${e instanceof Error ? e.message : String(e)}`);
+		return {};
+	}
+}
+
 const ERR_PREVIEW = 400;
 
 /** Путь к `Ext/Form.xml` формы объекта: `<Объект>/Forms/<Форма>/Ext/Form.xml`. */
@@ -278,6 +317,7 @@ export async function openFormViewer(
 			dataPathTitles: titles.dataPaths,
 			dataPathTypes: titles.types,
 			commandTitles: titles.commands,
+			commandsAtRight: titles.commandsAtRight,
 		});
 	} catch (e) {
 		log.error(`шаблон формы: ${e instanceof Error ? e.message : String(e)}`);
@@ -289,14 +329,21 @@ export async function openFormViewer(
 /**
  * Подписи кнопок: имя команды -> её синоним.
  *
- * Команда формы подписывается своим заголовком, команда объекта - синонимом из его структуры.
- * Имя команды в кнопке записано ссылкой: `Form.Command.<Имя>` или `<Вид>.<Объект>.Command.<Имя>`.
+ * Команда формы подписывается своим заголовком, команда объекта - синонимом из его структуры,
+ * а стандартную команду называет сама платформа. Имя команды в кнопке записано ссылкой:
+ * `Form.Command.<Имя>`, `<Вид>.<Объект>.Command.<Имя>` или `Form.StandardCommand.<Имя>`.
+ *
+ * @param standardCommands Подписи стандартных команд формы от md-sparrow: в файле формы их нет.
  */
 export function commandTitles(
 	structure: OwnerStructureDto,
-	formCommands: readonly { name?: string; title?: string }[] = []
+	formCommands: readonly { name?: string; title?: string }[] = [],
+	standardCommands: Record<string, string> = {}
 ): Record<string, string> {
 	const out: Record<string, string> = {};
+	for (const [name, label] of Object.entries(standardCommands)) {
+		out[`Form.StandardCommand.${name}`] = label;
+	}
 	for (const command of formCommands) {
 		if (command.name && command.title) {
 			out[`Form.Command.${command.name}`] = command.title;
@@ -306,6 +353,17 @@ export function commandTitles(
 		out[`Command.${name}`] = synonym;
 	}
 	return out;
+}
+
+/**
+ * Имена команд, кнопки которых платформа держит у правого края панели.
+ *
+ * Своего выравнивания у такой кнопки нет, а умолчание у панели левое: правый край ей задаёт то,
+ * что команда стандартная. Набор приходит от md-sparrow, здесь к именам добавляется приставка,
+ * с которой они записаны в кнопке.
+ */
+export function commandsAtRight(standardCommands: StandardCommandsDto = {}): string[] {
+	return (standardCommands.atRight ?? []).map((name) => `Form.StandardCommand.${name}`);
 }
 
 /**
@@ -323,6 +381,7 @@ async function loadTitles(
 	dataPaths: Record<string, string>;
 	types: Record<string, string[]>;
 	commands: Record<string, string>;
+	commandsAtRight: string[];
 }> {
 	const objectXml = ownerObjectXmlPath(params.formXmlFsPath);
 	const main = content.attributes?.find((attribute) => attribute.main)?.name ?? '';
@@ -345,10 +404,12 @@ async function loadTitles(
 			log.warn('форма: структура объекта не прочитана, подписи останутся именами элементов');
 		}
 	}
+	const standardCommands = await loadStandardCommands(runtime, params.cwd);
 	return {
 		dataPaths: dataPathTitles(structure, main, formAttributes),
 		types: dataPathTypes(structure, main, formAttributes),
-		commands: commandTitles(structure, formCommands),
+		commands: commandTitles(structure, formCommands, standardCommands.labels ?? {}),
+		commandsAtRight: commandsAtRight(standardCommands),
 	};
 }
 
@@ -544,6 +605,8 @@ interface FormViewerViewModel {
 	dataPathTypes: Record<string, string[]>;
 	/** Имя команды -> её синоним: кнопку без заголовка платформа подписывает им. */
 	commandTitles: Record<string, string>;
+	/** Имена команд, кнопки которых платформа держит у правого края командной панели. */
+	commandsAtRight: string[];
 }
 
 /** Реквизит объекта-владельца: имя, синоним и тип значения. */
@@ -712,6 +775,8 @@ const LAYOUT_PROPERTIES = [
 	'DefaultButton',
 	'LocationInCommandBar',
 	'Autofill',
+	// Источник команд: с ним обычная панель и группа кнопок наполняются стандартными командами.
+	'CommandSource',
 	'CommandBarLocation',
 	// Выравнивание кнопок: у автоматической панели своё свойство, у обычной своё.
 	'HorizontalAlign',

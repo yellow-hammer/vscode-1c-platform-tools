@@ -11,6 +11,7 @@ import {
 	dataPathTitles,
 	dataPathTypes,
 	commandTitles,
+	commandsAtRight,
 	layoutDefaults,
 } from '../../features/metadata/formViewerPanel';
 import { enumValueLabel, propertyLabel } from '../../features/metadata/formItemPropertySpec';
@@ -187,6 +188,42 @@ suite('Просмотр формы: разметка и скрипт', () => {
 
 		assert.ok(filled.includes("'AutoCommandBar'"), 'обычную панель платформа не наполняет');
 		assert.ok(filled.includes("'Autofill'"), 'без автозаполнения панель остаётся такой, как записана');
+		// Обычная панель и группа кнопок наполняются от записанного источника команд.
+		assert.ok(filled.includes("'CommandSource'"), 'без источника команд панель списка осталась бы с одной кнопкой');
+		assert.ok(filled.includes("'ButtonGroup'"), 'группу кнопок платформа наполняет так же, как панель');
+	});
+
+	test('панель без кнопок превью не рисует', () => {
+		const script = read('form-viewer.js');
+		const css = read('form-viewer.css');
+		const bar = script.slice(script.indexOf('function previewCommandBar'), script.indexOf('function commandBarAlign'));
+
+		assert.ok(bar.includes("classList.add('is-empty')"), 'пустая панель помечается, а не подписывается видом');
+		assert.ok(
+			/\.pv-commandbar\.is-empty[^{]*\{[^}]*display:\s*none/.test(css),
+			'пустой панели на форме не видно'
+		);
+	});
+
+	test('набранные платформой команды стоят перед записанными кнопками', () => {
+		const script = read('form-viewer.js');
+		const bar = script.slice(script.indexOf('function previewCommandBar'), script.indexOf('function commandBarAlign'));
+
+		// Конфигуратор ставит стандартные команды первыми, а записанную кнопку - за ними.
+		assert.ok(
+			bar.indexOf('standardCommandsNote') < bar.indexOf('previewNode(child)'),
+			'пометка о стандартных командах идёт до кнопок из файла'
+		);
+	});
+
+	test('«Еще» есть у любой панели, которую наполняет платформа', () => {
+		const script = read('form-viewer.js');
+		const more = script.slice(script.indexOf('function hasMoreMenu'));
+
+		// Панель списка с источником команд платформа наполняет и заводит ей «Еще».
+		assert.ok(!/item\.type !== 'AutoCommandBar'/.test(more), 'обычная панель с источником команд тоже наполняется');
+		assert.ok(more.includes('autoFilled'), 'наполнение решает, есть ли подменю');
+		assert.ok(more.includes("'ButtonGroup'"), 'группа кнопок своего подменю не заводит');
 	});
 
 	test('положение командной панели формы превью берёт у самой формы, а не у панели', () => {
@@ -705,7 +742,42 @@ suite('Подписи кнопок по синонимам команд', () => 
 		assert.strictEqual(titles['Command.ОтветитьВсем'], 'Ответить всем');
 	});
 
+	test('стандартную команду формы подписывает платформа', () => {
+		const titles = commandTitles({}, [], { PostAndClose: 'Провести и закрыть', Help: 'Справка' });
+
+		assert.strictEqual(titles['Form.StandardCommand.PostAndClose'], 'Провести и закрыть');
+		assert.strictEqual(titles['Form.StandardCommand.Help'], 'Справка');
+	});
+
+	test('свой заголовок команды формы сильнее подписи платформы', () => {
+		const titles = commandTitles({}, [{ name: 'Записать', title: 'Сохранить' }], { Записать: 'Записать' });
+
+		assert.strictEqual(titles['Form.Command.Записать'], 'Сохранить');
+		assert.strictEqual(titles['Form.StandardCommand.Записать'], 'Записать', 'команды лежат по разным ссылкам');
+	});
+
 	test('без заголовков и синонимов подписей нет', () => {
 		assert.deepStrictEqual(commandTitles({}, [{ name: 'Обновить' }]), {});
+	});
+});
+
+suite('Стандартные команды правой части панели', () => {
+	test('имя команды приходит со своей приставкой', () => {
+		assert.deepStrictEqual(commandsAtRight({ atRight: ['CustomizeForm', 'Help'] }), [
+			'Form.StandardCommand.CustomizeForm',
+			'Form.StandardCommand.Help',
+		]);
+	});
+
+	test('порядок команд сохраняется: он же порядок кнопок на панели', () => {
+		assert.deepStrictEqual(commandsAtRight({ atRight: ['Help', 'CustomizeForm'] }), [
+			'Form.StandardCommand.Help',
+			'Form.StandardCommand.CustomizeForm',
+		]);
+	});
+
+	test('без словаря правой части нет', () => {
+		assert.deepStrictEqual(commandsAtRight(), []);
+		assert.deepStrictEqual(commandsAtRight({ labels: { Help: 'Справка' } }), []);
 	});
 });

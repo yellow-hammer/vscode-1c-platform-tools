@@ -587,6 +587,17 @@ body {
 	border-bottom: 1px solid var(--vscode-panel-border);
 }
 
+/* Панель без кнопок платформа не рисует: пустой полосы на форме не видно. */
+.pv-commandbar.is-empty {
+	display: none;
+}
+
+/* Выделенную в дереве панель показываем, иначе непонятно, где она стоит. */
+.pv-commandbar.is-empty.pv-selected {
+	display: block;
+	min-height: 14px;
+}
+
 /* Панель с выравниванием складывает кнопки к своему краю, «Еще» при этом остаётся последним. */
 .pv-commandbar.is-align-right {
 	justify-content: flex-end;
@@ -597,7 +608,9 @@ body {
 }
 
 .pv-commandbar.is-align-right > .pv-commandbar-more,
-.pv-commandbar.is-align-center > .pv-commandbar-more {
+.pv-commandbar.is-align-center > .pv-commandbar-more,
+.pv-commandbar.is-align-right > .pv-commandbar-right,
+.pv-commandbar.is-align-center > .pv-commandbar-right {
 	margin-left: 0;
 }
 
@@ -635,6 +648,18 @@ body {
 	font-size: 12px;
 	opacity: 0.8;
 	white-space: nowrap;
+}
+
+/* Стандартные команды правой части идут за «Еще», у того же края. */
+.pv-commandbar-right {
+	display: flex;
+	gap: 6px;
+	align-items: center;
+	margin-left: auto;
+}
+
+.pv-commandbar > .pv-commandbar-more + .pv-commandbar-right {
+	margin-left: 0;
 }
 
 /* Колонки шире таблицы платформа не сжимает: лишние уходят за правый край под прокрутку. */

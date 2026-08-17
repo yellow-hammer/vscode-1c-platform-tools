@@ -15,6 +15,8 @@
 	const dataPathTypes = data.dataPathTypes || {};
 	// Кнопку без заголовка платформа подписывает синонимом команды, на которую та ссылается.
 	const commandTitles = data.commandTitles || {};
+	// Кнопки этих команд платформа держит у правого края панели: своего выравнивания у них нет.
+	const commandsAtRight = new Set(data.commandsAtRight || []);
 
 	/**
 	 * Служебные элементы: показываются переключателем в шапке.
@@ -761,8 +763,11 @@
 			box = previewGroup(node);
 		} else if (type === 'LabelField') {
 			box = previewLabelField(node);
-		} else if (type === 'CommandBar' || type === 'AutoCommandBar' || type === 'ButtonGroup' || type === 'Popup') {
+		} else if (type === 'CommandBar' || type === 'AutoCommandBar' || type === 'ButtonGroup') {
 			box = previewCommandBar(node);
+		} else if (type === 'Popup') {
+			// Подменю платформа рисует одной кнопкой, а его содержимое раскрывает только нажатием.
+			box = element('button', 'pv-button', buttonLabel(item) + ' ▾');
 		} else if (type === 'Table') {
 			box = previewTable(node);
 		} else if (type === 'SearchStringAddition' || type === 'SearchControlAddition' || type === 'ViewStatusAddition') {
@@ -1154,7 +1159,7 @@
 	}
 
 	/**
-	 * Командная панель: кнопки, а справа - «Еще».
+	 * Командная панель: слева кнопки, справа «Еще» и стандартные команды правой части.
 	 *
 	 * Подменю «Еще» платформа держит у автоматической командной панели: туда уходят и команды,
 	 * которые она набирает сама, и кнопки с расположением в подменю. В самой панели такой кнопки
@@ -1162,23 +1167,49 @@
 	 */
 	function previewCommandBar(node) {
 		const box = element('div', 'pv-commandbar' + commandBarAlign(node.item));
+		const right = [];
+		// Набранные платформой команды стоят перед записанными кнопками, а не после них.
+		if (autoFilled(node.item)) {
+			box.append(standardCommandsNote());
+		}
 		let inSubmenu = 0;
 		for (const child of visibleNodes(node.children)) {
 			if (effective(child.item, 'LocationInCommandBar', written(child.item, 'LocationInCommandBar')) === 'InAdditionalSubmenu') {
 				inSubmenu += 1;
 				continue;
 			}
+			if (atRightOfCommandBar(child.item)) {
+				right.push(child);
+				continue;
+			}
 			box.append(previewNode(child));
 		}
-		if (box.childElementCount === 0 && autoFilled(node.item)) {
-			box.append(standardCommandsNote());
-		} else if (box.childElementCount === 0 && inSubmenu === 0 && node.item.type !== 'ButtonGroup') {
-			box.append(element('span', 'pv-unknown', typeLabel(node.item.type)));
-		}
-		if (hasMoreMenu(node.item, inSubmenu)) {
+		if (hasMoreMenu(node.item, inSubmenu, node.children)) {
 			box.append(element('span', 'pv-commandbar-more', 'Еще ▾'));
 		}
+		if (right.length) {
+			const tail = element('div', 'pv-commandbar-right');
+			for (const child of right) {
+				tail.append(previewNode(child));
+			}
+			box.append(tail);
+		}
+		// Панель без кнопок платформа не рисует: наполнять её нечем, и места она не занимает.
+		if (box.childElementCount === 0) {
+			box.classList.add('is-empty');
+		}
 		return box;
+	}
+
+	/**
+	 * Кнопка стоит у правого края панели.
+	 *
+	 * Своего выравнивания у такой кнопки нет, а умолчание у панели левое: правый край ей задаёт
+	 * то, что команда стандартная. Набор таких команд приходит от md-sparrow.
+	 */
+	function atRightOfCommandBar(item) {
+		const command = item.properties && item.properties.CommandName;
+		return Boolean(command) && commandsAtRight.has(command);
 	}
 
 	/**
@@ -1207,18 +1238,40 @@
 		return note;
 	}
 
-	/** Автоматическая панель набирает стандартные команды сама, пока ей это не запретили. */
+	/**
+	 * Панель наполняет платформа сама.
+	 *
+	 * У автоматической панели это её свойство автозаполнения. У обычной панели и у группы кнопок
+	 * тем же занят источник команд: с записанным источником платформа кладёт туда его стандартные
+	 * команды рядом с кнопками, которые записаны в файле.
+	 */
 	function autoFilled(item) {
-		return item.type === 'AutoCommandBar'
-			&& effective(item, 'Autofill', written(item, 'Autofill')) !== 'false';
-	}
-
-	/** «Еще» есть у автоматической командной панели: сама она набирает команды, если ей не запретить. */
-	function hasMoreMenu(item, inSubmenu) {
-		if (item.type !== 'AutoCommandBar') {
+		if (item.type === 'AutoCommandBar') {
+			return effective(item, 'Autofill', written(item, 'Autofill')) !== 'false';
+		}
+		if (item.type !== 'CommandBar' && item.type !== 'ButtonGroup') {
 			return false;
 		}
-		return autoFilled(item) || inSubmenu > 0;
+		return Boolean(written(item, 'CommandSource'));
+	}
+
+	/**
+	 * «Еще» есть у панели, которую наполняет платформа: часть набранных команд уходит в подменю.
+	 *
+	 * Обычная панель с источником команд показывает его так же, как автоматическая. Наполнить
+	 * панель платформа может и через лежащую в ней группу кнопок с источником команд: «Еще» тогда
+	 * всё равно её, а не группы. Кнопки с записанным расположением в подменю заводят «Еще» и без
+	 * наполнения: иначе до них было бы не добраться. Группа кнопок своего «Еще» не заводит: она
+	 * лежит внутри панели.
+	 */
+	function hasMoreMenu(item, inSubmenu, children) {
+		if (item.type === 'ButtonGroup') {
+			return false;
+		}
+		if (autoFilled(item) || inSubmenu > 0) {
+			return true;
+		}
+		return (children || []).some((child) => autoFilled(child.item));
 	}
 
 	/**
