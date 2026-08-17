@@ -11,6 +11,8 @@
 	const layoutDefaults = data.layoutDefaults || {};
 	// Без заголовка платформа подписывает поле синонимом реквизита, а не именем элемента.
 	const dataPathTitles = data.dataPathTitles || {};
+	// Типы реквизитов объекта: в модели формы их нет, они приходят из структуры объекта-владельца.
+	const dataPathTypes = data.dataPathTypes || {};
 	// Кнопку без заголовка платформа подписывает синонимом команды, на которую та ссылается.
 	const commandTitles = data.commandTitles || {};
 
@@ -163,12 +165,16 @@
 	let tree = withKeys(content.items, '');
 
 	/**
-	 * Типы реквизитов формы по пути к данным.
+	 * Типы реквизитов по пути к данным.
 	 *
-	 * Реквизиты объекта сюда не попадают: их типы лежат в структуре объекта, а не в модели формы.
+	 * Реквизиты самой формы лежат в её содержимом, а типы за путём `Объект.<Реквизит>` приходят
+	 * из структуры объекта-владельца: в модели формы их нет.
 	 */
 	function attributeTypes() {
 		const out = new Map();
+		for (const path of Object.keys(dataPathTypes)) {
+			out.set(path, dataPathTypes[path]);
+		}
 		for (const attribute of content.attributes || []) {
 			if (!attribute.name) {
 				continue;

@@ -9,6 +9,7 @@ import {
 	objectFormXmlPath,
 	ownerObjectXmlPath,
 	dataPathTitles,
+	dataPathTypes,
 	commandTitles,
 	layoutDefaults,
 } from '../../features/metadata/formViewerPanel';
@@ -480,6 +481,70 @@ suite('Подписи полей формы по синонимам реквиз
 		assert.strictEqual(titles['Объект.Курсы.Курс'], 'Курс валюты');
 	});
 
+	test('у колонки по стандартному реквизиту табличной части подпись от платформы', () => {
+		const titles = dataPathTitles(
+			{
+				tabularSections: [
+					{
+						name: 'ТабличнаяЧасть1',
+						synonymRu: 'Табличная часть 1',
+						attributes: [{ name: 'Значение1', synonymRu: 'Значение 1' }],
+						standardAttributeSynonyms: { LineNumber: 'N' },
+					},
+				],
+			},
+			'Объект'
+		);
+
+		assert.strictEqual(titles['Объект.ТабличнаяЧасть1.LineNumber'], 'N');
+		assert.strictEqual(titles['Объект.ТабличнаяЧасть1.Значение1'], 'Значение 1');
+	});
+
+	test('реквизит табличной части сильнее одноимённого стандартного', () => {
+		const titles = dataPathTitles(
+			{
+				tabularSections: [
+					{
+						name: 'Строки',
+						attributes: [{ name: 'LineNumber', synonymRu: 'Свой номер' }],
+						standardAttributeSynonyms: { LineNumber: 'N' },
+					},
+				],
+			},
+			'Объект'
+		);
+
+		assert.strictEqual(titles['Объект.Строки.LineNumber'], 'Свой номер');
+	});
+
+	test('колонки динамического списка подписаны синонимами полей основной таблицы', () => {
+		const titles = dataPathTitles(
+			{
+				internalName: 'ЗамерыОбластиСтатистики',
+				childSynonyms: { КоличествоЗначений: 'Количество значений', ОперацияСтатистики: 'Операция статистики' },
+			},
+			'Список',
+			[{ name: 'Список', main: true, mainTable: 'InformationRegister.ЗамерыОбластиСтатистики' }]
+		);
+
+		assert.strictEqual(titles['Список.КоличествоЗначений'], 'Количество значений');
+		assert.strictEqual(titles['Список.ОперацияСтатистики'], 'Операция статистики');
+	});
+
+	test('список над чужой таблицей синонимами владельца не подписывается', () => {
+		const titles = dataPathTitles(
+			{
+				internalName: 'ВариантыОтчетов',
+				attributes: [{ name: 'Наименование', synonymRu: 'Имя варианта' }],
+				childSynonyms: { Признак: 'Признак варианта' },
+			},
+			'Список',
+			[{ name: 'Список', main: true, mainTable: 'Catalog.ДругойСправочник' }]
+		);
+
+		assert.deepStrictEqual(titles, {}, 'имена полей у разных объектов совпадают случайно');
+	});
+
 	test('без главного реквизита остаются подписи реквизитов формы', () => {
 		const titles = dataPathTitles({ attributes: [{ name: 'А', synonymRu: 'Б' }] }, '', [
 			{ name: 'Список', title: 'Список валют' },
@@ -495,6 +560,37 @@ suite('Подписи полей формы по синонимам реквиз
 
 		assert.strictEqual(titles['Список'], 'Список валют');
 		assert.strictEqual(titles['Список.Курс'], 'Курс на дату');
+	});
+});
+
+suite('Типы реквизитов объекта для превью формы', () => {
+	test('тип берётся и у реквизита объекта, и у колонки табличной части', () => {
+		const types = dataPathTypes(
+			{
+				attributes: [{ name: 'Партнер', type: { types: ['cfg:CatalogRef.Партнеры'] } }],
+				tabularSections: [{ name: 'Счета', attributes: [{ name: 'Счет', type: { types: ['cfg:DocumentRef.Счет'] } }] }],
+			},
+			'Объект'
+		);
+
+		assert.deepStrictEqual(types['Объект.Партнер'], ['cfg:CatalogRef.Партнеры']);
+		assert.deepStrictEqual(types['Объект.Счета.Счет'], ['cfg:DocumentRef.Счет']);
+	});
+
+	test('реквизит без типа в набор не попадает', () => {
+		const types = dataPathTypes({ attributes: [{ name: 'Сумма', type: { types: [] } }] }, 'Объект');
+
+		assert.deepStrictEqual(types, {}, 'определяемый тип записан набором типов, а не типом');
+	});
+
+	test('список над чужим объектом типов владельца не получает', () => {
+		const types = dataPathTypes(
+			{ internalName: 'Валюты', attributes: [{ name: 'Курс', type: { types: ['xs:decimal'] } }] },
+			'Список',
+			[{ name: 'Список', main: true, mainTable: 'InformationRegister.КурсыВалют' }]
+		);
+
+		assert.deepStrictEqual(types, {}, 'имена полей у разных объектов совпадают случайно');
 	});
 });
 

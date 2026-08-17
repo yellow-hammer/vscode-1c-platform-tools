@@ -77,6 +77,8 @@ export interface FormAttributeDto {
 	type?: { types?: string[] };
 	main?: boolean;
 	columns?: FormAttributeDto[];
+	/** Основная таблица динамического списка: по её полям идут пути к данным списка. */
+	mainTable?: string;
 }
 
 /** Содержимое формы, как его отдаёт md-sparrow. */
@@ -274,6 +276,7 @@ export async function openFormViewer(
 			content,
 			layoutDefaults: layoutDefaults(dictionary),
 			dataPathTitles: titles.dataPaths,
+			dataPathTypes: titles.types,
 			commandTitles: titles.commands,
 		});
 	} catch (e) {
@@ -316,7 +319,11 @@ async function loadTitles(
 	params: OpenFormViewerParams,
 	schema: string,
 	content: FormContentDto
-): Promise<{ dataPaths: Record<string, string>; commands: Record<string, string> }> {
+): Promise<{
+	dataPaths: Record<string, string>;
+	types: Record<string, string[]>;
+	commands: Record<string, string>;
+}> {
 	const objectXml = ownerObjectXmlPath(params.formXmlFsPath);
 	const main = content.attributes?.find((attribute) => attribute.main)?.name ?? '';
 	const formAttributes = content.attributes ?? [];
@@ -340,6 +347,7 @@ async function loadTitles(
 	}
 	return {
 		dataPaths: dataPathTitles(structure, main, formAttributes),
+		types: dataPathTypes(structure, main, formAttributes),
 		commands: commandTitles(structure, formCommands),
 	};
 }
@@ -532,14 +540,31 @@ interface FormViewerViewModel {
 	layoutDefaults: LayoutDefaults;
 	/** Путь к данным -> синоним реквизита: платформа подписывает поле им. */
 	dataPathTitles: Record<string, string>;
+	/** Путь к данным объекта -> типы реквизита: по ним платформа даёт полю кнопку выбора. */
+	dataPathTypes: Record<string, string[]>;
 	/** Имя команды -> её синоним: кнопку без заголовка платформа подписывает им. */
 	commandTitles: Record<string, string>;
 }
 
-/** Структура объекта-владельца: нужны имена и синонимы реквизитов. */
+/** Реквизит объекта-владельца: имя, синоним и тип значения. */
+interface OwnerAttributeDto {
+	name?: string;
+	synonymRu?: string;
+	type?: { types?: string[] };
+}
+
+/** Структура объекта-владельца: нужны имена, синонимы и типы реквизитов. */
 interface OwnerStructureDto {
-	attributes?: { name?: string; synonymRu?: string }[];
-	tabularSections?: { name?: string; synonymRu?: string; attributes?: { name?: string; synonymRu?: string }[] }[];
+	internalName?: string;
+	attributes?: OwnerAttributeDto[];
+	/** Синонимы полей данных: измерения, ресурсы, признаки учёта. */
+	childSynonyms?: Record<string, string>;
+	tabularSections?: {
+		name?: string;
+		synonymRu?: string;
+		attributes?: OwnerAttributeDto[];
+		standardAttributeSynonyms?: Record<string, string>;
+	}[];
 	standardAttributeSynonyms?: Record<string, string>;
 	commandSynonyms?: Record<string, string>;
 }
@@ -559,10 +584,28 @@ export function ownerObjectXmlPath(formXmlFsPath: string): string | undefined {
  *
  * Без заголовка платформа подписывает поле синонимом реквизита, а не его именем: у справочника
  * валют `Объект.Code` показывается как «Цифровой код». Синонимы стандартных реквизитов лежат
- * рядом с обычными, поэтому берутся из той же структуры.
+ * рядом с обычными, поэтому берутся из той же структуры; у табличной части они свои, и колонка
+ * по `Объект.<ТЧ>.LineNumber` подписывается ими, а не именем элемента.
+ *
+ * Колонки динамического списка идут по полям его основной таблицы, поэтому синонимы объекта
+ * подходят им, только когда список читает самого владельца формы.
  *
  * @param mainAttribute Имя главного реквизита формы: с него начинается путь к данным объекта.
  */
+/**
+ * Главный реквизит читает самого владельца формы, а не чужую таблицу.
+ *
+ * Основная таблица есть только у динамического списка: список над другим объектом подписывать
+ * синонимами владельца нельзя, имена полей у них совпадают случайно.
+ */
+function readsOwner(mainAttribute: FormAttributeDto | undefined, structure: OwnerStructureDto): boolean {
+	const table = mainAttribute?.mainTable;
+	if (!table) {
+		return true;
+	}
+	return Boolean(structure.internalName) && table.endsWith(`.${structure.internalName}`);
+}
+
 export function dataPathTitles(
 	structure: OwnerStructureDto,
 	mainAttribute: string,
@@ -580,13 +623,16 @@ export function dataPathTitles(
 			}
 		}
 	}
-	if (!mainAttribute) {
+	if (!mainAttribute || !readsOwner(formAttributes.find((attribute) => attribute.name === mainAttribute), structure)) {
 		return out;
 	}
 	for (const attribute of structure.attributes ?? []) {
 		if (attribute.name && attribute.synonymRu) {
 			out[`${mainAttribute}.${attribute.name}`] = attribute.synonymRu;
 		}
+	}
+	for (const [name, synonym] of Object.entries(structure.childSynonyms ?? {})) {
+		out[`${mainAttribute}.${name}`] = synonym;
 	}
 	for (const [name, synonym] of Object.entries(structure.standardAttributeSynonyms ?? {})) {
 		out[`${mainAttribute}.${name}`] = synonym;
@@ -598,9 +644,45 @@ export function dataPathTitles(
 		if (section.synonymRu) {
 			out[`${mainAttribute}.${section.name}`] = section.synonymRu;
 		}
+		for (const [name, synonym] of Object.entries(section.standardAttributeSynonyms ?? {})) {
+			out[`${mainAttribute}.${section.name}.${name}`] = synonym;
+		}
 		for (const column of section.attributes ?? []) {
 			if (column.name && column.synonymRu) {
 				out[`${mainAttribute}.${section.name}.${column.name}`] = column.synonymRu;
+			}
+		}
+	}
+	return out;
+}
+
+/**
+ * Типы реквизитов объекта по пути к данным.
+ *
+ * Кнопку выбора и календарь платформа даёт полю по типу реквизита, а не по его имени. Типы
+ * реквизитов самой формы лежат в её содержимом, а типы за путём `Объект.<Реквизит>` приходят
+ * только из структуры объекта-владельца.
+ *
+ * @param mainAttribute Имя главного реквизита формы: с него начинается путь к данным объекта.
+ */
+export function dataPathTypes(
+	structure: OwnerStructureDto,
+	mainAttribute: string,
+	formAttributes: readonly FormAttributeDto[] = []
+): Record<string, string[]> {
+	const out: Record<string, string[]> = {};
+	if (!mainAttribute || !readsOwner(formAttributes.find((attribute) => attribute.name === mainAttribute), structure)) {
+		return out;
+	}
+	for (const attribute of structure.attributes ?? []) {
+		if (attribute.name && attribute.type?.types?.length) {
+			out[`${mainAttribute}.${attribute.name}`] = attribute.type.types;
+		}
+	}
+	for (const section of structure.tabularSections ?? []) {
+		for (const column of section.attributes ?? []) {
+			if (section.name && column.name && column.type?.types?.length) {
+				out[`${mainAttribute}.${section.name}.${column.name}`] = column.type.types;
 			}
 		}
 	}
