@@ -208,7 +208,8 @@
           "id": "1c-platform-tools-properties",
           "name": "Палитра",
           "type": "webview",
-          "icon": "resources/property-palette.svg"
+          "icon": "resources/property-palette.svg",
+          "when": "1c-platform-tools.is1CProject == true"
         }
       ],
       "1c-platform-tools-todo": [
