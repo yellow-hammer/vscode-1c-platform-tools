@@ -93,11 +93,19 @@ export class PipelineCommands extends BaseCommand {
 
 		const pipeline = await this.resolvePipeline(pipelines, opts);
 		if (!pipeline) {
-			return opts?.wait === true
-				? this.executionError(
+			if (opts?.wait === true) {
+				return this.executionError(
 					`Пайплайн не найден. Доступны: ${pipelines.map((item) => item.id).join(', ')}`
-				)
-				: undefined;
+				);
+			}
+			// Выбор отменили - молчим; запрошенной цепочки нет в проекте - говорим об этом,
+			// иначе избранная цепочка удалённого пайплайна кликается вхолостую.
+			if (!opts?.pipeline?.trim()) {
+				return undefined;
+			}
+			return this.showWarning(
+				`Пайплайн не найден в проекте. Доступны: ${pipelines.map((item) => item.name).join(', ')}`
+			);
 		}
 
 		const problems = validatePipeline(pipeline);
