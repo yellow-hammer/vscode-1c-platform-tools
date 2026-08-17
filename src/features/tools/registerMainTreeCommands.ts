@@ -19,6 +19,9 @@ import {
 	syncHiddenToolGroupsContext,
 } from './toolsGroupVisibility';
 import { notifyQuiet } from '../../shared/notify';
+import { readPipelines } from '../../shared/pipelines/pipelineFile';
+import type { Pipeline } from '../../shared/pipelines/pipelineTypes';
+import { VRunnerManager } from '../../shared/vrunnerManager';
 
 const log = logger.scope('ui');
 
@@ -82,6 +85,52 @@ async function pushSetVersionDynamicItems(
 			arguments: args,
 		} as FavoritesSelectableItem);
 	}
+}
+
+/** Аргументы запуска цепочки: команда принимает идентификатор или название. */
+export function pipelineRunArguments(pipelineId: string): unknown[] {
+	return [{ pipeline: pipelineId }];
+}
+
+/**
+ * Пункты списка избранного для цепочек проекта: избранная цепочка запускается одним кликом.
+ */
+export function buildPipelineFavoriteItems(
+	pipelines: Pipeline[],
+	favoriteKeys: Set<string>
+): vscode.QuickPickItem[] {
+	if (pipelines.length === 0) {
+		return [];
+	}
+	const items: vscode.QuickPickItem[] = [
+		{ label: 'Автоматизация', kind: vscode.QuickPickItemKind.Separator },
+	];
+	for (const pipeline of pipelines) {
+		const command = '1c-platform-tools.pipelines.run';
+		const args = pipelineRunArguments(pipeline.id);
+		items.push({
+			label: `▶️ ${pipeline.name}`,
+			description: command,
+			picked: favoriteKeys.has(`${command}|${JSON.stringify(args)}`),
+			command,
+			title: pipeline.name,
+			groupLabel: 'Автоматизация',
+			sectionType: 'pipelines',
+			arguments: args,
+		} as FavoritesSelectableItem);
+	}
+	return items;
+}
+
+async function pushPipelineItems(
+	items: vscode.QuickPickItem[],
+	favoriteKeys: Set<string>
+): Promise<void> {
+	const workspaceRoot = VRunnerManager.getInstance().getWorkspaceRoot();
+	if (!workspaceRoot) {
+		return;
+	}
+	items.push(...buildPipelineFavoriteItems(await readPipelines(workspaceRoot), favoriteKeys));
 }
 
 async function pushOscriptTasksItems(
@@ -156,6 +205,8 @@ async function buildFavoritesQuickPickItems(
 		}
 	}
 
+	// Порядок групп как в дереве: автоматизация идёт перед задачами.
+	await pushPipelineItems(items, favoriteKeys);
 	await pushOscriptTasksItems(items, favoriteKeys, oscriptTasksCommands);
 
 	return items;
