@@ -28,8 +28,6 @@ export type VRunnerIntent =
 	// ---- Информационная база ----
 	/** Создать ИБ (и опционально загрузить конфигурацию из источника). */
 	| { kind: 'infobase.init'; src?: string; common?: CommonArgs }
-	/** Загрузить конфигурацию из исходников и обновить БД. */
-	| { kind: 'infobase.updateFromSrc'; src: string; gitIncrement?: boolean; common?: CommonArgs }
 	/** Обновить конфигурацию БД (основную). */
 	| { kind: 'infobase.updateDb'; common?: CommonArgs }
 	/** Обновить БД конкретного расширения. */
@@ -57,8 +55,24 @@ export type VRunnerIntent =
 	| { kind: 'cf.unloadIbToCf'; out: string; common?: CommonArgs }
 	/** Создать файл поставки (в 3.x команда пока не реализована — vrunner сообщит об этом сам). */
 	| { kind: 'cf.makeDist'; out: string; common?: CommonArgs }
-	/** Загрузить конфигурацию в ИБ из .cf-файла (без обновления БД). */
-	| { kind: 'cf.loadFileToIb'; file: string; common?: CommonArgs }
+	/**
+	 * Загрузить конфигурацию в ИБ из исходников.
+	 *
+	 * `updateDb` решает, применять ли загруженное к конфигурации БД (UpdateDBCfg):
+	 * оба CLI умеют сделать это тем же вызовом, поэтому отдельным интентом
+	 * применение не выражается.
+	 */
+	| {
+		kind: 'cf.loadFromSrc';
+		src: string;
+		increment?: boolean;
+		/** Файл со списком объектов для выборочной загрузки. */
+		listFile?: string;
+		updateDb: boolean;
+		common?: CommonArgs;
+	}
+	/** Загрузить конфигурацию в ИБ из .cf-файла. */
+	| { kind: 'cf.loadFileToIb'; file: string; updateDb: boolean; common?: CommonArgs }
 
 	// ---- Расширения (cfe) ----
 	/**

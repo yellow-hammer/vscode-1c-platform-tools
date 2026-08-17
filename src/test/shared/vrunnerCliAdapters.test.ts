@@ -32,27 +32,46 @@ suite('vrunnerCli: адаптеры v2/v3', () => {
 		);
 	});
 
-	test('infobase.updateFromSrc', () => {
+	test('cf.loadFromSrc с обновлением БД', () => {
 		check(
-			{ kind: 'infobase.updateFromSrc', src: 'src/cf', common: conn },
+			{ kind: 'cf.loadFromSrc', src: 'src/cf', updateDb: true, common: conn },
 			[['update-dev', '--src', 'src/cf', ...conn]],
-			[['infobase', 'update', '--src', 'src/cf', ...conn]]
+			[['cf', 'load', ...conn, 'src/cf']]
 		);
 	});
 
-	test('infobase.updateFromSrc с git-инкрементом', () => {
+	test('cf.loadFromSrc с инкрементом', () => {
 		check(
-			{ kind: 'infobase.updateFromSrc', src: 'src/cf', gitIncrement: true, common: conn },
+			{ kind: 'cf.loadFromSrc', src: 'src/cf', increment: true, updateDb: true, common: conn },
 			[['update-dev', '--src', 'src/cf', '--git-increment', ...conn]],
-			[['infobase', 'update', '--src', 'src/cf', '--increment', ...conn]]
+			[['cf', 'load', '--increment', ...conn, 'src/cf']]
 		);
 	});
 
-	test('infobase.updateDb', () => {
+	test('cf.loadFromSrc без обновления БД', () => {
+		check(
+			{ kind: 'cf.loadFromSrc', src: 'src/cf', updateDb: false, common: conn },
+			[['designer', '--additional', '/LoadConfigFromFiles src/cf -updateConfigDumpInfo', ...conn]],
+			[['cf', 'load', '--no-update-db', ...conn, 'src/cf']]
+		);
+	});
+
+	test('cf.loadFromSrc по списку объектов', () => {
+		check(
+			{ kind: 'cf.loadFromSrc', src: 'src/cf', listFile: 'build/objlist-config.txt', updateDb: true, common: conn },
+			[
+				['designer', '--additional', '/LoadConfigFromFiles src/cf -listFile build/objlist-config.txt', ...conn],
+				['updatedb', ...conn],
+			],
+			[['cf', 'load', '--list', 'build/objlist-config.txt', ...conn, 'src/cf']]
+		);
+	});
+
+	test('infobase.updateDb трогает только основную конфигурацию', () => {
 		check(
 			{ kind: 'infobase.updateDb', common: conn },
 			[['updatedb', ...conn]],
-			[['infobase', 'update', ...conn]]
+			[['infobase', 'update', '--target', 'main', ...conn]]
 		);
 	});
 
@@ -117,11 +136,22 @@ suite('vrunnerCli: адаптеры v2/v3', () => {
 		);
 	});
 
-	test('cf.loadFileToIb', () => {
+	test('cf.loadFileToIb с обновлением БД', () => {
 		check(
-			{ kind: 'cf.loadFileToIb', file: 'build/out/1Cv8.cf', common: conn },
-			[['load', '--src', 'build/out/1Cv8.cf', ...conn]],
+			{ kind: 'cf.loadFileToIb', file: 'build/out/1Cv8.cf', updateDb: true, common: conn },
+			[
+				['load', '--src', 'build/out/1Cv8.cf', ...conn],
+				['updatedb', ...conn],
+			],
 			[['cf', 'load', ...conn, 'build/out/1Cv8.cf']]
+		);
+	});
+
+	test('cf.loadFileToIb без обновления БД', () => {
+		check(
+			{ kind: 'cf.loadFileToIb', file: 'build/out/1Cv8.cf', updateDb: false, common: conn },
+			[['load', '--src', 'build/out/1Cv8.cf', ...conn]],
+			[['cf', 'load', '--no-update-db', ...conn, 'build/out/1Cv8.cf']]
 		);
 	});
 

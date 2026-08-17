@@ -19,6 +19,7 @@ import {
 	handleMissingVersionFile
 } from '../utils/configVersionUtils';
 import { logger } from '../shared/logger';
+import { decideUpdateDb } from '../features/configuration/updateDbDecision';
 import type { CommandExecutionOptions, StructuredCommandResult } from '../shared/commandExecutionTypes';
 
 const log = logger.scope('commands');
@@ -28,34 +29,51 @@ const log = logger.scope('commands');
  */
 export class ConfigurationCommands extends BaseCommand {
 
+	/**
+	 * Загрузить конфигурацию из исходников.
+	 *
+	 * Применять ли загруженное к конфигурации БД, решает {@link decideUpdateDb}: опции
+	 * вызова, затем настройка, и лишь для интерактивного запуска — вопрос.
+	 *
+	 * @param mode - `init` загружает в пустую ИБ, `load` — в существующую
+	 * @param opts - опции выполнения (агент, пайплайн, хук)
+	 * @returns промис с результатом выполнения или void при интерактивном запуске
+	 */
 	async loadFromSrc(
-		mode: 'init' | 'update' = 'update',
+		mode: 'init' | 'load' = 'load',
 		opts?: CommandExecutionOptions
 	): Promise<StructuredCommandResult | void> {
 		const srcPath = this.vrunner.getCfPath();
 		const ibConnectionParam = await this.vrunner.getIbConnectionParam();
 		const commandName = getLoadConfigurationFromSrcCommandName(mode);
-		const intent = mode === 'init'
-			? { kind: 'infobase.init' as const, src: srcPath, common: ibConnectionParam }
-			: { kind: 'infobase.updateFromSrc' as const, src: srcPath, common: ibConnectionParam };
-		return this.runIntent(intent, opts, commandName.title, undefined, commandName.id);
+		if (mode === 'init') {
+			return this.runIntent(
+				{ kind: 'infobase.init', src: srcPath, common: ibConnectionParam },
+				opts, commandName.title, undefined, commandName.id
+			);
+		}
+		const updateDb = await decideUpdateDb(opts);
+		if (updateDb === undefined) {
+			return;
+		}
+		return this.runIntent(
+			{ kind: 'cf.loadFromSrc', src: srcPath, updateDb, common: ibConnectionParam },
+			opts, commandName.title, undefined, commandName.id
+		);
 	}
 
 	async loadFromCf(opts?: CommandExecutionOptions): Promise<StructuredCommandResult | void> {
 		const buildPath = this.vrunner.getOutPath();
 		const cfFilePath = path.join(buildPath, '1Cv8.cf');
 		const ibConnectionParam = await this.vrunner.getIbConnectionParam();
-		// Загрузка .cf не обновляет БД — цепляем обновление отдельным намерением,
-		// иначе изменения не применяются к ИБ.
 		const loadFromCfCmd = getLoadConfigurationFromCfCommandName();
-		return this.runIntentsSequential(
-			[
-				{ kind: 'cf.loadFileToIb', file: cfFilePath, common: ibConnectionParam },
-				{ kind: 'infobase.updateDb', common: ibConnectionParam },
-			],
-			opts,
-			loadFromCfCmd.title,
-			loadFromCfCmd.id
+		const updateDb = await decideUpdateDb(opts);
+		if (updateDb === undefined) {
+			return;
+		}
+		return this.runIntent(
+			{ kind: 'cf.loadFileToIb', file: cfFilePath, updateDb, common: ibConnectionParam },
+			opts, loadFromCfCmd.title, undefined, loadFromCfCmd.id
 		);
 	}
 
@@ -296,8 +314,14 @@ export class ConfigurationCommands extends BaseCommand {
 
 		const ibConnectionParam = await this.vrunner.getIbConnectionParam();
 		const loadIncrCmd = getLoadConfigurationIncrementFromSrcCommandName();
+		// На 2.x список изменённых файлов собирает сам update-dev, а он всегда обновляет
+		// конфигурацию БД: там выбора нет и адаптер сообщит об этом сам.
+		const updateDb = await decideUpdateDb(opts);
+		if (updateDb === undefined) {
+			return;
+		}
 		return this.runIntent(
-			{ kind: 'infobase.updateFromSrc', src: srcPath, gitIncrement: true, common: ibConnectionParam },
+			{ kind: 'cf.loadFromSrc', src: srcPath, increment: true, updateDb, common: ibConnectionParam },
 			opts, loadIncrCmd.title, undefined, loadIncrCmd.id
 		);
 	}
@@ -364,18 +388,20 @@ export class ConfigurationCommands extends BaseCommand {
 
 		const listFileForCmd = this.pathForCmd(buildPath) + '/' + listFileName;
 		const ibConnectionParam = await this.vrunner.getIbConnectionParam();
-		const additionalParam = `/LoadConfigFromFiles ${this.pathForCmd(srcPath)} -listFile ${listFileForCmd}`;
-		// Частичная загрузка через конфигуратор /LoadConfigFromFiles не обновляет БД,
-		// поэтому отдельно цепляем обновление.
 		const loadByListCmd = getLoadConfigurationFromFilesByListCommandName();
-		return this.runIntentsSequential(
-			[
-				{ kind: 'run.designer', additional: additionalParam, common: ibConnectionParam },
-				{ kind: 'infobase.updateDb', common: ibConnectionParam },
-			],
-			opts,
-			loadByListCmd.title,
-			loadByListCmd.id
+		const updateDb = await decideUpdateDb(opts);
+		if (updateDb === undefined) {
+			return;
+		}
+		return this.runIntent(
+			{
+				kind: 'cf.loadFromSrc',
+				src: this.pathForCmd(srcPath),
+				listFile: listFileForCmd,
+				updateDb,
+				common: ibConnectionParam,
+			},
+			opts, loadByListCmd.title, undefined, loadByListCmd.id
 		);
 	}
 }

@@ -21,6 +21,7 @@ import { logger } from '../shared/logger';
 import { filterCfeFilesBySelection } from '../features/extensions/extensionSelection';
 import { resolveExtensionNameFromSrc } from '../features/extensions/extensionNames';
 import { pickExtensions } from '../features/extensions/extensionPicker';
+import { decideUpdateDb } from '../features/configuration/updateDbDecision';
 import type { ExtensionScope } from '../features/extensions/extensionSelection';
 import type { CommandExecutionOptions, StructuredCommandResult } from '../shared/commandExecutionTypes';
 import type { VRunnerIntent } from '../shared/vrunnerCli';
@@ -359,14 +360,17 @@ export class ExtensionsCommands extends BaseCommand {
 		const commandName = getLoadExtensionFromSrcCommandName();
 		const cfePath = this.vrunner.getCfePath();
 
+		const updateDb = await decideUpdateDb(opts);
+		if (updateDb === undefined) {
+			return;
+		}
+
 		return this.executeForAllExtensions(
 			(extensionFolder, extensionName) => ({
 				kind: 'cfe.loadFromSrc',
 				src: path.join(cfePath, extensionFolder),
 				extensionName,
-				// обновление БД расширения сразу после загрузки, иначе изменения
-				// не применяются к ИБ
-				updateDb: true,
+				updateDb,
 				common: ibConnectionParam,
 			}),
 			commandName.title,

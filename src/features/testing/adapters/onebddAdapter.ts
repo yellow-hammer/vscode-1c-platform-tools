@@ -37,7 +37,7 @@ export class OneBddAdapter implements TestFrameworkAdapter {
 
 	public isEnabled(): boolean {
 		const config = vscode.workspace.getConfiguration('1c-platform-tools');
-		if (!config.get<boolean>('testing.frameworks.onebdd', true)) {
+		if (!config.get<boolean>('test.frameworks.onebdd', true)) {
 			return false;
 		}
 		// В проектах 1С каталог фич принадлежит Vanessa Automation
@@ -46,7 +46,7 @@ export class OneBddAdapter implements TestFrameworkAdapter {
 
 	public getIncludeGlobs(): string[] {
 		const config = vscode.workspace.getConfiguration('1c-platform-tools');
-		const base = normalizeGlobBase(config.get<string>('testing.featuresPath', DEFAULT_TESTING.featuresPath));
+		const base = normalizeGlobBase(config.get<string>('test.featuresPath', DEFAULT_TESTING.featuresPath));
 		return [`${base}/**/*.feature`];
 	}
 
@@ -60,7 +60,7 @@ export class OneBddAdapter implements TestFrameworkAdapter {
 
 	public describeFileLocation(fileUri: vscode.Uri, workspaceRoot: string) {
 		const config = vscode.workspace.getConfiguration('1c-platform-tools');
-		const base = config.get<string>('testing.featuresPath', DEFAULT_TESTING.featuresPath);
+		const base = config.get<string>('test.featuresPath', DEFAULT_TESTING.featuresPath);
 		return { segments: directorySegments(fileUri.fsPath, base, workspaceRoot) };
 	}
 
@@ -96,7 +96,7 @@ export class OneBddAdapter implements TestFrameworkAdapter {
 	private getRunnerCommand(): string {
 		const config = vscode.workspace.getConfiguration('1c-platform-tools');
 		const workspaceRoot = this.vrunner.getWorkspaceRoot();
-		const customPath = config.get<string>('testing.onebddPath', '').trim();
+		const customPath = config.get<string>('test.onebddPath', '').trim();
 
 		if (customPath.length > 0) {
 			const resolved = workspaceRoot ? resolveConfigPath(customPath, workspaceRoot) : customPath;

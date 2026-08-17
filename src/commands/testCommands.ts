@@ -91,7 +91,7 @@ export class TestCommands extends BaseCommand {
 		try {
 			if (framework === 'yaxunit') {
 				const config = vscode.workspace.getConfiguration('1c-platform-tools');
-				const configPath = config.get<string>('testing.yaxunitConfigPath', DEFAULT_TESTING.yaxunitConfigPath);
+				const configPath = config.get<string>('test.yaxunitConfigPath', DEFAULT_TESTING.yaxunitConfigPath);
 				const raw = await fs.readFile(path.join(workspaceRoot, configPath), 'utf8');
 				const parsed = JSON.parse(stripBom(raw)) as Record<string, unknown>;
 				const reportPath = parsed['reportPath'];
@@ -337,7 +337,7 @@ export class TestCommands extends BaseCommand {
 		const connectionArgs = await this.vrunner.getIbConnectionParam(opts?.ibConnection);
 		return this.runIntent(
 			{ kind: 'run.enterprise', execute, command: commandParam, common: connectionArgs },
-			opts, 'Запуск обработки в Предприятии', undefined, '1c-platform-tools.externalProcessors.run'
+			opts, 'Запуск обработки в Предприятии', undefined, '1c-platform-tools.epf.run'
 		);
 	}
 
@@ -364,7 +364,7 @@ export class TestCommands extends BaseCommand {
 		}
 
 		const config = vscode.workspace.getConfiguration('1c-platform-tools');
-		const configPath = config.get<string>('testing.yaxunitConfigPath', DEFAULT_TESTING.yaxunitConfigPath);
+		const configPath = config.get<string>('test.yaxunitConfigPath', DEFAULT_TESTING.yaxunitConfigPath);
 		// --settings активного профиля подставляет planIntent; здесь — только явный
 		// адрес ИБ из вызова MCP (перекрывает ИБ профиля), иначе пусто.
 		const connectionArgs = await this.vrunner.getIbConnectionParam(opts?.ibConnection);

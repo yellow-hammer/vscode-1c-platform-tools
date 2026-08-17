@@ -6,7 +6,7 @@ import { DEFAULT_PATHS } from '../../shared/pathDefaults';
 suite('onescriptTestsPath', () => {
 	teardown(async () => {
 		const config = vscode.workspace.getConfiguration('1c-platform-tools');
-		await config.update('testing.onescriptTestsPath', undefined, vscode.ConfigurationTarget.Workspace);
+		await config.update('test.onescriptTestsPath', undefined, vscode.ConfigurationTarget.Workspace);
 		await config.update('paths.tests', undefined, vscode.ConfigurationTarget.Workspace);
 	});
 
@@ -20,7 +20,7 @@ suite('onescriptTestsPath', () => {
 	test('заданная устаревшая настройка выигрывает: проект с ней не должен сломаться', async () => {
 		const config = vscode.workspace.getConfiguration('1c-platform-tools');
 		await config.update('paths.tests', 'проверка/тесты', vscode.ConfigurationTarget.Workspace);
-		await config.update('testing.onescriptTestsPath', 'старый/каталог', vscode.ConfigurationTarget.Workspace);
+		await config.update('test.onescriptTestsPath', 'старый/каталог', vscode.ConfigurationTarget.Workspace);
 
 		assert.strictEqual(resolveOnescriptTestsPath(), 'старый/каталог');
 	});

@@ -18,7 +18,7 @@ description: Инструменты MCP для команд 1C: Platform Tools (
 - **`wait: true`** (по умолчанию) — синхронное выполнение; в ответе `{ success, exitCode, stdout, stderr, tests?, artifact? }`. Прогоны тестов возвращают счётчики по отчёту.
 - **`wait: false`** — команда уходит в терминал VS Code, ответ без stdout/exitCode. Нужен, когда пользователь смотрит ход выполнения сам.
 
-Возвращают результат синхронно: конфигурация (loadIncFromSrc — с параметром `sha`; кроме loadFromFiles), расширения (кроме loadFromFiles), ИБ (кроме loadFromDt), внешние EPF/ERF, тесты (кроме allure), `externalProcs_run`, `test_configure` (с параметром `frameworks`), сборка и разбор.
+Возвращают результат синхронно: конфигурация (loadIncFromSrc — с параметром `sha`; кроме loadFromFiles), расширения (кроме loadFromFiles), ИБ (кроме loadFromDt), внешние EPF/ERF, тесты (кроме allure), `epf_run`, `test_configure` (с параметром `frameworks`), сборка и разбор.
 
 **Исход не возвращают** (ответ подтверждает только запуск): `run_*`, `server_*`, `debug_*`, `launch_*`, `deps_*`, `syntaxCheck_refresh`, `syntaxCheck_clear`, `oscript_run`, `components_update`, loadFromDt, objlist, allure, clearCache. У таких инструментов это написано в описании.
 
@@ -40,11 +40,11 @@ Read-only инструмент `env_status` возвращает JSON: акти�
 
 Те же значения можно передать объектом первым аргументом команды расширения (Execute Command), если MCP недоступен:
 
-- `sha` — инкрементальная загрузка `configuration_loadIncFromSrc` (пустая строка — полная загрузка);
-- `extensions` — явный список расширений для `extensions_*`;
+- `sha` — инкрементальная загрузка `cf_loadInc` (пустая строка — полная загрузка);
+- `extensions` — явный список расширений для `cfe_*`;
 - `profile` — переключение профиля: `env_selectProfile { profile: "test" }`;
 - `frameworks` — настройка тестов: `test_configure { frameworks: ["vanessa"] }`;
-- `execute`, `command` — запуск EPF в Предприятии: `externalProcs_run { execute: "путь.epf", command: "строка /C" }`.
+- `execute`, `command` — запуск EPF в Предприятии: `epf_run { execute: "путь.epf", command: "строка /C" }`.
 
 Команды не открывают окон при агентном вызове: если данных не хватает, вернётся структурированная ошибка с подсказкой.
 
@@ -60,27 +60,28 @@ Read-only инструмент `env_status` возвращает JSON: акти�
 
 | Задача                         | Инструмент MCP                 |
 |--------------------------------|--------------------------------|
-| Загрузить из исходников        | `configuration_loadFromSrc`    |
-| Загрузить изменения (git diff) | `configuration_loadIncFromSrc` |
-| Загрузить из objlist.txt       | `configuration_loadFromFiles`  |
-| Загрузить из 1Cv8.cf           | `configuration_loadFromCf`     |
-| Выгрузить в исходники          | `configuration_dumpToSrc`      |
-| Выгрузить изменения            | `configuration_dumpIncToSrc`   |
-| Выгрузить в 1Cv8.cf            | `configuration_dumpToCf`       |
-| Собрать 1Cv8.cf                | `configuration_build`          |
-| Разобрать 1Cv8.cf              | `configuration_decompile`      |
+| Загрузить из исходников        | `cf_load`    |
+| Обновить конфигурацию БД              | `infobase_updateDb`            |
+| Загрузить изменения (git diff) | `cf_loadInc` |
+| Загрузить из objlist.txt       | `cf_loadByList`  |
+| Загрузить из 1Cv8.cf           | `cf_loadFile`     |
+| Выгрузить в исходники          | `cf_dump`      |
+| Выгрузить изменения            | `cf_dumpInc`   |
+| Выгрузить в 1Cv8.cf            | `cf_unload`       |
+| Собрать 1Cv8.cf                | `cf_compile`          |
+| Разобрать 1Cv8.cf              | `cf_decompile`      |
 
 ## Расширения
 
 | Задача                   | Инструмент MCP             |
 |--------------------------|----------------------------|
-| Загрузить из исходников  | `extensions_loadFromSrc`   |
-| Загрузить из objlist.txt | `extensions_loadFromFiles` |
-| Загрузить из *.cfe       | `extensions_loadFromCfe`   |
-| Выгрузить в исходники    | `extensions_dumpToSrc`     |
-| Выгрузить в *.cfe        | `extensions_dumpToCfe`     |
-| Собрать *.cfe            | `extensions_build`         |
-| Разобрать *.cfe          | `extensions_decompile`     |
+| Загрузить из исходников  | `cfe_load`   |
+| Загрузить из objlist.txt | `cfe_loadByList` |
+| Загрузить из *.cfe       | `cfe_loadFile`   |
+| Выгрузить в исходники    | `cfe_dump`     |
+| Выгрузить в *.cfe        | `cfe_unload`     |
+| Собрать *.cfe            | `cfe_compile`         |
+| Разобрать *.cfe          | `cfe_decompile`     |
 
 Тестовые расширения (`tests/cfe`): `test_loadExts`, `test_dumpExts`, `test_buildExts`,
 `test_decompileExts` — параметр `extensions` работает так же.
@@ -89,11 +90,11 @@ Read-only инструмент `env_status` возвращает JSON: акти�
 
 | Задача              | Инструмент MCP              |
 |---------------------|-----------------------------|
-| Собрать обработку   | `externalProcs_build`       |
-| Разобрать обработку | `externalProcs_decompile`   |
-| Собрать отчёт       | `externalReports_build`     |
-| Разобрать отчёт     | `externalReports_decompile` |
-| Удалить кэш         | `externalFiles_clearCache`  |
+| Собрать обработку   | `epf_compileProc`       |
+| Разобрать обработку | `epf_decompileProc`   |
+| Собрать отчёт       | `epf_compileReport`     |
+| Разобрать отчёт     | `epf_decompileReport` |
+| Удалить кэш         | `epf_clearCache`  |
 
 ## Информационные базы, зависимости, запуск и др.
 
@@ -101,7 +102,8 @@ Read-only инструмент `env_status` возвращает JSON: акти�
 
 ## Примеры
 
-- Вызови `configuration_loadFromSrc` с `projectPath` = корень проекта 1С — загрузка конфигурации из исходников.
+- Вызови `cf_load` с `projectPath` = корень проекта 1С — загрузка конфигурации из исходников и обновление БД.
+- Вызови `cf_load`, затем `infobase_updateDb`: загрузка не трогает конфигурацию БД, пока не передан `updateDb: true`.
 - Вызови `run_designer` с `projectPath` — запуск Конфигуратора (если пользователь просит открыть конфигуратор).
 - Вызови `deps_install` с `projectPath` — установка зависимостей packagedef/vrunner.
 

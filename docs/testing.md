@@ -15,9 +15,9 @@
 | **OneScript (OneUnit)** | `.os`-тесты, в том числе `&ПараметризованныйТест`         | отчёт в `build/out/onescript`                              |
 | **1bdd**                | `.feature` в OneScript-проектах                           | отчёт в `build/out/1bdd`                                    |
 
-Раннер OneScript выбирается настройкой `testing.onescriptRunner`: по умолчанию `auto` — OneUnit, если он установлен в проекте или объявлен в `packagedef`, иначе 1testrunner. Путь к раннеру можно задать явно настройкой `testing.onescriptRunnerPath`.
+Раннер OneScript выбирается настройкой `test.onescriptRunner`: по умолчанию `auto` — OneUnit, если он установлен в проекте или объявлен в `packagedef`, иначе 1testrunner. Путь к раннеру можно задать явно настройкой `test.onescriptRunnerPath`.
 
-Все фреймворки включены по умолчанию; состав можно менять командой **Настроить тесты** (кнопка «Настроить тесты 1С» в пустой панели тестирования) или настройками `1c-platform-tools.testing.frameworks.*`. Каталог фич принадлежит Vanessa в проектах 1С (есть исходники конфигурации) и 1bdd — в OneScript-библиотеках. Файлы `.os` — всегда OneScript: тесты для 1С (xUnit) существуют только как внешние обработки.
+Все фреймворки включены по умолчанию; состав можно менять командой **Настроить тесты** (кнопка «Настроить тесты 1С» в пустой панели тестирования) или настройками `1c-platform-tools.test.frameworks.*`. Каталог фич принадлежит Vanessa в проектах 1С (есть исходники конфигурации) и 1bdd — в OneScript-библиотеках. Файлы `.os` — всегда OneScript: тесты для 1С (xUnit) существуют только как внешние обработки.
 
 Точечный запуск отдельного теста поддерживают YAxUnit, OneScript и 1bdd. У Vanessa Automation и xUnit запускается файл целиком — статусы всех его кейсов обновляются из отчёта.
 
@@ -68,22 +68,22 @@ project/
 - `tools/VAParams.json` — какие отчёты пишет Vanessa Automation (jUnit или Cucumber JSON) и куда;
 - `tools/yaxunit.json` — базовый конфиг RunUnitTests; панель накладывает на него фильтр по выбранному модулю/тесту.
 
-Если конфиги не настроены, используются временные настройки с отчётом в `testing.reportsPath`.
+Если конфиги не настроены, используются временные настройки с отчётом в `test.reportsPath`.
 
 ## Настройки
 
 | Настройка                                           | По умолчанию                   | Описание                                          |
 |-----------------------------------------------------|--------------------------------|---------------------------------------------------|
-| `testing.enabled`                                   | `true`                         | Интеграция с панелью тестирования                 |
+| `test.enabled`                                   | `true`                         | Интеграция с панелью тестирования                 |
 | `paths.tests`                                       | `tests`                        | Корень тестов: `*.os`, `cfe/`, `epf/`             |
-| `testing.featuresPath`                              | `features`                     | Сценарии Gherkin                                  |
-| `testing.onescriptTestsPath`                        | `tests`                        | Устарела: каталог тестов задаётся в `paths.tests`  |
-| `testing.frameworks.*`                              | включены                       | Включение фреймворков (через «Настроить тесты»)   |
-| `testing.exclude`                                   | `["oscript_modules", "build"]` | Сегменты пути, исключаемые при поиске тестов      |
-| `testing.onescriptRunner`                           | `auto`                         | Раннер OneScript: auto / 1testrunner / oneunit    |
-| `testing.onescriptRunnerPath`, `testing.onebddPath` | —                              | Пути к раннерам (поддерживают относительные)      |
-| `testing.yaxunitConfigPath`                         | `tools/yaxunit.json`           | Базовый конфиг YAxUnit                            |
-| `testing.reportsPath`                               | `build/out/testapi`            | Временные файлы прогонов                          |
+| `test.featuresPath`                              | `features`                     | Сценарии Gherkin                                  |
+| `test.onescriptTestsPath`                        | `tests`                        | Устарела: каталог тестов задаётся в `paths.tests`  |
+| `test.frameworks.*`                              | включены                       | Включение фреймворков (через «Настроить тесты»)   |
+| `test.exclude`                                   | `["oscript_modules", "build"]` | Сегменты пути, исключаемые при поиске тестов      |
+| `test.onescriptRunner`                           | `auto`                         | Раннер OneScript: auto / 1testrunner / oneunit    |
+| `test.onescriptRunnerPath`, `test.onebddPath` | —                              | Пути к раннерам (поддерживают относительные)      |
+| `test.yaxunitConfigPath`                         | `tools/yaxunit.json`           | Базовый конфиг YAxUnit                            |
+| `test.reportsPath`                               | `build/out/testapi`            | Временные файлы прогонов                          |
 
 ## Тестовые расширения
 
@@ -115,8 +115,8 @@ project/
 Все четыре показывают выбор расширений с флажками, как команды группы «Расширения»: можно подключить
 только YAxUnit, только своё расширение с тестами или оба сразу. Выбор запоминается для проекта
 отдельно от выбора расширений решения - списки разные, и один не затирает другой. Чтобы окно
-выбора не показывалось, задайте список в `1c-platform-tools.testing.selectedExtensions`: это тот же
-механизм, что `extensions.selected` у расширений решения, только по каталогам `tests/cfe`. Агент
+выбора не показывалось, задайте список в `1c-platform-tools.test.selectedExtensions`: это тот же
+механизм, что `cfe.selected` у расширений решения, только по каталогам `tests/cfe`. Агент
 передаёт выбор параметром `extensions`.
 
 Собранные `*.cfe` кладутся в `build/out/tests/cfe`, отдельно от расширений решения: команда

@@ -15,7 +15,7 @@ const REGISTERED_WITHOUT_DECLARATION = new Set([
 	'1c-platform-tools.env.status',
 	'1c-platform-tools.env.refreshVersion',
 	'1c-platform-tools.env.statusBarRefresh',
-	'1c-platform-tools.externalProcessors.run',
+	'1c-platform-tools.epf.run',
 	'1c-platform-tools.server.statusBarRefresh',
 	'1c-platform-tools.serviceFiles.ensure',
 	'1c-platform-tools.settings.openIpc',
@@ -114,7 +114,7 @@ suite('манифест команд', () => {
 		assert.ok(group, 'группа «Расширения» пропала из дерева');
 		const foreign = group.commands
 			.map((command) => command.command)
-			.filter((id) => !id.startsWith('1c-platform-tools.extensions.'));
+			.filter((id) => !id.startsWith('1c-platform-tools.cfe.'));
 		assert.deepStrictEqual(foreign, [], `в группе расширений решения чужие команды: ${foreign.join(', ')}`);
 	});
 
@@ -146,7 +146,8 @@ suite('схема пользовательских хуков', () => {
 		for (const id of [
 			'1c-platform-tools.test.xunit',
 			'1c-platform-tools.env.selectProfile',
-			'1c-platform-tools.configuration.loadFromSrc',
+			'1c-platform-tools.cf.load',
+			'1c-platform-tools.infobase.updateDb',
 		]) {
 			assert.ok(allowed.has(id), `команда ${id} должна быть в подсказках хуков`);
 		}

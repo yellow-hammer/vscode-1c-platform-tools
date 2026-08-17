@@ -103,16 +103,10 @@ export class V3CliAdapter implements VRunnerCliAdapter {
 				const options = intent.src !== undefined ? ['--src', intent.src] : [];
 				return [cmd(['infobase', 'init'], [...options, ...common(intent)], [])];
 			}
-			case 'infobase.updateFromSrc': {
-				const options = ['--src', intent.src];
-				if (intent.gitIncrement) {
-					// Инкремент по индексу изменений (в 2.x — --git-increment)
-					options.push('--increment');
-				}
-				return [cmd(['infobase', 'update'], [...options, ...common(intent)], [])];
-			}
 			case 'infobase.updateDb':
-				return [cmd(['infobase', 'update'], common(intent), [])];
+				// Без --target 3.x обновляет ещё и все расширения, а в 2.x updatedb
+				// трогает только основную конфигурацию: держим одинаковое поведение.
+				return [cmd(['infobase', 'update'], ['--target', 'main', ...common(intent)], [])];
 			case 'infobase.updateExtension':
 				return [cmd(['infobase', 'update'], ['--target', intent.extensionName, ...common(intent)], [])];
 			case 'infobase.dumpDt':
@@ -133,9 +127,26 @@ export class V3CliAdapter implements VRunnerCliAdapter {
 			case 'cf.makeDist':
 				// cf make-dist OUT — путь к файлу поставки конфигурации (.cf) позиционно.
 				return [cmd(['cf', 'make-dist'], common(intent), [intent.out])];
-			case 'cf.loadFileToIb':
-				// cf load обновляет БД по умолчанию; отдельный флаг не передаём.
-				return [cmd(['cf', 'load'], common(intent), [intent.file])];
+			case 'cf.loadFromSrc': {
+				// cf load принимает и каталог исходников, и .cf-файл, и сам обновляет
+				// конфигурацию БД, пока не сказано обратное.
+				const options: string[] = [];
+				if (intent.listFile !== undefined) {
+					options.push('--list', intent.listFile);
+				}
+				if (intent.increment) {
+					// Инкремент по индексу изменений (в 2.x — --git-increment)
+					options.push('--increment');
+				}
+				if (!intent.updateDb) {
+					options.push('--no-update-db');
+				}
+				return [cmd(['cf', 'load'], [...options, ...common(intent)], [intent.src])];
+			}
+			case 'cf.loadFileToIb': {
+				const options = intent.updateDb ? [] : ['--no-update-db'];
+				return [cmd(['cf', 'load'], [...options, ...common(intent)], [intent.file])];
+			}
 
 			// ---- Расширения ----
 			case 'cfe.buildCfe': {
@@ -147,9 +158,8 @@ export class V3CliAdapter implements VRunnerCliAdapter {
 			}
 			case 'cfe.loadFromSrc': {
 				const options = ['--extension-name', intent.extensionName];
-				// В 3.x обновление БД после загрузки расширения — поведение по
-				// умолчанию; отключается флагом --no-update-db. (У cf load обратная
-				// логика — там обновление opt-in через --update-db.)
+				// В 3.x и cf load, и cfe load обновляют БД по умолчанию;
+				// отключается флагом --no-update-db.
 				if (!intent.updateDb) {
 					options.push('--no-update-db');
 				}

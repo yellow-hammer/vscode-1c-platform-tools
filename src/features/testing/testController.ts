@@ -33,7 +33,7 @@ const log = logger.scope('testing');
  */
 function getExcludeSegments(): string[] {
 	const config = vscode.workspace.getConfiguration('1c-platform-tools');
-	const configured = config.get<string[]>('testing.exclude');
+	const configured = config.get<string[]>('test.exclude');
 	const segments = Array.isArray(configured)
 		? configured.filter((segment): segment is string => typeof segment === 'string' && segment.length > 0)
 		: ['oscript_modules', 'build'];
@@ -1292,7 +1292,7 @@ export class TestingController implements vscode.Disposable {
 			return undefined;
 		}
 		const config = vscode.workspace.getConfiguration('1c-platform-tools');
-		const reportsBase = config.get<string>('testing.reportsPath', DEFAULT_TESTING.reportsPath);
+		const reportsBase = config.get<string>('test.reportsPath', DEFAULT_TESTING.reportsPath);
 		return path.join(workspaceRoot, reportsBase);
 	}
 

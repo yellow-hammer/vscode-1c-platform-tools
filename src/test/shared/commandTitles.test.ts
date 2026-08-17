@@ -94,14 +94,14 @@ suite('идентификаторы команд', () => {
 	test('сборка и разбор объявлены в домене объекта', () => {
 		const declared = new Set(contributes().commands.map((command) => command.command));
 		for (const id of [
-			'1c-platform-tools.configuration.build',
-			'1c-platform-tools.configuration.decompile',
-			'1c-platform-tools.extensions.build',
-			'1c-platform-tools.extensions.decompile',
-			'1c-platform-tools.externalProcessors.build',
-			'1c-platform-tools.externalProcessors.decompile',
-			'1c-platform-tools.externalReports.build',
-			'1c-platform-tools.externalReports.decompile',
+			'1c-platform-tools.cf.compile',
+			'1c-platform-tools.cf.decompile',
+			'1c-platform-tools.cfe.compile',
+			'1c-platform-tools.cfe.decompile',
+			'1c-platform-tools.epf.compileProcessor',
+			'1c-platform-tools.epf.decompileProcessor',
+			'1c-platform-tools.epf.compileReport',
+			'1c-platform-tools.epf.decompileReport',
 		]) {
 			assert.ok(declared.has(id), `команда ${id} потерялась`);
 		}

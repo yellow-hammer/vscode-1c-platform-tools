@@ -37,7 +37,7 @@ export const AGENT_COMMAND_DESCRIPTIONS: Record<string, AgentCommandDescription>
 		title: 'Показать состояние окружения запуска: версия vanessa-runner, активный профиль, файл настроек, строка подключения к ИБ',
 		category: ENVIRONMENT,
 	},
-	'1c-platform-tools.externalProcessors.run': {
+	'1c-platform-tools.epf.run': {
 		title: 'Запустить внешнюю обработку или отчёт в Предприятии: путь в параметре execute, строка запуска в параметре command',
 		category: LAUNCH,
 	},
@@ -97,11 +97,11 @@ export const AGENT_COMMAND_DESCRIPTIONS: Record<string, AgentCommandDescription>
 	},
 
 	// Информационная база
-	'1c-platform-tools.infobase.updateInfobase': {
+	'1c-platform-tools.infobase.updateDb': {
 		title: 'Обновить конфигурацию базы данных из конфигурации ИБ',
 		category: INFOBASE,
 	},
-	'1c-platform-tools.infobase.updateDatabase': {
+	'1c-platform-tools.infobase.runUpdateHandlers': {
 		title: 'Выполнить обработчики обновления в Предприятии после смены конфигурации',
 		category: INFOBASE,
 	},
@@ -109,11 +109,11 @@ export const AGENT_COMMAND_DESCRIPTIONS: Record<string, AgentCommandDescription>
 		title: 'Инициализировать данные в информационной базе',
 		category: INFOBASE,
 	},
-	'1c-platform-tools.infobase.dumpToDt': {
+	'1c-platform-tools.infobase.dumpDt': {
 		title: 'Выгрузить информационную базу в файл .dt',
 		category: INFOBASE,
 	},
-	'1c-platform-tools.infobase.loadFromDt': {
+	'1c-platform-tools.infobase.restoreDt': {
 		title: 'Загрузить информационную базу из файла .dt',
 		category: INFOBASE,
 	},
@@ -155,101 +155,101 @@ export const AGENT_COMMAND_DESCRIPTIONS: Record<string, AgentCommandDescription>
 
 	// Конфигурация и расширения: каталоги настраиваются, поэтому в описании
 	// говорится о смысле, а не о конкретном пути
-	'1c-platform-tools.configuration.loadFromSrc': {
+	'1c-platform-tools.cf.load': {
 		title: 'Загрузить конфигурацию в ИБ из исходников проекта',
 		category: CONFIGURATION,
 	},
-	'1c-platform-tools.configuration.loadFromSrc.init': {
+	'1c-platform-tools.infobase.initFromSrc': {
 		title: 'Загрузить конфигурацию в пустую ИБ из исходников проекта',
 		category: CONFIGURATION,
 	},
-	'1c-platform-tools.configuration.loadIncrementFromSrc': {
+	'1c-platform-tools.cf.loadIncrement': {
 		title: 'Загрузить в ИБ только изменённые объекты конфигурации (параметр sha задаёт коммит сравнения)',
 		category: CONFIGURATION,
 	},
-	'1c-platform-tools.configuration.loadFromFilesByList': {
+	'1c-platform-tools.cf.loadByList': {
 		title: 'Загрузить в ИБ объекты конфигурации по списку из objlist.txt',
 		category: CONFIGURATION,
 	},
-	'1c-platform-tools.configuration.loadFromCf': {
+	'1c-platform-tools.cf.loadFile': {
 		title: 'Загрузить конфигурацию в ИБ из файла .cf',
 		category: CONFIGURATION,
 	},
-	'1c-platform-tools.configuration.dumpToSrc': {
+	'1c-platform-tools.cf.dump': {
 		title: 'Выгрузить конфигурацию ИБ в исходники проекта',
 		category: CONFIGURATION,
 	},
-	'1c-platform-tools.configuration.dumpIncrementToSrc': {
+	'1c-platform-tools.cf.dumpIncrement': {
 		title: 'Выгрузить в исходники только изменённые объекты конфигурации',
 		category: CONFIGURATION,
 	},
-	'1c-platform-tools.configuration.dumpToCf': {
+	'1c-platform-tools.cf.unload': {
 		title: 'Выгрузить конфигурацию ИБ в файл .cf',
 		category: CONFIGURATION,
 	},
-	'1c-platform-tools.configuration.dumpToDist': {
+	'1c-platform-tools.cf.makeDist': {
 		title: 'Выгрузить конфигурацию поставки в файл .cf',
 		category: CONFIGURATION,
 	},
-	'1c-platform-tools.configuration.build': {
+	'1c-platform-tools.cf.compile': {
 		title: 'Собрать файл .cf из исходников конфигурации, без загрузки в ИБ',
 		category: CONFIGURATION,
 	},
-	'1c-platform-tools.configuration.decompile': {
+	'1c-platform-tools.cf.decompile': {
 		title: 'Разобрать файл .cf в исходники конфигурации, без обращения к ИБ',
 		category: CONFIGURATION,
 	},
-	'1c-platform-tools.extensions.loadFromSrc': {
+	'1c-platform-tools.cfe.load': {
 		title: 'Загрузить расширения в ИБ из исходников проекта',
 		category: EXTENSIONS,
 	},
-	'1c-platform-tools.extensions.loadFromFilesByList': {
+	'1c-platform-tools.cfe.loadByList': {
 		title: 'Загрузить в ИБ объекты расширений по списку из objlist.txt',
 		category: EXTENSIONS,
 	},
-	'1c-platform-tools.extensions.loadFromCfe': {
+	'1c-platform-tools.cfe.loadFile': {
 		title: 'Загрузить расширения в ИБ из файлов .cfe',
 		category: EXTENSIONS,
 	},
-	'1c-platform-tools.extensions.dumpToSrc': {
+	'1c-platform-tools.cfe.dump': {
 		title: 'Выгрузить расширения ИБ в исходники проекта',
 		category: EXTENSIONS,
 	},
-	'1c-platform-tools.extensions.dumpToCfe': {
+	'1c-platform-tools.cfe.unload': {
 		title: 'Выгрузить расширения ИБ в файлы .cfe',
 		category: EXTENSIONS,
 	},
-	'1c-platform-tools.extensions.build': {
+	'1c-platform-tools.cfe.compile': {
 		title: 'Собрать файлы .cfe из исходников расширений, без загрузки в ИБ',
 		category: EXTENSIONS,
 	},
-	'1c-platform-tools.extensions.decompile': {
+	'1c-platform-tools.cfe.decompile': {
 		title: 'Разобрать файлы .cfe в исходники расширений, без обращения к ИБ',
 		category: EXTENSIONS,
 	},
-	'1c-platform-tools.extensions.updateInInfobase': {
+	'1c-platform-tools.cfe.updateDb': {
 		title: 'Обновить расширения, уже установленные в информационной базе',
 		category: EXTENSIONS,
 	},
 
 	// Внешние файлы
-	'1c-platform-tools.externalProcessors.build': {
+	'1c-platform-tools.epf.compileProcessor': {
 		title: 'Собрать внешние обработки из исходников',
 		category: EXTERNAL,
 	},
-	'1c-platform-tools.externalProcessors.decompile': {
+	'1c-platform-tools.epf.decompileProcessor': {
 		title: 'Разобрать внешние обработки в исходники',
 		category: EXTERNAL,
 	},
-	'1c-platform-tools.externalReports.build': {
+	'1c-platform-tools.epf.compileReport': {
 		title: 'Собрать внешние отчёты из исходников',
 		category: EXTERNAL,
 	},
-	'1c-platform-tools.externalReports.decompile': {
+	'1c-platform-tools.epf.decompileReport': {
 		title: 'Разобрать внешние отчёты в исходники',
 		category: EXTERNAL,
 	},
-	'1c-platform-tools.externalFiles.clearCache': {
+	'1c-platform-tools.epf.clearCache': {
 		title: 'Удалить кэш разбора внешних обработок и отчётов',
 		category: EXTERNAL,
 	},

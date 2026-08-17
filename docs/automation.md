@@ -15,7 +15,7 @@
 
 ## Пайплайны
 
-Пайплайн - граф шагов: блоки выполняются по связям, а ветка выбирается по исходу предыдущего блока. Типовое обновление рабочей базы: запретить сеансы, завершить оставшиеся, загрузить конфигурацию, обновить базу, разрешить сеансы; при падении загрузки - собрать отчёт и разрешить сеансы обратно.
+Пайплайн - граф шагов: блоки выполняются по связям, а ветка выбирается по исходу предыдущего блока. Типовое обновление рабочей базы: запретить сеансы, завершить оставшиеся, загрузить конфигурацию, обновить базу, разрешить сеансы; при падении загрузки - собрать отчёт и разрешить сеансы обратно. Загрузка и обновление конфигурации БД - разные шаги: `configuration.loadFromSrc` и `infobase.updateInfobase`. Чтобы сделать оба действия одним запуском, шагу загрузки задают параметр `updateDb`: `"options": {"updateDb": true}`.
 
 ### Редактор
 
@@ -61,7 +61,7 @@
             "name": "Подготовка к обновлению",
             "nodes": [
                 { "id": "lock", "type": "command", "command": "1c-platform-tools.session.lock", "options": { "lockMessage": "Идёт обновление" }, "x": 60, "y": 60 },
-                { "id": "load", "type": "command", "command": "1c-platform-tools.configuration.loadFromSrc", "x": 330, "y": 60 },
+                { "id": "load", "type": "command", "command": "1c-platform-tools.cf.load", "x": 330, "y": 60 },
                 { "id": "unlock", "type": "command", "command": "1c-platform-tools.session.unlock", "x": 600, "y": 60 },
                 { "id": "report", "type": "shell", "script": "git status --short", "x": 330, "y": 190 }
             ],
@@ -106,7 +106,7 @@
     "name": "Развернуть",
     "params": { "profile": "test" },
     "nodes": [
-        { "id": "load", "type": "command", "command": "1c-platform-tools.configuration.loadFromSrc", "options": { "settingsFile": "env.{{profile}}.json" } },
+        { "id": "load", "type": "command", "command": "1c-platform-tools.cf.load", "options": { "settingsFile": "env.{{profile}}.json" } },
         { "id": "tag", "type": "shell", "script": "git tag deploy-{{profile}}" }
     ],
     "edges": [{ "from": "load", "to": "tag" }]
@@ -170,7 +170,7 @@
   "$schema": "https://raw.githubusercontent.com/yellow-hammer/vscode-1c-platform-tools/main/resources/schemas/hooks.schema.json",
   "version": 1,
   "hooks": {
-    "1c-platform-tools.configuration.loadFromSrc": {
+    "1c-platform-tools.cf.load": {
       "pre":     "node ./tools/rename-interface.js --to evERP",
       "post":    "git checkout -- src/cf",
       "onError": "git checkout -- src/cf"
@@ -207,7 +207,7 @@
 ```jsonc
 {
   "hooks": {
-    "1c-platform-tools.configuration.loadFromSrc": {
+    "1c-platform-tools.cf.load": {
       "pre": [
         "node ./tools/rename-interface.js --to evERP",
         { "command": "npm run lint", "continueOnError": true, "timeout": 60 }

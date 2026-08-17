@@ -33,9 +33,28 @@ export class V2CliAdapter implements VRunnerCliAdapter {
 				}
 				return [[...args, ...common(intent)]];
 			}
-			case 'infobase.updateFromSrc': {
+			case 'cf.loadFromSrc': {
+				if (intent.listFile !== undefined) {
+					// Выборочной загрузки у update-dev нет: список объектов принимает
+					// только конфигуратор, а обновление БД идёт отдельной командой.
+					const additional =
+						`/LoadConfigFromFiles ${intent.src} -listFile ${intent.listFile}`;
+					const plan = [['designer', '--additional', additional, ...common(intent)]];
+					if (intent.updateDb) {
+						plan.push(['updatedb', ...common(intent)]);
+					}
+					return plan;
+				}
+				if (!intent.updateDb) {
+					// Инкремент сюда не доходит: планировщик снимает его для 2.x, потому что
+					// список изменённых файлов собирает update-dev вместе с обновлением БД.
+					// update-dev всегда завершается UpdateDBCfg, отключить это нечем:
+					// загрузка без обновления остаётся только через конфигуратор.
+					const additional = `/LoadConfigFromFiles ${intent.src} -updateConfigDumpInfo`;
+					return [['designer', '--additional', additional, ...common(intent)]];
+				}
 				const args = ['update-dev', '--src', intent.src];
-				if (intent.gitIncrement) {
+				if (intent.increment) {
 					args.push('--git-increment');
 				}
 				return [[...args, ...common(intent)]];
@@ -60,8 +79,14 @@ export class V2CliAdapter implements VRunnerCliAdapter {
 				return [['unload', intent.out, ...common(intent)]];
 			case 'cf.makeDist':
 				return [['make-dist', intent.out, ...common(intent)]];
-			case 'cf.loadFileToIb':
-				return [['load', '--src', intent.file, ...common(intent)]];
+			case 'cf.loadFileToIb': {
+				// load переносит конфигурацию в основную, но БД не трогает.
+				const plan = [['load', '--src', intent.file, ...common(intent)]];
+				if (intent.updateDb) {
+					plan.push(['updatedb', ...common(intent)]);
+				}
+				return plan;
+			}
 
 			// ---- Расширения ----
 			case 'cfe.buildCfe':

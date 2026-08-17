@@ -112,6 +112,28 @@ function stripV2SettingsOnCli3(
  * @param context - Данные окружения (версия, профиль, параметры вызова)
  * @returns Команды и замечания планирования
  */
+/**
+ * Снимает инкремент с загрузки без обновления БД на vanessa-runner 2.x.
+ *
+ * Список изменённых файлов там собирает `update-dev`, а он всегда завершается обновлением
+ * конфигурации БД. Чтобы команда работала одинаково на обеих версиях, загружаем исходники
+ * целиком: результат тот же, отличается только объём работы, и об этом говорим замечанием.
+ *
+ * @param intent - Исходное намерение
+ * @param cli3 - Установлен vanessa-runner 3.x
+ * @param notices - Замечания планирования (пополняются при снятии инкремента)
+ */
+function withoutIncrementOnCli2(intent: VRunnerIntent, cli3: boolean, notices: string[]): VRunnerIntent {
+	if (cli3 || intent.kind !== 'cf.loadFromSrc' || !intent.increment || intent.updateDb) {
+		return intent;
+	}
+	notices.push(
+		'Загрузка изменений без обновления конфигурации БД в vanessa-runner 2.x не выражается: ' +
+		'исходники загружены целиком.'
+	);
+	return { ...intent, increment: false };
+}
+
 export function planIntents(intents: VRunnerIntent[], context: PlanContext): PlanResult {
 	const notices: string[] = [];
 	const adapter = selectCliAdapter(context.version);
@@ -151,7 +173,8 @@ export function planIntents(intents: VRunnerIntent[], context: PlanContext): Pla
 	}
 
 	const steps: string[][] = [];
-	for (const intent of intents) {
+	for (const raw of intents) {
+		const intent = withoutIncrementOnCli2(raw, cli3, notices);
 		const base = intent.common ?? [];
 		const extra = [
 			// не дублируем --settings, если он уже задан в намерении

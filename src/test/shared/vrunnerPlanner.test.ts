@@ -23,6 +23,37 @@ function planOne(context: Parameters<typeof planIntents>[1]): { args: string[]; 
 }
 
 suite('vrunnerPlanner', () => {
+	test('инкремент без обновления БД на 2.x снимается с замечанием', () => {
+		const intent = { kind: 'cf.loadFromSrc' as const, src: 'src/cf', increment: true, updateDb: false };
+
+		const { steps, notices } = planIntents([intent], {
+			version: V2,
+			overrideArgs: [],
+			settingsFormat: formatByName,
+		});
+
+		assert.deepStrictEqual(steps, [
+			['designer', '--additional', '/LoadConfigFromFiles src/cf -updateConfigDumpInfo'],
+		]);
+		assert.ok(
+			notices.some((notice) => notice.includes('исходники загружены целиком')),
+			'пользователь должен узнать, что инкремент не применён'
+		);
+	});
+
+	test('на 3.x инкремент без обновления БД остаётся инкрементом', () => {
+		const intent = { kind: 'cf.loadFromSrc' as const, src: 'src/cf', increment: true, updateDb: false };
+
+		const { steps, notices } = planIntents([intent], {
+			version: V3,
+			overrideArgs: [],
+			settingsFormat: formatByName,
+		});
+
+		assert.deepStrictEqual(steps, [['cf', 'load', '--increment', '--no-update-db', 'src/cf']]);
+		assert.deepStrictEqual(notices, []);
+	});
+
 	test('активный профиль подставляется как --settings', () => {
 		const { args } = planOne({
 			version: V2,

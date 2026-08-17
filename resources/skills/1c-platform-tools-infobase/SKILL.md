@@ -11,24 +11,24 @@ description: Операции с информационными базами 1С
 
 | Запрос пользователя (примеры)              | Действие                         |
 |--------------------------------------------|----------------------------------|
-| Создать пустую базу, новую ИБ              | `1c-platform-tools.infobase.createEmpty` |
-| Обновить ИБ, обновить конфигурацию в базе  | `1c-platform-tools.infobase.updateInfobase` |
-| Выгрузить в dt, загрузить из dt            | `1c-platform-tools.infobase.dumpToDt` / `1c-platform-tools.infobase.loadFromDt` |
+| Создать пустую базу, новую ИБ              | `1c-platform-tools.infobase.create` |
+| Обновить ИБ, обновить конфигурацию в базе  | `1c-platform-tools.infobase.updateDb` |
+| Выгрузить в dt, загрузить из dt            | `1c-platform-tools.infobase.dumpDt` / `1c-platform-tools.infobase.restoreDt` |
 | Запретить внешние ресурсы                  | `1c-platform-tools.infobase.blockExternalResources` |
 
 ## Команды
 
 | Задача                                | Command ID                                          |
 |---------------------------------------|-----------------------------------------------------|
-| Создать пустую ИБ                     | `1c-platform-tools.infobase.createEmpty`            |
-| Обновить ИБ                           | `1c-platform-tools.infobase.updateInfobase`         |
-| Постобработка обновления              | `1c-platform-tools.infobase.updateDatabase`         |
+| Создать пустую ИБ                     | `1c-platform-tools.infobase.create`            |
+| Обновить конфигурацию в ИБ            | `1c-platform-tools.infobase.updateDb`         |
+| Постобработка обновления              | `1c-platform-tools.infobase.runUpdateHandlers`         |
 | Запретить работу с внешними ресурсами | `1c-platform-tools.infobase.blockExternalResources` |
 | Инициализировать данные               | `1c-platform-tools.infobase.initialize`             |
-| Выгрузить в dt                        | `1c-platform-tools.infobase.dumpToDt`               |
-| Загрузить из dt                       | `1c-platform-tools.infobase.loadFromDt`             |
+| Выгрузить в dt                        | `1c-platform-tools.infobase.dumpDt`               |
+| Загрузить из dt                       | `1c-platform-tools.infobase.restoreDt`             |
 
 ## Примеры
 
-- Выполни `1c-platform-tools.infobase.createEmpty` — создание пустой ИБ (параметры из env.json).
-- Выполни `1c-platform-tools.infobase.updateInfobase` для обновления конфигурации в базе текущего проекта.
+- Выполни `1c-platform-tools.infobase.create` — создание пустой ИБ (параметры из env.json).
+- Выполни `1c-platform-tools.infobase.updateDb` для обновления конфигурации БД текущего проекта.

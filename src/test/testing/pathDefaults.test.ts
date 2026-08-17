@@ -63,7 +63,7 @@ suite('pathDefaults ↔ package.json', () => {
 	};
 
 	check('paths', DEFAULT_PATHS);
-	check('testing', DEFAULT_TESTING);
+	check('test', DEFAULT_TESTING);
 	check('vrunner', DEFAULT_VRUNNER);
 });
 
