@@ -264,7 +264,77 @@ async function scanConfigurationAndExtensionSources(
 		}
 	}
 
+	await addEdtProjects(exclude, token, configSources, extSources, configTreeRootPrefixes);
+
 	return { configSources, extSources, configTreeRootPrefixes };
+}
+
+/** Признак расширения в заголовке `Configuration.mdo` проекта EDT. */
+export function isEdtExtensionHead(head: string): boolean {
+	return /<objectBelonging>/.test(head) || /<namePrefix>/.test(head);
+}
+
+/** Имя конфигурации или расширения из заголовка `Configuration.mdo`. */
+export function edtNameFromHead(head: string): string | undefined {
+	const name = head.match(/<name>([^<]+)<\/name>/)?.[1]?.trim();
+	return name !== undefined && name.length > 0 ? name : undefined;
+}
+
+/**
+ * Проекты EDT: описание конфигурации или расширения лежит в `src/Configuration/Configuration.mdo`,
+ * корнем считается каталог проекта.
+ */
+async function addEdtProjects(
+	exclude: string[],
+	token: vscode.CancellationToken | undefined,
+	configSources: ConfigurationArtifact[],
+	extSources: ExtensionArtifact[],
+	configTreeRootPrefixes: string[]
+): Promise<void> {
+	const files = await vscode.workspace.findFiles(
+		'**/src/Configuration/Configuration.mdo',
+		undefined,
+		undefined,
+		token
+	);
+
+	let i = 0;
+	for (const uri of files) {
+		if (i++ % CANCEL_CHECK_INTERVAL === 0) {
+			throwIfCancelled(token);
+		}
+		if (isUriExcluded(uri, exclude)) {
+			continue;
+		}
+
+		const projectDir = path.dirname(path.dirname(path.dirname(uri.fsPath)));
+		configTreeRootPrefixes.push(directoryAsRootPrefix(projectDir));
+
+		const head = await readXmlHeadForClassification(uri.fsPath);
+		const dirUri = vscode.Uri.file(projectDir);
+		const rel = getWorkspaceRelativePath(dirUri);
+		const name = edtNameFromHead(head) ?? path.basename(projectDir);
+
+		if (isEdtExtensionHead(head)) {
+			extSources.push({
+				type: 'extension',
+				uri: dirUri,
+				name,
+				relativePath: rel,
+				kind: 'source',
+				sourceEntryUri: uri,
+			});
+		} else {
+			configSources.push({
+				type: 'configuration',
+				uri: dirUri,
+				name,
+				relativePath: rel,
+				kind: 'source',
+				sourceEntryUri: uri,
+			});
+		}
+	}
 }
 
 async function scanConfigurationBinaries(
