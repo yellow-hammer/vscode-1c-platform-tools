@@ -19,6 +19,8 @@ import {
 	syncHiddenToolGroupsContext,
 } from './toolsGroupVisibility';
 import { notifyQuiet } from '../../shared/notify';
+import { resolveProjectLayout } from '../../shared/projectLayout';
+import { describeConfiguration, pickActiveConfiguration } from '../../shared/activeConfiguration';
 import { readPipelines } from '../../shared/pipelines/pipelineFile';
 import type { Pipeline } from '../../shared/pipelines/pipelineTypes';
 import { VRunnerManager } from '../../shared/vrunnerManager';
@@ -240,6 +242,31 @@ export function registerMainTreeCommands(
 		workspaceTasksCommands,
 	} = params;
 
+	// Конфигураций в рабочей области может быть несколько: панели, которые работают
+	// с одной за раз, берут выбранную здесь.
+	const selectConfigurationCommand = vscode.commands.registerCommand(
+		'1c-platform-tools.project.selectConfiguration',
+		async () => {
+			const workspaceRoot = VRunnerManager.getInstance().getWorkspaceRoot();
+			if (!workspaceRoot) {
+				showNot1CProjectMessage();
+				return;
+			}
+			const layout = await resolveProjectLayout(workspaceRoot, {
+				configuration: vscode.workspace
+					.getConfiguration('1c-platform-tools')
+					.get<string>('paths.cf', ''),
+				extensions: [],
+			});
+			const configurations = layout.configuration ? [layout.configuration, ...layout.others] : layout.others;
+			const picked = await pickActiveConfiguration(context.workspaceState, configurations);
+			if (picked) {
+				treeDataProvider.refresh();
+				notifyQuiet(`Конфигурация проекта: ${describeConfiguration(picked)}`);
+			}
+		}
+	);
+
 	const refreshCommand = vscode.commands.registerCommand('1c-platform-tools.tools.refresh', () => {
 		if (!isProjectRef.current) {
 			showNot1CProjectMessage();
@@ -422,6 +449,7 @@ export function registerMainTreeCommands(
 	void syncHiddenToolGroupsContext(context);
 
 	return [
+		selectConfigurationCommand,
 		refreshCommand,
 		launchViewCommand,
 		launchRunCommand,
