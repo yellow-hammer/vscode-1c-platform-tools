@@ -2,7 +2,7 @@ import * as fsSync from 'node:fs';
 import * as path from 'node:path';
 
 /**
- * Поиск исполняемых файлов платформы 1С:Предприятие (ibsrv, ibcmd).
+ * Поиск исполняемых файлов платформы 1С:Предприятие (ibsrv, ibcmd, rac).
  *
  * Раскладка бинарей зависит от ОС и способа установки:
  *
@@ -10,7 +10,8 @@ import * as path from 'node:path';
  * - Linux (.deb-пакеты): `<база>/<версия>/<имя>` без каталога `bin`
  *   (например `/opt/1cv8/x86_64/8.5.1.1343/ibsrv`);
  * - Linux (.run-инсталлятор): `<база>/<имя>` — бинарь прямо в каталоге установки,
- *   без подкаталога версии (например `/opt/1C/v8.3/x86_64/ibsrv`).
+ *   без подкаталога версии (например `/opt/1C/v8.3/x86_64/ibsrv`);
+ * - macOS: как в Linux, но каталог архитектуры чаще `arm64`.
  *
  * Поэтому резолвер проверяет и `bin/<имя>`, и `<имя>` в каждом каталоге версии,
  * а если каталогов версий нет — ищет бинарь прямо в базе.
@@ -20,7 +21,7 @@ import * as path from 'node:path';
  */
 
 /** Инструмент платформы, который ищем. */
-export type PlatformTool = 'ibsrv' | 'ibcmd';
+export type PlatformTool = 'ibsrv' | 'ibcmd' | 'rac';
 
 /** Каталог версии платформы: ровно четыре числовых сегмента (8.3.27.1936). */
 const VERSION_DIR_RE = /^\d+\.\d+\.\d+\.\d+$/;
@@ -139,21 +140,54 @@ export function resolvePlatformVersion(baseDir: string, requested?: string): str
 }
 
 /**
+ * Каталог архитектуры в путях установки платформы.
+ *
+ * 1С называет каталоги по своей схеме, отличной от `process.arch`: `x86_64`
+ * вместо `x64` и `i386` вместо `ia32`. Имя `arm64` совпадает.
+ *
+ * @param arch - Архитектура процессора (process.arch)
+ * @returns Имя каталога архитектуры
+ */
+export function platformArchDir(arch: string): string {
+	if (arch === 'arm64') {
+		return 'arm64';
+	}
+	if (arch === 'ia32' || arch === 'x86') {
+		return 'i386';
+	}
+	return 'x86_64';
+}
+
+/**
  * Каталоги установки платформы по умолчанию (перебираются по порядку).
  *
- * На Linux раскладка зависит от способа установки, поэтому кандидатов несколько:
- * `/opt/1cv8/x86_64` (.deb-пакеты, версии подкаталогами) и
- * `/opt/1C/v8.3/x86_64` (.run-инсталлятор, бинари прямо в каталоге).
+ * На Linux и macOS раскладка зависит от способа установки, поэтому кандидатов
+ * несколько: `/opt/1cv8/<арх>` (.deb-пакеты и macOS, версии подкаталогами) и
+ * `/opt/1C/v8.3/<арх>` (.run-инсталлятор, бинари прямо в каталоге). Первым идёт
+ * каталог архитектуры текущей машины, затем `x86_64` — на нём стоит платформа,
+ * запущенная через трансляцию. Дубликаты убираются: на x86_64 список совпадает
+ * с историческим.
  *
  * @param platform - Платформа ОС (по умолчанию process.platform)
+ * @param arch - Архитектура процессора (по умолчанию process.arch)
  * @returns Список каталогов-кандидатов
  */
-export function defaultPlatformBasePaths(platform: NodeJS.Platform = process.platform): string[] {
+export function defaultPlatformBasePaths(
+	platform: NodeJS.Platform = process.platform,
+	arch: string = process.arch
+): string[] {
 	if (platform === 'win32') {
 		const programFiles = process.env.PROGRAMFILES || 'C:\\Program Files';
 		return [path.join(programFiles, '1cv8')];
 	}
-	return ['/opt/1cv8/x86_64', '/opt/1C/v8.3/x86_64'];
+	const archDir = platformArchDir(arch);
+	const candidates = [
+		`/opt/1cv8/${archDir}`,
+		'/opt/1cv8/x86_64',
+		`/opt/1C/v8.3/${archDir}`,
+		'/opt/1C/v8.3/x86_64',
+	];
+	return [...new Set(candidates)];
 }
 
 /**
@@ -173,6 +207,37 @@ function binaryInDir(dir: string, fileName: string): string | undefined {
 		return direct;
 	}
 	return undefined;
+}
+
+/**
+ * Перечисляет установленные версии платформы, у которых есть нужный бинарь.
+ *
+ * Нужно там, где версию выбирает пользователь: предлагать список установленных
+ * честнее, чем просить вспомнить номер. Версии без бинаря не показываются —
+ * выбрать их всё равно нельзя.
+ *
+ * @param baseDir - Каталог установки платформы
+ * @param tool - Инструмент платформы
+ * @param platform - Платформа ОС (по умолчанию process.platform)
+ * @returns Версии от новых к старым
+ */
+export function listPlatformVersions(
+	baseDir: string,
+	tool: PlatformTool,
+	platform: NodeJS.Platform = process.platform
+): string[] {
+	const fileName = platformBinaryFileName(tool, platform);
+	let entries: fsSync.Dirent[];
+	try {
+		entries = fsSync.readdirSync(baseDir, { withFileTypes: true });
+	} catch {
+		return [];
+	}
+	return entries
+		.filter((entry) => entry.isDirectory() && is1cVersionDir(entry.name))
+		.filter((entry) => binaryInDir(path.join(baseDir, entry.name), fileName) !== undefined)
+		.map((entry) => entry.name)
+		.sort((a, b) => compare1cVersions(b, a));
 }
 
 /** Опции поиска бинаря платформы. */
