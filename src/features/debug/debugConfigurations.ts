@@ -75,13 +75,17 @@ export class OnecDebugConfigurationProvoider implements vscode.DebugConfiguratio
 
 		// Внешние обработки/отчёты — всегда в шаблоне (из настроек путей): несуществующие
 		// каталоги адаптер пропускает, а параметры не теряются, если каталог появится позже.
+		// Проекты EDT с внешними обработками лежат отдельно от конфигурации, поэтому найденные
+		// в рабочей области добавляются к настройкам.
 		const cfg = vscode.workspace.getConfiguration('1c-platform-tools');
 		const normalize = (p: string) => p.replace(/\\/g, '/').replace(/^\.?\//, '');
 
-		(baseConfig as Record<string, unknown>).externalFilesSrc = [
-			normalize(cfg.get<string>('paths.epf', DEFAULT_PATHS.epf)),
-			normalize(cfg.get<string>('paths.erf', DEFAULT_PATHS.erf)),
-		].map((rel) => `\${workspaceFolder}/${rel}`);
+		const externalSources = [
+			templatePath(cfg.get<string>('paths.epf', DEFAULT_PATHS.epf)),
+			templatePath(cfg.get<string>('paths.erf', DEFAULT_PATHS.erf)),
+			...(layout?.externals ?? []).map((dir) => asWorkspacePath(workspaceRoot, dir)),
+		];
+		(baseConfig as Record<string, unknown>).externalFilesSrc = [...new Set(externalSources)];
 
 		// Собранные .epf/.erf — сервер отладки адресует внешние модули по URL файла.
 		const outPath = normalize(cfg.get<string>('paths.out', DEFAULT_PATHS.out));

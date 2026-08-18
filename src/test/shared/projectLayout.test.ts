@@ -54,6 +54,12 @@ suite('раскладка проекта', () => {
 		);
 	});
 
+	test('проект EDT с внешними обработками попадает в раскладку', async () => {
+		const layout = await resolveProjectLayout(EDT_WORKSPACE, DEFAULT_PATHS);
+
+		assert.deepStrictEqual(layout.externals, [path.join(EDT_WORKSPACE, 'dp')]);
+	});
+
 	test('без исходного кода раскладка пустая', async () => {
 		const empty = fs.mkdtempSync(path.join(os.tmpdir(), '1cpt-layout-empty-'));
 
@@ -61,6 +67,7 @@ suite('раскладка проекта', () => {
 
 		assert.strictEqual(layout.configuration, undefined);
 		assert.deepStrictEqual(layout.extensions, []);
+		assert.deepStrictEqual(layout.externals, []);
 	});
 });
 

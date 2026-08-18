@@ -35,6 +35,8 @@ export interface ProjectLayout {
 	extensions: SourceRoot[];
 	/** Прочие конфигурации рабочей области: мультирут и соседние проекты в формате EDT. */
 	others: SourceRoot[];
+	/** Каталоги проектов EDT с внешними обработками и отчётами. */
+	externals: string[];
 }
 
 /** Файл-маркер формата конфигуратора. */
@@ -42,6 +44,9 @@ const DESIGNER_MARKER = 'Configuration.xml';
 
 /** Файл-маркер формата EDT относительно корня проекта. */
 const EDT_MARKER = path.join('src', 'Configuration', 'Configuration.mdo');
+
+/** Каталоги внешних обработок и отчётов в формате EDT. */
+const EDT_EXTERNAL_DIRECTORIES = ['ExternalDataProcessors', 'ExternalReports'];
 
 /** Каталоги, в которые обход не заходит. */
 const SKIP_DIRECTORIES = new Set([
@@ -81,6 +86,40 @@ export function describeMarker(head: string, format: SourceFormat): { name: stri
 		? head.match(/<Name>([^<]+)<\/Name>/)?.[1] ?? ''
 		: head.match(/<name>([^<]+)<\/name>/)?.[1] ?? '';
 	return { name: name.trim(), isExtension };
+}
+
+/** Проект EDT с внешними обработками или отчётами. */
+function hasExternalObjects(directory: string): boolean {
+	return EDT_EXTERNAL_DIRECTORIES.some(
+		(name) =>
+			fssync.existsSync(path.join(directory, 'src', name)) ||
+			fssync.existsSync(path.join(directory, name))
+	);
+}
+
+/** Проекты EDT с внешними обработками и отчётами; обход не заходит в найденный проект. */
+async function findExternalRoots(root: string, depth: number, found: string[]): Promise<void> {
+	if (hasExternalObjects(root)) {
+		found.push(root);
+		return;
+	}
+	if (depth === 0) {
+		return;
+	}
+
+	let entries: fssync.Dirent[];
+	try {
+		entries = await fs.readdir(root, { withFileTypes: true });
+	} catch {
+		return;
+	}
+
+	for (const entry of entries) {
+		if (!entry.isDirectory() || SKIP_DIRECTORIES.has(entry.name)) {
+			continue;
+		}
+		await findExternalRoots(path.join(root, entry.name), depth - 1, found);
+	}
 }
 
 async function readRoot(directory: string): Promise<SourceRoot | undefined> {
@@ -149,6 +188,8 @@ export interface LayoutPaths {
  */
 export async function resolveProjectLayout(workspaceRoot: string, paths: LayoutPaths): Promise<ProjectLayout> {
 	const configuration = await readRoot(path.resolve(workspaceRoot, paths.configuration));
+	const externals: string[] = [];
+	await findExternalRoots(workspaceRoot, MAX_DEPTH, externals);
 	const extensions: SourceRoot[] = [];
 
 	for (const relative of paths.extensions) {
@@ -171,7 +212,7 @@ export async function resolveProjectLayout(workspaceRoot: string, paths: LayoutP
 	}
 
 	if (configuration && extensions.length > 0) {
-		return { configuration, extensions, others: [] };
+		return { configuration, extensions, others: [], externals };
 	}
 
 	// По настройкам исходного кода нет: ищем его в рабочей области.
@@ -185,5 +226,6 @@ export async function resolveProjectLayout(workspaceRoot: string, paths: LayoutP
 		configuration: resolved,
 		extensions: extensions.length > 0 ? extensions : found.filter((root) => root.isExtension),
 		others: configurations.filter((root) => root.dir !== resolved?.dir),
+		externals,
 	};
 }
