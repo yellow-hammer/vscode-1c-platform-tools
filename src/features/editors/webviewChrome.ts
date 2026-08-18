@@ -42,7 +42,7 @@ export function chromeStyles(): string {
 	h2:first-child { margin-top: 0; }
 	h2 button { margin-left: auto; }
 
-	input[type=text], input[type=number], textarea, select {
+	input[type=text], input[type=number], input[type=password], textarea, select {
 		background: var(--vscode-input-background); color: var(--vscode-input-foreground);
 		border: 1px solid var(--vscode-input-border, transparent); border-radius: 4px; padding: 5px 8px;
 		font-family: inherit; font-size: inherit; box-sizing: border-box; width: 100%;
@@ -249,7 +249,8 @@ window.addEventListener('error', (event) => {
 
 document.getElementById('saveButton').addEventListener('click', save);
 document.getElementById('cancelButton').addEventListener('click', cancelChanges);
-document.getElementById('jsonButton').addEventListener('click', () => post({ type: 'openJson' }));
+// Кнопка JSON есть только у редакторов служебных файлов: форме без файла её открывать нечем
+document.getElementById('jsonButton')?.addEventListener('click', () => post({ type: 'openJson' }));
 window.addEventListener('keydown', (event) => {
 	if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 's') {
 		event.preventDefault();

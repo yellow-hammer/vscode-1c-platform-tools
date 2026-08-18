@@ -18,6 +18,9 @@ export const COMMAND_PREFIX = '1c-platform-tools.';
  */
 const HIDDEN_PREFIXES = [
 	`${COMMAND_PREFIX}file.`,
+	// Консоль кластера: команды работают с выделенным узлом дерева, а действия
+	// вроде завершения сеанса необратимы и требуют подтверждения человеком
+	`${COMMAND_PREFIX}clusters.`,
 	`${COMMAND_PREFIX}metadata.`,
 	`${COMMAND_PREFIX}projects.`,
 	`${COMMAND_PREFIX}todo.`,
