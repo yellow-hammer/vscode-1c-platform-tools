@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mdclass:Configuration xmlns:mdclass="http://g5.1c.ru/v8/dt/metadata/mdclass" uuid="66193438-abc5-410b-a1f1-a204102d1a62">
+  <name>БиблиотекаСтандартныхПодсистемДемо</name>
+  <synonym>
+    <key>ru</key>
+    <value>Демонстрационная конфигурация &quot;Библиотека стандартных подсистем&quot;, редакция 3.1</value>
+  </synonym>
+  <containedObjects classId="9cd510cd-abfc-11d4-9434-004095e12fc7" objectId="f389d417-7804-4810-a1c5-a13b3209ad71"/>
+  <containedObjects classId="9fcd25a0-4822-11d4-9414-008048da11f9" objectId="f25a2a6c-5837-41c9-9a98-617d68c0533f"/>
+  <containedObjects classId="e3687481-0a87-462c-a166-9f34594f9bba" objectId="a508f25c-5186-4caa-bb50-5a3e81ca6c55"/>
+  <containedObjects classId="9de14907-ec23-4a07-96f0-85521cb6b53b" objectId="c9f0ee7e-1863-49e9-ae27-88df9eedc4b2"/>
+  <containedObjects classId="51f2d5d8-ea4d-4064-8892-82951750031e" objectId="86144e59-7d24-4393-b93f-13d79918ca6c"/>
+  <containedObjects classId="e68182ea-4237-4383-967f-90c1e3370bc7" objectId="cdb73699-d526-419b-969a-1e5b02773412"/>
+  <containedObjects classId="fb282519-d103-4dd3-bc12-cb271d631dfc" objectId="009646b8-f87c-4637-afea-ec8c7dd055ad"/>
+  <configurationExtensionCompatibilityMode>8.3.27</configurationExtensionCompatibilityMode>
+  <defaultRunMode>ManagedApplication</defaultRunMode>
+  <usePurposes>PersonalComputer</usePurposes>
+  <scriptVariant>Russian</scriptVariant>
+  <defaultRoles>Role.ПолныеПрава</defaultRoles>
+  <defaultRoles>Role.АдминистраторСистемы</defaultRoles>
+  <defaultRoles>Role.ИнтерактивноеОткрытиеВнешнихОтчетовИОбработок</defaultRoles>
+  <vendor>Фирма &quot;1С&quot;</vendor>
+  <version>3.1.11.392</version>
+  <updateCatalogAddress>https://downloads.v8.1c.ru/tmplts/</updateCatalogAddress>
+  <includeHelpInContents>true</includeHelpInContents>
+  <help>
+    <pages>
+      <lang>ru</lang>
+    </pages>
+  </help>
+  <useManagedFormInOrdinaryApplication>true</useManagedFormInOrdinaryApplication>
+  <defaultReportForm>CommonForm.ФормаОтчета</defaultReportForm>
+  <defaultReportVariantForm>CommonForm.ФормаВариантаОтчета</defaultReportVariantForm>
+  <defaultReportSettingsForm>CommonForm.ФормаНастроекОтчета</defaultReportSettingsForm>
+  <usedMobileApplicationFunctionalities>
+    <functionality>
+      <use>true</use>
+    </functionality>
+    <functionality>
+      <functionality>Camera</functionality>
+      <use>true</use>
+    </functionality>
+    <functionality>
+      <functionality>OSBackup</functionality>
+      <use>true</use>
+    </functionality>
+  </usedMobileApplicationFunctionalities>
+  <mainSectionPicture/>
+  <defaultLanguage>Language.Русский</defaultLanguage>
+  <briefInformation>
+    <key>ru</key>
+    <value>Демонстрационная конфигурация &quot;Библиотека стандартных подсистем&quot;, редакция 3.1</value>
+  </briefInformation>
+  <detailedInformation>
+    <key>ru</key>
+    <value>Демонстрационная конфигурация &quot;Библиотека стандартных подсистем&quot;, редакция 3.1</value>
+  </detailedInformation>
+  <splash/>
+  <copyright>
+    <key>ru</key>
+    <value>Copyright © ООО &quot;1С-Софт&quot;, 2009-2024. Все права защищены</value>
+  </copyright>
+  <vendorInformationAddress>
+    <key>ru</key>
+    <value>https://www.1c.ru</value>
+  </vendorInformationAddress>
+  <configurationInformationAddress>
+    <key>ru</key>
+    <value>https://v8.1c.ru/ssl</value>
+  </configurationInformationAddress>
+  <dataLockControlMode>Managed</dataLockControlMode>
+  <objectAutonumerationMode>NotAutoFree</objectAutonumerationMode>
+  <modalityUseMode>UseWithWarnings</modalityUseMode>
+  <interfaceCompatibilityMode>TaxiEnableVersion8_2</interfaceCompatibilityMode>
+  <c

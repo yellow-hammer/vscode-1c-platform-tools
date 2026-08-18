@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mdclass:Configuration xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:mdclass="http://g5.1c.ru/v8/dt/metadata/mdclass" xmlns:mdclassExtension="http://g5.1c.ru/v8/dt/metadata/mdclass/extension" uuid="2fd73213-5b64-4002-b842-6e6dbd6ab9fa">
+  <name>_ДемоРасширение</name>
+  <synonym>
+    <key>ru</key>
+    <value>Демо: Расширение</value>
+  </synonym>
+  <objectBelonging>Adopted</objectBelonging>
+  <extension xsi:type="mdclassExtension:ConfigurationExtension">
+    <defaultLanguage>Checked</defaultLanguage>
+  </extension>
+  <containedObjects classId="9cd510cd-abfc-11d4-9434-004095e12fc7" objectId="d7800717-0e86-451f-a6ce-57630d818feb"/>
+  <containedObjects classId="9fcd25a0-4822-11d4-9414-008048da11f9" objectId="4ed49da0-107f-433d-9d54-7fb261163c57"/>
+  <containedObjects classId="e3687481-0a87-462c-a166-9f34594f9bba" objectId="79cf2942-b0ce-4a24-a3b9-d0179aee3c46"/>
+  <containedObjects classId="9de14907-ec23-4a07-96f0-85521cb6b53b" objectId="7ca6ce3b-72e3-41f2-af4c-e592223f255b"/>
+  <containedObjects classId="51f2d5d8-ea4d-4064-8892-82951750031e" objectId="97195d3c-c930-4477-b4b0-e94e6f4e6782"/>
+  <containedObjects classId="e68182ea-4237-4383-967f-90c1e3370bc7" objectId="fe151390-6223-4a57-bb8c-dfc8118c8c2d"/>
+  <containedObjects classId="fb282519-d103-4dd3-bc12-cb271d631dfc" objectId="fcd31d88-3af2-4bf2-b7c0-b478a9776c14"/>
+  <keepMappingToExtendedConfigurationObjectsByIDs>true</keepMappingToExtendedConfigurationObjectsByIDs>
+  <namePrefix>_Демо</namePrefix>
+  <configurationExtensionCompatibilityMode>8.3.24</configurationExtensionCompatibilityMode>
+  <configurationExtensionPurpose>Customization</configurationExtensionPurpose>
+  <scriptVariant>Russian</scriptVariant>
+  <vendor>Фирма &quot;1С&quot;</vendor>
+  <version>1.0.1.14</version>
+  <defaultLanguage>Language.Русский</defaultLanguage>
+  <languages uuid="eecf216b-994d-452b-a20c-d6c32a4e20f0">
+    <name>Русский</name>
+    <objectBelonging>Adopted</objectBelonging>
+    <extension xsi:type="mdclassExtension:LanguageExtension">
+      <languageCode>Checked</languageCode>
+    </extension>
+    <languageCode>ru</languageCode>
+  </languages>
+  <subsystems>Subsystem._ДемоОрганайзер</subsystems>
+  <subsystems>Subsystem._ДемоРасширение</subsystems>
+  <subsystems>Subsystem._ДемоУправлениеДоступом</subsystems>
+  <subsystems>Subsystem.Администрирование</subsystems>
+  <subsystems>Subsystem.ПодключаемыеОтчетыИОбработки</subsystems>
+  <styleItems>StyleItem._ДемоРабочийСегментПартнеровШрифтРасширение</styleItems>
+  <styleItems>StyleItem.ПоясняющийТекст</styleItems>
+  <styles>Style._ДемоСтильРасширения</styles>
+  <commonPictures>CommonPicture._ДемоЛоготипБСП</commonPictures>
+  <commonPictures>CommonPicture._ДемоРазделИнтегрируемыеПодсистемы</commonPictures>
+  <commonPictures>CommonPicture.ВставитьГруппировкуВыше</commonPictures>
+  <commonPictures>CommonPicture.ВставитьГруппировкуНиже</commonPictures>
+  <commonPictures>CommonPicture.ВставитьКолонкуСлева</commonPictures>
+  <commonPictures>CommonPicture.ВставитьКолонкуСправа</commonPictures>
+  <commonPictures>CommonPicture.ВысотаСтроки</commonPictures>
+  <commonPictures>CommonPicture.ГраницаВокруг</commonPictures>
+  <commonPictures>CommonPicture.ДлительнаяОперация48</commonPictures>
+  <commonPictures>CommonPicture.Информация32</commonPictures>
+  <commonPictures>CommonPicture.Предупреждение</commonPictures>
+  <commonPictures>CommonPicture.РежимИспользованияПриложенияВСервисеЛокально</commonPictures>
+  <commonPictures>CommonPicture.УвеличитьШрифт</commonPictures>
+  <common
