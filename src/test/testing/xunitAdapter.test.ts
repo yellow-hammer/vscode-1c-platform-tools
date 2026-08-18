@@ -42,7 +42,10 @@ suite('xunitAdapter', () => {
 		// куда смотрят команды сборки, иначе ветка xUnit опустеет
 		const expected = testsSubPath(DEFAULT_PATHS.tests, TESTS_SUBDIRS.epf);
 		assert.strictEqual(expected, 'tests/epf');
-		assert.deepStrictEqual(globs, [`${expected}/**/Ext/ObjectModule.bsl`]);
+		assert.deepStrictEqual(globs, [
+			`${expected}/**/Ext/ObjectModule.bsl`,
+			`${expected}/**/src/ExternalDataProcessors/*/ObjectModule.bsl`,
+		]);
 		assert.ok(!globs.some((glob) => glob.startsWith('src/tests')), globs.join(', '));
 	});
 
@@ -53,5 +56,18 @@ suite('xunitAdapter', () => {
 			undefined
 		);
 		assert.strictEqual(epfTestSourceInfo('C:/proj/ObjectModule.bsl'), undefined);
+	});
+});
+
+suite('поиск тестов в раскладке EDT', () => {
+	test('xUnit ищет тестовые обработки и в проекте EDT', () => {
+		const adapter = new XUnitAdapter(VRunnerManager.getInstance());
+
+		const globs = adapter.getIncludeGlobs();
+
+		assert.ok(
+			globs.some((glob) => glob.endsWith('/src/ExternalDataProcessors/*/ObjectModule.bsl')),
+			`в раскладке EDT обработки лежат иначе: ${globs.join(', ')}`
+		);
 	});
 });
