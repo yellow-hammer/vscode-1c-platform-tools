@@ -4,10 +4,22 @@ import * as fs from 'node:fs';
 
 const EXTENSION_ROOT = path.resolve(__dirname, '../../..');
 
-/** Редакторы служебных файлов на общем каркасе. */
-const EDITORS = [
+/** Редакторы служебных файлов: правят файл, поэтому у них есть кнопка JSON. */
+const FILE_EDITORS = [
 	{ name: 'пайплайны', file: path.join('src', 'features', 'pipelines', 'pipelineEditorProvider.ts') },
 	{ name: 'хуки', file: path.join('src', 'features', 'hooks', 'hooksEditorProvider.ts') },
+];
+
+/**
+ * Все формы на общем каркасе.
+ *
+ * Форма подключений к кластерам файла под собой не имеет — список живёт в
+ * состоянии расширения, поэтому кнопки JSON у неё нет, а остальное оформление
+ * и поведение общие.
+ */
+const EDITORS = [
+	...FILE_EDITORS,
+	{ name: 'подключения к кластерам', file: path.join('src', 'features', 'clusters', 'connectionsEditor.ts') },
 ];
 
 /**
@@ -82,7 +94,7 @@ suite('редакторы служебных файлов: общий карка
 		}
 	});
 
-	test('оба редактора собраны на общем каркасе', () => {
+	test('формы собраны на общем каркасе', () => {
 		for (const editor of EDITORS) {
 			const text = source(editor.file);
 			for (const marker of ['chromeStyles()', 'chromeScript()', 'saveBarHtml()']) {
@@ -108,6 +120,9 @@ suite('редакторы служебных файлов: общий карка
 				!/>\s*(Сохранить|Отменить)\s*</.test(html),
 				`${editor.name}: подписи сохранения заданы мимо каркаса`
 			);
+		}
+		for (const editor of FILE_EDITORS) {
+			const { html } = parts(editor.file);
 			assert.ok(html.includes('${CHROME_LABELS.json}'), `${editor.name}: подпись JSON задана мимо каркаса`);
 		}
 	});

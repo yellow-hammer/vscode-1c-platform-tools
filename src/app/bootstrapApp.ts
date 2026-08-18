@@ -28,12 +28,17 @@ import { registerLaunchFeature } from '../features/launch/launchFeature';
 import { registerPlatformServerFeature } from '../features/launch/platformServerFeature';
 import { registerDiagnosticsFeature } from '../features/diagnostics/registerDiagnosticsFeature';
 import { registerTasksFeature } from '../features/tasks/registerTasksFeature';
+import { registerClustersFeature } from '../features/clusters/registerClustersFeature';
 
 /**
  * Выполняет полную инициализацию расширения.
  */
 export async function bootstrapApp(context: vscode.ExtensionContext): Promise<void> {
 	const { registerRuntime: registerProjectsRuntime } = registerProjectsFlow(context);
+
+	// Консоль кластера не зависит от открытого проекта 1С: администрируют кластер
+	// и без исходников в рабочей области.
+	const clustersFeatureDisposables = registerClustersFeature(context);
 
 	registerDebugFeature(context);
 	context.subscriptions.push(ProfileEditorProvider.register(context));
@@ -106,6 +111,7 @@ export async function bootstrapApp(context: vscode.ExtensionContext): Promise<vo
 		...platformServerDisposables,
 		...diagnosticsFeatureDisposables,
 		...tasksFeatureDisposables,
+		...clustersFeatureDisposables,
 		...commandDisposables
 	);
 }

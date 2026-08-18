@@ -45,11 +45,14 @@
     "workspaceContains:packagedef",
     "onCommand:1c-platform-tools.dependencies.initializePackagedef",
     "onCommand:1c-platform-tools.projects.create",
+    "onView:1c-platform-tools-clusters-tree",
     "onView:1c-platform-tools-projects-favorites",
     "onView:1c-platform-tools-projects-all",
     "onView:1c-platform-tools-projects-help",
     "onCommand:1c-platform-tools.projects.listOpen",
-    "onCommand:1c-platform-tools.settings.openProjects"
+    "onCommand:1c-platform-tools.settings.openProjects",
+    "onView:1c-platform-tools-clusters-tree",
+    "onCommand:1c-platform-tools.clusters.addConnection"
   ],
   "main": "./out/extension.js",
   "contributes": {
@@ -104,6 +107,11 @@
           "icon": "resources/1c-icon.svg"
         },
         {
+          "id": "1c-platform-tools-clusters",
+          "title": "Управление кластерами 1С",
+          "icon": "resources/1c-icon.svg"
+        },
+        {
           "id": "1c-platform-tools",
           "title": "Инструменты 1С",
           "icon": "resources/1c-icon.svg",
@@ -132,6 +140,19 @@
       ]
     },
     "views": {
+      "1c-platform-tools-clusters": [
+        {
+          "id": "1c-platform-tools-clusters-tree",
+          "name": "Подключения",
+          "contextualTitle": "Управление кластерами 1С"
+        },
+        {
+          "id": "1c-platform-tools-clusters-help",
+          "name": "Помощь и поддержка",
+          "contextualTitle": "Помощь и поддержка",
+          "visibility": "collapsed"
+        }
+      ],
       "1c-platform-tools-projects": [
         {
           "id": "1c-platform-tools-projects-favorites",
@@ -528,6 +549,126 @@
       }
     ],
     "commands": [
+      {
+        "command": "1c-platform-tools.clusters.addConnection",
+        "title": "Создать подключение к кластеру",
+        "category": "1C: Управление кластерами",
+        "icon": "$(add)"
+      },
+      {
+        "command": "1c-platform-tools.clusters.removeConnection",
+        "title": "Удалить",
+        "category": "1C: Управление кластерами",
+        "icon": "$(trash)"
+      },
+      {
+        "command": "1c-platform-tools.clusters.refresh",
+        "title": "Обновить дерево кластеров",
+        "category": "1C: Управление кластерами",
+        "icon": "$(refresh)"
+      },
+      {
+        "command": "1c-platform-tools.clusters.refreshNode",
+        "title": "Обновить",
+        "category": "1C: Управление кластерами",
+        "icon": "$(refresh)"
+      },
+      {
+        "command": "1c-platform-tools.clusters.enableAutoRefresh",
+        "title": "Включить автообновление дерева кластеров",
+        "category": "1C: Управление кластерами",
+        "icon": "$(sync-ignored)"
+      },
+      {
+        "command": "1c-platform-tools.clusters.disableAutoRefresh",
+        "title": "Выключить автообновление дерева кластеров",
+        "category": "1C: Управление кластерами",
+        "icon": "$(sync)"
+      },
+      {
+        "command": "1c-platform-tools.clusters.showActivity",
+        "title": "Сеансы и соединения таблицей",
+        "category": "1C: Управление кластерами",
+        "icon": "$(pulse)"
+      },
+      {
+        "command": "1c-platform-tools.clusters.properties",
+        "title": "Свойства",
+        "category": "1C: Управление кластерами",
+        "icon": "$(settings)"
+      },
+      {
+        "command": "1c-platform-tools.clusters.addAdmin",
+        "title": "Добавить",
+        "category": "1C: Управление кластерами",
+        "icon": "$(add)"
+      },
+      {
+        "command": "1c-platform-tools.clusters.removeAdmin",
+        "title": "Удалить",
+        "category": "1C: Управление кластерами",
+        "icon": "$(trash)"
+      },
+      {
+        "command": "1c-platform-tools.clusters.terminateSession",
+        "title": "Завершить",
+        "category": "1C: Управление кластерами",
+        "icon": "$(debug-stop)"
+      },
+      {
+        "command": "1c-platform-tools.clusters.interruptSessionCall",
+        "title": "Прервать текущий вызов",
+        "category": "1C: Управление кластерами",
+        "icon": "$(debug-pause)"
+      },
+      {
+        "command": "1c-platform-tools.clusters.turnOffProcess",
+        "title": "Выключить",
+        "category": "1C: Управление кластерами",
+        "icon": "$(circle-slash)"
+      },
+      {
+        "command": "1c-platform-tools.clusters.terminateInfobaseSessions",
+        "title": "Завершить все сеансы",
+        "category": "1C: Управление кластерами",
+        "icon": "$(debug-stop)"
+      },
+      {
+        "command": "1c-platform-tools.clusters.disconnectConnection",
+        "title": "Разорвать",
+        "category": "1C: Управление кластерами",
+        "icon": "$(debug-disconnect)"
+      },
+      {
+        "command": "1c-platform-tools.clusters.lockSessions",
+        "title": "Запретить начало сеансов",
+        "category": "1C: Управление кластерами",
+        "icon": "$(lock)"
+      },
+      {
+        "command": "1c-platform-tools.clusters.unlockSessions",
+        "title": "Разрешить начало сеансов",
+        "category": "1C: Управление кластерами",
+        "icon": "$(unlock)"
+      },
+      {
+        "command": "1c-platform-tools.clusters.lockScheduledJobs",
+        "title": "Запретить регламентные задания",
+        "category": "1C: Управление кластерами",
+        "icon": "$(clock)"
+      },
+      {
+        "command": "1c-platform-tools.clusters.unlockScheduledJobs",
+        "title": "Разрешить регламентные задания",
+        "category": "1C: Управление кластерами",
+        "icon": "$(clock)"
+      },
+      {
+        "command": "1c-platform-tools.clusters.openSettings",
+        "title": "Настройки кластеров",
+        "category": "1C: Управление кластерами",
+        "icon": "$(gear)"
+      },
       {
         "command": "1c-platform-tools.env.openProfileEditor",
         "title": "Открыть редактор профиля запуска",
@@ -1754,10 +1895,82 @@
       {
         "view": "1c-platform-tools-projects-favorites",
         "contents": "Нет избранных проектов.\n[Открыть папку](command:vscode.openFolder)\n[Настройка](command:1c-platform-tools.settings.openProjects)"
+      },
+      {
+        "view": "1c-platform-tools-clusters-tree",
+        "contents": "Нет подключений к кластерам 1С.\n[Создать подключение](command:1c-platform-tools.clusters.addConnection)\n[Настройка](command:1c-platform-tools.clusters.openSettings)"
       }
     ],
     "menus": {
       "commandPalette": [
+        {
+          "command": "1c-platform-tools.clusters.properties",
+          "when": "false"
+        },
+        {
+          "command": "1c-platform-tools.clusters.addAdmin",
+          "when": "false"
+        },
+        {
+          "command": "1c-platform-tools.clusters.removeAdmin",
+          "when": "false"
+        },
+        {
+          "command": "1c-platform-tools.clusters.showActivity",
+          "when": "false"
+        },
+        {
+          "command": "1c-platform-tools.clusters.interruptSessionCall",
+          "when": "false"
+        },
+        {
+          "command": "1c-platform-tools.clusters.turnOffProcess",
+          "when": "false"
+        },
+        {
+          "command": "1c-platform-tools.clusters.enableAutoRefresh",
+          "when": "!1c-platform-tools.clusters.autoRefresh"
+        },
+        {
+          "command": "1c-platform-tools.clusters.disableAutoRefresh",
+          "when": "1c-platform-tools.clusters.autoRefresh"
+        },
+        {
+          "command": "1c-platform-tools.clusters.removeConnection",
+          "when": "false"
+        },
+        {
+          "command": "1c-platform-tools.clusters.refreshNode",
+          "when": "false"
+        },
+        {
+          "command": "1c-platform-tools.clusters.terminateSession",
+          "when": "false"
+        },
+        {
+          "command": "1c-platform-tools.clusters.terminateInfobaseSessions",
+          "when": "false"
+        },
+        {
+          "command": "1c-platform-tools.clusters.disconnectConnection",
+          "when": "false"
+        },
+        {
+          "command": "1c-platform-tools.clusters.lockSessions",
+          "when": "false"
+        },
+        {
+          "command": "1c-platform-tools.clusters.unlockSessions",
+          "when": "false"
+        },
+        {
+          "command": "1c-platform-tools.clusters.lockScheduledJobs",
+          "when": "false"
+        },
+        {
+          "command": "1c-platform-tools.clusters.unlockScheduledJobs",
+          "when": "false"
+        },
         {
           "command": "1c-platform-tools.debug.showVariableInWindow",
           "when": "false"
@@ -2131,6 +2344,31 @@
       ],
       "view/title": [
         {
+          "command": "1c-platform-tools.clusters.addConnection",
+          "when": "view == 1c-platform-tools-clusters-tree",
+          "group": "navigation@1"
+        },
+        {
+          "command": "1c-platform-tools.clusters.enableAutoRefresh",
+          "when": "view == 1c-platform-tools-clusters-tree && !1c-platform-tools.clusters.autoRefresh",
+          "group": "navigation@2"
+        },
+        {
+          "command": "1c-platform-tools.clusters.disableAutoRefresh",
+          "when": "view == 1c-platform-tools-clusters-tree && 1c-platform-tools.clusters.autoRefresh",
+          "group": "navigation@2"
+        },
+        {
+          "command": "1c-platform-tools.clusters.refresh",
+          "when": "view == 1c-platform-tools-clusters-tree",
+          "group": "navigation@30"
+        },
+        {
+          "command": "1c-platform-tools.clusters.openSettings",
+          "when": "view == 1c-platform-tools-clusters-tree",
+          "group": "navigation@20"
+        },
+        {
           "command": "debug.debugTargets.connect",
           "when": "view == debug.debugTargets",
           "group": "navigation"
@@ -2317,6 +2555,101 @@
         }
       ],
       "view/item/context": [
+        {
+          "command": "1c-platform-tools.clusters.properties",
+          "when": "view == 1c-platform-tools-clusters-tree && viewItem =~ /^(clusterConnection|clusterNode|clusterServer|clusterProcess|clusterManager|clusterInfobase|clusterSession|clusterConnectionItem|clusterAdmin|clusterAgentAdmin)$/",
+          "group": "1_details@1"
+        },
+        {
+          "command": "1c-platform-tools.clusters.properties",
+          "when": "view == 1c-platform-tools-clusters-tree && viewItem =~ /^(clusterConnection|clusterNode|clusterServer|clusterProcess|clusterManager|clusterInfobase|clusterSession|clusterConnectionItem|clusterAdmin|clusterAgentAdmin)$/",
+          "group": "inline@20"
+        },
+        {
+          "command": "1c-platform-tools.clusters.addAdmin",
+          "when": "view == 1c-platform-tools-clusters-tree && viewItem =~ /^clusterGroup[.](clusterAdmins|agentAdmins)$/",
+          "group": "inline@10"
+        },
+        {
+          "command": "1c-platform-tools.clusters.removeAdmin",
+          "when": "view == 1c-platform-tools-clusters-tree && viewItem =~ /^(clusterAdmin|clusterAgentAdmin)$/",
+          "group": "3_danger@1"
+        },
+        {
+          "command": "1c-platform-tools.clusters.refreshNode",
+          "when": "view == 1c-platform-tools-clusters-tree && viewItem != clusterMessage",
+          "group": "inline@90"
+        },
+        {
+          "command": "1c-platform-tools.clusters.removeConnection",
+          "when": "view == 1c-platform-tools-clusters-tree && viewItem == clusterConnection",
+          "group": "1_connection@2"
+        },
+        {
+          "command": "1c-platform-tools.clusters.showActivity",
+          "when": "view == 1c-platform-tools-clusters-tree && viewItem =~ /^(clusterNode|clusterInfobase)$/",
+          "group": "1_details@0"
+        },
+        {
+          "command": "1c-platform-tools.clusters.showActivity",
+          "when": "view == 1c-platform-tools-clusters-tree && viewItem =~ /^(clusterNode|clusterInfobase)$/",
+          "group": "inline@30"
+        },
+        {
+          "command": "1c-platform-tools.clusters.lockSessions",
+          "when": "view == 1c-platform-tools-clusters-tree && viewItem == clusterInfobase",
+          "group": "2_infobase@1"
+        },
+        {
+          "command": "1c-platform-tools.clusters.unlockSessions",
+          "when": "view == 1c-platform-tools-clusters-tree && viewItem == clusterInfobase",
+          "group": "2_infobase@2"
+        },
+        {
+          "command": "1c-platform-tools.clusters.lockScheduledJobs",
+          "when": "view == 1c-platform-tools-clusters-tree && viewItem == clusterInfobase",
+          "group": "2_infobase@3"
+        },
+        {
+          "command": "1c-platform-tools.clusters.unlockScheduledJobs",
+          "when": "view == 1c-platform-tools-clusters-tree && viewItem == clusterInfobase",
+          "group": "2_infobase@4"
+        },
+        {
+          "command": "1c-platform-tools.clusters.terminateInfobaseSessions",
+          "when": "view == 1c-platform-tools-clusters-tree && viewItem == clusterInfobase",
+          "group": "3_danger@1"
+        },
+        {
+          "command": "1c-platform-tools.clusters.interruptSessionCall",
+          "when": "view == 1c-platform-tools-clusters-tree && viewItem == clusterSession",
+          "group": "3_danger@0"
+        },
+        {
+          "command": "1c-platform-tools.clusters.turnOffProcess",
+          "when": "view == 1c-platform-tools-clusters-tree && viewItem == clusterProcess",
+          "group": "3_danger@1"
+        },
+        {
+          "command": "1c-platform-tools.clusters.terminateSession",
+          "when": "view == 1c-platform-tools-clusters-tree && viewItem == clusterSession",
+          "group": "inline@30"
+        },
+        {
+          "command": "1c-platform-tools.clusters.terminateSession",
+          "when": "view == 1c-platform-tools-clusters-tree && viewItem == clusterSession",
+          "group": "3_danger@1"
+        },
+        {
+          "command": "1c-platform-tools.clusters.disconnectConnection",
+          "when": "view == 1c-platform-tools-clusters-tree && viewItem == clusterConnectionItem",
+          "group": "inline@30"
+        },
+        {
+          "command": "1c-platform-tools.clusters.disconnectConnection",
+          "when": "view == 1c-platform-tools-clusters-tree && viewItem == clusterConnectionItem",
+          "group": "3_danger@1"
+        },
         {
           "command": "1c-platform-tools.metadata.validateDump",
           "when": "view == 1c-platform-tools-metadata-tree && viewItem == metadataSourceConfigLike",
@@ -3005,6 +3338,14 @@
             "media": {
               "markdown": "walkthrough/step13-autonomous-server.md"
             }
+          },
+          {
+            "id": "step15-clusters",
+            "title": "Управление кластерами 1С",
+            "description": "Консоль администрирования кластера через rac: подключения к ras, информационные базы, сеансы и соединения, блокировки и завершение сеансов.\n\n[Открыть панель «Управление кластерами 1С»](command:workbench.view.extension.1c-platform-tools-clusters)\n[Создать подключение к кластеру](command:1c-platform-tools.clusters.addConnection)\n[Настройки кластеров](command:1c-platform-tools.clusters.openSettings)",
+            "media": {
+              "markdown": "walkthrough/step15-clusters.md"
+            }
           }
         ]
       }
@@ -3587,6 +3928,40 @@
             "type": "number",
             "default": 1550,
             "description": "TCP-порт сервера отладки автономного сервера (при server.debug = true)."
+          }
+        }
+      },
+      {
+        "title": "Кластеры",
+        "id": "1c-platform-tools.clusters",
+        "order": 9,
+        "properties": {
+          "1c-platform-tools.clusters.platformPath": {
+            "type": "string",
+            "default": "",
+            "description": "Каталог установки платформы 1С для поиска rac. Пусто: определяется автоматически (%PROGRAMFILES%\\1cv8 в Windows, /opt/1cv8/<архитектура> и /opt/1C/v8.3/<архитектура> в Linux и macOS). Версия платформы задаётся у каждого подключения отдельно."
+          },
+          "1c-platform-tools.clusters.timeoutSeconds": {
+            "type": "number",
+            "default": 30,
+            "minimum": 1,
+            "description": "Сколько ждать ответа rac. Недоступный сервер администрирования не ответит вовсе, поэтому вызов прерывается по таймауту."
+          },
+          "1c-platform-tools.clusters.autoRefresh.enabled": {
+            "type": "boolean",
+            "default": false,
+            "description": "Периодически обновлять дерево кластеров. Обновление идёт только когда панель «Управление кластерами 1С» видна."
+          },
+          "1c-platform-tools.clusters.autoRefresh.intervalSeconds": {
+            "type": "number",
+            "default": 30,
+            "minimum": 5,
+            "description": "Интервал автообновления дерева кластеров, секунды."
+          },
+          "1c-platform-tools.clusters.confirmDestructiveActions": {
+            "type": "boolean",
+            "default": true,
+            "description": "Спрашивать подтверждение перед завершением сеанса и разрывом соединения. Завершение всех сеансов базы подтверждается всегда."
           }
         }
       }

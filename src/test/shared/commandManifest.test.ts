@@ -118,6 +118,28 @@ suite('манифест команд', () => {
 		assert.deepStrictEqual(foreign, [], `в группе расширений решения чужие команды: ${foreign.join(', ')}`);
 	});
 
+	test('кнопки в приветствиях представлений вызывают существующие команды', () => {
+		const declared = declaredCommands();
+		const pkg = JSON.parse(fs.readFileSync(path.join(EXTENSION_ROOT, 'package.json'), 'utf8')) as {
+			contributes: { viewsWelcome?: Array<{ view: string; contents: string }> };
+		};
+		const missing: string[] = [];
+		for (const entry of pkg.contributes.viewsWelcome ?? []) {
+			for (const match of entry.contents.matchAll(/\]\(command:([\w.-]+)\)/g)) {
+				const id = match[1];
+				if (id.startsWith(COMMAND_PREFIX) && !declared.has(id)) {
+					missing.push(`${entry.view}: ${id}`);
+				}
+			}
+		}
+		assert.deepStrictEqual(
+			missing,
+			[],
+			`приветствия ссылаются на несуществующие команды: ${missing.join(', ')}. ` +
+				'Кнопка удалённой команды выглядит рабочей, но ничего не делает'
+		);
+	});
+
 	test('меню вызывают существующие команды', () => {
 		const declared = declaredCommands();
 		const pkg = JSON.parse(fs.readFileSync(path.join(EXTENSION_ROOT, 'package.json'), 'utf8')) as {

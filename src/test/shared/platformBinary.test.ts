@@ -8,9 +8,11 @@ import {
 	platformBinaryFileName,
 	pickPlatformVersion,
 	expandEnvPlaceholders,
+	listPlatformVersions,
 	resolvePlatformVersion,
 	resolvePlatformBinary,
 	defaultPlatformBasePaths,
+	platformArchDir,
 } from '../../shared/platformBinary';
 
 suite('platformBinary', () => {
@@ -33,7 +35,15 @@ suite('platformBinary', () => {
 	test('platformBinaryFileName: расширение по ОС', () => {
 		assert.strictEqual(platformBinaryFileName('ibsrv', 'win32'), 'ibsrv.exe');
 		assert.strictEqual(platformBinaryFileName('ibcmd', 'win32'), 'ibcmd.exe');
+		assert.strictEqual(platformBinaryFileName('rac', 'win32'), 'rac.exe');
 		assert.strictEqual(platformBinaryFileName('ibsrv', 'linux'), 'ibsrv');
+		assert.strictEqual(platformBinaryFileName('rac', 'darwin'), 'rac');
+	});
+
+	test('platformArchDir: каталоги 1С названы иначе, чем process.arch', () => {
+		assert.strictEqual(platformArchDir('x64'), 'x86_64');
+		assert.strictEqual(platformArchDir('arm64'), 'arm64');
+		assert.strictEqual(platformArchDir('ia32'), 'i386');
 	});
 
 	test('pickPlatformVersion: наибольшая при отсутствии запроса', () => {
@@ -88,13 +98,23 @@ suite('platformBinary', () => {
 	});
 
 	test('defaultPlatformBasePaths: кандидаты по ОС', () => {
-		assert.deepStrictEqual(defaultPlatformBasePaths('linux'), [
+		assert.deepStrictEqual(defaultPlatformBasePaths('linux', 'x64'), [
 			'/opt/1cv8/x86_64',
 			'/opt/1C/v8.3/x86_64',
 		]);
 		const win = defaultPlatformBasePaths('win32');
 		assert.strictEqual(win.length, 1);
 		assert.ok(win[0].endsWith(path.join('', '1cv8')));
+	});
+
+	test('defaultPlatformBasePaths: каталог своей архитектуры идёт первым', () => {
+		assert.deepStrictEqual(defaultPlatformBasePaths('linux', 'arm64'), [
+			'/opt/1cv8/arm64',
+			'/opt/1cv8/x86_64',
+			'/opt/1C/v8.3/arm64',
+			'/opt/1C/v8.3/x86_64',
+		]);
+		assert.strictEqual(defaultPlatformBasePaths('darwin', 'arm64')[0], '/opt/1cv8/arm64');
 	});
 
 	suite('resolvePlatformBinary (файловые раскладки)', () => {
@@ -114,6 +134,27 @@ suite('platformBinary', () => {
 			fs.writeFileSync(full, '');
 			return full;
 		};
+
+		test('listPlatformVersions: только версии с нужным бинарём, от новых к старым', () => {
+			touch('8.3.23.2040', 'bin', 'rac.exe');
+			touch('8.3.27.1936', 'bin', 'rac.exe');
+			// Версия без rac в выбор не попадает: выбрать её всё равно нельзя
+			touch('8.3.25.1000', 'bin', 'ibsrv.exe');
+			// Служебные каталоги установки версиями не являются
+			touch('common', 'bin', 'rac.exe');
+
+			assert.deepStrictEqual(listPlatformVersions(baseDir, 'rac', 'win32'), [
+				'8.3.27.1936',
+				'8.3.23.2040',
+			]);
+		});
+
+		test('listPlatformVersions: несуществующий каталог — пустой список, а не исключение', () => {
+			assert.deepStrictEqual(
+				listPlatformVersions(path.join(baseDir, 'нет-такого'), 'rac', 'linux'),
+				[]
+			);
+		});
 
 		test('Windows-раскладка: <версия>/bin/ibsrv.exe', () => {
 			const expected = touch('8.3.27.1936', 'bin', 'ibsrv.exe');
