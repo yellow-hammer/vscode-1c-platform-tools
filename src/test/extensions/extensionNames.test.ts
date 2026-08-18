@@ -1,5 +1,8 @@
 import * as assert from 'node:assert';
-import { parseExtensionNameFromConfigurationXml } from '../../features/extensions/extensionNames';
+import {
+	parseExtensionNameFromConfigurationMdo,
+	parseExtensionNameFromConfigurationXml,
+} from '../../features/extensions/extensionNames';
 
 const CONFIGURATION_XML = `<?xml version="1.0" encoding="UTF-8"?>
 <MetaDataObject xmlns="http://v8.1c.ru/8.3/MDClasses" version="2.20">
@@ -25,5 +28,24 @@ suite('extensionNames', () => {
 		assert.strictEqual(parseExtensionNameFromConfigurationXml(''), undefined);
 		assert.strictEqual(parseExtensionNameFromConfigurationXml('<не xml'), undefined);
 		assert.strictEqual(parseExtensionNameFromConfigurationXml('<Other><Name>X</Name></Other>'), undefined);
+	});
+});
+
+suite('имя расширения в раскладке EDT', () => {
+	test('берётся из Configuration.mdo проекта', () => {
+		const mdo = [
+			'<?xml version="1.0" encoding="UTF-8"?>',
+			'<mdclass:Configuration uuid="2fd73213-5b64-4002-b842-6e6dbd6ab9fa">',
+			'  <name>_ДемоРасширение</name>',
+			'  <namePrefix>_Демо</namePrefix>',
+			'</mdclass:Configuration>',
+		].join('\n');
+
+		assert.strictEqual(parseExtensionNameFromConfigurationMdo(mdo), '_ДемоРасширение');
+	});
+
+	test('пустое содержимое имени не даёт', () => {
+		assert.strictEqual(parseExtensionNameFromConfigurationMdo(''), undefined);
+		assert.strictEqual(parseExtensionNameFromConfigurationMdo('<mdclass:Configuration/>'), undefined);
 	});
 });

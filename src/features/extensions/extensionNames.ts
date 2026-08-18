@@ -48,6 +48,20 @@ export function parseExtensionNameFromConfigurationXml(xml: string): string | un
 }
 
 /**
+ * Извлекает имя расширения из содержимого Configuration.mdo проекта EDT.
+ *
+ * @param mdo - Содержимое src/Configuration/Configuration.mdo
+ * @returns Имя расширения или undefined, если разобрать не удалось
+ */
+export function parseExtensionNameFromConfigurationMdo(mdo: string): string | undefined {
+	if (!mdo) {
+		return undefined;
+	}
+	const name = mdo.match(/<name>([^<]+)<\/name>/)?.[1]?.trim();
+	return name !== undefined && name.length > 0 ? name : undefined;
+}
+
+/**
  * Возвращает имя расширения для каталога исходников.
  *
  * Читает `<каталог исходников>/Configuration.xml`; если файла нет или имя
@@ -58,17 +72,26 @@ export function parseExtensionNameFromConfigurationXml(xml: string): string | un
  */
 export async function resolveExtensionNameFromSrc(extensionSrcDir: string): Promise<string> {
 	const fallback = path.basename(extensionSrcDir);
-	try {
-		const xml = await fs.readFile(path.join(extensionSrcDir, 'Configuration.xml'), 'utf8');
-		const name = parseExtensionNameFromConfigurationXml(xml);
-		if (name) {
-			if (name !== fallback) {
-				log.debug(`Имя расширения в метаданных: ${name} (каталог ${fallback})`);
+	// Выгрузка конфигуратора и проект EDT держат описание в разных файлах.
+	const markers: Array<[string, (content: string) => string | undefined]> = [
+		['Configuration.xml', parseExtensionNameFromConfigurationXml],
+		[path.join('src', 'Configuration', 'Configuration.mdo'), parseExtensionNameFromConfigurationMdo],
+	];
+
+	for (const [relative, parse] of markers) {
+		try {
+			const content = await fs.readFile(path.join(extensionSrcDir, relative), 'utf8');
+			const name = parse(content);
+			if (name) {
+				if (name !== fallback) {
+					log.debug(`Имя расширения в метаданных: ${name} (каталог ${fallback})`);
+				}
+				return name;
 			}
-			return name;
+		} catch {
+			// Файла нет или он нечитаем — пробуем следующую раскладку
 		}
-	} catch {
-		// Configuration.xml отсутствует или нечитаем — используем имя каталога
 	}
+
 	return fallback;
 }
