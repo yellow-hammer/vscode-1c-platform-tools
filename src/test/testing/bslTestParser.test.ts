@@ -1,5 +1,10 @@
 import * as assert from 'node:assert';
+import * as fs from 'node:fs';
+import * as path from 'node:path';
 import { parseBslTestModule, isBslTestModule } from '../../features/testing/parsers/bslTestParser';
+
+/** Модули тестовых расширений YAxUnit для разбора. */
+const YAXUNIT_FIXTURES = path.resolve(__dirname, '../../../src/test/fixtures/yaxunit');
 
 suite('bslTestParser', () => {
 	const xddModule = [
@@ -261,5 +266,44 @@ suite('bslTestParser', () => {
 			['ТестДолжен_Работать'],
 			'ПолучитьСписокТестов — служебный метод, не кейс'
 		);
+	});
+});
+
+suite('bslTestParser: регистрация тестов YAxUnit', () => {
+	/** Модуль тестового расширения из фикстур. */
+	const module = (name: string): string =>
+		fs.readFileSync(path.join(YAXUNIT_FIXTURES, `${name}.bsl`), 'utf8');
+
+	const caseNames = (name: string): string[] | undefined =>
+		parseBslTestModule(module(name), 'yaxunit')?.cases.map((testCase) => testCase.name);
+
+	test('серверные и клиентские тесты попадают в дерево наравне с обычными', () => {
+		assert.deepStrictEqual(caseNames('ServerAndClientTests'), [
+			'НачальнаяЗагрузкаСоздаетСубъектов',
+			'ФормаОткрывается',
+			'ОснасткаРаботает',
+		]);
+	});
+
+	test('модуль с одними серверными тестами не пропадает целиком', () => {
+		assert.ok(isBslTestModule(module('ServerOnlyTests'), 'yaxunit'));
+		assert.deepStrictEqual(caseNames('ServerOnlyTests'), ['ПовторнаяЗагрузкаНичегоНеМеняет']);
+	});
+
+	test('имя набора тестом не считается', () => {
+		assert.strictEqual(isBslTestModule(module('SuiteWithoutTests'), 'yaxunit'), false);
+		assert.strictEqual(parseBslTestModule(module('SuiteWithoutTests'), 'yaxunit'), undefined);
+	});
+
+	test('регистрация с переносом строки читается', () => {
+		assert.deepStrictEqual(caseNames('MultilineRegistration'), ['ТестСПереносом']);
+	});
+
+	test('закомментированная регистрация в дерево не попадает, а // в строке не комментарий', () => {
+		assert.deepStrictEqual(caseNames('CommentedRegistration'), ['Рабочий', 'ЗагрузкаПоАдресу']);
+	});
+
+	test('представление теста в дерево не идёт: в jUnit имя теста - имя метода', () => {
+		assert.deepStrictEqual(caseNames('TestPresentation'), ['ПроведениеДокумента']);
 	});
 });
