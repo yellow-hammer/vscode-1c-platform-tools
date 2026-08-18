@@ -2,7 +2,9 @@ import * as assert from 'node:assert';
 import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
+import * as vscode from 'vscode';
 import { markerIn, resolveProjectLayout } from '../../shared/projectLayout';
+import { activeConfiguration, describeConfiguration } from '../../shared/activeConfiguration';
 
 /** Рабочие области с исходным кодом в форматах EDT и конфигуратора. */
 const FIXTURES = path.resolve(__dirname, '../../../src/test/fixtures/projectLayout');
@@ -59,5 +61,42 @@ suite('раскладка проекта', () => {
 
 		assert.strictEqual(layout.configuration, undefined);
 		assert.deepStrictEqual(layout.extensions, []);
+	});
+});
+
+suite('выбор активной конфигурации', () => {
+	test('сохранённый выбор применяется, пока конфигурация есть в рабочей области', () => {
+		const first = { dir: 'C:/ws/ssl31', format: 'edt' as const, name: 'Первая', isExtension: false };
+		const second = { dir: 'C:/ws/other', format: 'designer' as const, name: 'Вторая', isExtension: false };
+		const memento = {
+			get: <T>() => 'C:/ws/other' as unknown as T,
+			update: async () => undefined,
+			keys: () => [],
+		} as unknown as vscode.Memento;
+
+		assert.strictEqual(activeConfiguration(memento, [first, second]), second);
+	});
+
+	test('без сохранённого выбора берётся первая найденная', () => {
+		const first = { dir: 'C:/ws/ssl31', format: 'edt' as const, name: 'Первая', isExtension: false };
+		const memento = {
+			get: <T>() => undefined as unknown as T,
+			update: async () => undefined,
+			keys: () => [],
+		} as unknown as vscode.Memento;
+
+		assert.strictEqual(activeConfiguration(memento, [first]), first);
+		assert.strictEqual(activeConfiguration(memento, []), undefined);
+	});
+
+	test('подпись показывает имя и формат исходного кода', () => {
+		assert.strictEqual(
+			describeConfiguration({ dir: 'C:/ws/ssl31', format: 'edt', name: 'Демо', isExtension: false }),
+			'Демо (EDT)'
+		);
+		assert.strictEqual(
+			describeConfiguration({ dir: 'C:/ws/src/cf', format: 'designer', name: '', isExtension: false }),
+			'C:/ws/src/cf (конфигуратор)'
+		);
 	});
 });

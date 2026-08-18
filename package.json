@@ -1404,6 +1404,12 @@
         "icon": "$(tools)"
       },
       {
+        "command": "1c-platform-tools.project.selectConfiguration",
+        "title": "Выбрать конфигурацию проекта",
+        "category": "1C: Конфигурация",
+        "icon": "$(list-selection)"
+      },
+      {
         "command": "1c-platform-tools.env.selectProfile",
         "title": "Выбрать env-профиль запуска",
         "category": "1C: Конфигурации запуска",
