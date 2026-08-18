@@ -36,8 +36,18 @@ const METHOD_DECLARATION_REGEX =
 /** Признак экспортности в строке объявления (\b не работает с кириллицей — используем lookahead) */
 const EXPORT_REGEX = /\)\s*(?:Экспорт|Export)(?![\wа-яёА-ЯЁ])/i;
 
-/** Вызов регистрации теста: .ДобавитьТест("Имя") или Тесты.ДобавитьТест("Имя") */
-const ADD_TEST_REGEX = /\.\s*ДобавитьТест\s*\(\s*"([^"]+)"/gi;
+/**
+ * Вызов регистрации теста YAxUnit: `.ДобавитьТест("Имя")`, `.ДобавитьСерверныйТест("Имя")`
+ * или `.ДобавитьКлиентскийТест("Имя")`.
+ *
+ * Три метода различаются лишь контекстом выполнения, а тест регистрируют одинаково: тесты,
+ * которые обращаются к справочникам, метаданным или запросам, обязаны быть серверными.
+ * `ДобавитьТестовыйНабор` под шаблон не подпадает: это имя набора, а не теста.
+ */
+const ADD_TEST_REGEX = /\.\s*Добавить(?:Серверный|Клиентский)?Тест\s*\(\s*"([^"]+)"/gi;
+
+/** Признак модуля с зарегистрированными тестами YAxUnit. */
+const HAS_ADD_TEST_REGEX = /\.\s*Добавить(?:Серверный|Клиентский)?Тест\s*\(/i;
 
 /** Аннотация теста (современный 1testrunner): &Тест над процедурой */
 const TEST_ANNOTATION_REGEX = /^\s*&(?:Тест|Test)\s*(?:\/\/.*)?$/i;
@@ -61,6 +71,62 @@ const ANY_ANNOTATION_REGEX = /^\s*&/;
 const DEFAULT_PARAM_NAME_TEMPLATE = '{Параметры}';
 
 /**
+ * Номер строки (0-based), в которой лежит символ с указанным смещением.
+ *
+ * @param text - Текст модуля
+ * @param index - Смещение символа
+ */
+function lineOfIndex(text: string, index: number): number {
+	let line = 0;
+	for (let i = 0; i < index && i < text.length; i++) {
+		if (text[i] === '\n') {
+			line += 1;
+		}
+	}
+	return line;
+}
+
+/**
+ * Убирает построчные комментарии, не трогая содержимое строковых литералов.
+ *
+ * Закомментированная регистрация теста не должна попадать в панель, а `//` внутри строки
+ * (например в адресе) комментарием не является.
+ *
+ * @param content - Содержимое модуля
+ * @returns Тот же текст с вырезанными комментариями (строки и их число сохраняются)
+ */
+function stripComments(content: string): string {
+	let result = '';
+	let inString = false;
+	let inComment = false;
+
+	for (let i = 0; i < content.length; i++) {
+		const char = content[i];
+		if (char === '\n') {
+			inComment = false;
+			inString = false;
+			result += char;
+			continue;
+		}
+		if (inComment) {
+			continue;
+		}
+		if (char === '"') {
+			inString = !inString;
+			result += char;
+			continue;
+		}
+		if (!inString && char === '/' && content[i + 1] === '/') {
+			inComment = true;
+			continue;
+		}
+		result += char;
+	}
+
+	return result;
+}
+
+/**
  * Проверяет, является ли содержимое тестовым модулем для заданного режима
  *
  * @param content - Содержимое модуля
@@ -69,7 +135,7 @@ const DEFAULT_PARAM_NAME_TEMPLATE = '{Параметры}';
  */
 export function isBslTestModule(content: string, mode: BslTestMode): boolean {
 	if (mode === 'yaxunit') {
-		return /ИсполняемыеСценарии/i.test(content) && /ДобавитьТест\s*\(/i.test(content);
+		return /ИсполняемыеСценарии/i.test(content) && HAS_ADD_TEST_REGEX.test(stripComments(content));
 	}
 	// ПолучитьСписокТестов — альтернативное имя регистрации в новых тестах add;
 	// &Тест / &ПараметризованныйТест — аннотационный стиль 1testrunner/OneUnit.
@@ -342,22 +408,22 @@ export function parseBslTestModule(content: string, mode: BslTestMode): Discover
 	}
 
 	if (mode === 'yaxunit') {
-		// Кейсы — зарегистрированные через ДобавитьТест("...") имена;
-		// строка — объявление одноимённого экспортного метода, иначе строка регистрации
+		// Кейсы — зарегистрированные имена; строка — объявление одноимённого экспортного
+		// метода, иначе строка регистрации. Разбираем текст целиком: вызов регистрации
+		// переносят на несколько строк, а имя метода в jUnit-отчёте одно и то же.
+		const source = stripComments(text);
 		const seen = new Set<string>();
-		for (let i = 0; i < lines.length; i++) {
-			ADD_TEST_REGEX.lastIndex = 0;
-			let match: RegExpExecArray | null;
-			while ((match = ADD_TEST_REGEX.exec(lines[i])) !== null) {
-				const name = match[1].trim();
-				const key = name.toLowerCase();
-				if (name.length === 0 || seen.has(key)) {
-					continue;
-				}
-				seen.add(key);
-				const method = exportedMethods.get(key);
-				cases.push({ name: method?.name ?? name, line: method?.line ?? i });
+		ADD_TEST_REGEX.lastIndex = 0;
+		let match: RegExpExecArray | null;
+		while ((match = ADD_TEST_REGEX.exec(source)) !== null) {
+			const name = match[1].trim();
+			const key = name.toLowerCase();
+			if (name.length === 0 || seen.has(key)) {
+				continue;
 			}
+			seen.add(key);
+			const method = exportedMethods.get(key);
+			cases.push({ name: method?.name ?? name, line: method?.line ?? lineOfIndex(source, match.index) });
 		}
 	} else {
 		// Кейсы — экспортные методы, кроме служебных
