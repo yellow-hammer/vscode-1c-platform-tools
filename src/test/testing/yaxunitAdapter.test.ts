@@ -139,3 +139,20 @@ suite('yaxunitAdapter', () => {
 		);
 	});
 });
+
+suite('yaxunitAdapter: раскладка EDT', () => {
+	test('модули тестового расширения ищутся в обеих раскладках', () => {
+		const adapter = new YaxunitAdapter(VRunnerManager.getInstance());
+
+		const globs = adapter.getIncludeGlobs();
+
+		assert.ok(
+			globs.some((glob) => glob.endsWith('/*/CommonModules/*/Ext/Module.bsl')),
+			`выгрузка конфигуратора: ${globs.join(', ')}`
+		);
+		assert.ok(
+			globs.some((glob) => glob.endsWith('/*/src/CommonModules/*/Module.bsl')),
+			`проект EDT: ${globs.join(', ')}`
+		);
+	});
+});

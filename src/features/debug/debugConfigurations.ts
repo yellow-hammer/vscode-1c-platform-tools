@@ -1,4 +1,3 @@
-import * as fs from 'node:fs';
 import * as path from 'node:path';
 import * as vscode from 'vscode';
 import { DEBUG_TYPE } from './debugConstants';
@@ -7,6 +6,7 @@ import { DEFAULT_PATHS } from '../../shared/pathDefaults';
 import { logger } from '../../shared/logger';
 import { VRunnerManager } from '../../shared/vrunnerManager';
 import { resolvePlatformVersion } from '../../shared/platformBinary';
+import { resolveProjectLayout } from '../../shared/projectLayout';
 
 const platformBasePath =
 	process.platform === 'win32' ? '${env:PROGRAMFILES}/1cv8' : '/opt/1C/v8.3/x86_64';
@@ -21,58 +21,51 @@ const launchConfig: vscode.DebugConfiguration = {
 	autoAttachTypes: ['ManagedClient', 'Server'],
 };
 
+/** Путь от корня рабочей области в записи конфигурации запуска. */
+function templatePath(relative: string): string {
+	const normalized = relative.replace(/\\/g, '/').replace(/^\.?\//, '');
+	return normalized.length > 0 ? `\${workspaceFolder}/${normalized}` : '${workspaceFolder}';
+}
+
+/** Абсолютный путь в записи конфигурации запуска. */
+function asWorkspacePath(workspaceRoot: string | undefined, directory: string): string {
+	if (workspaceRoot === undefined) {
+		return directory;
+	}
+	return templatePath(path.relative(workspaceRoot, directory));
+}
+
 export class OnecDebugConfigurationProvoider implements vscode.DebugConfigurationProvider {
 	constructor(private readonly vrunner: VRunnerManager) {}
 
-	provideDebugConfigurations(
+	async provideDebugConfigurations(
 		folder: vscode.WorkspaceFolder | undefined,
 		_token?: vscode.CancellationToken
-	): vscode.ProviderResult<vscode.DebugConfiguration[]> {
+	): Promise<vscode.DebugConfiguration[]> {
 		const cfPathSetting = vscode
 			.workspace
 			.getConfiguration('1c-platform-tools')
 			.get<string>('paths.cf', DEFAULT_PATHS.cf);
 
-		// Нормализуем путь: убираем ведущие ./ и /, слэши приводим к Unix-стилю,
-		// чтобы получить корректный шаблон относительно ${workspaceFolder}.
-		const normalizedCfPath = cfPathSetting
-			.replace(/\\/g, '/')
-			.replace(/^\.?\//, '');
+		// Каталоги расширений решения и тестовых: тесты YAxUnit живут отдельно
+		// от поставки, но отлаживать их нужно так же
+		const extensionPaths = [this.vrunner.getCfePath(), this.vrunner.getTestsCfePath()];
 
-		const rootProject =
-			normalizedCfPath.length > 0
-				? `\${workspaceFolder}/${normalizedCfPath}`
-				: '${workspaceFolder}';
+		const layout = folder
+			? await resolveProjectLayout(folder.uri.fsPath, {
+				configuration: cfPathSetting,
+				extensions: extensionPaths,
+			})
+			: undefined;
 
-		let extensions: string[] | undefined;
+		const workspaceRoot = folder?.uri.fsPath;
+		const rootProject = layout?.configuration
+			? asWorkspacePath(workspaceRoot, layout.configuration.dir)
+			: templatePath(cfPathSetting);
 
-		if (folder) {
-			const workspaceRoot = folder.uri.fsPath;
-			// Каталоги расширений решения и тестовых: тесты YAxUnit живут отдельно
-			// от поставки, но отлаживать их нужно так же
-			const roots = [this.vrunner.getCfePath(), this.vrunner.getTestsCfePath()];
-
-			const found: string[] = [];
-			for (const root of roots) {
-				const normalized = root.replace(/\\/g, '/').replace(/^\.?\//, '');
-				const absolute = normalized.length > 0 ? path.join(workspaceRoot, normalized) : workspaceRoot;
-				const base = normalized.length > 0
-					? `\${workspaceFolder}/${normalized}`
-					: '${workspaceFolder}';
-				try {
-					for (const entry of fs.readdirSync(absolute, { withFileTypes: true })) {
-						if (entry.isDirectory()) {
-							found.push(`${base}/${entry.name}`);
-						}
-					}
-				} catch {
-					// Каталога нет или он нечитаем — просто не добавляем его расширения
-				}
-			}
-			if (found.length > 0) {
-				extensions = found;
-			}
-		}
+		const extensions = layout && layout.extensions.length > 0
+			? layout.extensions.map((extension) => asWorkspacePath(workspaceRoot, extension.dir))
+			: undefined;
 
 		const baseConfig: vscode.DebugConfiguration = { ...launchConfig, rootProject };
 
@@ -82,13 +75,17 @@ export class OnecDebugConfigurationProvoider implements vscode.DebugConfiguratio
 
 		// Внешние обработки/отчёты — всегда в шаблоне (из настроек путей): несуществующие
 		// каталоги адаптер пропускает, а параметры не теряются, если каталог появится позже.
+		// Проекты EDT с внешними обработками лежат отдельно от конфигурации, поэтому найденные
+		// в рабочей области добавляются к настройкам.
 		const cfg = vscode.workspace.getConfiguration('1c-platform-tools');
 		const normalize = (p: string) => p.replace(/\\/g, '/').replace(/^\.?\//, '');
 
-		(baseConfig as Record<string, unknown>).externalFilesSrc = [
-			normalize(cfg.get<string>('paths.epf', DEFAULT_PATHS.epf)),
-			normalize(cfg.get<string>('paths.erf', DEFAULT_PATHS.erf)),
-		].map((rel) => `\${workspaceFolder}/${rel}`);
+		const externalSources = [
+			templatePath(cfg.get<string>('paths.epf', DEFAULT_PATHS.epf)),
+			templatePath(cfg.get<string>('paths.erf', DEFAULT_PATHS.erf)),
+			...(layout?.externals ?? []).map((dir) => asWorkspacePath(workspaceRoot, dir)),
+		];
+		(baseConfig as Record<string, unknown>).externalFilesSrc = [...new Set(externalSources)];
 
 		// Собранные .epf/.erf — сервер отладки адресует внешние модули по URL файла.
 		const outPath = normalize(cfg.get<string>('paths.out', DEFAULT_PATHS.out));

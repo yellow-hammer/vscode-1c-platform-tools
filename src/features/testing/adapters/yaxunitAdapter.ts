@@ -39,12 +39,14 @@ export class YaxunitAdapter implements TestFrameworkAdapter {
 
 	public getIncludeGlobs(): string[] {
 		const roots = [this.vrunner.getCfePath(), this.vrunner.getTestsCfePath()];
-		// Формат Конфигуратора: CommonModules/<Имя>/Ext/Module.bsl
-		const globs = roots
+		return roots
 			.map((root) => normalizeGlobBase(root))
 			.filter((base, index, all) => base.length > 0 && all.indexOf(base) === index)
-			.map((base) => `${base}/*/CommonModules/*/Ext/Module.bsl`);
-		return globs;
+			.flatMap((base) => [
+				// форматы конфигуратора и EDT
+				`${base}/*/CommonModules/*/Ext/Module.bsl`,
+				`${base}/*/src/CommonModules/*/Module.bsl`,
+			]);
 	}
 
 	public parseFile(content: string): DiscoveredFile | undefined {

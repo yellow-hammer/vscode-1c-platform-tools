@@ -61,7 +61,11 @@ export class XUnitAdapter implements TestFrameworkAdapter {
 
 	public getIncludeGlobs(): string[] {
 		const epfBase = normalizeGlobBase(this.vrunner.getTestsSrcPath());
-		return [`${epfBase}/**/Ext/ObjectModule.bsl`];
+		return [
+			// форматы конфигуратора и EDT
+			`${epfBase}/**/Ext/ObjectModule.bsl`,
+			`${epfBase}/**/src/ExternalDataProcessors/*/ObjectModule.bsl`,
+		];
 	}
 
 	public parseFile(content: string): DiscoveredFile | undefined {

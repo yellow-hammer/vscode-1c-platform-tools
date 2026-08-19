@@ -1,0 +1,112 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mdclass:ExternalReport xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:core="http://g5.1c.ru/v8/dt/mcore" xmlns:mdclass="http://g5.1c.ru/v8/dt/metadata/mdclass" uuid="0e130a7c-7f6b-41c4-94bc-ad4473b89915">
+  <producedTypes>
+    <objectType typeId="71aec6e1-b236-46cd-a637-c152154b4955" valueTypeId="0acfdb4d-18fd-4210-8aeb-47fe124aecac"/>
+  </producedTypes>
+  <name>ТестовыйВнешнийОтчет</name>
+  <synonym>
+    <key>ru</key>
+    <value>Тестовый внешний отчет</value>
+  </synonym>
+  <containedObjects classId="e41aff26-25cf-4bb6-b6c1-3f478a75f374" objectId="1229d0c9-771f-4a32-8630-f58172a246ba"/>
+  <defaultForm>ExternalReport.ТестовыйВнешнийОтчет.Form.ФормаОтчета</defaultForm>
+  <auxiliaryForm>ExternalReport.ТестовыйВнешнийОтчет.Form.ФормаОтчета1</auxiliaryForm>
+  <mainDataCompositionSchema>ExternalReport.ТестовыйВнешнийОтчет.Template.ОсновнаяСхемаКомпоновкиДанных</mainDataCompositionSchema>
+  <defaultSettingsForm>ExternalReport.ТестовыйВнешнийОтчет.Form.ФормаНастроек</defaultSettingsForm>
+  <auxiliarySettingsForm>ExternalReport.ТестовыйВнешнийОтчет.Form.ФормаНастроек1</auxiliarySettingsForm>
+  <defaultVariantForm>ExternalReport.ТестовыйВнешнийОтчет.Form.ФормаВарианта</defaultVariantForm>
+  <attributes uuid="1b1c36ee-1c6e-4246-9581-a23287e05204">
+    <name>РевзитОтчета</name>
+    <synonym>
+      <key>ru</key>
+      <value>Ревзит отчета</value>
+    </synonym>
+    <type>
+      <types>String</types>
+      <stringQualifiers>
+        <length>10</length>
+      </stringQualifiers>
+    </type>
+    <minValue xsi:type="core:UndefinedValue"/>
+    <maxValue xsi:type="core:UndefinedValue"/>
+  </attributes>
+  <tabularSections uuid="0bdfbd01-b2c1-4ea9-93e2-77b585cb10bb">
+    <producedTypes>
+      <objectType typeId="1736bce7-0d89-439d-8649-c9e7362e560e" valueTypeId="a486cb91-a7e2-4dd2-98f2-88bf4609a99f"/>
+      <rowType typeId="2c6eb5a2-8ca6-459c-99fc-6c6c0a866f0f" valueTypeId="9bfdb5cb-fd47-4684-a60a-4d24fc6750ae"/>
+    </producedTypes>
+    <name>ТабличнаяЧасть</name>
+    <synonym>
+      <key>ru</key>
+      <value>Табличная часть</value>
+    </synonym>
+    <attributes uuid="397c0640-f782-4090-a3d6-5715a8ecf85c">
+      <name>РеквизитТЧ</name>
+      <synonym>
+        <key>ru</key>
+        <value>Реквизит ТЧ</value>
+      </synonym>
+      <type>
+        <types>CatalogRef.Валюты</types>
+      </type>
+      <minValue xsi:type="core:UndefinedValue"/>
+      <maxValue xsi:type="core:UndefinedValue"/>
+      <fillValue xsi:type="core:UndefinedValue"/>
+    </attributes>
+  </tabularSections>
+  <forms uuid="f5ed602b-2889-4013-8dbe-9d070a1bc057">
+    <name>ФормаОтчета</name>
+    <synonym>
+      <key>ru</key>
+      <value>Форма отчета</value>
+    </synonym>
+    <usePurposes>PersonalComputer</usePurposes>
+    <usePurposes>MobileDevice</usePurposes>
+  </forms>
+  <forms uuid="fdd75054-3fe2-482c-840f-9548b4564ffd">
+    <name>ФормаНастроек</name>
+    <synonym>
+      <key>ru</key>
+      <value>Форма настроек</value>
+    </synonym>
+    <usePurposes>PersonalComputer</usePurposes>
+    <usePurposes>MobileDevice</usePurposes>
+  </forms>
+  <forms uuid="a1c674e3-79da-4ea4-8776-9860a0d1f750">
+    <name>ФормаВарианта</name>
+    <synonym>
+      <key>ru</key>
+      <value>Форма варианта</value>
+    </synonym>
+    <usePurposes>PersonalComputer</usePurposes>
+    <usePurposes>MobileDevice</usePurposes>
+  </forms>
+  <forms uuid="dc33f796-9b0e-4427-815a-109dabef1676">
+    <name>ФормаОтчета1</name>
+    <synonym>
+      <key>ru</key>
+      <value>Форма отчета1</value>
+    </synonym>
+    <formType>Ordinary</formType>
+    <usePurposes>PersonalComputer</usePurposes>
+    <usePurposes>MobileDevice</usePurposes>
+  </forms>
+  <forms uuid="edb26f13-74f6-4ed6-a8ec-57258c22f67e">
+    <name>ФормаНастроек1</name>
+    <synonym>
+      <key>ru</key>
+      <value>Форма настроек1</value>
+    </synonym>
+    <formType>Ordinary</formType>
+    <usePurposes>PersonalComputer</usePurposes>
+    <usePurposes>MobileDevice</usePurposes>
+  </forms>
+  <templates uuid="253891b9-85eb-4e50-ad33-592e87500b31">
+    <name>ОсновнаяСхемаКомпоновкиДанных</name>
+    <synonym>
+      <key>ru</key>
+      <value>Основная схема компоновки данных</value>
+    </synonym>
+    <templateType>DataCompositionSchema</templateType>
+  </templates>
+</mdclass:ExternalReport>
