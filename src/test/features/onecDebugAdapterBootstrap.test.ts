@@ -4,6 +4,7 @@ import * as os from 'node:os';
 import * as path from 'node:path';
 import {
 	adapterAssetRegexes,
+	adapterCacheMatchesPlatform,
 	adapterHostName,
 	adapterRid,
 	resolveAdapterRuntime,
@@ -110,6 +111,19 @@ suite('onecDebugAdapterBootstrap', () => {
 
 	test('пустой каталог релиза не даёт команды запуска', () => {
 		assert.strictEqual(resolveAdapterRuntime(tempDir('1cpt-dap-empty-')), undefined);
+	});
+
+	test('кэш с native-библиотеками чужой ОС отбрасывается', () => {
+		const { root, dir } = releaseLayout('1cpt-dap-wrongos-', true);
+		fs.writeFileSync(path.join(dir, 'libhostpolicy.so'), '');
+
+		assert.strictEqual(adapterCacheMatchesPlatform(root, 'win32'), false);
+		assert.strictEqual(adapterCacheMatchesPlatform(root, 'linux'), true);
+	});
+
+	test('кэш без чужих native-библиотек подходит', () => {
+		const { root } = releaseLayout('1cpt-dap-nativeos-', true);
+		assert.strictEqual(adapterCacheMatchesPlatform(root, 'win32'), true);
 	});
 
 	test('свой путь к адаптеру: dll через dotnet, остальное напрямую', () => {
