@@ -82,6 +82,7 @@ function onecDebugAdapterSpec(): ReleaseComponentSpec {
 		assetRegex: adapterAssetRegexes(adapterRid()),
 		label: 'onec-debug-adapter',
 		extract: true,
+		isCacheValid: (assetPath) => adapterCacheMatchesPlatform(assetPath),
 	};
 }
 
@@ -129,6 +130,34 @@ export function ensureExecutable(file: string, platform: NodeJS.Platform = proce
  * собран под систему сборщика и требует установленного .NET, поэтому смотрим на состав:
  * includedFrameworks в runtimeconfig.json бывает только у самостоятельной сборки.
  */
+/**
+ * Распакованный релиз собран под эту ОС: чужие native-библиотеки рантайма .NET
+ * (linux zip на Windows и наоборот) означают, что кэш нужно скачать заново.
+ */
+export function adapterCacheMatchesPlatform(
+	root: string,
+	platform: NodeJS.Platform = process.platform
+): boolean {
+	const dll = findUnder(root, ONEC_DEBUG_ADAPTER_DLL);
+	if (!dll) {
+		return false;
+	}
+	const dir = path.dirname(dll);
+	const hasSo = fssync.existsSync(path.join(dir, 'libhostpolicy.so'));
+	const hasDylib = fssync.existsSync(path.join(dir, 'libhostpolicy.dylib'));
+	const hasDll = fssync.existsSync(path.join(dir, 'hostpolicy.dll'));
+	if (platform === 'win32') {
+		return !hasSo && !hasDylib;
+	}
+	if (platform === 'linux') {
+		return !hasDll && !hasDylib;
+	}
+	if (platform === 'darwin') {
+		return !hasDll && !hasSo;
+	}
+	return true;
+}
+
 function isSelfContained(dir: string): boolean {
 	try {
 		const raw = fssync.readFileSync(path.join(dir, 'OnecDebugAdapter.runtimeconfig.json'), 'utf8');
@@ -188,7 +217,9 @@ export async function ensureOnecDebugAdapter(context: vscode.ExtensionContext): 
 		if (!fssync.existsSync(override)) {
 			throw new Error(`components.adapterFile не найден: ${override}.`);
 		}
-		return runtimeFromFile(override);
+		const runtime = runtimeFromFile(override);
+		log.info(`адаптер готов: ${describeRuntime(runtime)} (локальный файл)`);
+		return runtime;
 	}
 	if (!cfg.get<boolean>('components.adapterAutoload', true)) {
 		throw new Error('Укажите components.adapterFile или включите components.adapterAutoload.');

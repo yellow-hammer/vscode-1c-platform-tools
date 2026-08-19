@@ -1,5 +1,6 @@
 import * as assert from 'node:assert';
-import { isNewerTag, updateCheckDue } from '../../shared/githubReleaseLoader';
+import { isNewerTag, stampAssetMatchesSpec, updateCheckDue } from '../../shared/githubReleaseLoader';
+import { adapterAssetRegexes } from '../../features/debug/onecDebugAdapterBootstrap';
 
 suite('githubReleaseLoader.isNewerTag', () => {
 	test('новее по patch/minor/major', () => {
@@ -38,5 +39,22 @@ suite('githubReleaseLoader: проверка обновлений', () => {
 	test('через восемь минут проверяем снова', () => {
 		assert.strictEqual(updateCheckDue(now - 8 * 60_000, now), true);
 		assert.strictEqual(updateCheckDue(now - 60 * 60_000, now), true);
+	});
+});
+
+suite('githubReleaseLoader.stampAssetMatchesSpec', () => {
+	const winRegexes = adapterAssetRegexes('win-x64');
+
+	test('штамп без имени asset’а не отбрасываем — пригодность смотрит isCacheValid', () => {
+		assert.strictEqual(stampAssetMatchesSpec(undefined, winRegexes), true);
+	});
+
+	test('сборка этой системы и универсальный архив подходят', () => {
+		assert.strictEqual(stampAssetMatchesSpec('onec-debug-adapter-win-x64-v0.3.0.zip', winRegexes), true);
+		assert.strictEqual(stampAssetMatchesSpec('onec-debug-adapter-v0.3.0.zip', winRegexes), true);
+	});
+
+	test('сборка чужой системы не подходит', () => {
+		assert.strictEqual(stampAssetMatchesSpec('onec-debug-adapter-linux-x64-v0.3.0.zip', winRegexes), false);
 	});
 });

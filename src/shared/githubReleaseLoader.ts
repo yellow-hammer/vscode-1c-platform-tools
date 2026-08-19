@@ -48,6 +48,11 @@ export interface ReleaseComponentSpec {
 	label: string;
 	/** Распаковать архив (true) или сохранить файл как есть (false). */
 	extract: boolean;
+	/**
+	 * Дополнительная проверка распакованного кэша. Нужна, когда в штампе ещё нет имени asset'а
+	 * (старый кэш): например, в каталоге лежат нативные библиотеки чужой ОС.
+	 */
+	isCacheValid?: (assetPath: string) => boolean;
 }
 
 /** Результат загрузки: путь к файлу (extract=false) или к каталогу распаковки (extract=true). */
@@ -59,6 +64,8 @@ export interface EnsuredComponent {
 interface StampInfo {
 	tag?: string;
 	assetPath?: string;
+	/** Имя скачанного asset'а релиза — чтобы не оставлять в кэше сборку чужой платформы. */
+	assetName?: string;
 	/** Время последней проверки обновления (ms) — троттлинг фоновых опросов GitHub. */
 	lastCheckMs?: number;
 	/** Легаси-поле прежнего загрузчика md-sparrow. */
@@ -235,6 +242,17 @@ export function findAsset(assets: GithubAsset[] | undefined, assetRegex: RegExp 
 	return undefined;
 }
 
+/**
+ * Имя asset'а из штампа подходит под текущие регэксп спецификации.
+ * Пустое имя — штамп старого формата, пригодность кэша проверяет {@link ReleaseComponentSpec.isCacheValid}.
+ */
+export function stampAssetMatchesSpec(assetName: string | undefined, assetRegex: RegExp | RegExp[]): boolean {
+	if (!assetName) {
+		return true;
+	}
+	return findAsset([{ name: assetName, browser_download_url: '' }], assetRegex) !== undefined;
+}
+
 function pickAsset(rel: GithubRelease, spec: ReleaseComponentSpec): GithubAsset {
 	const asset = findAsset(rel.assets, spec.assetRegex);
 	if (!asset) {
@@ -271,17 +289,34 @@ async function writeStamp(baseDir: string, spec: ReleaseComponentSpec, info: Sta
  * @param spec описание компонента
  * @param token GitHub-токен (может быть пустым)
  */
+function usableCachedComponent(
+	cached: StampInfo | undefined,
+	spec: ReleaseComponentSpec
+): EnsuredComponent | undefined {
+	const cachedPath = cached?.assetPath ?? cached?.jarPath;
+	if (!cached?.tag || !cachedPath || !fssync.existsSync(cachedPath)) {
+		return undefined;
+	}
+	if (!stampAssetMatchesSpec(cached.assetName, spec.assetRegex)) {
+		log.info(
+			`${spec.label}: кэш отброшен (артефакт ${cached.assetName} не подходит для этой системы)`
+		);
+		return undefined;
+	}
+	if (spec.isCacheValid && !spec.isCacheValid(cachedPath)) {
+		log.info(`${spec.label}: кэш отброшен (содержимое не подходит для этой системы)`);
+		return undefined;
+	}
+	return { tag: cached.tag, assetPath: cachedPath };
+}
+
 export async function ensureReleaseComponent(
 	baseDir: string,
 	spec: ReleaseComponentSpec,
 	token: string
 ): Promise<EnsuredComponent> {
 	const cached = await readStamp(baseDir, spec);
-	const cachedPath = cached?.assetPath ?? cached?.jarPath;
-	const inCache =
-		cached?.tag && cachedPath && fssync.existsSync(cachedPath)
-			? { tag: cached.tag, assetPath: cachedPath }
-			: undefined;
+	const inCache = usableCachedComponent(cached, spec);
 	if (inCache && !updateCheckDue(cached?.lastCheckMs)) {
 		log.debug(`${spec.label} из кэша: ${inCache.assetPath} (${inCache.tag})`);
 		return inCache;
@@ -306,6 +341,7 @@ export async function ensureReleaseComponent(
 			await writeStamp(baseDir, spec, {
 				tag: inCache.tag,
 				assetPath: inCache.assetPath,
+				assetName: cached?.assetName,
 				lastCheckMs: Date.now(),
 			});
 			log.debug(`${spec.label} актуален: ${inCache.tag}`);
@@ -337,7 +373,12 @@ export async function ensureReleaseComponent(
 			});
 		}
 
-		await writeStamp(baseDir, spec, { tag: rel.tag_name, assetPath, lastCheckMs: Date.now() });
+		await writeStamp(baseDir, spec, {
+			tag: rel.tag_name,
+			assetPath,
+			assetName: asset.name,
+			lastCheckMs: Date.now(),
+		});
 		log.info(`${spec.label}: ${assetPath} (${rel.tag_name})`);
 		return { tag: rel.tag_name, assetPath };
 	} finally {

@@ -1,3 +1,4 @@
+import * as path from 'node:path';
 import * as vscode from 'vscode';
 import * as onecDebugTargets from './debugTargets';
 import {
@@ -25,7 +26,10 @@ class OnecDebugAdapterDescriptorFactory implements vscode.DebugAdapterDescriptor
 
 	async createDebugAdapterDescriptor(): Promise<vscode.DebugAdapterDescriptor> {
 		const runtime = await ensureOnecDebugAdapter(this.context);
-		return new vscode.DebugAdapterExecutable(runtime.command, runtime.args);
+		const cwd = runtime.args[0]
+			? path.dirname(runtime.args[0])
+			: path.dirname(runtime.command);
+		return new vscode.DebugAdapterExecutable(runtime.command, runtime.args, { cwd });
 	}
 }
 
@@ -33,30 +37,59 @@ class OnecDebugAdapterDescriptorFactory implements vscode.DebugAdapterDescriptor
 const ADAPTER_FAILURE_HINT = 'Подробности в панели Output, канал 1C: Platform Tools.';
 
 /**
- * Текст об аварийном завершении процесса адаптера; undefined, если адаптер завершился штатно.
+ * Текст об аварийном завершении процесса адаптера; undefined, если адаптер завершился штатно
+ * или сессию остановили кнопкой (канал stdio закрывается, процесс часто выходит с кодом 1).
  */
-export function adapterExitMessage(code?: number, signal?: string): string | undefined {
+export function adapterExitMessage(
+	code?: number,
+	signal?: string,
+	sessionStopping = false
+): string | undefined {
 	if (code === 0) {
+		return undefined;
+	}
+	if (sessionStopping && (code === 1 || code === undefined)) {
 		return undefined;
 	}
 	const reason = code === undefined ? `сигнал ${signal ?? 'неизвестен'}` : `код возврата ${code}`;
 	return `процесс адаптера отладки завершился аварийно: ${reason}`;
 }
 
+/** Ошибки канала stdio, которые VS Code даёт при штатной остановке сессии. */
+export function isAdapterShutdownNoise(error: Error): boolean {
+	const message = error.message.toLowerCase();
+	return (
+		message === 'read error' ||
+		message.includes('epipe') ||
+		message.includes('eof') ||
+		message.includes('broken pipe')
+	);
+}
+
 /**
  * Отслеживает жизненный цикл процесса адаптера. Без этого аварийное завершение адаптера выглядит как
  * молчаливое закрытие сессии: панель отладки исчезает, консоль отладки пуста, в Output ничего нет.
+ * Остановку кнопкой не показываем как аварию: клиент закрывает pipe раньше ответа disconnect.
  */
 class OnecDebugAdapterTrackerFactory implements vscode.DebugAdapterTrackerFactory {
 	createDebugAdapterTracker(): vscode.DebugAdapterTracker {
+		let sessionStopping = false;
 		return {
+			onWillStopSession() {
+				sessionStopping = true;
+			},
 			onError(error: Error) {
+				if (isAdapterShutdownNoise(error)) {
+					// VS Code шлёт это при любом закрытии stdout адаптера, часто раньше onWillStopSession.
+					log.debug(`канал адаптера закрыт: ${error.message}`);
+					return;
+				}
 				const message = `ошибка процесса адаптера отладки: ${error.message}`;
 				log.error(message);
 				void vscode.window.showErrorMessage(`${capitalize(message)}. ${ADAPTER_FAILURE_HINT}`);
 			},
 			onExit(code: number | undefined, signal: string | undefined) {
-				const message = adapterExitMessage(code, signal);
+				const message = adapterExitMessage(code, signal, sessionStopping);
 				if (!message) {
 					return;
 				}
