@@ -5,6 +5,14 @@
 Формат основан на [Keep a Changelog](https://keepachangelog.com/ru/1.0.0/),
 и этот проект придерживается [Semantic Versioning](https://semver.org/lang/ru/).
 
+## [0.8.7] - 2026-08-20
+
+
+### Новые возможности
+
+- **ibases:** Добавили список информационных баз и запуск через 1cestart
+
+
 ## [0.8.6] - 2026-08-19
 
 
