@@ -17,6 +17,7 @@ alwaysApply: true
 - **Панель «Метаданные 1С»**: flow `src/app/registerMetadataFlow.ts`, view/команды в `src/features/metadata/*`; XML-операции только через md-sparrow CLI (без ручного парсинга/правки XML в TypeScript)
 - **Панель «Артефакты 1С»**: flow `src/app/registerArtifactsFlow.ts`, view/команды в `src/features/artifacts/*`
 - **Панель «Список дел»**: flow `src/app/registerTodoFlow.ts`, view/сканер в `src/features/todo/*`
+- **Панель «Администрирование 1С»**: контейнер `1c-platform-tools-admin` (всегда виден); список ИБ из `ibases.v8i` — `src/features/ibases/*` (запуск через `1cestart`, не vrunner); консоль кластера — `src/features/clusters/*`, регистрация `registerClustersFeature` / `registerIbasesFeature` в `bootstrapApp`
 - **Базовый класс команд**: `BaseCommand` в `src/commands/baseCommand.ts`
 - **VRunner**: синглтон `VRunnerManager` в `src/shared/vrunnerManager.ts`
 - **DAP и отладка 1С**: интеграция с внешним `onec-debug-adapter`, регистрация через `src/features/debug/registerDebugFeature.ts`, детали — `.cursor/rules/debug-adapter-and-dap.mdc`
@@ -57,13 +58,14 @@ alwaysApply: true
 1. **Одинаковый набор во всех контейнерах** — все представления «Помощь и поддержка» берут данные из `TREE_GROUPS` (группа `helpAndSupport`). Для TreeView использовать `HelpAndSupportProvider` из `src/features/projects/helpAndSupportProvider.ts`.
 2. **Новые контейнеры** — при добавлении нового view container (activitybar или panel) добавлять в `package.json` представление «Помощь и поддержка» с `id` по шаблону `{containerId}-help`; провайдер регистрировать в runtime-слое фичи (и подключать flow в `bootstrapApp`), не в `extension.ts`.
 
-Сейчас представление «Помощь и поддержка» есть в контейнерах «Проекты 1С» и «Метаданные 1С»; группа с тем же набором — в дереве «Инструменты 1С».
+Сейчас представление «Помощь и поддержка» есть в контейнерах «Проекты 1С», «Метаданные 1С» и «Администрирование 1С»; группа с тем же набором — в дереве «Инструменты 1С».
 
 ## Документация
 
 `docs/` — пользовательские руководства по функциям, один документ на функцию.
 
 - **docs/README.md** — навигация по документации
+- **docs/admin.md** — панель «Администрирование 1С»: список информационных баз и консоль кластера
 - **docs/debug.md** — отладка 1С (пользовательское руководство)
 - **docs/metadata.md** — панель «Метаданные 1С»
 

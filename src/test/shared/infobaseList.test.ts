@@ -22,12 +22,28 @@ suite('Список информационных баз', () => {
 		);
 	});
 
+	test('порядок дерева читается из записи, без поля — ноль', () => {
+		const entries = parseInfobaseList(readPlatformText(path.join(FIXTURES, 'ibases.v8i')) ?? '');
+		const byName = new Map(entries.map((e) => [e.name, e]));
+
+		assert.strictEqual(byName.get('Демонстрационная')?.orderInTree, 1792);
+		assert.strictEqual(byName.get('Рабочая')?.orderInTree, 2048);
+		assert.strictEqual(byName.get('Песочница')?.orderInTree, 0);
+		assert.strictEqual(byName.get('Рабочая')?.orderInList, -1);
+	});
+
 	test('папка берётся из поля базы, а не из вложенности секций', () => {
 		const entries = parseInfobaseList(readPlatformText(path.join(FIXTURES, 'ibases.v8i')) ?? '');
 		const byName = new Map(entries.map((e) => [e.name, e]));
 
 		assert.strictEqual(byName.get('Демонстрационная')?.folder, '/Демо');
 		assert.strictEqual(byName.get('Рабочая')?.folder, '/');
+	});
+
+	test('папка без ведущего слэша приводится к виду платформы', () => {
+		const [entry] = parseInfobaseList('[База]\nConnect=File="C:\\\\ib";\nFolder=Демо\n');
+
+		assert.strictEqual(entry?.folder, '/Демо');
 	});
 
 	test('строка подключения собирается для файловой и серверной базы', () => {

@@ -2,7 +2,7 @@
  * Список информационных баз платформы 1С (`ibases.v8i`).
  *
  * Файл ведёт сама платформа: там же, где 1С показывает список баз при запуске. Расширение его
- * только читает, чтобы подставить строку подключения в профиль запуска.
+ * только читает: подставить строку в профиль запуска или показать список для запуска клиента.
  *
  * @module infobaseList
  */
@@ -19,6 +19,10 @@ export interface InfobaseEntry {
 	readonly connect: string;
 	/** Папка списка: `/`, `/Демо`, вложенные - через слэш. */
 	readonly folder: string;
+	/** Порядок в плоском списке платформы; нет поля — 0. */
+	readonly orderInList: number;
+	/** Порядок в дереве списка платформы; нет поля — 0. */
+	readonly orderInTree: number;
 }
 
 /**
@@ -34,10 +38,12 @@ export function parseInfobaseList(text: string): InfobaseEntry[] {
 	let name: string | undefined;
 	let connect = '';
 	let folder = '/';
+	let orderInList = 0;
+	let orderInTree = 0;
 
 	const flush = (): void => {
 		if (name && connect) {
-			out.push({ name, connect, folder });
+			out.push({ name, connect, folder, orderInList, orderInTree });
 		}
 	};
 
@@ -48,6 +54,8 @@ export function parseInfobaseList(text: string): InfobaseEntry[] {
 			name = line.slice(1, -1);
 			connect = '';
 			folder = '/';
+			orderInList = 0;
+			orderInTree = 0;
 			continue;
 		}
 		const eq = line.indexOf('=');
@@ -59,11 +67,40 @@ export function parseInfobaseList(text: string): InfobaseEntry[] {
 		if (key === 'connect') {
 			connect = value;
 		} else if (key === 'folder') {
-			folder = value || '/';
+			folder = normalizeFolder(value);
+		} else if (key === 'orderinlist') {
+			orderInList = parseOrder(value);
+		} else if (key === 'orderintree') {
+			orderInTree = parseOrder(value);
 		}
 	}
 	flush();
 	return out;
+}
+
+/**
+ * Папка списка в каноническом виде: `/`, `/Демо`, `/Демо/Вложенная`.
+ *
+ * @param value Значение поля `Folder` из v8i.
+ * @returns Нормализованный путь.
+ */
+export function normalizeFolder(value: string): string {
+	const trimmed = value.trim().replace(/\\/g, '/').replace(/\/+$/, '');
+	if (trimmed === '' || trimmed === '/') {
+		return '/';
+	}
+	return trimmed.startsWith('/') ? trimmed : `/${trimmed}`;
+}
+
+/**
+ * Число порядка из v8i: нечисловое значение не ломает разбор записи.
+ *
+ * @param value Текст после `=`.
+ * @returns Число или 0.
+ */
+function parseOrder(value: string): number {
+	const parsed = Number.parseInt(value, 10);
+	return Number.isFinite(parsed) ? parsed : 0;
 }
 
 /**

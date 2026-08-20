@@ -116,7 +116,7 @@ function requireNode(node: unknown): node is ClusterTreeNode {
 		return true;
 	}
 	void vscode.window.showInformationMessage(
-		'Команда вызывается из контекстного меню панели «Управление кластерами 1С».'
+		'Команда вызывается из контекстного меню представления «Кластеры».'
 	);
 	return false;
 }

@@ -46,13 +46,14 @@
     "onCommand:1c-platform-tools.dependencies.initializePackagedef",
     "onCommand:1c-platform-tools.projects.create",
     "onView:1c-platform-tools-clusters-tree",
+    "onView:1c-platform-tools-infobases",
     "onView:1c-platform-tools-projects-favorites",
     "onView:1c-platform-tools-projects-all",
     "onView:1c-platform-tools-projects-help",
     "onCommand:1c-platform-tools.projects.listOpen",
     "onCommand:1c-platform-tools.settings.openProjects",
-    "onView:1c-platform-tools-clusters-tree",
-    "onCommand:1c-platform-tools.clusters.addConnection"
+    "onCommand:1c-platform-tools.clusters.addConnection",
+    "onCommand:1c-platform-tools.ibases.list"
   ],
   "main": "./out/extension.js",
   "contributes": {
@@ -107,8 +108,8 @@
           "icon": "resources/1c-icon.svg"
         },
         {
-          "id": "1c-platform-tools-clusters",
-          "title": "Управление кластерами 1С",
+          "id": "1c-platform-tools-admin",
+          "title": "Администрирование 1С",
           "icon": "resources/1c-icon.svg"
         },
         {
@@ -140,14 +141,19 @@
       ]
     },
     "views": {
-      "1c-platform-tools-clusters": [
+      "1c-platform-tools-admin": [
         {
-          "id": "1c-platform-tools-clusters-tree",
-          "name": "Подключения",
-          "contextualTitle": "Управление кластерами 1С"
+          "id": "1c-platform-tools-infobases",
+          "name": "Информационные базы",
+          "contextualTitle": "Информационные базы"
         },
         {
-          "id": "1c-platform-tools-clusters-help",
+          "id": "1c-platform-tools-clusters-tree",
+          "name": "Кластеры",
+          "contextualTitle": "Кластеры"
+        },
+        {
+          "id": "1c-platform-tools-admin-help",
           "name": "Помощь и поддержка",
           "contextualTitle": "Помощь и поддержка",
           "visibility": "collapsed"
@@ -552,122 +558,146 @@
       {
         "command": "1c-platform-tools.clusters.addConnection",
         "title": "Создать подключение к кластеру",
-        "category": "1C: Управление кластерами",
+        "category": "1C: Кластеры",
         "icon": "$(add)"
       },
       {
         "command": "1c-platform-tools.clusters.removeConnection",
         "title": "Удалить",
-        "category": "1C: Управление кластерами",
+        "category": "1C: Кластеры",
         "icon": "$(trash)"
       },
       {
         "command": "1c-platform-tools.clusters.refresh",
         "title": "Обновить дерево кластеров",
-        "category": "1C: Управление кластерами",
+        "category": "1C: Кластеры",
         "icon": "$(refresh)"
       },
       {
         "command": "1c-platform-tools.clusters.refreshNode",
         "title": "Обновить",
-        "category": "1C: Управление кластерами",
+        "category": "1C: Кластеры",
         "icon": "$(refresh)"
       },
       {
         "command": "1c-platform-tools.clusters.enableAutoRefresh",
         "title": "Включить автообновление дерева кластеров",
-        "category": "1C: Управление кластерами",
+        "category": "1C: Кластеры",
         "icon": "$(sync-ignored)"
       },
       {
         "command": "1c-platform-tools.clusters.disableAutoRefresh",
         "title": "Выключить автообновление дерева кластеров",
-        "category": "1C: Управление кластерами",
+        "category": "1C: Кластеры",
         "icon": "$(sync)"
       },
       {
         "command": "1c-platform-tools.clusters.showActivity",
         "title": "Сеансы и соединения таблицей",
-        "category": "1C: Управление кластерами",
+        "category": "1C: Кластеры",
         "icon": "$(pulse)"
       },
       {
         "command": "1c-platform-tools.clusters.properties",
         "title": "Свойства",
-        "category": "1C: Управление кластерами",
+        "category": "1C: Кластеры",
         "icon": "$(settings)"
       },
       {
         "command": "1c-platform-tools.clusters.addAdmin",
         "title": "Добавить",
-        "category": "1C: Управление кластерами",
+        "category": "1C: Кластеры",
         "icon": "$(add)"
       },
       {
         "command": "1c-platform-tools.clusters.removeAdmin",
         "title": "Удалить",
-        "category": "1C: Управление кластерами",
+        "category": "1C: Кластеры",
         "icon": "$(trash)"
       },
       {
         "command": "1c-platform-tools.clusters.terminateSession",
         "title": "Завершить",
-        "category": "1C: Управление кластерами",
+        "category": "1C: Кластеры",
         "icon": "$(debug-stop)"
       },
       {
         "command": "1c-platform-tools.clusters.interruptSessionCall",
         "title": "Прервать текущий вызов",
-        "category": "1C: Управление кластерами",
+        "category": "1C: Кластеры",
         "icon": "$(debug-pause)"
       },
       {
         "command": "1c-platform-tools.clusters.turnOffProcess",
         "title": "Выключить",
-        "category": "1C: Управление кластерами",
+        "category": "1C: Кластеры",
         "icon": "$(circle-slash)"
       },
       {
         "command": "1c-platform-tools.clusters.terminateInfobaseSessions",
         "title": "Завершить все сеансы",
-        "category": "1C: Управление кластерами",
+        "category": "1C: Кластеры",
         "icon": "$(debug-stop)"
       },
       {
         "command": "1c-platform-tools.clusters.disconnectConnection",
         "title": "Разорвать",
-        "category": "1C: Управление кластерами",
+        "category": "1C: Кластеры",
         "icon": "$(debug-disconnect)"
       },
       {
         "command": "1c-platform-tools.clusters.lockSessions",
         "title": "Запретить начало сеансов",
-        "category": "1C: Управление кластерами",
+        "category": "1C: Кластеры",
         "icon": "$(lock)"
       },
       {
         "command": "1c-platform-tools.clusters.unlockSessions",
         "title": "Разрешить начало сеансов",
-        "category": "1C: Управление кластерами",
+        "category": "1C: Кластеры",
         "icon": "$(unlock)"
       },
       {
         "command": "1c-platform-tools.clusters.lockScheduledJobs",
         "title": "Запретить регламентные задания",
-        "category": "1C: Управление кластерами",
+        "category": "1C: Кластеры",
         "icon": "$(clock)"
       },
       {
         "command": "1c-platform-tools.clusters.unlockScheduledJobs",
         "title": "Разрешить регламентные задания",
-        "category": "1C: Управление кластерами",
+        "category": "1C: Кластеры",
         "icon": "$(clock)"
       },
       {
         "command": "1c-platform-tools.clusters.openSettings",
         "title": "Настройки кластеров",
-        "category": "1C: Управление кластерами",
+        "category": "1C: Кластеры",
         "icon": "$(gear)"
+      },
+      {
+        "command": "1c-platform-tools.ibases.list",
+        "title": "Список информационных баз",
+        "category": "1C: Информационные базы",
+        "icon": "$(database)"
+      },
+      {
+        "command": "1c-platform-tools.ibases.refresh",
+        "title": "Обновить список информационных баз",
+        "category": "1C: Информационные базы",
+        "icon": "$(refresh)"
+      },
+      {
+        "command": "1c-platform-tools.ibases.launchEnterprise",
+        "title": "Предприятие",
+        "category": "1C: Информационные базы",
+        "icon": "$(play)"
+      },
+      {
+        "command": "1c-platform-tools.ibases.launchDesigner",
+        "title": "Конфигуратор",
+        "category": "1C: Информационные базы",
+        "icon": "$(tools)"
       },
       {
         "command": "1c-platform-tools.env.openProfileEditor",
@@ -1899,6 +1929,10 @@
       {
         "view": "1c-platform-tools-clusters-tree",
         "contents": "Нет подключений к кластерам 1С.\n[Создать подключение](command:1c-platform-tools.clusters.addConnection)\n[Настройка](command:1c-platform-tools.clusters.openSettings)"
+      },
+      {
+        "view": "1c-platform-tools-infobases",
+        "contents": "В списке информационных баз 1С нет ни одной базы.\n[Обновить](command:1c-platform-tools.ibases.refresh)"
       }
     ],
     "menus": {
@@ -1969,6 +2003,14 @@
         },
         {
           "command": "1c-platform-tools.clusters.unlockScheduledJobs",
+          "when": "false"
+        },
+        {
+          "command": "1c-platform-tools.ibases.launchEnterprise",
+          "when": "false"
+        },
+        {
+          "command": "1c-platform-tools.ibases.launchDesigner",
           "when": "false"
         },
         {
@@ -2344,6 +2386,11 @@
       ],
       "view/title": [
         {
+          "command": "1c-platform-tools.ibases.refresh",
+          "when": "view == 1c-platform-tools-infobases",
+          "group": "navigation@30"
+        },
+        {
           "command": "1c-platform-tools.clusters.addConnection",
           "when": "view == 1c-platform-tools-clusters-tree",
           "group": "navigation@1"
@@ -2555,6 +2602,16 @@
         }
       ],
       "view/item/context": [
+        {
+          "command": "1c-platform-tools.ibases.launchEnterprise",
+          "when": "view == 1c-platform-tools-infobases && viewItem == ibase",
+          "group": "inline@1"
+        },
+        {
+          "command": "1c-platform-tools.ibases.launchDesigner",
+          "when": "view == 1c-platform-tools-infobases && viewItem == ibase",
+          "group": "inline@2"
+        },
         {
           "command": "1c-platform-tools.clusters.properties",
           "when": "view == 1c-platform-tools-clusters-tree && viewItem =~ /^(clusterConnection|clusterNode|clusterServer|clusterProcess|clusterManager|clusterInfobase|clusterSession|clusterConnectionItem|clusterAdmin|clusterAgentAdmin)$/",
@@ -3340,11 +3397,11 @@
             }
           },
           {
-            "id": "step15-clusters",
-            "title": "Управление кластерами 1С",
-            "description": "Консоль администрирования кластера через rac: подключения к ras, информационные базы, сеансы и соединения, блокировки и завершение сеансов.\n\n[Открыть панель «Управление кластерами 1С»](command:workbench.view.extension.1c-platform-tools-clusters)\n[Создать подключение к кластеру](command:1c-platform-tools.clusters.addConnection)\n[Настройки кластеров](command:1c-platform-tools.clusters.openSettings)",
+            "id": "step15-admin",
+            "title": "Администрирование 1С",
+            "description": "Список информационных баз платформы и консоль кластера. Панель доступна всегда, проект 1С не обязателен.\n\n[Открыть панель «Администрирование 1С»](command:workbench.view.extension.1c-platform-tools-admin)\n[Список информационных баз](command:1c-platform-tools.ibases.list)\n[Создать подключение к кластеру](command:1c-platform-tools.clusters.addConnection)",
             "media": {
-              "markdown": "walkthrough/step15-clusters.md"
+              "markdown": "walkthrough/step15-admin.md"
             }
           }
         ]
@@ -3939,7 +3996,7 @@
           "1c-platform-tools.clusters.platformPath": {
             "type": "string",
             "default": "",
-            "description": "Каталог установки платформы 1С для поиска rac. Пусто: определяется автоматически (%PROGRAMFILES%\\1cv8 в Windows, /opt/1cv8/<архитектура> и /opt/1C/v8.3/<архитектура> в Linux и macOS). Версия платформы задаётся у каждого подключения отдельно."
+            "description": "Каталог установки платформы 1С для поиска rac и 1cestart. Пусто: определяется автоматически (%PROGRAMFILES%\\1cv8 в Windows, /opt/1cv8/<архитектура> и /opt/1C/v8.3/<архитектура> в Linux и macOS). Версия rac задаётся у каждого подключения отдельно."
           },
           "1c-platform-tools.clusters.timeoutSeconds": {
             "type": "number",
@@ -3950,7 +4007,7 @@
           "1c-platform-tools.clusters.autoRefresh.enabled": {
             "type": "boolean",
             "default": false,
-            "description": "Периодически обновлять дерево кластеров. Обновление идёт только когда панель «Управление кластерами 1С» видна."
+            "description": "Периодически обновлять дерево кластеров. Обновление идёт только когда представление «Кластеры» видно."
           },
           "1c-platform-tools.clusters.autoRefresh.intervalSeconds": {
             "type": "number",
