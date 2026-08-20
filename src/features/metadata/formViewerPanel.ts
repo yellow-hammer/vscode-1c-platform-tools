@@ -246,6 +246,7 @@ export async function openFormViewer(
 	}
 
 	const runtime = await ensureMdSparrowRuntime(context);
+	log.info(`форма: открываем ${params.formXmlFsPath}`);
 	let content: FormContentDto;
 	let dictionary: FormItemPropertyDictionary | undefined;
 	try {
@@ -254,9 +255,9 @@ export async function openFormViewer(
 			loadItemPropertyDictionary(runtime, schema, params.cwd),
 		]);
 	} catch (e) {
-		void vscode.window.showErrorMessage(
-			`Не удалось прочитать форму. ${e instanceof Error ? e.message : String(e)}`.slice(0, ERR_PREVIEW)
-		);
+		const msg = e instanceof Error ? e.message : String(e);
+		log.error(`форма: не прочитана ${params.formXmlFsPath}: ${msg}`);
+		void vscode.window.showErrorMessage(`Не удалось прочитать форму. ${msg}`.slice(0, ERR_PREVIEW));
 		return;
 	}
 

@@ -12,6 +12,7 @@ import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 import * as vscode from 'vscode';
 import {
+	isMetadataCommonForm,
 	MetadataLeafTreeItem,
 	MetadataObjectNodeTreeItem,
 	MetadataSourceTreeItem,
@@ -71,6 +72,21 @@ export interface MetadataPaletteSourceParams {
 	propertyPaletteProvider: PropertyPaletteViewProvider;
 }
 
+/**
+ * Палитра читает свойства выделенного объекта.
+ * Общую форму не читает: у неё содержимое формы, не {@code cf-md-object-get}.
+ */
+export function metadataLeafReadsObjectProperties(item: MetadataLeafTreeItem): boolean {
+	if (item.objectType === 'ExternalReport' || item.objectType === 'ExternalDataProcessor') {
+		return true;
+	}
+	if (isMetadataCommonForm(item.objectType)) {
+		return false;
+	}
+	const tokens = new Set((item.contextValue ?? '').split(/\s+/));
+	return tokens.has('metadataObjectProperties') || tokens.has('metadataObjectPropertiesSubsystem');
+}
+
 /** Что выделено: чем читать свойства и чем их записывать. */
 interface PaletteTarget {
 	readonly title: string;
@@ -123,6 +139,9 @@ function targetFor(item: vscode.TreeItem): PaletteTarget | undefined {
 		};
 	}
 	if (!(item instanceof MetadataLeafTreeItem) || !item.resourceUri) {
+		return undefined;
+	}
+	if (!metadataLeafReadsObjectProperties(item)) {
 		return undefined;
 	}
 	const filePath = item.resourceUri.fsPath;

@@ -7,11 +7,15 @@ import {
 	MetadataObjectNodeTreeItem,
 	MetadataSourceTreeItem,
 	MetadataTreeDataProvider,
+	defaultMetadataLeafOpenCommand,
+	isMetadataCommonForm,
 	objectModuleFilePath,
 	objectModuleKindsForType,
 	metadataObjectOwnsFile,
 	objectChildFromFilePath,
 } from '../../features/metadata/metadataTreeView';
+import { resolveMetadataOpen } from '../../features/metadata/metadataTreeService';
+import { metadataLeafReadsObjectProperties } from '../../features/properties/metadataPaletteSource';
 import { createMockExtensionContext } from '../fixtures/mocks/vscodeMocks';
 
 suite('metadataTreeView subsystem filter', () => {
@@ -341,8 +345,10 @@ suite('metadataTreeView nested nodes', () => {
 		);
 
 		assert.strictEqual(form.command?.command, '1c-platform-tools.metadata.openForm');
+		assert.strictEqual(form.contextValue, 'metadataObjectForm mdFormModule');
 		assert.deepStrictEqual(form.command?.arguments, [form]);
 		assert.strictEqual(template.command, undefined, 'клик открывает только форму');
+		assert.strictEqual(template.contextValue, 'metadataObjectChildReadonly');
 	});
 });
 
@@ -372,7 +378,7 @@ suite('metadataTreeView object modules', () => {
 		);
 		assert.strictEqual(
 			leaf('InformationRegister', 'Курсы', 'src/cf/InformationRegisters/Курсы.xml').contextValue,
-			'metadataLeaf mdRecModule mdMgrModule'
+			'metadataObjectProperties mdRecModule mdMgrModule'
 		);
 		// Константа: модуль менеджера значения + модуль менеджера (как в конфигураторе).
 		assert.strictEqual(
@@ -402,6 +408,75 @@ suite('metadataTreeView object modules', () => {
 			objectModuleFilePath('C:/ws/src/cf/CommonForms/Форма.xml', 'Форма', 'form'),
 			path.join('C:/ws/src/cf/CommonForms', 'Форма', 'Ext', 'Form', 'Module.bsl')
 		);
+	});
+
+	test('клик по объекту вызывает ту же команду, что основной пункт меню', () => {
+		const commonForm = leaf('CommonForm', 'Настройки', 'src/cf/CommonForms/Настройки.xml');
+		assert.ok(isMetadataCommonForm(commonForm.objectType));
+		assert.strictEqual(commonForm.contextValue, 'metadataObjectProperties mdFormModule');
+		assert.strictEqual(defaultMetadataLeafOpenCommand(commonForm), '1c-platform-tools.metadata.openForm');
+		assert.strictEqual(commonForm.command?.command, '1c-platform-tools.metadata.openForm');
+		assert.strictEqual(metadataLeafReadsObjectProperties(commonForm), false);
+
+		const commonModule = leaf('CommonModule', 'Общий', 'src/cf/CommonModules/Общий.xml');
+		assert.strictEqual(defaultMetadataLeafOpenCommand(commonModule), '1c-platform-tools.metadata.openModule');
+		assert.strictEqual(commonModule.command?.command, '1c-platform-tools.metadata.openModule');
+		assert.strictEqual(metadataLeafReadsObjectProperties(commonModule), true);
+
+		const catalog = leaf('Catalog', 'Контрагенты', 'src/cf/Catalogs/Контрагенты.xml');
+		assert.strictEqual(defaultMetadataLeafOpenCommand(catalog), '1c-platform-tools.metadata.openObjectProperties');
+		assert.strictEqual(catalog.command?.command, '1c-platform-tools.metadata.openObjectProperties');
+		assert.strictEqual(metadataLeafReadsObjectProperties(catalog), true);
+
+		const register = leaf('InformationRegister', 'Курсы', 'src/cf/InformationRegisters/Курсы.xml');
+		assert.strictEqual(register.command?.command, '1c-platform-tools.metadata.openObjectProperties');
+		assert.strictEqual(metadataLeafReadsObjectProperties(register), true);
+
+		const httpService = leaf('HTTPService', 'Обмен', 'src/cf/HTTPServices/Обмен.xml');
+		assert.strictEqual(httpService.contextValue, 'metadataObjectProperties mdModule');
+		assert.strictEqual(httpService.command?.command, '1c-platform-tools.metadata.openModule');
+		assert.strictEqual(metadataLeafReadsObjectProperties(httpService), true);
+
+		const language = leaf('Language', 'Русский', 'src/cf/Languages/Русский.xml');
+		assert.strictEqual(language.contextValue, 'metadataObjectProperties');
+		assert.strictEqual(defaultMetadataLeafOpenCommand(language), '1c-platform-tools.metadata.openObjectProperties');
+		assert.strictEqual(language.command?.command, '1c-platform-tools.metadata.openObjectProperties');
+		assert.strictEqual(metadataLeafReadsObjectProperties(language), true);
+	});
+
+	test('поле open из дерева не меняет команду клика', () => {
+		const commonModule = new MetadataLeafTreeItem(
+			'main',
+			'catalogs',
+			undefined,
+			'CommonModule',
+			'Общий',
+			'src/cf/CommonModules/Общий.xml',
+			undefined,
+			'C:/ws',
+			context.extensionUri,
+			'C:/ws/src/cf/Configuration.xml',
+			'C:/ws/src/cf',
+			{ action: 'module', fsPath: 'C:/ws/src/cf/CommonModules/Общий/Ext/Module.bsl' }
+		);
+		assert.strictEqual(commonModule.command?.command, '1c-platform-tools.metadata.openModule');
+		assert.deepStrictEqual(commonModule.command?.arguments, [commonModule]);
+
+		const catalog = new MetadataLeafTreeItem(
+			'main',
+			'catalogs',
+			undefined,
+			'Catalog',
+			'Контрагенты',
+			'src/cf/Catalogs/Контрагенты.xml',
+			undefined,
+			'C:/ws',
+			context.extensionUri,
+			'C:/ws/src/cf/Configuration.xml',
+			'C:/ws/src/cf',
+			{ action: 'properties' }
+		);
+		assert.strictEqual(catalog.command?.command, '1c-platform-tools.metadata.openObjectProperties');
 	});
 });
 
@@ -513,5 +588,38 @@ suite('Скрытые отбором узлы', () => {
 		provider.setTextFilter('Валюты');
 
 		assert.strictEqual(provider.isHiddenByFilter(leaf), false);
+	});
+});
+
+suite('resolveMetadataOpen', () => {
+	test('склеивает пути из дерева md-sparrow с корнем проекта', () => {
+		assert.deepStrictEqual(resolveMetadataOpen({ action: 'properties' }, 'C:/ws'), { action: 'properties' });
+		assert.deepStrictEqual(
+			resolveMetadataOpen(
+				{
+					action: 'form',
+					relativePath: 'src/cf/CommonForms/Настройки/Ext/Form.xml',
+					moduleRelativePath: 'src/cf/CommonForms/Настройки/Ext/Form/Module.bsl',
+				},
+				'C:/ws'
+			),
+			{
+				action: 'form',
+				fsPath: path.join('C:/ws', 'src/cf/CommonForms/Настройки/Ext/Form.xml'),
+				moduleFsPath: path.join('C:/ws', 'src/cf/CommonForms/Настройки/Ext/Form/Module.bsl'),
+			}
+		);
+		assert.strictEqual(resolveMetadataOpen(undefined, 'C:/ws'), undefined);
+		assert.deepStrictEqual(
+			resolveMetadataOpen(
+				{ action: 'form', relativePath: 'src/cf/CommonForms/Настройки/Ext/Form.xml' },
+				'C:/ws'
+			),
+			{
+				action: 'form',
+				fsPath: path.join('C:/ws', 'src/cf/CommonForms/Настройки/Ext/Form.xml'),
+				moduleFsPath: undefined,
+			}
+		);
 	});
 });

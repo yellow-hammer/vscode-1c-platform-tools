@@ -8,7 +8,13 @@ import * as fs from 'node:fs';
 import * as vscode from 'vscode';
 import { VRunnerManager } from '../../shared/vrunnerManager';
 import { logger } from '../../shared/logger';
-import { loadProjectMetadataTree, type ProjectMetadataTreeDto } from './metadataTreeService';
+import {
+	loadProjectMetadataTree,
+	resolveMetadataOpen,
+	type MetadataItemDto,
+	type MetadataObjectOpen,
+	type ProjectMetadataTreeDto,
+} from './metadataTreeService';
 import { ensureMdSparrowRuntime } from './mdSparrowBootstrap';
 import { runMdSparrowParamsRead } from './mdSparrowParams';
 import { mdSparrowSchemaFlagFromConfigurationXml } from './mdSparrowSchemaVersion';
@@ -79,27 +85,10 @@ function normalizeMetadataObjectType(objectType: string): string {
 	return METADATA_OBJECT_TYPE_ALIASES[objectType] ?? objectType;
 }
 
-const MD_PROPS_TYPES = new Set([
-	'Catalog',
-	'Constant',
-	'Enum',
-	'Document',
-	'Report',
-	'DataProcessor',
-	'Task',
-	'ChartOfAccounts',
-	'ChartOfCharacteristicTypes',
-	'ChartOfCalculationTypes',
-	'CommonModule',
-	'Subsystem',
-	'SessionParameter',
-	'ExchangePlan',
-	'CommonAttribute',
-	'CommonPicture',
-	'DocumentNumerator',
-	'ExternalDataSource',
-	'Role',
-]);
+/** Общая форма — сама объект, не узел «Формы» у справочника. */
+export function isMetadataCommonForm(objectType: string): boolean {
+	return normalizeMetadataObjectType(objectType) === 'CommonForm';
+}
 
 /** Вид модуля объекта метаданных, доступного для открытия из дерева. */
 export type ObjectModuleKind =
@@ -161,6 +150,36 @@ const OBJECT_MODULE_KINDS_BY_TYPE: Record<string, ObjectModuleKind[]> = {
 /** Виды модулей, доступных для типа объекта метаданных (пусто — модулей нет). */
 export function objectModuleKindsForType(objectType: string): ObjectModuleKind[] {
 	return OBJECT_MODULE_KINDS_BY_TYPE[normalizeMetadataObjectType(objectType)] ?? [];
+}
+
+/**
+ * Команда клика по объекту — та же, что основной пункт его меню:
+ * общая форма, модуль, иначе свойства.
+ */
+export function defaultMetadataLeafOpenCommand(item: MetadataLeafTreeItem): string | undefined {
+	if (!item.resourceUri) {
+		return undefined;
+	}
+	const type = normalizeMetadataObjectType(item.objectType);
+	if (isMetadataCommonForm(type)) {
+		return '1c-platform-tools.metadata.openForm';
+	}
+	if (objectModuleKindsForType(type).includes('module')) {
+		return '1c-platform-tools.metadata.openModule';
+	}
+	return '1c-platform-tools.metadata.openObjectProperties';
+}
+
+function assignMetadataLeafOpenCommand(item: MetadataLeafTreeItem): void {
+	const command = defaultMetadataLeafOpenCommand(item);
+	if (!command) {
+		return;
+	}
+	item.command = {
+		command,
+		title: 'Открыть',
+		arguments: [item],
+	};
 }
 
 /** Абсолютный путь к файлу модуля объекта рядом с его XML (`<Объект>/Ext/<Модуль>.bsl`). */
@@ -306,7 +325,9 @@ export class MetadataLeafTreeItem extends vscode.TreeItem {
 		workspaceRoot: string,
 		extensionUri: vscode.Uri,
 		public readonly configurationXmlAbs: string | undefined,
-		public readonly metadataRootAbs: string | undefined
+		public readonly metadataRootAbs: string | undefined,
+		/** Необязательная цель из дерева md-sparrow; клик работает и без неё. */
+		public readonly open?: MetadataObjectOpen
 	) {
 		const absFromRelativePath =
 			relativePath && relativePath.length > 0
@@ -330,19 +351,17 @@ export class MetadataLeafTreeItem extends vscode.TreeItem {
 			this.resourceUri = vscode.Uri.file(abs);
 			this.tooltip = abs;
 		}
-		if (abs && MD_PROPS_TYPES.has(normalizedObjectType)) {
-			this.contextValue =
-				normalizedObjectType === 'Subsystem' ? 'metadataObjectPropertiesSubsystem' : 'metadataObjectProperties';
-		} else if (
+		if (
 			abs &&
 			(normalizedObjectType === 'ExternalReport' || normalizedObjectType === 'ExternalDataProcessor')
 		) {
 			this.contextValue = 'metadataLeafFile';
+		} else if (abs) {
+			this.contextValue =
+				normalizedObjectType === 'Subsystem' ? 'metadataObjectPropertiesSubsystem' : 'metadataObjectProperties';
 		} else {
-			this.contextValue = abs ? 'metadataLeaf' : 'metadataLeafNoFile';
-			if (!abs) {
-				this.tooltip = name;
-			}
+			this.contextValue = 'metadataLeafNoFile';
+			this.tooltip = name;
 		}
 		// Стабильные токены доступных модулей объекта — по типу, не по наличию файла.
 		// Пункты меню «Открыть модуль …» всегда присутствуют для подходящих типов.
@@ -359,6 +378,7 @@ export class MetadataLeafTreeItem extends vscode.TreeItem {
 ${this.tooltip}` : ADOPTED_HINT;
 		}
 		this.description = '';
+		assignMetadataLeafOpenCommand(this);
 	}
 
 }
@@ -444,7 +464,8 @@ export class MetadataSubsystemChildTreeItem extends MetadataLeafTreeItem {
 		workspaceRoot: string,
 		extensionUri: vscode.Uri,
 		configurationXmlAbs: string | undefined,
-		metadataRootAbs: string | undefined
+		metadataRootAbs: string | undefined,
+		open?: MetadataObjectOpen
 	) {
 		super(
 			sourceId,
@@ -457,7 +478,8 @@ export class MetadataSubsystemChildTreeItem extends MetadataLeafTreeItem {
 			workspaceRoot,
 			extensionUri,
 			configurationXmlAbs,
-			metadataRootAbs
+			metadataRootAbs,
+			open
 		);
 	}
 }
@@ -619,10 +641,9 @@ export class MetadataObjectNodeTreeItem extends vscode.TreeItem {
 			this.iconPath = metadataSvgIcon(extensionUri, 'attribute.svg');
 			return;
 		}
-		this.contextValue = 'metadataObjectChildReadonly';
+		this.contextValue = nodeKind === 'form' ? 'metadataObjectForm mdFormModule' : 'metadataObjectChildReadonly';
 		this.iconPath = metadataNodeKindIcon(nodeKind, extensionUri);
 		if (nodeKind === 'form') {
-			// Форма открывается кликом, как файл: отдельного пункта меню для этого не нужно.
 			this.command = {
 				command: '1c-platform-tools.metadata.openForm',
 				title: 'Открыть форму',
@@ -1320,16 +1341,12 @@ export class MetadataTreeDataProvider implements vscode.TreeDataProvider<vscode.
 				const flat: MetadataLeafTreeItem[] = [];
 				for (const g of src.groups) {
 					for (const it of g.items) {
-						const rel = it.relativePath?.length ? it.relativePath : undefined;
 						flat.push(
-							new MetadataLeafTreeItem(
+							createMetadataLeaf(
 								src.id,
 								g.id,
 								undefined,
-								it.objectType,
-								it.name,
-								rel,
-								it.objectBelonging,
+								it,
 								workspaceRoot,
 								this._context.extensionUri,
 								undefined,
@@ -1392,15 +1409,11 @@ export class MetadataTreeDataProvider implements vscode.TreeDataProvider<vscode.
 						const sk = subgroupKey(src.id, g.id, sg.id);
 						const leaves: MetadataLeafTreeItem[] = [];
 						for (const it of sg.items) {
-							const rel = it.relativePath?.length ? it.relativePath : undefined;
-							const leaf = new MetadataLeafTreeItem(
+							const leaf = createMetadataLeaf(
 								src.id,
 								g.id,
 								sg.id,
-								it.objectType,
-								it.name,
-								rel,
-								it.objectBelonging,
+								it,
 								workspaceRoot,
 								this._context.extensionUri,
 								cfgAbs,
@@ -1416,16 +1429,12 @@ export class MetadataTreeDataProvider implements vscode.TreeDataProvider<vscode.
 					this._subgroupsByGroup.set(gKey, subNodes);
 					const flatLeaves: MetadataLeafTreeItem[] = [];
 					for (const it of g.items) {
-						const rel = it.relativePath?.length ? it.relativePath : undefined;
 						flatLeaves.push(
-							new MetadataLeafTreeItem(
+							createMetadataLeaf(
 								src.id,
 								g.id,
 								undefined,
-								it.objectType,
-								it.name,
-								rel,
-								it.objectBelonging,
+								it,
 								workspaceRoot,
 								this._context.extensionUri,
 								cfgAbs,
@@ -1437,16 +1446,12 @@ export class MetadataTreeDataProvider implements vscode.TreeDataProvider<vscode.
 				} else {
 					const leaves: MetadataLeafTreeItem[] = [];
 					for (const it of g.items) {
-						const rel = it.relativePath?.length ? it.relativePath : undefined;
 						leaves.push(
-							new MetadataLeafTreeItem(
+							createMetadataLeaf(
 								src.id,
 								g.id,
 								undefined,
-								it.objectType,
-								it.name,
-								rel,
-								it.objectBelonging,
+								it,
 								workspaceRoot,
 								this._context.extensionUri,
 								cfgAbs,
@@ -1960,7 +1965,8 @@ export class MetadataTreeDataProvider implements vscode.TreeDataProvider<vscode.
 						this._workspaceRoot ?? '',
 						this._context.extensionUri,
 						childTemplate.configurationXmlAbs,
-						childTemplate.metadataRootAbs
+						childTemplate.metadataRootAbs,
+						childTemplate.open
 					)
 				);
 			}
@@ -2010,9 +2016,37 @@ export class MetadataTreeDataProvider implements vscode.TreeDataProvider<vscode.
 			this._workspaceRoot,
 			this._context.extensionUri,
 			parentLeaf.configurationXmlAbs,
-			parentLeaf.metadataRootAbs
+			parentLeaf.metadataRootAbs,
+			{ action: 'properties' }
 		);
 	}
+}
+
+function createMetadataLeaf(
+	sourceId: string,
+	groupId: string,
+	subgroupId: string | undefined,
+	item: MetadataItemDto,
+	workspaceRoot: string,
+	extensionUri: vscode.Uri,
+	configurationXmlAbs: string | undefined,
+	metadataRootAbs: string | undefined
+): MetadataLeafTreeItem {
+	const rel = item.relativePath?.length ? item.relativePath : undefined;
+	return new MetadataLeafTreeItem(
+		sourceId,
+		groupId,
+		subgroupId,
+		item.objectType,
+		item.name,
+		rel,
+		item.objectBelonging,
+		workspaceRoot,
+		extensionUri,
+		configurationXmlAbs,
+		metadataRootAbs,
+		resolveMetadataOpen(item.open, workspaceRoot)
+	);
 }
 
 function groupKey(sourceId: string, groupId: string): string {
