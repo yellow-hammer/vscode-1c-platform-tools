@@ -45,12 +45,57 @@ export interface MetadataGroupDto {
 	readonly subgroups?: MetadataSubgroupDto[];
 }
 
+/** Что открывать по клику: контракт {@code MdObjectOpen.Target} из md-sparrow. */
+export type MetadataOpenAction = 'form' | 'module' | 'properties';
+
+export interface MetadataItemOpenDto {
+	readonly action: MetadataOpenAction;
+	readonly relativePath?: string;
+	readonly moduleRelativePath?: string;
+}
+
 export interface MetadataItemDto {
 	readonly objectType: string;
 	readonly name: string;
 	readonly relativePath: string;
 	/** Принадлежность объекта расширения: `Adopted` у заимствованного; у конфигурации пусто. */
 	readonly objectBelonging?: string;
+	/** Необязательная цель открытия из md-sparrow; клик в IDE работает и без неё. */
+	readonly open?: MetadataItemOpenDto;
+}
+
+/** Абсолютные пути цели открытия: relativePath из дерева склеивается с корнем проекта. */
+export interface MetadataObjectOpen {
+	readonly action: MetadataOpenAction;
+	readonly fsPath?: string;
+	readonly moduleFsPath?: string;
+}
+
+/**
+ * Переводит цель открытия из JSON дерева в абсолютные пути.
+ *
+ * @param dto Поле {@code open} объекта из md-sparrow.
+ * @param workspaceRoot Корень проекта.
+ * @returns Цель с абсолютными путями или {@code undefined}, если открывать нечего.
+ */
+export function resolveMetadataOpen(
+	dto: MetadataItemOpenDto | undefined,
+	workspaceRoot: string
+): MetadataObjectOpen | undefined {
+	if (!dto) {
+		return undefined;
+	}
+	if (dto.action === 'properties') {
+		return { action: 'properties' };
+	}
+	if ((dto.action !== 'form' && dto.action !== 'module') || !dto.relativePath) {
+		return undefined;
+	}
+	return {
+		action: dto.action,
+		fsPath: path.join(workspaceRoot, dto.relativePath),
+		moduleFsPath: dto.moduleRelativePath ? path.join(workspaceRoot, dto.moduleRelativePath) : undefined,
+	};
 }
 
 /**

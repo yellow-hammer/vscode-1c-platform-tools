@@ -834,6 +834,11 @@
         "category": "1C: Метаданные"
       },
       {
+        "command": "1c-platform-tools.metadata.open",
+        "title": "Открыть",
+        "category": "1C: Метаданные"
+      },
+      {
         "command": "1c-platform-tools.properties.show",
         "title": "Открыть панель свойств",
         "shortTitle": "Свойства",
@@ -2094,6 +2099,10 @@
           "when": "false"
         },
         {
+          "command": "1c-platform-tools.metadata.open",
+          "when": "false"
+        },
+        {
           "command": "1c-platform-tools.metadata.openSourceProperties",
           "when": "false"
         },
@@ -2984,12 +2993,17 @@
         },
         {
           "command": "1c-platform-tools.metadata.openObjectProperties",
-          "when": "view == 1c-platform-tools-metadata-tree && (viewItem =~ /^metadataObjectProperties($| )/ || viewItem == metadataObjectPropertiesSubsystem || viewItem =~ /^metadataLeaf($| )/ || viewItem == metadataLeafFile)",
+          "when": "view == 1c-platform-tools-metadata-tree && ((viewItem =~ /metadataObjectProperties/ && viewItem !~ /mdFormModule/) || viewItem == metadataLeafFile)",
+          "group": "1_md_open"
+        },
+        {
+          "command": "1c-platform-tools.metadata.openForm",
+          "when": "view == 1c-platform-tools-metadata-tree && (viewItem == metadataObjectForm || viewItem =~ /(^| )mdFormModule( |$)/)",
           "group": "1_md_open"
         },
         {
           "command": "1c-platform-tools.metadata.er.openForObject",
-          "when": "view == 1c-platform-tools-metadata-tree && (viewItem =~ /^metadataObjectProperties($| )/ || viewItem == metadataObjectPropertiesSubsystem || viewItem == metadataLeafFile || viewItem =~ /^metadataLeaf($| )/)",
+          "when": "view == 1c-platform-tools-metadata-tree && (viewItem =~ /metadataObjectProperties/ || viewItem == metadataLeafFile)",
           "group": "1_md_open"
         },
         {
@@ -3074,17 +3088,17 @@
         },
         {
           "command": "1c-platform-tools.metadata.renameObject",
-          "when": "view == 1c-platform-tools-metadata-tree && (viewItem =~ /^metadataObjectProperties($| )/ || viewItem == metadataObjectPropertiesSubsystem || viewItem == metadataLeafFile)",
+          "when": "view == 1c-platform-tools-metadata-tree && (viewItem =~ /metadataObjectProperties/ || viewItem == metadataLeafFile)",
           "group": "3_md_mutate"
         },
         {
           "command": "1c-platform-tools.metadata.duplicateObject",
-          "when": "view == 1c-platform-tools-metadata-tree && (viewItem =~ /^metadataObjectProperties($| )/ || viewItem == metadataObjectPropertiesSubsystem || viewItem == metadataLeafFile)",
+          "when": "view == 1c-platform-tools-metadata-tree && (viewItem =~ /metadataObjectProperties/ || viewItem == metadataLeafFile)",
           "group": "3_md_mutate"
         },
         {
           "command": "1c-platform-tools.metadata.deleteObject",
-          "when": "view == 1c-platform-tools-metadata-tree && (viewItem =~ /^metadataObjectProperties($| )/ || viewItem == metadataObjectPropertiesSubsystem || viewItem == metadataLeafFile)",
+          "when": "view == 1c-platform-tools-metadata-tree && (viewItem =~ /metadataObjectProperties/ || viewItem == metadataLeafFile)",
           "group": "3_md_mutate"
         },
         {
@@ -3099,12 +3113,12 @@
         },
         {
           "command": "1c-platform-tools.metadata.copyObjectName",
-          "when": "view == 1c-platform-tools-metadata-tree && (viewItem =~ /^metadataObjectProperties($| )/ || viewItem == metadataObjectPropertiesSubsystem || viewItem == metadataLeafFile)",
+          "when": "view == 1c-platform-tools-metadata-tree && (viewItem =~ /metadataObjectProperties/ || viewItem == metadataLeafFile)",
           "group": "5_md_copy"
         },
         {
           "command": "1c-platform-tools.metadata.copyObjectPath",
-          "when": "view == 1c-platform-tools-metadata-tree && (viewItem =~ /^metadataObjectProperties($| )/ || viewItem == metadataObjectPropertiesSubsystem || viewItem == metadataLeafFile)",
+          "when": "view == 1c-platform-tools-metadata-tree && (viewItem =~ /metadataObjectProperties/ || viewItem == metadataLeafFile)",
           "group": "5_md_copy"
         },
         {

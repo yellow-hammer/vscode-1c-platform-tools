@@ -23,7 +23,7 @@ import type { MetadataFilterViewProvider } from './metadataFilterView';
 import { MetadataSearchViewProvider } from './metadataSearchView';
 import { computeSubsystemFilter, findSubsystemByName, loadSubsystemTrees } from './metadataSubsystemFilter';
 import { openMetadataObjectPropertiesEditor } from './metadataObjectPropertiesPanel';
-import { formModulePath, objectFormXmlPath, openFormViewer } from './formViewerPanel';
+import { commonFormXmlPath, formModulePath, objectFormXmlPath, openFormViewer } from './formViewerPanel';
 import { ensureBslModuleFile } from './bslModuleFile';
 import type { PropertyPaletteViewProvider } from '../properties/propertyPaletteView';
 import { registerMetadataPaletteSource } from '../properties/metadataPaletteSource';
@@ -42,6 +42,8 @@ import { loadProjectMetadataTree } from './metadataTreeService';
 import { openErCanvasPanel } from './er/erCanvasPanel';
 import type { ErScope } from './er/erTypes';
 import {
+	defaultMetadataLeafOpenCommand,
+	isMetadataCommonForm,
 	MetadataLeafTreeItem,
 	MetadataMdGroupTreeItem,
 	MetadataMdSubgroupTreeItem,
@@ -222,6 +224,55 @@ export function registerMetadataFeature(
 		await vscode.window.showTextDocument(doc, { preview: false });
 	}
 
+	async function openFormViewerForXml(
+		formXml: string,
+		moduleFsPath: string,
+		title: string,
+		owner: { metadataRootAbs?: string; configurationXmlAbs?: string; resourceUri: vscode.Uri }
+	): Promise<void> {
+		await openFormViewer(context, {
+			formXmlFsPath: formXml,
+			moduleFsPath,
+			title,
+			cwd: owner.metadataRootAbs ?? path.dirname(owner.resourceUri.fsPath),
+			cfgPath: owner.configurationXmlAbs,
+			propertyPalette: propertyPaletteProvider,
+		});
+	}
+
+	/** Общая форма: тот же просмотрщик, что у формы справочника. Путь — Ext/Form.xml рядом с объектом. */
+	async function openCommonFormFromLeaf(node: MetadataLeafTreeItem): Promise<void> {
+		if (!node.resourceUri) {
+			void vscode.window.showErrorMessage('Не удалось открыть форму.');
+			return;
+		}
+		const formXml = commonFormXmlPath(node.resourceUri.fsPath, node.name);
+		if (!fs.existsSync(formXml)) {
+			void vscode.window.showErrorMessage(`Не найден файл формы: ${formXml}`);
+			return;
+		}
+		await openFormViewerForXml(formXml, formModulePath(formXml), node.name, {
+			metadataRootAbs: node.metadataRootAbs,
+			configurationXmlAbs: node.configurationXmlAbs,
+			resourceUri: node.resourceUri,
+		});
+	}
+
+	/** Скрытый алиас: то же, что клик по объекту — команда из меню, не отдельный путь. */
+	async function openMetadataLeaf(item?: MetadataLeafTreeItem): Promise<void> {
+		const node = resolveSelectedMetadataLeaf(item);
+		if (!node) {
+			void vscode.window.showInformationMessage('Выберите объект в дереве метаданных.');
+			return;
+		}
+		const command = defaultMetadataLeafOpenCommand(node);
+		if (!command) {
+			void vscode.window.showInformationMessage('Для этого объекта нечего открывать.');
+			return;
+		}
+		await vscode.commands.executeCommand(command, node);
+	}
+
 	/**
 	 * Открывает модуль объекта метаданных заданного вида. Если файла модуля ещё
 	 * нет — создаёт пустой и открывает его.
@@ -239,7 +290,10 @@ export function registerMetadataFeature(
 			void vscode.window.showInformationMessage(`У объекта «${node.name}» нет такого модуля.`);
 			return;
 		}
-		const modulePath = objectModuleFilePath(node.resourceUri.fsPath, node.name, kind);
+		await openOrCreateModuleFile(objectModuleFilePath(node.resourceUri.fsPath, node.name, kind));
+	}
+
+	async function openOrCreateModuleFile(modulePath: string): Promise<void> {
 		try {
 			const created = await ensureBslModuleFile(modulePath);
 			await openTextFile(modulePath);
@@ -250,6 +304,24 @@ export function registerMetadataFeature(
 			const msg = e instanceof Error ? e.message : String(e);
 			void vscode.window.showErrorMessage(`Не удалось открыть модуль: ${msg}`);
 		}
+	}
+
+	async function openFormModuleFromTree(item?: MetadataLeafTreeItem | MetadataObjectNodeTreeItem): Promise<void> {
+		const node = item ?? metadataTreeView.selection[0];
+		if (node instanceof MetadataObjectNodeTreeItem && node.nodeKind === 'form') {
+			const owner = node.owner;
+			if (!owner.resourceUri) {
+				void vscode.window.showInformationMessage('У формы нет объекта-владельца.');
+				return;
+			}
+			await openOrCreateModuleFile(formModulePath(objectFormXmlPath(owner.resourceUri.fsPath, owner.name, node.name)));
+			return;
+		}
+		if (node instanceof MetadataLeafTreeItem && isMetadataCommonForm(node.objectType)) {
+			await openObjectModuleOfKind(node, 'form');
+			return;
+		}
+		void vscode.window.showInformationMessage('Выберите форму в дереве метаданных.');
 	}
 
 	async function resolveFirstXmlInDir(dir: string): Promise<string | undefined> {
@@ -1513,12 +1585,24 @@ export function registerMetadataFeature(
 		),
 		vscode.commands.registerCommand(
 			'1c-platform-tools.metadata.openFormModule',
-			(item?: MetadataLeafTreeItem) => openObjectModuleOfKind(item, 'form')
+			(item?: MetadataLeafTreeItem | MetadataObjectNodeTreeItem) => openFormModuleFromTree(item)
+		),
+		vscode.commands.registerCommand(
+			'1c-platform-tools.metadata.open',
+			(item?: MetadataLeafTreeItem) => openMetadataLeaf(item)
 		),
 		vscode.commands.registerCommand(
 			'1c-platform-tools.metadata.openForm',
-			async (item?: MetadataObjectNodeTreeItem) => {
+			async (item?: MetadataObjectNodeTreeItem | MetadataLeafTreeItem) => {
 				const node = item ?? metadataTreeView.selection[0];
+				if (node instanceof MetadataLeafTreeItem) {
+					if (!isMetadataCommonForm(node.objectType)) {
+						void vscode.window.showInformationMessage('Выберите форму в дереве метаданных.');
+						return;
+					}
+					await openCommonFormFromLeaf(node);
+					return;
+				}
 				if (!(node instanceof MetadataObjectNodeTreeItem) || node.nodeKind !== 'form') {
 					void vscode.window.showInformationMessage('Выберите форму в дереве метаданных.');
 					return;
@@ -1529,13 +1613,10 @@ export function registerMetadataFeature(
 					return;
 				}
 				const formXml = objectFormXmlPath(owner.resourceUri.fsPath, owner.name, node.name);
-				await openFormViewer(context, {
-					formXmlFsPath: formXml,
-					moduleFsPath: formModulePath(formXml),
-					title: `${owner.name}.${node.name}`,
-					cwd: owner.metadataRootAbs ?? path.dirname(owner.resourceUri.fsPath),
-					cfgPath: owner.configurationXmlAbs,
-					propertyPalette: propertyPaletteProvider,
+				await openFormViewerForXml(formXml, formModulePath(formXml), `${owner.name}.${node.name}`, {
+					metadataRootAbs: owner.metadataRootAbs,
+					configurationXmlAbs: owner.configurationXmlAbs,
+					resourceUri: owner.resourceUri,
 				});
 			}
 		),
@@ -1889,6 +1970,10 @@ export function registerMetadataFeature(
 				}
 				if (!(node instanceof MetadataLeafTreeItem) || !node.resourceUri) {
 					void vscode.window.showInformationMessage('Выберите объект в дереве метаданных.');
+					return;
+				}
+				if (isMetadataCommonForm(node.objectType)) {
+					void vscode.window.showInformationMessage('У общей формы нет свойств объекта.');
 					return;
 				}
 				let schemaFlagFallback: string | undefined;
