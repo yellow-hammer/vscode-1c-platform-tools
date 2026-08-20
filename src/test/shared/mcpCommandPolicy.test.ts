@@ -36,6 +36,8 @@ suite('mcpCommandPolicy', () => {
 			'1c-platform-tools.env.createProfile',
 			'1c-platform-tools.env.setOverrides',
 			'1c-platform-tools.projects.create',
+			'1c-platform-tools.ibases.list',
+			'1c-platform-tools.ibases.launchEnterprise',
 		]) {
 			assert.strictEqual(isCommandExposedToMcp(id), false, id);
 		}

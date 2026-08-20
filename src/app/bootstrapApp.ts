@@ -29,6 +29,7 @@ import { registerPlatformServerFeature } from '../features/launch/platformServer
 import { registerDiagnosticsFeature } from '../features/diagnostics/registerDiagnosticsFeature';
 import { registerTasksFeature } from '../features/tasks/registerTasksFeature';
 import { registerClustersFeature } from '../features/clusters/registerClustersFeature';
+import { registerIbasesFeature } from '../features/ibases/registerIbasesFeature';
 
 /**
  * Выполняет полную инициализацию расширения.
@@ -36,9 +37,10 @@ import { registerClustersFeature } from '../features/clusters/registerClustersFe
 export async function bootstrapApp(context: vscode.ExtensionContext): Promise<void> {
 	const { registerRuntime: registerProjectsRuntime } = registerProjectsFlow(context);
 
-	// Консоль кластера не зависит от открытого проекта 1С: администрируют кластер
-	// и без исходников в рабочей области.
+	// Панель «Администрирование 1С» не зависит от открытого проекта: список баз
+	// и консоль кластера нужны и без исходников в рабочей области.
 	const clustersFeatureDisposables = registerClustersFeature(context);
+	const ibasesFeatureDisposables = registerIbasesFeature();
 
 	registerDebugFeature(context);
 	context.subscriptions.push(ProfileEditorProvider.register(context));
@@ -112,6 +114,7 @@ export async function bootstrapApp(context: vscode.ExtensionContext): Promise<vo
 		...diagnosticsFeatureDisposables,
 		...tasksFeatureDisposables,
 		...clustersFeatureDisposables,
+		...ibasesFeatureDisposables,
 		...commandDisposables
 	);
 }

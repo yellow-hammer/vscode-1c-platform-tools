@@ -5,8 +5,8 @@
 /** Представление с деревом подключений. */
 export const CLUSTERS_VIEW_ID = '1c-platform-tools-clusters-tree';
 
-/** Представление «Помощь и поддержка» в контейнере кластеров. */
-export const CLUSTERS_HELP_VIEW_ID = '1c-platform-tools-clusters-help';
+/** Представление «Помощь и поддержка» в контейнере «Администрирование 1С». */
+export const CLUSTERS_HELP_VIEW_ID = '1c-platform-tools-admin-help';
 
 /** Раздел настроек расширения, отвечающий за кластеры. */
 export const CLUSTERS_CONFIG_SECTION = '1c-platform-tools.clusters';

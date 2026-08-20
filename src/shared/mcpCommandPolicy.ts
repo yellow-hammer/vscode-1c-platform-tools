@@ -21,6 +21,7 @@ const HIDDEN_PREFIXES = [
 	// Консоль кластера: команды работают с выделенным узлом дерева, а действия
 	// вроде завершения сеанса необратимы и требуют подтверждения человеком
 	`${COMMAND_PREFIX}clusters.`,
+	`${COMMAND_PREFIX}ibases.`,
 	`${COMMAND_PREFIX}metadata.`,
 	`${COMMAND_PREFIX}projects.`,
 	`${COMMAND_PREFIX}todo.`,
