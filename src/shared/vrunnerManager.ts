@@ -104,6 +104,9 @@ export class VRunnerManager {
 	/** Кэш версии vrunner по корню проекта (workspace и projectPath различаются). */
 	private readonly vrunnerVersionCacheByRoot = new Map<string, VRunnerVersion | null>();
 
+	/** Идущий сейчас детект версии по корню: гасит параллельные запуски vrunner. */
+	private readonly vrunnerVersionInFlight = new Map<string, Promise<VRunnerVersion | undefined>>();
+
 	/** Показанные замечания о формате файла настроек: не повторяем за сессию. */
 	private readonly warnedV2SettingsFiles = new Set<string>();
 
@@ -636,6 +639,28 @@ export class VRunnerManager {
 			return cachedVersion ?? undefined;
 		}
 
+		// Кэш наполняется только по завершении, а на активации детект зовут
+		// несколько панелей разом: без этого каждая запускала бы vrunner заново
+		const running = this.vrunnerVersionInFlight.get(cacheKey);
+		if (running !== undefined) {
+			return running;
+		}
+		const detection = this.detectVRunnerVersion(cacheKey);
+		this.vrunnerVersionInFlight.set(cacheKey, detection);
+		try {
+			return await detection;
+		} finally {
+			this.vrunnerVersionInFlight.delete(cacheKey);
+		}
+	}
+
+	/**
+	 * Определяет версию vrunner и обновляет кэш.
+	 *
+	 * @param cacheKey - Ключ кэша версии для текущего корня
+	 * @returns Разобранная версия или undefined
+	 */
+	private async detectVRunnerVersion(cacheKey: string): Promise<VRunnerVersion | undefined> {
 		let version = await this.detectVRunnerVersionFromCli();
 
 		if (!version) {
