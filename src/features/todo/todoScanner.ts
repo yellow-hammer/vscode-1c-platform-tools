@@ -1,6 +1,6 @@
 /**
  * Сканирование workspace на комментарии-метки (например TODO, FIXME, XXX, HACK, BUG).
- * Используется панелью «Список дел» (todoPanelView).
+ * Используется панелью «Список дел 1С» (todoPanelView).
  * @module todoScanner
  */
 

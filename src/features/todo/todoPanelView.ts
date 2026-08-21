@@ -1,5 +1,5 @@
 /**
- * Панель «Список дел» в нижней части окна.
+ * Панель «Список дел 1С» в нижней части окна.
  * TreeDataProvider с группировкой по файлу, фильтрами по тегу и области.
  * @module todoPanelView
  */
@@ -34,10 +34,10 @@ const TAG_ICON_COLORS: Record<string, string> = {
 	HACK: 'editorWarning.foreground',
 };
 
-const PLACEHOLDER_LOADING = 'Загрузка';
-const PLACEHOLDER_EMPTY = 'Нет дел';
-const PLACEHOLDER_EMPTY_FILTERED = 'Нет дел (сбросьте отборы)';
-const PLACEHOLDER_NO_WORKSPACE = 'Откройте папку проекта';
+const MESSAGE_LOADING = 'Идёт поиск';
+const MESSAGE_EMPTY = 'Нет дел';
+const MESSAGE_EMPTY_FILTERED = 'Нет дел под текущими отборами';
+const MESSAGE_NO_WORKSPACE = 'Откройте папку проекта';
 
 function getIconForTag(tag: string): vscode.ThemeIcon {
 	const colorId = TAG_ICON_COLORS[tag] ?? 'editorInfo.foreground';
@@ -56,11 +56,10 @@ function pluralPoints(count: number): string {
 }
 
 /**
- * Узел дерева списка дел: корень, плейсхолдер, группа по файлу или элемент (одна запись).
+ * Узел дерева списка дел: корень, группа по файлу или элемент (одна запись).
  */
 export type TodoNode =
 	| { kind: 'root' }
-	| { kind: 'placeholder'; message: string }
 	| { kind: 'file'; path: string; entries: TodoEntry[] }
 	| { kind: 'entry'; entry: TodoEntry; tableMode?: boolean };
 
@@ -70,7 +69,7 @@ export function isTodoEntryNode(node: TodoNode | undefined): node is { kind: 'en
 }
 
 /**
- * Провайдер дерева панели «Список дел».
+ * Провайдер дерева панели «Список дел 1С».
  * Хранит кэш отсканированных записей, применяет фильтры по тегам и области, строит узлы с группировкой по файлу или плоский список.
  */
 export class TodoPanelTreeDataProvider implements vscode.TreeDataProvider<TodoNode> {
@@ -98,8 +97,24 @@ export class TodoPanelTreeDataProvider implements vscode.TreeDataProvider<TodoNo
 
 	private _updateViewTitle(): void {
 		if (this._treeView) {
-			this._treeView.title = 'Список дел';
+			this._treeView.title = 'Список дел 1С';
 		}
+	}
+
+	/**
+	 * Сообщение вместо пустого дерева и счётчик на значке панели.
+	 *
+	 * @param message - Текст под заголовком; пусто, когда список не пуст
+	 * @param count - Число пунктов после отборов
+	 */
+	private _setViewState(message: string | undefined, count: number): void {
+		if (!this._treeView) {
+			return;
+		}
+		this._treeView.message = message;
+		this._treeView.badge = count > 0
+			? { value: count, tooltip: `${count} ${pluralPoints(count)}` }
+			: undefined;
 	}
 
 	private _hasActiveFilters(): boolean {
@@ -134,6 +149,13 @@ export class TodoPanelTreeDataProvider implements vscode.TreeDataProvider<TodoNo
 			this._didInitialLoad = true;
 			this._lastFilteredCount = this._filterEntries().length;
 			this._updateViewTitle();
+			// Значок обновляется и когда панель скрыта: getChildren тогда не зовут
+			this._setViewState(
+				this._lastFilteredCount > 0
+					? undefined
+					: this._hasActiveFilters() ? MESSAGE_EMPTY_FILTERED : MESSAGE_EMPTY,
+				this._lastFilteredCount
+			);
 		} finally {
 			this._isScanning = false;
 		}
@@ -155,26 +177,31 @@ export class TodoPanelTreeDataProvider implements vscode.TreeDataProvider<TodoNo
 
 		const hasWorkspace = (vscode.workspace.workspaceFolders?.length ?? 0) > 0;
 		if (!hasWorkspace) {
-			return [{ kind: 'placeholder', message: PLACEHOLDER_NO_WORKSPACE }];
+			this._setViewState(MESSAGE_NO_WORKSPACE, 0);
+			return [];
 		}
 
 		if (!this._didInitialLoad) {
 			this._didInitialLoad = true;
 			void this.refresh();
-			return [{ kind: 'placeholder', message: PLACEHOLDER_LOADING }];
+			this._setViewState(MESSAGE_LOADING, 0);
+			return [];
 		}
 
 		if (this._isScanning && this._entries.length === 0) {
-			return [{ kind: 'placeholder', message: PLACEHOLDER_LOADING }];
+			this._setViewState(MESSAGE_LOADING, 0);
+			return [];
 		}
 
 		const filtered = this._filterEntries();
 		if (this._entries.length === 0 || filtered.length === 0) {
-			const emptyMessage = this._hasActiveFilters() ? PLACEHOLDER_EMPTY_FILTERED : PLACEHOLDER_EMPTY;
-			return [{ kind: 'placeholder', message: emptyMessage }];
+			this._lastFilteredCount = 0;
+			this._setViewState(this._hasActiveFilters() ? MESSAGE_EMPTY_FILTERED : MESSAGE_EMPTY, 0);
+			return [];
 		}
 
 		this._lastFilteredCount = filtered.length;
+		this._setViewState(undefined, filtered.length);
 		return this._buildNodesFromEntries(filtered);
 	}
 
@@ -232,19 +259,6 @@ export class TodoPanelTreeDataProvider implements vscode.TreeDataProvider<TodoNo
 
 	getTreeItem(node: TodoNode): vscode.TreeItem {
 		if (node.kind === 'root') {return new vscode.TreeItem('', vscode.TreeItemCollapsibleState.None);}
-		if (node.kind === 'placeholder') {
-			const item = new vscode.TreeItem(node.message, vscode.TreeItemCollapsibleState.None);
-			item.contextValue = 'todoPlaceholder';
-			item.iconPath = new vscode.ThemeIcon(
-				node.message === PLACEHOLDER_LOADING ? 'loading~spin' : 'check-all'
-			);
-			if (node.message === PLACEHOLDER_EMPTY_FILTERED) {
-				item.command = { command: '1c-platform-tools.todo.clearFilter', title: 'Сбросить отборы' };
-			} else if (node.message !== PLACEHOLDER_LOADING && node.message !== PLACEHOLDER_NO_WORKSPACE) {
-				item.command = { command: '1c-platform-tools.todo.refresh', title: 'Обновить' };
-			}
-			return item;
-		}
 		if (node.kind === 'file') {
 			const count = node.entries.length;
 			const { fileName, dirPath } = this._fileLabel(node.path);

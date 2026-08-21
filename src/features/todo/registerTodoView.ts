@@ -7,7 +7,7 @@ export interface TodoViewRegistration {
 }
 
 /**
- * Регистрирует tree view панели «Список дел».
+ * Регистрирует tree view панели «Список дел 1С».
  */
 export function registerTodoView(
 	context: vscode.ExtensionContext
