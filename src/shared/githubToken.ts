@@ -29,6 +29,9 @@ let storedToken = '';
 /** Токен сессии GitHub в VS Code, если пользователь в неё вошёл. */
 let sessionToken = '';
 
+/** Учётная запись сессии: попадает в журнал, чтобы источник токена был виден. */
+let sessionAccount = '';
+
 /**
  * Читает токен из сессии GitHub редактора.
  *
@@ -39,6 +42,7 @@ async function readGithubSession(silent: boolean): Promise<string> {
 	try {
 		// Права не нужны: релизы и так публичные, токен снимает лимит анонимных запросов
 		const session = await vscode.authentication.getSession('github', [], silent ? { silent: true } : { createIfNone: true });
+		sessionAccount = session?.account.label ?? '';
 		return session?.accessToken ?? '';
 	} catch (error) {
 		log.warn(`Сессия GitHub недоступна: ${(error as Error).message}`);
@@ -61,6 +65,7 @@ export async function initGithubToken(context: vscode.ExtensionContext): Promise
 	}
 
 	sessionToken = await readGithubSession(true);
+	log.info(`Токен GitHub: ${githubTokenSource()}`);
 	context.subscriptions.push(
 		vscode.authentication.onDidChangeSessions(async (event) => {
 			if (event.provider.id === 'github') {
@@ -90,6 +95,24 @@ export async function signInToGithub(): Promise<boolean> {
  */
 export function githubTokenFromStore(): string {
 	return storedToken;
+}
+
+/**
+ * Откуда берётся токен: для журнала, чтобы источник был виден без догадок.
+ *
+ * @returns Название источника
+ */
+export function githubTokenSource(): string {
+	if (storedToken !== '') {
+		return 'сохранённый командой';
+	}
+	if (process.env.PLATFORM_TOOLS_GITHUB_TOKEN?.trim() || process.env.PLATFORM_TOOLS_MD_SPARROW_GITHUB_TOKEN?.trim()) {
+		return 'переменная окружения';
+	}
+	if (sessionToken !== '') {
+		return `сессия редактора (${sessionAccount || 'учётная запись без имени'})`;
+	}
+	return 'нет, запросы анонимные';
 }
 
 /**
