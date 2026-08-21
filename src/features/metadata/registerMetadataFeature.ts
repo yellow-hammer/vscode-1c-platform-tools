@@ -4,20 +4,13 @@ import * as path from 'node:path';
 import * as vscode from 'vscode';
 import { VRunnerManager } from '../../shared/vrunnerManager';
 import {
-	cachedMdSparrowTag,
-	clearMdSparrowJarCache,
-	clearPortableJreCache,
 	ensureMdSparrowRuntime,
-	portableJreCached,
 } from './mdSparrowBootstrap';
-import { cachedOnecDebugAdapterTag, clearOnecDebugAdapterCache } from '../debug/onecDebugAdapterBootstrap';
 import { parseMdBoilerplateKindFromCommandArgs } from './metadataBoilerplateNames';
 import {
 	openExternalArtifactPropertiesPanel,
 	type ExternalArtifactPropertiesDto,
 } from './metadataExternalArtifactPropertiesPanel';
-import { cachedOvmTag, clearOvmCache } from '../../shared/ovmComponent';
-import { cachedAllureTag, clearAllureCache } from '../../shared/allureComponent';
 import { createMdSparrowMutationRunner } from './mdSparrowMutationQueue';
 import type { MetadataFilterViewProvider } from './metadataFilterView';
 import { MetadataSearchViewProvider } from './metadataSearchView';
@@ -58,9 +51,6 @@ import {
 import { notifyQuiet } from '../../shared/notify';
 import { showComponentError } from '../../shared/githubToken';
 import { describeComponentState, readComponentStates } from '../../shared/componentsRegistry';
-import { ensureOnecDebugAdapter } from '../debug/onecDebugAdapterBootstrap';
-import { ensureOvm } from '../../shared/ovmComponent';
-import { ensureAllure } from '../../shared/allureComponent';
 import { CfDumpFinding, DumpValidationDiagnostics } from './dumpValidationDiagnostics';
 
 export interface RegisterMetadataFeatureParams {
