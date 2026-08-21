@@ -53,3 +53,25 @@ export function resolveFileIbConnectionString(connectionString: string, workspac
 
 	return '/F' + resolveFileIbAbsolutePath(trimmed, workspaceRoot);
 }
+
+/**
+ * Заключает путь файловой ИБ в кавычки: `/F<путь>` -> `/F"<путь>"`.
+ *
+ * vanessa-runner 3 разбирает строку подключения по пробелам, поэтому путь с
+ * пробелом без кавычек доходит до платформы обрезанным. Кавычки принимают обе
+ * версии. Строки `/S…`, пути без пробелов и уже закавыченные значения не меняются.
+ *
+ * @param connectionString - Строка подключения
+ * @returns Строка подключения, безопасная для передачи в vanessa-runner
+ */
+export function quoteFileIbConnection(connectionString: string): string {
+	const trimmed = connectionString.trim();
+	if (!trimmed.startsWith('/F')) {
+		return trimmed;
+	}
+	const pathPart = trimmed.slice(2);
+	if (!pathPart || pathPart.startsWith('"') || !/\s/.test(pathPart)) {
+		return trimmed;
+	}
+	return `/F"${pathPart}"`;
+}

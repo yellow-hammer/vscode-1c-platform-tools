@@ -86,4 +86,38 @@ suite('toSyntaxCheckErrors', () => {
 		assert.strictEqual(errors[0].filepath, 'Справка.Раздел');
 		assert.strictEqual(errors[0].severity, 'warning');
 	});
+	test('запись vanessa-runner 3: путь и текст склеены в name', () => {
+		// Формат 3.0.0-rc14: classname=syntax-check, в name путь и текст через пробел
+		const xml = `<?xml version="1.0" encoding="utf-8"?>
+<testsuites>
+	<testsuite name="syntax-check" tests="1" failures="1">
+		<testcase name="HTTPСервис.Биллинг.Модуль Возможно ошибочный метод: &quot;УдалитьЗапись&quot;" classname="syntax-check">
+			<failure message="HTTPСервис.Биллинг.Модуль Возможно ошибочный метод: &quot;УдалитьЗапись&quot;"/>
+		</testcase>
+	</testsuite>
+</testsuites>`;
+
+		const findings = parseSyntaxCheckFindings(xml);
+
+		assert.strictEqual(findings.length, 1);
+		assert.strictEqual(findings[0].metadataPath, 'HTTPСервис.Биллинг.Модуль');
+		assert.strictEqual(findings[0].message, 'Возможно ошибочный метод: "УдалитьЗапись"');
+		assert.strictEqual(findings[0].severity, 'error');
+	});
+
+	test('замечание без пути по метаданным остаётся целым', () => {
+		const xml = `<?xml version="1.0" encoding="utf-8"?>
+<testsuites>
+	<testsuite name="syntax-check" tests="1" failures="1">
+		<testcase name="Не удалось открыть конфигурацию" classname="syntax-check">
+			<failure message="Не удалось открыть конфигурацию"/>
+		</testcase>
+	</testsuite>
+</testsuites>`;
+
+		const findings = parseSyntaxCheckFindings(xml);
+
+		assert.strictEqual(findings.length, 1);
+		assert.strictEqual(findings[0].metadataPath, 'Не удалось открыть конфигурацию');
+	});
 });

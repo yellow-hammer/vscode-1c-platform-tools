@@ -9,6 +9,8 @@
  * Модуль чистый (без vscode/fs).
  */
 
+import { quoteFileIbConnection } from './ibConnectionPath';
+
 /**
  * Схема файлов настроек по мажорной версии vanessa-runner: 2.x читает env.json,
  * 3.x — autumn-properties.json (оба — из корня проекта автоматически).
@@ -188,7 +190,7 @@ export function buildOverrideArgs(overrides: EnvOverrides | undefined): string[]
 	}
 	const args: string[] = [];
 	if (overrides.ibConnection) {
-		args.push('--ibconnection', overrides.ibConnection);
+		args.push('--ibconnection', quoteFileIbConnection(overrides.ibConnection));
 	}
 	if (overrides.dbUser) {
 		args.push('--db-user', overrides.dbUser);

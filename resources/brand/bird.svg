@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128" role="img" aria-label="Овсянка 1C: Platform Tools">
+	<g fill="none" stroke="#f5b301" stroke-width="6" stroke-linecap="round" stroke-linejoin="round">
+		<path d="M72 44A16 16 0 0 0 40 44c-6 12-8 24-6 34 4 14 14 22 28 23l30-13" />
+		<path d="M92 88l26-10M92 88l24 10" />
+		<path d="M50 64c12 4 22 14 26 26" />
+		<path d="M56 101v9M70 100v10" />
+		<path d="M34 110h68" />
+	</g>
+	<path d="M72 44l14 6-14 6" fill="none" stroke="#f5b301" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" />
+	<circle cx="60" cy="42" r="4.5" fill="#f5b301" />
+</svg>

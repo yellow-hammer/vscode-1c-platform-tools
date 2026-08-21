@@ -6,9 +6,11 @@ import { parseJUnitXml, JUnitCase } from '../testing/parsers/junitParser';
  * Разбор jUnit-отчёта синтаксического контроля (vrunner syntax-check) в плоский
  * список находок для DiagnosticCollection.
  *
- * Особенности формата (проверено на ssl_3_1, см. [[ssl31-reference-test-config]]):
- *   - корень <testsuites name="CheckConfig.<режим>">, classname вида
- *     `CheckConfig.<режим>.Ошибка`;
+ * Форматы двух версий (проверено живыми прогонами на ssl_3_1):
+ *   - 2.x: корень <testsuites name="CheckConfig.<режим>">, classname вида
+ *     `CheckConfig.<режим>.Ошибка`, в name только путь по метаданным;
+ *   - 3.x: classname `syntax-check`, в name путь и текст ошибки склеены
+ *     через пробел, message повторяет ту же строку целиком;
  *   - в одном testcase атрибут message элемента <failure> содержит НЕСКОЛЬКО
  *     ошибок, разделённых переводом строки (&#xA;) — каждую разворачиваем в
  *     отдельную находку;
@@ -65,6 +67,41 @@ function splitMessages(message: string | undefined): string[] {
 		.filter((line) => line.length > 0);
 }
 
+/** Признак пути по метаданным: не меньше трёх сегментов через точку. */
+function looksLikeMetadataPath(token: string): boolean {
+	return token.split('.').length >= 3;
+}
+
+/**
+ * Делит name элемента testcase на путь по метаданным и остаток.
+ *
+ * В 2.x в name лежит только путь. В 3.x путь и текст ошибки склеены через
+ * пробел, поэтому путём считается первое слово, если оно похоже на путь.
+ *
+ * @param name - Значение атрибута name
+ * @returns Путь по метаданным и остаток строки
+ */
+function splitCaseName(name: string): { metadataPath: string; rest: string } {
+	const trimmed = (name ?? '').trim();
+	const spaceAt = trimmed.search(/\s/);
+	if (spaceAt <= 0) {
+		return { metadataPath: trimmed, rest: '' };
+	}
+	const head = trimmed.slice(0, spaceAt);
+	if (!looksLikeMetadataPath(head)) {
+		return { metadataPath: trimmed, rest: '' };
+	}
+	return { metadataPath: head, rest: trimmed.slice(spaceAt + 1).trim() };
+}
+
+/** Убирает путь по метаданным из начала текста ошибки (запись 3.x). */
+function stripMetadataPrefix(line: string, metadataPath: string): string {
+	const trimmed = line.trim();
+	return trimmed.startsWith(`${metadataPath} `)
+		? trimmed.slice(metadataPath.length + 1).trim()
+		: trimmed;
+}
+
 /**
  * Разбирает XML jUnit-отчёта syntax-check в список находок
  *
@@ -80,12 +117,17 @@ export function parseSyntaxCheckFindings(xml: string): SyntaxCheckFinding[] {
 		if (testCase.status !== 'failed' && testCase.status !== 'error') {
 			continue;
 		}
-		const metadataPath = testCase.name.trim();
+		const { metadataPath, rest } = splitCaseName(testCase.name);
 		if (!metadataPath) {
 			continue;
 		}
 		const severity = severityFromCase(testCase);
-		const lines = splitMessages(testCase.message ?? testCase.details);
+		const lines = splitMessages(testCase.message ?? testCase.details)
+			.map((line) => stripMetadataPrefix(line, metadataPath))
+			.filter((line) => line.length > 0);
+		if (lines.length === 0 && rest) {
+			lines.push(rest);
+		}
 		// Если message пуст — оставляем одну находку с обобщённым текстом
 		const messages = lines.length > 0 ? lines : ['Ошибка синтаксического контроля'];
 		for (const message of messages) {

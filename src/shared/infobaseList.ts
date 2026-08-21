@@ -10,6 +10,7 @@
 import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
+import { quoteFileIbConnection } from './ibConnectionPath';
 
 /** Запись списка: база либо папка, в которой базы лежат. */
 export interface InfobaseEntry {
@@ -111,7 +112,7 @@ function parseOrder(value: string): number {
 export function infobaseConnectionString(connect: string): string | undefined {
 	const file = /File\s*=\s*"([^"]*)"/i.exec(connect);
 	if (file) {
-		return file[1] ? `/F${file[1]}` : undefined;
+		return file[1] ? quoteFileIbConnection(`/F${file[1]}`) : undefined;
 	}
 	const server = /Srvr\s*=\s*"([^"]*)"/i.exec(connect);
 	const ref = /Ref\s*=\s*"([^"]*)"/i.exec(connect);

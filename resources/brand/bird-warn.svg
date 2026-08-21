@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128" role="img" aria-label="Овсянка подаёт голос">
+	<g fill="none" stroke="#f5b301" stroke-width="6" stroke-linecap="round" stroke-linejoin="round">
+		<path d="M72 44A16 16 0 0 0 40 44c-6 12-8 24-6 34 4 14 14 22 28 23l30-13" />
+		<path d="M92 88l26-10M92 88l24 10" />
+		<path d="M50 64c12 4 22 14 26 26" />
+		<path d="M56 101v9M70 100v10" />
+		<path d="M34 110h68" />
+	</g>
+	<g fill="none" stroke="#f5b301" stroke-width="5" stroke-linecap="round" stroke-linejoin="round">
+		<path d="M72 42l16 2" />
+		<path d="M72 50l14 8" />
+	</g>
+	<circle cx="60" cy="42" r="4.5" fill="#f5b301" />
+	<g fill="none" stroke="#f5b301" stroke-width="4" stroke-linecap="round">
+		<path d="M96 34c4-3 4-9 0-12" />
+		<path d="M106 38c7-6 7-18 0-24" />
+	</g>
+</svg>
