@@ -10,7 +10,7 @@ export interface RegisterTodoFeatureParams {
 }
 
 /**
- * Регистрирует команды и обработчики панели «Список дел».
+ * Регистрирует команды и обработчики панели «Список дел 1С».
  */
 export function registerTodoFeature(
 	params: RegisterTodoFeatureParams

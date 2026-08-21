@@ -137,7 +137,7 @@
       "panel": [
         {
           "id": "1c-platform-tools-todo",
-          "title": "Список дел",
+          "title": "Список дел 1С",
           "icon": "resources/activitybar-todo.svg",
           "when": "1c-platform-tools.is1CProject == true"
         }
@@ -245,7 +245,7 @@
       "1c-platform-tools-todo": [
         {
           "id": "1c-platform-tools-todo-list",
-          "name": "Список дел",
+          "name": "Список дел 1С",
           "when": "1c-platform-tools.is1CProject == true"
         }
       ],
