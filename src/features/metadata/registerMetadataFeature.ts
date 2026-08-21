@@ -1,5 +1,4 @@
 import * as fs from 'node:fs';
-import * as os from 'node:os';
 import * as path from 'node:path';
 import * as vscode from 'vscode';
 import { VRunnerManager } from '../../shared/vrunnerManager';
@@ -25,7 +24,6 @@ import {
 	type SourcePropertiesDto,
 } from './metadataSourcePropertiesPanel';
 import { mdSparrowSchemaFlagFromConfigurationXml } from './mdSparrowSchemaVersion';
-import { runMdSparrow } from './mdSparrowRunner';
 import {
 	runMdSparrowParamsMutation,
 	runMdSparrowParamsRead,
@@ -72,7 +70,6 @@ export function registerMetadataFeature(
 		context,
 		metadataTreeProvider,
 		metadataTreeView,
-		metadataSearchProvider,
 		metadataFilterProvider,
 		propertyPaletteProvider,
 	} = params;

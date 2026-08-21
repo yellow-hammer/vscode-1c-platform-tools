@@ -19,6 +19,9 @@ export default [{
             format: ["camelCase", "PascalCase"],
         }],
 
+        // Мёртвые импорты копились незаметно: tsc их не видит, noUnusedLocals выключен.
+        // Параметры и переменные catch не трогаем: они часть сигнатуры и читаемости.
+        "@typescript-eslint/no-unused-vars": ["warn", { args: "none", caughtErrors: "none" }],
         curly: "warn",
         eqeqeq: "warn",
         "no-throw-literal": "warn",

@@ -47,7 +47,7 @@ import {
 	isAtLeast,
 	VRUNNER_FEATURES,
 } from './vrunnerVersion';
-import { selectCliAdapter, VRunnerIntent } from './vrunnerCli';
+import { VRunnerIntent } from './vrunnerCli';
 import { planIntents, SettingsFileFormat } from './vrunnerCli/planner';
 import { translateArgsToV3 } from './vrunnerCommandMap';
 import { createVRunnerTask } from '../features/tasks/vrunnerTask';

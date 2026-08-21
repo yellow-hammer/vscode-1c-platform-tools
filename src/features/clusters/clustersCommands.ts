@@ -835,30 +835,3 @@ export function registerClustersCommands(deps: ClustersCommandsDeps): vscode.Dis
 	];
 }
 
-/**
- * Идентификатор объекта, стоящего за узлом.
- *
- * @param node - Узел дерева
- * @returns Идентификатор или undefined, если у узла его нет
- */
-function identifierOf(node: ClusterTreeNode): string | undefined {
-	if (node instanceof ClusterNode) {
-		return node.cluster.id;
-	}
-	if (node instanceof ServerNode) {
-		return node.server.id;
-	}
-	if (node instanceof ProcessNode) {
-		return node.process.id;
-	}
-	if (node instanceof InfobaseNode) {
-		return node.infobase.id;
-	}
-	if (node instanceof SessionNode) {
-		return node.session.id;
-	}
-	if (node instanceof ConnectionItemNode) {
-		return node.item.id;
-	}
-	return undefined;
-}

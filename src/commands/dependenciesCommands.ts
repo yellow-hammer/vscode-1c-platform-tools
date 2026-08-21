@@ -1,7 +1,6 @@
 import * as vscode from 'vscode';
 import { ensureOvm } from '../shared/ovmComponent';
 import * as path from 'node:path';
-import * as os from 'node:os';
 import * as fs from 'node:fs/promises';
 import * as fsSync from 'node:fs';
 import { spawnSync } from 'node:child_process';
@@ -15,7 +14,6 @@ import { logger } from '../shared/logger';
 import { notifyProjectCreated } from '../shared/projectContext';
 import { PROJECT_STRUCTURE } from '../shared/projectStructure';
 import { getOvmBinaryPath } from '../shared/ovmPaths';
-import { streamDownload } from '../shared/githubReleaseLoader';
 import { notifyQuiet } from '../shared/notify';
 import { buildProcessCommand, joinCommands, PROCESS_HOST_SHELL } from '../utils/commandUtils';
 import { createVRunnerTask } from '../features/tasks/vrunnerTask';
