@@ -202,6 +202,29 @@ export function checkMdSparrowUpdateInBackground(
 	checkReleaseUpdateInBackground(installBaseDir(context), MD_SPARROW_SPEC, resolveGithubToken(), onUpdateApplied);
 }
 
+/**
+ * Загружает jar md-sparrow, не глядя на `components.metadataJarFile` и автозагрузку.
+ *
+ * @param context - Контекст расширения
+ * @returns Путь к загруженному jar
+ */
+export async function downloadMdSparrowJar(context: vscode.ExtensionContext): Promise<string> {
+	const ensured = await ensureReleaseComponent(installBaseDir(context), MD_SPARROW_SPEC, resolveGithubToken());
+	return ensured.assetPath;
+}
+
+/**
+ * Загружает portable JRE, не глядя на `components.javaExecutable` и автозагрузку.
+ *
+ * @param context - Контекст расширения
+ * @returns Путь к java
+ */
+export async function downloadPortableJre(context: vscode.ExtensionContext): Promise<string> {
+	const base = installBaseDir(context);
+	await fs.mkdir(base, { recursive: true });
+	return ensurePortableJre(base, true, '');
+}
+
 /** Тег релиза md-sparrow в кэше; undefined — не загружен. */
 export async function cachedMdSparrowTag(context: vscode.ExtensionContext): Promise<string | undefined> {
 	return cachedReleaseTag(installBaseDir(context), MD_SPARROW_SPEC);
@@ -215,6 +238,25 @@ export async function clearMdSparrowJarCache(context: vscode.ExtensionContext): 
 /** Есть ли в кэше portable JRE. */
 export function portableJreCached(context: vscode.ExtensionContext): boolean {
 	return fssync.existsSync(path.join(installBaseDir(context), 'jre-temurin-21', '.java-path'));
+}
+
+/**
+ * Версия загруженной portable JRE или undefined.
+ *
+ * Берётся из имени распакованного каталога (`jdk-21.0.12.1+1-jre`): отдельного
+ * файла с версией у сборки нет.
+ *
+ * @param context - Контекст расширения
+ * @returns Версия JRE или undefined, если она не загружена
+ */
+export function portableJreVersion(context: vscode.ExtensionContext): string | undefined {
+	const unpackDir = path.join(installBaseDir(context), 'jre-temurin-21', 'unpack');
+	try {
+		const entry = fssync.readdirSync(unpackDir).find((name) => name.startsWith('jdk-'));
+		return entry?.replace(/^jdk-/, '').replace(/-jre$/, '');
+	} catch {
+		return undefined;
+	}
 }
 
 /** Сброс кэша portable JRE — скачается заново при следующем использовании дерева метаданных. */

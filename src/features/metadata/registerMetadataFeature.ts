@@ -57,6 +57,7 @@ import {
 } from './metadataTreeView';
 import { notifyQuiet } from '../../shared/notify';
 import { showComponentError } from '../../shared/githubToken';
+import { describeComponentState, readComponentStates } from '../../shared/componentsRegistry';
 import { ensureOnecDebugAdapter } from '../debug/onecDebugAdapterBootstrap';
 import { ensureOvm } from '../../shared/ovmComponent';
 import { ensureAllure } from '../../shared/allureComponent';
@@ -2020,88 +2021,49 @@ export function registerMetadataFeature(
 			return loadProjectMetadataTree(context, root);
 		}),
 		vscode.commands.registerCommand('1c-platform-tools.components.update', async () => {
-			const [adapterTag, jarTag, ovmTag, allureTag] = await Promise.all([
-				cachedOnecDebugAdapterTag(context),
-				cachedMdSparrowTag(context),
-				cachedOvmTag(context),
-				cachedAllureTag(context),
-			]);
+			const states = await readComponentStates(context);
 			const picked = await vscode.window.showQuickPick(
-				[
-					{ label: 'Отладчик', description: adapterTag ?? 'не загружен', value: 'adapter' as const, picked: true },
-					{ label: 'Дерево метаданных', description: jarTag ?? 'не загружен', value: 'jar' as const, picked: true },
-					{ label: 'OVM', description: ovmTag ?? 'не загружен', value: 'ovm' as const, picked: false },
-					{ label: 'Allure', description: allureTag ?? 'не загружен', value: 'allure' as const, picked: false },
-					{
-						label: 'Portable JRE',
-						description: portableJreCached(context) ? 'загружена' : 'не загружена',
-						value: 'jre' as const,
-						picked: false,
-					},
-				],
+				states.map((state) => ({
+					label: state.spec.title,
+					description: describeComponentState(state),
+					state,
+					picked: true,
+				})),
 				{
 					title: 'Обновить внешние компоненты',
 					canPickMany: true,
-					placeHolder: 'Выбранные компоненты будут загружены заново сразу',
+					placeHolder: 'Выбранное будет загружено заново сразу, даже если задан свой путь',
 				}
 			);
 			if (!picked || picked.length === 0) {
 				return;
 			}
-			const values = new Set(picked.map((p) => p.value));
-
-			// JRE и jar готовит один вызов, поэтому в списке они дают один шаг
-			const steps: { label: string; clear: () => Promise<void>; ensure: () => Promise<unknown> }[] = [];
-			if (values.has('adapter')) {
-				steps.push({
-					label: 'Отладчик',
-					clear: () => clearOnecDebugAdapterCache(context),
-					ensure: () => ensureOnecDebugAdapter(context),
-				});
-			}
-			if (values.has('jar') || values.has('jre')) {
-				steps.push({
-					label: values.has('jar') && values.has('jre') ? 'Дерево метаданных и JRE' : (values.has('jar') ? 'Дерево метаданных' : 'Portable JRE'),
-					clear: async () => {
-						if (values.has('jar')) {
-							await clearMdSparrowJarCache(context);
-						}
-						if (values.has('jre')) {
-							await clearPortableJreCache(context);
-						}
-					},
-					ensure: () => ensureMdSparrowRuntime(context),
-				});
-			}
-			if (values.has('ovm')) {
-				steps.push({ label: 'OVM', clear: () => clearOvmCache(context), ensure: () => ensureOvm(context) });
-			}
-			if (values.has('allure')) {
-				steps.push({ label: 'Allure', clear: () => clearAllureCache(context), ensure: () => ensureAllure(context) });
-			}
 
 			const failed: string[] = [];
+			const done: string[] = [];
 			await vscode.window.withProgress(
 				{ location: vscode.ProgressLocation.Notification, title: 'Обновление внешних компонентов' },
 				async (progress) => {
-					for (const step of steps) {
-						progress.report({ message: step.label });
+					for (const item of picked) {
+						progress.report({ message: item.state.spec.title });
 						try {
-							await step.clear();
-							await step.ensure();
+							await item.state.spec.clear(context);
+							await item.state.spec.download(context);
+							const version = await item.state.spec.version(context).catch(() => undefined);
+							done.push(version ? `${item.state.spec.title} ${version}` : item.state.spec.title);
 						} catch (error) {
-							failed.push(step.label);
-							await showComponentError(`${step.label}: ${error instanceof Error ? error.message : String(error)}`);
+							failed.push(item.state.spec.title);
+							await showComponentError(`${item.state.spec.title}: ${error instanceof Error ? error.message : String(error)}`);
 						}
 					}
 				}
 			);
 
-			if (values.has('jar') || values.has('jre')) {
+			if (picked.some((item) => item.state.spec.id === 'metadataTree' || item.state.spec.id === 'jre')) {
 				void metadataTreeProvider.refresh();
 			}
-			if (failed.length === 0) {
-				notifyQuiet(`Внешние компоненты обновлены: ${steps.map((step) => step.label).join(', ')}`);
+			if (done.length > 0) {
+				notifyQuiet(`Обновлены компоненты: ${done.join(', ')}`);
 			}
 		}),
 		vscode.workspace.onDidChangeConfiguration((e) => {
