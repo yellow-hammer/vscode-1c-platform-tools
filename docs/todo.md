@@ -1,4 +1,8 @@
+<img src="../resources/brand/cat-sleep.png" alt="" width="72" align="right">
+
 # Список дел
+
+> <img src="../resources/brand/cat-sleep.png" alt="" width="26" align="left"> Панель живёт внизу, рядом с терминалом.
 
 Панель **Список дел** в нижней панели VS Code собирает комментарии с тегами `TODO`, `FIXME`, `XXX`, `HACK`, `BUG` по файлам BSL, OScript, Markdown и Gherkin.
 

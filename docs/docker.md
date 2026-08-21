@@ -1,4 +1,8 @@
+<img src="../resources/brand/cat-focus.png" alt="" width="72" align="right">
+
 # Docker и ibcmd
+
+> <img src="../resources/brand/cat-focus.png" alt="" width="26" align="left"> Клиент и конфигуратор в контейнере не запустятся.
 
 Команды vrunner могут выполняться не на локальной машине, а внутри Docker-контейнера с платформой 1С. Это полезно, когда платформа не установлена или её негде устанавливать:
 

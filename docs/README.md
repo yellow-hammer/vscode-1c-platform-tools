@@ -1,4 +1,8 @@
+<img src="../resources/brand/cat-hi.png" alt="" width="72" align="right">
+
 # Документация 1C: Platform Tools
+
+> <img src="../resources/brand/cat-hi.png" alt="" width="26" align="left"> Каждый раздел — про одну функцию. Ищите по названию панели.
 
 Правила каталога: `docs/` — пользовательские руководства, по одному документу на функцию расширения. Краткий обзор возможностей и обязательная настройка — в [README проекта](../README.md), правила разработки и релизов — в [CONTRIBUTING.md](../CONTRIBUTING.md).
 

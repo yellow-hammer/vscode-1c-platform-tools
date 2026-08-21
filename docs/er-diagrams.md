@@ -1,4 +1,8 @@
+<img src="../resources/brand/cat-surprised.png" alt="" width="72" align="right">
+
 # ER-диаграммы метаданных
+
+> <img src="../resources/brand/cat-surprised.png" alt="" width="26" align="left"> Схему можно выгрузить в Mermaid, Draw.io, SVG и PNG.
 
 Интерактивная схема связей объектов конфигурации прямо в IDE: выберите объекты — и увидите, как они связаны через реквизиты, табличные части, движения и другие зависимости.
 

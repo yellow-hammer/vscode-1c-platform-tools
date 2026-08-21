@@ -1,4 +1,8 @@
+<img src="../resources/brand/cat-focus.png" alt="" width="72" align="right">
+
 # Автоматизация
+
+> <img src="../resources/brand/cat-focus.png" alt="" width="26" align="left"> Пайплайн — для цепочки шагов, хук — для одной команды.
 
 Два способа не повторять одни и те же шаги руками:
 

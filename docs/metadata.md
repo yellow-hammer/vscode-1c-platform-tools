@@ -1,4 +1,8 @@
+<img src="../resources/brand/cat-surprised.png" alt="" width="72" align="right">
+
 # Метаданные 1С
+
+> <img src="../resources/brand/cat-surprised.png" alt="" width="26" align="left"> Дерево строит md-sparrow, portable JRE к нему скачивается сам.
 
 Панель **«Метаданные 1С»** показывает дерево выгрузки конфигурации, расширений и внешних артефактов, позволяет создавать и редактировать объекты. Работает через [md-sparrow](https://github.com/yellow-hammer/md-sparrow) — библиотека и portable JRE скачиваются автоматически при первом открытии панели.
 

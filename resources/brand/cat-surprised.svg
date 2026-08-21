@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128" role="img" aria-label="Удивлённый кот">
+	<g fill="none" stroke="#f5b301" stroke-width="6" stroke-linecap="round" stroke-linejoin="round">
+		<path d="M38 56 34 26l19 13a38 38 0 0 1 22 0l19-13-4 30" />
+		<path d="M38 56c-6 12-8 28-8 44h68c0-16-2-32-8-44" />
+		<path d="M98 100c14 0 20-8 17-18" />
+		<path d="M46 70H26m20 8H28M82 70h20m-20 8h18" />
+	</g>
+	<g fill="none" stroke="#f5b301" stroke-width="5"><circle cx="50" cy="61" r="6.5" /><circle cx="78" cy="61" r="6.5" /></g>
+	<g fill="none" stroke="#f5b301" stroke-width="5" stroke-linecap="round" stroke-linejoin="round">
+		<path d="M58 74l6 5-6 5" />
+		<path d="M70 84h8" />
+	</g>
+</svg>

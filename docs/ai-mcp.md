@@ -1,4 +1,8 @@
+<img src="../resources/brand/cat-surprised.png" alt="" width="72" align="right">
+
 # AI и MCP
+
+> <img src="../resources/brand/cat-surprised.png" alt="" width="26" align="left"> Агент вызывает ровно те же команды, что вы нажимаете кнопками.
 
 Расширение помогает AI-агентам (Cursor, Claude, Copilot) работать с проектом 1С: агент узнаёт, какие команды вызывать, и выполняет их через файл-триггер или MCP.
 
