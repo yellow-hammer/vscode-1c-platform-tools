@@ -48,6 +48,7 @@ import {
 } from './metadataTreeView';
 import { notifyQuiet } from '../../shared/notify';
 import { showComponentError } from '../../shared/githubToken';
+import { uiOnlyHandler } from '../../shared/agentGate';
 import { describeComponentState, readComponentStates } from '../../shared/componentsRegistry';
 import { CfDumpFinding, DumpValidationDiagnostics } from './dumpValidationDiagnostics';
 
@@ -2007,7 +2008,9 @@ export function registerMetadataFeature(
 			}
 			return loadProjectMetadataTree(context, root);
 		}),
-		vscode.commands.registerCommand('1c-platform-tools.components.update', async () => {
+		vscode.commands.registerCommand('1c-platform-tools.components.update', uiOnlyHandler(
+			'Список компонентов выбирает человек галочками. Загрузка идёт при обычном использовании компонента.',
+			async () => {
 			const states = await readComponentStates(context);
 			const picked = await vscode.window.showQuickPick(
 				states.map((state) => ({
@@ -2052,7 +2055,7 @@ export function registerMetadataFeature(
 			if (done.length > 0) {
 				notifyQuiet(`Обновлены компоненты: ${done.join(', ')}`);
 			}
-		}),
+		})),
 		vscode.workspace.onDidChangeConfiguration((e) => {
 			if (e.affectsConfiguration('1c-platform-tools.metadata')) {
 				void metadataTreeProvider.refresh();

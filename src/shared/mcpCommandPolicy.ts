@@ -101,6 +101,9 @@ const HIDDEN_EXACT = [
 	`${COMMAND_PREFIX}hooks.openEditor`,
 	// Сохранение формы: приходит по Ctrl+S из активного редактора
 	`${COMMAND_PREFIX}editors.save`,
+	// Обновление внешних компонентов: спрашивает список галочками и загружает
+	// выбранное. Ответить на такой вопрос агент не может
+	`${COMMAND_PREFIX}components.update`,
 ];
 
 /**
