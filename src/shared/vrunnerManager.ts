@@ -10,6 +10,8 @@ import {
 	buildCommand,
 	joinCommands,
 	detectShellType,
+	PROCESS_HOST_SHELL,
+	quoteExecutable,
 	ShellType,
 	normalizeArgForShell,
 	buildDockerCommand,
@@ -48,13 +50,6 @@ import { selectCliAdapter, VRunnerIntent } from './vrunnerCli';
 import { planIntents, SettingsFileFormat } from './vrunnerCli/planner';
 import { translateArgsToV3 } from './vrunnerCommandMap';
 import { createVRunnerTask } from '../features/tasks/vrunnerTask';
-
-/**
- * Имя оболочки, через которую исполняется команда задачи (`spawn` с shell: true):
- * на Windows это cmd.exe, на остальных ОС — /bin/sh. Используется для корректного
- * экранирования и склейки команд в задачах, в отличие от интегрированного терминала.
- */
-const TASK_HOST_SHELL: ShellType = process.platform === 'win32' ? 'cmd' : 'sh';
 
 const log = logger.scope('vrunner');
 
@@ -538,8 +533,8 @@ export class VRunnerManager {
 	 */
 	private runCommandForCheck(commandPath: string, args: string[]): Promise<boolean> {
 		return new Promise((resolve) => {
-			const quotedPath = commandPath.includes(' ') ? `"${commandPath}"` : commandPath;
-			const command = `${quotedPath} ${escapeCommandArgs(args)}`;
+			const quotedPath = quoteExecutable(commandPath, PROCESS_HOST_SHELL);
+			const command = `${quotedPath} ${escapeCommandArgs(args, PROCESS_HOST_SHELL)}`;
 			exec(command, { maxBuffer: 1024 * 1024, timeout: 10000 }, (error) => {
 				resolve(!error);
 			});
@@ -1427,7 +1422,7 @@ export class VRunnerManager {
 			try {
 				const dockerImage = this.getDockerImage();
 				const processedArgsArray = finalArgsArray.map((args) => this.processCommandArgsForDocker(args));
-				command = buildDockerCommandSequence(dockerImage, processedArgsArray, this.getEffectiveRoot() ?? '', TASK_HOST_SHELL);
+				command = buildDockerCommandSequence(dockerImage, processedArgsArray, this.getEffectiveRoot() ?? '', PROCESS_HOST_SHELL);
 			} catch (error) {
 				const errMsg = (error as Error).message;
 				log.error(`Ошибка при подготовке команды Docker: ${errMsg}`);
@@ -1493,7 +1488,7 @@ export class VRunnerManager {
 			try {
 				const dockerImage = this.getDockerImage();
 				const processedArgsArray = finalArgsArray.map((args) => this.processCommandArgsForDocker(args));
-				command = buildDockerCommandSequence(dockerImage, processedArgsArray, this.getEffectiveRoot() ?? '', TASK_HOST_SHELL);
+				command = buildDockerCommandSequence(dockerImage, processedArgsArray, this.getEffectiveRoot() ?? '', PROCESS_HOST_SHELL);
 			} catch (error) {
 				const errMsg = (error as Error).message;
 				log.error(`Ошибка при подготовке команды Docker: ${errMsg}`);
@@ -1745,18 +1740,16 @@ export class VRunnerManager {
 			try {
 				const dockerImage = this.getDockerImage();
 				const processedArgs = this.processCommandArgsForDocker(args);
-				const shellType = detectShellType();
-				return { command: buildDockerCommand(dockerImage, processedArgs, this.getEffectiveRoot() ?? '', shellType) };
+				return { command: buildDockerCommand(dockerImage, processedArgs, this.getEffectiveRoot() ?? '', PROCESS_HOST_SHELL) };
 			} catch (error) {
 				return { error: (error as Error).message };
 			}
 		}
 
 		const vrunnerPath = this.getVRunnerPath();
-		const argsString = escapeCommandArgs(args);
-		const quotedPath = vrunnerPath.includes(' ') ? `"${vrunnerPath}"` : vrunnerPath;
-		// Задачи выполняются дочерним процессом через cmd (spawn shell:true) независимо от
-		// профиля терминала: без chcp oscript выводит кириллицу в OEM-кодировке.
+		const argsString = escapeCommandArgs(args, PROCESS_HOST_SHELL);
+		const quotedPath = quoteExecutable(vrunnerPath, PROCESS_HOST_SHELL);
+		// cmd/sh, не профиль терминала: без chcp oscript пишет кириллицу в OEM.
 		const encodingPrefix = process.platform === 'win32' ? 'chcp 65001 >nul && ' : '';
 		return { command: `${encodingPrefix}${quotedPath} ${argsString}` };
 	}
@@ -1899,8 +1892,8 @@ export class VRunnerManager {
 	): Promise<void> {
 		const { path: opmPath, leadingArgs } = this.getOpmInvocation();
 		const cwd = options?.cwd || this.getEffectiveRoot() || os.homedir();
-		const quotedPath = opmPath.includes(' ') ? `"${opmPath}"` : opmPath;
-		const command = `${quotedPath} ${escapeCommandArgs([...leadingArgs, ...args])}`;
+		const quotedPath = quoteExecutable(opmPath, PROCESS_HOST_SHELL);
+		const command = `${quotedPath} ${escapeCommandArgs([...leadingArgs, ...args], PROCESS_HOST_SHELL)}`;
 		const task = createVRunnerTask({
 			name: options?.name || '1C: Platform Tools',
 			command,
@@ -1962,8 +1955,8 @@ export class VRunnerManager {
 	): Promise<VRunnerExecutionResult> {
 		return new Promise((resolve) => {
 			const { path: opmPath, leadingArgs } = this.getOpmInvocation();
-			const argsString = escapeCommandArgs([...leadingArgs, ...args]);
-			const quotedPath = opmPath.includes(' ') ? `"${opmPath}"` : opmPath;
+			const argsString = escapeCommandArgs([...leadingArgs, ...args], PROCESS_HOST_SHELL);
+			const quotedPath = quoteExecutable(opmPath, PROCESS_HOST_SHELL);
 			const command = `${quotedPath} ${argsString}`;
 
 			const execOptions = {
@@ -2032,8 +2025,8 @@ export class VRunnerManager {
 	): Promise<VRunnerExecutionResult> {
 		return new Promise((resolve) => {
 			const allurePath = this.getAllurePath();
-			const argsString = escapeCommandArgs(args);
-			const quotedPath = allurePath.includes(' ') ? `"${allurePath}"` : allurePath;
+			const argsString = escapeCommandArgs(args, PROCESS_HOST_SHELL);
+			const quotedPath = quoteExecutable(allurePath, PROCESS_HOST_SHELL);
 			const command = `${quotedPath} ${argsString}`;
 
 			const execOptions = {
