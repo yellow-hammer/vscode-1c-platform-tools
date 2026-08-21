@@ -58,9 +58,6 @@ export async function ensureOvm(context: vscode.ExtensionContext): Promise<strin
 /**
  * Загружает OVM, не глядя на `components.ovmFile` и `components.ovmAutoload`.
  *
- * Нужна команде обновления компонентов: человек нажал «обновить», значит хочет
- * свежую загрузку, даже если обычная работа идёт со своей сборкой.
- *
  * @param context - Контекст расширения
  * @returns Путь к загруженному ovm.exe
  */
