@@ -24,7 +24,6 @@ import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import extract from 'extract-zip';
 
 const ROOT = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
 const OUT_DIR = path.join(ROOT, 'resources', 'schemas');
@@ -346,6 +345,7 @@ async function downloadV3Sources(ref) {
 	const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'vrunner-src-'));
 	const zipPath = path.join(tempDir, 'src.zip');
 	fs.writeFileSync(zipPath, Buffer.from(await response.arrayBuffer()));
+	const { default: extract } = await import('extract-zip');
 	await extract(zipPath, { dir: tempDir });
 	const rootEntry = fs
 		.readdirSync(tempDir, { withFileTypes: true })

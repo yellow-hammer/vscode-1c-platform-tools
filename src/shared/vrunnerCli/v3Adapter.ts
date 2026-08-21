@@ -15,7 +15,7 @@
  * autumn-properties.json).
  *
  * Источник истины — документация vanessa-runner 3.0 (docs/product/команды),
- * сверено живыми прогонами на rc8.
+ * сверено живыми прогонами на rc14.
  */
 
 import {
