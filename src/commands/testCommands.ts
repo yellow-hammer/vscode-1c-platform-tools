@@ -213,6 +213,49 @@ export class TestCommands extends BaseCommand {
 	}
 
 	/**
+	 * Абсолютный путь к jUnit-отчёту синтаксического контроля.
+	 *
+	 * Берётся из настроек прогона (секция syntax-check), с откатом на стандартный.
+	 *
+	 * @param opts - Опции выполнения (нужны для выбора файла настроек)
+	 * @param workspaceRoot - Корень проекта
+	 * @returns Абсолютный путь к файлу отчёта
+	 */
+	private async syntaxCheckJUnitPath(
+		opts: CommandExecutionOptions | undefined,
+		workspaceRoot: string
+	): Promise<string> {
+		let rel = DEFAULT_SYNTAX_CHECK_JUNIT;
+		try {
+			const { settings, schema } = await this.readRunSettings(opts);
+			rel = syntaxCheckJUnitPathFromEnv(settings, schema) ?? rel;
+		} catch {
+			// Настройки нечитаемы — берём стандартный путь отчёта
+		}
+		return resolveConfigPath(rel, workspaceRoot);
+	}
+
+	/**
+	 * Создаёт каталог jUnit-отчёта синтаксического контроля перед прогоном.
+	 *
+	 * vanessa-runner 3 не создаёт каталог сам и завершается ошибкой записи
+	 * отчёта, а `build` в проектах не хранится в репозитории.
+	 *
+	 * @param opts - Опции выполнения (нужны для выбора файла настроек)
+	 */
+	private async ensureSyntaxCheckReportDir(opts?: CommandExecutionOptions): Promise<void> {
+		const workspaceRoot = this.vrunner.getWorkspaceRoot();
+		if (!workspaceRoot) {
+			return;
+		}
+		try {
+			await fs.mkdir(path.dirname(await this.syntaxCheckJUnitPath(opts, workspaceRoot)), { recursive: true });
+		} catch {
+			// каталог не создался — прогон сам сообщит об отсутствии отчёта
+		}
+	}
+
+	/**
 	 * Запускает синтаксический контроль.
 	 *
 	 * При вызове без аргументов (из UI) запускает vrunner syntax-check в терминале.
@@ -226,6 +269,7 @@ export class TestCommands extends BaseCommand {
 	 */
 	async runSyntaxCheck(opts?: CommandExecutionOptions): Promise<StructuredCommandResult | void> {
 		const commandName = getSyntaxCheckCommandName();
+		await this.ensureSyntaxCheckReportDir(opts);
 		const result = await this.runIntent(
 			{ kind: 'validate.syntaxCheck' },
 			opts, commandName.title, undefined, commandName.id
@@ -256,17 +300,11 @@ export class TestCommands extends BaseCommand {
 			return [];
 		}
 
-		let rel = DEFAULT_SYNTAX_CHECK_JUNIT;
-		try {
-			const { settings, schema } = await this.readRunSettings(opts);
-			rel = syntaxCheckJUnitPathFromEnv(settings, schema) ?? rel;
-		} catch {
-			// Настройки нечитаемы — берём стандартный путь отчёта
-		}
+		const reportPath = await this.syntaxCheckJUnitPath(opts, workspaceRoot);
 
 		let xml: string;
 		try {
-			xml = await fs.readFile(resolveConfigPath(rel, workspaceRoot), 'utf8');
+			xml = await fs.readFile(reportPath, 'utf8');
 		} catch {
 			return [];
 		}
