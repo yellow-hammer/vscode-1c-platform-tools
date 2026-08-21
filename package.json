@@ -1749,6 +1749,12 @@
         "icon": "$(lightbulb)"
       },
       {
+        "command": "1c-platform-tools.help.openDocs",
+        "title": "Документация",
+        "category": "1C: Помощь и поддержка",
+        "icon": "$(book)"
+      },
+      {
         "command": "1c-platform-tools.help.openCreateIssue",
         "title": "Сообщить о проблемах",
         "category": "1C: Помощь и поддержка",

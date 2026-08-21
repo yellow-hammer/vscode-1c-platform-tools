@@ -25,6 +25,17 @@ export function registerHelpAndSettingsCommands(): vscode.Disposable[] {
 		}
 	);
 
+	const openDocsCommand = vscode.commands.registerCommand(
+		'1c-platform-tools.help.openDocs',
+		() => {
+			void vscode.env.openExternal(
+				vscode.Uri.parse(
+					'https://github.com/yellow-hammer/vscode-1c-platform-tools/blob/main/docs/README.md'
+				)
+			);
+		}
+	);
+
 	const openWriteReviewCommand = vscode.commands.registerCommand(
 		'1c-platform-tools.help.openWriteReview',
 		() => {
@@ -77,6 +88,7 @@ export function registerHelpAndSettingsCommands(): vscode.Disposable[] {
 
 	return [
 		openCreateIssueCommand,
+		openDocsCommand,
 		openWriteReviewCommand,
 		openSponsorCommand,
 		settingsCommand,

@@ -278,6 +278,7 @@ export const TREE_GROUPS: TreeGroup[] = [
 		defaultCollapsibleState: 'collapsed',
 		commands: [
 			{ command: '1c-platform-tools.getStarted.open', title: 'С чего начать?', treeLabel: 'С чего начать?' },
+			{ command: '1c-platform-tools.help.openDocs', title: 'Документация', treeLabel: 'Документация', icon: 'book' },
 			{ command: '1c-platform-tools.help.openCreateIssue', title: 'Сообщить о проблемах', treeLabel: 'Сообщить о проблемах', icon: 'comment-discussion' },
 			{ command: '1c-platform-tools.help.openWriteReview', title: 'Написать отзыв', treeLabel: 'Написать отзыв', icon: 'feedback' },
 			{ command: '1c-platform-tools.help.openSponsor', title: 'Стать спонсором', treeLabel: 'Стать спонсором', icon: 'heart' },
