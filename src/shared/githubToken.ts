@@ -155,17 +155,17 @@ export function isGithubRateLimit(message: string): boolean {
 }
 
 /**
- * Показывает ошибку загрузки компонента, добавляя кнопку ввода токена при лимите.
+ * При лимите GitHub предлагает вход или ввод токена.
  *
- * @param message - Текст ошибки для показа
+ * Для мест со своим показом ошибки: они оставляют свой путь для прочих отказов
+ * и получают кнопки там, где помогает токен.
+ *
+ * @param message - Текст ошибки загрузки компонента
+ * @returns true, если это был лимит и предложение показано
  */
-export async function showComponentError(message: string): Promise<void> {
-	log.error(message);
+export async function offerGithubTokenOnRateLimit(message: string): Promise<boolean> {
 	if (!isGithubRateLimit(message)) {
-		if (await vscode.window.showErrorMessage(message, 'Подробнее') === 'Подробнее') {
-			logger.show();
-		}
-		return;
+		return false;
 	}
 
 	// Вход в GitHub предлагаем первым: PAT создавать не нужно
@@ -181,6 +181,22 @@ export async function showComponentError(message: string): Promise<void> {
 	} else if (action === 'Указать токен') {
 		await askGithubToken();
 	} else if (action === 'Подробнее') {
+		logger.show();
+	}
+	return true;
+}
+
+/**
+ * Показывает ошибку загрузки компонента, добавляя кнопки входа и токена при лимите.
+ *
+ * @param message - Текст ошибки для показа
+ */
+export async function showComponentError(message: string): Promise<void> {
+	log.error(message);
+	if (await offerGithubTokenOnRateLimit(message)) {
+		return;
+	}
+	if (await vscode.window.showErrorMessage(message, 'Подробнее') === 'Подробнее') {
 		logger.show();
 	}
 }
