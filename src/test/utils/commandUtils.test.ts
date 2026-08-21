@@ -12,6 +12,7 @@ import {
 	quoteExecutable,
 	type ShellType
 } from '../../utils/commandUtils';
+import { dockerContainerName } from '../../shared/dockerRun';
 
 suite('commandUtils', () => {
 	// Установка кодировки (chcp/[Console]::OutputEncoding) добавляется только на Windows
@@ -154,6 +155,35 @@ suite('commandUtils', () => {
 	winTest('buildDockerCommand нормализует путь и кавычки для bash-хоста', () => {
 		const result = buildDockerCommand('vrunner:8.3.27', ['vanessa'], String.raw`C:\ws dir`, 'bash');
 		assert.strictEqual(result, "docker run --rm -v 'C:/ws dir:/workspace' -w /workspace vrunner:8.3.27 vanessa");
+	});
+
+	test('buildDockerCommand даёт контейнеру имя: по нему его останавливают при отмене', () => {
+		const result = buildDockerCommand('vrunner:8.3.27', ['vanessa'], '/home/ws', 'sh', '1cpt-run-test');
+		assert.strictEqual(
+			result,
+			'docker run --rm --name 1cpt-run-test -v /home/ws:/workspace -w /workspace vrunner:8.3.27 vanessa'
+		);
+	});
+
+	test('buildDockerCommand без имени контейнера остаётся прежним', () => {
+		const result = buildDockerCommand('vrunner:8.3.27', ['vanessa'], '/home/ws', 'sh');
+		assert.strictEqual(result, 'docker run --rm -v /home/ws:/workspace -w /workspace vrunner:8.3.27 vanessa');
+	});
+
+	test('buildDockerCommandSequence тоже именует контейнер', () => {
+		const result = buildDockerCommandSequence('vrunner:8.3.27', [['compile']], '/home/ws', 'sh', '1cpt-run-test');
+		assert.ok(
+			result.startsWith('docker run --rm --name 1cpt-run-test -v /home/ws:/workspace'),
+			`имя контейнера не попало в команду: ${result}`
+		);
+	});
+
+	test('имя контейнера уникально для каждого запуска', () => {
+		const names = new Set(Array.from({ length: 50 }, () => dockerContainerName()));
+		assert.strictEqual(names.size, 50, 'имена контейнеров повторяются');
+		for (const name of names) {
+			assert.match(name, /^1cpt-run-[a-z0-9]+-[a-z0-9]+$/);
+		}
 	});
 
 	test('buildDockerCommandSequence отдаёт строку sh одним аргументом хоста', () => {

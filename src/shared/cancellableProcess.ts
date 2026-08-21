@@ -33,6 +33,8 @@ export interface CancellableProcessOptions {
 	token?: vscode.CancellationToken;
 	/** Колбэк живого вывода: вызывается на каждый чанк stdout и stderr */
 	onOutput?: (chunk: string) => void;
+	/** Уборка при отмене: вызывается до завершения дерева процессов */
+	onCancel?: () => void;
 }
 
 /**
@@ -111,6 +113,7 @@ export function runCancellableCommand(
 
 		const cancellationSubscription = options?.token?.onCancellationRequested(() => {
 			cancelled = true;
+			options?.onCancel?.();
 			if (child.pid !== undefined) {
 				log.info(`Отмена: завершаю дерево процессов pid ${child.pid}`);
 				killProcessTree(child.pid);
@@ -120,6 +123,7 @@ export function runCancellableCommand(
 		// Токен мог сработать до запуска
 		if (options?.token?.isCancellationRequested) {
 			cancelled = true;
+			options?.onCancel?.();
 			if (child.pid !== undefined) {
 				killProcessTree(child.pid);
 			}

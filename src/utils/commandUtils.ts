@@ -368,13 +368,15 @@ export function joinCommands(commands: string[], shellType?: ShellType): string 
  * @param vrunnerArgs - Аргументы команды vrunner (без префикса 'vrunner')
  * @param workspaceRoot - Корневая директория workspace (будет смонтирована в /workspace)
  * @param shellType - Тип оболочки терминала хоста (опционально, определяется автоматически)
+ * @param containerName - Имя контейнера, чтобы остановить его при отмене
  * @returns Строка команды Docker для выполнения в терминале
  */
 export function buildDockerCommand(
 	dockerImage: string,
 	vrunnerArgs: string[],
 	workspaceRoot: string,
-	shellType?: ShellType
+	shellType?: ShellType,
+	containerName?: string
 ): string {
 	const shell = shellType || detectShellType();
 	// ENTRYPOINT задан exec-формой: оболочки в контейнере нет, аргументы docker
@@ -382,6 +384,7 @@ export function buildDockerCommand(
 	const dockerArgs = [
 		'run',
 		'--rm',
+		...(containerName ? ['--name', containerName] : []),
 		'-v',
 		`${normalizePathForShell(workspaceRoot, shell)}:/workspace`,
 		'-w',
@@ -401,12 +404,14 @@ export function buildDockerCommand(
  * @param vrunnerArgsArray - Массив наборов аргументов (каждый набор — одна команда vrunner)
  * @param workspaceRoot - Корневая директория workspace
  * @param shellType - Тип оболочки терминала хоста
+ * @param containerName - Имя контейнера, чтобы остановить его при отмене
  */
 export function buildDockerCommandSequence(
 	dockerImage: string,
 	vrunnerArgsArray: string[][],
 	workspaceRoot: string,
-	shellType?: ShellType
+	shellType?: ShellType,
+	containerName?: string
 ): string {
 	const shell = shellType || detectShellType();
 	// Внутреннюю строку разбирает sh контейнера, поэтому она собирается по правилам sh.
@@ -417,6 +422,7 @@ export function buildDockerCommandSequence(
 	const dockerArgs = [
 		'run',
 		'--rm',
+		...(containerName ? ['--name', containerName] : []),
 		'-v',
 		`${normalizePathForShell(workspaceRoot, shell)}:/workspace`,
 		'-w',
