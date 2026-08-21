@@ -19,6 +19,7 @@ import {
 } from '../utils/commandUtils';
 import { logger } from './logger';
 import { setTerminalOscriptBinDir } from './terminalEnv';
+import { dockerContainerName, stopDockerContainer } from './dockerRun';
 import { runCancellableCommand, CancellableProcessResult } from './cancellableProcess';
 import { DEFAULT_PATHS, DEFAULT_VRUNNER, DEFAULT_ENV, TESTS_SUBDIRS, testsSubPath } from './pathDefaults';
 import { getOvmBinaryPath, getOvmBinDir, getOvmRootDir, getOpmBinaryCandidates, getOpmScriptPath, withBinDirFirst } from './ovmPaths';
@@ -103,6 +104,12 @@ export class VRunnerManager {
 
 	/** Кэш версии vrunner по корню проекта (workspace и projectPath различаются). */
 	private readonly vrunnerVersionCacheByRoot = new Map<string, VRunnerVersion | null>();
+
+	/** Идущая сейчас проверка oscript: гасит параллельные запуски. */
+	private oscriptCheckInFlight: Promise<boolean> | undefined = undefined;
+
+	/** Идущая сейчас проверка opm. */
+	private opmCheckInFlight: Promise<boolean> | undefined = undefined;
 
 	/** Идущий сейчас детект версии по корню: гасит параллельные запуски vrunner. */
 	private readonly vrunnerVersionInFlight = new Map<string, Promise<VRunnerVersion | undefined>>();
@@ -442,9 +449,23 @@ export class VRunnerManager {
 	 * @returns Промис, который разрешается true, если oscript доступен, иначе false
 	 */
 	public async checkOscriptAvailable(): Promise<boolean> {
-		this.resolvedOscriptPath = await this.resolveBinaryPath('oscript', '-version');
-		setTerminalOscriptBinDir(this.oscriptBinDir());
-		return this.resolvedOscriptPath !== undefined;
+		// Найденное держим до конца сессии: проверка зовётся перед каждой командой.
+		// Ненайденное перепроверяем: инструмент могли поставить рядом, мимо расширения.
+		if (this.resolvedOscriptPath !== undefined) {
+			return true;
+		}
+		if (this.oscriptCheckInFlight === undefined) {
+			this.oscriptCheckInFlight = (async () => {
+				this.resolvedOscriptPath = await this.resolveBinaryPath('oscript', '-version');
+				setTerminalOscriptBinDir(this.oscriptBinDir());
+				return this.resolvedOscriptPath !== undefined;
+			})();
+		}
+		try {
+			return await this.oscriptCheckInFlight;
+		} finally {
+			this.oscriptCheckInFlight = undefined;
+		}
 	}
 
 	/**
@@ -473,8 +494,20 @@ export class VRunnerManager {
 	 * @returns Промис, который разрешается true, если opm доступен, иначе false
 	 */
 	public async checkOpmAvailable(): Promise<boolean> {
-		this.resolvedOpm = await this.resolveOpmInvocation();
-		return this.resolvedOpm !== undefined;
+		if (this.resolvedOpm !== undefined) {
+			return true;
+		}
+		if (this.opmCheckInFlight === undefined) {
+			this.opmCheckInFlight = (async () => {
+				this.resolvedOpm = await this.resolveOpmInvocation();
+				return this.resolvedOpm !== undefined;
+			})();
+		}
+		try {
+			return await this.opmCheckInFlight;
+		} finally {
+			this.opmCheckInFlight = undefined;
+		}
 	}
 
 	/**
@@ -1369,6 +1402,7 @@ export class VRunnerManager {
 			return undefined;
 		}
 
+		const containerName = built.containerName;
 		return createVRunnerTask({
 			name: options?.name || '1C: Platform Tools',
 			command: built.command,
@@ -1376,6 +1410,7 @@ export class VRunnerManager {
 			env: this.childEnv(options?.env),
 			definition: options?.definition,
 			exitCallback: options?.exitCallback,
+			onCancel: containerName === undefined ? undefined : () => stopDockerContainer(containerName),
 		});
 	}
 
@@ -1450,6 +1485,7 @@ export class VRunnerManager {
 		const cwd = options?.cwd || this.getEffectiveRoot() || os.homedir();
 		const useDocker = await this.shouldUseDocker();
 		let command: string;
+		let containerName: string | undefined = undefined;
 
 		if (useDocker) {
 			if (!this.getEffectiveRoot()) {
@@ -1463,7 +1499,8 @@ export class VRunnerManager {
 			try {
 				const dockerImage = this.getDockerImage();
 				const processedArgsArray = finalArgsArray.map((args) => this.processCommandArgsForDocker(args));
-				command = buildDockerCommandSequence(dockerImage, processedArgsArray, this.getEffectiveRoot() ?? '', PROCESS_HOST_SHELL);
+				containerName = dockerContainerName();
+				command = buildDockerCommandSequence(dockerImage, processedArgsArray, this.getEffectiveRoot() ?? '', PROCESS_HOST_SHELL, containerName);
 			} catch (error) {
 				const errMsg = (error as Error).message;
 				log.error(`Ошибка при подготовке команды Docker: ${errMsg}`);
@@ -1490,6 +1527,7 @@ export class VRunnerManager {
 			command,
 			cwd,
 			env: this.childEnv(options?.env),
+			onCancel: containerName === undefined ? undefined : () => stopDockerContainer(containerName),
 		});
 		await vscode.tasks.executeTask(task);
 	}
@@ -1516,6 +1554,7 @@ export class VRunnerManager {
 		const cwd = options?.cwd || this.getEffectiveRoot() || os.homedir();
 		const useDocker = await this.shouldUseDocker();
 		let command: string;
+		let containerName: string | undefined = undefined;
 
 		if (useDocker) {
 			if (!this.getEffectiveRoot()) {
@@ -1529,7 +1568,8 @@ export class VRunnerManager {
 			try {
 				const dockerImage = this.getDockerImage();
 				const processedArgsArray = finalArgsArray.map((args) => this.processCommandArgsForDocker(args));
-				command = buildDockerCommandSequence(dockerImage, processedArgsArray, this.getEffectiveRoot() ?? '', PROCESS_HOST_SHELL);
+				containerName = dockerContainerName();
+				command = buildDockerCommandSequence(dockerImage, processedArgsArray, this.getEffectiveRoot() ?? '', PROCESS_HOST_SHELL, containerName);
 			} catch (error) {
 				const errMsg = (error as Error).message;
 				log.error(`Ошибка при подготовке команды Docker: ${errMsg}`);
@@ -1560,6 +1600,7 @@ export class VRunnerManager {
 			cwd,
 			env: this.childEnv(options?.env),
 			exitCallback: resolveExit,
+			onCancel: containerName === undefined ? undefined : () => stopDockerContainer(containerName),
 		});
 		await vscode.tasks.executeTask(task);
 		return exitPromise;
@@ -1772,7 +1813,7 @@ export class VRunnerManager {
 	 * @param args - Аргументы команды vrunner
 	 * @returns Объект с командой либо с текстом ошибки подготовки
 	 */
-	private buildExecCommand(args: string[], useDocker: boolean, translateRaw = false): { command: string } | { error: string } {
+	private buildExecCommand(args: string[], useDocker: boolean, translateRaw = false): { command: string; containerName?: string } | { error: string } {
 		// Трансляция синтаксиса применяется ТОЛЬКО к «сырым» аргументам задач
 		// пользователя из tasks.json. Планы интентов уже финальные — повторная
 		// обработка недопустима (парсер шима не обязан понимать синтаксис 3.x).
@@ -1787,7 +1828,11 @@ export class VRunnerManager {
 			try {
 				const dockerImage = this.getDockerImage();
 				const processedArgs = this.processCommandArgsForDocker(args);
-				return { command: buildDockerCommand(dockerImage, processedArgs, this.getEffectiveRoot() ?? '', PROCESS_HOST_SHELL) };
+				const containerName = dockerContainerName();
+				return {
+					command: buildDockerCommand(dockerImage, processedArgs, this.getEffectiveRoot() ?? '', PROCESS_HOST_SHELL, containerName),
+					containerName,
+				};
 			} catch (error) {
 				return { error: (error as Error).message };
 			}
