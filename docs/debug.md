@@ -1,4 +1,8 @@
+<img src="../resources/brand/cat-focus.png" alt="" width="72" align="right">
+
 # Отладка 1С
+
+> <img src="../resources/brand/cat-focus.png" alt="" width="26" align="left"> Адаптер отладки скачивается сам при первом запуске.
 
 Расширение регистрирует отладчик **1Cpt: Enterprise Debugger** (тип `1c-platform-tools`) и работает через [onec-debug-adapter](https://github.com/yellow-hammer/onec-debug-adapter) — адаптер скачивается и обновляется автоматически при первом запуске отладки.
 

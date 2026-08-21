@@ -1,3 +1,5 @@
+<img src="resources/brand/cat.png" alt="" width="88" align="right">
+
 # 1C: Platform Tools
 
 [![OpenYellow](https://openyellow.openintegrations.dev/data/badges/1113279075.png)](https://openyellow.org/grid?filter=top&repo=1113279075)
@@ -96,6 +98,8 @@ project/
 Подпись кода для релизов предоставляется бесплатно программой [SignPath Foundation](https://signpath.org/), сертификат выпущен от её имени.
 
 ## Автор и поддержка
+
+<img src="resources/brand/cat-hi.png" alt="" width="72" align="right">
 
 Автор: Ivan Karlo (<i.karlo@outlook.com>)
 
