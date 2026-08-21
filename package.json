@@ -105,23 +105,23 @@
         {
           "id": "1c-platform-tools-projects",
           "title": "Проекты 1С",
-          "icon": "resources/activitybar-projects-frames.svg"
+          "icon": "resources/activitybar-projects.svg"
         },
         {
           "id": "1c-platform-tools-admin",
           "title": "Администрирование 1С",
-          "icon": "resources/activitybar-admin-frames.svg"
+          "icon": "resources/activitybar-admin.svg"
         },
         {
           "id": "1c-platform-tools",
           "title": "Инструменты 1С",
-          "icon": "resources/activitybar-tools-frames.svg",
+          "icon": "resources/activitybar-tools.svg",
           "when": "1c-platform-tools.is1CProject == true"
         },
         {
           "id": "1c-platform-tools-metadata",
           "title": "Метаданные 1С",
-          "icon": "resources/activitybar-metadata-frames.svg",
+          "icon": "resources/activitybar-metadata.svg",
           "when": "1c-platform-tools.is1CProject == true"
         },
         {
@@ -135,7 +135,7 @@
         {
           "id": "1c-platform-tools-todo",
           "title": "Список дел",
-          "icon": "resources/1c-icon.svg",
+          "icon": "resources/activitybar-todo.svg",
           "when": "1c-platform-tools.is1CProject == true"
         }
       ]
