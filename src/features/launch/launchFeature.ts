@@ -70,26 +70,6 @@ async function buildNewProfileContent(workspaceRoot: string, schema: SettingsSch
 	return JSON.stringify(ENV_DEFAULTS, null, 4) + '\n';
 }
 
-/**
- * Открывает env-файл в редакторе, создавая его при отсутствии.
- *
- * @param vrunner - Менеджер vrunner
- * @param fileName - Имя файла относительно корня (например 'env.dev.json')
- */
-async function openEnvFile(vrunner: VRunnerManager, fileName: string): Promise<void> {
-	const workspaceRoot = vrunner.getWorkspaceRoot();
-	if (!workspaceRoot) {
-		vscode.window.showErrorMessage('Откройте рабочую область для работы с проектом');
-		return;
-	}
-	const fullPath = path.join(workspaceRoot, fileName);
-	if (!fsSync.existsSync(fullPath)) {
-		await fs.writeFile(fullPath, await buildNewProfileContent(workspaceRoot, vrunner.getActiveSettingsSchema()), 'utf8');
-		log.info(`Создан файл профиля: ${fileName}`);
-	}
-	const doc = await vscode.workspace.openTextDocument(vscode.Uri.file(fullPath));
-	await vscode.window.showTextDocument(doc);
-}
 
 /**
  * Создаёт новый env-профиль (env.<id>.json) и делает его активным.

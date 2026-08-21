@@ -15,6 +15,7 @@ import { Readable } from 'node:stream';
 import * as vscode from 'vscode';
 import { extractZip } from './zipExtract';
 import { logger } from './logger';
+import { githubTokenFromSession, githubTokenFromStore } from './githubToken';
 
 const log = logger.scope('releases');
 
@@ -136,15 +137,18 @@ export function installBaseDir(context: vscode.ExtensionContext): string {
 }
 
 /**
- * Единый источник GitHub-токена для всех загружаемых компонентов: сначала общий
+ * Единый источник GitHub-токена для всех загружаемых компонентов: сначала
+ * сохранённый командой «Указать токен GitHub», затем общий
  * {@code PLATFORM_TOOLS_GITHUB_TOKEN}, затем легаси {@code PLATFORM_TOOLS_MD_SPARROW_GITHUB_TOKEN};
  * иначе {@code ''} (анонимный доступ). Пустые/пробельные значения пропускаются.
  * Токен нужен лишь против лимита GitHub (60→5000 запросов/час) и для приватных репозиториев.
  */
 export function resolveGithubToken(): string {
 	const candidates = [
+		githubTokenFromStore(),
 		process.env.PLATFORM_TOOLS_GITHUB_TOKEN,
 		process.env.PLATFORM_TOOLS_MD_SPARROW_GITHUB_TOKEN,
+		githubTokenFromSession(),
 	];
 	for (const candidate of candidates) {
 		const token = candidate?.trim();

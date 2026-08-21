@@ -15,31 +15,24 @@
 
 import * as vscode from 'vscode';
 import * as path from 'node:path';
+import {
+	escapeCommandArg,
+	escapeCommandArgs,
+	isBashLikeOnWindows,
+	normalizeArgForShell,
+	PROCESS_HOST_SHELL,
+	quoteExecutable,
+	type ShellType,
+} from './shellEscape';
 
-/**
- * Тип оболочки терминала
- * 
- * Поддерживаемые типы:
- * - `cmd` - Windows Command Prompt
- * - `powershell` - PowerShell (Windows)
- * - `bash` - Bash shell (Windows Git Bash, Linux, macOS)
- * - `sh` - POSIX shell (Linux, macOS)
- * - `zsh` - Z shell (macOS по умолчанию, Linux)
- */
-export type ShellType = 'cmd' | 'powershell' | 'bash' | 'sh' | 'zsh';
-
-/**
- * Проверяет, является ли оболочка bash-подобной на Windows
- * 
- * Bash-подобные оболочки на Windows (Git Bash, WSL, Cygwin) требуют
- * преобразования обратных слэшей в прямые для корректной работы с путями.
- * 
- * @param shellType - Тип оболочки терминала
- * @returns true, если это bash/sh/zsh на Windows, иначе false
- */
-function isBashLikeOnWindows(shellType: ShellType): boolean {
-	return process.platform === 'win32' && (shellType === 'bash' || shellType === 'sh' || shellType === 'zsh');
-}
+export {
+	escapeCommandArg,
+	escapeCommandArgs,
+	normalizeArgForShell,
+	PROCESS_HOST_SHELL,
+	quoteExecutable,
+	type ShellType,
+};
 
 /**
  * Определяет тип оболочки из профиля терминала VS Code
@@ -236,86 +229,6 @@ export function detectShellType(): ShellType {
 }
 
 /**
- * Экранирует аргумент команды для PowerShell
- * 
- * Использует одинарные кавычки с удвоением апострофов для экранирования.
- * Экранирует аргументы, содержащие пробелы, $, обратные кавычки или точку с запятой.
- * Точка с запятой экранируется, так как в PowerShell она является разделителем команд.
- * 
- * @param arg - Аргумент команды
- * @returns Экранированный аргумент (в одинарных кавычках, если содержит пробелы или спецсимволы)
- */
-function escapeArgForPowerShell(arg: string): string {
-	// Экранируем аргументы, содержащие пробелы, $, обратные кавычки или точку с запятой
-	// Точка с запятой - это разделитель команд в PowerShell, поэтому её нужно экранировать
-	if (arg.includes(' ') || arg.includes('$') || arg.includes('`') || arg.includes(';')) {
-		return `'${arg.replaceAll("'", "''")}'`;
-	}
-	return arg;
-}
-
-/**
- * Экранирует аргумент команды для cmd и bash
- * 
- * Использует двойные кавычки для аргументов, содержащих пробелы.
- * 
- * @param arg - Аргумент команды
- * @returns Экранированный аргумент (в двойных кавычках, если содержит пробелы)
- */
-function escapeArgForCmdBash(arg: string): string {
-	if (arg.includes(' ') && !arg.startsWith('"') && !arg.startsWith("'")) {
-		return `"${arg}"`;
-	}
-	return arg;
-}
-
-/**
- * Экранирует аргумент команды для bash/sh/zsh
- *
- * Одинарные кавычки для аргументов с пробелами и спецсимволами: $ и обратная
- * кавычка не должны раскрываться оболочкой (например, макрос $runnerRoot
- * обязан дойти до vrunner литералом).
- *
- * @param arg - Аргумент команды
- * @returns Экранированный аргумент
- */
-function escapeArgForBash(arg: string): string {
-	if (arg.includes(' ') || arg.includes('$') || arg.includes('`')) {
-		return `'${arg.replaceAll("'", `'\\''`)}'`;
-	}
-	return arg;
-}
-
-/**
- * Экранирует аргументы команды для безопасной передачи в терминал
- * 
- * Автоматически нормализует пути для bash оболочек на Windows.
- * Использует разные стратегии экранирования в зависимости от оболочки:
- * - PowerShell: одинарные кавычки с удвоением апострофов
- * - cmd/bash: двойные кавычки для аргументов с пробелами
- * 
- * @param args - Массив аргументов команды
- * @param shellType - Тип оболочки (опционально, определяется автоматически)
- * @returns Строка с экранированными аргументами, разделенными пробелами
- */
-export function escapeCommandArgs(args: string[], shellType?: ShellType): string {
-	const shell = shellType || detectShellType();
-	
-	return args.map((arg) => {
-		const normalizedArg = normalizeArgForShell(arg, shell);
-
-		if (shell === 'powershell') {
-			return escapeArgForPowerShell(normalizedArg);
-		}
-		if (shell === 'cmd') {
-			return escapeArgForCmdBash(normalizedArg);
-		}
-
-		return escapeArgForBash(normalizedArg);
-	}).join(' ');
-}
-
-/**
  * Нормализует путь к файлу для указанной оболочки
  * 
  * Для bash оболочек на Windows преобразует обратные слэши в прямые.
@@ -331,26 +244,6 @@ function normalizePathForShell(filePath: string, shellType: ShellType): string {
 	}
 	// Для PowerShell и cmd оставляем как есть (они поддерживают оба формата)
 	return filePath;
-}
-
-/**
- * Нормализует аргумент команды для указанной оболочки
- * 
- * Преобразует пути с обратными слэшами в прямые для bash оболочек на Windows.
- * Параметры команд (начинающиеся с `-` или `--`) не нормализуются.
- * 
- * @param arg - Аргумент команды
- * @param shellType - Тип оболочки
- * @returns Нормализованный аргумент
- */
-export function normalizeArgForShell(arg: string, shellType: ShellType): string {
-	if (isBashLikeOnWindows(shellType)) {
-		// Преобразуем обратные слэши в прямые только в путях (не в параметрах команд)
-		if (arg.includes('\\') && !arg.startsWith('-') && !arg.startsWith('--')) {
-			return arg.replaceAll('\\', '/');
-		}
-	}
-	return arg;
 }
 
 /**
@@ -401,12 +294,28 @@ function getEncodingPrefix(shellType: ShellType): string {
  */
 export function buildCommand(executablePath: string, args: string[], shellType?: ShellType): string {
 	const shell = shellType || detectShellType();
-	const normalizedPath = normalizePathForShell(executablePath, shell);
-	const quotedPath = normalizedPath.includes(' ') ? `"${normalizedPath}"` : normalizedPath;
+	const quotedPath = quoteExecutable(normalizePathForShell(executablePath, shell), shell);
 	const argsString = escapeCommandArgs(args, shell);
 	const encodingPrefix = getEncodingPrefix(shell);
 	
 	return `${encodingPrefix}${quotedPath} ${argsString}`;
+}
+
+/**
+ * Формирует команду для запуска дочерним процессом (`exec`, `spawn` с shell).
+ *
+ * Отличается от {@link buildCommand} тем, что оболочка здесь не профиль
+ * интегрированного терминала, а cmd/sh. Префикс кодовой страницы обязателен:
+ * без него oscript пишет кириллицу в OEM-кодировке.
+ *
+ * @param executablePath - Путь к исполняемому файлу
+ * @param args - Аргументы команды
+ * @returns Строка команды для дочернего процесса
+ */
+export function buildProcessCommand(executablePath: string, args: string[]): string {
+	const quotedPath = quoteExecutable(executablePath, PROCESS_HOST_SHELL);
+	const argsString = escapeCommandArgs(args, PROCESS_HOST_SHELL);
+	return `${getEncodingPrefix(PROCESS_HOST_SHELL)}${quotedPath} ${argsString}`;
 }
 
 /**
@@ -459,36 +368,32 @@ export function joinCommands(commands: string[], shellType?: ShellType): string 
  * @param vrunnerArgs - Аргументы команды vrunner (без префикса 'vrunner')
  * @param workspaceRoot - Корневая директория workspace (будет смонтирована в /workspace)
  * @param shellType - Тип оболочки терминала хоста (опционально, определяется автоматически)
+ * @param containerName - Имя контейнера, чтобы остановить его при отмене
  * @returns Строка команды Docker для выполнения в терминале
  */
 export function buildDockerCommand(
 	dockerImage: string,
 	vrunnerArgs: string[],
 	workspaceRoot: string,
-	shellType?: ShellType
+	shellType?: ShellType,
+	containerName?: string
 ): string {
 	const shell = shellType || detectShellType();
-	const normalizedWorkspace = normalizePathForShell(workspaceRoot, shell);
-	const volumeMount = `-v "${normalizedWorkspace}:/workspace"`;
-	const workDir = `-w /workspace`;
-	const normalizedArgs = vrunnerArgs.map((arg) => normalizeArgForShell(arg, shell));
-	const argsString = escapeCommandArgs(normalizedArgs, 'bash');
-	const dockerCmd = `docker run --rm ${volumeMount} ${workDir} ${dockerImage} ${argsString}`;
-	
-	return dockerCmd;
-}
+	// ENTRYPOINT задан exec-формой: оболочки в контейнере нет, аргументы docker
+	// получает как argv, поэтому экранируем их для оболочки хоста.
+	const dockerArgs = [
+		'run',
+		'--rm',
+		...(containerName ? ['--name', containerName] : []),
+		'-v',
+		`${normalizePathForShell(workspaceRoot, shell)}:/workspace`,
+		'-w',
+		'/workspace',
+		dockerImage,
+		...vrunnerArgs,
+	];
 
-/**
- * Экранирует строку для передачи как один аргумент в двойных кавычках на хосте.
- * Нужно для формирования -c "..." в docker run --entrypoint /bin/sh.
- */
-function escapeForHostDoubleQuoted(inner: string, shellType: ShellType): string {
-	if (shellType === 'powershell') {
-		return inner.replaceAll('`', '``').replaceAll('"', '`"');
-	}
-	// cmd, bash, sh, zsh: внутри "..." экранируем \ и "
-	const backslash = '\\';
-	return inner.replaceAll(backslash, backslash + backslash).replaceAll('"', backslash + '"');
+	return `docker ${escapeCommandArgs(dockerArgs, shell)}`;
 }
 
 /**
@@ -499,24 +404,38 @@ function escapeForHostDoubleQuoted(inner: string, shellType: ShellType): string 
  * @param vrunnerArgsArray - Массив наборов аргументов (каждый набор — одна команда vrunner)
  * @param workspaceRoot - Корневая директория workspace
  * @param shellType - Тип оболочки терминала хоста
+ * @param containerName - Имя контейнера, чтобы остановить его при отмене
  */
 export function buildDockerCommandSequence(
 	dockerImage: string,
 	vrunnerArgsArray: string[][],
 	workspaceRoot: string,
-	shellType?: ShellType
+	shellType?: ShellType,
+	containerName?: string
 ): string {
 	const shell = shellType || detectShellType();
-	const normalizedWorkspace = normalizePathForShell(workspaceRoot, shell);
-	const volumeMount = `-v "${normalizedWorkspace}:/workspace"`;
-	const workDir = `-w /workspace`;
-	const innerParts = vrunnerArgsArray.map((args) => {
-		const normalizedArgs = args.map((arg) => normalizeArgForShell(arg, shell));
-		return 'vrunner ' + escapeCommandArgs(normalizedArgs, 'bash');
-	});
-	const innerCommand = innerParts.join(' && ');
-	const escapedInner = escapeForHostDoubleQuoted(innerCommand, shell);
-	return `docker run --rm ${volumeMount} ${workDir} --entrypoint /bin/sh ${dockerImage} -c "${escapedInner}"`;
+	// Внутреннюю строку разбирает sh контейнера, поэтому она собирается по правилам sh.
+	// Наружу она уходит одним аргументом docker и экранируется для оболочки хоста.
+	const innerCommand = vrunnerArgsArray
+		.map((args) => `vrunner ${escapeCommandArgs(args, 'sh')}`)
+		.join(' && ');
+	const dockerArgs = [
+		'run',
+		'--rm',
+		...(containerName ? ['--name', containerName] : []),
+		'-v',
+		`${normalizePathForShell(workspaceRoot, shell)}:/workspace`,
+		'-w',
+		'/workspace',
+		'--entrypoint',
+		'/bin/sh',
+		dockerImage,
+		'-c',
+	];
+
+	// Готовая строка sh нормализации слэшей не подлежит: обратный слэш в ней —
+	// часть экранирования апострофа ('\''), а не путь.
+	return `docker ${escapeCommandArgs(dockerArgs, shell)} ${escapeCommandArg(innerCommand, shell)}`;
 }
 
 /**

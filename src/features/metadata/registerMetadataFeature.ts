@@ -1,23 +1,15 @@
 import * as fs from 'node:fs';
-import * as os from 'node:os';
 import * as path from 'node:path';
 import * as vscode from 'vscode';
 import { VRunnerManager } from '../../shared/vrunnerManager';
 import {
-	cachedMdSparrowTag,
-	clearMdSparrowJarCache,
-	clearPortableJreCache,
 	ensureMdSparrowRuntime,
-	portableJreCached,
 } from './mdSparrowBootstrap';
-import { cachedOnecDebugAdapterTag, clearOnecDebugAdapterCache } from '../debug/onecDebugAdapterBootstrap';
 import { parseMdBoilerplateKindFromCommandArgs } from './metadataBoilerplateNames';
 import {
 	openExternalArtifactPropertiesPanel,
 	type ExternalArtifactPropertiesDto,
 } from './metadataExternalArtifactPropertiesPanel';
-import { cachedOvmTag, clearOvmCache } from '../../shared/ovmComponent';
-import { cachedAllureTag, clearAllureCache } from '../../shared/allureComponent';
 import { createMdSparrowMutationRunner } from './mdSparrowMutationQueue';
 import type { MetadataFilterViewProvider } from './metadataFilterView';
 import { MetadataSearchViewProvider } from './metadataSearchView';
@@ -32,7 +24,6 @@ import {
 	type SourcePropertiesDto,
 } from './metadataSourcePropertiesPanel';
 import { mdSparrowSchemaFlagFromConfigurationXml } from './mdSparrowSchemaVersion';
-import { runMdSparrow } from './mdSparrowRunner';
 import {
 	runMdSparrowParamsMutation,
 	runMdSparrowParamsRead,
@@ -56,6 +47,9 @@ import {
 	type ObjectModuleKind,
 } from './metadataTreeView';
 import { notifyQuiet } from '../../shared/notify';
+import { showComponentError } from '../../shared/githubToken';
+import { uiOnlyHandler } from '../../shared/agentGate';
+import { describeComponentState, readComponentStates } from '../../shared/componentsRegistry';
 import { CfDumpFinding, DumpValidationDiagnostics } from './dumpValidationDiagnostics';
 
 export interface RegisterMetadataFeatureParams {
@@ -77,7 +71,6 @@ export function registerMetadataFeature(
 		context,
 		metadataTreeProvider,
 		metadataTreeView,
-		metadataSearchProvider,
 		metadataFilterProvider,
 		propertyPaletteProvider,
 	} = params;
@@ -2015,58 +2008,54 @@ export function registerMetadataFeature(
 			}
 			return loadProjectMetadataTree(context, root);
 		}),
-		vscode.commands.registerCommand('1c-platform-tools.components.update', async () => {
-			const [adapterTag, jarTag, ovmTag, allureTag] = await Promise.all([
-				cachedOnecDebugAdapterTag(context),
-				cachedMdSparrowTag(context),
-				cachedOvmTag(context),
-				cachedAllureTag(context),
-			]);
+		vscode.commands.registerCommand('1c-platform-tools.components.update', uiOnlyHandler(
+			'Список компонентов выбирает человек галочками. Загрузка идёт при обычном использовании компонента.',
+			async () => {
+			const states = await readComponentStates(context);
 			const picked = await vscode.window.showQuickPick(
-				[
-					{ label: 'Отладчик', description: adapterTag ?? 'не загружен', value: 'adapter' as const, picked: true },
-					{ label: 'Дерево метаданных', description: jarTag ?? 'не загружен', value: 'jar' as const, picked: true },
-					{ label: 'OVM', description: ovmTag ?? 'не загружен', value: 'ovm' as const, picked: false },
-					{ label: 'Allure', description: allureTag ?? 'не загружен', value: 'allure' as const, picked: false },
-					{
-						label: 'Portable JRE',
-						description: portableJreCached(context) ? 'загружена' : 'не загружена',
-						value: 'jre' as const,
-						picked: false,
-					},
-				],
+				states.map((state) => ({
+					label: state.spec.title,
+					description: describeComponentState(state),
+					state,
+					picked: true,
+				})),
 				{
 					title: 'Обновить внешние компоненты',
 					canPickMany: true,
-					placeHolder: 'Выбранные компоненты будут загружены заново при следующем использовании',
+					placeHolder: 'Выбранное будет загружено заново сразу, даже если задан свой путь',
 				}
 			);
 			if (!picked || picked.length === 0) {
 				return;
 			}
-			const values = new Set(picked.map((p) => p.value));
-			if (values.has('adapter')) {
-				await clearOnecDebugAdapterCache(context);
-			}
-			if (values.has('jar')) {
-				await clearMdSparrowJarCache(context);
-			}
-			if (values.has('ovm')) {
-				await clearOvmCache(context);
-			}
-			if (values.has('allure')) {
-				await clearAllureCache(context);
-			}
-			if (values.has('jre')) {
-				await clearPortableJreCache(context);
-			}
-			void vscode.window.showInformationMessage(
-				'Компоненты будут загружены заново при следующем использовании.'
+
+			const failed: string[] = [];
+			const done: string[] = [];
+			await vscode.window.withProgress(
+				{ location: vscode.ProgressLocation.Notification, title: 'Обновление внешних компонентов' },
+				async (progress) => {
+					for (const item of picked) {
+						progress.report({ message: item.state.spec.title });
+						try {
+							await item.state.spec.clear(context);
+							await item.state.spec.download(context);
+							const version = await item.state.spec.version(context).catch(() => undefined);
+							done.push(version ? `${item.state.spec.title} ${version}` : item.state.spec.title);
+						} catch (error) {
+							failed.push(item.state.spec.title);
+							await showComponentError(`${item.state.spec.title}: ${error instanceof Error ? error.message : String(error)}`);
+						}
+					}
+				}
 			);
-			if (values.has('jar') || values.has('jre')) {
+
+			if (picked.some((item) => item.state.spec.id === 'metadataTree' || item.state.spec.id === 'jre')) {
 				void metadataTreeProvider.refresh();
 			}
-		}),
+			if (done.length > 0) {
+				notifyQuiet(`Обновлены компоненты: ${done.join(', ')}`);
+			}
+		})),
 		vscode.workspace.onDidChangeConfiguration((e) => {
 			if (e.affectsConfiguration('1c-platform-tools.metadata')) {
 				void metadataTreeProvider.refresh();

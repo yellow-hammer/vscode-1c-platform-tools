@@ -259,6 +259,17 @@ export function checkOnecDebugAdapterUpdateInBackground(context: vscode.Extensio
 	});
 }
 
+/**
+ * Загружает адаптер отладки, не глядя на `components.adapterFile` и автозагрузку.
+ *
+ * @param context - Контекст расширения
+ * @returns Путь к загруженному каталогу релиза
+ */
+export async function downloadOnecDebugAdapter(context: vscode.ExtensionContext): Promise<string> {
+	const ensured = await ensureReleaseComponent(installBaseDir(context), onecDebugAdapterSpec(), resolveGithubToken());
+	return ensured.assetPath;
+}
+
 /** Тег релиза адаптера в кэше; undefined — не загружен. */
 export async function cachedOnecDebugAdapterTag(context: vscode.ExtensionContext): Promise<string | undefined> {
 	return cachedReleaseTag(installBaseDir(context), onecDebugAdapterSpec());

@@ -20,6 +20,7 @@ import * as fs from 'node:fs/promises';
 import { VRunnerManager } from '../../shared/vrunnerManager';
 import { resolveFileIbAbsolutePath } from '../../shared/ibConnectionPath';
 import { logger } from '../../shared/logger';
+import { ProcessOutputDecoder } from '../../shared/processOutput';
 import { resolvePlatformBinary, defaultPlatformBasePaths } from '../../shared/platformBinary';
 import {
 	PublicationOptions,
@@ -276,10 +277,10 @@ export class PlatformServerManager {
 		this.child = child;
 		this.exitPromise = new Promise<void>((resolve) => { this.exitResolve = resolve; });
 
-		child.stdout?.setEncoding('utf8');
-		child.stderr?.setEncoding('utf8');
-		child.stdout?.on('data', (chunk: string) => this.output.append(chunk));
-		child.stderr?.on('data', (chunk: string) => this.output.append(chunk));
+		const stdoutDecoder = new ProcessOutputDecoder();
+		const stderrDecoder = new ProcessOutputDecoder();
+		child.stdout?.on('data', (chunk: Buffer) => this.output.append(stdoutDecoder.push(chunk)));
+		child.stderr?.on('data', (chunk: Buffer) => this.output.append(stderrDecoder.push(chunk)));
 
 		child.on('error', (error) => {
 			this.fail(`Ошибка запуска ibsrv: ${error.message}`);

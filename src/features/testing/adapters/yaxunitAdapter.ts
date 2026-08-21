@@ -8,7 +8,7 @@ import { DiscoveredFile } from '../parsers/parserTypes';
 import { parseBslTestModule } from '../parsers/bslTestParser';
 import { resolveConfigPath } from '../projectTestConfig';
 import { normalizeGlobBase } from './adapterUtils';
-import { DEFAULT_PATHS, DEFAULT_TESTING } from '../../../shared/pathDefaults';
+import { DEFAULT_TESTING } from '../../../shared/pathDefaults';
 import { resolveExtensionNameFromSrc } from '../../extensions/extensionNames';
 
 const log = logger.scope('testing');

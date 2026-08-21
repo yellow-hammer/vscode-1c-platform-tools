@@ -73,3 +73,28 @@ export function getOpmBinaryCandidates(binDir: string): string[] {
 export function getOpmScriptPath(installRoot: string): string {
 	return path.join(installRoot, 'lib', 'opm', 'src', 'cmd', 'opm.os');
 }
+
+/**
+ * Ставит каталог первым в PATH окружения дочернего процесса.
+ *
+ * Windows склеивает PATH как системная часть плюс пользовательская, поэтому
+ * каталог другой установки OneScript может оказаться раньше выбранной. Обёртки
+ * `opm.bat` и `vrunner.bat` запускают `oscript` по имени, и без этой подстановки
+ * они увели бы работу в чужую установку.
+ *
+ * Имя переменной ищется без учёта регистра: на Windows это `Path`.
+ *
+ * @param env - Исходное окружение
+ * @param binDir - Каталог, который должен искаться первым (undefined — не менять)
+ * @returns Окружение с изменённым PATH
+ */
+export function withBinDirFirst(env: NodeJS.ProcessEnv, binDir: string | undefined): NodeJS.ProcessEnv {
+	if (binDir === undefined || binDir === '') {
+		return env;
+	}
+	const result: NodeJS.ProcessEnv = { ...env };
+	const pathKey = Object.keys(result).find((key) => key.toUpperCase() === 'PATH') ?? 'PATH';
+	const current = result[pathKey];
+	result[pathKey] = current ? `${binDir}${path.delimiter}${current}` : binDir;
+	return result;
+}

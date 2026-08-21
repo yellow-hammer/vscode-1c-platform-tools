@@ -1,7 +1,6 @@
 import * as net from 'node:net';
 import { VRunnerManager } from './vrunnerManager';
 import * as crypto from 'node:crypto';
-import * as path from 'node:path';
 import * as vscode from 'vscode';
 import { logger } from './logger';
 import type { VRunnerExecutionResult } from './vrunnerManager';

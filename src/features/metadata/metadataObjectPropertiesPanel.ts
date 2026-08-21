@@ -1416,10 +1416,6 @@ export function buildStructureListsForTest(props: unknown, structure: unknown): 
 	);
 }
 
-function structListKind(props: MdObjectPropertiesDto): MetadataStructListKind {
-	return props.kind === 'enum' ? 'enumValues' : 'attributes';
-}
-
 /** Список команд объекта: живёт на вкладке «Команды», как в конфигураторе. */
 function commandsList(structure: MdObjectStructureDto | null): MetadataPanelStructureList {
 	return {

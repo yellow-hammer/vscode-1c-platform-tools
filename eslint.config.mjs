@@ -19,9 +19,18 @@ export default [{
             format: ["camelCase", "PascalCase"],
         }],
 
+        "@typescript-eslint/no-unused-vars": ["warn", { args: "none", caughtErrors: "none" }],
         curly: "warn",
         eqeqeq: "warn",
         "no-throw-literal": "warn",
         semi: "warn",
+
+        "no-restricted-syntax": ["error", {
+            selector: "CallExpression[callee.property.name='createTerminal']",
+            message: "Запускайте команды задачей через createVRunnerTask: терминалу нужен ConPTY, его нет на Windows старее 1809. Терминал допустим только в ветке execution.useTasks === false, с eslint-disable и пояснением.",
+        }, {
+            selector: "CallExpression[callee.property.name='sendText']",
+            message: "sendText пишет в терминал VS Code. Команду дочернего процесса собирайте через buildProcessCommand и запускайте задачей.",
+        }],
     },
 }];

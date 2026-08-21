@@ -1,4 +1,5 @@
 import { BaseCommand } from './baseCommand';
+import { confirmGuiCommandInRemote } from '../shared/remoteEnv';
 import { getRunEnterpriseCommandName, getRunDesignerCommandName } from '../features/tools/commandNames';
 import type { CommandExecutionOptions, StructuredCommandResult } from '../shared/commandExecutionTypes';
 
@@ -55,6 +56,9 @@ export class RunCommands extends BaseCommand {
 
 		const connectionArgs = await this.buildConnectionArgs(opts);
 		const commandName = getRunEnterpriseCommandName();
+		if (!(await confirmGuiCommandInRemote(commandName.title))) {
+			return;
+		}
 		const [args] = await this.vrunner.planIntent(
 			{ kind: 'run.enterprise', noWait: true, common: connectionArgs },
 			opts?.settingsFile, opts?.ibConnection
@@ -86,6 +90,9 @@ export class RunCommands extends BaseCommand {
 
 		const connectionArgs = await this.buildConnectionArgs(opts);
 		const commandName = getRunDesignerCommandName();
+		if (!(await confirmGuiCommandInRemote(commandName.title))) {
+			return;
+		}
 		const [args] = await this.vrunner.planIntent(
 			{ kind: 'run.designer', noWait: true, common: connectionArgs },
 			opts?.settingsFile, opts?.ibConnection

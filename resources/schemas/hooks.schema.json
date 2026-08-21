@@ -39,7 +39,6 @@
           "1c-platform-tools.cfe.loadFile",
           "1c-platform-tools.cfe.unload",
           "1c-platform-tools.cfe.updateDb",
-          "1c-platform-tools.components.update",
           "1c-platform-tools.debug.measure.clear",
           "1c-platform-tools.debug.measure.showResults",
           "1c-platform-tools.debug.measure.start",
