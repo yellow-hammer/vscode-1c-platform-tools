@@ -900,18 +900,15 @@ export class DependenciesCommands extends BaseCommand {
 		if (!installed) {
 			log.info('Таймаут ожидания установки OVM');
 			vscode.window.showInformationMessage(
-				'Установка идёт дольше или с ошибкой. Если в терминале успешно — перезапустите окно (Reload Window).'
+				'Установка идёт дольше обычного или завершилась с ошибкой. Если в панели задачи всё прошло, закройте и откройте VS Code.'
 			);
 			return;
 		}
 
-		const reload = await vscode.window.showInformationMessage(
-			'OneScript установлен. Перезапустить окно (PATH обновится)?',
-			'Перезапустить',
-			'Позже'
+		// Перезагрузки окна мало: PATH берётся из окружения процесса VS Code,
+		// а оно фиксируется при его запуске. Иначе команды пойдут в прежнюю установку.
+		vscode.window.showInformationMessage(
+			'OneScript установлен. Закройте и откройте VS Code: PATH читается при запуске.'
 		);
-		if (reload === 'Перезапустить') {
-			await vscode.commands.executeCommand('workbench.action.reloadWindow');
-		}
 	}
 }
