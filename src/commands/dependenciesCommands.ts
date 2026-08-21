@@ -850,11 +850,27 @@ export class DependenciesCommands extends BaseCommand {
 			const ovmCall = (args: string[]): string => process.platform === 'win32'
 				? buildProcessCommand(ovmPath, args)
 				: buildProcessCommand('mono', [ovmPath, ...args]);
+			let resolveExit: (code: number) => void = () => undefined;
+			const exitCode = new Promise<number>((resolve) => {
+				resolveExit = resolve;
+			});
 			await vscode.tasks.executeTask(createVRunnerTask({
 				name: commandName.title,
 				command: joinCommands([ovmCall(['install', ovmVersion]), ovmCall(['use', ovmVersion])], PROCESS_HOST_SHELL),
 				cwd: workspaceRoot,
+				exitCallback: resolveExit,
 			}));
+
+			// Код возврата задачи, а не опрос времени модификации oscript: раскладка
+			// каталогов у ovm зависит от версии, и опрос её не всегда замечал
+			if (await exitCode !== 0) {
+				log.info('Установка OneScript завершилась с ошибкой');
+				vscode.window.showWarningMessage('Установка OneScript завершилась с ошибкой, подробности в панели задачи.');
+				return;
+			}
+			await this.vrunner.refreshOneScriptResolution();
+			notifyQuiet('OneScript установлен');
+			return;
 			/* eslint-disable no-restricted-syntax -- execution.useTasks === false: терминал выбран пользователем */
 		} else if (process.platform === 'win32') {
 			const ovmBinHint = String.raw`$env:LOCALAPPDATA\ovm\current\bin`;
