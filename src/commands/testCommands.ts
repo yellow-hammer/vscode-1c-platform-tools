@@ -3,6 +3,7 @@ import * as path from 'node:path';
 import { BaseCommand } from './baseCommand';
 import { buildCommand, buildProcessCommand, joinCommands, detectShellType, PROCESS_HOST_SHELL } from '../utils/commandUtils';
 import { createVRunnerTask } from '../features/tasks/vrunnerTask';
+import { findFreePort, isRemoteEnvironment, openLocalUrl } from '../shared/remoteEnv';
 import { showComponentError } from '../shared/githubToken';
 import {
 	getXUnitTestsCommandName,
@@ -27,6 +28,9 @@ import { logger } from '../shared/logger';
 const log = logger.scope('testing');
 
 const NL = '\n';
+
+/** Порт, с которого ищется свободный для отчёта Allure в удалённом окружении. */
+const DEFAULT_ALLURE_PORT = 8090;
 
 /** Путь jUnit-отчёта syntax-check, когда он не задан в настройках прогона. */
 const DEFAULT_SYNTAX_CHECK_JUNIT = 'build/out/syntax-check/junit/junit.xml';
@@ -651,8 +655,14 @@ export class TestCommands extends BaseCommand {
 		}
 		if (this.vrunner.shouldUseTasks()) {
 			const generateArgs = ['generate', ...allureResultPaths, '-c', '-o', outputPath];
+			// В удалённом окружении браузера рядом с allure нет: фиксируем порт,
+			// чтобы открыть отчёт у пользователя через проброс
+			const port = isRemoteEnvironment() ? await findFreePort(DEFAULT_ALLURE_PORT) : undefined;
+			const openArgs = port === undefined
+				? ['open', outputPath]
+				: ['open', outputPath, '-h', 'localhost', '-p', String(port)];
 			const command = joinCommands(
-				[buildProcessCommand(allurePath, generateArgs), buildProcessCommand(allurePath, ['open', outputPath])],
+				[buildProcessCommand(allurePath, generateArgs), buildProcessCommand(allurePath, openArgs)],
 				PROCESS_HOST_SHELL
 			);
 			await vscode.tasks.executeTask(createVRunnerTask({
@@ -660,6 +670,9 @@ export class TestCommands extends BaseCommand {
 				command,
 				cwd: workspaceRoot,
 			}));
+			if (port !== undefined) {
+				await openLocalUrl(`http://localhost:${port}/`);
+			}
 			return;
 		}
 
