@@ -937,6 +937,16 @@
         "category": "1C: Внешние компоненты"
       },
       {
+        "command": "1c-platform-tools.components.setGithubToken",
+        "title": "Указать токен GitHub",
+        "category": "1C: Внешние компоненты"
+      },
+      {
+        "command": "1c-platform-tools.components.forgetGithubToken",
+        "title": "Забыть токен GitHub",
+        "category": "1C: Внешние компоненты"
+      },
+      {
         "command": "1c-platform-tools.debug.showVariableInWindow",
         "title": "Показать значение в окне",
         "shortTitle": "Показать в окне",

@@ -19,6 +19,7 @@ import { streamDownload } from '../shared/githubReleaseLoader';
 import { notifyQuiet } from '../shared/notify';
 import { buildProcessCommand, joinCommands, PROCESS_HOST_SHELL } from '../utils/commandUtils';
 import { createVRunnerTask } from '../features/tasks/vrunnerTask';
+import { showComponentError } from '../shared/githubToken';
 
 const log = logger.scope('commands');
 
@@ -839,9 +840,7 @@ export class DependenciesCommands extends BaseCommand {
 			ovmPath = await ensureOvm(this.context);
 		} catch (error) {
 			const errMsg = (error as Error).message;
-			log.error(`Не удалось получить OVM: ${errMsg}`);
-			logger.show();
-			vscode.window.showErrorMessage(`Не удалось получить OVM: ${errMsg}`);
+			await showComponentError(`Не удалось получить OVM: ${errMsg}`);
 			return;
 		}
 

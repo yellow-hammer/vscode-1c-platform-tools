@@ -3,6 +3,7 @@ import * as path from 'node:path';
 import { BaseCommand } from './baseCommand';
 import { buildCommand, buildProcessCommand, joinCommands, detectShellType, PROCESS_HOST_SHELL } from '../utils/commandUtils';
 import { createVRunnerTask } from '../features/tasks/vrunnerTask';
+import { showComponentError } from '../shared/githubToken';
 import {
 	getXUnitTestsCommandName,
 	getSyntaxCheckCommandName,
@@ -645,7 +646,7 @@ export class TestCommands extends BaseCommand {
 				: this.vrunner.getAllurePath();
 		} catch (error) {
 			const message = error instanceof Error ? error.message : String(error);
-			void vscode.window.showErrorMessage(`Не удалось подготовить Allure: ${message}`);
+			void showComponentError(`Не удалось подготовить Allure: ${message}`);
 			return;
 		}
 		if (this.vrunner.shouldUseTasks()) {

@@ -42,6 +42,9 @@ const HIDDEN_PREFIXES = [
 	`${COMMAND_PREFIX}env.setOverrides`,
 	`${COMMAND_PREFIX}env.statusBarRefresh`,
 	`${COMMAND_PREFIX}dependencies.setupGit`,
+	// Секрет вводит человек в поле с маскировкой, агенту его передавать незачем
+	`${COMMAND_PREFIX}components.setGithubToken`,
+	`${COMMAND_PREFIX}components.forgetGithubToken`,
 	`${COMMAND_PREFIX}oscript.addTask`,
 	`${COMMAND_PREFIX}server.menu`,
 	`${COMMAND_PREFIX}launch.editConfigurations`,

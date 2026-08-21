@@ -20,6 +20,7 @@ import { ServiceFilesCommands } from './serviceFilesCommands';
 import { VRunnerManager } from '../shared/vrunnerManager';
 import type { CommandExecutionOptions, StructuredCommandResult } from '../shared/commandExecutionTypes';
 import { isAgentOptions, agentInteractiveError, uiOnlyHandler } from '../shared/agentGate';
+import { askGithubToken, forgetGithubToken } from '../shared/githubToken';
 
 const log = logger.scope('commands');
 
@@ -355,6 +356,13 @@ export function registerCommands(
 		}),
 		vscode.commands.registerCommand('1c-platform-tools.dependencies.remove', () => {
 			commands.dependencies.removeDependencies();
+		}),
+		vscode.commands.registerCommand('1c-platform-tools.components.setGithubToken', uiOnlyHandler(
+			'Токен вводит пользователь в поле с маскировкой; агенту секрет не передаётся.',
+			() => askGithubToken()
+		)),
+		vscode.commands.registerCommand('1c-platform-tools.components.forgetGithubToken', () => {
+			void forgetGithubToken();
 		})
 	];
 
