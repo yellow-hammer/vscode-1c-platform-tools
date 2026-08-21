@@ -18,9 +18,10 @@ import {
 	normalizeIbPathForDocker,
 } from '../utils/commandUtils';
 import { logger } from './logger';
+import { setTerminalOscriptBinDir } from './terminalEnv';
 import { runCancellableCommand, CancellableProcessResult } from './cancellableProcess';
 import { DEFAULT_PATHS, DEFAULT_VRUNNER, DEFAULT_ENV, TESTS_SUBDIRS, testsSubPath } from './pathDefaults';
-import { getOvmBinaryPath, getOvmBinDir, getOvmRootDir, getOpmBinaryCandidates, getOpmScriptPath } from './ovmPaths';
+import { getOvmBinaryPath, getOvmBinDir, getOvmRootDir, getOpmBinaryCandidates, getOpmScriptPath, withBinDirFirst } from './ovmPaths';
 import {
 	ACTIVE_ENV_PROFILE_KEY,
 	ACTIVE_ENV_OVERRIDES_KEY,
@@ -439,7 +440,22 @@ export class VRunnerManager {
 	 */
 	public async checkOscriptAvailable(): Promise<boolean> {
 		this.resolvedOscriptPath = await this.resolveBinaryPath('oscript', '-version');
+		setTerminalOscriptBinDir(this.oscriptBinDir());
 		return this.resolvedOscriptPath !== undefined;
+	}
+
+	/**
+	 * Заново определяет установку OneScript: oscript, opm и версию vrunner.
+	 *
+	 * Нужен после установки OneScript: без этого до конца сессии используется
+	 * установка, найденная при активации.
+	 */
+	public async refreshOneScriptResolution(): Promise<void> {
+		this.resolvedOscriptPath = undefined;
+		this.resolvedOpm = undefined;
+		await this.checkOscriptAvailable();
+		await this.checkOpmAvailable();
+		await this.getVRunnerVersion(true);
 	}
 
 	/**
@@ -464,15 +480,17 @@ export class VRunnerManager {
 	 * @returns Инвокация opm или undefined, если opm недоступен
 	 */
 	private async resolveOpmInvocation(): Promise<{ path: string; leadingArgs: string[] } | undefined> {
-		if (await this.runCommandForCheck('opm', ['--version'])) {
-			return { path: 'opm', leadingArgs: [] };
-		}
-
+		// Порядок тот же, что у oscript: сначала установка OVM, потом PATH
 		for (const candidate of getOpmBinaryCandidates(getOvmBinDir())) {
-			if (fsSync.existsSync(candidate) && await this.runCommandForCheck(candidate, ['--version'])) {
-				log.info(`opm не найден в PATH, используется установка OVM: ${candidate}`);
+			if (fsSync.existsSync(candidate) && await this.runCommandForCheck(candidate, ['--version'], getOvmBinDir())) {
+				log.info(`opm: используется установка OVM: ${candidate}`);
 				return { path: candidate, leadingArgs: [] };
 			}
+		}
+
+		if (await this.runCommandForCheck('opm', ['--version'])) {
+			log.info('opm: используется установка из PATH');
+			return { path: 'opm', leadingArgs: [] };
 		}
 
 		// Обёртки opm нет: пробуем запустить opm.os через oscript из тех же установок
@@ -512,15 +530,33 @@ export class VRunnerManager {
 	 * @returns Имя для PATH, абсолютный путь OVM или undefined
 	 */
 	private async resolveBinaryPath(name: string, versionArg: string): Promise<string | undefined> {
-		if (await this.runCommandForCheck(name, [versionArg])) {
-			return name;
+		const configured = vscode.workspace
+			.getConfiguration('1c-platform-tools')
+			.get<string>('oscript.path', '')
+			.trim();
+		if (name === 'oscript' && configured !== '') {
+			if (await this.runCommandForCheck(configured, [versionArg])) {
+				log.info(`oscript: указан настройкой oscript.path: ${configured}`);
+				return configured;
+			}
+			log.warn(`oscript.path не запускается: ${configured}`);
 		}
+
+		// Установка OVM идёт перед PATH: её ставит сам пользователь командой
+		// «Установить OneScript», а системный каталог другой установки может
+		// стоять в PATH раньше, потому что системная часть склеивается первой.
 		const ovmPath = getOvmBinaryPath(name);
-		if (fsSync.existsSync(ovmPath) && await this.runCommandForCheck(ovmPath, [versionArg])) {
-			log.info(`${name} не найден в PATH, используется установка OVM: ${ovmPath}`);
+		if (fsSync.existsSync(ovmPath) && await this.runCommandForCheck(ovmPath, [versionArg], getOvmBinDir())) {
+			log.info(`${name}: используется установка OVM: ${ovmPath}`);
 			return ovmPath;
 		}
-		log.warn(`${name} не найден ни в PATH, ни в установке OVM: ${ovmPath}`);
+
+		if (await this.runCommandForCheck(name, [versionArg])) {
+			log.info(`${name}: используется установка из PATH`);
+			return name;
+		}
+
+		log.warn(`${name} не найден ни в установке OVM (${ovmPath}), ни в PATH`);
 		return undefined;
 	}
 
@@ -531,10 +567,11 @@ export class VRunnerManager {
 	 * @param args - Аргументы команды
 	 * @returns Промис, который разрешается true при exit code 0
 	 */
-	private runCommandForCheck(commandPath: string, args: string[]): Promise<boolean> {
+	private runCommandForCheck(commandPath: string, args: string[], binDir?: string): Promise<boolean> {
 		return new Promise((resolve) => {
 			const command = buildProcessCommand(commandPath, args);
-			exec(command, { maxBuffer: 1024 * 1024, timeout: 10000 }, (error) => {
+			const options = { maxBuffer: 1024 * 1024, timeout: 10000, env: this.childEnv(undefined, binDir) };
+			exec(command, options, (error) => {
 				resolve(!error);
 			});
 		});
@@ -1199,6 +1236,32 @@ export class VRunnerManager {
 	}
 
 	/**
+	 * Каталог bin выбранной установки OneScript, если она найдена по абсолютному пути.
+	 *
+	 * @returns Путь к каталогу bin или undefined, когда используется PATH
+	 */
+	private oscriptBinDir(): string | undefined {
+		const resolved = this.resolvedOscriptPath;
+		return resolved !== undefined && path.isAbsolute(resolved) ? path.dirname(resolved) : undefined;
+	}
+
+	/**
+	 * Окружение дочернего процесса: каталог выбранной установки OneScript идёт
+	 * в PATH первым.
+	 *
+	 * Обёртки `opm.bat` и `vrunner.bat` запускают `oscript` по имени, поэтому без
+	 * этого движок взялся бы из той установки, что стоит в PATH раньше, а это не
+	 * обязательно выбранная.
+	 *
+	 * @param extra - Дополнительные переменные окружения
+	 * @param binDir - Каталог bin вместо выбранной установки (для проверок при поиске)
+	 * @returns Окружение для exec, spawn и задач
+	 */
+	private childEnv(extra?: NodeJS.ProcessEnv, binDir = this.oscriptBinDir()): NodeJS.ProcessEnv {
+		return withBinDirFirst({ ...process.env, ...extra }, binDir);
+	}
+
+	/**
 	 * Запускать ли команды vrunner как задачи VS Code (Tasks).
 	 *
 	 * По умолчанию включено: доступен «Rerun Last Task», команды видны в списке
@@ -1285,7 +1348,7 @@ export class VRunnerManager {
 			name: options?.name || '1C: Platform Tools',
 			command: built.command,
 			cwd,
-			env: options?.env,
+			env: this.childEnv(options?.env),
 			definition: options?.definition,
 			exitCallback: options?.exitCallback,
 		});
@@ -1401,7 +1464,7 @@ export class VRunnerManager {
 			name: options?.name || '1C: Platform Tools',
 			command,
 			cwd,
-			env: options?.env,
+			env: this.childEnv(options?.env),
 		});
 		await vscode.tasks.executeTask(task);
 	}
@@ -1470,7 +1533,7 @@ export class VRunnerManager {
 			name: options?.name || '1C: Platform Tools',
 			command,
 			cwd,
-			env: options?.env,
+			env: this.childEnv(options?.env),
 			exitCallback: resolveExit,
 		});
 		await vscode.tasks.executeTask(task);
@@ -1765,7 +1828,7 @@ export class VRunnerManager {
 
 			const execOptions = {
 				cwd: cwd,
-				env: { ...process.env, ...options?.env },
+				env: this.childEnv(options?.env),
 				maxBuffer: MAX_EXEC_BUFFER_SIZE,
 				encoding: 'buffer' as const
 			};
@@ -1825,7 +1888,7 @@ export class VRunnerManager {
 
 		return runCancellableCommand(built.command, {
 			cwd: options?.cwd || this.getEffectiveRoot(),
-			env: options?.env,
+			env: this.childEnv(options?.env),
 			token: options?.token,
 			onOutput: options?.onOutput
 		});
@@ -1851,7 +1914,7 @@ export class VRunnerManager {
 			name: options?.name || '1C: Platform Tools',
 			command,
 			cwd,
-			env: options?.env,
+			env: this.childEnv(options?.env),
 		});
 		await vscode.tasks.executeTask(task);
 	}

@@ -31,6 +31,7 @@ import { registerTasksFeature } from '../features/tasks/registerTasksFeature';
 import { registerClustersFeature } from '../features/clusters/registerClustersFeature';
 import { registerIbasesFeature } from '../features/ibases/registerIbasesFeature';
 import { initGithubToken } from '../shared/githubToken';
+import { initTerminalEnv } from '../shared/terminalEnv';
 
 /**
  * Выполняет полную инициализацию расширения.
@@ -38,6 +39,7 @@ import { initGithubToken } from '../shared/githubToken';
 export async function bootstrapApp(context: vscode.ExtensionContext): Promise<void> {
 	// До первой загрузки компонентов: иначе первые запросы уйдут анонимными
 	await initGithubToken(context.secrets);
+	initTerminalEnv(context.environmentVariableCollection);
 
 	const { registerRuntime: registerProjectsRuntime } = registerProjectsFlow(context);
 

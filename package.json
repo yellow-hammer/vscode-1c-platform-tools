@@ -3448,6 +3448,11 @@
             "default": "vrunner",
             "description": "Путь к vrunner (vanessa-runner)"
           },
+          "1c-platform-tools.oscript.path": {
+            "type": "string",
+            "default": "",
+            "description": "Путь к oscript.exe. Пусто: сначала берётся установка OVM, затем oscript из PATH. Задайте явно, если установок несколько и нужна конкретная."
+          },
           "1c-platform-tools.execution.useTasks": {
             "type": "boolean",
             "default": true,
@@ -4075,7 +4080,7 @@
     "typecheck": "tsc --noEmit",
     "lint": "eslint src",
     "test": "vscode-test && npm run test:node",
-    "test:node": "node --test out/test/shared/processOutput.node.js out/test/utils/shellArgvRoundtrip.node.js",
+    "test:node": "node --test out/test/shared/ovmPaths.node.js out/test/shared/processOutput.node.js out/test/utils/shellArgvRoundtrip.node.js",
     "package": "vsce package",
     "changelog": "git-cliff --config cliff.toml --output CHANGELOG.md",
     "ping-ipc": "node ../mcp-1c-platform-tools/scripts/ping-ipc.mjs"
