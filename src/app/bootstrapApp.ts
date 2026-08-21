@@ -38,7 +38,7 @@ import { initTerminalEnv } from '../shared/terminalEnv';
  */
 export async function bootstrapApp(context: vscode.ExtensionContext): Promise<void> {
 	// До первой загрузки компонентов: иначе первые запросы уйдут анонимными
-	await initGithubToken(context.secrets);
+	await initGithubToken(context);
 	initTerminalEnv(context.environmentVariableCollection);
 
 	const { registerRuntime: registerProjectsRuntime } = registerProjectsFlow(context);

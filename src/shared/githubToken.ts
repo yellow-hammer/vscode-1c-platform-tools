@@ -26,28 +26,79 @@ let secretStorage: vscode.SecretStorage | undefined = undefined;
 /** Прочитанный секрет: чтение SecretStorage асинхронное, а токен нужен синхронно. */
 let storedToken = '';
 
+/** Токен сессии GitHub в VS Code, если пользователь в неё вошёл. */
+let sessionToken = '';
+
+/**
+ * Читает токен из сессии GitHub редактора.
+ *
+ * @param silent - true: только уже существующая сессия, без окон входа
+ * @returns Токен доступа или пустая строка
+ */
+async function readGithubSession(silent: boolean): Promise<string> {
+	try {
+		// Права не нужны: релизы и так публичные, токен снимает лимит анонимных запросов
+		const session = await vscode.authentication.getSession('github', [], silent ? { silent: true } : { createIfNone: true });
+		return session?.accessToken ?? '';
+	} catch (error) {
+		log.warn(`Сессия GitHub недоступна: ${(error as Error).message}`);
+		return '';
+	}
+}
+
 /**
  * Читает сохранённый токен в память. Вызывается на активации, до первой загрузки компонентов.
  *
  * @param secrets - Хранилище секретов расширения
  */
-export async function initGithubToken(secrets: vscode.SecretStorage): Promise<void> {
-	secretStorage = secrets;
+export async function initGithubToken(context: vscode.ExtensionContext): Promise<void> {
+	secretStorage = context.secrets;
 	try {
-		storedToken = (await secrets.get(SECRET_KEY))?.trim() ?? '';
+		storedToken = (await context.secrets.get(SECRET_KEY))?.trim() ?? '';
 	} catch (error) {
 		log.warn(`Не удалось прочитать токен GitHub: ${(error as Error).message}`);
 		storedToken = '';
 	}
+
+	sessionToken = await readGithubSession(true);
+	context.subscriptions.push(
+		vscode.authentication.onDidChangeSessions(async (event) => {
+			if (event.provider.id === 'github') {
+				sessionToken = await readGithubSession(true);
+			}
+		})
+	);
 }
 
 /**
- * Сохранённый токен или пустая строка.
+ * Предлагает войти в GitHub стандартным окном редактора.
  *
- * @returns Токен из SecretStorage
+ * @returns true, если сессия появилась
+ */
+export async function signInToGithub(): Promise<boolean> {
+	sessionToken = await readGithubSession(false);
+	if (sessionToken !== '') {
+		notifyQuiet('Вход в GitHub выполнен');
+	}
+	return sessionToken !== '';
+}
+
+/**
+ * Токен из SecretStorage или пустая строка.
+ *
+ * @returns Сохранённый вручную токен
  */
 export function githubTokenFromStore(): string {
 	return storedToken;
+}
+
+/**
+ * Токен сессии GitHub редактора или пустая строка.
+ *
+ * @returns Токен сессии
+ */
+export function githubTokenFromSession(): string {
+	return sessionToken;
 }
 
 /**
@@ -110,13 +161,24 @@ export function isGithubRateLimit(message: string): boolean {
  */
 export async function showComponentError(message: string): Promise<void> {
 	log.error(message);
-	const buttons = isGithubRateLimit(message) ? ['Указать токен', 'Подробнее'] : ['Подробнее'];
-	const text = isGithubRateLimit(message)
-		? 'Лимит анонимных запросов GitHub исчерпан. С токеном лимит выше.'
-		: message;
+	if (!isGithubRateLimit(message)) {
+		if (await vscode.window.showErrorMessage(message, 'Подробнее') === 'Подробнее') {
+			logger.show();
+		}
+		return;
+	}
 
-	const action = await vscode.window.showErrorMessage(text, ...buttons);
-	if (action === 'Указать токен') {
+	// Вход в GitHub предлагаем первым: PAT создавать не нужно
+	const buttons = sessionToken === ''
+		? ['Войти в GitHub', 'Указать токен', 'Подробнее']
+		: ['Указать токен', 'Подробнее'];
+	const action = await vscode.window.showErrorMessage(
+		'Лимит анонимных запросов GitHub исчерпан. С учётной записью или токеном лимит выше.',
+		...buttons
+	);
+	if (action === 'Войти в GitHub') {
+		await signInToGithub();
+	} else if (action === 'Указать токен') {
 		await askGithubToken();
 	} else if (action === 'Подробнее') {
 		logger.show();

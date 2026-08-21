@@ -36,11 +36,29 @@ suite('токен GitHub', () => {
 		assert.strictEqual(isCommandExposedToMcp(FORGET_TOKEN), false);
 	});
 
-	test('токен из хранилища идёт перед переменными окружения', () => {
+	test('заданное вручную идёт перед сессией GitHub', () => {
 		const source = fs.readFileSync(path.join(EXTENSION_ROOT, 'src', 'shared', 'githubReleaseLoader.ts'), 'utf8');
-		const order = ['githubTokenFromStore()', 'PLATFORM_TOOLS_GITHUB_TOKEN', 'PLATFORM_TOOLS_MD_SPARROW_GITHUB_TOKEN']
-			.map((needle) => source.indexOf(needle, source.indexOf('const candidates = [')));
+		const order = [
+			'githubTokenFromStore()',
+			'PLATFORM_TOOLS_GITHUB_TOKEN',
+			'PLATFORM_TOOLS_MD_SPARROW_GITHUB_TOKEN',
+			'githubTokenFromSession()',
+		].map((needle) => source.indexOf(needle, source.indexOf('const candidates = [')));
 		assert.ok(order.every((index) => index > 0), 'кандидаты токена не найдены');
-		assert.deepStrictEqual([...order].sort((a, b) => a - b), order, 'сохранённый токен должен проверяться первым');
+		assert.deepStrictEqual(
+			[...order].sort((a, b) => a - b),
+			order,
+			'порядок: сохранённый токен, переменные окружения, сессия редактора'
+		);
+	});
+
+	test('сессия запрашивается без прав: релизы публичные', () => {
+		const source = fs.readFileSync(path.join(EXTENSION_ROOT, 'src', 'shared', 'githubToken.ts'), 'utf8');
+		assert.ok(source.includes("getSession('github', []"), 'у сессии не должно быть запрошенных scope');
+	});
+
+	test('на активации сессия читается молча, без окна входа', () => {
+		const source = fs.readFileSync(path.join(EXTENSION_ROOT, 'src', 'shared', 'githubToken.ts'), 'utf8');
+		assert.ok(source.includes('readGithubSession(true)'), 'при инициализации вход предлагать нельзя');
 	});
 });

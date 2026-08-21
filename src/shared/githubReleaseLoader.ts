@@ -15,7 +15,7 @@ import { Readable } from 'node:stream';
 import * as vscode from 'vscode';
 import { extractZip } from './zipExtract';
 import { logger } from './logger';
-import { githubTokenFromStore } from './githubToken';
+import { githubTokenFromSession, githubTokenFromStore } from './githubToken';
 
 const log = logger.scope('releases');
 
@@ -148,6 +148,7 @@ export function resolveGithubToken(): string {
 		githubTokenFromStore(),
 		process.env.PLATFORM_TOOLS_GITHUB_TOKEN,
 		process.env.PLATFORM_TOOLS_MD_SPARROW_GITHUB_TOKEN,
+		githubTokenFromSession(),
 	];
 	for (const candidate of candidates) {
 		const token = candidate?.trim();
