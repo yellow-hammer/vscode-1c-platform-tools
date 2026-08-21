@@ -38,3 +38,30 @@ jobs:
 
       - name: Запустить тесты (через xvfb для Extension Host)
         run: xvfb-run -a npm test
+
+  # Живой разбор argv на Windows, Linux и macOS — без Extension Host.
+  shell-argv:
+    name: Оболочки (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    steps:
+      - name: Получить код
+        uses: actions/checkout@v7
+
+      - name: Установить Node.js 20
+        uses: actions/setup-node@v7
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Установить зависимости
+        run: npm ci
+
+      - name: Скомпилировать
+        run: npm run compile
+
+      - name: Прогнать аргументы через живые оболочки
+        run: npm run test:shell-argv

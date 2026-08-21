@@ -14,7 +14,7 @@ const watch = process.argv.includes('--watch');
 const srcTestDir = path.join(__dirname, 'src', 'test');
 const testEntryPoints = fs.existsSync(srcTestDir)
 	? fs.readdirSync(srcTestDir, { recursive: true })
-		.filter((f) => typeof f === 'string' && f.endsWith('.test.ts'))
+		.filter((f) => typeof f === 'string' && (f.endsWith('.test.ts') || f.endsWith('.node.ts')))
 		.map((f) => path.join(srcTestDir, f))
 	: [];
 
