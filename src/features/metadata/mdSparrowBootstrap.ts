@@ -146,7 +146,27 @@ async function ensureJar(
 /**
  * Гарантирует наличие JRE и JAR согласно настройкам расширения.
  */
-export async function ensureMdSparrowRuntime(context: vscode.ExtensionContext): Promise<MdSparrowRuntime> {
+export function ensureMdSparrowRuntime(context: vscode.ExtensionContext): Promise<MdSparrowRuntime> {
+	// Готовим один раз на все параллельные обращения: иначе второе успевало взять
+	// путь к java из ещё не распакованной JRE и падало с ENOENT
+	if (runtimeInFlight === undefined) {
+		runtimeInFlight = prepareMdSparrowRuntime(context).finally(() => {
+			runtimeInFlight = undefined;
+		});
+	}
+	return runtimeInFlight;
+}
+
+/** Идущая сейчас подготовка: JRE распаковывается дольше, чем скачивается jar. */
+let runtimeInFlight: Promise<MdSparrowRuntime> | undefined = undefined;
+
+/**
+ * Готовит java и jar md-sparrow.
+ *
+ * @param context - Контекст расширения
+ * @returns Пути к java и jar с тегом релиза
+ */
+async function prepareMdSparrowRuntime(context: vscode.ExtensionContext): Promise<MdSparrowRuntime> {
 	const cfg = vscode.workspace.getConfiguration('1c-platform-tools');
 	const download = cfg.get<boolean>('components.metadataJarAutoload', true);
 	const downloadJre = cfg.get<boolean>('components.jreAutoload', true);
