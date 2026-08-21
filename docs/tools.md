@@ -85,8 +85,6 @@
 
 Список сеансов и ожидание появились в vanessa-runner 3.0.0-rc14. На более ранних сборках 3.x команды дойдут до vanessa-runner и он сообщит, что действия не знает.
 
-<img src="../resources/brand/cat-focus.png" alt="" width="28" align="left"> Одно ограничение 3.x пока остаётся: значения с пробелами не проходят разбор параметров, поэтому сообщение блокировки вида «Идёт обновление» на 3.x не дойдёт. Сообщение без пробелов проходит, в 2.x ограничения нет.
-
 При вызове агентом можно задать параметры разового запуска, не трогая профиль: `lockMessage`, `accessCode`, `lockStart`, `lockEnd`, `sessionFilter`, `sessionFilterMode`, `keepSessionsUnlocked`, `sessionRetry`, `sessionTimeout` и `sessionConnections`.
 
 ## Выбор расширений для команд

@@ -3,6 +3,7 @@ import * as path from 'node:path';
 import {
 	resolveFileIbAbsolutePath,
 	resolveFileIbConnectionString,
+	quoteFileIbConnection,
 } from '../../shared/ibConnectionPath';
 
 suite('ibConnectionPath', () => {
@@ -40,5 +41,25 @@ suite('ibConnectionPath', () => {
 			resolveFileIbConnectionString('/F"D:\\bases\\file-ib"', workspaceRoot),
 			'/F' + absoluteIbPath
 		);
+	});
+	test('quoteFileIbConnection: путь с пробелом закавычивается', () => {
+		assert.strictEqual(
+			quoteFileIbConnection(String.raw`/FC:\каталог с пробелом\ib`),
+			String.raw`/F"C:\каталог с пробелом\ib"`
+		);
+	});
+
+	test('quoteFileIbConnection: путь без пробелов не меняется', () => {
+		assert.strictEqual(quoteFileIbConnection('/F./build/ib'), '/F./build/ib');
+	});
+
+	test('quoteFileIbConnection: уже закавыченный путь не удваивает кавычки', () => {
+		const quoted = String.raw`/F"C:\каталог с пробелом\ib"`;
+		assert.strictEqual(quoteFileIbConnection(quoted), quoted);
+	});
+
+	test('quoteFileIbConnection: серверная строка не меняется', () => {
+		const server = String.raw`/Sсервер\база`;
+		assert.strictEqual(quoteFileIbConnection(server), server);
 	});
 });
