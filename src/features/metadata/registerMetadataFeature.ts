@@ -56,6 +56,10 @@ import {
 	type ObjectModuleKind,
 } from './metadataTreeView';
 import { notifyQuiet } from '../../shared/notify';
+import { showComponentError } from '../../shared/githubToken';
+import { ensureOnecDebugAdapter } from '../debug/onecDebugAdapterBootstrap';
+import { ensureOvm } from '../../shared/ovmComponent';
+import { ensureAllure } from '../../shared/allureComponent';
 import { CfDumpFinding, DumpValidationDiagnostics } from './dumpValidationDiagnostics';
 
 export interface RegisterMetadataFeatureParams {
@@ -2038,33 +2042,66 @@ export function registerMetadataFeature(
 				{
 					title: 'Обновить внешние компоненты',
 					canPickMany: true,
-					placeHolder: 'Выбранные компоненты будут загружены заново при следующем использовании',
+					placeHolder: 'Выбранные компоненты будут загружены заново сразу',
 				}
 			);
 			if (!picked || picked.length === 0) {
 				return;
 			}
 			const values = new Set(picked.map((p) => p.value));
+
+			// JRE и jar готовит один вызов, поэтому в списке они дают один шаг
+			const steps: { label: string; clear: () => Promise<void>; ensure: () => Promise<unknown> }[] = [];
 			if (values.has('adapter')) {
-				await clearOnecDebugAdapterCache(context);
+				steps.push({
+					label: 'Отладчик',
+					clear: () => clearOnecDebugAdapterCache(context),
+					ensure: () => ensureOnecDebugAdapter(context),
+				});
 			}
-			if (values.has('jar')) {
-				await clearMdSparrowJarCache(context);
+			if (values.has('jar') || values.has('jre')) {
+				steps.push({
+					label: values.has('jar') && values.has('jre') ? 'Дерево метаданных и JRE' : (values.has('jar') ? 'Дерево метаданных' : 'Portable JRE'),
+					clear: async () => {
+						if (values.has('jar')) {
+							await clearMdSparrowJarCache(context);
+						}
+						if (values.has('jre')) {
+							await clearPortableJreCache(context);
+						}
+					},
+					ensure: () => ensureMdSparrowRuntime(context),
+				});
 			}
 			if (values.has('ovm')) {
-				await clearOvmCache(context);
+				steps.push({ label: 'OVM', clear: () => clearOvmCache(context), ensure: () => ensureOvm(context) });
 			}
 			if (values.has('allure')) {
-				await clearAllureCache(context);
+				steps.push({ label: 'Allure', clear: () => clearAllureCache(context), ensure: () => ensureAllure(context) });
 			}
-			if (values.has('jre')) {
-				await clearPortableJreCache(context);
-			}
-			void vscode.window.showInformationMessage(
-				'Компоненты будут загружены заново при следующем использовании.'
+
+			const failed: string[] = [];
+			await vscode.window.withProgress(
+				{ location: vscode.ProgressLocation.Notification, title: 'Обновление внешних компонентов' },
+				async (progress) => {
+					for (const step of steps) {
+						progress.report({ message: step.label });
+						try {
+							await step.clear();
+							await step.ensure();
+						} catch (error) {
+							failed.push(step.label);
+							await showComponentError(`${step.label}: ${error instanceof Error ? error.message : String(error)}`);
+						}
+					}
+				}
 			);
+
 			if (values.has('jar') || values.has('jre')) {
 				void metadataTreeProvider.refresh();
+			}
+			if (failed.length === 0) {
+				notifyQuiet(`Внешние компоненты обновлены: ${steps.map((step) => step.label).join(', ')}`);
 			}
 		}),
 		vscode.workspace.onDidChangeConfiguration((e) => {

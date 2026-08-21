@@ -186,11 +186,14 @@ export const TREE_GROUPS: TreeGroup[] = [
 		commands: [
 			{ command: '1c-platform-tools.dependencies.initializePackagedef', title: getInitializePackagedefCommandName().title, treeLabel: '📝 Инициализировать проект' },
 			{ command: '1c-platform-tools.dependencies.initializeProjectStructure', title: getInitializeProjectStructureCommandName().title, treeLabel: '📁 Инициализировать структуру проекта' },
+			{ command: '1c-platform-tools.components.setGithubToken', title: 'Указать токен GitHub', treeLabel: '🔑 Указать токен GitHub' },
+			{ command: '1c-platform-tools.components.forgetGithubToken', title: 'Забыть токен GitHub', treeLabel: '🔓 Забыть токен GitHub' },
 			{ command: '1c-platform-tools.dependencies.setupGit', title: getSetupGitCommandName().title, treeLabel: '🔧 Настроить Git' },
 			{ command: '1c-platform-tools.dependencies.installOscript', title: getInstallOneScriptCommandName().title, treeLabel: '📦 Установить OneScript' },
 			{ command: '1c-platform-tools.dependencies.updateOpm', title: getUpdateOpmCommandName().title, treeLabel: '📦 Установить пакетный менеджер' },
 			{ command: '1c-platform-tools.dependencies.install', title: getInstallDependenciesCommandName().title, treeLabel: '📦 Установить зависимости' },
 			{ command: '1c-platform-tools.dependencies.remove', title: getRemoveDependenciesCommandName().title, treeLabel: '🗑️ Удалить зависимости' },
+			{ command: '1c-platform-tools.components.update', title: 'Обновить внешние компоненты', treeLabel: '🔄 Обновить внешние компоненты' },
 		],
 	},
 	{

@@ -12,6 +12,9 @@
   ],
   "version": "0.8.8",
   "publisher": "yellow-hammer",
+  "extensionKind": [
+    "workspace"
+  ],
   "repository": {
     "type": "git",
     "url": "https://github.com/yellow-hammer/vscode-1c-platform-tools"
@@ -3245,12 +3248,7 @@
           "group": "navigation@1"
         }
       ],
-      "1c-platform-tools.metadata.overflowMenu": [
-        {
-          "command": "1c-platform-tools.components.update",
-          "group": "1_md_overflow@2"
-        }
-      ],
+
       "editor/title/context": [
         {
           "command": "1c-platform-tools.metadata.revealInTree",
