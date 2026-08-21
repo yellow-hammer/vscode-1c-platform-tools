@@ -11,9 +11,7 @@
  */
 
 /** Однобайтовые кодировки, которыми на Windows приходит кириллица. */
-const FALLBACK_ENCODINGS = ['ibm866', 'windows-1251'] as const;
-
-type FallbackEncoding = (typeof FALLBACK_ENCODINGS)[number];
+type FallbackEncoding = 'ibm866' | 'windows-1251';
 
 /** Результат проверки буфера на UTF-8. */
 type Utf8Scan = 'valid' | 'truncated' | 'invalid';
@@ -83,7 +81,7 @@ export function scanUtf8(buffer: Buffer): Utf8Scan {
  * а 0xF0-0xFF наоборот — р-я в windows-1251 и редкие знаки в ibm866.
  *
  * @param buffer - Байты вывода
- * @returns Подходящая кодовая страница
+ * @returns Подходящая кодовая страница, при ничьей ibm866 как кодировка консоли
  */
 export function pickFallbackEncoding(buffer: Buffer): FallbackEncoding {
 	let score866 = 0;
@@ -116,7 +114,7 @@ export function pickFallbackEncoding(buffer: Buffer): FallbackEncoding {
  */
 export class ProcessOutputDecoder {
 	/** Байты, по которым решение ещё не принято либо не хватает хвоста. */
-	private pending = Buffer.alloc(0);
+	private pending: Buffer = Buffer.alloc(0);
 
 	/** Выбранный декодер: пока не решено, поток считается ASCII. */
 	private decoder: TextDecoder | undefined = undefined;

@@ -4065,11 +4065,11 @@
     "watch": "node esbuild.config.mjs --watch",
     "gen:command-schemas": "node scripts/gen-command-schemas.mjs",
     "gen:vrunner-options": "node scripts/gen-vrunner-options.mjs",
-    "pretest": "node scripts/gen-command-schemas.mjs --check && npm run compile && npm run lint",
+    "pretest": "node scripts/gen-command-schemas.mjs --check && npm run compile && npm run typecheck && npm run lint",
+    "typecheck": "tsc --noEmit",
     "lint": "eslint src",
     "test": "vscode-test && npm run test:node",
     "test:node": "node --test out/test/shared/processOutput.node.js out/test/utils/shellArgvRoundtrip.node.js",
-    "test:shell-argv": "node --test out/test/utils/shellArgvRoundtrip.node.js",
     "package": "vsce package",
     "changelog": "git-cliff --config cliff.toml --output CHANGELOG.md",
     "ping-ipc": "node ../mcp-1c-platform-tools/scripts/ping-ipc.mjs"
