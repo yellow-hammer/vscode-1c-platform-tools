@@ -10,7 +10,7 @@
     "1с предприятие",
     "bsl"
   ],
-  "version": "0.8.8",
+  "version": "0.8.9",
   "publisher": "yellow-hammer",
   "extensionKind": [
     "workspace"
@@ -3248,7 +3248,6 @@
           "group": "navigation@1"
         }
       ],
-
       "editor/title/context": [
         {
           "command": "1c-platform-tools.metadata.revealInTree",
