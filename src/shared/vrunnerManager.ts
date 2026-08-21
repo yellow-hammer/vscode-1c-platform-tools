@@ -1187,52 +1187,6 @@ export class VRunnerManager {
 	}
 
 	/**
-	 * Выполняет скрипт OneScript в терминале VS Code
-	 * 
-	 * Загружает скрипт из папки scripts расширения и выполняет его через OneScript.
-	 * Автоматически нормализует пути для указанной оболочки.
-	 * 
-	 * @param scriptName - Имя скрипта в папке scripts расширения (например, 'myscript.os')
-	 * @param args - Аргументы команды для передачи в скрипт
-	 * @param options - Опции выполнения
-	 * @param options.cwd - Рабочая директория (по умолчанию workspace root)
-	 * @param options.env - Дополнительные переменные окружения
-	 * @param options.name - Имя терминала (по умолчанию '1C: Platform Tools')
-	 * @param options.shellType - Тип оболочки (опционально, определяется автоматически)
-	 * @throws {Error} Если путь к расширению не установлен (расширение не активировано)
-	 */
-	public executeOneScriptInTerminal(
-		scriptName: string,
-		args: string[],
-		options?: { cwd?: string; env?: NodeJS.ProcessEnv; name?: string; shellType?: ShellType }
-	): void {
-		if (!this.extensionPath) {
-			throw new Error('Путь к расширению не установлен. Убедитесь, что расширение активировано.');
-		}
-
-		const cwd = options?.cwd || this.getEffectiveRoot() || process.cwd();
-		const shellType = options?.shellType || detectShellType();
-		const scriptPath = path.join(this.extensionPath, 'scripts', scriptName);
-		const onescriptPath = this.getOnescriptPath();
-		
-		const processedArgs = this.processCommandArgs(args, cwd, shellType);
-		const normalizedScriptPath = normalizeArgForShell(scriptPath, shellType);
-		const fullArgs = [normalizedScriptPath, ...processedArgs];
-		const command = buildCommand(onescriptPath, fullArgs, shellType);
-
-		const osTerminalName = options?.name || '1C: Platform Tools';
-		const osTerminal =
-			vscode.window.terminals.find((t) => t.name === osTerminalName) ??
-			vscode.window.createTerminal({
-				name: osTerminalName,
-				cwd: cwd,
-				env: options?.env ? { ...process.env, ...options.env } : undefined,
-			});
-		osTerminal.sendText(command);
-		osTerminal.show();
-	}
-
-	/**
 	 * Получает путь к OneScript
 	 *
 	 * Возвращает путь, разрешённый последней проверкой checkOscriptAvailable (имя
@@ -1253,7 +1207,7 @@ export class VRunnerManager {
 	 *
 	 * @returns true, если использовать задачи; false — интерактивный терминал
 	 */
-	private shouldUseTasks(): boolean {
+	public shouldUseTasks(): boolean {
 		const config = vscode.workspace.getConfiguration('1c-platform-tools');
 		return config.get<boolean>('execution.useTasks', true);
 	}
@@ -1605,6 +1559,7 @@ export class VRunnerManager {
 			command = buildCommand(vrunnerPath, processedArgs, shellType);
 		}
 
+		/* eslint-disable no-restricted-syntax -- execution.useTasks === false: терминал выбран пользователем */
 		const terminalName = options?.name || '1C: Platform Tools';
 		const terminal =
 			vscode.window.terminals.find((t) => t.name === terminalName) ??
@@ -1616,6 +1571,7 @@ export class VRunnerManager {
 
 		terminal.sendText(command);
 		terminal.show();
+		/* eslint-enable no-restricted-syntax */
 	}
 
 	/**
@@ -1683,6 +1639,7 @@ export class VRunnerManager {
 				vscode.window.showErrorMessage(errMsg);
 				return;
 			}
+			/* eslint-disable no-restricted-syntax -- execution.useTasks === false: терминал выбран пользователем */
 			const dockerTerminalName = options?.name || '1C: Platform Tools';
 			const dockerTerminal =
 				vscode.window.terminals.find((t) => t.name === dockerTerminalName) ??
@@ -1693,6 +1650,7 @@ export class VRunnerManager {
 				});
 			dockerTerminal.sendText(command);
 			dockerTerminal.show();
+			/* eslint-enable no-restricted-syntax */
 			return;
 		}
 
@@ -1703,6 +1661,7 @@ export class VRunnerManager {
 		});
 		const fullCommand = joinCommands(commands, shellType);
 
+		/* eslint-disable no-restricted-syntax -- execution.useTasks === false: терминал выбран пользователем */
 		const seqTerminalName = options?.name || '1C: Platform Tools';
 		const seqTerminal =
 			vscode.window.terminals.find((t) => t.name === seqTerminalName) ??
@@ -1713,6 +1672,7 @@ export class VRunnerManager {
 			});
 		seqTerminal.sendText(fullCommand);
 		seqTerminal.show();
+		/* eslint-enable no-restricted-syntax */
 	}
 
 	/**
@@ -1923,12 +1883,14 @@ export class VRunnerManager {
 		const processedArgs = this.processCommandArgs([...leadingArgs, ...args], cwd, shellType);
 		const command = buildCommand(opmPath, processedArgs, shellType);
 
+		/* eslint-disable no-restricted-syntax -- execution.useTasks === false: терминал выбран пользователем */
 		const opmTerminalName = options?.name || '1C: Platform Tools';
 		const opmTerminal =
 			vscode.window.terminals.find((t) => t.name === opmTerminalName) ??
 			vscode.window.createTerminal({ name: opmTerminalName, cwd: cwd });
 		opmTerminal.sendText(command);
 		opmTerminal.show();
+		/* eslint-enable no-restricted-syntax */
 	}
 
 	/**
@@ -1970,40 +1932,9 @@ export class VRunnerManager {
 	}
 
 	/**
-	 * Выполняет команду allure в терминале VS Code
-	 * 
-	 * Создает терминал и выполняет команду allure для генерации и просмотра отчетов.
-	 * Автоматически обрабатывает пути и нормализует их для указанной оболочки.
-	 * 
-	 * @param args - Аргументы команды allure (например, ['generate', '-c', '-o', 'build/allure-report'])
-	 * @param options - Опции выполнения
-	 * @param options.cwd - Рабочая директория (по умолчанию workspace root)
-	 * @param options.name - Имя терминала (по умолчанию '1C: Platform Tools')
-	 * @param options.shellType - Тип оболочки (опционально, определяется автоматически)
-	 */
-	public executeAllureInTerminal(
-		args: string[],
-		options?: { cwd?: string; name?: string; shellType?: ShellType }
-	): void {
-		const allurePath = this.getAllurePath();
-		const shellType = options?.shellType || detectShellType();
-		const processedArgs = this.processCommandArgs(args, options?.cwd || this.getEffectiveRoot() || os.homedir(), shellType);
-		const command = buildCommand(allurePath, processedArgs, shellType);
-		const cwd = options?.cwd || this.getEffectiveRoot() || os.homedir();
-
-		const allureTerminalName = options?.name || '1C: Platform Tools';
-		const allureTerminal =
-			vscode.window.terminals.find((t) => t.name === allureTerminalName) ??
-			vscode.window.createTerminal({ name: allureTerminalName, cwd: cwd });
-		allureTerminal.sendText(command);
-		allureTerminal.show();
-	}
-
-	/**
 	 * Выполняет команду allure синхронно (для проверок)
 	 * 
 	 * Используется для проверок и валидации, а не для выполнения команд пользователю.
-	 * Для выполнения команд пользователю используйте executeAllureInTerminal().
 	 * 
 	 * @param args - Аргументы команды allure
 	 * @param options - Опции выполнения

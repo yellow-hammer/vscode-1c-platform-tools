@@ -17,6 +17,8 @@ import { PROJECT_STRUCTURE } from '../shared/projectStructure';
 import { getOvmBinaryPath } from '../shared/ovmPaths';
 import { streamDownload } from '../shared/githubReleaseLoader';
 import { notifyQuiet } from '../shared/notify';
+import { buildProcessCommand, joinCommands, PROCESS_HOST_SHELL } from '../utils/commandUtils';
+import { createVRunnerTask } from '../features/tasks/vrunnerTask';
 
 const log = logger.scope('commands');
 
@@ -843,7 +845,19 @@ export class DependenciesCommands extends BaseCommand {
 			return;
 		}
 
-		if (process.platform === 'win32') {
+		// Задачей, а не терминалом: терминалу нужен ConPTY, а он есть не на всякой Windows
+		if (this.vrunner.shouldUseTasks()) {
+			// На Windows ovm запускается напрямую, на остальных ОС через mono
+			const ovmCall = (args: string[]): string => process.platform === 'win32'
+				? buildProcessCommand(ovmPath, args)
+				: buildProcessCommand('mono', [ovmPath, ...args]);
+			await vscode.tasks.executeTask(createVRunnerTask({
+				name: commandName.title,
+				command: joinCommands([ovmCall(['install', ovmVersion]), ovmCall(['use', ovmVersion])], PROCESS_HOST_SHELL),
+				cwd: workspaceRoot,
+			}));
+			/* eslint-disable no-restricted-syntax -- execution.useTasks === false: терминал выбран пользователем */
+		} else if (process.platform === 'win32') {
 			const ovmBinHint = String.raw`$env:LOCALAPPDATA\ovm\current\bin`;
 			const ovmQuoted = `'${ovmPath.replaceAll("'", "''")}'`;
 			const psScript = [
@@ -875,9 +889,10 @@ export class DependenciesCommands extends BaseCommand {
 			});
 			terminal.sendText(shScript);
 			terminal.show();
+			/* eslint-enable no-restricted-syntax */
 		}
 
-		log.info(`Установка OneScript запущена в терминале: ${commandName.title}, версия: ${ovmVersion}`);
+		log.info(`Установка OneScript запущена: ${commandName.title}, версия: ${ovmVersion}`);
 
 		vscode.window.setStatusBarMessage('Ожидание установки OneScript…', OVM_POLL_TIMEOUT_MS);
 		const installed = await waitForOvmInstallComplete(ovmOscriptMtimeBefore);

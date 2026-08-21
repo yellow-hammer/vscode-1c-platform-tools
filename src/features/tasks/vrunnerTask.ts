@@ -73,7 +73,7 @@ class VRunnerPseudoterminal implements vscode.Pseudoterminal {
 		this.startedAt = Date.now();
 		// Эхо исходной команды в начале вывода (как у штатных задач VS Code),
 		// чтобы было видно, что именно запущено. Служебный префикс кодировки прячем.
-		const displayCommand = this.command.replace(/^chcp 65001 >nul && /, '');
+		const displayCommand = this.command.replaceAll('chcp 65001 >nul && ', '');
 		this.writeEmitter.fire(`[90m> ${displayCommand}[0m\r\n\r\n`);
 		runCancellableCommand(this.command, {
 			cwd: this.cwd,

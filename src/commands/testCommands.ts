@@ -1,7 +1,8 @@
 import * as vscode from 'vscode';
 import * as path from 'node:path';
 import { BaseCommand } from './baseCommand';
-import { buildCommand, joinCommands, detectShellType } from '../utils/commandUtils';
+import { buildCommand, buildProcessCommand, joinCommands, detectShellType, PROCESS_HOST_SHELL } from '../utils/commandUtils';
+import { createVRunnerTask } from '../features/tasks/vrunnerTask';
 import {
 	getXUnitTestsCommandName,
 	getSyntaxCheckCommandName,
@@ -647,6 +648,20 @@ export class TestCommands extends BaseCommand {
 			void vscode.window.showErrorMessage(`Не удалось подготовить Allure: ${message}`);
 			return;
 		}
+		if (this.vrunner.shouldUseTasks()) {
+			const generateArgs = ['generate', ...allureResultPaths, '-c', '-o', outputPath];
+			const command = joinCommands(
+				[buildProcessCommand(allurePath, generateArgs), buildProcessCommand(allurePath, ['open', outputPath])],
+				PROCESS_HOST_SHELL
+			);
+			await vscode.tasks.executeTask(createVRunnerTask({
+				name: commandName.title,
+				command,
+				cwd: workspaceRoot,
+			}));
+			return;
+		}
+
 		const shellType = detectShellType();
 
 		const generateCommand = this.buildAllureGenerateCommand(
@@ -658,6 +673,7 @@ export class TestCommands extends BaseCommand {
 		const openCommand = this.buildAllureOpenCommand(allurePath, outputPath, shellType);
 		const fullCommand = joinCommands([generateCommand, openCommand], shellType);
 
+		/* eslint-disable no-restricted-syntax -- execution.useTasks === false: терминал выбран пользователем */
 		const terminal = vscode.window.createTerminal({
 			name: commandName.title,
 			cwd: workspaceRoot
@@ -665,5 +681,6 @@ export class TestCommands extends BaseCommand {
 
 		terminal.sendText(fullCommand);
 		terminal.show();
+		/* eslint-enable no-restricted-syntax */
 	}
 }
