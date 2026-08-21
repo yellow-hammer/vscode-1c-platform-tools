@@ -14,6 +14,7 @@ import { registerBslBreakpointNormalizer } from './bslBreakpoints';
 import { DEBUG_TYPE } from './debugConstants';
 import { registerMeasureFeature } from './measure';
 import { VRunnerManager } from '../../shared/vrunnerManager';
+import { offerGithubTokenOnRateLimit } from '../../shared/githubToken';
 
 const log = logger.scope('dap');
 
@@ -25,7 +26,15 @@ class OnecDebugAdapterDescriptorFactory implements vscode.DebugAdapterDescriptor
 	constructor(private readonly context: vscode.ExtensionContext) {}
 
 	async createDebugAdapterDescriptor(): Promise<vscode.DebugAdapterDescriptor> {
-		const runtime = await ensureOnecDebugAdapter(this.context);
+		let runtime;
+		try {
+			runtime = await ensureOnecDebugAdapter(this.context);
+		} catch (error) {
+			const message = error instanceof Error ? error.message : String(error);
+			log.error(`не удалось подготовить адаптер отладки: ${message}`);
+			await offerGithubTokenOnRateLimit(message);
+			throw error;
+		}
 		const cwd = runtime.args[0]
 			? path.dirname(runtime.args[0])
 			: path.dirname(runtime.command);

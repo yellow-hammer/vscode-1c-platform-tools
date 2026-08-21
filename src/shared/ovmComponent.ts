@@ -55,6 +55,17 @@ export async function ensureOvm(context: vscode.ExtensionContext): Promise<strin
 	return ensured.assetPath;
 }
 
+/**
+ * Загружает OVM, не глядя на `components.ovmFile` и `components.ovmAutoload`.
+ *
+ * @param context - Контекст расширения
+ * @returns Путь к загруженному ovm.exe
+ */
+export async function downloadOvm(context: vscode.ExtensionContext): Promise<string> {
+	const ensured = await ensureReleaseComponent(installBaseDir(context), OVM_SPEC, resolveGithubToken());
+	return ensured.assetPath;
+}
+
 /** Тег загруженного OVM или undefined, если он ещё не загружался. */
 export async function cachedOvmTag(context: vscode.ExtensionContext): Promise<string | undefined> {
 	return cachedReleaseTag(installBaseDir(context), OVM_SPEC);

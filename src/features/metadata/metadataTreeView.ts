@@ -18,6 +18,7 @@ import {
 import { ensureMdSparrowRuntime } from './mdSparrowBootstrap';
 import { runMdSparrowParamsRead } from './mdSparrowParams';
 import { mdSparrowSchemaFlagFromConfigurationXml } from './mdSparrowSchemaVersion';
+import { offerGithubTokenOnRateLimit } from '../../shared/githubToken';
 import { ADOPTED_HINT, adoptedIcon, initAdoptedIcons, isAdopted } from './objectBelonging';
 import {
 	METADATA_OBJECT_NON_EXPANDABLE_TYPES,
@@ -1258,6 +1259,7 @@ export class MetadataTreeDataProvider implements vscode.TreeDataProvider<vscode.
 			const msg = e instanceof Error ? e.message : String(e);
 			log.error(`дерево: ${msg}`);
 			this._lastError = msg;
+			void offerGithubTokenOnRateLimit(msg);
 		}
 		this._onDidChange.fire(undefined);
 	}

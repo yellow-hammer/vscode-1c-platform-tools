@@ -8,7 +8,6 @@ import { DiscoveredFile } from '../parsers/parserTypes';
 import { parseBslTestModule } from '../parsers/bslTestParser';
 import { resolveConfigPath } from '../projectTestConfig';
 import { normalizeGlobBase, directorySegments } from './adapterUtils';
-import { DEFAULT_TESTING } from '../../../shared/pathDefaults';
 import { resolveOnescriptTestsPath } from '../onescriptTestsPath';
 
 /** Раннер тестов OneScript */

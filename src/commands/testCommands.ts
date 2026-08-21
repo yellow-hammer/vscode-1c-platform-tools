@@ -1,7 +1,10 @@
 import * as vscode from 'vscode';
 import * as path from 'node:path';
 import { BaseCommand } from './baseCommand';
-import { buildCommand, joinCommands, detectShellType } from '../utils/commandUtils';
+import { buildCommand, buildProcessCommand, joinCommands, detectShellType, PROCESS_HOST_SHELL } from '../utils/commandUtils';
+import { createVRunnerTask } from '../features/tasks/vrunnerTask';
+import { findFreePort, isRemoteEnvironment, openLocalUrl } from '../shared/remoteEnv';
+import { showComponentError } from '../shared/githubToken';
 import {
 	getXUnitTestsCommandName,
 	getSyntaxCheckCommandName,
@@ -25,6 +28,9 @@ import { logger } from '../shared/logger';
 const log = logger.scope('testing');
 
 const NL = '\n';
+
+/** Порт, с которого ищется свободный для отчёта Allure в удалённом окружении. */
+const DEFAULT_ALLURE_PORT = 8090;
 
 /** Путь jUnit-отчёта syntax-check, когда он не задан в настройках прогона. */
 const DEFAULT_SYNTAX_CHECK_JUNIT = 'build/out/syntax-check/junit/junit.xml';
@@ -644,9 +650,32 @@ export class TestCommands extends BaseCommand {
 				: this.vrunner.getAllurePath();
 		} catch (error) {
 			const message = error instanceof Error ? error.message : String(error);
-			void vscode.window.showErrorMessage(`Не удалось подготовить Allure: ${message}`);
+			void showComponentError(`Не удалось подготовить Allure: ${message}`);
 			return;
 		}
+		if (this.vrunner.shouldUseTasks()) {
+			const generateArgs = ['generate', ...allureResultPaths, '-c', '-o', outputPath];
+			// В удалённом окружении браузера рядом с allure нет: фиксируем порт,
+			// чтобы открыть отчёт у пользователя через проброс
+			const port = isRemoteEnvironment() ? await findFreePort(DEFAULT_ALLURE_PORT) : undefined;
+			const openArgs = port === undefined
+				? ['open', outputPath]
+				: ['open', outputPath, '-h', 'localhost', '-p', String(port)];
+			const command = joinCommands(
+				[buildProcessCommand(allurePath, generateArgs), buildProcessCommand(allurePath, openArgs)],
+				PROCESS_HOST_SHELL
+			);
+			await vscode.tasks.executeTask(createVRunnerTask({
+				name: commandName.title,
+				command,
+				cwd: workspaceRoot,
+			}));
+			if (port !== undefined) {
+				await openLocalUrl(`http://localhost:${port}/`);
+			}
+			return;
+		}
+
 		const shellType = detectShellType();
 
 		const generateCommand = this.buildAllureGenerateCommand(
@@ -658,6 +687,7 @@ export class TestCommands extends BaseCommand {
 		const openCommand = this.buildAllureOpenCommand(allurePath, outputPath, shellType);
 		const fullCommand = joinCommands([generateCommand, openCommand], shellType);
 
+		/* eslint-disable no-restricted-syntax -- execution.useTasks === false: терминал выбран пользователем */
 		const terminal = vscode.window.createTerminal({
 			name: commandName.title,
 			cwd: workspaceRoot
@@ -665,5 +695,6 @@ export class TestCommands extends BaseCommand {
 
 		terminal.sendText(fullCommand);
 		terminal.show();
+		/* eslint-enable no-restricted-syntax */
 	}
 }

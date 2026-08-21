@@ -102,6 +102,17 @@ export async function ensureAllure(context: vscode.ExtensionContext): Promise<st
 	return binary;
 }
 
+/**
+ * Загружает Allure, не глядя на `allure.path` и `components.allureAutoload`.
+ *
+ * @param context - Контекст расширения
+ * @returns Путь к загруженному каталогу релиза
+ */
+export async function downloadAllure(context: vscode.ExtensionContext): Promise<string> {
+	const ensured = await ensureReleaseComponent(installBaseDir(context), ALLURE_SPEC, resolveGithubToken());
+	return ensured.assetPath;
+}
+
 /** Тег загруженного Allure или undefined, если он ещё не загружался. */
 export async function cachedAllureTag(context: vscode.ExtensionContext): Promise<string | undefined> {
 	return cachedReleaseTag(installBaseDir(context), ALLURE_SPEC);

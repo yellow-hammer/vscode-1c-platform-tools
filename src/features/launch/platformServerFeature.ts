@@ -6,6 +6,7 @@
  */
 
 import * as vscode from 'vscode';
+import { openLocalUrl } from '../../shared/remoteEnv';
 import { VRunnerManager } from '../../shared/vrunnerManager';
 import { ServerUrls } from '../../shared/ibsrvPublication';
 import { DEBUG_TYPE } from '../debug/debugConstants';
@@ -42,7 +43,7 @@ async function openInBrowser(manager: PlatformServerManager): Promise<void> {
 		ignoreFocusOut: true,
 	});
 	if (picked) {
-		await vscode.env.openExternal(vscode.Uri.parse(picked.url));
+		await openLocalUrl(picked.url);
 	}
 }
 

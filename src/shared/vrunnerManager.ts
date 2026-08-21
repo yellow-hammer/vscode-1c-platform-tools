@@ -6,10 +6,11 @@ import * as fs from 'node:fs/promises';
 import * as fsSync from 'node:fs';
 import * as os from 'node:os';
 import {
-	escapeCommandArgs,
 	buildCommand,
 	joinCommands,
 	detectShellType,
+	buildProcessCommand,
+	PROCESS_HOST_SHELL,
 	ShellType,
 	normalizeArgForShell,
 	buildDockerCommand,
@@ -17,9 +18,11 @@ import {
 	normalizeIbPathForDocker,
 } from '../utils/commandUtils';
 import { logger } from './logger';
+import { setTerminalOscriptBinDir } from './terminalEnv';
+import { dockerContainerName, stopDockerContainer } from './dockerRun';
 import { runCancellableCommand, CancellableProcessResult } from './cancellableProcess';
 import { DEFAULT_PATHS, DEFAULT_VRUNNER, DEFAULT_ENV, TESTS_SUBDIRS, testsSubPath } from './pathDefaults';
-import { getOvmBinaryPath, getOvmBinDir, getOvmRootDir, getOpmBinaryCandidates, getOpmScriptPath } from './ovmPaths';
+import { getOvmBinaryPath, getOvmBinDir, getOvmRootDir, getOpmBinaryCandidates, getOpmScriptPath, withBinDirFirst } from './ovmPaths';
 import {
 	ACTIVE_ENV_PROFILE_KEY,
 	ACTIVE_ENV_OVERRIDES_KEY,
@@ -44,17 +47,11 @@ import {
 	isAtLeast,
 	VRUNNER_FEATURES,
 } from './vrunnerVersion';
-import { selectCliAdapter, VRunnerIntent } from './vrunnerCli';
+import { VRunnerIntent } from './vrunnerCli';
 import { planIntents, SettingsFileFormat } from './vrunnerCli/planner';
 import { translateArgsToV3 } from './vrunnerCommandMap';
 import { createVRunnerTask } from '../features/tasks/vrunnerTask';
-
-/**
- * Имя оболочки, через которую исполняется команда задачи (`spawn` с shell: true):
- * на Windows это cmd.exe, на остальных ОС — /bin/sh. Используется для корректного
- * экранирования и склейки команд в задачах, в отличие от интегрированного терминала.
- */
-const TASK_HOST_SHELL: ShellType = process.platform === 'win32' ? 'cmd' : 'sh';
+import { decodeProcessOutput } from './processOutput';
 
 const log = logger.scope('vrunner');
 
@@ -107,6 +104,15 @@ export class VRunnerManager {
 
 	/** Кэш версии vrunner по корню проекта (workspace и projectPath различаются). */
 	private readonly vrunnerVersionCacheByRoot = new Map<string, VRunnerVersion | null>();
+
+	/** Идущая сейчас проверка oscript: гасит параллельные запуски. */
+	private oscriptCheckInFlight: Promise<boolean> | undefined = undefined;
+
+	/** Идущая сейчас проверка opm. */
+	private opmCheckInFlight: Promise<boolean> | undefined = undefined;
+
+	/** Идущий сейчас детект версии по корню: гасит параллельные запуски vrunner. */
+	private readonly vrunnerVersionInFlight = new Map<string, Promise<VRunnerVersion | undefined>>();
 
 	/** Показанные замечания о формате файла настроек: не повторяем за сессию. */
 	private readonly warnedV2SettingsFiles = new Set<string>();
@@ -443,8 +449,37 @@ export class VRunnerManager {
 	 * @returns Промис, который разрешается true, если oscript доступен, иначе false
 	 */
 	public async checkOscriptAvailable(): Promise<boolean> {
-		this.resolvedOscriptPath = await this.resolveBinaryPath('oscript', '-version');
-		return this.resolvedOscriptPath !== undefined;
+		// Найденное держим до конца сессии: проверка зовётся перед каждой командой.
+		// Ненайденное перепроверяем: инструмент могли поставить рядом, мимо расширения.
+		if (this.resolvedOscriptPath !== undefined) {
+			return true;
+		}
+		if (this.oscriptCheckInFlight === undefined) {
+			this.oscriptCheckInFlight = (async () => {
+				this.resolvedOscriptPath = await this.resolveBinaryPath('oscript', '-version');
+				setTerminalOscriptBinDir(this.oscriptBinDir());
+				return this.resolvedOscriptPath !== undefined;
+			})();
+		}
+		try {
+			return await this.oscriptCheckInFlight;
+		} finally {
+			this.oscriptCheckInFlight = undefined;
+		}
+	}
+
+	/**
+	 * Заново определяет установку OneScript: oscript, opm и версию vrunner.
+	 *
+	 * Нужен после установки OneScript: без этого до конца сессии используется
+	 * установка, найденная при активации.
+	 */
+	public async refreshOneScriptResolution(): Promise<void> {
+		this.resolvedOscriptPath = undefined;
+		this.resolvedOpm = undefined;
+		await this.checkOscriptAvailable();
+		await this.checkOpmAvailable();
+		await this.getVRunnerVersion(true);
 	}
 
 	/**
@@ -459,8 +494,20 @@ export class VRunnerManager {
 	 * @returns Промис, который разрешается true, если opm доступен, иначе false
 	 */
 	public async checkOpmAvailable(): Promise<boolean> {
-		this.resolvedOpm = await this.resolveOpmInvocation();
-		return this.resolvedOpm !== undefined;
+		if (this.resolvedOpm !== undefined) {
+			return true;
+		}
+		if (this.opmCheckInFlight === undefined) {
+			this.opmCheckInFlight = (async () => {
+				this.resolvedOpm = await this.resolveOpmInvocation();
+				return this.resolvedOpm !== undefined;
+			})();
+		}
+		try {
+			return await this.opmCheckInFlight;
+		} finally {
+			this.opmCheckInFlight = undefined;
+		}
 	}
 
 	/**
@@ -469,15 +516,17 @@ export class VRunnerManager {
 	 * @returns Инвокация opm или undefined, если opm недоступен
 	 */
 	private async resolveOpmInvocation(): Promise<{ path: string; leadingArgs: string[] } | undefined> {
-		if (await this.runCommandForCheck('opm', ['--version'])) {
-			return { path: 'opm', leadingArgs: [] };
-		}
-
+		// Порядок тот же, что у oscript: сначала установка OVM, потом PATH
 		for (const candidate of getOpmBinaryCandidates(getOvmBinDir())) {
-			if (fsSync.existsSync(candidate) && await this.runCommandForCheck(candidate, ['--version'])) {
-				log.info(`opm не найден в PATH, используется установка OVM: ${candidate}`);
+			if (fsSync.existsSync(candidate) && await this.runCommandForCheck(candidate, ['--version'], getOvmBinDir())) {
+				log.info(`opm: используется установка OVM: ${candidate}`);
 				return { path: candidate, leadingArgs: [] };
 			}
+		}
+
+		if (await this.runCommandForCheck('opm', ['--version'])) {
+			log.info('opm: используется установка из PATH');
+			return { path: 'opm', leadingArgs: [] };
 		}
 
 		// Обёртки opm нет: пробуем запустить opm.os через oscript из тех же установок
@@ -517,15 +566,33 @@ export class VRunnerManager {
 	 * @returns Имя для PATH, абсолютный путь OVM или undefined
 	 */
 	private async resolveBinaryPath(name: string, versionArg: string): Promise<string | undefined> {
-		if (await this.runCommandForCheck(name, [versionArg])) {
-			return name;
+		const configured = vscode.workspace
+			.getConfiguration('1c-platform-tools')
+			.get<string>('oscript.path', '')
+			.trim();
+		if (name === 'oscript' && configured !== '') {
+			if (await this.runCommandForCheck(configured, [versionArg])) {
+				log.info(`oscript: указан настройкой oscript.path: ${configured}`);
+				return configured;
+			}
+			log.warn(`oscript.path не запускается: ${configured}`);
 		}
+
+		// Установка OVM идёт перед PATH: её ставит сам пользователь командой
+		// «Установить OneScript», а системный каталог другой установки может
+		// стоять в PATH раньше, потому что системная часть склеивается первой.
 		const ovmPath = getOvmBinaryPath(name);
-		if (fsSync.existsSync(ovmPath) && await this.runCommandForCheck(ovmPath, [versionArg])) {
-			log.info(`${name} не найден в PATH, используется установка OVM: ${ovmPath}`);
+		if (fsSync.existsSync(ovmPath) && await this.runCommandForCheck(ovmPath, [versionArg], getOvmBinDir())) {
+			log.info(`${name}: используется установка OVM: ${ovmPath}`);
 			return ovmPath;
 		}
-		log.warn(`${name} не найден ни в PATH, ни в установке OVM: ${ovmPath}`);
+
+		if (await this.runCommandForCheck(name, [versionArg])) {
+			log.info(`${name}: используется установка из PATH`);
+			return name;
+		}
+
+		log.warn(`${name} не найден ни в установке OVM (${ovmPath}), ни в PATH`);
 		return undefined;
 	}
 
@@ -536,11 +603,11 @@ export class VRunnerManager {
 	 * @param args - Аргументы команды
 	 * @returns Промис, который разрешается true при exit code 0
 	 */
-	private runCommandForCheck(commandPath: string, args: string[]): Promise<boolean> {
+	private runCommandForCheck(commandPath: string, args: string[], binDir?: string): Promise<boolean> {
 		return new Promise((resolve) => {
-			const quotedPath = commandPath.includes(' ') ? `"${commandPath}"` : commandPath;
-			const command = `${quotedPath} ${escapeCommandArgs(args)}`;
-			exec(command, { maxBuffer: 1024 * 1024, timeout: 10000 }, (error) => {
+			const command = buildProcessCommand(commandPath, args);
+			const options = { maxBuffer: 1024 * 1024, timeout: 10000, env: this.childEnv(undefined, binDir) };
+			exec(command, options, (error) => {
 				resolve(!error);
 			});
 		});
@@ -605,6 +672,28 @@ export class VRunnerManager {
 			return cachedVersion ?? undefined;
 		}
 
+		// Кэш наполняется только по завершении, а на активации детект зовут
+		// несколько панелей разом: без этого каждая запускала бы vrunner заново
+		const running = this.vrunnerVersionInFlight.get(cacheKey);
+		if (running !== undefined) {
+			return running;
+		}
+		const detection = this.detectVRunnerVersion(cacheKey);
+		this.vrunnerVersionInFlight.set(cacheKey, detection);
+		try {
+			return await detection;
+		} finally {
+			this.vrunnerVersionInFlight.delete(cacheKey);
+		}
+	}
+
+	/**
+	 * Определяет версию vrunner и обновляет кэш.
+	 *
+	 * @param cacheKey - Ключ кэша версии для текущего корня
+	 * @returns Разобранная версия или undefined
+	 */
+	private async detectVRunnerVersion(cacheKey: string): Promise<VRunnerVersion | undefined> {
 		let version = await this.detectVRunnerVersionFromCli();
 
 		if (!version) {
@@ -1193,52 +1282,6 @@ export class VRunnerManager {
 	}
 
 	/**
-	 * Выполняет скрипт OneScript в терминале VS Code
-	 * 
-	 * Загружает скрипт из папки scripts расширения и выполняет его через OneScript.
-	 * Автоматически нормализует пути для указанной оболочки.
-	 * 
-	 * @param scriptName - Имя скрипта в папке scripts расширения (например, 'myscript.os')
-	 * @param args - Аргументы команды для передачи в скрипт
-	 * @param options - Опции выполнения
-	 * @param options.cwd - Рабочая директория (по умолчанию workspace root)
-	 * @param options.env - Дополнительные переменные окружения
-	 * @param options.name - Имя терминала (по умолчанию '1C: Platform Tools')
-	 * @param options.shellType - Тип оболочки (опционально, определяется автоматически)
-	 * @throws {Error} Если путь к расширению не установлен (расширение не активировано)
-	 */
-	public executeOneScriptInTerminal(
-		scriptName: string,
-		args: string[],
-		options?: { cwd?: string; env?: NodeJS.ProcessEnv; name?: string; shellType?: ShellType }
-	): void {
-		if (!this.extensionPath) {
-			throw new Error('Путь к расширению не установлен. Убедитесь, что расширение активировано.');
-		}
-
-		const cwd = options?.cwd || this.getEffectiveRoot() || process.cwd();
-		const shellType = options?.shellType || detectShellType();
-		const scriptPath = path.join(this.extensionPath, 'scripts', scriptName);
-		const onescriptPath = this.getOnescriptPath();
-		
-		const processedArgs = this.processCommandArgs(args, cwd, shellType);
-		const normalizedScriptPath = normalizeArgForShell(scriptPath, shellType);
-		const fullArgs = [normalizedScriptPath, ...processedArgs];
-		const command = buildCommand(onescriptPath, fullArgs, shellType);
-
-		const osTerminalName = options?.name || '1C: Platform Tools';
-		const osTerminal =
-			vscode.window.terminals.find((t) => t.name === osTerminalName) ??
-			vscode.window.createTerminal({
-				name: osTerminalName,
-				cwd: cwd,
-				env: options?.env ? { ...process.env, ...options.env } : undefined,
-			});
-		osTerminal.sendText(command);
-		osTerminal.show();
-	}
-
-	/**
 	 * Получает путь к OneScript
 	 *
 	 * Возвращает путь, разрешённый последней проверкой checkOscriptAvailable (имя
@@ -1251,6 +1294,32 @@ export class VRunnerManager {
 	}
 
 	/**
+	 * Каталог bin выбранной установки OneScript, если она найдена по абсолютному пути.
+	 *
+	 * @returns Путь к каталогу bin или undefined, когда используется PATH
+	 */
+	private oscriptBinDir(): string | undefined {
+		const resolved = this.resolvedOscriptPath;
+		return resolved !== undefined && path.isAbsolute(resolved) ? path.dirname(resolved) : undefined;
+	}
+
+	/**
+	 * Окружение дочернего процесса: каталог выбранной установки OneScript идёт
+	 * в PATH первым.
+	 *
+	 * Обёртки `opm.bat` и `vrunner.bat` запускают `oscript` по имени, поэтому без
+	 * этого движок взялся бы из той установки, что стоит в PATH раньше, а это не
+	 * обязательно выбранная.
+	 *
+	 * @param extra - Дополнительные переменные окружения
+	 * @param binDir - Каталог bin вместо выбранной установки (для проверок при поиске)
+	 * @returns Окружение для exec, spawn и задач
+	 */
+	private childEnv(extra?: NodeJS.ProcessEnv, binDir = this.oscriptBinDir()): NodeJS.ProcessEnv {
+		return withBinDirFirst({ ...process.env, ...extra }, binDir);
+	}
+
+	/**
 	 * Запускать ли команды vrunner как задачи VS Code (Tasks).
 	 *
 	 * По умолчанию включено: доступен «Rerun Last Task», команды видны в списке
@@ -1259,7 +1328,7 @@ export class VRunnerManager {
 	 *
 	 * @returns true, если использовать задачи; false — интерактивный терминал
 	 */
-	private shouldUseTasks(): boolean {
+	public shouldUseTasks(): boolean {
 		const config = vscode.workspace.getConfiguration('1c-platform-tools');
 		return config.get<boolean>('execution.useTasks', true);
 	}
@@ -1333,13 +1402,15 @@ export class VRunnerManager {
 			return undefined;
 		}
 
+		const containerName = built.containerName;
 		return createVRunnerTask({
 			name: options?.name || '1C: Platform Tools',
 			command: built.command,
 			cwd,
-			env: options?.env,
+			env: this.childEnv(options?.env),
 			definition: options?.definition,
 			exitCallback: options?.exitCallback,
+			onCancel: containerName === undefined ? undefined : () => stopDockerContainer(containerName),
 		});
 	}
 
@@ -1414,6 +1485,7 @@ export class VRunnerManager {
 		const cwd = options?.cwd || this.getEffectiveRoot() || os.homedir();
 		const useDocker = await this.shouldUseDocker();
 		let command: string;
+		let containerName: string | undefined = undefined;
 
 		if (useDocker) {
 			if (!this.getEffectiveRoot()) {
@@ -1427,7 +1499,8 @@ export class VRunnerManager {
 			try {
 				const dockerImage = this.getDockerImage();
 				const processedArgsArray = finalArgsArray.map((args) => this.processCommandArgsForDocker(args));
-				command = buildDockerCommandSequence(dockerImage, processedArgsArray, this.getEffectiveRoot() ?? '', TASK_HOST_SHELL);
+				containerName = dockerContainerName();
+				command = buildDockerCommandSequence(dockerImage, processedArgsArray, this.getEffectiveRoot() ?? '', PROCESS_HOST_SHELL, containerName);
 			} catch (error) {
 				const errMsg = (error as Error).message;
 				log.error(`Ошибка при подготовке команды Docker: ${errMsg}`);
@@ -1453,7 +1526,8 @@ export class VRunnerManager {
 			name: options?.name || '1C: Platform Tools',
 			command,
 			cwd,
-			env: options?.env,
+			env: this.childEnv(options?.env),
+			onCancel: containerName === undefined ? undefined : () => stopDockerContainer(containerName),
 		});
 		await vscode.tasks.executeTask(task);
 	}
@@ -1480,6 +1554,7 @@ export class VRunnerManager {
 		const cwd = options?.cwd || this.getEffectiveRoot() || os.homedir();
 		const useDocker = await this.shouldUseDocker();
 		let command: string;
+		let containerName: string | undefined = undefined;
 
 		if (useDocker) {
 			if (!this.getEffectiveRoot()) {
@@ -1493,7 +1568,8 @@ export class VRunnerManager {
 			try {
 				const dockerImage = this.getDockerImage();
 				const processedArgsArray = finalArgsArray.map((args) => this.processCommandArgsForDocker(args));
-				command = buildDockerCommandSequence(dockerImage, processedArgsArray, this.getEffectiveRoot() ?? '', TASK_HOST_SHELL);
+				containerName = dockerContainerName();
+				command = buildDockerCommandSequence(dockerImage, processedArgsArray, this.getEffectiveRoot() ?? '', PROCESS_HOST_SHELL, containerName);
 			} catch (error) {
 				const errMsg = (error as Error).message;
 				log.error(`Ошибка при подготовке команды Docker: ${errMsg}`);
@@ -1522,8 +1598,9 @@ export class VRunnerManager {
 			name: options?.name || '1C: Platform Tools',
 			command,
 			cwd,
-			env: options?.env,
+			env: this.childEnv(options?.env),
 			exitCallback: resolveExit,
+			onCancel: containerName === undefined ? undefined : () => stopDockerContainer(containerName),
 		});
 		await vscode.tasks.executeTask(task);
 		return exitPromise;
@@ -1611,6 +1688,7 @@ export class VRunnerManager {
 			command = buildCommand(vrunnerPath, processedArgs, shellType);
 		}
 
+		/* eslint-disable no-restricted-syntax -- execution.useTasks === false: терминал выбран пользователем */
 		const terminalName = options?.name || '1C: Platform Tools';
 		const terminal =
 			vscode.window.terminals.find((t) => t.name === terminalName) ??
@@ -1622,6 +1700,7 @@ export class VRunnerManager {
 
 		terminal.sendText(command);
 		terminal.show();
+		/* eslint-enable no-restricted-syntax */
 	}
 
 	/**
@@ -1689,6 +1768,7 @@ export class VRunnerManager {
 				vscode.window.showErrorMessage(errMsg);
 				return;
 			}
+			/* eslint-disable no-restricted-syntax -- execution.useTasks === false: терминал выбран пользователем */
 			const dockerTerminalName = options?.name || '1C: Platform Tools';
 			const dockerTerminal =
 				vscode.window.terminals.find((t) => t.name === dockerTerminalName) ??
@@ -1699,6 +1779,7 @@ export class VRunnerManager {
 				});
 			dockerTerminal.sendText(command);
 			dockerTerminal.show();
+			/* eslint-enable no-restricted-syntax */
 			return;
 		}
 
@@ -1709,6 +1790,7 @@ export class VRunnerManager {
 		});
 		const fullCommand = joinCommands(commands, shellType);
 
+		/* eslint-disable no-restricted-syntax -- execution.useTasks === false: терминал выбран пользователем */
 		const seqTerminalName = options?.name || '1C: Platform Tools';
 		const seqTerminal =
 			vscode.window.terminals.find((t) => t.name === seqTerminalName) ??
@@ -1719,6 +1801,7 @@ export class VRunnerManager {
 			});
 		seqTerminal.sendText(fullCommand);
 		seqTerminal.show();
+		/* eslint-enable no-restricted-syntax */
 	}
 
 	/**
@@ -1730,7 +1813,7 @@ export class VRunnerManager {
 	 * @param args - Аргументы команды vrunner
 	 * @returns Объект с командой либо с текстом ошибки подготовки
 	 */
-	private buildExecCommand(args: string[], useDocker: boolean, translateRaw = false): { command: string } | { error: string } {
+	private buildExecCommand(args: string[], useDocker: boolean, translateRaw = false): { command: string; containerName?: string } | { error: string } {
 		// Трансляция синтаксиса применяется ТОЛЬКО к «сырым» аргументам задач
 		// пользователя из tasks.json. Планы интентов уже финальные — повторная
 		// обработка недопустима (парсер шима не обязан понимать синтаксис 3.x).
@@ -1745,20 +1828,17 @@ export class VRunnerManager {
 			try {
 				const dockerImage = this.getDockerImage();
 				const processedArgs = this.processCommandArgsForDocker(args);
-				const shellType = detectShellType();
-				return { command: buildDockerCommand(dockerImage, processedArgs, this.getEffectiveRoot() ?? '', shellType) };
+				const containerName = dockerContainerName();
+				return {
+					command: buildDockerCommand(dockerImage, processedArgs, this.getEffectiveRoot() ?? '', PROCESS_HOST_SHELL, containerName),
+					containerName,
+				};
 			} catch (error) {
 				return { error: (error as Error).message };
 			}
 		}
 
-		const vrunnerPath = this.getVRunnerPath();
-		const argsString = escapeCommandArgs(args);
-		const quotedPath = vrunnerPath.includes(' ') ? `"${vrunnerPath}"` : vrunnerPath;
-		// Задачи выполняются дочерним процессом через cmd (spawn shell:true) независимо от
-		// профиля терминала: без chcp oscript выводит кириллицу в OEM-кодировке.
-		const encodingPrefix = process.platform === 'win32' ? 'chcp 65001 >nul && ' : '';
-		return { command: `${encodingPrefix}${quotedPath} ${argsString}` };
+		return { command: buildProcessCommand(this.getVRunnerPath(), args) };
 	}
 
 	/**
@@ -1818,16 +1898,16 @@ export class VRunnerManager {
 
 			const execOptions = {
 				cwd: cwd,
-				env: { ...process.env, ...options?.env },
+				env: this.childEnv(options?.env),
 				maxBuffer: MAX_EXEC_BUFFER_SIZE,
-				encoding: 'utf8' as BufferEncoding
+				encoding: 'buffer' as const
 			};
 
 			exec(command, execOptions, (error, stdout, stderr) => {
 				const result: VRunnerExecutionResult = {
 					success: !error,
-					stdout: stdout.toString(),
-					stderr: stderr.toString(),
+					stdout: decodeProcessOutput(stdout),
+					stderr: decodeProcessOutput(stderr),
 					exitCode: error ? (typeof error.code === 'number' ? error.code : 1) : 0
 				};
 
@@ -1878,7 +1958,7 @@ export class VRunnerManager {
 
 		return runCancellableCommand(built.command, {
 			cwd: options?.cwd || this.getEffectiveRoot(),
-			env: options?.env,
+			env: this.childEnv(options?.env),
 			token: options?.token,
 			onOutput: options?.onOutput
 		});
@@ -1899,13 +1979,12 @@ export class VRunnerManager {
 	): Promise<void> {
 		const { path: opmPath, leadingArgs } = this.getOpmInvocation();
 		const cwd = options?.cwd || this.getEffectiveRoot() || os.homedir();
-		const quotedPath = opmPath.includes(' ') ? `"${opmPath}"` : opmPath;
-		const command = `${quotedPath} ${escapeCommandArgs([...leadingArgs, ...args])}`;
+		const command = buildProcessCommand(opmPath, [...leadingArgs, ...args]);
 		const task = createVRunnerTask({
 			name: options?.name || '1C: Platform Tools',
 			command,
 			cwd,
-			env: options?.env,
+			env: this.childEnv(options?.env),
 		});
 		await vscode.tasks.executeTask(task);
 	}
@@ -1937,12 +2016,14 @@ export class VRunnerManager {
 		const processedArgs = this.processCommandArgs([...leadingArgs, ...args], cwd, shellType);
 		const command = buildCommand(opmPath, processedArgs, shellType);
 
+		/* eslint-disable no-restricted-syntax -- execution.useTasks === false: терминал выбран пользователем */
 		const opmTerminalName = options?.name || '1C: Platform Tools';
 		const opmTerminal =
 			vscode.window.terminals.find((t) => t.name === opmTerminalName) ??
 			vscode.window.createTerminal({ name: opmTerminalName, cwd: cwd });
 		opmTerminal.sendText(command);
 		opmTerminal.show();
+		/* eslint-enable no-restricted-syntax */
 	}
 
 	/**
@@ -1962,21 +2043,19 @@ export class VRunnerManager {
 	): Promise<VRunnerExecutionResult> {
 		return new Promise((resolve) => {
 			const { path: opmPath, leadingArgs } = this.getOpmInvocation();
-			const argsString = escapeCommandArgs([...leadingArgs, ...args]);
-			const quotedPath = opmPath.includes(' ') ? `"${opmPath}"` : opmPath;
-			const command = `${quotedPath} ${argsString}`;
+			const command = buildProcessCommand(opmPath, [...leadingArgs, ...args]);
 
 			const execOptions = {
 				cwd: options?.cwd || this.getEffectiveRoot(),
 				maxBuffer: MAX_EXEC_BUFFER_SIZE,
-				encoding: 'utf8' as BufferEncoding
+				encoding: 'buffer' as const
 			};
 
 			exec(command, execOptions, (error, stdout, stderr) => {
 				const result: VRunnerExecutionResult = {
 					success: !error,
-					stdout: stdout.toString(),
-					stderr: stderr.toString(),
+					stdout: decodeProcessOutput(stdout),
+					stderr: decodeProcessOutput(stderr),
 					exitCode: error ? (typeof error.code === 'number' ? error.code : 1) : 0
 				};
 
@@ -1986,40 +2065,9 @@ export class VRunnerManager {
 	}
 
 	/**
-	 * Выполняет команду allure в терминале VS Code
-	 * 
-	 * Создает терминал и выполняет команду allure для генерации и просмотра отчетов.
-	 * Автоматически обрабатывает пути и нормализует их для указанной оболочки.
-	 * 
-	 * @param args - Аргументы команды allure (например, ['generate', '-c', '-o', 'build/allure-report'])
-	 * @param options - Опции выполнения
-	 * @param options.cwd - Рабочая директория (по умолчанию workspace root)
-	 * @param options.name - Имя терминала (по умолчанию '1C: Platform Tools')
-	 * @param options.shellType - Тип оболочки (опционально, определяется автоматически)
-	 */
-	public executeAllureInTerminal(
-		args: string[],
-		options?: { cwd?: string; name?: string; shellType?: ShellType }
-	): void {
-		const allurePath = this.getAllurePath();
-		const shellType = options?.shellType || detectShellType();
-		const processedArgs = this.processCommandArgs(args, options?.cwd || this.getEffectiveRoot() || os.homedir(), shellType);
-		const command = buildCommand(allurePath, processedArgs, shellType);
-		const cwd = options?.cwd || this.getEffectiveRoot() || os.homedir();
-
-		const allureTerminalName = options?.name || '1C: Platform Tools';
-		const allureTerminal =
-			vscode.window.terminals.find((t) => t.name === allureTerminalName) ??
-			vscode.window.createTerminal({ name: allureTerminalName, cwd: cwd });
-		allureTerminal.sendText(command);
-		allureTerminal.show();
-	}
-
-	/**
 	 * Выполняет команду allure синхронно (для проверок)
 	 * 
 	 * Используется для проверок и валидации, а не для выполнения команд пользователю.
-	 * Для выполнения команд пользователю используйте executeAllureInTerminal().
 	 * 
 	 * @param args - Аргументы команды allure
 	 * @param options - Опции выполнения
@@ -2031,22 +2079,19 @@ export class VRunnerManager {
 		options?: { cwd?: string }
 	): Promise<VRunnerExecutionResult> {
 		return new Promise((resolve) => {
-			const allurePath = this.getAllurePath();
-			const argsString = escapeCommandArgs(args);
-			const quotedPath = allurePath.includes(' ') ? `"${allurePath}"` : allurePath;
-			const command = `${quotedPath} ${argsString}`;
+			const command = buildProcessCommand(this.getAllurePath(), args);
 
 			const execOptions = {
 				cwd: options?.cwd || this.getEffectiveRoot(),
 				maxBuffer: MAX_EXEC_BUFFER_SIZE,
-				encoding: 'utf8' as BufferEncoding
+				encoding: 'buffer' as const
 			};
 
 			exec(command, execOptions, (error, stdout, stderr) => {
 				const result: VRunnerExecutionResult = {
 					success: !error,
-					stdout: stdout.toString(),
-					stderr: stderr.toString(),
+					stdout: decodeProcessOutput(stdout),
+					stderr: decodeProcessOutput(stderr),
 					exitCode: error ? (typeof error.code === 'number' ? error.code : 1) : 0
 				};
 

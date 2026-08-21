@@ -1,7 +1,6 @@
 import * as vscode from 'vscode';
 import { ensureOvm } from '../shared/ovmComponent';
 import * as path from 'node:path';
-import * as os from 'node:os';
 import * as fs from 'node:fs/promises';
 import * as fsSync from 'node:fs';
 import { spawnSync } from 'node:child_process';
@@ -15,8 +14,10 @@ import { logger } from '../shared/logger';
 import { notifyProjectCreated } from '../shared/projectContext';
 import { PROJECT_STRUCTURE } from '../shared/projectStructure';
 import { getOvmBinaryPath } from '../shared/ovmPaths';
-import { streamDownload } from '../shared/githubReleaseLoader';
 import { notifyQuiet } from '../shared/notify';
+import { buildProcessCommand, joinCommands, PROCESS_HOST_SHELL } from '../utils/commandUtils';
+import { createVRunnerTask } from '../features/tasks/vrunnerTask';
+import { showComponentError } from '../shared/githubToken';
 
 const log = logger.scope('commands');
 
@@ -837,13 +838,39 @@ export class DependenciesCommands extends BaseCommand {
 			ovmPath = await ensureOvm(this.context);
 		} catch (error) {
 			const errMsg = (error as Error).message;
-			log.error(`Не удалось получить OVM: ${errMsg}`);
-			logger.show();
-			vscode.window.showErrorMessage(`Не удалось получить OVM: ${errMsg}`);
+			await showComponentError(`Не удалось получить OVM: ${errMsg}`);
 			return;
 		}
 
-		if (process.platform === 'win32') {
+		// Задачей, а не терминалом: терминалу нужен ConPTY, а он есть не на всякой Windows
+		if (this.vrunner.shouldUseTasks()) {
+			// На Windows ovm запускается напрямую, на остальных ОС через mono
+			const ovmCall = (args: string[]): string => process.platform === 'win32'
+				? buildProcessCommand(ovmPath, args)
+				: buildProcessCommand('mono', [ovmPath, ...args]);
+			let resolveExit: (code: number) => void = () => undefined;
+			const exitCode = new Promise<number>((resolve) => {
+				resolveExit = resolve;
+			});
+			await vscode.tasks.executeTask(createVRunnerTask({
+				name: commandName.title,
+				command: joinCommands([ovmCall(['install', ovmVersion]), ovmCall(['use', ovmVersion])], PROCESS_HOST_SHELL),
+				cwd: workspaceRoot,
+				exitCallback: resolveExit,
+			}));
+
+			// Код возврата задачи, а не опрос времени модификации oscript: раскладка
+			// каталогов у ovm зависит от версии, и опрос её не всегда замечал
+			if (await exitCode !== 0) {
+				log.info('Установка OneScript завершилась с ошибкой');
+				vscode.window.showWarningMessage('Установка OneScript завершилась с ошибкой, подробности в панели задачи.');
+				return;
+			}
+			await this.vrunner.refreshOneScriptResolution();
+			notifyQuiet('OneScript установлен');
+			return;
+			/* eslint-disable no-restricted-syntax -- execution.useTasks === false: терминал выбран пользователем */
+		} else if (process.platform === 'win32') {
 			const ovmBinHint = String.raw`$env:LOCALAPPDATA\ovm\current\bin`;
 			const ovmQuoted = `'${ovmPath.replaceAll("'", "''")}'`;
 			const psScript = [
@@ -875,9 +902,10 @@ export class DependenciesCommands extends BaseCommand {
 			});
 			terminal.sendText(shScript);
 			terminal.show();
+			/* eslint-enable no-restricted-syntax */
 		}
 
-		log.info(`Установка OneScript запущена в терминале: ${commandName.title}, версия: ${ovmVersion}`);
+		log.info(`Установка OneScript запущена: ${commandName.title}, версия: ${ovmVersion}`);
 
 		vscode.window.setStatusBarMessage('Ожидание установки OneScript…', OVM_POLL_TIMEOUT_MS);
 		const installed = await waitForOvmInstallComplete(ovmOscriptMtimeBefore);
@@ -886,18 +914,14 @@ export class DependenciesCommands extends BaseCommand {
 		if (!installed) {
 			log.info('Таймаут ожидания установки OVM');
 			vscode.window.showInformationMessage(
-				'Установка идёт дольше или с ошибкой. Если в терминале успешно — перезапустите окно (Reload Window).'
+				'Установка идёт дольше обычного или завершилась с ошибкой. Загляните в панель задачи.'
 			);
 			return;
 		}
 
-		const reload = await vscode.window.showInformationMessage(
-			'OneScript установлен. Перезапустить окно (PATH обновится)?',
-			'Перезапустить',
-			'Позже'
-		);
-		if (reload === 'Перезапустить') {
-			await vscode.commands.executeCommand('workbench.action.reloadWindow');
-		}
+		// Иначе до конца сессии работала бы установка, найденная при активации:
+		// PATH процесса VS Code задан при его запуске и новую установку не видит.
+		await this.vrunner.refreshOneScriptResolution();
+		notifyQuiet('OneScript установлен');
 	}
 }

@@ -96,7 +96,6 @@ export async function runPipeline(
 	titleForCommand?: (commandId: string) => string | undefined
 ): Promise<PipelineRunResult> {
 	const startedAt = Date.now();
-	const byId = new Map(pipeline.nodes.map((node) => [node.id, node]));
 	const outcomes: NodeOutcome[] = [];
 	const done = new Map<string, NodeStatus>();
 	/** Узлы, до которых дошла хотя бы одна ветка */

@@ -1,12 +1,18 @@
 import * as assert from 'node:assert';
 import {
 	detectShellType,
+	escapeCommandArg,
 	escapeCommandArgs,
 	normalizeArgForShell,
 	buildCommand,
+	buildDockerCommand,
+	buildDockerCommandSequence,
+	buildProcessCommand,
 	joinCommands,
+	quoteExecutable,
 	type ShellType
 } from '../../utils/commandUtils';
+import { dockerContainerName } from '../../shared/dockerRun';
 
 suite('commandUtils', () => {
 	// Установка кодировки (chcp/[Console]::OutputEncoding) добавляется только на Windows
@@ -45,6 +51,153 @@ suite('commandUtils', () => {
 		const args = ['command1;command2'];
 		const result = escapeCommandArgs(args, 'powershell');
 		assert.ok(result.includes("'command1;command2'"), 'Аргумент с точкой с запятой должен быть экранирован для PowerShell');
+	});
+
+	test('escapeCommandArgs для cmd держит --additional с пробелами одним аргументом', () => {
+		const additional = '/LoadConfigFromFiles src/cf -updateConfigDumpInfo';
+		const result = escapeCommandArgs(['designer', '--additional', additional], 'cmd');
+		assert.strictEqual(
+			result,
+			`designer --additional "${additional}"`,
+			'cmd понимает двойные кавычки: иначе src/cf уйдёт позиционным параметром'
+		);
+	});
+
+	test('escapeCommandArgs для PowerShell оборачивает тот же --additional в одинарные кавычки', () => {
+		const additional = '/LoadConfigFromFiles src/cf -updateConfigDumpInfo';
+		const result = escapeCommandArgs(['designer', '--additional', additional], 'powershell');
+		assert.strictEqual(
+			result,
+			`designer --additional '${additional}'`,
+			'одинарные кавычки PowerShell нельзя подставлять в exec/cmd'
+		);
+	});
+
+	test('escapeCommandArg берёт в кавычки метасимволы cmd без пробелов', () => {
+		assert.strictEqual(escapeCommandArg(String.raw`C:\Dev&Ops\env.json`, 'cmd'), String.raw`"C:\Dev&Ops\env.json"`);
+		assert.strictEqual(escapeCommandArg('x|y', 'cmd'), '"x|y"');
+		assert.strictEqual(escapeCommandArg('a>b', 'cmd'), '"a>b"');
+	});
+
+	test('escapeCommandArg прикрывает кареткой то, что кавычки cmd не держат', () => {
+		// Процент раскрывается и внутри кавычек, кавычка рвёт кавычечный контекст
+		assert.strictEqual(escapeCommandArg('env%USERNAME%.json', 'cmd'), '^"env^%USERNAME^%.json^"');
+		assert.strictEqual(escapeCommandArg('say "hi"', 'cmd'), String.raw`^"say \^"hi\^"^"`);
+	});
+
+	test('escapeCommandArg не теряет пустой аргумент', () => {
+		assert.strictEqual(escapeCommandArg('', 'cmd'), '""');
+		assert.strictEqual(escapeCommandArg('', 'sh'), "''");
+		assert.strictEqual(escapeCommandArg('', 'powershell'), "''");
+	});
+
+	test('escapeCommandArg берёт в кавычки табуляцию', () => {
+		assert.strictEqual(escapeCommandArg('a\tb', 'cmd'), '"a\tb"');
+		assert.strictEqual(escapeCommandArg('a\tb', 'sh'), "'a\tb'");
+	});
+
+	test('escapeCommandArg удваивает слэши перед кавычкой по правилам argv Windows', () => {
+		assert.strictEqual(escapeCommandArg('C:\\Program Files\\', 'cmd'), '"C:\\Program Files\\\\"');
+	});
+
+	test('escapeCommandArg закрывает метасимволы POSIX одинарными кавычками', () => {
+		assert.strictEqual(escapeCommandArg('a&b', 'sh'), "'a&b'");
+		assert.strictEqual(escapeCommandArg('$runnerRoot/x.epf', 'bash'), "'$runnerRoot/x.epf'");
+		assert.strictEqual(escapeCommandArg("it's", 'zsh'), String.raw`'it'\''s'`);
+	});
+
+	test('escapeCommandArg оставляет безопасный аргумент без кавычек', () => {
+		for (const shell of ['cmd', 'powershell', 'bash', 'sh', 'zsh'] as ShellType[]) {
+			assert.strictEqual(escapeCommandArg('--ibconnection', shell), '--ibconnection');
+			assert.strictEqual(escapeCommandArg('/F./build/ib', shell), '/F./build/ib');
+		}
+	});
+
+	test('quoteExecutable для cmd берёт путь в обычные кавычки: имя команды ищется по ним', () => {
+		assert.strictEqual(
+			quoteExecutable(String.raw`C:\Dev&Ops (x86)\vrunner.bat`, 'cmd'),
+			String.raw`"C:\Dev&Ops (x86)\vrunner.bat"`
+		);
+		assert.strictEqual(quoteExecutable('vrunner.bat', 'cmd'), 'vrunner.bat');
+	});
+
+	test('quoteExecutable для POSIX берёт путь в одинарные кавычки', () => {
+		assert.strictEqual(quoteExecutable('/opt/1c tools/vrunner', 'sh'), "'/opt/1c tools/vrunner'");
+		assert.strictEqual(quoteExecutable('/usr/bin/vrunner', 'sh'), '/usr/bin/vrunner');
+	});
+
+	test('buildProcessCommand экранирует по оболочке дочернего процесса, а не терминала', () => {
+		const result = buildProcessCommand('vrunner', ['designer', '--additional', '/LoadConfigFromFiles src/cf']);
+		const expected = process.platform === 'win32'
+			? 'chcp 65001 >nul && vrunner designer --additional "/LoadConfigFromFiles src/cf"'
+			: "vrunner designer --additional '/LoadConfigFromFiles src/cf'";
+		assert.strictEqual(result, expected);
+	});
+
+	winTest('buildProcessCommand всегда ставит кодовую страницу: иначе кириллица приходит в OEM', () => {
+		for (const executable of ['vrunner', 'opm', 'allure']) {
+			assert.ok(
+				buildProcessCommand(executable, ['help']).startsWith('chcp 65001 >nul && '),
+				`команда ${executable} осталась без установки кодовой страницы`
+			);
+		}
+	});
+
+	test('buildDockerCommand экранирует аргументы для оболочки хоста', () => {
+		// ENTRYPOINT задан exec-формой: оболочки в контейнере нет, разбирает строку хост
+		const result = buildDockerCommand('vrunner:8.3.27', ['vanessa', '--settings', 'env one.json'], String.raw`C:\ws dir`, 'cmd');
+		assert.strictEqual(
+			result,
+			String.raw`docker run --rm -v "C:\ws dir:/workspace" -w /workspace vrunner:8.3.27 vanessa --settings "env one.json"`
+		);
+	});
+
+	winTest('buildDockerCommand нормализует путь и кавычки для bash-хоста', () => {
+		const result = buildDockerCommand('vrunner:8.3.27', ['vanessa'], String.raw`C:\ws dir`, 'bash');
+		assert.strictEqual(result, "docker run --rm -v 'C:/ws dir:/workspace' -w /workspace vrunner:8.3.27 vanessa");
+	});
+
+	test('buildDockerCommand даёт контейнеру имя: по нему его останавливают при отмене', () => {
+		const result = buildDockerCommand('vrunner:8.3.27', ['vanessa'], '/home/ws', 'sh', '1cpt-run-test');
+		assert.strictEqual(
+			result,
+			'docker run --rm --name 1cpt-run-test -v /home/ws:/workspace -w /workspace vrunner:8.3.27 vanessa'
+		);
+	});
+
+	test('buildDockerCommand без имени контейнера остаётся прежним', () => {
+		const result = buildDockerCommand('vrunner:8.3.27', ['vanessa'], '/home/ws', 'sh');
+		assert.strictEqual(result, 'docker run --rm -v /home/ws:/workspace -w /workspace vrunner:8.3.27 vanessa');
+	});
+
+	test('buildDockerCommandSequence тоже именует контейнер', () => {
+		const result = buildDockerCommandSequence('vrunner:8.3.27', [['compile']], '/home/ws', 'sh', '1cpt-run-test');
+		assert.ok(
+			result.startsWith('docker run --rm --name 1cpt-run-test -v /home/ws:/workspace'),
+			`имя контейнера не попало в команду: ${result}`
+		);
+	});
+
+	test('имя контейнера уникально для каждого запуска', () => {
+		const names = new Set(Array.from({ length: 50 }, () => dockerContainerName()));
+		assert.strictEqual(names.size, 50, 'имена контейнеров повторяются');
+		for (const name of names) {
+			assert.match(name, /^1cpt-run-[a-z0-9]+-[a-z0-9]+$/);
+		}
+	});
+
+	test('buildDockerCommandSequence отдаёт строку sh одним аргументом хоста', () => {
+		const result = buildDockerCommandSequence(
+			'vrunner:8.3.27',
+			[['vanessa', '--settings', 'env one.json'], ['compile']],
+			'/home/ws',
+			'cmd'
+		);
+		assert.strictEqual(
+			result,
+			'docker run --rm -v /home/ws:/workspace -w /workspace --entrypoint /bin/sh vrunner:8.3.27 -c ' +
+			String.raw`"vrunner vanessa --settings 'env one.json' && vrunner compile"`
+		);
 	});
 
 	test('normalizeArgForShell преобразует пути для bash на Windows', () => {

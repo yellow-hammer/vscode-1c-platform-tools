@@ -42,6 +42,9 @@ const HIDDEN_PREFIXES = [
 	`${COMMAND_PREFIX}env.setOverrides`,
 	`${COMMAND_PREFIX}env.statusBarRefresh`,
 	`${COMMAND_PREFIX}dependencies.setupGit`,
+	// Секрет вводит человек в поле с маскировкой, агенту его передавать незачем
+	`${COMMAND_PREFIX}components.setGithubToken`,
+	`${COMMAND_PREFIX}components.forgetGithubToken`,
 	`${COMMAND_PREFIX}oscript.addTask`,
 	`${COMMAND_PREFIX}server.menu`,
 	`${COMMAND_PREFIX}launch.editConfigurations`,
@@ -98,6 +101,9 @@ const HIDDEN_EXACT = [
 	`${COMMAND_PREFIX}hooks.openEditor`,
 	// Сохранение формы: приходит по Ctrl+S из активного редактора
 	`${COMMAND_PREFIX}editors.save`,
+	// Обновление внешних компонентов: спрашивает список галочками и загружает
+	// выбранное. Ответить на такой вопрос агент не может
+	`${COMMAND_PREFIX}components.update`,
 ];
 
 /**

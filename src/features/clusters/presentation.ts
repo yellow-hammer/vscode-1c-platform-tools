@@ -18,7 +18,6 @@ import type {
 	ServerInfo,
 	SessionInfo,
 } from './model';
-import type { RacRecord } from './racOutput';
 
 /** Подпись узла: заголовок и уточнение справа. */
 export interface NodePresentation {

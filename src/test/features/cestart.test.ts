@@ -86,7 +86,8 @@ suite('1cestart', () => {
 			},
 		});
 		assert.strictEqual(missing.ok, false);
-		assert.deepStrictEqual(spawned, []);
+		// По длине, а не deepStrictEqual с []: тот сузил бы spawned до never[]
+		assert.strictEqual(spawned.length, 0);
 
 		const started = launchInfobase('Демо', 'DESIGNER', {
 			find: () => ({ binary: '/opt/1cv8/common/1cestart', bases: ['/opt/1cv8'] }),

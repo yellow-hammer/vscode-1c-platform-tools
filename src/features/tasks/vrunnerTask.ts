@@ -41,6 +41,8 @@ export interface VRunnerTaskParams {
 	definition?: vscode.TaskDefinition;
 	/** Вызывается с exit code при завершении задачи (для отслеживания результата). */
 	exitCallback?: (exitCode: number) => void;
+	/** Уборка при остановке задачи: например, остановка docker-контейнера. */
+	onCancel?: () => void;
 }
 
 /**
@@ -65,7 +67,8 @@ class VRunnerPseudoterminal implements vscode.Pseudoterminal {
 		private readonly command: string,
 		private readonly cwd: string,
 		private readonly env?: NodeJS.ProcessEnv,
-		private readonly exitCallback?: (exitCode: number) => void
+		private readonly exitCallback?: (exitCode: number) => void,
+		private readonly onCancel?: () => void
 	) {}
 
 	public open(): void {
@@ -73,12 +76,13 @@ class VRunnerPseudoterminal implements vscode.Pseudoterminal {
 		this.startedAt = Date.now();
 		// Эхо исходной команды в начале вывода (как у штатных задач VS Code),
 		// чтобы было видно, что именно запущено. Служебный префикс кодировки прячем.
-		const displayCommand = this.command.replace(/^chcp 65001 >nul && /, '');
+		const displayCommand = this.command.replaceAll('chcp 65001 >nul && ', '');
 		this.writeEmitter.fire(`[90m> ${displayCommand}[0m\r\n\r\n`);
 		runCancellableCommand(this.command, {
 			cwd: this.cwd,
 			env: this.env,
 			token: this.cts.token,
+			onCancel: this.onCancel,
 			// Псевдотерминалу нужны переводы строки в формате \r\n.
 			onOutput: (chunk) => this.writeEmitter.fire(chunk.replace(/\r?\n/g, '\r\n')),
 		}).then((result) => {
@@ -108,7 +112,7 @@ class VRunnerPseudoterminal implements vscode.Pseudoterminal {
  * @returns Псевдотерминал для {@link vscode.CustomExecution}
  */
 export function createVRunnerTaskTerminal(params: VRunnerTaskParams): vscode.Pseudoterminal {
-	return new VRunnerPseudoterminal(params.name, params.command, params.cwd, params.env, params.exitCallback);
+	return new VRunnerPseudoterminal(params.name, params.command, params.cwd, params.env, params.exitCallback, params.onCancel);
 }
 
 /**
