@@ -6,12 +6,11 @@ import * as fs from 'node:fs/promises';
 import * as fsSync from 'node:fs';
 import * as os from 'node:os';
 import {
-	escapeCommandArgs,
 	buildCommand,
 	joinCommands,
 	detectShellType,
+	buildProcessCommand,
 	PROCESS_HOST_SHELL,
-	quoteExecutable,
 	ShellType,
 	normalizeArgForShell,
 	buildDockerCommand,
@@ -50,6 +49,7 @@ import { selectCliAdapter, VRunnerIntent } from './vrunnerCli';
 import { planIntents, SettingsFileFormat } from './vrunnerCli/planner';
 import { translateArgsToV3 } from './vrunnerCommandMap';
 import { createVRunnerTask } from '../features/tasks/vrunnerTask';
+import { decodeProcessOutput } from './processOutput';
 
 const log = logger.scope('vrunner');
 
@@ -533,8 +533,7 @@ export class VRunnerManager {
 	 */
 	private runCommandForCheck(commandPath: string, args: string[]): Promise<boolean> {
 		return new Promise((resolve) => {
-			const quotedPath = quoteExecutable(commandPath, PROCESS_HOST_SHELL);
-			const command = `${quotedPath} ${escapeCommandArgs(args, PROCESS_HOST_SHELL)}`;
+			const command = buildProcessCommand(commandPath, args);
 			exec(command, { maxBuffer: 1024 * 1024, timeout: 10000 }, (error) => {
 				resolve(!error);
 			});
@@ -1746,12 +1745,7 @@ export class VRunnerManager {
 			}
 		}
 
-		const vrunnerPath = this.getVRunnerPath();
-		const argsString = escapeCommandArgs(args, PROCESS_HOST_SHELL);
-		const quotedPath = quoteExecutable(vrunnerPath, PROCESS_HOST_SHELL);
-		// cmd/sh, не профиль терминала: без chcp oscript пишет кириллицу в OEM.
-		const encodingPrefix = process.platform === 'win32' ? 'chcp 65001 >nul && ' : '';
-		return { command: `${encodingPrefix}${quotedPath} ${argsString}` };
+		return { command: buildProcessCommand(this.getVRunnerPath(), args) };
 	}
 
 	/**
@@ -1813,14 +1807,14 @@ export class VRunnerManager {
 				cwd: cwd,
 				env: { ...process.env, ...options?.env },
 				maxBuffer: MAX_EXEC_BUFFER_SIZE,
-				encoding: 'utf8' as BufferEncoding
+				encoding: 'buffer' as const
 			};
 
 			exec(command, execOptions, (error, stdout, stderr) => {
 				const result: VRunnerExecutionResult = {
 					success: !error,
-					stdout: stdout.toString(),
-					stderr: stderr.toString(),
+					stdout: decodeProcessOutput(stdout),
+					stderr: decodeProcessOutput(stderr),
 					exitCode: error ? (typeof error.code === 'number' ? error.code : 1) : 0
 				};
 
@@ -1892,8 +1886,7 @@ export class VRunnerManager {
 	): Promise<void> {
 		const { path: opmPath, leadingArgs } = this.getOpmInvocation();
 		const cwd = options?.cwd || this.getEffectiveRoot() || os.homedir();
-		const quotedPath = quoteExecutable(opmPath, PROCESS_HOST_SHELL);
-		const command = `${quotedPath} ${escapeCommandArgs([...leadingArgs, ...args], PROCESS_HOST_SHELL)}`;
+		const command = buildProcessCommand(opmPath, [...leadingArgs, ...args]);
 		const task = createVRunnerTask({
 			name: options?.name || '1C: Platform Tools',
 			command,
@@ -1955,21 +1948,19 @@ export class VRunnerManager {
 	): Promise<VRunnerExecutionResult> {
 		return new Promise((resolve) => {
 			const { path: opmPath, leadingArgs } = this.getOpmInvocation();
-			const argsString = escapeCommandArgs([...leadingArgs, ...args], PROCESS_HOST_SHELL);
-			const quotedPath = quoteExecutable(opmPath, PROCESS_HOST_SHELL);
-			const command = `${quotedPath} ${argsString}`;
+			const command = buildProcessCommand(opmPath, [...leadingArgs, ...args]);
 
 			const execOptions = {
 				cwd: options?.cwd || this.getEffectiveRoot(),
 				maxBuffer: MAX_EXEC_BUFFER_SIZE,
-				encoding: 'utf8' as BufferEncoding
+				encoding: 'buffer' as const
 			};
 
 			exec(command, execOptions, (error, stdout, stderr) => {
 				const result: VRunnerExecutionResult = {
 					success: !error,
-					stdout: stdout.toString(),
-					stderr: stderr.toString(),
+					stdout: decodeProcessOutput(stdout),
+					stderr: decodeProcessOutput(stderr),
 					exitCode: error ? (typeof error.code === 'number' ? error.code : 1) : 0
 				};
 
@@ -2024,22 +2015,19 @@ export class VRunnerManager {
 		options?: { cwd?: string }
 	): Promise<VRunnerExecutionResult> {
 		return new Promise((resolve) => {
-			const allurePath = this.getAllurePath();
-			const argsString = escapeCommandArgs(args, PROCESS_HOST_SHELL);
-			const quotedPath = quoteExecutable(allurePath, PROCESS_HOST_SHELL);
-			const command = `${quotedPath} ${argsString}`;
+			const command = buildProcessCommand(this.getAllurePath(), args);
 
 			const execOptions = {
 				cwd: options?.cwd || this.getEffectiveRoot(),
 				maxBuffer: MAX_EXEC_BUFFER_SIZE,
-				encoding: 'utf8' as BufferEncoding
+				encoding: 'buffer' as const
 			};
 
 			exec(command, execOptions, (error, stdout, stderr) => {
 				const result: VRunnerExecutionResult = {
 					success: !error,
-					stdout: stdout.toString(),
-					stderr: stderr.toString(),
+					stdout: decodeProcessOutput(stdout),
+					stderr: decodeProcessOutput(stderr),
 					exitCode: error ? (typeof error.code === 'number' ? error.code : 1) : 0
 				};
 

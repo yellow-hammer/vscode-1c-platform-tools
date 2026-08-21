@@ -7,6 +7,7 @@ import {
 	buildCommand,
 	buildDockerCommand,
 	buildDockerCommandSequence,
+	buildProcessCommand,
 	joinCommands,
 	quoteExecutable,
 	type ShellType
@@ -122,6 +123,23 @@ suite('commandUtils', () => {
 	test('quoteExecutable для POSIX берёт путь в одинарные кавычки', () => {
 		assert.strictEqual(quoteExecutable('/opt/1c tools/vrunner', 'sh'), "'/opt/1c tools/vrunner'");
 		assert.strictEqual(quoteExecutable('/usr/bin/vrunner', 'sh'), '/usr/bin/vrunner');
+	});
+
+	test('buildProcessCommand экранирует по оболочке дочернего процесса, а не терминала', () => {
+		const result = buildProcessCommand('vrunner', ['designer', '--additional', '/LoadConfigFromFiles src/cf']);
+		const expected = process.platform === 'win32'
+			? 'chcp 65001 >nul && vrunner designer --additional "/LoadConfigFromFiles src/cf"'
+			: "vrunner designer --additional '/LoadConfigFromFiles src/cf'";
+		assert.strictEqual(result, expected);
+	});
+
+	winTest('buildProcessCommand всегда ставит кодовую страницу: иначе кириллица приходит в OEM', () => {
+		for (const executable of ['vrunner', 'opm', 'allure']) {
+			assert.ok(
+				buildProcessCommand(executable, ['help']).startsWith('chcp 65001 >nul && '),
+				`команда ${executable} осталась без установки кодовой страницы`
+			);
+		}
 	});
 
 	test('buildDockerCommand экранирует аргументы для оболочки хоста', () => {

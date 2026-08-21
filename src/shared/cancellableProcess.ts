@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 import { spawn, exec } from 'node:child_process';
 import { logger } from './logger';
+import { ProcessOutputDecoder } from './processOutput';
 
 const log = logger.scope('process');
 
@@ -124,15 +125,22 @@ export function runCancellableCommand(
 			}
 		}
 
-		child.stdout?.setEncoding('utf8');
-		child.stderr?.setEncoding('utf8');
-		child.stdout?.on('data', (chunk: string) => {
-			stdout += chunk;
-			options?.onOutput?.(chunk);
+		// Кодировку выбирает декодер: на Windows консольные программы пишут не в UTF-8
+		const stdoutDecoder = new ProcessOutputDecoder();
+		const stderrDecoder = new ProcessOutputDecoder();
+		child.stdout?.on('data', (chunk: Buffer) => {
+			const text = stdoutDecoder.push(chunk);
+			if (text !== '') {
+				stdout += text;
+				options?.onOutput?.(text);
+			}
 		});
-		child.stderr?.on('data', (chunk: string) => {
-			stderr += chunk;
-			options?.onOutput?.(chunk);
+		child.stderr?.on('data', (chunk: Buffer) => {
+			const text = stderrDecoder.push(chunk);
+			if (text !== '') {
+				stderr += text;
+				options?.onOutput?.(text);
+			}
 		});
 
 		child.on('error', (error) => {
@@ -141,6 +149,18 @@ export function runCancellableCommand(
 		});
 
 		child.on('close', (code) => {
+			for (const [decoder, isStdout] of [[stdoutDecoder, true], [stderrDecoder, false]] as const) {
+				const rest = decoder.flush();
+				if (rest === '') {
+					continue;
+				}
+				if (isStdout) {
+					stdout += rest;
+				} else {
+					stderr += rest;
+				}
+				options?.onOutput?.(rest);
+			}
 			finish(code ?? -1);
 		});
 	});

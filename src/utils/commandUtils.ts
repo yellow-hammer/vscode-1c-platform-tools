@@ -302,6 +302,23 @@ export function buildCommand(executablePath: string, args: string[], shellType?:
 }
 
 /**
+ * Формирует команду для запуска дочерним процессом (`exec`, `spawn` с shell).
+ *
+ * Отличается от {@link buildCommand} тем, что оболочка здесь не профиль
+ * интегрированного терминала, а cmd/sh. Префикс кодовой страницы обязателен:
+ * без него oscript пишет кириллицу в OEM-кодировке.
+ *
+ * @param executablePath - Путь к исполняемому файлу
+ * @param args - Аргументы команды
+ * @returns Строка команды для дочернего процесса
+ */
+export function buildProcessCommand(executablePath: string, args: string[]): string {
+	const quotedPath = quoteExecutable(executablePath, PROCESS_HOST_SHELL);
+	const argsString = escapeCommandArgs(args, PROCESS_HOST_SHELL);
+	return `${getEncodingPrefix(PROCESS_HOST_SHELL)}${quotedPath} ${argsString}`;
+}
+
+/**
  * Получает разделитель команд для указанной оболочки
  * 
  * - PowerShell: `;` (последовательное выполнение, ошибки не останавливают)

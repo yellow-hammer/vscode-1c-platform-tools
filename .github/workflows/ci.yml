@@ -39,9 +39,9 @@ jobs:
       - name: Запустить тесты (через xvfb для Extension Host)
         run: xvfb-run -a npm test
 
-  # Живой разбор argv на Windows, Linux и macOS — без Extension Host.
-  shell-argv:
-    name: Оболочки (${{ matrix.os }})
+  # Живой разбор argv и кодировки вывода на Windows, Linux и macOS, без Extension Host.
+  processes:
+    name: Процессы (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -63,5 +63,5 @@ jobs:
       - name: Скомпилировать
         run: npm run compile
 
-      - name: Прогнать аргументы через живые оболочки
-        run: npm run test:shell-argv
+      - name: Прогнать аргументы и кодировки через живые процессы
+        run: npm run test:node
