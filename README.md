@@ -38,7 +38,7 @@
 - **OneScript, OPM и vanessa-runner** — из раздела **Зависимости** в дереве **Инструменты 1С**.
 - **MCP** — расширение [mcp-1c-platform-tools](https://github.com/yellow-hammer/mcp-1c-platform-tools), если команды вызывает агент.
 
-Без локальной 1С команды можно выполнять в Docker — см. [Docker и ibcmd](docs/docker.md).
+<img src="resources/brand/bird.png" alt="" width="28" align="left"> Без локальной 1С команды можно выполнять в Docker — см. [Docker и ibcmd](docs/docker.md).
 
 ## Быстрый старт
 
