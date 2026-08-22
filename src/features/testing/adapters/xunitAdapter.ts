@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 import * as path from 'node:path';
 import * as fsSync from 'node:fs';
+import * as fs from 'node:fs/promises';
 import { VRunnerManager } from '../../../shared/vrunnerManager';
 import { logger } from '../../../shared/logger';
 import { TestFrameworkAdapter, AdapterRunPlan, RunUnit, FileTreeLocation } from '../frameworkAdapter';
@@ -127,8 +128,14 @@ export class XUnitAdapter implements TestFrameworkAdapter {
 	}
 
 	/**
-	 * Батч-прогон: сборка всех тестовых обработок и один прогон по каталогу
-	 * собранных .epf.
+	 * Батч-прогон: сборка выбранных обработок и один прогон по каталогу прогона.
+	 *
+	 * Команда xunit выполняет каталог целиком, поэтому прогон идёт не по общему
+	 * каталогу сборки, а по своему: туда копируются только выбранные .epf.
+	 * Общий каталог при этом не трогается, и сборка остаётся инкрементальной -
+	 * compileepf решает пересобирать или нет по хешу исходника в build/cache.json,
+	 * а не по наличию файла, поэтому удалять из него бинарники нельзя: удалённый
+	 * больше не соберётся.
 	 *
 	 * @param units - Файлы прогона
 	 * @param reportDir - Каталог отчёта прогона
@@ -136,13 +143,21 @@ export class XUnitAdapter implements TestFrameworkAdapter {
 	 */
 	public async buildBatchRunPlan(units: RunUnit[], reportDir: string): Promise<AdapterRunPlan | undefined> {
 		const binariesPath = path.join(this.vrunner.getOutPath(), BUILD_SUBDIRS.testsEpf);
+		// Настройка paths.out задаётся относительно проекта, и vrunner понимает её
+		// как есть. Для работы с файлами нужен абсолютный путь: рабочий каталог у
+		// процесса расширения свой.
+		const workspaceRoot = this.vrunner.getWorkspaceRoot();
+		const binariesFsPath = workspaceRoot ? resolveConfigPath(binariesPath, workspaceRoot) : binariesPath;
+		const runDir = path.join(reportDir, 'epf');
 		const prepare: AdapterRunPlan['prepare'] = [];
+		const selected: string[] = [];
 		for (const unit of units) {
 			const epfInfo = epfTestSourceInfo(unit.fileUri.fsPath);
 			if (!epfInfo) {
 				// В наборе есть уже собранные .epf — общий каталог сборки не гарантирован
 				return undefined;
 			}
+			selected.push(`${epfInfo.processorName}.epf`);
 			const [buildArgs] = await this.vrunner.planIntent(
 				{ kind: 'epf.build', src: epfInfo.processorDir, out: binariesPath }
 			);
@@ -153,7 +168,14 @@ export class XUnitAdapter implements TestFrameworkAdapter {
 			});
 		}
 
-		const basePlan = await this.buildXunitPlan(binariesPath, reportDir);
+		prepare.push({
+			tool: 'action',
+			args: [],
+			title: `Каталог прогона: ${selected.length} обработок`,
+			run: () => collectRunBinaries(binariesFsPath, runDir, selected),
+		});
+
+		const basePlan = await this.buildXunitPlan(runDir, reportDir);
 		return { ...basePlan, prepare };
 	}
 
@@ -255,4 +277,31 @@ export function hasConfigurationSources(vrunner: VRunnerManager): boolean {
 		return false;
 	}
 	return fsSync.existsSync(path.join(workspaceRoot, vrunner.getCfPath()));
+}
+
+/**
+ * Собирает каталог прогона из уже собранных обработок.
+ *
+ * @param binariesPath - Общий каталог сборки
+ * @param runDir - Каталог этого прогона
+ * @param selected - Имена файлов выбранных обработок
+ * @throws {Error} Если собранной обработки нет на месте
+ */
+export async function collectRunBinaries(
+	binariesPath: string,
+	runDir: string,
+	selected: readonly string[]
+): Promise<void> {
+	await fs.mkdir(runDir, { recursive: true });
+	for (const name of selected) {
+		const source = path.join(binariesPath, name);
+		if (!fsSync.existsSync(source)) {
+			throw new Error(
+				`Собранной обработки ${name} нет в ${binariesPath}. ` +
+				'Соберите тесты заново: сборка пропускается по хешу исходника, ' +
+				'и удалённый бинарник сам не восстановится.'
+			);
+		}
+		await fs.copyFile(source, path.join(runDir, name));
+	}
 }

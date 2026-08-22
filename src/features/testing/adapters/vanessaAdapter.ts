@@ -95,31 +95,48 @@ export class VanessaAdapter implements TestFrameworkAdapter {
 	}
 
 	/**
-	 * Все фичи проекта прогоняются одним сеансом: Vanessa Automation выполняет
-	 * набор целиком, отдельный сеанс на файл только умножает время прогона.
+	 * Состав прогона решается в buildBatchRunPlan, поэтому группа одна.
 	 */
 	public batchGroupKey(): string {
 		return 'all';
 	}
 
 	/**
-	 * Батч-прогон: один сеанс на весь набор фич, результаты раскладываются по
-	 * файлам из общего отчёта проекта.
+	 * Батч-прогон одним сеансом, когда выбор можно выразить одним путём.
+	 *
+	 * `--feature-path` принимает каталог или файл и не повторяется: две опции
+	 * подряд оставляют последнюю. Поэтому одним сеансом идут только два случая:
+	 * выбран весь набор проекта и выбран каталог целиком. Произвольная россыпь
+	 * файлов возвращает undefined, и контроллер прогоняет их поштучно - иначе в
+	 * прогон попали бы соседние фичи каталога.
 	 *
 	 * Без настроенной в проекте цели отчёта батч недоступен: собственные
-	 * настройки VA пришлось бы подменять, а состав прогона задаёт проект.
+	 * настройки VA пришлось бы подменять.
 	 *
-	 * @param _units - Файлы прогона (состав задают настройки VA)
+	 * @param units - Файлы прогона
 	 * @param _reportDir - Каталог отчёта прогона (не используется)
+	 * @param discovered - Все обнаруженные фичи проекта
 	 * @returns План батч-прогона либо undefined
 	 */
-	public async buildBatchRunPlan(_units: RunUnit[], _reportDir: string): Promise<AdapterRunPlan | undefined> {
+	public async buildBatchRunPlan(
+		units: RunUnit[],
+		_reportDir: string,
+		discovered: readonly vscode.Uri[]
+	): Promise<AdapterRunPlan | undefined> {
 		const reportTarget = await this.findProjectReportTarget();
 		if (!reportTarget) {
 			return undefined;
 		}
+
+		const featurePath = singlePathForSelection(units, discovered);
+		if (featurePath === undefined) {
+			return undefined;
+		}
+
 		// --settings активного профиля подставляет planIntent централизованно.
-		const [args] = await this.vrunner.planIntent({ kind: 'test.vanessa' });
+		const [args] = await this.vrunner.planIntent(
+			featurePath === '' ? { kind: 'test.vanessa' } : { kind: 'test.vanessa', featurePath }
+		);
 		return { tool: 'vrunner', args, reportTarget };
 	}
 
@@ -145,4 +162,30 @@ export class VanessaAdapter implements TestFrameworkAdapter {
 			return undefined;
 		}
 	}
+}
+
+/**
+ * Путь, которым выражается выбор пользователя, если это возможно.
+ *
+ * @param units - Выбранные файлы
+ * @param discovered - Все обнаруженные фичи
+ * @returns Пустая строка - весь набор проекта; путь каталога - каталог целиком;
+ *          undefined - одним путём выбор не выражается
+ */
+export function singlePathForSelection(
+	units: readonly { fileUri: vscode.Uri }[],
+	discovered: readonly vscode.Uri[]
+): string | undefined {
+	const chosen = new Set(units.map((unit) => unit.fileUri.fsPath));
+	if (discovered.length > 0 && discovered.every((uri) => chosen.has(uri.fsPath))) {
+		return '';
+	}
+
+	const dirs = new Set(units.map((unit) => path.dirname(unit.fileUri.fsPath)));
+	if (dirs.size !== 1) {
+		return undefined;
+	}
+	const dir = [...dirs][0];
+	const inDir = discovered.filter((uri) => path.dirname(uri.fsPath) === dir);
+	return inDir.every((uri) => chosen.has(uri.fsPath)) ? dir : undefined;
 }
