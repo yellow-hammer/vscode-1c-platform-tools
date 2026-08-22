@@ -3323,6 +3323,41 @@
         "key": "ctrl+alt+t",
         "mac": "cmd+alt+t",
         "when": "1c-platform-tools.is1CProject == true && editorTextFocus"
+      },
+      {
+        "command": "workbench.view.extension.1c-platform-tools-projects",
+        "key": "ctrl+alt+1",
+        "mac": "cmd+alt+1"
+      },
+      {
+        "command": "workbench.view.extension.1c-platform-tools-admin",
+        "key": "ctrl+alt+2",
+        "mac": "cmd+alt+2"
+      },
+      {
+        "command": "workbench.view.extension.1c-platform-tools",
+        "key": "ctrl+alt+3",
+        "mac": "cmd+alt+3"
+      },
+      {
+        "command": "workbench.view.extension.1c-platform-tools-metadata",
+        "key": "ctrl+alt+4",
+        "mac": "cmd+alt+4"
+      },
+      {
+        "command": "workbench.view.extension.1c-platform-tools-properties",
+        "key": "ctrl+alt+5",
+        "mac": "cmd+alt+5"
+      },
+      {
+        "command": "workbench.view.extension.1c-platform-tools-todo",
+        "key": "ctrl+alt+6",
+        "mac": "cmd+alt+6"
+      },
+      {
+        "command": "1c-platform-tools.test.syntaxCheck",
+        "key": "ctrl+f7",
+        "when": "1c-platform-tools.is1CProject == true"
       }
     ],
     "walkthroughs": [
