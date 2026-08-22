@@ -32,10 +32,17 @@ export interface RunUnit {
  * Подготовительный шаг плана запуска (например, сборка тестовой обработки)
  */
 export interface AdapterRunStep {
-	/** Исполнитель: vrunner (через VRunnerManager) или произвольная команда оболочки */
-	tool: 'vrunner' | 'shell';
+	/**
+	 * Исполнитель: vrunner, произвольная команда оболочки либо действие адаптера.
+	 *
+	 * `action` нужен там, где шаг не запускает процесс: например собрать каталог
+	 * прогона из уже собранных бинарников.
+	 */
+	tool: 'vrunner' | 'shell' | 'action';
 	/** Аргументы vrunner либо полная команда (для tool: 'shell' — args[0]) */
 	args: string[];
+	/** Действие шага для tool: 'action'; выполняется после предыдущих шагов */
+	run?: () => Promise<void>;
 	/** Короткое описание шага для вывода и сообщений об ошибках */
 	title: string;
 }
@@ -161,9 +168,15 @@ export interface TestFrameworkAdapter {
 	 *
 	 * @param units - Полнофайловые единицы запуска (caseNames не заданы)
 	 * @param reportDir - Каталог отчёта прогона (пустая строка, если usesReportDir === false)
+	 * @param discovered - Все известные адаптеру файлы дерева; по ним видно,
+	 *        покрывает ли выбор набор целиком
 	 * @returns План батч-прогона либо undefined
 	 */
-	buildBatchRunPlan?(units: RunUnit[], reportDir: string): Promise<AdapterRunPlan | undefined>;
+	buildBatchRunPlan?(
+		units: RunUnit[],
+		reportDir: string,
+		discovered: readonly vscode.Uri[]
+	): Promise<AdapterRunPlan | undefined>;
 
 	/**
 	 * Ключ группировки файлов в один батч-прогон.

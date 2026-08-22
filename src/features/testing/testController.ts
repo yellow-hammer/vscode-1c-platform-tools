@@ -4,7 +4,7 @@ import * as fs from 'node:fs/promises';
 import { VRunnerManager } from '../../shared/vrunnerManager';
 import { runCancellableCommand, CancellableProcessResult } from '../../shared/cancellableProcess';
 import { logger } from '../../shared/logger';
-import { TestFrameworkAdapter, RunUnit, AdapterRunPlan, FileTreeLocation } from './frameworkAdapter';
+import { TestFrameworkAdapter, RunUnit, AdapterRunPlan, AdapterRunStep, FileTreeLocation } from './frameworkAdapter';
 import { DiscoveredFile } from './parsers/parserTypes';
 import { frameworkRootId, fileItemId } from './testItemIds';
 import {
@@ -115,6 +115,25 @@ interface FileEntry {
  * Владеет vscode.TestController: строит дерево «фреймворк → файл → кейс»,
  * следит за файлами тестов и выполняет прогоны через адаптеры фреймворков.
  */
+
+/**
+ * Выполняет шаг плана, который не запускает процесс.
+ *
+ * Результат приводится к виду процесса, чтобы обработка ошибок в прогоне
+ * осталась одна на все виды шагов.
+ *
+ * @param step - Шаг с действием
+ * @returns Результат в форме результата процесса
+ */
+async function runActionStep(step: AdapterRunStep): Promise<CancellableProcessResult> {
+	try {
+		await step.run?.();
+		return { success: true, stdout: '', stderr: '', exitCode: 0, cancelled: false };
+	} catch (error) {
+		return { success: false, stdout: '', stderr: String(error), exitCode: 1, cancelled: false };
+	}
+}
+
 export class TestingController implements vscode.Disposable {
 	private readonly controller: vscode.TestController;
 	private readonly queue = new RunQueue();
@@ -722,6 +741,25 @@ export class TestingController implements vscode.Disposable {
 	 * @returns true — батч обработан (исполнен или размечен ошибкой); false — батч
 	 *          в текущей конфигурации недоступен, файлы нужно прогнать поштучно
 	 */
+	/**
+	 * Все известные дереву файлы одного адаптера.
+	 *
+	 * По ним адаптер решает, покрывает ли выбор набор целиком: от этого
+	 * зависит, можно ли обойтись одним сеансом.
+	 *
+	 * @param adapter - Адаптер фреймворка
+	 * @returns URI обнаруженных файлов
+	 */
+	private discoveredFilesOf(adapter: TestFrameworkAdapter): vscode.Uri[] {
+		const found: vscode.Uri[] = [];
+		for (const entry of this.files.values()) {
+			if (entry.adapter.id === adapter.id && entry.item.uri) {
+				found.push(entry.item.uri);
+			}
+		}
+		return found;
+	}
+
 	private async runBatch(
 		run: vscode.TestRun,
 		units: { entry: FileEntry; caseNames?: string[] }[],
@@ -756,7 +794,8 @@ export class TestingController implements vscode.Disposable {
 		let plan: AdapterRunPlan | undefined;
 		let result: CancellableProcessResult;
 		try {
-			plan = await adapter.buildBatchRunPlan!(runUnits, reportDir);
+			const discovered = this.discoveredFilesOf(adapter);
+			plan = await adapter.buildBatchRunPlan!(runUnits, reportDir, discovered);
 			if (!plan) {
 				await this.cleanupReportDir(reportDir);
 				return false;
@@ -783,7 +822,9 @@ export class TestingController implements vscode.Disposable {
 					return true;
 				}
 				run.appendOutput(`\r\n--- ${step.title} ---\r\n`);
-				const stepResult = await this.executeStep(step.tool, step.args, plan.env, token, onOutput);
+				const stepResult = step.tool === 'action'
+					? await runActionStep(step)
+					: await this.executeStep(step.tool, step.args, plan.env, token, onOutput);
 				if (stepResult.cancelled) {
 					await this.cleanupReportDir(reportDir);
 					return true;
@@ -1037,7 +1078,9 @@ export class TestingController implements vscode.Disposable {
 					return;
 				}
 				run.appendOutput(`\r\n--- ${step.title} ---\r\n`, undefined, entry.item);
-				const stepResult = await this.executeStep(step.tool, step.args, plan.env, token, onOutput);
+				const stepResult = step.tool === 'action'
+					? await runActionStep(step)
+					: await this.executeStep(step.tool, step.args, plan.env, token, onOutput);
 				if (stepResult.cancelled) {
 					await this.cleanupReportDir(reportDir);
 					return;
