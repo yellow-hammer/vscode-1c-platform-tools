@@ -15,6 +15,27 @@
   "extensionKind": [
     "workspace"
   ],
+  "capabilities": {
+    "untrustedWorkspaces": {
+      "supported": "limited",
+      "description": "Команды 1С, установка OneScript и компонентов, Docker и автономный сервер запускают код из открытой папки, поэтому в режиме ограниченной функциональности они не выполняются. Панели и просмотр метаданных работают.",
+      "restrictedConfigurations": [
+        "1c-platform-tools.vrunner.path",
+        "1c-platform-tools.oscript.path",
+        "1c-platform-tools.allure.path",
+        "1c-platform-tools.components.adapterFile",
+        "1c-platform-tools.components.metadataJarFile",
+        "1c-platform-tools.components.javaExecutable",
+        "1c-platform-tools.components.ovmFile",
+        "1c-platform-tools.test.onescriptRunnerPath",
+        "1c-platform-tools.test.onebddPath",
+        "1c-platform-tools.server.platformPath",
+        "1c-platform-tools.clusters.platformPath",
+        "1c-platform-tools.docker.enabled",
+        "1c-platform-tools.docker.image"
+      ]
+    }
+  },
   "repository": {
     "type": "git",
     "url": "https://github.com/yellow-hammer/vscode-1c-platform-tools"

@@ -33,6 +33,7 @@ import { registerClustersFeature } from '../features/clusters/registerClustersFe
 import { registerIbasesFeature } from '../features/ibases/registerIbasesFeature';
 import { initGithubToken } from '../shared/githubToken';
 import { initTerminalEnv } from '../shared/terminalEnv';
+import { onWorkspaceTrustGranted } from '../shared/workspaceTrust';
 
 /**
  * Выполняет полную инициализацию расширения.
@@ -101,6 +102,17 @@ export async function bootstrapApp(context: vscode.ExtensionContext): Promise<vo
 		metadataTreeProvider,
 		rebuildTesting,
 	});
+
+	// В недоверенной папке команды не выполнялись, поэтому после выдачи
+	// доверия деревья перечитываются
+	context.subscriptions.push(
+		onWorkspaceTrustGranted(() => {
+			treeDataProvider.refresh();
+			artifactsProvider.refresh();
+			metadataTreeProvider.refresh();
+			rebuildTesting?.();
+		})
+	);
 
 	registerWelcomeFlow(context);
 	const helpAndSettingsDisposables = registerHelpAndSettingsCommands();

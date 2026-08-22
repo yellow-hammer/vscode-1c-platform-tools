@@ -21,6 +21,7 @@ import { VRunnerManager } from '../shared/vrunnerManager';
 import type { CommandExecutionOptions, StructuredCommandResult } from '../shared/commandExecutionTypes';
 import { isAgentOptions, agentInteractiveError, uiOnlyHandler } from '../shared/agentGate';
 import { askGithubToken, forgetGithubToken } from '../shared/githubToken';
+import { ensureWorkspaceTrusted } from '../shared/workspaceTrust';
 
 const log = logger.scope('commands');
 
@@ -72,7 +73,12 @@ function registerVRunnerCommand(
 	id: string,
 	handler: (opts?: CommandExecutionOptions) => Promise<StructuredCommandResult | void>
 ): vscode.Disposable {
-	return vscode.commands.registerCommand(id, async (opts?: CommandExecutionOptions) => handler(opts));
+	return vscode.commands.registerCommand(id, async (opts?: CommandExecutionOptions) => {
+		if (!ensureWorkspaceTrusted('команды 1С')) {
+			return;
+		}
+		return handler(opts);
+	});
 }
 
 /**
