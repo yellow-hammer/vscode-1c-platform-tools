@@ -19,7 +19,14 @@
  * объекты) типами HTTPСервис/ОбщаяФорма/модулей менеджера-объекта-формы.
  */
 
-/** Русский тип метаданных → английский подкаталог выгрузки src/cf */
+/**
+ * Формат исходников: выгрузка конфигуратора или проект EDT.
+ * Совпадает с `SourceFormat` из projectLayout, продублирован, чтобы модуль
+ * оставался чистым и тестировался без остального кода.
+ */
+export type MetadataSourceFormat = 'designer' | 'edt';
+
+/** Русский тип метаданных → английский подкаталог выгрузки */
 const TYPE_TO_SUBDIR: Record<string, string> = {
 	ОбщийМодуль: 'CommonModules',
 	HTTPСервис: 'HTTPServices',
@@ -45,6 +52,9 @@ const TYPE_TO_SUBDIR: Record<string, string> = {
 	ЖурналДокументов: 'DocumentJournals',
 };
 
+/** Русские типы метаданных, известные маппингу (для разбора текста вывода). */
+export const METADATA_TYPE_NAMES: readonly string[] = Object.keys(TYPE_TO_SUBDIR);
+
 /** Типы с единственным модулем в Ext/Module.bsl (суффикс «Модуль») */
 const SINGLE_MODULE_TYPES = new Set(['ОбщийМодуль', 'HTTPСервис', 'WebСервис', 'ОбщаяКоманда']);
 
@@ -63,7 +73,10 @@ const MODULE_SUFFIX_TO_FILE: Record<string, string> = {
  * @returns Относительный путь с разделителем «/» (например `CommonModules/Имя/Ext/Module.bsl`)
  *          или undefined, если тип/форма не раскладываются в .bsl
  */
-export function resolveBslPathFromMetadata(metadataPath: string): string | undefined {
+export function resolveBslPathFromMetadata(
+	metadataPath: string,
+	format: MetadataSourceFormat = 'designer'
+): string | undefined {
 	const segments = metadataPath.split('.');
 	if (segments.length < 3) {
 		return undefined;
@@ -77,11 +90,15 @@ export function resolveBslPathFromMetadata(metadataPath: string): string | undef
 
 	const objectName = segments[1];
 	const suffix = segments[segments.length - 1];
+	// В EDT каталога Ext нет, модули лежат прямо в каталоге объекта
+	const ext = format === 'edt' ? '' : 'Ext/';
 
 	// Общая форма: объект сам является формой (ОбщаяФорма.Имя.Форма)
 	if (type === 'ОбщаяФорма') {
 		if (segments.length === 3 && suffix === 'Форма') {
-			return `${subdir}/${objectName}/Ext/Form/Module.bsl`;
+			return format === 'edt'
+				? `${subdir}/${objectName}/Module.bsl`
+				: `${subdir}/${objectName}/Ext/Form/Module.bsl`;
 		}
 		return undefined;
 	}
@@ -89,18 +106,20 @@ export function resolveBslPathFromMetadata(metadataPath: string): string | undef
 	// Подчинённая форма: Тип.Объект.Форма.ИмяФормы.Форма
 	if (segments.length === 5 && segments[2] === 'Форма' && suffix === 'Форма') {
 		const formName = segments[3];
-		return `${subdir}/${objectName}/Forms/${formName}/Ext/Form/Module.bsl`;
+		return format === 'edt'
+			? `${subdir}/${objectName}/Forms/${formName}/Module.bsl`
+			: `${subdir}/${objectName}/Forms/${formName}/Ext/Form/Module.bsl`;
 	}
 
 	// Модуль менеджера/объекта/набора записей
 	const moduleFile = MODULE_SUFFIX_TO_FILE[suffix];
 	if (segments.length === 3 && moduleFile) {
-		return `${subdir}/${objectName}/Ext/${moduleFile}`;
+		return `${subdir}/${objectName}/${ext}${moduleFile}`;
 	}
 
-	// Единственный модуль объекта (Ext/Module.bsl)
+	// Единственный модуль объекта
 	if (segments.length === 3 && suffix === 'Модуль' && SINGLE_MODULE_TYPES.has(type)) {
-		return `${subdir}/${objectName}/Ext/Module.bsl`;
+		return `${subdir}/${objectName}/${ext}Module.bsl`;
 	}
 
 	return undefined;

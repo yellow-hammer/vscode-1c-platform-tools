@@ -27,6 +27,7 @@ import { registerTestingFlow } from './registerTestingFlow';
 import { registerLaunchFeature } from '../features/launch/launchFeature';
 import { registerPlatformServerFeature } from '../features/launch/platformServerFeature';
 import { registerDiagnosticsFeature } from '../features/diagnostics/registerDiagnosticsFeature';
+import { SourceTerminalLinkProvider } from '../features/tools/terminalLinks';
 import { registerTasksFeature } from '../features/tasks/registerTasksFeature';
 import { registerClustersFeature } from '../features/clusters/registerClustersFeature';
 import { registerIbasesFeature } from '../features/ibases/registerIbasesFeature';
@@ -86,6 +87,11 @@ export async function bootstrapApp(context: vscode.ExtensionContext): Promise<vo
 	const launchFeatureDisposables = registerLaunchFeature(context, isProjectRef);
 	const platformServerDisposables = registerPlatformServerFeature(context, isProjectRef);
 	const diagnosticsFeatureDisposables = registerDiagnosticsFeature();
+	context.subscriptions.push(
+		vscode.window.registerTerminalLinkProvider(
+			new SourceTerminalLinkProvider(VRunnerManager.getInstance())
+		)
+	);
 	const tasksFeatureDisposables = registerTasksFeature();
 
 	registerProjectCreatedHandler({
