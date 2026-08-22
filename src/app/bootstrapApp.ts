@@ -27,11 +27,13 @@ import { registerTestingFlow } from './registerTestingFlow';
 import { registerLaunchFeature } from '../features/launch/launchFeature';
 import { registerPlatformServerFeature } from '../features/launch/platformServerFeature';
 import { registerDiagnosticsFeature } from '../features/diagnostics/registerDiagnosticsFeature';
+import { SourceTerminalLinkProvider } from '../features/tools/terminalLinks';
 import { registerTasksFeature } from '../features/tasks/registerTasksFeature';
 import { registerClustersFeature } from '../features/clusters/registerClustersFeature';
 import { registerIbasesFeature } from '../features/ibases/registerIbasesFeature';
 import { initGithubToken } from '../shared/githubToken';
 import { initTerminalEnv } from '../shared/terminalEnv';
+import { onWorkspaceTrustGranted } from '../shared/workspaceTrust';
 
 /**
  * Выполняет полную инициализацию расширения.
@@ -86,6 +88,11 @@ export async function bootstrapApp(context: vscode.ExtensionContext): Promise<vo
 	const launchFeatureDisposables = registerLaunchFeature(context, isProjectRef);
 	const platformServerDisposables = registerPlatformServerFeature(context, isProjectRef);
 	const diagnosticsFeatureDisposables = registerDiagnosticsFeature();
+	context.subscriptions.push(
+		vscode.window.registerTerminalLinkProvider(
+			new SourceTerminalLinkProvider(VRunnerManager.getInstance())
+		)
+	);
 	const tasksFeatureDisposables = registerTasksFeature();
 
 	registerProjectCreatedHandler({
@@ -95,6 +102,17 @@ export async function bootstrapApp(context: vscode.ExtensionContext): Promise<vo
 		metadataTreeProvider,
 		rebuildTesting,
 	});
+
+	// В недоверенной папке команды не выполнялись, поэтому после выдачи
+	// доверия деревья перечитываются
+	context.subscriptions.push(
+		onWorkspaceTrustGranted(() => {
+			treeDataProvider.refresh();
+			artifactsProvider.refresh();
+			metadataTreeProvider.refresh();
+			rebuildTesting?.();
+		})
+	);
 
 	registerWelcomeFlow(context);
 	const helpAndSettingsDisposables = registerHelpAndSettingsCommands();

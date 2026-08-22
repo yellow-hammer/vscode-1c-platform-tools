@@ -18,6 +18,7 @@ import { notifyQuiet } from '../shared/notify';
 import { buildProcessCommand, joinCommands, PROCESS_HOST_SHELL } from '../utils/commandUtils';
 import { createVRunnerTask } from '../features/tasks/vrunnerTask';
 import { showComponentError } from '../shared/githubToken';
+import { ensureWorkspaceTrusted } from '../shared/workspaceTrust';
 
 const log = logger.scope('commands');
 
@@ -251,6 +252,9 @@ export class DependenciesCommands extends BaseCommand {
 	 * @returns Промис, который разрешается после запуска команды
 	 */
 	async installDependencies(): Promise<void> {
+		if (!ensureWorkspaceTrusted('установка зависимостей')) {
+			return;
+		}
 		const workspaceRoot = this.ensureWorkspace();
 		if (!workspaceRoot) {
 			return;
@@ -459,6 +463,9 @@ export class DependenciesCommands extends BaseCommand {
 	 * @returns Промис, который разрешается после запуска команды
 	 */
 	async updateOpm(): Promise<void> {
+		if (!ensureWorkspaceTrusted('обновление OPM')) {
+			return;
+		}
 		const workspaceRoot = this.ensureWorkspace();
 		if (!workspaceRoot) {
 			return;
@@ -799,6 +806,9 @@ export class DependenciesCommands extends BaseCommand {
 	 * @returns Промис, который разрешается по завершении
 	 */
 	async installOscript(): Promise<void> {
+		if (!ensureWorkspaceTrusted('установка OneScript')) {
+			return;
+		}
 		const workspaceRoot = this.ensureWorkspace();
 		if (!workspaceRoot) {
 			return;

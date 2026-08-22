@@ -58,4 +58,68 @@ suite('metadataPathResolver', () => {
 		// У справочника нет одиночного Ext/Module.bsl
 		assert.strictEqual(resolveBslPathFromMetadata('Справочник.Файлы.Модуль'), undefined);
 	});
+
+	test('EDT: общий модуль без каталога Ext', () => {
+		assert.strictEqual(
+			resolveBslPathFromMetadata('ОбщийМодуль.РаботаСФайлами.Модуль', 'edt'),
+			'CommonModules/РаботаСФайлами/Module.bsl'
+		);
+	});
+
+	test('EDT: модуль объекта лежит в каталоге объекта', () => {
+		assert.strictEqual(
+			resolveBslPathFromMetadata('Справочник.Файлы.МодульОбъекта', 'edt'),
+			'Catalogs/Файлы/ObjectModule.bsl'
+		);
+	});
+
+	test('EDT: форма объекта без Ext/Form', () => {
+		assert.strictEqual(
+			resolveBslPathFromMetadata('Справочник.Файлы.Форма.ФормаЭлемента.Форма', 'edt'),
+			'Catalogs/Файлы/Forms/ФормаЭлемента/Module.bsl'
+		);
+	});
+
+	test('EDT: общая форма', () => {
+		assert.strictEqual(
+			resolveBslPathFromMetadata('ОбщаяФорма.ВыборПути.Форма', 'edt'),
+			'CommonForms/ВыборПути/Module.bsl'
+		);
+	});
+
+	test('формат по умолчанию — выгрузка конфигуратора', () => {
+		assert.strictEqual(
+			resolveBslPathFromMetadata('ОбщийМодуль.РаботаСФайлами.Модуль'),
+			resolveBslPathFromMetadata('ОбщийМодуль.РаботаСФайлами.Модуль', 'designer')
+		);
+	});
+	test('общая команда: файл CommandModule.bsl в обеих раскладках', () => {
+		// Сверено с живыми проектами: у общей команды модуль называется иначе
+		assert.strictEqual(
+			resolveBslPathFromMetadata('ОбщаяКоманда.ОткрытьЖурнал.Модуль'),
+			'CommonCommands/ОткрытьЖурнал/Ext/CommandModule.bsl'
+		);
+		assert.strictEqual(
+			resolveBslPathFromMetadata('ОбщаяКоманда.ОткрытьЖурнал.Модуль', 'edt'),
+			'CommonCommands/ОткрытьЖурнал/CommandModule.bsl'
+		);
+	});
+
+	test('общая команда: суффикс МодульКоманды', () => {
+		assert.strictEqual(
+			resolveBslPathFromMetadata('ОбщаяКоманда.ОткрытьЖурнал.МодульКоманды', 'edt'),
+			'CommonCommands/ОткрытьЖурнал/CommandModule.bsl'
+		);
+	});
+
+	test('веб-сервис и HTTP-сервис остаются на Module.bsl', () => {
+		assert.strictEqual(
+			resolveBslPathFromMetadata('WebСервис.Обмен.Модуль', 'edt'),
+			'WebServices/Обмен/Module.bsl'
+		);
+		assert.strictEqual(
+			resolveBslPathFromMetadata('HTTPСервис.Биллинг.Модуль', 'edt'),
+			'HTTPServices/Биллинг/Module.bsl'
+		);
+	});
 });

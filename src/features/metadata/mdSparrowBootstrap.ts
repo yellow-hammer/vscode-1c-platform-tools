@@ -192,6 +192,10 @@ export function checkMdSparrowUpdateInBackground(
 	context: vscode.ExtensionContext,
 	onUpdateApplied: () => void
 ): void {
+	// Компоненты не качаются в недоверенной папке: дальше их запускает Java
+	if (!vscode.workspace.isTrusted) {
+		return;
+	}
 	const cfg = vscode.workspace.getConfiguration('1c-platform-tools');
 	if (cfg.get<string>('components.metadataJarFile', '').trim()) {
 		return;
