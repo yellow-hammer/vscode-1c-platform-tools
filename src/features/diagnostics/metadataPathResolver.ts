@@ -55,8 +55,18 @@ const TYPE_TO_SUBDIR: Record<string, string> = {
 /** Русские типы метаданных, известные маппингу (для разбора текста вывода). */
 export const METADATA_TYPE_NAMES: readonly string[] = Object.keys(TYPE_TO_SUBDIR);
 
-/** Типы с единственным модулем в Ext/Module.bsl (суффикс «Модуль») */
-const SINGLE_MODULE_TYPES = new Set(['ОбщийМодуль', 'HTTPСервис', 'WebСервис', 'ОбщаяКоманда']);
+/**
+ * Типы с единственным модулем: тип → имя файла.
+ *
+ * У общей команды файл называется CommandModule.bsl, а не Module.bsl.
+ * Сверено с живыми проектами в обеих раскладках.
+ */
+const SINGLE_MODULE_FILE: Record<string, string> = {
+	ОбщийМодуль: 'Module.bsl',
+	HTTPСервис: 'Module.bsl',
+	WebСервис: 'Module.bsl',
+	ОбщаяКоманда: 'CommandModule.bsl',
+};;
 
 /** Суффикс пути модуля объекта → имя файла .bsl в каталоге Ext */
 const MODULE_SUFFIX_TO_FILE: Record<string, string> = {
@@ -117,9 +127,10 @@ export function resolveBslPathFromMetadata(
 		return `${subdir}/${objectName}/${ext}${moduleFile}`;
 	}
 
-	// Единственный модуль объекта
-	if (segments.length === 3 && suffix === 'Модуль' && SINGLE_MODULE_TYPES.has(type)) {
-		return `${subdir}/${objectName}/${ext}Module.bsl`;
+	// Единственный модуль объекта; у общей команды суффикс бывает «МодульКоманды»
+	const singleFile = SINGLE_MODULE_FILE[type];
+	if (segments.length === 3 && singleFile && (suffix === 'Модуль' || suffix === 'МодульКоманды')) {
+		return `${subdir}/${objectName}/${ext}${singleFile}`;
 	}
 
 	return undefined;

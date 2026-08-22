@@ -93,4 +93,33 @@ suite('metadataPathResolver', () => {
 			resolveBslPathFromMetadata('ОбщийМодуль.РаботаСФайлами.Модуль', 'designer')
 		);
 	});
+	test('общая команда: файл CommandModule.bsl в обеих раскладках', () => {
+		// Сверено с живыми проектами: у общей команды модуль называется иначе
+		assert.strictEqual(
+			resolveBslPathFromMetadata('ОбщаяКоманда.ОткрытьЖурнал.Модуль'),
+			'CommonCommands/ОткрытьЖурнал/Ext/CommandModule.bsl'
+		);
+		assert.strictEqual(
+			resolveBslPathFromMetadata('ОбщаяКоманда.ОткрытьЖурнал.Модуль', 'edt'),
+			'CommonCommands/ОткрытьЖурнал/CommandModule.bsl'
+		);
+	});
+
+	test('общая команда: суффикс МодульКоманды', () => {
+		assert.strictEqual(
+			resolveBslPathFromMetadata('ОбщаяКоманда.ОткрытьЖурнал.МодульКоманды', 'edt'),
+			'CommonCommands/ОткрытьЖурнал/CommandModule.bsl'
+		);
+	});
+
+	test('веб-сервис и HTTP-сервис остаются на Module.bsl', () => {
+		assert.strictEqual(
+			resolveBslPathFromMetadata('WebСервис.Обмен.Модуль', 'edt'),
+			'WebServices/Обмен/Module.bsl'
+		);
+		assert.strictEqual(
+			resolveBslPathFromMetadata('HTTPСервис.Биллинг.Модуль', 'edt'),
+			'HTTPServices/Биллинг/Module.bsl'
+		);
+	});
 });
