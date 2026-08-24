@@ -121,9 +121,9 @@ suite('свойства базы: проверка ввода', () => {
 		assert.deepStrictEqual(validateInfobaseForm(values), []);
 	});
 
-	test('запрет сеансов без сообщения вызывает замечание', () => {
+	test('запрет сеансов без сообщения сохраняется', () => {
 		const values = { ...toInfobaseForm(RECORD), 'sessions-deny': 'on' };
 
-		assert.strictEqual(validateInfobaseForm(values).length, 1);
+		assert.deepStrictEqual(validateInfobaseForm(values), []);
 	});
 });

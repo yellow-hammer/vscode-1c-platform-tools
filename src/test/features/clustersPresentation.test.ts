@@ -143,5 +143,60 @@ suite('подписи кластера: узлы', () => {
 		assert.strictEqual(presentation.label, 'Бухгалтерия');
 		assert.strictEqual(presentation.description, undefined);
 	});
+
+	test('рядом с именем базы стоит срок блокировки, а запреты названы в подсказке', () => {
+		const infobase: InfobaseInfo = { id: 'ib', name: 'Бухгалтерия', descr: 'Рабочая', record: {} };
+
+		const presentation = infobasePresentation(infobase, {
+			sessionsDeny: true,
+			scheduledJobsDeny: true,
+			deniedFrom: '2024-05-01T20:00:00',
+			deniedTo: '2024-05-02T08:00:00',
+		});
+
+		assert.strictEqual(presentation.description, 'Рабочая · с 01.05.2024 20:00 по 02.05.2024 08:00');
+		assert.ok(presentation.tooltip.some((line) => line.includes('начало сеансов запрещено')));
+		assert.ok(presentation.tooltip.some((line) => line.includes('регламентные задания запрещены')));
+	});
+
+	test('запрет без срока подписи не добавляет: запрет виден значком', () => {
+		const infobase: InfobaseInfo = { id: 'ib', name: 'Бухгалтерия', descr: '', record: {} };
+
+		const presentation = infobasePresentation(infobase, {
+			sessionsDeny: true,
+			scheduledJobsDeny: false,
+			deniedFrom: '',
+			deniedTo: '',
+		});
+
+		assert.strictEqual(presentation.description, undefined);
+		assert.ok(presentation.tooltip.some((line) => line.includes('начало сеансов запрещено')));
+	});
+
+	test('без запрета сеансов старые даты не показываются', () => {
+		const infobase: InfobaseInfo = { id: 'ib', name: 'Бухгалтерия', descr: '', record: {} };
+
+		const presentation = infobasePresentation(infobase, {
+			sessionsDeny: false,
+			scheduledJobsDeny: true,
+			deniedFrom: '2024-05-01T20:00:00',
+			deniedTo: '',
+		});
+
+		assert.strictEqual(presentation.description, undefined);
+	});
+
+	test('база без запретов описывается как обычная', () => {
+		const infobase: InfobaseInfo = { id: 'ib', name: 'Бухгалтерия', descr: '', record: {} };
+
+		const presentation = infobasePresentation(infobase, {
+			sessionsDeny: false,
+			scheduledJobsDeny: false,
+			deniedFrom: '',
+			deniedTo: '',
+		});
+
+		assert.strictEqual(presentation.description, undefined);
+	});
 });
 

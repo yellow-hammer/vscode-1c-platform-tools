@@ -27,6 +27,7 @@ import {
 	buildConnectionDisconnectArgs,
 	buildConnectionInfoArgs,
 	buildConnectionListArgs,
+	buildInfobaseDropArgs,
 	buildInfobaseInfoArgs,
 	buildInfobaseListArgs,
 	buildInfobaseUpdateArgs,
@@ -47,6 +48,7 @@ import {
 	type ClusterScope,
 	type AdminRegistration,
 	type ClusterUpdate,
+	type InfobaseDropMode,
 	type InfobaseUpdate,
 	type RacCredentials,
 	type RacScope,
@@ -86,6 +88,9 @@ export interface ConnectionCheck {
 
 /** Итог доменной операции. */
 export type ServiceResult<T> = { ok: true; value: T } | { ok: false; failure: RacFailure };
+
+/** Сколько информационных баз читается одновременно. */
+const INFOBASE_BATCH = 4;
 
 /**
  * Запрос учётных данных администратора информационной базы.
@@ -498,6 +503,51 @@ export class ClusterService {
 		return this.collect(connection, buildInfobaseListArgs(scope), toInfobaseInfo);
 	}
 
+	/**
+	 * Читает полные сведения о нескольких информационных базах.
+	 *
+	 * Режим работы и размещение краткий список не отдаёт, а полные сведения
+	 * читаются по одной базе. Пароль администратора базы не спрашивается — ради
+	 * значка в дереве окно ввода было бы навязчиво, — поэтому закрытая база
+	 * остаётся без сведений; уже известный пароль используется.
+	 *
+	 * @param connection - Подключение
+	 * @param clusterId - Идентификатор кластера
+	 * @param infobaseIds - Идентификаторы баз
+	 * @returns Промис, который разрешается сведениями тех баз, которые ответили
+	 */
+	async infobaseRecords(
+		connection: ClusterConnection,
+		clusterId: string,
+		infobaseIds: string[]
+	): Promise<Map<string, RacRecord>> {
+		const scope = await this.clusterScope(connection, clusterId);
+		const records = new Map<string, RacRecord>();
+		const queue = [...infobaseIds];
+		const read = async (): Promise<void> => {
+			for (let id = queue.shift(); id !== undefined; id = queue.shift()) {
+				const result = await this.client.run(
+					buildInfobaseInfoArgs({
+						...scope,
+						infobaseId: id,
+						infobase: this.credentials.infobase(connection.id, id),
+					}),
+					{ platformVersion: connection.platformVersion }
+				);
+				const record = result.ok ? result.records[0] : undefined;
+				if (record) {
+					records.set(id, record);
+				}
+			}
+		};
+		// Порциями: каждый вызов — отдельный процесс rac. Все разом нагрузили бы
+		// машину, строго по одному — дерево ждало бы сведения слишком долго.
+		await Promise.all(
+			Array.from({ length: Math.min(INFOBASE_BATCH, queue.length) }, () => read())
+		);
+		return records;
+	}
+
 	/** Список сеансов кластера или одной информационной базы. */
 	async listSessions(
 		connection: ClusterConnection,
@@ -719,6 +769,40 @@ export class ClusterService {
 						infobaseId: infobase.id,
 						infobase: infobaseCredentials,
 						update,
+					}),
+					{ platformVersion: connection.platformVersion }
+				)
+		);
+		return result.ok ? { ok: true, value: undefined } : { ok: false, failure: result.failure };
+	}
+
+	/**
+	 * Удаляет информационную базу из кластера.
+	 *
+	 * @param connection - Подключение
+	 * @param clusterId - Идентификатор кластера
+	 * @param infobase - Идентификатор и имя базы
+	 * @param mode - Что делать с базой данных на сервере СУБД
+	 * @returns Промис, который разрешается итогом операции
+	 */
+	async dropInfobase(
+		connection: ClusterConnection,
+		clusterId: string,
+		infobase: { id: string; name: string },
+		mode: InfobaseDropMode
+	): Promise<ServiceResult<void>> {
+		const scope = await this.clusterScope(connection, clusterId);
+		const result = await this.withInfobaseAuth(
+			connection,
+			infobase.id,
+			infobase.name,
+			(infobaseCredentials) =>
+				this.client.run(
+					buildInfobaseDropArgs({
+						...scope,
+						infobaseId: infobase.id,
+						infobase: infobaseCredentials,
+						mode,
 					}),
 					{ platformVersion: connection.platformVersion }
 				)

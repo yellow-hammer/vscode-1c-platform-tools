@@ -246,6 +246,12 @@ ${chromeStyles()}
 	.field label { font-size: 0.9em; color: var(--vscode-foreground); text-align: right;
 		overflow-wrap: anywhere; }
 	.field input, .field select { padding: 3px 6px; }
+	/* Каркас оформляет только текст, число и пароль: дате нужны те же цвета */
+	.field input[type=datetime-local] { background: var(--vscode-input-background);
+		color: var(--vscode-input-foreground); border: 1px solid var(--vscode-input-border, transparent);
+		border-radius: 4px; font-family: inherit; font-size: inherit; }
+	/* Календарь и стрелки рисует браузер: без подсказки о теме они остаются светлыми */
+	body.vscode-dark input[type=datetime-local] { color-scheme: dark; }
 	.field.flag { grid-template-columns: 210px minmax(0, 1fr); }
 	.field.flag label { order: 1; text-align: right; }
 	.field.flag input { order: 2; width: auto; justify-self: start; }
@@ -307,11 +313,34 @@ function selectField(item, value) {
 	return wrap;
 }
 
+/** Дата и время: платформа ждёт местное время вида 2026-08-18T22:00:00 */
+function dateField(item, value) {
+	const wrap = document.createElement('div');
+	wrap.className = 'field';
+	const label = document.createElement('label');
+	label.textContent = item.title;
+	if (item.hint) { wrap.title = item.hint; }
+	const input = document.createElement('input');
+	input.type = 'datetime-local';
+	// Секунды платформа хранит, поэтому поле показывает их и не округляет молча
+	input.step = '1';
+	input.value = value;
+	input.addEventListener('change', () => {
+		const next = input.value;
+		draft[item.key] = next === '' || next.length > 16 ? next : next + ':00';
+		renderAll();
+	});
+	wrap.appendChild(label);
+	wrap.appendChild(input);
+	return wrap;
+}
+
 /** Одно поле карточки: имя параметра именно item, чтобы не перекрыть field() каркаса */
 function renderField(item) {
 	const value = draft[item.key] === undefined ? '' : draft[item.key];
 	if (item.kind === 'readonly') { return readonlyField(item, value); }
 	if (item.kind === 'select') { return selectField(item, value); }
+	if (item.kind === 'date') { return dateField(item, value); }
 	if (item.kind === 'password') {
 		const wrap = document.createElement('div');
 		wrap.className = 'field';

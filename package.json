@@ -617,7 +617,7 @@
       },
       {
         "command": "1c-platform-tools.clusters.showActivity",
-        "title": "Сеансы и соединения таблицей",
+        "title": "Списки таблицей",
         "category": "1C: Кластеры",
         "icon": "$(pulse)"
       },
@@ -662,6 +662,12 @@
         "title": "Завершить все сеансы",
         "category": "1C: Кластеры",
         "icon": "$(debug-stop)"
+      },
+      {
+        "command": "1c-platform-tools.clusters.dropInfobase",
+        "title": "Удалить",
+        "category": "1C: Кластеры",
+        "icon": "$(trash)"
       },
       {
         "command": "1c-platform-tools.clusters.disconnectConnection",
@@ -2031,6 +2037,10 @@
           "when": "false"
         },
         {
+          "command": "1c-platform-tools.clusters.dropInfobase",
+          "when": "false"
+        },
+        {
           "command": "1c-platform-tools.clusters.disconnectConnection",
           "when": "false"
         },
@@ -2664,7 +2674,7 @@
         {
           "command": "1c-platform-tools.clusters.properties",
           "when": "view == 1c-platform-tools-clusters-tree && viewItem =~ /^(clusterConnection|clusterNode|clusterServer|clusterProcess|clusterManager|clusterInfobase|clusterSession|clusterConnectionItem|clusterAdmin|clusterAgentAdmin)$/",
-          "group": "1_details@1"
+          "group": "1_details@0"
         },
         {
           "command": "1c-platform-tools.clusters.properties",
@@ -2693,12 +2703,7 @@
         },
         {
           "command": "1c-platform-tools.clusters.showActivity",
-          "when": "view == 1c-platform-tools-clusters-tree && viewItem =~ /^(clusterNode|clusterInfobase)$/",
-          "group": "1_details@0"
-        },
-        {
-          "command": "1c-platform-tools.clusters.showActivity",
-          "when": "view == 1c-platform-tools-clusters-tree && viewItem =~ /^(clusterNode|clusterInfobase)$/",
+          "when": "view == 1c-platform-tools-clusters-tree && (viewItem =~ /^(clusterNode|clusterInfobase)$/ || viewItem =~ /(^| )clusterGroupTable( |$)/)",
           "group": "inline@30"
         },
         {
@@ -2725,6 +2730,11 @@
           "command": "1c-platform-tools.clusters.terminateInfobaseSessions",
           "when": "view == 1c-platform-tools-clusters-tree && viewItem == clusterInfobase",
           "group": "3_danger@1"
+        },
+        {
+          "command": "1c-platform-tools.clusters.dropInfobase",
+          "when": "view == 1c-platform-tools-clusters-tree && viewItem == clusterInfobase",
+          "group": "3_danger@2"
         },
         {
           "command": "1c-platform-tools.clusters.interruptSessionCall",

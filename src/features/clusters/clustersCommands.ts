@@ -16,6 +16,7 @@ import type { ConnectionStore } from './connectionStore';
 import type { ClusterCredentialStore } from './credentials';
 import type { ClustersAutoRefresh } from './autoRefresh';
 import type { ClusterActivityPanel } from './activityPanel';
+import { activityRequest } from './activityRequest';
 import type { ClusterConnectionsEditor } from './connectionsEditor';
 import type { PropertiesPanel } from './propertiesPanel';
 import { CLUSTER_SECTIONS, buildClusterChange, toClusterForm, validateClusterForm } from './clusterProperties';
@@ -46,7 +47,7 @@ import {
 import type { ClustersProvider } from './clustersProvider';
 import type { RacFailure, RacRecord } from './racOutput';
 import { CLUSTERS_CONFIG_SECTION } from './constants';
-import { formatRacDate } from './racArgs';
+import { formatRacDate, type InfobaseDropMode } from './racArgs';
 import {
 	AdminNode,
 	ClusterNode,
@@ -60,7 +61,12 @@ import {
 	ServerNode,
 	SessionNode,
 } from './nodes';
-import { confirmAction, confirmSessionAction, promptSessionLock } from './prompts';
+import {
+	confirmAction,
+	confirmSessionAction,
+	promptInfobaseDropMode,
+	promptSessionLock,
+} from './prompts';
 import { readClustersSettings } from './settings';
 
 /** Зависимости команд. */
@@ -374,36 +380,19 @@ export function registerClustersCommands(deps: ClustersCommandsDeps): vscode.Dis
 		() => setAutoRefresh(false)
 	);
 
-	// Таблица отвечает на вопрос «кто нагружает кластер»: значения сравнивают
-	// между собой, а в дереве каждый сеанс виден по отдельности.
+	// Таблица отвечает на вопросы «кто нагружает кластер» и «какая база закрыта»:
+	// значения сравнивают между собой, а в дереве каждый объект виден отдельно.
 	const showActivity = vscode.commands.registerCommand(
 		'1c-platform-tools.clusters.showActivity',
 		async (node: unknown) => {
 			if (!requireNode(node)) {
 				return;
 			}
-			if (node instanceof ClusterNode) {
-				await activity.open(
-					{
-						connection: node.connection,
-						clusterId: node.cluster.id,
-						title: node.cluster.name || node.cluster.host,
-					},
-					'sessions'
-				);
+			const request = activityRequest(node);
+			if (!request) {
 				return;
 			}
-			if (node instanceof InfobaseNode) {
-				await activity.open(
-					{
-						connection: node.connection,
-						clusterId: node.clusterId,
-						infobaseId: node.infobase.id,
-						title: node.infobase.name,
-					},
-					'sessions'
-				);
-			}
+			await activity.open(request.target, request.kind);
 		}
 	);
 
@@ -811,6 +800,48 @@ export function registerClustersCommands(deps: ClustersCommandsDeps): vscode.Dis
 		}
 	);
 
+	// Удаление базы подтверждается всегда, независимо от настройки подтверждений:
+	// у остальных действий последствия обратимы, у этого — нет.
+	const dropInfobase = vscode.commands.registerCommand(
+		'1c-platform-tools.clusters.dropInfobase',
+		async (node: unknown) => {
+			if (!requireNode(node) || !(node instanceof InfobaseNode)) {
+				return;
+			}
+			const mode = await promptInfobaseDropMode(node.infobase.name);
+			if (!mode) {
+				return;
+			}
+			const details: Record<InfobaseDropMode, string> = {
+				keep: 'База исчезнет из кластера, база данных на сервере СУБД останется.',
+				drop: 'Вместе с базой будет удалена база данных на сервере СУБД. Вернуть данные можно только из резервной копии.',
+				clear: 'База исчезнет из кластера, её база данных будет очищена. Вернуть данные можно только из резервной копии.',
+			};
+			const confirmed = await confirmAction(
+				`Удалить базу «${node.infobase.name}»?`,
+				details[mode],
+				'Удалить'
+			);
+			if (!confirmed) {
+				return;
+			}
+			const result = await withProgress(`Удаляю базу «${node.infobase.name}»`, () =>
+				service.dropInfobase(
+					node.connection,
+					node.clusterId,
+					{ id: node.infobase.id, name: node.infobase.name },
+					mode
+				)
+			);
+			if (!result.ok) {
+				await reportFailure(result.failure);
+				return;
+			}
+			provider.refreshCluster(node);
+			notifyQuiet(`База «${node.infobase.name}» удалена`);
+		}
+	);
+
 	return [
 		addConnection,
 		removeConnection,
@@ -832,6 +863,7 @@ export function registerClustersCommands(deps: ClustersCommandsDeps): vscode.Dis
 		lockScheduledJobs,
 		unlockScheduledJobs,
 		terminateInfobaseSessions,
+		dropInfobase,
 	];
 }
 

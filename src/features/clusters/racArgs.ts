@@ -279,6 +279,47 @@ export function buildInfobaseUpdateArgs(
 	return compose('infobase', ['update'], options, scope.address);
 }
 
+/**
+ * Что делать с базой данных при удалении информационной базы.
+ *
+ * `keep` — база данных остаётся на сервере СУБД, `drop` — удаляется вместе с
+ * информационной базой, `clear` — остаётся, но пустой.
+ */
+export type InfobaseDropMode = 'keep' | 'drop' | 'clear';
+
+/**
+ * Удаление информационной базы из кластера.
+ *
+ * Судьба базы данных задаётся флагом без значения, и флаги взаимоисключающие:
+ * платформа принимает либо `--drop-database`, либо `--clear-database`, либо
+ * ничего.
+ */
+export function buildInfobaseDropArgs(
+	scope: ClusterScope & {
+		infobaseId: string;
+		infobase?: RacCredentials;
+		mode: InfobaseDropMode;
+	}
+): string[] {
+	const modeOptions: Record<InfobaseDropMode, string[]> = {
+		keep: [],
+		drop: ['--drop-database'],
+		clear: ['--clear-database'],
+	};
+	return compose(
+		'infobase',
+		['drop'],
+		[
+			`--cluster=${scope.clusterId}`,
+			...credentialOptions('cluster', scope.cluster),
+			`--infobase=${scope.infobaseId}`,
+			...credentialOptions('infobase', scope.infobase),
+			...modeOptions[scope.mode],
+		],
+		scope.address
+	);
+}
+
 /** Список сеансов кластера или одной информационной базы. */
 export function buildSessionListArgs(scope: ClusterScope & { infobaseId?: string }): string[] {
 	return compose(
