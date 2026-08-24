@@ -3033,7 +3033,12 @@
         },
         {
           "command": "1c-platform-tools.metadata.openObjectProperties",
-          "when": "view == 1c-platform-tools-metadata-tree && ((viewItem =~ /metadataObjectProperties/ && viewItem !~ /mdFormModule/) || viewItem == metadataLeafFile)",
+          "when": "view == 1c-platform-tools-metadata-tree && viewItem =~ /(^| )mdPropertiesCard( |$)/",
+          "group": "1_md_open"
+        },
+        {
+          "command": "1c-platform-tools.metadata.openObjectProperties",
+          "when": "view == 1c-platform-tools-metadata-tree && viewItem == metadataLeafFile",
           "group": "1_md_open"
         },
         {
