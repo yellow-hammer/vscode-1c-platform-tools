@@ -11,6 +11,7 @@ import {
 	sortSessions,
 	toConnectionInfo,
 	toInfobaseInfo,
+	toInfobaseState,
 	toManagerInfo,
 	toProcessInfo,
 	toServerInfo,
@@ -140,6 +141,29 @@ suite('объекты кластера: разбор', () => {
 		assert.strictEqual(infobases.length, 2);
 		assert.strictEqual(infobases[0].descr, 'Рабочая база');
 		assert.strictEqual(infobases[1].descr, '');
+	});
+
+	test('режим работы базы читается из полных сведений', () => {
+		const state = toInfobaseState({
+			'sessions-deny': 'on',
+			'scheduled-jobs-deny': 'off',
+			'denied-from': '2024-05-01T20:00:00',
+			'denied-to': '2024-05-02T08:00:00',
+		});
+
+		assert.strictEqual(state.sessionsDeny, true);
+		assert.strictEqual(state.scheduledJobsDeny, false);
+		assert.strictEqual(state.deniedFrom, '2024-05-01T20:00:00');
+		assert.strictEqual(state.deniedTo, '2024-05-02T08:00:00');
+	});
+
+	test('база без полей блокировок считается открытой', () => {
+		const state = toInfobaseState({ name: 'Бухгалтерия' });
+
+		assert.strictEqual(state.sessionsDeny, false);
+		assert.strictEqual(state.scheduledJobsDeny, false);
+		assert.strictEqual(state.deniedFrom, '');
+		assert.strictEqual(state.deniedTo, '');
 	});
 
 	test('соединение читает процесс и номер', () => {

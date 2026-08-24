@@ -374,29 +374,35 @@ suite('metadataTreeView object modules', () => {
 	test('contextValue получает токены модулей по типу', () => {
 		assert.strictEqual(
 			leaf('Catalog', 'Контрагенты', 'src/cf/Catalogs/Контрагенты.xml').contextValue,
-			'metadataObjectProperties mdObjModule mdMgrModule'
+			'metadataObjectProperties mdObjModule mdMgrModule mdPropertiesCard'
 		);
 		assert.strictEqual(
 			leaf('InformationRegister', 'Курсы', 'src/cf/InformationRegisters/Курсы.xml').contextValue,
-			'metadataObjectProperties mdRecModule mdMgrModule'
+			'metadataObjectProperties mdRecModule mdMgrModule mdPropertiesCard'
 		);
 		// Константа: модуль менеджера значения + модуль менеджера (как в конфигураторе).
 		assert.strictEqual(
 			leaf('Constant', 'Версия', 'src/cf/Constants/Версия.xml').contextValue,
-			'metadataObjectProperties mdValModule mdMgrModule'
+			'metadataObjectProperties mdValModule mdMgrModule mdPropertiesCard'
 		);
 		assert.strictEqual(
 			leaf('CommonModule', 'Общий', 'src/cf/CommonModules/Общий.xml').contextValue,
-			'metadataObjectProperties mdModule'
+			'metadataObjectProperties mdModule mdPropertiesCard'
 		);
 	});
 
-	test('типы без модулей не получают токенов', () => {
+	test('типы без модулей получают только карточку свойств', () => {
 		assert.strictEqual(
 			leaf('Role', 'Администратор', 'src/cf/Roles/Администратор.xml').contextValue,
-			'metadataObjectProperties'
+			'metadataObjectProperties mdPropertiesCard'
 		);
 		assert.strictEqual(objectModuleKindsForType('Role').length, 0);
+	});
+
+	test('у общей формы карточки свойств нет: она открывается формой', () => {
+		const commonForm = leaf('CommonForm', 'Настройки', 'src/cf/CommonForms/Настройки.xml');
+
+		assert.strictEqual(commonForm.contextValue, 'metadataObjectProperties mdFormModule');
 	});
 
 	test('objectModuleFilePath строит путь рядом с объектом', () => {
@@ -433,12 +439,12 @@ suite('metadataTreeView object modules', () => {
 		assert.strictEqual(metadataLeafReadsObjectProperties(register), true);
 
 		const httpService = leaf('HTTPService', 'Обмен', 'src/cf/HTTPServices/Обмен.xml');
-		assert.strictEqual(httpService.contextValue, 'metadataObjectProperties mdModule');
+		assert.strictEqual(httpService.contextValue, 'metadataObjectProperties mdModule mdPropertiesCard');
 		assert.strictEqual(httpService.command?.command, '1c-platform-tools.metadata.openModule');
 		assert.strictEqual(metadataLeafReadsObjectProperties(httpService), true);
 
 		const language = leaf('Language', 'Русский', 'src/cf/Languages/Русский.xml');
-		assert.strictEqual(language.contextValue, 'metadataObjectProperties');
+		assert.strictEqual(language.contextValue, 'metadataObjectProperties mdPropertiesCard');
 		assert.strictEqual(defaultMetadataLeafOpenCommand(language), '1c-platform-tools.metadata.openObjectProperties');
 		assert.strictEqual(language.command?.command, '1c-platform-tools.metadata.openObjectProperties');
 		assert.strictEqual(metadataLeafReadsObjectProperties(language), true);

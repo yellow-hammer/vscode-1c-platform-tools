@@ -6,7 +6,7 @@
  */
 
 import * as vscode from 'vscode';
-import type { RacCredentials } from './racArgs';
+import type { InfobaseDropMode, RacCredentials } from './racArgs';
 
 /**
  * Спрашивает администратора информационной базы.
@@ -77,6 +77,43 @@ export async function promptSessionLock(
 		return undefined;
 	}
 	return { deniedMessage, permissionCode };
+}
+
+/**
+ * Спрашивает, что делать с базой данных при удалении информационной базы.
+ *
+ * Вопрос отдельный от подтверждения: у удаления три разных последствия, и
+ * выбирать их кнопками в модальном окне пришлось бы вслепую.
+ *
+ * @param infobaseName - Имя информационной базы
+ * @returns Выбранный вариант или undefined при отказе
+ */
+export async function promptInfobaseDropMode(
+	infobaseName: string
+): Promise<InfobaseDropMode | undefined> {
+	const items: Array<vscode.QuickPickItem & { mode: InfobaseDropMode }> = [
+		{
+			label: 'Только из кластера',
+			detail: 'База данных на сервере СУБД остаётся',
+			mode: 'keep',
+		},
+		{
+			label: 'Вместе с базой данных',
+			detail: 'База данных удаляется на сервере СУБД',
+			mode: 'drop',
+		},
+		{
+			label: 'Очистить базу данных',
+			detail: 'Данные удаляются, пустая база данных остаётся на сервере СУБД',
+			mode: 'clear',
+		},
+	];
+	const choice = await vscode.window.showQuickPick(items, {
+		title: `Удаление базы «${infobaseName}»`,
+		placeHolder: 'Что сделать с базой данных',
+		ignoreFocusOut: true,
+	});
+	return choice?.mode;
 }
 
 /** Как завершать сеанс: молча или с сообщением пользователю. */

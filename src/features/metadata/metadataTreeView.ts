@@ -373,6 +373,16 @@ export class MetadataLeafTreeItem extends vscode.TreeItem {
 				this.contextValue = [this.contextValue, ...tokens].join(' ');
 			}
 		}
+		// Токен карточки свойств: у общей формы её нет — она открывается формой.
+		// Условие пункта меню перечисляет то, что есть: отрицания по регулярному
+		// выражению в when-условиях VS Code нет.
+		if (
+			abs &&
+			this.contextValue?.startsWith('metadataObjectProperties') &&
+			!isMetadataCommonForm(normalizedObjectType)
+		) {
+			this.contextValue = `${this.contextValue} mdPropertiesCard`;
+		}
 		this.iconPath = metadataObjectTypeIcon(normalizedObjectType, extensionUri, objectBelonging, groupId, subgroupId);
 		if (isAdopted(objectBelonging)) {
 			this.tooltip = this.tooltip ? `${ADOPTED_HINT}

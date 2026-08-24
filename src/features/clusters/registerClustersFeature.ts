@@ -20,6 +20,7 @@ import { ConnectionStore, type SyncedMemento } from './connectionStore';
 import { ClusterCredentialStore } from './credentials';
 import { promptInfobaseCredentials } from './prompts';
 import { HelpAndSupportProvider } from '../projects/helpAndSupportProvider';
+import { initClusterIcons } from './nodes';
 import { RacClient } from './racClient';
 import { affectsClustersSettings } from './settings';
 
@@ -32,6 +33,7 @@ const log = logger.scope('clusters');
  * @returns Подписки фичи
  */
 export function registerClustersFeature(context: vscode.ExtensionContext): vscode.Disposable[] {
+	initClusterIcons(context.extensionUri);
 	const store = new ConnectionStore(context.globalState as SyncedMemento);
 
 	const client = new RacClient();

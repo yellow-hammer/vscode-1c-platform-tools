@@ -1,20 +1,29 @@
 /**
- * Таблица активности кластера: сеансы и соединения списком со столбцами.
+ * Списки кластера таблицей: базы, сеансы, соединения и блокировки.
  *
  * Дерево отвечает на вопрос «что где устроено», а таблица — на вопрос «кто
- * сейчас мешает»: сеансы сортируются по памяти, длительности вызова или
- * обращениям к СУБД, и виновник виден сразу. Поэтому здесь не подписи узлов, а
- * столбцы с числами, которые можно сравнивать между собой.
+ * сейчас мешает» и «какая база закрыта»: значения видны рядом и сравниваются
+ * между собой — по памяти, длительности вызова, времени начала. Поэтому здесь
+ * не подписи узлов, а столбцы.
  *
  * Модуль чистый: набор столбцов, приведение значений, сортировка, отбор и
  * выгрузка. Ни webview, ни rac — всё это проверяется тестами.
  */
 
+import { isRacFlagOn } from './model';
 import { appTitle, formatBytes, formatRacDateTime } from './presentation';
 import type { RacRecord } from './racOutput';
 
 /** Как показывать и сравнивать значение столбца. */
-export type ColumnKind = 'text' | 'number' | 'bytes' | 'millis' | 'date' | 'app' | 'infobase';
+export type ColumnKind =
+	| 'text'
+	| 'number'
+	| 'bytes'
+	| 'millis'
+	| 'date'
+	| 'app'
+	| 'infobase'
+	| 'deny';
 
 /** Столбец таблицы активности. */
 export interface ActivityColumn {
@@ -27,7 +36,7 @@ export interface ActivityColumn {
 }
 
 /** Что показывает таблица. */
-export type ActivityKind = 'sessions' | 'connections';
+export type ActivityKind = 'infobases' | 'sessions' | 'connections' | 'locks';
 
 /** Ячейка: что показать и по чему сортировать. */
 export interface ActivityCell {
@@ -88,6 +97,62 @@ export const CONNECTION_COLUMNS: ActivityColumn[] = [
 	{ key: 'connected-at', title: 'Установлено', kind: 'date' },
 	{ key: 'blocked-by-ls', title: 'Ждёт блокировку', kind: 'number' },
 ];
+
+/**
+ * Столбцы информационных баз.
+ *
+ * Сначала имя и режим работы: список баз открывают, чтобы увидеть, какая
+ * закрыта для пользователей. Размещение идёт дальше — оно меняется редко.
+ * Режим работы платформа отдаёт только в полных сведениях о базе, поэтому у
+ * базы с администратором эти столбцы могут остаться пустыми.
+ */
+export const INFOBASE_COLUMNS: ActivityColumn[] = [
+	{ key: 'name', title: 'Имя', kind: 'text' },
+	{ key: 'descr', title: 'Описание', kind: 'text' },
+	{ key: 'sessions-deny', title: 'Начало сеансов', kind: 'deny' },
+	{ key: 'scheduled-jobs-deny', title: 'Регламентные задания', kind: 'deny' },
+	{ key: 'denied-from', title: 'Блокировка с', kind: 'date' },
+	{ key: 'denied-to', title: 'Блокировка по', kind: 'date' },
+	{ key: 'denied-message', title: 'Сообщение блокировки', kind: 'text' },
+	{ key: 'dbms', title: 'СУБД', kind: 'text' },
+	{ key: 'db-server', title: 'Сервер баз данных', kind: 'text' },
+	{ key: 'db-name', title: 'База данных', kind: 'text' },
+];
+
+/**
+ * Столбцы блокировок.
+ *
+ * Соединение и сеанс rac отдаёт идентификаторами, и в таблице от них толку нет:
+ * администратору важно, что заблокировано и с какого момента.
+ */
+export const LOCK_COLUMNS: ActivityColumn[] = [
+	{ key: 'descr', title: 'Блокировка', kind: 'text' },
+	{ key: 'object', title: 'Объект', kind: 'text' },
+	{ key: 'locked', title: 'Установлена', kind: 'date' },
+];
+
+/**
+ * Столбцы списка.
+ *
+ * @param kind - Что показывает таблица
+ * @returns Столбцы в порядке показа
+ */
+export function activityColumns(kind: ActivityKind): ActivityColumn[] {
+	switch (kind) {
+		case 'infobases':
+			return INFOBASE_COLUMNS;
+		case 'sessions':
+			return SESSION_COLUMNS;
+		case 'connections':
+			return CONNECTION_COLUMNS;
+		case 'locks':
+			return LOCK_COLUMNS;
+		default: {
+			const unknown: never = kind;
+			throw new Error(`Неизвестный список кластера: ${String(unknown)}`);
+		}
+	}
+}
 
 /** Пустой идентификатор: rac помечает им отсутствующую ссылку. */
 const EMPTY_REF = '00000000-0000-0000-0000-000000000000';
@@ -153,6 +218,12 @@ export function buildCell(
 			return { text: formatRacDateTime(raw), sort: raw };
 		case 'app':
 			return { text: appTitle(raw), sort: appTitle(raw) };
+		case 'deny': {
+			// Разрешённое не пишется вовсе: в списке баз глаз ищет запреты, и
+			// колонка из «разрешено» их только прячет.
+			const denied = isRacFlagOn(raw);
+			return { text: denied ? 'запрещено' : '', sort: denied ? 1 : 0 };
+		}
 		case 'infobase': {
 			if (raw === '' || raw === EMPTY_REF) {
 				return { text: '', sort: '' };
@@ -178,13 +249,65 @@ export function buildActivityRows(
 	kind: ActivityKind,
 	infobaseNames: Record<string, string> = {}
 ): ActivityRow[] {
-	const columns = kind === 'sessions' ? SESSION_COLUMNS : CONNECTION_COLUMNS;
+	const columns = activityColumns(kind);
 	return records.map((record) => ({
-		id: record[kind === 'sessions' ? 'session' : 'connection'] ?? '',
+		id: rowId(record, kind),
 		processId: record.process ?? '',
-		label: kind === 'sessions' ? sessionLabel(record) : connectionLabel(record),
+		label: rowLabel(record, kind),
 		cells: columns.map((column) => buildCell(column, record, infobaseNames)),
 	}));
+}
+
+/**
+ * Идентификатор строки: им действия адресуют объект.
+ *
+ * У блокировки собственного идентификатора нет, поэтому он складывается из
+ * соединения, сеанса и объекта — действий у блокировок нет, ключ нужен только
+ * для отрисовки.
+ *
+ * @param record - Объект вывода rac
+ * @param kind - Что показывает таблица
+ * @returns Идентификатор строки
+ */
+function rowId(record: RacRecord, kind: ActivityKind): string {
+	switch (kind) {
+		case 'infobases':
+			return record.infobase ?? '';
+		case 'sessions':
+			return record.session ?? '';
+		case 'connections':
+			return record.connection ?? '';
+		case 'locks':
+			return [record.connection, record.session, record.object].filter(Boolean).join(':');
+		default: {
+			const unknown: never = kind;
+			throw new Error(`Неизвестный список кластера: ${String(unknown)}`);
+		}
+	}
+}
+
+/**
+ * Подпись строки для подтверждений и сообщений.
+ *
+ * @param record - Объект вывода rac
+ * @param kind - Что показывает таблица
+ * @returns Короткая подпись
+ */
+function rowLabel(record: RacRecord, kind: ActivityKind): string {
+	switch (kind) {
+		case 'infobases':
+			return `база «${record.name ?? ''}»`;
+		case 'sessions':
+			return sessionLabel(record);
+		case 'connections':
+			return connectionLabel(record);
+		case 'locks':
+			return record.descr || 'блокировка';
+		default: {
+			const unknown: never = kind;
+			throw new Error(`Неизвестный список кластера: ${String(unknown)}`);
+		}
+	}
 }
 
 /**
