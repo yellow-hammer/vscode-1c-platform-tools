@@ -115,7 +115,7 @@ export async function bootstrapApp(context: vscode.ExtensionContext): Promise<vo
 	);
 
 	registerWelcomeFlow(context);
-	const helpAndSettingsDisposables = registerHelpAndSettingsCommands(context);
+	const helpAndSettingsDisposables = registerHelpAndSettingsCommands();
 	const {
 		projectsCommandDisposables,
 		onProjectsConfigChange,
