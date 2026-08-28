@@ -13,6 +13,7 @@ import * as path from 'node:path';
 import { globSync } from 'glob';
 import * as vscode from 'vscode';
 import {
+	cachedReleaseComponent,
 	cachedReleaseTag,
 	clearReleaseCache,
 	ensureReleaseComponent,
@@ -116,6 +117,11 @@ export async function downloadAllure(context: vscode.ExtensionContext): Promise<
 /** Тег загруженного Allure или undefined, если он ещё не загружался. */
 export async function cachedAllureTag(context: vscode.ExtensionContext): Promise<string | undefined> {
 	return cachedReleaseTag(installBaseDir(context), ALLURE_SPEC);
+}
+
+/** Путь Allure в кэше; undefined — не загружен. */
+export async function cachedAllurePath(context: vscode.ExtensionContext): Promise<string | undefined> {
+	return (await cachedReleaseComponent(installBaseDir(context), ALLURE_SPEC))?.assetPath;
 }
 
 /** Удаляет кэш Allure: следующая команда загрузит его заново. */
