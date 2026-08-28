@@ -1,5 +1,11 @@
 import * as vscode from 'vscode';
+import { collectEnvironmentSummary } from '../../shared/collectEnvironmentSummary';
+import { formatEnvironmentSummary } from '../../shared/environmentSummary';
+import { logger } from '../../shared/logger';
+import { notifyQuiet } from '../../shared/notify';
 import { SETTINGS_SECTIONS, SettingsSection, settingsQuery } from './settingsSections';
+
+const log = logger.scope('help');
 
 /**
  * Открывает настройки расширения на нужном разделе.
@@ -12,8 +18,11 @@ async function openSettings(section: SettingsSection['id']): Promise<void> {
 
 /**
  * Регистрирует команды помощи и открытия настроек.
+ *
+ * @param context - Контекст расширения
+ * @returns Подписки команд
  */
-export function registerHelpAndSettingsCommands(): vscode.Disposable[] {
+export function registerHelpAndSettingsCommands(context: vscode.ExtensionContext): vscode.Disposable[] {
 	const openCreateIssueCommand = vscode.commands.registerCommand(
 		'1c-platform-tools.help.openCreateIssue',
 		() => {
@@ -58,6 +67,21 @@ export function registerHelpAndSettingsCommands(): vscode.Disposable[] {
 		}
 	);
 
+	const copyEnvironmentSummaryCommand = vscode.commands.registerCommand(
+		'1c-platform-tools.help.copyEnvironmentSummary',
+		async () => {
+			try {
+				const text = formatEnvironmentSummary(await collectEnvironmentSummary(context));
+				await vscode.env.clipboard.writeText(text);
+				notifyQuiet('Сводка скопирована');
+			} catch (error) {
+				const message = error instanceof Error ? error.message : String(error);
+				log.error(`не удалось скопировать сводку окружения: ${message}`);
+				void vscode.window.showWarningMessage('Не удалось скопировать сводку');
+			}
+		}
+	);
+
 	const settingsCommand = vscode.commands.registerCommand(
 		'1c-platform-tools.settings.open',
 		async () => {
@@ -91,6 +115,7 @@ export function registerHelpAndSettingsCommands(): vscode.Disposable[] {
 		openDocsCommand,
 		openWriteReviewCommand,
 		openSponsorCommand,
+		copyEnvironmentSummaryCommand,
 		settingsCommand,
 		settingsOpenProjectsCommand,
 		settingsOpenToolsCommand,

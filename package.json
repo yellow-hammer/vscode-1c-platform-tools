@@ -1785,6 +1785,12 @@
         "icon": "$(book)"
       },
       {
+        "command": "1c-platform-tools.help.copyEnvironmentSummary",
+        "title": "Скопировать сводку окружения",
+        "category": "1C: Помощь и поддержка",
+        "icon": "$(copy)"
+      },
+      {
         "command": "1c-platform-tools.help.openCreateIssue",
         "title": "Сообщить о проблемах",
         "category": "1C: Помощь и поддержка",
