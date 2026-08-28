@@ -54,19 +54,13 @@ suite('подключения к кластерам: записи файла', (
 			name: 'srv-1c:1545',
 			host: 'srv-1c',
 			port: 1545,
-			clusterUser: undefined,
-			agentUser: undefined,
 			platformVersion: undefined,
 		});
 	});
 
-	test('пустой администратор не превращается в пустую строку', () => {
-		const connection = normalizeStoredConnection(
-			{ host: 'srv-1c', clusterUser: '   ', platformVersion: '' },
-			0
-		);
+	test('пустая версия не превращается в пустую строку', () => {
+		const connection = normalizeStoredConnection({ host: 'srv-1c', platformVersion: '' }, 0);
 
-		assert.strictEqual(connection?.clusterUser, undefined);
 		assert.strictEqual(connection?.platformVersion, undefined);
 	});
 });
@@ -118,19 +112,18 @@ suite('подключения к кластерам: хранилище', () => 
 			name: 'Локальный',
 			host: 'localhost',
 			port: 1545,
-			clusterUser: 'admin',
 		});
 
 		const restored = storeOn(state).get(added.id);
 
 		assert.strictEqual(restored?.name, 'Локальный');
-		assert.strictEqual(restored?.clusterUser, 'admin');
+		assert.strictEqual(restored?.host, 'localhost');
 	});
 
 	test('пароля в сохранённом списке нет: он живёт в защищённом хранилище', async () => {
 		const state = new FakeMemento();
 		const store = storeOn(state);
-		await store.add({ name: 'Локальный', host: 'localhost', port: 1545, clusterUser: 'admin' });
+		await store.add({ name: 'Локальный', host: 'localhost', port: 1545 });
 
 		const raw = JSON.stringify(state.get(CONNECTIONS_STATE_KEY, []));
 

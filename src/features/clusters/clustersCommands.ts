@@ -210,10 +210,10 @@ export function registerClustersCommands(deps: ClustersCommandsDeps): vscode.Dis
 				if (Object.keys(change).length === 0) {
 					return { ok: true as const, changed: false };
 				}
-				if (!connection.agentUser) {
+				if (!credentials.hasRoleFor('agent', connection.id)) {
 					return {
 						ok: false as const,
-						message: 'Правка кластера требует администратора центрального сервера: укажите его в подключении',
+						message: 'Правка кластера требует администратора центрального сервера: откройте учётные данные',
 					};
 				}
 				const result = await service.updateCluster(connection, cluster.id, change);
@@ -326,7 +326,67 @@ export function registerClustersCommands(deps: ClustersCommandsDeps): vscode.Dis
 	// вместе удобнее, чем отвечать на вопросы по одному.
 	const addConnection = vscode.commands.registerCommand(
 		'1c-platform-tools.clusters.addConnection',
-		() => editor.open('new')
+		() => editor.open({ kind: 'connection', id: 'new' })
+	);
+
+	// Наборы живут в форме подключений, второй секцией: команда открывает ту же
+	// вкладку на учётных данных — из палитры и из уведомлений об отказе.
+	const editCredentials = vscode.commands.registerCommand(
+		'1c-platform-tools.clusters.editCredentials',
+		() => editor.open({ kind: 'set' })
+	);
+
+	const bindInfobaseCredentials = vscode.commands.registerCommand(
+		'1c-platform-tools.clusters.bindInfobaseCredentials',
+		async (node: unknown) => {
+			if (!requireNode(node) || !(node instanceof InfobaseNode)) {
+				return;
+			}
+			const sets = credentials.list();
+			if (sets.length === 0) {
+				const choice = await vscode.window.showInformationMessage(
+					'Сначала создайте набор учётных данных',
+					'Открыть'
+				);
+				if (choice === 'Открыть') {
+					await editor.open({ kind: 'set', id: 'new', setKind: 'infobase' });
+				}
+				return;
+			}
+			const picked = await vscode.window.showQuickPick(
+				sets.map((set) => ({
+					label: set.name,
+					description: set.user,
+					setId: set.id,
+				})),
+				{ title: `Учётные данные для «${node.infobase.name}»` }
+			);
+			if (!picked) {
+				return;
+			}
+			await credentials.bindInfobase({
+				connectionId: node.connection.id,
+				clusterId: node.clusterId,
+				infobaseId: node.infobase.id,
+				setId: picked.setId,
+				connectionName: node.connection.name,
+				infobaseName: node.infobase.name,
+			});
+			provider.refresh();
+			notifyQuiet(`Для базы «${node.infobase.name}» назначен набор «${picked.label}»`);
+		}
+	);
+
+	const unbindInfobaseCredentials = vscode.commands.registerCommand(
+		'1c-platform-tools.clusters.unbindInfobaseCredentials',
+		async (node: unknown) => {
+			if (!requireNode(node) || !(node instanceof InfobaseNode)) {
+				return;
+			}
+			await credentials.unbindInfobase(node.connection.id, node.infobase.id);
+			provider.refresh();
+			notifyQuiet(`Привязка учётных данных базы «${node.infobase.name}» снята`);
+		}
 	);
 
 	const removeConnection = vscode.commands.registerCommand(
@@ -458,7 +518,7 @@ export function registerClustersCommands(deps: ClustersCommandsDeps): vscode.Dis
 				return;
 			}
 			if (node instanceof ConnectionNode) {
-				await editor.open(node.connection.id);
+				await editor.open({ kind: 'connection', id: node.connection.id });
 				return;
 			}
 			if (node instanceof AdminNode) {
@@ -607,7 +667,7 @@ export function registerClustersCommands(deps: ClustersCommandsDeps): vscode.Dis
 			}
 			if (!node.item.processId) {
 				void vscode.window.showErrorMessage(
-					'Утилита rac не сообщила рабочий процесс соединения — разорвать его нельзя.'
+					'Утилита rac не сообщила рабочий процесс соединения, разорвать его нельзя.'
 				);
 				return;
 			}
@@ -844,6 +904,9 @@ export function registerClustersCommands(deps: ClustersCommandsDeps): vscode.Dis
 
 	return [
 		addConnection,
+		editCredentials,
+		bindInfobaseCredentials,
+		unbindInfobaseCredentials,
 		removeConnection,
 		refresh,
 		refreshNode,

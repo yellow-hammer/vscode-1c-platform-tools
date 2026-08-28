@@ -285,16 +285,21 @@ export class InfobaseNode extends ClusterTreeNode {
 	/** Режим работы базы; пусто, пока состояние не прочитано. */
 	state: InfobaseState | undefined;
 
+	/** Название привязанного набора учётных данных; пусто — не привязан. */
+	credentialSetName: string | undefined;
+
 	constructor(
 		readonly connection: ClusterConnection,
 		readonly clusterId: string,
-		readonly infobase: InfobaseInfo
+		readonly infobase: InfobaseInfo,
+		credentialSetName?: string
 	) {
 		super(infobase.name, TreeItemCollapsibleState.Collapsed);
 		this.cacheKey = `conn:${connection.id}/cluster:${clusterId}/infobase:${infobase.id}`;
-		this.contextValue = 'clusterInfobase';
+		this.credentialSetName = credentialSetName;
+		this.contextValue = credentialSetName ? 'clusterInfobaseBound' : 'clusterInfobase';
 		this.iconPath = infobaseIcon(undefined);
-		this.applyPresentation(infobasePresentation(infobase));
+		this.applyPresentation(infobasePresentation(infobase, undefined, credentialSetName));
 	}
 
 	/**
@@ -305,7 +310,7 @@ export class InfobaseNode extends ClusterTreeNode {
 	applyState(state: InfobaseState): void {
 		this.state = state;
 		this.iconPath = infobaseIcon(state);
-		this.applyPresentation(infobasePresentation(this.infobase, state));
+		this.applyPresentation(infobasePresentation(this.infobase, state, this.credentialSetName));
 	}
 }
 

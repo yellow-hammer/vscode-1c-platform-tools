@@ -104,7 +104,7 @@ suite('вывод rac: неудачи', () => {
 		const failure = describeRacFailure(1, '', 'Администрирование кластера не разрешено');
 
 		assert.strictEqual(failure.kind, 'auth');
-		assert.ok(failure.message.includes('Администратор кластера не принят'));
+		assert.ok(failure.message.includes('Администратор не принят'));
 	});
 
 	test('формулировка платформы 8.5 «не аутентифицирован» тоже распознаётся', () => {
@@ -113,7 +113,7 @@ suite('вывод rac: неудачи', () => {
 
 		assert.strictEqual(cluster.kind, 'auth');
 		assert.strictEqual(agent.kind, 'auth');
-		assert.ok(cluster.message.includes('Администратор кластера не принят'));
+		assert.ok(cluster.message.includes('Администратор не принят'));
 	});
 
 	test('английская формулировка отказа тоже распознаётся', () => {

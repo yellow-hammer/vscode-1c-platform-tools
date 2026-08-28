@@ -26,8 +26,6 @@ export interface ConnectionInput {
 	name: string;
 	host: string;
 	port: number;
-	clusterUser?: string;
-	agentUser?: string;
 	platformVersion?: string;
 }
 
@@ -102,14 +100,6 @@ export function normalizeStoredConnection(
 		name,
 		host,
 		port,
-		clusterUser:
-			typeof raw.clusterUser === 'string' && raw.clusterUser.trim() !== ''
-				? raw.clusterUser.trim()
-				: undefined,
-		agentUser:
-			typeof raw.agentUser === 'string' && raw.agentUser.trim() !== ''
-				? raw.agentUser.trim()
-				: undefined,
 		platformVersion:
 			typeof raw.platformVersion === 'string' && raw.platformVersion.trim() !== ''
 				? raw.platformVersion.trim()
@@ -162,8 +152,6 @@ export class ConnectionStore {
 			name: input.name,
 			host: input.host,
 			port: input.port,
-			clusterUser: input.clusterUser || undefined,
-			agentUser: input.agentUser || undefined,
 			platformVersion: input.platformVersion || undefined,
 		};
 		this.items.push(connection);
@@ -186,8 +174,6 @@ export class ConnectionStore {
 		connection.name = input.name;
 		connection.host = input.host;
 		connection.port = input.port;
-		connection.clusterUser = input.clusterUser || undefined;
-		connection.agentUser = input.agentUser || undefined;
 		connection.platformVersion = input.platformVersion || undefined;
 		await this.save();
 		return connection;

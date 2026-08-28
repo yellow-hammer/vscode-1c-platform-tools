@@ -491,7 +491,7 @@ ${chromeStyles()}
 		<span class="subtitle" id="subtitle"></span>
 		<button id="bulk" hidden></button>
 		<button id="refresh">Обновить</button>
-		<button id="csv" title="Скопировать выбранные строки, а без выбора — всю таблицу">Копировать</button>
+		<button id="csv" title="Скопировать выбранные строки, а без выбора всю таблицу">Копировать</button>
 	</div>
 	<div class="scroll" id="scroll">
 		<div class="state" id="state">Загружаю…</div>

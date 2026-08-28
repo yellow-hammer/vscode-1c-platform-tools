@@ -120,11 +120,6 @@ export function formatBytes(value: string): string {
 export function connectionPresentation(connection: ClusterConnection): NodePresentation {
 	const address = `${connection.host}:${connection.port}`;
 	const tooltip = [connection.name, `Сервер администрирования: ${address}`];
-	tooltip.push(
-		connection.clusterUser
-			? `Администратор кластера: ${connection.clusterUser}`
-			: 'Администратор кластера не задан'
-	);
 	if (connection.platformVersion) {
 		tooltip.push(`Версия платформы: ${connection.platformVersion}`);
 	}
@@ -205,11 +200,13 @@ function deniedPeriod(state: InfobaseState): string {
  *
  * @param infobase - Информационная база
  * @param state - Режим работы базы, если он прочитан
+ * @param credentialSetName - Название явно привязанного набора
  * @returns Подпись, описание и подсказка узла
  */
 export function infobasePresentation(
 	infobase: InfobaseInfo,
-	state?: InfobaseState
+	state?: InfobaseState,
+	credentialSetName?: string
 ): NodePresentation {
 	const marks: string[] = [];
 	if (state?.sessionsDeny) {
@@ -229,6 +226,7 @@ export function infobasePresentation(
 			...(infobase.descr ? [infobase.descr] : []),
 			...marks.map((mark) => `Состояние: ${mark}`),
 			...(period ? [`Блокировка ${period}`] : []),
+			...(credentialSetName ? [`Учётные данные: ${credentialSetName}`] : []),
 			`Идентификатор: ${infobase.id}`,
 		],
 	};
