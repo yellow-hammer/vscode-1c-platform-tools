@@ -9,20 +9,23 @@
 
 import * as vscode from 'vscode';
 import {
+	cachedOnecDebugAdapterPath,
 	cachedOnecDebugAdapterTag,
 	clearOnecDebugAdapterCache,
 	downloadOnecDebugAdapter,
 } from '../features/debug/onecDebugAdapterBootstrap';
 import {
+	cachedMdSparrowPath,
 	cachedMdSparrowTag,
 	clearMdSparrowJarCache,
 	clearPortableJreCache,
 	downloadMdSparrowJar,
 	downloadPortableJre,
+	portableJreJavaPath,
 	portableJreVersion,
 } from '../features/metadata/mdSparrowBootstrap';
-import { cachedOvmTag, clearOvmCache, downloadOvm } from './ovmComponent';
-import { cachedAllureTag, clearAllureCache, downloadAllure } from './allureComponent';
+import { cachedOvmPath, cachedOvmTag, clearOvmCache, downloadOvm } from './ovmComponent';
+import { cachedAllurePath, cachedAllureTag, clearAllureCache, downloadAllure } from './allureComponent';
 
 /** Описание одного загружаемого компонента. */
 export interface ComponentSpec {
@@ -40,6 +43,8 @@ export interface ComponentSpec {
 	clear: (context: vscode.ExtensionContext) => Promise<void>;
 	/** Загружает заново, не глядя на настройки пути и автозагрузки. */
 	download: (context: vscode.ExtensionContext) => Promise<unknown>;
+	/** Путь загруженного артефакта в кэше, без повторной загрузки. */
+	cachePath: (context: vscode.ExtensionContext) => Promise<string | undefined>;
 }
 
 /**
@@ -56,6 +61,7 @@ export const COMPONENTS: ComponentSpec[] = [
 		version: cachedOnecDebugAdapterTag,
 		clear: clearOnecDebugAdapterCache,
 		download: downloadOnecDebugAdapter,
+		cachePath: cachedOnecDebugAdapterPath,
 	},
 	{
 		id: 'jre',
@@ -65,6 +71,7 @@ export const COMPONENTS: ComponentSpec[] = [
 		version: async (context) => portableJreVersion(context),
 		clear: clearPortableJreCache,
 		download: downloadPortableJre,
+		cachePath: async (context) => portableJreJavaPath(context),
 	},
 	{
 		id: 'metadataTree',
@@ -74,6 +81,7 @@ export const COMPONENTS: ComponentSpec[] = [
 		version: cachedMdSparrowTag,
 		clear: clearMdSparrowJarCache,
 		download: downloadMdSparrowJar,
+		cachePath: cachedMdSparrowPath,
 	},
 	{
 		id: 'ovm',
@@ -83,6 +91,7 @@ export const COMPONENTS: ComponentSpec[] = [
 		version: cachedOvmTag,
 		clear: clearOvmCache,
 		download: downloadOvm,
+		cachePath: cachedOvmPath,
 	},
 	{
 		id: 'allure',
@@ -92,6 +101,7 @@ export const COMPONENTS: ComponentSpec[] = [
 		version: cachedAllureTag,
 		clear: clearAllureCache,
 		download: downloadAllure,
+		cachePath: cachedAllurePath,
 	},
 ];
 
