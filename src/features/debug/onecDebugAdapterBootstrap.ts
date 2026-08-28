@@ -15,7 +15,6 @@ import { globSync } from 'glob';
 import { logger } from '../../shared/logger';
 import {
 	type ReleaseComponentSpec,
-	cachedReleaseComponent,
 	cachedReleaseTag,
 	checkReleaseUpdateInBackground,
 	clearReleaseCache,
@@ -274,11 +273,6 @@ export async function downloadOnecDebugAdapter(context: vscode.ExtensionContext)
 /** Тег релиза адаптера в кэше; undefined — не загружен. */
 export async function cachedOnecDebugAdapterTag(context: vscode.ExtensionContext): Promise<string | undefined> {
 	return cachedReleaseTag(installBaseDir(context), onecDebugAdapterSpec());
-}
-
-/** Путь адаптера в кэше; undefined — не загружен. */
-export async function cachedOnecDebugAdapterPath(context: vscode.ExtensionContext): Promise<string | undefined> {
-	return (await cachedReleaseComponent(installBaseDir(context), onecDebugAdapterSpec()))?.assetPath;
 }
 
 /** Сброс кэша адаптера — следующий запуск отладки скачает заново. */

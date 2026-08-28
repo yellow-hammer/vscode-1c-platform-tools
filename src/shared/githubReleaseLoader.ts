@@ -397,21 +397,9 @@ export async function clearReleaseCache(baseDir: string, spec: ReleaseComponentS
 
 /** Тег релиза в кэше компонента; undefined — кэш пуст или повреждён. */
 export async function cachedReleaseTag(baseDir: string, spec: ReleaseComponentSpec): Promise<string | undefined> {
-	return (await cachedReleaseComponent(baseDir, spec))?.tag;
-}
-
-/**
- * Тег и путь компонента из кэша, без загрузки.
- *
- * @param baseDir - Каталог globalStorage расширения
- * @param spec - Описание компонента
- * @returns Кэш или undefined, если его нет или он непригоден
- */
-export async function cachedReleaseComponent(
-	baseDir: string,
-	spec: ReleaseComponentSpec
-): Promise<EnsuredComponent | undefined> {
-	return usableCachedComponent(await readStamp(baseDir, spec), spec);
+	const cached = await readStamp(baseDir, spec);
+	const cachedPath = cached?.assetPath ?? cached?.jarPath;
+	return cached?.tag && cachedPath && fssync.existsSync(cachedPath) ? cached.tag : undefined;
 }
 
 /**
