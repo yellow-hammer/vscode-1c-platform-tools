@@ -307,7 +307,9 @@ function selectField(item, value) {
 		element.selected = value === option[0];
 		select.appendChild(element);
 	}
-	select.addEventListener('change', () => { draft[item.key] = select.value; renderAll(); });
+	// Перерисовки нет: от значения зависит только панель сохранения, а пересборка
+	// полей по change крала бы фокус и ломала обход карточки по Tab
+	select.addEventListener('change', () => { draft[item.key] = select.value; renderSaveBar(); });
 	wrap.appendChild(label);
 	wrap.appendChild(select);
 	return wrap;
@@ -328,7 +330,7 @@ function dateField(item, value) {
 	input.addEventListener('change', () => {
 		const next = input.value;
 		draft[item.key] = next === '' || next.length > 16 ? next : next + ':00';
-		renderAll();
+		renderSaveBar();
 	});
 	wrap.appendChild(label);
 	wrap.appendChild(input);
@@ -370,7 +372,7 @@ function renderField(item) {
 		input.checked = value === 'on';
 		input.addEventListener('change', () => {
 			draft[item.key] = input.checked ? 'on' : 'off';
-			renderAll();
+			renderSaveBar();
 		});
 		if (item.hint) { wrap.title = item.hint; }
 		wrap.appendChild(label);
@@ -380,7 +382,7 @@ function renderField(item) {
 	const element = field(
 		item.title,
 		value,
-		(next) => { draft[item.key] = next; renderAll(); },
+		(next) => { draft[item.key] = next; renderSaveBar(); },
 		item.kind === 'number' ? 'number' : 'text'
 	);
 	// Подпись каркаса стоит над полем, а карточке нужна слева: переносим её сами

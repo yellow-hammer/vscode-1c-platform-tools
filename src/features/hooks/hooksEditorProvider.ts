@@ -349,6 +349,17 @@ function removeCommand(commandId) {
 	commit();
 }
 
+/**
+ * Правка значения шага: панель не пересобирается, чтобы не красть фокус.
+ * Список и структура от значений не зависят — обновляется только панель
+ * сохранения, а значения приходят по вводу, без blur.
+ */
+function fieldEdited() {
+	saveStatus = '';
+	saveStatusKind = '';
+	renderSaveBar();
+}
+
 function renderAll() {
 	const ids = Object.keys(draft);
 	if (selectedCommand && !draft[selectedCommand]) { selectedCommand = undefined; }
@@ -474,7 +485,7 @@ function renderStep(phase, hookEntry, step, index) {
 	input.type = 'text';
 	input.value = step.command || '';
 	input.placeholder = 'Командная строка, например npm run build';
-	input.addEventListener('change', () => { step.command = input.value; commit(); });
+	input.addEventListener('input', () => { step.command = input.value; fieldEdited(); });
 	grow.appendChild(input);
 
 	const options = document.createElement('div');
@@ -486,7 +497,7 @@ function renderStep(phase, hookEntry, step, index) {
 	continueBox.checked = step.continueOnError === true;
 	continueBox.addEventListener('change', () => {
 		if (continueBox.checked) { step.continueOnError = true; } else { delete step.continueOnError; }
-		commit();
+		fieldEdited();
 	});
 	continueLabel.appendChild(continueBox);
 	continueLabel.append('продолжать после ошибки');
@@ -497,10 +508,10 @@ function renderStep(phase, hookEntry, step, index) {
 	timeoutInput.type = 'number';
 	timeoutInput.value = step.timeout === undefined ? '' : step.timeout;
 	timeoutInput.placeholder = '30';
-	timeoutInput.addEventListener('change', () => {
+	timeoutInput.addEventListener('input', () => {
 		const parsed = Number(timeoutInput.value);
 		if (Number.isFinite(parsed) && parsed > 0) { step.timeout = parsed; } else { delete step.timeout; }
-		commit();
+		fieldEdited();
 	});
 	timeoutLabel.append('таймаут, с');
 	timeoutLabel.appendChild(timeoutInput);
