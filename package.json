@@ -77,6 +77,7 @@
     "onCommand:1c-platform-tools.projects.listOpen",
     "onCommand:1c-platform-tools.settings.openProjects",
     "onCommand:1c-platform-tools.clusters.addConnection",
+    "onCommand:1c-platform-tools.clusters.editCredentials",
     "onCommand:1c-platform-tools.ibases.list"
   ],
   "main": "./out/extension.js",
@@ -584,6 +585,23 @@
         "title": "Создать подключение к кластеру",
         "category": "1C: Кластеры",
         "icon": "$(add)"
+      },
+      {
+        "command": "1c-platform-tools.clusters.editCredentials",
+        "title": "Учётные данные",
+        "category": "1C: Кластеры",
+        "icon": "$(key)"
+      },
+      {
+        "command": "1c-platform-tools.clusters.bindInfobaseCredentials",
+        "title": "Назначить учётные данные",
+        "category": "1C: Кластеры",
+        "icon": "$(key)"
+      },
+      {
+        "command": "1c-platform-tools.clusters.unbindInfobaseCredentials",
+        "title": "Снять учётные данные",
+        "category": "1C: Кластеры"
       },
       {
         "command": "1c-platform-tools.clusters.removeConnection",
@@ -1999,6 +2017,14 @@
           "when": "false"
         },
         {
+          "command": "1c-platform-tools.clusters.bindInfobaseCredentials",
+          "when": "false"
+        },
+        {
+          "command": "1c-platform-tools.clusters.unbindInfobaseCredentials",
+          "when": "false"
+        },
+        {
           "command": "1c-platform-tools.clusters.addAdmin",
           "when": "false"
         },
@@ -2679,12 +2705,12 @@
         },
         {
           "command": "1c-platform-tools.clusters.properties",
-          "when": "view == 1c-platform-tools-clusters-tree && viewItem =~ /^(clusterConnection|clusterNode|clusterServer|clusterProcess|clusterManager|clusterInfobase|clusterSession|clusterConnectionItem|clusterAdmin|clusterAgentAdmin)$/",
+          "when": "view == 1c-platform-tools-clusters-tree && viewItem =~ /^(clusterConnection|clusterNode|clusterServer|clusterProcess|clusterManager|clusterInfobase|clusterInfobaseBound|clusterSession|clusterConnectionItem|clusterAdmin|clusterAgentAdmin)$/",
           "group": "1_details@0"
         },
         {
           "command": "1c-platform-tools.clusters.properties",
-          "when": "view == 1c-platform-tools-clusters-tree && viewItem =~ /^(clusterConnection|clusterNode|clusterServer|clusterProcess|clusterManager|clusterInfobase|clusterSession|clusterConnectionItem|clusterAdmin|clusterAgentAdmin)$/",
+          "when": "view == 1c-platform-tools-clusters-tree && viewItem =~ /^(clusterConnection|clusterNode|clusterServer|clusterProcess|clusterManager|clusterInfobase|clusterInfobaseBound|clusterSession|clusterConnectionItem|clusterAdmin|clusterAgentAdmin)$/",
           "group": "inline@20"
         },
         {
@@ -2709,37 +2735,47 @@
         },
         {
           "command": "1c-platform-tools.clusters.showActivity",
-          "when": "view == 1c-platform-tools-clusters-tree && (viewItem =~ /^(clusterNode|clusterInfobase)$/ || viewItem =~ /(^| )clusterGroupTable( |$)/)",
+          "when": "view == 1c-platform-tools-clusters-tree && (viewItem =~ /^(clusterNode|clusterInfobase|clusterInfobaseBound)$/ || viewItem =~ /(^| )clusterGroupTable( |$)/)",
           "group": "inline@30"
         },
         {
-          "command": "1c-platform-tools.clusters.lockSessions",
+          "command": "1c-platform-tools.clusters.bindInfobaseCredentials",
           "when": "view == 1c-platform-tools-clusters-tree && viewItem == clusterInfobase",
+          "group": "2_infobase@0"
+        },
+        {
+          "command": "1c-platform-tools.clusters.unbindInfobaseCredentials",
+          "when": "view == 1c-platform-tools-clusters-tree && viewItem == clusterInfobaseBound",
+          "group": "2_infobase@0"
+        },
+        {
+          "command": "1c-platform-tools.clusters.lockSessions",
+          "when": "view == 1c-platform-tools-clusters-tree && viewItem =~ /^clusterInfobase/",
           "group": "2_infobase@1"
         },
         {
           "command": "1c-platform-tools.clusters.unlockSessions",
-          "when": "view == 1c-platform-tools-clusters-tree && viewItem == clusterInfobase",
+          "when": "view == 1c-platform-tools-clusters-tree && viewItem =~ /^clusterInfobase/",
           "group": "2_infobase@2"
         },
         {
           "command": "1c-platform-tools.clusters.lockScheduledJobs",
-          "when": "view == 1c-platform-tools-clusters-tree && viewItem == clusterInfobase",
+          "when": "view == 1c-platform-tools-clusters-tree && viewItem =~ /^clusterInfobase/",
           "group": "2_infobase@3"
         },
         {
           "command": "1c-platform-tools.clusters.unlockScheduledJobs",
-          "when": "view == 1c-platform-tools-clusters-tree && viewItem == clusterInfobase",
+          "when": "view == 1c-platform-tools-clusters-tree && viewItem =~ /^clusterInfobase/",
           "group": "2_infobase@4"
         },
         {
           "command": "1c-platform-tools.clusters.terminateInfobaseSessions",
-          "when": "view == 1c-platform-tools-clusters-tree && viewItem == clusterInfobase",
+          "when": "view == 1c-platform-tools-clusters-tree && viewItem =~ /^clusterInfobase/",
           "group": "3_danger@1"
         },
         {
           "command": "1c-platform-tools.clusters.dropInfobase",
-          "when": "view == 1c-platform-tools-clusters-tree && viewItem == clusterInfobase",
+          "when": "view == 1c-platform-tools-clusters-tree && viewItem =~ /^clusterInfobase/",
           "group": "3_danger@2"
         },
         {

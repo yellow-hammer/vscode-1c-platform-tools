@@ -6,40 +6,7 @@
  */
 
 import * as vscode from 'vscode';
-import type { InfobaseDropMode, RacCredentials } from './racArgs';
-
-/**
- * Спрашивает администратора информационной базы.
- *
- * Вопрос возникает только тогда, когда rac отказал по аутентификации, поэтому
- * в заголовке named база, из-за которой он появился.
- *
- * @param infobaseName - Имя информационной базы
- * @returns Учётные данные или undefined при отказе
- */
-export async function promptInfobaseCredentials(
-	infobaseName: string
-): Promise<RacCredentials | undefined> {
-	const user = await vscode.window.showInputBox({
-		title: `Администратор базы «${infobaseName}»`,
-		prompt: 'Для этого действия платформа требует администратора информационной базы',
-		ignoreFocusOut: true,
-		validateInput: (value) => (value.trim() === '' ? 'Укажите имя администратора' : undefined),
-	});
-	if (user === undefined) {
-		return undefined;
-	}
-	const password = await vscode.window.showInputBox({
-		title: `Администратор базы «${infobaseName}»`,
-		prompt: `Пароль пользователя ${user.trim()}`,
-		password: true,
-		ignoreFocusOut: true,
-	});
-	if (password === undefined) {
-		return undefined;
-	}
-	return { user: user.trim(), password };
-}
+import type { InfobaseDropMode } from './racArgs';
 
 /** Параметры блокировки начала сеансов. */
 export interface SessionLockPrompt {

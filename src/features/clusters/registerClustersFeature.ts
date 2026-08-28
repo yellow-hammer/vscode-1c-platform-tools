@@ -18,7 +18,7 @@ import { ClusterService } from './clusterService';
 import { CLUSTERS_HELP_VIEW_ID, CLUSTERS_VIEW_ID } from './constants';
 import { ConnectionStore, type SyncedMemento } from './connectionStore';
 import { ClusterCredentialStore } from './credentials';
-import { promptInfobaseCredentials } from './prompts';
+import { createCredentialsNotifier, type MissingCredentialsEvent } from './credentialsNotify';
 import { HelpAndSupportProvider } from '../projects/helpAndSupportProvider';
 import { initClusterIcons } from './nodes';
 import { RacClient } from './racClient';
@@ -37,9 +37,18 @@ export function registerClustersFeature(context: vscode.ExtensionContext): vscod
 	const store = new ConnectionStore(context.globalState as SyncedMemento);
 
 	const client = new RacClient();
-	const credentials = new ClusterCredentialStore(context.secrets);
-	const service = new ClusterService(client, credentials, promptInfobaseCredentials);
-	const provider = new ClustersProvider(store, service);
+	const credentials = new ClusterCredentialStore(context.globalState as SyncedMemento, context.secrets);
+	// Форма создаётся после сервиса, поэтому уведомление получает ссылку позже.
+	let openCredentialsForm: (event?: MissingCredentialsEvent) => Thenable<void> = () =>
+		Promise.resolve();
+	const service = new ClusterService(
+		client,
+		credentials,
+		createCredentialsNotifier((event) => {
+			void openCredentialsForm(event);
+		})
+	);
+	const provider = new ClustersProvider(store, service, credentials);
 
 	const treeView = vscode.window.createTreeView(CLUSTERS_VIEW_ID, {
 		treeDataProvider: provider,
@@ -56,6 +65,17 @@ export function registerClustersFeature(context: vscode.ExtensionContext): vscod
 
 
 	const editor = new ClusterConnectionsEditor(store, credentials, service, provider);
+	// Причина уведомления подсказывает группу: про базы открываются наборы баз,
+	// про центральный сервер — его администраторы
+	openCredentialsForm = (event) =>
+		editor.open({
+			kind: 'set',
+			setKind: event?.kind.startsWith('infobase')
+				? 'infobase'
+				: event?.kind.startsWith('agent')
+					? 'agent'
+					: 'cluster',
+		});
 	const activity = new ClusterActivityPanel(service, provider);
 	// Одна вкладка на все объекты дерева: карточка администратора отдельна,
 	// потому что открывается и для создания, когда объекта ещё нет.

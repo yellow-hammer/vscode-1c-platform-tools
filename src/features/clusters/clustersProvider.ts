@@ -11,6 +11,7 @@
 import * as vscode from 'vscode';
 import type { ClusterService, ServiceResult } from './clusterService';
 import type { ConnectionStore } from './connectionStore';
+import type { ClusterCredentialStore } from './credentials';
 import {
 	sortConnections,
 	sortAdmins,
@@ -50,7 +51,8 @@ export class ClustersProvider implements vscode.TreeDataProvider<ClusterTreeNode
 
 	constructor(
 		private readonly store: ConnectionStore,
-		private readonly service: ClusterService
+		private readonly service: ClusterService,
+		private readonly credentials: ClusterCredentialStore
 	) {}
 
 	getTreeItem(element: ClusterTreeNode): vscode.TreeItem {
@@ -243,7 +245,15 @@ export class ClustersProvider implements vscode.TreeDataProvider<ClusterTreeNode
 			case 'infobases': {
 				const result = await this.service.listInfobases(connection, clusterId);
 				const nodes = this.materialize(group.cacheKey, result, 'Информационных баз нет', (items) =>
-					sortInfobases(items).map((item) => new InfobaseNode(connection, clusterId, item))
+					sortInfobases(items).map(
+						(item) =>
+							new InfobaseNode(
+								connection,
+								clusterId,
+								item,
+								this.credentials.boundSetName(connection.id, item.id)
+							)
+					)
 				);
 				void this.decorateInfobases(nodes);
 				return nodes;
