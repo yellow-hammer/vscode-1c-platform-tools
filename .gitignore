@@ -31,6 +31,7 @@ Thumbs.db
 # IDE
 .idea/
 .cursor/plans/
+.claude/
 .vscode/settings.json
 *.code-workspace
 
@@ -44,6 +45,8 @@ Thumbs.db
 
 # Документация (генерируемая)
 CHANGELOG.md
+docs/.vitepress/cache/
+docs/.vitepress/dist/
 
 # Package manager
 package-lock.json.bak
