@@ -2,6 +2,7 @@ import * as assert from 'node:assert';
 import {
 	BASE_ENV_FILE,
 	DEFAULT_PROFILE_ID,
+	LOCAL_OVERRIDES_FILE,
 	NO_SETTINGS_LABEL,
 	parseEnvFileName,
 	buildEnvProfiles,
@@ -9,6 +10,8 @@ import {
 	activeProfileLabel,
 	buildOverrideArgs,
 	hasOverrides,
+	mergeEnvOverrides,
+	parseLocalOverrides,
 	detectSettingsFormat,
 } from '../../shared/envProfiles';
 
@@ -57,6 +60,15 @@ suite('envProfiles', () => {
 		const profile = parseEnvFileName('env.prod.local.json');
 		assert.ok(profile);
 		assert.strictEqual(profile.id, 'prod.local');
+	});
+
+	test('parseEnvFileName: env.local.json — файл перекрытий, а не профиль', () => {
+		assert.strictEqual(parseEnvFileName(LOCAL_OVERRIDES_FILE), undefined);
+		assert.strictEqual(parseEnvFileName(LOCAL_OVERRIDES_FILE, 'v3'), undefined);
+		assert.deepStrictEqual(
+			buildEnvProfiles(['env.json', LOCAL_OVERRIDES_FILE, 'env.dev.json']).map((p) => p.id),
+			[DEFAULT_PROFILE_ID, 'dev']
+		);
 	});
 
 	test('parseEnvFileName: не env-файлы отбрасываются', () => {
@@ -134,6 +146,88 @@ suite('envProfiles', () => {
 		assert.strictEqual(hasOverrides({}), false);
 		assert.strictEqual(hasOverrides({ ibConnection: '' }), false);
 		assert.strictEqual(hasOverrides({ v8version: '8.3.27' }), true);
+	});
+});
+
+suite('parseLocalOverrides', () => {
+	test('плоский формат с флагами vrunner', () => {
+		const { overrides, ignoredKeys } = parseLocalOverrides({
+			'--ibconnection': '/F./build/${gitBranch}',
+			'--db-user': 'admin',
+			'--v8version': '8.3.27',
+		});
+		assert.deepStrictEqual(overrides, {
+			ibConnection: '/F./build/${gitBranch}',
+			dbUser: 'admin',
+			v8version: '8.3.27',
+		});
+		assert.deepStrictEqual(ignoredKeys, []);
+	});
+
+	test('имена ключей принимаются без префикса --', () => {
+		const { overrides } = parseLocalOverrides({ ibconnection: '/Fbuild/ib', 'db-pwd': 'секрет' });
+		assert.deepStrictEqual(overrides, { ibConnection: '/Fbuild/ib', dbPwd: 'секрет' });
+	});
+
+	test('обёртки default (2.x) и vrunner (3.x) принимаются', () => {
+		const v2 = parseLocalOverrides({ default: { '--ibconnection': '/Fx' } });
+		assert.deepStrictEqual(v2.overrides, { ibConnection: '/Fx' });
+
+		const v3 = parseLocalOverrides({ vrunner: { ibconnection: '/Fy', additional: '/L ru' } });
+		assert.deepStrictEqual(v3.overrides, { ibConnection: '/Fy', additional: '/L ru' });
+	});
+
+	test('неподдержанные и нестроковые ключи попадают в ignoredKeys', () => {
+		const { overrides, ignoredKeys } = parseLocalOverrides({
+			$schema: 'https://example/schema.json',
+			'--ibconnection': '/Fx',
+			'--root': '.',
+			'--ordinaryapp': 1,
+		});
+		assert.deepStrictEqual(overrides, { ibConnection: '/Fx' });
+		assert.deepStrictEqual(ignoredKeys, ['--root', '--ordinaryapp']);
+	});
+
+	test('пустые строки означают «не перекрывать» и не считаются ошибкой', () => {
+		const { overrides, ignoredKeys } = parseLocalOverrides({ '--db-user': '', '--v8version': '  ' });
+		assert.deepStrictEqual(overrides, {});
+		assert.deepStrictEqual(ignoredKeys, []);
+	});
+
+	test('не объект → пустые перекрытия', () => {
+		assert.deepStrictEqual(parseLocalOverrides(undefined).overrides, {});
+		assert.deepStrictEqual(parseLocalOverrides('строка').overrides, {});
+		assert.deepStrictEqual(parseLocalOverrides([1, 2]).overrides, {});
+		assert.deepStrictEqual(parseLocalOverrides(null).overrides, {});
+	});
+});
+
+suite('mergeEnvOverrides', () => {
+	test('непустые поля верхнего слоя побеждают', () => {
+		const merged = mergeEnvOverrides(
+			{ ibConnection: '/Fbase', dbUser: 'base', v8version: '8.3.25' },
+			{ ibConnection: '/Fover', dbUser: '' }
+		);
+		assert.deepStrictEqual(merged, { ibConnection: '/Fover', dbUser: 'base', v8version: '8.3.25' });
+	});
+
+	test('undefined-слои переживаются, пустой результат → undefined', () => {
+		assert.deepStrictEqual(mergeEnvOverrides(undefined, { dbUser: 'x' }), { dbUser: 'x' });
+		assert.deepStrictEqual(mergeEnvOverrides({ dbUser: 'x' }, undefined), { dbUser: 'x' });
+		assert.strictEqual(mergeEnvOverrides(undefined, undefined), undefined);
+		assert.strictEqual(mergeEnvOverrides({}, { ibConnection: '' }), undefined);
+	});
+
+	test('последовательное слияние даёт приоритет UI > env.local.json > профиль', () => {
+		const profile = { ibConnection: '/F./build/${gitBranch}', v8version: '8.3.25' };
+		const local = { ibConnection: '/Flocal', dbUser: 'local' };
+		const ui = { dbUser: 'ui' };
+		const merged = mergeEnvOverrides(mergeEnvOverrides(profile, local), ui);
+		assert.deepStrictEqual(merged, {
+			ibConnection: '/Flocal',
+			dbUser: 'ui',
+			v8version: '8.3.25',
+		});
 	});
 });
 

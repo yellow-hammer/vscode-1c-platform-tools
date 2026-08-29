@@ -4190,7 +4190,7 @@
     "typecheck": "tsc --noEmit",
     "lint": "eslint src --max-warnings 0",
     "test": "vscode-test && npm run test:node",
-    "test:node": "node --test out/test/shared/ovmPaths.node.js out/test/shared/processOutput.node.js out/test/utils/shellArgvRoundtrip.node.js",
+    "test:node": "node --test out/test/shared/gitHead.node.js out/test/shared/ovmPaths.node.js out/test/shared/processOutput.node.js out/test/utils/shellArgvRoundtrip.node.js",
     "package": "vsce package",
     "changelog": "git-cliff --config cliff.toml --output CHANGELOG.md",
     "ping-ipc": "node ../mcp-1c-platform-tools/scripts/ping-ipc.mjs"
