@@ -4157,6 +4157,9 @@
     "test:node": "node --test out/test/shared/ovmPaths.node.js out/test/shared/processOutput.node.js out/test/utils/shellArgvRoundtrip.node.js",
     "package": "vsce package",
     "changelog": "git-cliff --config cliff.toml --output CHANGELOG.md",
+    "docs:dev": "vitepress dev docs",
+    "docs:build": "vitepress build docs",
+    "docs:preview": "vitepress preview docs",
     "ping-ipc": "node ../mcp-1c-platform-tools/scripts/ping-ipc.mjs"
   },
   "overrides": {
@@ -4191,6 +4194,7 @@
     "eslint": "^10.9.0",
     "typescript": "^5.9.3",
     "typescript-eslint": "^8.67.0",
+    "vitepress": "^1.6.4",
     "yazl": "^3.3.1"
   }
 }
