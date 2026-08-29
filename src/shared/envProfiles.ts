@@ -20,6 +20,15 @@ export type SettingsSchema = 'v2' | 'v3';
 /** Имя файла профиля «По умолчанию» (vanessa-runner 2.x) */
 export const BASE_ENV_FILE = 'env.json';
 
+/**
+ * Файл локальных перекрытий активного профиля (в .gitignore, не коммитится).
+ *
+ * Значения из него применяются поверх активного профиля так же, как временные
+ * параметры из интерфейса, но задаются программно — скриптами и git-хуками.
+ * Имя зарезервировано: профилем запуска «local» этот файл не считается.
+ */
+export const LOCAL_OVERRIDES_FILE = 'env.local.json';
+
 /** Имя файла профиля «По умолчанию» (vanessa-runner 3.x) */
 export const BASE_AUTUMN_FILE = 'autumn-properties.json';
 
@@ -94,8 +103,13 @@ const AUTUMN_FILE_RE = /^autumn-properties(?:\.([A-Za-z0-9_.-]+))?\.json$/;
  * @returns Профиль или undefined, если имя не соответствует шаблону
  */
 export function parseEnvFileName(fileName: string, schema: SettingsSchema = 'v2'): EnvProfile | undefined {
+	const trimmed = fileName.trim();
+	// env.local.json — файл локальных перекрытий, а не профиль запуска
+	if (trimmed === LOCAL_OVERRIDES_FILE) {
+		return undefined;
+	}
 	const pattern = schema === 'v3' ? AUTUMN_FILE_RE : ENV_FILE_RE;
-	const match = pattern.exec(fileName.trim());
+	const match = pattern.exec(trimmed);
 	if (!match) {
 		return undefined;
 	}
@@ -103,7 +117,7 @@ export function parseEnvFileName(fileName: string, schema: SettingsSchema = 'v2'
 	if (id === undefined) {
 		return { id: DEFAULT_PROFILE_ID, fileName: baseSettingsFileName(schema), label: DEFAULT_PROFILE_LABEL, isBase: true };
 	}
-	return { id, fileName, label: id, isBase: false };
+	return { id, fileName: trimmed, label: id, isBase: false };
 }
 
 /**
@@ -177,6 +191,21 @@ export function activeProfileLabel(activeId: string | undefined, profiles: EnvPr
 }
 
 /**
+ * Поля временных параметров по имени опции vrunner (без префикса `--`).
+ *
+ * Единственный источник истины для набора перекрываемых опций: из него строятся
+ * и флаги команд (см. {@link buildOverrideArgs}), и разбор env.local.json
+ * (см. {@link parseLocalOverrides}). Порядок ключей — порядок флагов.
+ */
+const OVERRIDE_FIELD_BY_OPTION: Record<string, keyof EnvOverrides> = {
+	ibconnection: 'ibConnection',
+	'db-user': 'dbUser',
+	'db-pwd': 'dbPwd',
+	v8version: 'v8version',
+	additional: 'additional',
+};
+
+/**
  * Строит массив флагов vrunner для временных параметров
  *
  * Передаются только заданные (непустые) поля — остальное берётся из файла профиля.
@@ -189,20 +218,11 @@ export function buildOverrideArgs(overrides: EnvOverrides | undefined): string[]
 		return [];
 	}
 	const args: string[] = [];
-	if (overrides.ibConnection) {
-		args.push('--ibconnection', quoteFileIbConnection(overrides.ibConnection));
-	}
-	if (overrides.dbUser) {
-		args.push('--db-user', overrides.dbUser);
-	}
-	if (overrides.dbPwd) {
-		args.push('--db-pwd', overrides.dbPwd);
-	}
-	if (overrides.v8version) {
-		args.push('--v8version', overrides.v8version);
-	}
-	if (overrides.additional) {
-		args.push('--additional', overrides.additional);
+	for (const [option, field] of Object.entries(OVERRIDE_FIELD_BY_OPTION)) {
+		const value = overrides[field];
+		if (value) {
+			args.push(`--${option}`, field === 'ibConnection' ? quoteFileIbConnection(value) : value);
+		}
 	}
 	return args;
 }
@@ -215,6 +235,92 @@ export function buildOverrideArgs(overrides: EnvOverrides | undefined): string[]
  */
 export function hasOverrides(overrides: EnvOverrides | undefined): boolean {
 	return buildOverrideArgs(overrides).length > 0;
+}
+
+/** Разобранное содержимое файла локальных перекрытий */
+export interface LocalOverridesParseResult {
+	/** Поддержанные перекрытия (только непустые строки) */
+	overrides: EnvOverrides;
+	/** Ключи, которые расширение не умеет передавать флагами (для журнала) */
+	ignoredKeys: string[];
+}
+
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+	return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+/**
+ * Разбирает содержимое env.local.json во временные параметры.
+ *
+ * Основной формат — плоский объект с флагами vrunner (`"--ibconnection": …`);
+ * для копирования из файла профиля принимаются и обёртки `{"default": {…}}`
+ * (схема 2.x) и `{"vrunner": {…}}` (3.x). Имена ключей допускаются с `--` и
+ * без. Применяются только опции, которые расширение умеет передавать флагами
+ * поверх профиля (те же, что у временных параметров интерфейса); остальные
+ * ключи возвращаются в ignoredKeys — молчаливое игнорирование прятало бы
+ * опечатки.
+ *
+ * @param parsed - Разобранный JSON файла перекрытий
+ * @returns Перекрытия и список неподдержанных ключей
+ */
+export function parseLocalOverrides(parsed: unknown): LocalOverridesParseResult {
+	if (!isPlainObject(parsed)) {
+		return { overrides: {}, ignoredKeys: [] };
+	}
+	let source = parsed;
+	if (isPlainObject(parsed.default)) {
+		source = parsed.default;
+	} else if (isPlainObject(parsed.vrunner)) {
+		source = parsed.vrunner;
+	}
+	const overrides: EnvOverrides = {};
+	const ignoredKeys: string[] = [];
+	for (const [rawKey, value] of Object.entries(source)) {
+		if (rawKey === '$schema') {
+			continue;
+		}
+		const field = OVERRIDE_FIELD_BY_OPTION[rawKey.replace(/^--/, '').toLowerCase()];
+		if (!field) {
+			ignoredKeys.push(rawKey);
+			continue;
+		}
+		if (typeof value !== 'string') {
+			ignoredKeys.push(rawKey);
+			continue;
+		}
+		// пустая строка — «не перекрывать», как пустое поле временных параметров
+		if (value.trim()) {
+			overrides[field] = value.trim();
+		}
+	}
+	return { overrides, ignoredKeys };
+}
+
+/**
+ * Сливает два набора перекрытий: непустые поля `over` побеждают поля `base`.
+ *
+ * Порядок приоритета собирается последовательными вызовами: значения профиля
+ * с переменными ← env.local.json ← временные параметры интерфейса.
+ *
+ * @param base - Нижний слой (может быть undefined)
+ * @param over - Верхний слой, его поля важнее (может быть undefined)
+ * @returns Слитые перекрытия или undefined, если оба слоя пусты
+ */
+export function mergeEnvOverrides(
+	base: EnvOverrides | undefined,
+	over: EnvOverrides | undefined
+): EnvOverrides | undefined {
+	if (!base && !over) {
+		return undefined;
+	}
+	const merged: EnvOverrides = {};
+	for (const field of Object.values(OVERRIDE_FIELD_BY_OPTION)) {
+		const value = over?.[field] || base?.[field];
+		if (value) {
+			merged[field] = value;
+		}
+	}
+	return hasOverrides(merged) ? merged : undefined;
 }
 
 /** Формат файла настроек vanessa-runner по его содержимому. */

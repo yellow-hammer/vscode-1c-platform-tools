@@ -110,7 +110,7 @@ suite('vrunnerPlanner', () => {
 			settingsFormat: formatByName,
 		});
 		assert.ok(args.includes('--v8version'));
-		assert.ok(notices.some((notice) => notice.includes('Применены временные параметры')));
+		assert.ok(notices.some((notice) => notice.includes('Применены перекрытия профиля')));
 	});
 
 	test('пароль в замечании маскируется', () => {
@@ -119,7 +119,7 @@ suite('vrunnerPlanner', () => {
 			overrideArgs: ['--db-pwd', 'секрет'],
 			settingsFormat: formatByName,
 		});
-		const applied = notices.find((notice) => notice.includes('Применены временные параметры'));
+		const applied = notices.find((notice) => notice.includes('Применены перекрытия профиля'));
 		assert.ok(applied);
 		assert.ok(!applied.includes('секрет'));
 	});
