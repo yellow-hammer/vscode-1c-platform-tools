@@ -139,22 +139,24 @@ export function planIntents(intents: VRunnerIntent[], context: PlanContext): Pla
 	const adapter = selectCliAdapter(context.version);
 	const cli3 = context.version !== undefined && isAtLeast(context.version, VRUNNER_FEATURES.cli3);
 
+	// «Перекрытия профиля» — общий термин: временные параметры интерфейса,
+	// env.local.json и значения активного профиля с ${gitBranch}
 	let overrides = context.overrideArgs;
 	if (overrides.length > 0 && context.settingsFile) {
-		notices.push('Временные параметры профиля не применены: в вызове задан settingsFile.');
+		notices.push('Перекрытия активного профиля не применены: в вызове задан settingsFile.');
 		overrides = [];
 	} else if (overrides.length > 0 && context.explicitIbConnection) {
 		const filtered = stripOverrideFlags(overrides, ['--ibconnection', '--db-user', '--db-pwd']);
 		if (filtered.length !== overrides.length) {
 			notices.push(
-				'Из временных параметров профиля исключено подключение к ИБ: ' +
+				'Из перекрытий профиля исключено подключение к ИБ: ' +
 				'в вызове задана явная строка подключения.'
 			);
 		}
 		overrides = filtered;
 	}
 	if (overrides.length > 0) {
-		notices.push(`Применены временные параметры профиля: ${maskOverrideSecrets(overrides).join(' ')}.`);
+		notices.push(`Применены перекрытия профиля: ${maskOverrideSecrets(overrides).join(' ')}.`);
 	}
 
 	// Именованный профиль подставляется во ВСЕ команды через --settings; для

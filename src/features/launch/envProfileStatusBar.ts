@@ -9,7 +9,7 @@ import * as vscode from 'vscode';
 import * as path from 'node:path';
 import * as fsSync from 'node:fs';
 import { VRunnerManager } from '../../shared/vrunnerManager';
-import { activeProfileLabel } from '../../shared/envProfiles';
+import { activeProfileLabel, LOCAL_OVERRIDES_FILE } from '../../shared/envProfiles';
 
 let statusItem: vscode.StatusBarItem | undefined;
 
@@ -55,7 +55,8 @@ export function refreshEnvProfileStatusBar(visible: boolean): void {
 		: false;
 
 	const overrides = vrunner.getActiveEnvOverrides();
-	item.text = `$(rocket) ${label}${overrides ? ' *' : ''}`;
+	const hasLocalOverrides = vrunner.hasLocalEnvOverrides();
+	item.text = `$(rocket) ${label}${overrides || hasLocalOverrides ? ' *' : ''}`;
 	// Предупреждаем, когда команды заблокированы отсутствием файла настроек
 	item.backgroundColor = settingsExists
 		? undefined
@@ -68,6 +69,7 @@ export function refreshEnvProfileStatusBar(visible: boolean): void {
 				? `Файл настроек: ${settingsFile}`
 				: '⚠ Профиль запуска не создан, команды заблокированы',
 			overrides ? 'Заданы временные параметры' : '',
+			hasLocalOverrides ? `Действуют локальные перекрытия (${LOCAL_OVERRIDES_FILE})` : '',
 		].filter(Boolean).join('\n\n')
 	);
 	item.show();

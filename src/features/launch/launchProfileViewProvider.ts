@@ -11,7 +11,7 @@ import * as vscode from 'vscode';
 import * as path from 'node:path';
 import * as fsSync from 'node:fs';
 import { VRunnerManager } from '../../shared/vrunnerManager';
-import { activeProfileLabel } from '../../shared/envProfiles';
+import { activeProfileLabel, LOCAL_OVERRIDES_FILE } from '../../shared/envProfiles';
 
 /** Элемент плашки профиля. */
 function item(
@@ -41,8 +41,9 @@ export class LaunchProfileViewProvider implements vscode.TreeDataProvider<vscode
 		);
 		const workspaceRoot = this.vrunner.getWorkspaceRoot();
 		if (workspaceRoot) {
+			// .git/HEAD — чтобы строка ИБ с ${gitBranch} обновлялась при смене ветки
 			const watcher = vscode.workspace.createFileSystemWatcher(
-				new vscode.RelativePattern(workspaceRoot, '{env*.json,autumn-properties*.json}')
+				new vscode.RelativePattern(workspaceRoot, '{env*.json,autumn-properties*.json,.git/HEAD}')
 			);
 			this.disposables.push(
 				watcher,
@@ -81,10 +82,14 @@ export class LaunchProfileViewProvider implements vscode.TreeDataProvider<vscode
 		const settingsExists = workspaceRoot
 			? fsSync.existsSync(path.join(workspaceRoot, settingsFile))
 			: false;
-		const ibConnection = this.vrunner.readActiveProfileSettingSync('ibconnection');
+		// эффективная строка подключения: временные параметры > env.local.json >
+		// профиль (в том числе значения с подставленным ${gitBranch})
+		const ibConnection = this.vrunner.getEffectiveEnvOverrides()?.ibConnection
+			?? this.vrunner.readActiveProfileSettingSync('ibconnection');
 		const hasOverrides = this.vrunner.hasActiveEnvOverrides();
+		const hasLocalOverrides = this.vrunner.hasLocalEnvOverrides();
 
-		return [
+		const items = [
 			item(
 				`Профиль: ${profileLabel}`,
 				'rocket',
@@ -111,7 +116,7 @@ export class LaunchProfileViewProvider implements vscode.TreeDataProvider<vscode
 				`ИБ: ${ibConnection ?? '/F./build/ib'}`,
 				'database',
 				ibConnection
-					? 'Строка подключения из файла настроек'
+					? 'Строка подключения, которую увидят команды vrunner (профиль и перекрытия, ${gitBranch} подставлен)'
 					: 'В файле настроек не задана, используется каталог build/ib по умолчанию',
 				{ command: '1c-platform-tools.serviceFiles.ensure', title: 'Файл настроек', arguments: ['launchProfile'] }
 			),
@@ -122,5 +127,20 @@ export class LaunchProfileViewProvider implements vscode.TreeDataProvider<vscode
 				{ command: '1c-platform-tools.env.setOverrides', title: 'Временные параметры' }
 			),
 		];
+		if (hasLocalOverrides && workspaceRoot) {
+			items.push(
+				item(
+					`Локальные перекрытия: ${LOCAL_OVERRIDES_FILE}`,
+					'layers-active',
+					'Значения из env.local.json применяются поверх активного профиля (приоритет ниже временных параметров). Нажмите, чтобы открыть файл.',
+					{
+						command: 'vscode.open',
+						title: 'Открыть env.local.json',
+						arguments: [vscode.Uri.file(path.join(workspaceRoot, LOCAL_OVERRIDES_FILE))],
+					}
+				)
+			);
+		}
+		return items;
 	}
 }

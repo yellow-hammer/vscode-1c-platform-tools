@@ -27,6 +27,7 @@ import {
 	ACTIVE_ENV_PROFILE_KEY,
 	ACTIVE_ENV_OVERRIDES_KEY,
 	BASE_ENV_FILE,
+	LOCAL_OVERRIDES_FILE,
 	SettingsSchema,
 	baseSettingsFileName,
 	DEFAULT_PROFILE_ID,
@@ -35,9 +36,13 @@ import {
 	buildEnvProfiles,
 	buildOverrideArgs,
 	hasOverrides,
+	mergeEnvOverrides,
+	parseLocalOverrides,
 	resolveActiveEnvFileName,
 	detectSettingsFormat,
 } from './envProfiles';
+import { containsGitBranchVariable, GIT_BRANCH_VARIABLE, substituteGitBranch } from './launchVariables';
+import { readGitBranchDirName } from './gitHead';
 import {
 	VRunnerVersion,
 	VRunnerFeature,
@@ -116,6 +121,12 @@ export class VRunnerManager {
 
 	/** Показанные замечания о формате файла настроек: не повторяем за сессию. */
 	private readonly warnedV2SettingsFiles = new Set<string>();
+
+	/** Корни, где уже предупредили про `${gitBranch}` вне репозитория git. */
+	private readonly warnedGitBranchRoots = new Set<string>();
+
+	/** Файлы перекрытий, о неподдержанных ключах которых уже писали в журнал. */
+	private readonly warnedLocalOverrideKeys = new Set<string>();
 
 	/** Замечания последнего планирования (применённые/отброшенные временные параметры). */
 	private planNotices: string[] = [];
@@ -857,7 +868,7 @@ export class VRunnerManager {
 				? parsed?.vrunner?.[option]
 				: parsed?.default?.[`--${option}`];
 			if (typeof value === 'string' && value.trim()) {
-				return value.trim();
+				return this.substituteLaunchValue(value.trim());
 			}
 		} catch {
 			// файл недоступен или не JSON
@@ -2260,12 +2271,192 @@ export class VRunnerManager {
 	}
 
 	/**
-	 * Возвращает флаги vrunner для активных временных параметров
+	 * Имя каталога текущей ветки git для подстановки `${gitBranch}`.
+	 *
+	 * Читается по `.git/HEAD` на момент вызова: переключение ветки подхватывает
+	 * следующая команда, без перезагрузки окна и слежения за HEAD.
+	 *
+	 * @returns Нормализованное имя ветки или undefined вне репозитория git
+	 */
+	public getGitBranchDirName(): string | undefined {
+		const root = this.getEffectiveRoot();
+		return root ? readGitBranchDirName(root) : undefined;
+	}
+
+	/**
+	 * Имя ветки для подстановки; вне репозитория git — однократное предупреждение.
+	 *
+	 * Команду отсутствие ветки не роняет: значение остаётся как есть, литеральный
+	 * путь виден в журнале и легко диагностируется.
+	 *
+	 * @returns Имя каталога ветки или undefined вне репозитория git
+	 */
+	private resolveGitBranchForSubstitution(): string | undefined {
+		const branch = this.getGitBranchDirName();
+		if (branch === undefined) {
+			const root = this.getEffectiveRoot() ?? '';
+			if (!this.warnedGitBranchRoots.has(root)) {
+				this.warnedGitBranchRoots.add(root);
+				const message = `В профиле запуска используется ${GIT_BRANCH_VARIABLE}, но проект не в репозитории git — подстановка пропущена.`;
+				log.warn(message);
+				void vscode.window.showWarningMessage(message);
+			}
+		}
+		return branch;
+	}
+
+	/**
+	 * Подставляет `${gitBranch}` в значение опции запуска.
+	 *
+	 * @param value - Значение опции
+	 * @returns Значение с подставленной веткой (или исходное вне репозитория)
+	 */
+	private substituteLaunchValue(value: string): string {
+		if (!containsGitBranchVariable(value)) {
+			return value;
+		}
+		const branch = this.resolveGitBranchForSubstitution();
+		return branch === undefined ? value : substituteGitBranch(value, branch);
+	}
+
+	/**
+	 * Подставляет `${gitBranch}` во все заданные поля перекрытий.
+	 *
+	 * Ветка читается из `.git/HEAD` один раз на весь набор, а не на каждое поле.
+	 *
+	 * @param overrides - Перекрытия с возможными переменными
+	 * @returns Перекрытия с подставленными значениями
+	 */
+	private substituteOverrideValues(overrides: EnvOverrides): EnvOverrides {
+		const entries = Object.entries(overrides) as [keyof EnvOverrides, string][];
+		if (!entries.some(([, value]) => containsGitBranchVariable(value))) {
+			return overrides;
+		}
+		const branch = this.resolveGitBranchForSubstitution();
+		if (branch === undefined) {
+			return overrides;
+		}
+		const result: EnvOverrides = {};
+		for (const [field, value] of entries) {
+			result[field] = substituteGitBranch(value, branch);
+		}
+		return result;
+	}
+
+	/**
+	 * Читает перекрытия из файла env.local.json в корне проекта.
+	 *
+	 * Файл читается на лету при каждом обращении (запуск команды, статус-бар):
+	 * правка скриптом или git-хуком подхватывается без перезагрузки окна.
+	 * Неподдержанные ключи отмечаются в журнале — один раз на содержимое.
+	 *
+	 * @returns Перекрытия из файла или undefined, если файла нет или он не JSON
+	 */
+	public readLocalEnvOverrides(): EnvOverrides | undefined {
+		const root = this.getEffectiveRoot();
+		if (!root) {
+			return undefined;
+		}
+		const localPath = path.join(root, LOCAL_OVERRIDES_FILE);
+		let content: string;
+		try {
+			content = fsSync.readFileSync(localPath, 'utf8');
+		} catch {
+			return undefined;
+		}
+		let parsed: unknown;
+		try {
+			parsed = JSON.parse(content);
+		} catch {
+			const warnKey = `${localPath}::parse`;
+			if (!this.warnedLocalOverrideKeys.has(warnKey)) {
+				this.warnedLocalOverrideKeys.add(warnKey);
+				log.warn(`${LOCAL_OVERRIDES_FILE}: файл не разобран как JSON, перекрытия не применяются`);
+			}
+			return undefined;
+		}
+		const { overrides, ignoredKeys } = parseLocalOverrides(parsed);
+		if (ignoredKeys.length > 0) {
+			const warnKey = `${localPath}::${ignoredKeys.join(',')}`;
+			if (!this.warnedLocalOverrideKeys.has(warnKey)) {
+				this.warnedLocalOverrideKeys.add(warnKey);
+				log.warn(
+					`${LOCAL_OVERRIDES_FILE}: ключи не поддержаны и пропущены: ${ignoredKeys.join(', ')}. ` +
+					'Флагами передаются --ibconnection, --db-user, --db-pwd, --v8version, --additional.'
+				);
+			}
+		}
+		return hasOverrides(overrides) ? overrides : undefined;
+	}
+
+	/**
+	 * Признак действующих перекрытий из env.local.json
+	 *
+	 * @returns true, если файл существует и содержит поддержанные значения
+	 */
+	public hasLocalEnvOverrides(): boolean {
+		return this.readLocalEnvOverrides() !== undefined;
+	}
+
+	/**
+	 * Значения активного профиля, содержащие `${gitBranch}` (без подстановки).
+	 *
+	 * vanessa-runner сам читает файл настроек и переменных не понимает, поэтому
+	 * такие значения расширение материализует флагами поверх профиля. Значения
+	 * без переменных флагами не дублируются — каскад настроек vrunner остаётся
+	 * за файлом.
+	 *
+	 * @returns Перекрытия из значений профиля с переменными (может быть пусто)
+	 */
+	private readProfileVariableOverrides(): EnvOverrides {
+		const root = this.getEffectiveRoot();
+		if (!root) {
+			return {};
+		}
+		const settingsFile = this.getActiveEnvFile();
+		const absolutePath = path.isAbsolute(settingsFile) ? settingsFile : path.join(root, settingsFile);
+		try {
+			const parsed: unknown = JSON.parse(fsSync.readFileSync(absolutePath, 'utf8'));
+			// секции default (2.x) / vrunner (3.x) разбирает parseLocalOverrides
+			const { overrides } = parseLocalOverrides(parsed);
+			const withVariables: EnvOverrides = {};
+			for (const [field, value] of Object.entries(overrides) as [keyof EnvOverrides, string][]) {
+				if (containsGitBranchVariable(value)) {
+					withVariables[field] = value;
+				}
+			}
+			return withVariables;
+		} catch {
+			return {};
+		}
+	}
+
+	/**
+	 * Эффективные перекрытия активного профиля с подстановкой `${gitBranch}`.
+	 *
+	 * Слои по приоритету (выше — важнее):
+	 * 1. временные параметры из интерфейса;
+	 * 2. файл env.local.json;
+	 * 3. значения активного профиля, содержащие переменные.
+	 *
+	 * @returns Слитые перекрытия или undefined, если перекрытий нет
+	 */
+	public getEffectiveEnvOverrides(): EnvOverrides | undefined {
+		const merged = mergeEnvOverrides(
+			mergeEnvOverrides(this.readProfileVariableOverrides(), this.readLocalEnvOverrides()),
+			this.getActiveEnvOverrides()
+		);
+		return merged ? this.substituteOverrideValues(merged) : undefined;
+	}
+
+	/**
+	 * Возвращает флаги vrunner для действующих перекрытий: временные параметры,
+	 * env.local.json и значения профиля с `${gitBranch}` — уже подставленные.
 	 *
 	 * @returns Массив аргументов (может быть пустым)
 	 */
 	public getActiveEnvOverrideArgs(): string[] {
-		return buildOverrideArgs(this.getActiveEnvOverrides());
+		return buildOverrideArgs(this.getEffectiveEnvOverrides());
 	}
 
 	/**
@@ -2384,7 +2575,7 @@ export class VRunnerManager {
 				? parsed?.vrunner?.[option]
 				: parsed?.default?.[`--${option}`];
 			if (typeof value === 'string' && value.trim()) {
-				return value.trim();
+				return this.substituteLaunchValue(value.trim());
 			}
 		} catch {
 			// файл недоступен или не JSON — значение не определено
@@ -2393,13 +2584,14 @@ export class VRunnerManager {
 	}
 
 	/**
-	 * Строка подключения к ИБ активного профиля: временный параметр либо значение
-	 * из файла настроек; по умолчанию — файловая ИБ build/ib (как у vanessa-runner).
+	 * Строка подключения к ИБ активного профиля: перекрытие (временный параметр,
+	 * env.local.json) либо значение из файла настроек — с подстановкой
+	 * `${gitBranch}`; по умолчанию — файловая ИБ build/ib (как у vanessa-runner).
 	 *
 	 * @returns Строка подключения (например '/F./build/ib')
 	 */
 	public async getActiveIbConnectionValue(): Promise<string> {
-		const override = this.getActiveEnvOverrides()?.ibConnection;
+		const override = this.getEffectiveEnvOverrides()?.ibConnection;
 		if (override) {
 			return override;
 		}
@@ -2409,13 +2601,14 @@ export class VRunnerManager {
 	/**
 	 * Возвращает версию платформы 1С активного профиля (`--v8version`).
 	 *
-	 * Единый источник версии платформы для команд расширения: сначала временный
-	 * параметр (override), затем `default["--v8version"]` активного env-профиля.
+	 * Единый источник версии платформы для команд расширения: сначала перекрытие
+	 * (временный параметр, env.local.json), затем `default["--v8version"]`
+	 * активного env-профиля.
 	 *
 	 * @returns Версия платформы или undefined, если не задана
 	 */
 	public async getActiveV8Version(): Promise<string | undefined> {
-		const override = this.getActiveEnvOverrides()?.v8version;
+		const override = this.getEffectiveEnvOverrides()?.v8version;
 		if (override) {
 			return override;
 		}

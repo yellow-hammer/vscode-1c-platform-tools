@@ -85,7 +85,7 @@ project/
 
 ## Документация
 
-- Руководства по функциям — в каталоге [docs](docs/README.md).
+- Руководства по функциям — на сайте [yellow-hammer.github.io/vscode-1c-platform-tools](https://yellow-hammer.github.io/vscode-1c-platform-tools/).
 - Пошаговое знакомство со всеми панелями — walkthrough **Начало работы с 1C: Platform Tools** (Help → Welcome).
 
 ## Важные нюансы

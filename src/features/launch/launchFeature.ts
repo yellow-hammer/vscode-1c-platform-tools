@@ -10,8 +10,9 @@ import * as vscode from 'vscode';
 import * as path from 'node:path';
 import * as fs from 'node:fs/promises';
 import * as fsSync from 'node:fs';
+import { spawn } from 'node:child_process';
 import { VRunnerManager } from '../../shared/vrunnerManager';
-import { EnvOverrides, DEFAULT_PROFILE_ID, SettingsSchema, baseSettingsFileName } from '../../shared/envProfiles';
+import { EnvOverrides, DEFAULT_PROFILE_ID, LOCAL_OVERRIDES_FILE, SettingsSchema, baseSettingsFileName } from '../../shared/envProfiles';
 import { logger } from '../../shared/logger';
 import { ENV_DEFAULTS, AUTUMN_DEFAULTS } from '../serviceFiles/envDefaults';
 import { buildEnvJsonWithSections } from '../serviceFiles/envJsonBuilder';
@@ -46,6 +47,69 @@ const OVERRIDE_FIELDS: OverrideField[] = [
 	{ key: 'v8version', flag: '--v8version', prompt: 'Версия платформы, например 8.3.21.1234' },
 	{ key: 'additional', flag: '--additional', prompt: 'Дополнительные параметры командной строки запуска 1С' },
 ];
+
+/** Предлагали ли уже в этой сессии добавить env.local.json в .gitignore */
+let suggestedLocalOverridesGitignore = false;
+
+/**
+ * Игнорирует ли git файл (с учётом глобальных исключений пользователя).
+ *
+ * @param workspaceRoot - Корень проекта
+ * @param relPath - Путь относительно корня
+ * @returns true/false; undefined, если git недоступен или это не репозиторий
+ */
+function isGitIgnored(workspaceRoot: string, relPath: string): Promise<boolean | undefined> {
+	return new Promise((resolve) => {
+		const child = spawn('git', ['check-ignore', '-q', '--', relPath], { cwd: workspaceRoot });
+		child.on('error', () => resolve(undefined));
+		child.on('close', (code) => {
+			// 0 — игнорируется, 1 — нет; 128 — не репозиторий или другая ошибка git
+			resolve(code === 0 ? true : code === 1 ? false : undefined);
+		});
+	});
+}
+
+/**
+ * Предлагает добавить env.local.json в .gitignore, если файл не игнорируется.
+ *
+ * Локальные перекрытия и создаются ради того, чтобы не попадать в общий
+ * репозиторий; закоммиченный env.local.json навязал бы личные параметры всей
+ * команде. Проверка через `git check-ignore` уважает и глобальные исключения.
+ * Предложение показывается не чаще раза за сессию.
+ *
+ * @param workspaceRoot - Корень проекта
+ */
+async function suggestGitignoreForLocalOverrides(workspaceRoot: string): Promise<void> {
+	if (suggestedLocalOverridesGitignore || !fsSync.existsSync(path.join(workspaceRoot, LOCAL_OVERRIDES_FILE))) {
+		return;
+	}
+	if (await isGitIgnored(workspaceRoot, LOCAL_OVERRIDES_FILE) !== false) {
+		return;
+	}
+	suggestedLocalOverridesGitignore = true;
+	const addAction = 'Добавить в .gitignore';
+	const picked = await vscode.window.showWarningMessage(
+		`${LOCAL_OVERRIDES_FILE} не игнорируется git — локальные перекрытия могут попасть в коммит.`,
+		addAction
+	);
+	if (picked !== addAction) {
+		return;
+	}
+	const gitignorePath = path.join(workspaceRoot, '.gitignore');
+	let content = '';
+	try {
+		content = await fs.readFile(gitignorePath, 'utf8');
+	} catch {
+		// .gitignore ещё нет — создаём
+	}
+	const separator = content === '' || content.endsWith('\n') ? '' : '\n';
+	await fs.writeFile(
+		gitignorePath,
+		`${content}${separator}\n# Локальные перекрытия профиля запуска (не коммитятся)\n${LOCAL_OVERRIDES_FILE}\n`,
+		'utf8'
+	);
+	log.info(`${LOCAL_OVERRIDES_FILE} добавлен в .gitignore`);
+}
 
 /**
  * Содержимое для нового файла профиля: копия базового файла настроек схемы
@@ -509,7 +573,10 @@ export function registerLaunchFeature(
 				? fsSync.existsSync(path.isAbsolute(settingsFile) ? settingsFile : path.join(workspaceRoot, settingsFile))
 				: false;
 			const overrides = vrunner.getActiveEnvOverrides();
-			const ibConnectionParam = await vrunner.getIbConnectionParam();
+			const localOverrides = vrunner.readLocalEnvOverrides();
+			const effectiveOverrides = vrunner.getEffectiveEnvOverrides();
+			const maskPwd = (value: EnvOverrides | undefined) =>
+				value ? { ...value, dbPwd: value.dbPwd ? '••••' : undefined } : null;
 			const status = {
 				vrunnerVersion: vrunner.getCachedVRunnerVersionLabel() ?? null,
 				settingsSchema: vrunner.getActiveSettingsSchema(),
@@ -521,12 +588,14 @@ export function registerLaunchFeature(
 					fileName: profile.fileName,
 					label: profile.label,
 				})),
-				overrides: overrides
-					? { ...overrides, dbPwd: overrides.dbPwd ? '••••' : undefined }
-					: null,
-				effectiveIbConnection: ibConnectionParam.length > 1
-					? ibConnectionParam[1]
-					: vrunner.readActiveProfileSettingSync('ibconnection') ?? null,
+				overrides: maskPwd(overrides),
+				localOverridesFile: localOverrides ? LOCAL_OVERRIDES_FILE : null,
+				localOverrides: maskPwd(localOverrides),
+				gitBranch: vrunner.getGitBranchDirName() ?? null,
+				// уже с подстановкой ${gitBranch} и перекрытиями (UI > env.local.json > профиль)
+				effectiveIbConnection: effectiveOverrides?.ibConnection
+					?? vrunner.readActiveProfileSettingSync('ibconnection')
+					?? null,
 			};
 			return {
 				success: true,
@@ -571,11 +640,15 @@ export function registerLaunchFeature(
 		{ dispose: disposeEnvProfileStatusBar },
 	];
 
-	// Создание/удаление env-профилей и служебных файлов → обновляем статус-бар и дерево
+	// Создание/удаление env-профилей и служебных файлов → обновляем статус-бар и
+	// дерево; .git/HEAD — чтобы значения с ${gitBranch} обновлялись при смене ветки
 	const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
 	if (workspaceFolder) {
 		const watcher = vscode.workspace.createFileSystemWatcher(
-			new vscode.RelativePattern(workspaceFolder, '{env*.json,.gitignore,.gitattributes,tools/**,.1cpt/**}')
+			new vscode.RelativePattern(
+				workspaceFolder,
+				'{env*.json,autumn-properties*.json,.gitignore,.gitattributes,tools/**,.1cpt/**,.git/HEAD}'
+			)
 		);
 		const onFsChange = () => {
 			// Хуки читаются с кэшем: без сброса правка .1cpt/hooks.json не действует до перезагрузки окна
@@ -591,7 +664,15 @@ export function registerLaunchFeature(
 			}
 			onFsChange();
 		};
-		watcher.onDidCreate(onFsChange);
+		// Предложение про .gitignore — только при появлении файла в открытом окне:
+		// для давно существующего файла тост при каждом запуске был бы навязчивым
+		const onFsCreate = (uri: vscode.Uri) => {
+			onFsChange();
+			if (isProjectRef.current && path.basename(uri.fsPath) === LOCAL_OVERRIDES_FILE) {
+				void suggestGitignoreForLocalOverrides(workspaceFolder.uri.fsPath);
+			}
+		};
+		watcher.onDidCreate(onFsCreate);
 		watcher.onDidChange(onFsChange);
 		watcher.onDidDelete(() => void onFsDelete());
 		disposables.push(watcher);
