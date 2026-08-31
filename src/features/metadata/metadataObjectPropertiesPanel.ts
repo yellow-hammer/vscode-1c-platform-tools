@@ -283,6 +283,16 @@ interface MetadataPanelViewModel {
 	initialTabId?: string;
 	/** Происхождение объекта: заимствование и поддержка поставщика. */
 	origin?: MetadataPanelOriginModel;
+	/** Подписи платформы от md-sparrow: права, группы команд, виды объектов. */
+	labels?: MetadataPanelLabels;
+}
+
+/** Словари подписей для вкладок: своих копий панель не держит. */
+interface MetadataPanelLabels {
+	rights: Readonly<Record<string, string>>;
+	commandGroups: Readonly<Record<string, string>>;
+	objectStandardCommands: Readonly<Record<string, string>>;
+	objectKinds: Readonly<Record<string, string>>;
 }
 
 interface OpenMetadataObjectPropertiesParams {
@@ -443,76 +453,30 @@ const PROPERTY_LABEL_BY_KEY: Record<string, string> = {
 
 const XML_FRAGMENT_KEYS = new Set<string>(['standardAttributesXml', 'characteristicsXml']);
 
-export const MD_REF_KIND_LABEL_BY_PREFIX: Record<string, string> = {
-	Catalog: 'Справочник',
-	CatalogRef: 'Справочник',
-	Document: 'Документ',
-	DocumentRef: 'Документ',
-	DocumentJournal: 'Журнал документов',
-	DocumentJournalRef: 'Журнал документов',
-	Enum: 'Перечисление',
-	EnumRef: 'Перечисление',
-	Report: 'Отчёт',
-	ReportRef: 'Отчёт',
-	DataProcessor: 'Обработка',
-	DataProcessorRef: 'Обработка',
-	ExternalReport: 'Внешний отчёт',
-	ExternalReportRef: 'Внешний отчёт',
-	ExternalDataProcessor: 'Внешняя обработка',
-	ExternalDataProcessorRef: 'Внешняя обработка',
-	InformationRegister: 'Регистр сведений',
-	InformationRegisterRef: 'Регистр сведений',
-	AccumulationRegister: 'Регистр накопления',
-	AccumulationRegisterRef: 'Регистр накопления',
-	AccountingRegister: 'Регистр бухгалтерии',
-	AccountingRegisterRef: 'Регистр бухгалтерии',
-	CalculationRegister: 'Регистр расчёта',
-	CalculationRegisterRef: 'Регистр расчёта',
-	ChartOfAccounts: 'План счетов',
-	ChartOfAccountsRef: 'План счетов',
-	ChartOfCharacteristicTypes: 'План видов характеристик',
-	ChartOfCharacteristicTypesRef: 'План видов характеристик',
-	ChartOfCalculationTypes: 'План видов расчёта',
-	ChartOfCalculationTypesRef: 'План видов расчёта',
-	BusinessProcess: 'Бизнес-процесс',
-	BusinessProcessRef: 'Бизнес-процесс',
-	Task: 'Задача',
-	TaskRef: 'Задача',
-	ExchangePlan: 'План обмена',
-	ExchangePlanRef: 'План обмена',
-	FilterCriterion: 'Критерий отбора',
-	FilterCriterionRef: 'Критерий отбора',
-	SettingsStorage: 'Хранилище настроек',
-	SettingsStorageRef: 'Хранилище настроек',
-	WebService: 'Веб-сервис',
-	WebServiceRef: 'Веб-сервис',
-	HTTPService: 'HTTP-сервис',
-	HTTPServiceRef: 'HTTP-сервис',
-	IntegrationService: 'Сервис интеграции',
-	IntegrationServiceRef: 'Сервис интеграции',
-	ExternalDataSource: 'Внешний источник данных',
-	ExternalDataSourceRef: 'Внешний источник данных',
-	CommonModule: 'Общий модуль',
-	CommonModuleRef: 'Общий модуль',
-	CommonAttribute: 'Общий реквизит',
-	CommonAttributeRef: 'Общий реквизит',
-	CommonPicture: 'Общая картинка',
-	CommonPictureRef: 'Общая картинка',
-	CommonForm: 'Общая форма',
-	CommonFormRef: 'Общая форма',
-	CommonTemplate: 'Общий макет',
-	CommonTemplateRef: 'Общий макет',
-	SessionParameter: 'Параметр сеанса',
-	SessionParameterRef: 'Параметр сеанса',
-	Constant: 'Константа',
-	ConstantRef: 'Константа',
-	Role: 'Роль',
-	RoleRef: 'Роль',
-	Subsystem: 'Подсистема',
-	SubsystemRef: 'Подсистема',
-	Command: 'Команда',
-	CommandRef: 'Команда',
-};
+/**
+ * Подписи видов объектов от md-sparrow: набор задаёт платформа, и держать свою
+ * копию незачем. До первого ответа библиотеки вид показывается своим именем.
+ */
+let objectKindLabels: Readonly<Record<string, string>> = {};
+
+/** Подпись вида объекта или ссылочного типа; без словаря - само имя вида. */
+export function mdObjectKindLabel(prefix: string): string | undefined {
+	return objectKindLabels[prefix];
+}
+
+/**
+ * Догружает подписи видов, если библиотека их ещё не отдавала: палитра
+ * открывается и без панели свойств, а вид объекта подписан в обеих.
+ */
+export async function ensureMdObjectKindLabels(
+	runtime: Awaited<ReturnType<typeof ensureMdSparrowRuntime>>,
+	cwd: string
+): Promise<void> {
+	if (Object.keys(objectKindLabels).length > 0) {
+		return;
+	}
+	await loadValueLabels(runtime, cwd);
+}
 
 function normalizeObjectType(type: string): string {
 	return OBJECT_TYPE_ALIASES[type] ?? type;
@@ -646,7 +610,7 @@ function humanizeMetadataReference(value: string): string | null {
 	}
 	const prefix = match[1];
 	const name = match[2];
-	const label = MD_REF_KIND_LABEL_BY_PREFIX[prefix];
+	const label = mdObjectKindLabel(prefix);
 	if (!label || !name) {
 		return null;
 	}
@@ -923,6 +887,7 @@ async function loadValueLabels(
 	const res = await runMdSparrowJson<EnumValueLabels>(runtime, { op: 'cf-enum-labels' }, cwd);
 	if (res.ok) {
 		valueLabels = res.value;
+		objectKindLabels = res.value.objectKinds ?? {};
 	} else {
 		log.warn(`подписи значений: ${res.error}`);
 	}
@@ -1753,6 +1718,12 @@ function buildViewModel(
 		roleRights,
 		initialTabId: params.initialTabId,
 		origin,
+		labels: {
+			rights: valueLabels.rights ?? {},
+			commandGroups: valueLabels.commandGroups ?? {},
+			objectStandardCommands: valueLabels.objectStandardCommands ?? {},
+			objectKinds: objectKindLabels,
+		},
 	};
 }
 

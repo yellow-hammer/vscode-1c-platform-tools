@@ -23,10 +23,3 @@
 	cursor: pointer;
 	user-select: none;
 }
-.check-list-scroll {
-	max-height: 180px;
-	overflow-y: auto;
-	border: 1px solid var(--vscode-input-border);
-	border-radius: 2px;
-	padding: 6px 8px;
-}

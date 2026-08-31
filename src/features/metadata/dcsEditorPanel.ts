@@ -10,10 +10,23 @@ const log = logger.scope('metadata');
 
 /** Структура схемы из cf-dcs-info; наполнение целиком приходит от md-sparrow. */
 interface DcsInfoDto {
-	dataSets?: Array<{ name?: string; query?: string; fields?: Array<{ dataPath?: string; field?: string }> }>;
+	dataSets?: Array<{
+		name?: string;
+		query?: string;
+		fields?: Array<{ dataPath?: string; field?: string; title?: string }>;
+	}>;
+	dataSources?: Array<{ name?: string; type?: string; connectionString?: string }>;
+	dataSetLinks?: Array<{
+		source?: string;
+		destination?: string;
+		sourceExpression?: string;
+		destinationExpression?: string;
+	}>;
 	calculatedFields?: Array<{ name?: string; value?: string }>;
 	totalFields?: Array<{ name?: string; value?: string }>;
-	parameters?: Array<{ name?: string; value?: string }>;
+	parameters?: Array<{ name?: string; value?: string; title?: string; type?: string; expression?: string }>;
+	settingsVariants?: Array<{ name?: string; value?: string }>;
+	nestedSchemas?: Array<{ name?: string; value?: string }>;
 }
 
 interface DcsPanelMessage {

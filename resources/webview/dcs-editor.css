@@ -43,18 +43,3 @@
 .dcs-add-grid input:focus {
 	border-color: var(--vscode-focusBorder);
 }
-.dcs-btn {
-	background: var(--vscode-button-background);
-	color: var(--vscode-button-foreground);
-	border: none;
-	padding: 5px 14px;
-	border-radius: 2px;
-	cursor: pointer;
-}
-.dcs-btn:hover {
-	background: var(--vscode-button-hoverBackground);
-}
-.dcs-btn:disabled {
-	opacity: 0.5;
-	cursor: default;
-}

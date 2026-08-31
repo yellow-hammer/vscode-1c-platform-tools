@@ -4363,6 +4363,14 @@ export type MetadataEnumDictionary = Readonly<Record<string, readonly string[]>>
 export interface EnumValueLabels {
 	readonly values?: Readonly<Record<string, string>>;
 	readonly byProperty?: Readonly<Record<string, Readonly<Record<string, string>>>>;
+	/** Права роли: набор задаёт платформа, а не формат выгрузки. */
+	readonly rights?: Readonly<Record<string, string>>;
+	/** Группы командного интерфейса подсистемы. */
+	readonly commandGroups?: Readonly<Record<string, string>>;
+	/** Стандартные команды объекта: открыть список, создать и прочие. */
+	readonly objectStandardCommands?: Readonly<Record<string, string>>;
+	/** Виды объектов и ссылочные типы: Catalog и CatalogRef - «Справочник». */
+	readonly objectKinds?: Readonly<Record<string, string>>;
 }
 
 /** Подпись значения; без подписи остаётся само значение. */

@@ -19,7 +19,11 @@ import {
 } from '../metadata/metadataTreeView';
 import type { MetadataTreeDataProvider } from '../metadata/metadataTreeView';
 import type { MetadataEditTabSpec } from '../metadata/metadataObjectEditSpec';
-import { MD_REF_KIND_LABEL_BY_PREFIX, objectPaletteTabs } from '../metadata/metadataObjectPropertiesPanel';
+import {
+	ensureMdObjectKindLabels,
+	mdObjectKindLabel,
+	objectPaletteTabs,
+} from '../metadata/metadataObjectPropertiesPanel';
 import { ensureMdSparrowRuntime } from '../metadata/mdSparrowBootstrap';
 import { runMdSparrowParamsMutation, runMdSparrowParamsRead, type MdSparrowOp } from '../metadata/mdSparrowParams';
 import { mdSparrowSchemaFlagFromConfigurationXml } from '../metadata/mdSparrowSchemaVersion';
@@ -206,7 +210,7 @@ function targetFor(item: vscode.TreeItem): PaletteTarget | undefined {
 		title: item.name,
 		subtitle: external
 			? (item.objectType === 'ExternalReport' ? 'Внешний отчёт' : 'Внешняя обработка')
-			: (MD_REF_KIND_LABEL_BY_PREFIX[item.objectType] ?? item.objectType),
+			: (mdObjectKindLabel(item.objectType) ?? item.objectType),
 		readOp: 'cf-md-object-get',
 		writeOp: 'cf-md-object-set',
 		pathField: 'objectXml',
@@ -311,6 +315,7 @@ interface ReadResult {
 async function readProperties(context: vscode.ExtensionContext, target: PaletteTarget): Promise<ReadResult> {
 	const schema = await mdSparrowSchemaFlagFromConfigurationXml(target.schemaFrom);
 	const runtime = await ensureMdSparrowRuntime(context);
+	await ensureMdObjectKindLabels(runtime, target.cwd);
 	const dto = await readJson(runtime, target.readOp, target, schema);
 	if (target.readOp === 'cf-configuration-properties-get') {
 		// Ключи словаря перечислений идут с видом объекта, а пути полей конфигурации - без него.

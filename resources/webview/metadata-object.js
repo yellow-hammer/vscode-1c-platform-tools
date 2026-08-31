@@ -388,6 +388,19 @@
 		}
 	}
 
+	/** Подписи платформы приходят от md-sparrow: своих копий вкладки не держат. */
+	function platformLabels() {
+		return model.labels || {};
+	}
+
+	function rightLabel(name) {
+		return (platformLabels().rights || {})[name] || name;
+	}
+
+	function objectKindLabel(kind) {
+		return (platformLabels().objectKinds || {})[kind];
+	}
+
 	/** Изменённые права роли: «объект право» → выдано. */
 	const editedRoleRights = new Map();
 
@@ -578,46 +591,6 @@
 		WholeCatalog: 'Во всем справочнике',
 		Adopted: 'Заимствованный',
 		HierarchyFoldersAndItems: 'Иерархия групп и элементов',
-	};
-	const refKindLabels = {
-		Catalog: 'Справочник',
-		CatalogRef: 'Справочник',
-		Document: 'Документ',
-		DocumentRef: 'Документ',
-		DocumentJournal: 'Журнал документов',
-		DocumentJournalRef: 'Журнал документов',
-		Enum: 'Перечисление',
-		EnumRef: 'Перечисление',
-		Report: 'Отчет',
-		ReportRef: 'Отчет',
-		DataProcessor: 'Обработка',
-		DataProcessorRef: 'Обработка',
-		InformationRegister: 'Регистр сведений',
-		InformationRegisterRef: 'Регистр сведений',
-		AccumulationRegister: 'Регистр накопления',
-		AccumulationRegisterRef: 'Регистр накопления',
-		AccountingRegister: 'Регистр бухгалтерии',
-		AccountingRegisterRef: 'Регистр бухгалтерии',
-		CalculationRegister: 'Регистр расчета',
-		CalculationRegisterRef: 'Регистр расчета',
-		ChartOfAccounts: 'План счетов',
-		ChartOfAccountsRef: 'План счетов',
-		ChartOfCharacteristicTypes: 'План видов характеристик',
-		ChartOfCharacteristicTypesRef: 'План видов характеристик',
-		ChartOfCalculationTypes: 'План видов расчета',
-		ChartOfCalculationTypesRef: 'План видов расчета',
-		BusinessProcess: 'Бизнес-процесс',
-		BusinessProcessRef: 'Бизнес-процесс',
-		Task: 'Задача',
-		TaskRef: 'Задача',
-		ExchangePlan: 'План обмена',
-		ExchangePlanRef: 'План обмена',
-		CommonModule: 'Общий модуль',
-		CommonModuleRef: 'Общий модуль',
-		Subsystem: 'Подсистема',
-		SubsystemRef: 'Подсистема',
-		Constant: 'Константа',
-		ConstantRef: 'Константа',
 	};
 
 	/** Бейджи происхождения: заимствование и поддержка поставщика. */
@@ -854,36 +827,6 @@
 		});
 	}
 
-	/** Подписи стандартных команд: полное имя остаётся в подсказке. */
-	const STANDARD_COMMAND_LABELS = new Map([
-		['OpenList', 'Открыть список'],
-		['Open', 'Открыть'],
-		['Create', 'Создать'],
-		['CreateFolder', 'Создать группу'],
-	]);
-
-	/** Подписи групп командного интерфейса; пользовательская группа остаётся именем. */
-	const COMMAND_GROUP_LABELS = new Map([
-		['NavigationPanelImportant', 'Панель навигации: Важное'],
-		['NavigationPanelOrdinary', 'Панель навигации: Обычное'],
-		['NavigationPanelSeeAlso', 'Панель навигации: См. также'],
-		['ActionsPanelCreate', 'Панель действий: Создать'],
-		['ActionsPanelReports', 'Панель действий: Отчеты'],
-		['ActionsPanelTools', 'Панель действий: Сервис'],
-	]);
-
-	function commandGroupCaption(group) {
-		const known = COMMAND_GROUP_LABELS.get(group);
-		if (known) {
-			return known;
-		}
-		const parts = String(group).split('.');
-		if (parts[0] === 'CommandGroup' && parts[1]) {
-			return 'Группа: ' + parts[1];
-		}
-		return group;
-	}
-
 	/** Командный интерфейс подсистемы: флажки общей видимости, размещение списком. */
 	function renderCommandInterfaceTab() {
 		if (!contentRoot) {
@@ -900,7 +843,7 @@
 		function commandCaption(command) {
 			const parts = String(command).split('.');
 			if (parts.length === 4 && parts[2] === 'StandardCommand') {
-				const action = STANDARD_COMMAND_LABELS.get(parts[3]) || parts[3];
+				const action = (platformLabels().objectStandardCommands || {})[parts[3]] || parts[3];
 				return roleObjectCaption(parts[0] + '.' + parts[1]) + ': ' + action;
 			}
 			if (parts.length === 2) {
@@ -989,7 +932,7 @@
 				const select = document.createElement('select');
 				select.className = 'ci-group-select';
 				select.disabled = readonly;
-				const groups = [...COMMAND_GROUP_LABELS.keys()];
+				const groups = Object.keys(platformLabels().commandGroups || {});
 				if (!groups.includes(entry.group)) {
 					groups.unshift(entry.group);
 				}
@@ -1108,75 +1051,6 @@
 		}
 	}
 
-	/** Подписи прав: полное имя права остаётся в подсказке. */
-	const RIGHT_LABELS = new Map([
-		['Read', 'Чтение'],
-		['Insert', 'Добавление'],
-		['Update', 'Изменение'],
-		['Delete', 'Удаление'],
-		['View', 'Просмотр'],
-		['Edit', 'Редактирование'],
-		['InteractiveInsert', 'Интерактивное добавление'],
-		['InteractiveDelete', 'Интерактивное удаление'],
-		['InteractiveSetDeletionMark', 'Интерактивная пометка удаления'],
-		['InteractiveClearDeletionMark', 'Интерактивное снятие пометки удаления'],
-		['InteractiveDeleteMarked', 'Интерактивное удаление помеченных'],
-		['Posting', 'Проведение'],
-		['UndoPosting', 'Отмена проведения'],
-		['InteractivePosting', 'Интерактивное проведение'],
-		['InteractivePostingRegular', 'Интерактивное проведение неоперативное'],
-		['InteractiveUndoPosting', 'Интерактивная отмена проведения'],
-		['InteractiveChangeOfPosted', 'Интерактивное изменение проведенных'],
-		['InputByString', 'Ввод по строке'],
-		['TotalsControl', 'Управление итогами'],
-		['Use', 'Использование'],
-		['Get', 'Получение'],
-		['Set', 'Установка'],
-		['Start', 'Старт'],
-		['InteractiveStart', 'Интерактивный старт'],
-		['InteractiveActivate', 'Интерактивная активация'],
-		['Execute', 'Выполнение'],
-		['InteractiveExecute', 'Интерактивное выполнение'],
-		['Output', 'Вывод'],
-		['Administration', 'Администрирование'],
-		['DataAdministration', 'Администрирование данных'],
-		['UpdateDataBaseConfiguration', 'Обновление конфигурации базы данных'],
-		['ConfigurationExtensionsAdministration', 'Администрирование расширений конфигурации'],
-		['ExclusiveMode', 'Монопольный режим'],
-		['ActiveUsers', 'Активные пользователи'],
-		['EventLog', 'Журнал регистрации'],
-		['ThinClient', 'Тонкий клиент'],
-		['WebClient', 'Веб-клиент'],
-		['MobileClient', 'Мобильный клиент'],
-		['ThickClient', 'Толстый клиент'],
-		['ExternalConnection', 'Внешнее соединение'],
-		['Automation', 'Automation'],
-		['AllFunctionsMode', 'Режим «Все функции»'],
-		['TechnicalSpecialistMode', 'Режим технического специалиста'],
-		['SaveUserData', 'Сохранение данных пользователя'],
-		['InteractiveOpenExtDataProcessors', 'Интерактивное открытие внешних обработок'],
-		['InteractiveOpenExtReports', 'Интерактивное открытие внешних отчетов'],
-		['SessionOsAuthenticationChange', 'Изменение ОС-аутентификации сеанса'],
-		['SessionStandardAuthenticationChange', 'Изменение стандартной аутентификации сеанса'],
-		['ReadDataHistory', 'Чтение истории данных'],
-		['ReadDataHistoryOfMissingData', 'Чтение истории отсутствующих данных'],
-		['UpdateDataHistory', 'Изменение истории данных'],
-		['UpdateDataHistoryOfMissingData', 'Изменение истории отсутствующих данных'],
-		['UpdateDataHistorySettings', 'Изменение настроек истории данных'],
-		['UpdateDataHistoryVersionComment', 'Изменение комментария версии истории данных'],
-		['ViewDataHistory', 'Просмотр истории данных'],
-		['EditDataHistoryVersionComment', 'Редактирование комментария версии истории данных'],
-		['SwitchToDataHistoryVersion', 'Переход на версию истории данных'],
-		['CollaborationSystemInfoBaseRegistration', 'Регистрация информационной базы системы взаимодействия'],
-		['MainWindowModeNormal', 'Основной режим окна: обычный'],
-		['MainWindowModeWorkplace', 'Основной режим окна: рабочее место'],
-		['MainWindowModeEmbeddedWorkplace', 'Основной режим окна: встроенное рабочее место'],
-		['MainWindowModeFullscreenWorkplace', 'Основной режим окна: полноэкранное рабочее место'],
-		['MainWindowModeKiosk', 'Основной режим окна: киоск'],
-		['AnalyticsSystemClient', 'Клиент системы аналитики'],
-		['ExternalSourceTableFullAccess', 'Полный доступ к таблице внешнего источника'],
-	]);
-
 	/** Служебные сегменты пути права: в подписи остаются только имена. */
 	const RIGHT_PATH_TOKENS = new Set([
 		'Attribute',
@@ -1201,31 +1075,13 @@
 		'URLTemplate',
 	]);
 
-	/** Виды, встречающиеся в правах, но не в ссылочных составах. */
-	const RIGHT_KIND_LABELS = {
-		Configuration: 'Конфигурация',
-		SessionParameter: 'Параметр сеанса',
-		CommonAttribute: 'Общий реквизит',
-		CommonForm: 'Общая форма',
-		CommonCommand: 'Общая команда',
-		FilterCriterion: 'Критерий отбора',
-		DocumentNumerator: 'Нумератор',
-		Sequence: 'Последовательность',
-		ScheduledJob: 'Регламентное задание',
-		WebService: 'Web-сервис',
-		HTTPService: 'HTTP-сервис',
-		IntegrationService: 'Сервис интеграции',
-		ExternalDataSource: 'Внешний источник данных',
-		SettingsStorage: 'Хранилище настроек',
-	};
-
 	/** «Catalog.Номенклатура.Attribute.Артикул» → «Справочник: Номенклатура.Артикул». */
 	function roleObjectCaption(name) {
 		const parts = String(name).split('.');
 		if (parts.length < 2) {
-			return RIGHT_KIND_LABELS[parts[0]] || name;
+			return objectKindLabel(parts[0]) || name;
 		}
-		const label = RIGHT_KIND_LABELS[parts[0]] || refKindLabels[parts[0]];
+		const label = objectKindLabel(parts[0]);
 		const names = parts.slice(1).filter((part) => !RIGHT_PATH_TOKENS.has(part));
 		return (label ? label + ': ' : parts[0] + '.') + names.join('.');
 	}
@@ -1421,7 +1277,7 @@
 			for (const column of RIGHT_COLUMNS) {
 				const th = document.createElement('th');
 				th.textContent = column[1];
-				th.title = RIGHT_LABELS.get(column[0]) || column[0];
+				th.title = rightLabel(column[0]);
 				head.appendChild(th);
 			}
 			thead.appendChild(head);
@@ -1460,7 +1316,7 @@
 			for (const [objectName, rights] of grantedByObject) {
 				for (const [rightName, value] of rights) {
 					if (value && !RIGHT_COLUMNS.some(function (column) { return column[0] === rightName; })) {
-						extras.push(roleObjectCaption(objectName) + ': ' + (RIGHT_LABELS.get(rightName) || rightName));
+						extras.push(roleObjectCaption(objectName) + ': ' + rightLabel(rightName));
 					}
 				}
 			}
@@ -3026,7 +2882,7 @@
 		if (!match) {
 			return '';
 		}
-		const label = refKindLabels[match[1]];
+		const label = objectKindLabel(match[1]);
 		if (!label || !match[2]) {
 			return '';
 		}
