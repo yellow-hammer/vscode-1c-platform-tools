@@ -11,7 +11,7 @@ import * as path from 'node:path';
 import * as fs from 'node:fs/promises';
 import * as vscode from 'vscode';
 import { ensureMdSparrowRuntime } from './mdSparrowBootstrap';
-import { runMdSparrowParamsMutation, runMdSparrowParamsRead } from './mdSparrowParams';
+import { runMdSparrowParamsMutation, runMdSparrowParamsRead, supportEnabled } from './mdSparrowParams';
 import { mdSparrowSchemaFlagFromConfigurationXml } from './mdSparrowSchemaVersion';
 import { logger } from '../../shared/logger';
 import { ensureBslModuleFile } from './bslModuleFile';
@@ -300,6 +300,9 @@ export async function openFormViewer(
 	endOpenPanel('form', params.formXmlFsPath);
 
 	// Форма принадлежит объекту: правку запрещает поддержка самого объекта
+	if (!supportEnabled()) {
+		return undefined;
+	}
 	const support = await runMdSparrowParamsRead(
 		runtime,
 		{ op: 'cf-support-object-get', objectXml: params.formXmlFsPath },

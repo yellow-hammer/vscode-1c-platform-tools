@@ -44,6 +44,7 @@ import {
 	runMdSparrowParamsMutation,
 	runMdSparrowParamsRead,
 	type MdSparrowParams,
+	supportEnabled,
 } from './mdSparrowParams';
 import { openDcsEditorPanel } from './dcsEditorPanel';
 import { loadProjectMetadataTree } from './metadataTreeService';
@@ -79,6 +80,38 @@ export interface RegisterMetadataFeatureParams {
 	metadataSearchProvider: MetadataSearchViewProvider;
 	metadataFilterProvider: MetadataFilterViewProvider;
 	propertyPaletteProvider: PropertyPaletteViewProvider;
+}
+
+/** Правила поддержки: слова и порядок окна правила поддержки конфигуратора. */
+const SUPPORT_RULE_PICKS: ReadonlyArray<{ readonly label: string; readonly mode: string }> = [
+	{ label: 'Объект поставщика не редактируется', mode: '0' },
+	{ label: 'Объект поставщика редактируется с сохранением поддержки', mode: '1' },
+	{ label: 'Объект поставщика снят с поддержки', mode: '2' },
+];
+
+/** Область правила: у конфигуратора это флажок «Установить для подчинённых объектов». */
+const SUPPORT_SCOPE_PICKS: ReadonlyArray<{ readonly label: string; readonly children: boolean }> = [
+	{ label: 'Без подчинённых объектов', children: false },
+	{ label: 'С подчинёнными объектами', children: true },
+];
+
+/** Спрашивает правило поддержки и область; пусто, когда выбор прерван. */
+async function askSupportRule(
+	subject: string
+): Promise<{ mode: string; label: string; children: boolean } | undefined> {
+	const picked = await vscode.window.showQuickPick([...SUPPORT_RULE_PICKS], {
+		placeHolder: `Правило поддержки: ${subject}`,
+	});
+	if (!picked) {
+		return undefined;
+	}
+	const scope = await vscode.window.showQuickPick([...SUPPORT_SCOPE_PICKS], {
+		placeHolder: 'Установить правило для подчинённых объектов?',
+	});
+	if (!scope) {
+		return undefined;
+	}
+	return { mode: picked.mode, label: picked.label, children: scope.children };
 }
 
 /**
@@ -593,6 +626,9 @@ export function registerMetadataFeature(
 		cfgPath: string,
 		cfRoot: string
 	): Promise<SourceSupportState | undefined> {
+		if (!supportEnabled()) {
+			return undefined;
+		}
 		try {
 			const runtime = await ensureMdSparrowRuntime(context);
 			const res = await runMdSparrowParamsRead(
@@ -834,6 +870,50 @@ export function registerMetadataFeature(
 	 *
 	 * @returns true, если правку выполнять нельзя
 	 */
+	/**
+	 * Ставит правило поддержки самой конфигурации.
+	 *
+	 * Окно правила у конфигуратора одно на все субъекты, и корень конфигурации в нём такой же
+	 * узел: у него своя запись в правилах, а «подчинённые» - вся выгрузка.
+	 */
+	async function setSupportRuleForConfiguration(source: MetadataSourceTreeItem): Promise<void> {
+		if (!source.configurationXmlAbs) {
+			void vscode.window.showInformationMessage('Выберите конфигурацию в дереве.');
+			return;
+		}
+		if (source.support !== 'editable') {
+			void vscode.window.showInformationMessage(
+				'Правила поддержки закрыты: включите возможность изменения конфигурации.'
+			);
+			return;
+		}
+		const picked = await askSupportRule(typeof source.label === 'string' ? source.label : 'конфигурация');
+		if (!picked) {
+			return;
+		}
+		const runtime = await ensureMdSparrowRuntime(context);
+		const res = await runMdSparrowParamsMutation(
+			runtime,
+			{
+				op: 'cf-support-object-mode-set',
+				objectXml: source.configurationXmlAbs,
+				configurationXml: source.configurationXmlAbs,
+				name: picked.mode,
+				tag: picked.children ? 'children' : undefined,
+				expectedGeneration: source.supportGeneration,
+			},
+			{ cwd: source.metadataRootAbs ?? path.dirname(source.configurationXmlAbs) }
+		);
+		if (res.exitCode !== 0) {
+			void vscode.window.showErrorMessage(
+				`Не удалось сменить правило поддержки. ${(res.stderr || res.stdout).trim()}`.slice(0, 400)
+			);
+			return;
+		}
+		notifyQuiet(`${picked.label}${picked.children ? ', включая подчинённые' : ''}`);
+		void vscode.commands.executeCommand('1c-platform-tools.metadata.refresh');
+	}
+
 	function refuseLockedBySupport(support: string | undefined, subject = 'Объект'): boolean {
 		if (support !== 'locked') {
 			return false;
@@ -2084,40 +2164,6 @@ export function registerMetadataFeature(
 			}
 		),
 		vscode.commands.registerCommand(
-			'1c-platform-tools.metadata.supportEnableEditing',
-			async (item?: MetadataSourceTreeItem) => {
-				await runMdSparrowMutation(async () => {
-					const source = item instanceof MetadataSourceTreeItem ? item : undefined;
-					if (!source?.configurationXmlAbs) {
-						void vscode.window.showInformationMessage('Выберите конфигурацию в дереве.');
-						return;
-					}
-					// Как в конфигураторе: открывается только корень - свойства конфигурации
-					// и добавление объектов; сами объекты остаются «не редактируется»,
-					// режим каждого меняется отдельно
-					const runtime = await ensureMdSparrowRuntime(context);
-					const res = await runMdSparrowParamsMutation(
-						runtime,
-						{
-							op: 'cf-support-enable-rules',
-							configurationXml: source.configurationXmlAbs,
-							name: '0',
-							expectedGeneration: source.supportGeneration,
-						},
-						{ cwd: source.metadataRootAbs ?? path.dirname(source.configurationXmlAbs) }
-					);
-					if (res.exitCode !== 0) {
-						void vscode.window.showErrorMessage(
-							`Не удалось включить возможность изменения. ${(res.stderr || res.stdout).trim()}`.slice(0, 400)
-						);
-						return;
-					}
-					notifyQuiet('Возможность изменения включена: режим объектов меняется по одному');
-					void vscode.commands.executeCommand('1c-platform-tools.metadata.refresh');
-				});
-			}
-		),
-		vscode.commands.registerCommand(
 			'1c-platform-tools.metadata.supportRemove',
 			async (item?: MetadataSourceTreeItem) => {
 				await runMdSparrowMutation(async () => {
@@ -2127,8 +2173,8 @@ export function registerMetadataFeature(
 						return;
 					}
 					const answer = await vscode.window.showWarningMessage(
-						'Снять конфигурацию с поддержки? Файл поставки будет удалён, автоматическое обновление от поставщика станет недоступно.',
-						{ modal: true },
+						'Снять с поддержки все объекты конфигурации? Правила и файл поставки будут удалены,'
+							+ ' обновление от поставщика станет недоступно.',
 						'Снять с поддержки'
 					);
 					if (answer !== 'Снять с поддержки') {
@@ -2159,9 +2205,14 @@ export function registerMetadataFeature(
 			'1c-platform-tools.metadata.supportSetObjectMode',
 			async (item?: vscode.TreeItem) => {
 				await runMdSparrowMutation(async () => {
-					// Правило поддержки живёт на объекте: у формы, макета и команды
-					// режим меняется у их владельца
+					// Правило поддержки ставится любому субъекту: конфигурации, объекту,
+					// его формам, макетам и элементам
 					const selected = item ?? metadataTreeView.selection[0];
+					const sourceNode = selected instanceof MetadataSourceTreeItem ? selected : undefined;
+					if (sourceNode) {
+						await setSupportRuleForConfiguration(sourceNode);
+						return;
+					}
 					const childNode = selected instanceof MetadataObjectNodeTreeItem ? selected : undefined;
 					const node =
 						childNode?.owner
@@ -2191,32 +2242,12 @@ export function registerMetadataFeature(
 						);
 						return;
 					}
-					const picked = await vscode.window.showQuickPick(
-						[
-							{ label: 'Разрешить изменение', description: 'остаётся на поддержке, правка разрешена', mode: '1' },
-							{ label: 'Запретить изменение', description: 'на поддержке, не редактируется', mode: '0' },
-							{ label: 'Снять с поддержки', description: 'больше не сверяется с поставкой', mode: '2' },
-						],
-						{ placeHolder: `Режим поддержки: ${subjectName}` }
-					);
+					const picked = await askSupportRule(subjectName);
 					if (!picked) {
 						return;
 					}
-					// У подчинённых свои правила: конфигуратор так же спрашивает область
-					let includeChildren = false;
-					if (!childDescriptor && !elementKey) {
-						const scope = await vscode.window.showQuickPick(
-							[
-								{ label: 'Только объект', children: false },
-								{ label: 'Объект и подчинённые', children: true },
-							],
-							{ placeHolder: 'К чему применить правило' }
-						);
-						if (!scope) {
-							return;
-						}
-						includeChildren = scope.children;
-					}
+					// У формы, макета и элемента подчинённых нет: область к ним не применяется
+					const includeChildren = picked.children && !childDescriptor && !elementKey;
 					const runtime = await ensureMdSparrowRuntime(context);
 					const res = await runMdSparrowParamsMutation(
 						runtime,

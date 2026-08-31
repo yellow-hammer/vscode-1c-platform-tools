@@ -16,10 +16,10 @@ import {
 	type ProjectMetadataTreeDto,
 } from './metadataTreeService';
 import { ensureMdSparrowRuntime } from './mdSparrowBootstrap';
-import { runMdSparrowParamsRead } from './mdSparrowParams';
+import { runMdSparrowParamsRead, supportEnabled } from './mdSparrowParams';
 import { mdSparrowSchemaFlagFromConfigurationXml } from './mdSparrowSchemaVersion';
 import { offerGithubTokenOnRateLimit } from '../../shared/githubToken';
-import { ADOPTED_HINT, SUPPORT_HINTS, adoptedIcon, initAdoptedIcons, isAdopted, lockedIcon } from './objectBelonging';
+import { ADOPTED_HINT, SUPPORT_HINTS, adoptedIcon, initAdoptedIcons, isAdopted, supportIcon } from './objectBelonging';
 import {
 	childKindIsMutatable,
 	childKindOfSection,
@@ -236,14 +236,15 @@ export class MetadataSourceTreeItem extends vscode.TreeItem {
 		if (support === 'locked' || support === 'editable') {
 			this.contextValue = `${this.contextValue} mdSupportRules`;
 		}
-		if (support === 'locked') {
-			this.contextValue = `${this.contextValue} mdSupportLocked`;
+		// Правило поддержки ставится и самой конфигурации, пока правила действуют
+		if (support === 'editable') {
+			this.contextValue = `${this.contextValue} mdSupportRule`;
 		}
 		this.iconPath = new vscode.ThemeIcon('root-folder');
 		if (support === 'locked' || support === 'editable') {
 			this.tooltip =
 				support === 'locked'
-					? 'Конфигурация поставщика на полной поддержке'
+					? 'Конфигурация поставщика: возможность изменения включают в конфигураторе'
 					: 'Конфигурация поставщика, возможность изменения включена';
 		}
 	}
@@ -683,10 +684,10 @@ function ownerAwareIcon(
 	ownFile = true
 ): vscode.ThemeIcon | { light: vscode.Uri; dark: vscode.Uri } {
 	const support = childNodeSupport(owner.support, ownSupport, ownFile);
-	if (support !== 'locked' || icon instanceof vscode.ThemeIcon) {
+	if (icon instanceof vscode.ThemeIcon) {
 		return icon;
 	}
-	return lockedIcon(icon);
+	return supportIcon(icon, support ?? '');
 }
 
 /**
@@ -1144,8 +1145,7 @@ function metadataObjectTypeIcon(
 	if (isAdopted(objectBelonging)) {
 		return adoptedIcon(icon);
 	}
-	// Замочек только у запрещённых: разрешённое изменение дерево не подкрашивает
-	return support === 'locked' ? lockedIcon(icon) : icon;
+	return supportIcon(icon, support ?? '');
 }
 
 function metadataGroupIcon(
@@ -1463,9 +1463,7 @@ export class MetadataTreeDataProvider implements vscode.TreeDataProvider<vscode.
 				src.id, src.label, src.kind, cfgAbs, metaAbs, expanded?.has(src.id), src.support, src.supportGeneration);
 			const sourceIcon = metadataSourceIcon(src.kind, this._context.extensionUri);
 			sItem.iconPath =
-				src.support === 'locked' && !(sourceIcon instanceof vscode.ThemeIcon)
-					? lockedIcon(sourceIcon)
-					: sourceIcon;
+				sourceIcon instanceof vscode.ThemeIcon ? sourceIcon : supportIcon(sourceIcon, src.support ?? '');
 			this._sourceItems.push(sItem);
 
 			if (isExternalArtifactSourceKind(src.kind)) {
@@ -2048,7 +2046,7 @@ export class MetadataTreeDataProvider implements vscode.TreeDataProvider<vscode.
 	 */
 	private async loadChildSupportStates(leaf: MetadataLeafTreeItem): Promise<Map<string, string>> {
 		const out = new Map<string, string>();
-		if (!leaf.resourceUri || (leaf.support !== 'locked' && leaf.support !== 'editable')) {
+		if (!supportEnabled() || !leaf.resourceUri || (leaf.support !== 'locked' && leaf.support !== 'editable')) {
 			return out;
 		}
 		try {

@@ -25,10 +25,8 @@ export function isAdopted(objectBelonging: unknown): boolean {
 }
 
 /**
- * Значок заимствования: буква в кружке в правом верхнем углу пиктограммы.
- *
- * Доли, а не координаты: пиктограммы нарисованы в двух системах координат, и значок должен встать
- * в угол любой из них.
+ * Углы для значков: доли, а не координаты. Пиктограммы нарисованы в двух системах координат,
+ * и значок должен встать в угол любой из них.
  */
 const BADGE_GEOMETRY = {
 	centerX: 0.771,
@@ -39,13 +37,42 @@ const BADGE_GEOMETRY = {
 	baseline: 0.338,
 } as const;
 
-/** Виды значков: буквенный у заимствованных, замочек у запрещённых к изменению. */
+/** Левый нижний угол: там стоит признак поддержки, чтобы не спорить с замком. */
+const SUPPORT_GEOMETRY = {
+	centerX: 0.208,
+	centerY: 0.792,
+	side: 0.313,
+	radius: 0.042,
+} as const;
+
+/**
+ * Виды значков.
+ *
+ * Признаки независимы и складываются: объект на поддержке несёт бледный квадрат слева снизу,
+ * а запрет изменения - янтарный замок справа сверху. Мелкие значки различают по месту и цвету,
+ * а не по форме дужки.
+ */
 const BADGE_KINDS = {
 	adopted: { color: '#E1B74D', letter: '&#1040;' },
-	locked: { color: '#E1B74D', letter: '' },
+	locked: { color: '#E8952D', letter: '' },
+	support: { color: '#D8C68A', letter: '' },
 } as const;
 
 type BadgeKind = keyof typeof BADGE_KINDS;
+
+/** Тема пиктограммы: от неё зависит подложка под замком. */
+export type IconTheme = 'light' | 'dark';
+
+/**
+ * Подложка под замком - кружок цвета панели.
+ *
+ * Пиктограммы монохромные, всего два серых, поэтому любой цвет значка рано или поздно садится
+ * на заливку того же тона. Кольцо фона отделяет замок от пиктограммы при любом её рисунке.
+ */
+const BADGE_BACKING: Readonly<Record<IconTheme, string>> = {
+	light: '#F3F3F3',
+	dark: '#252526',
+};
 
 /** Подсказки к режимам поддержки в дереве. */
 export const SUPPORT_HINTS: Readonly<Record<'editable' | 'locked', string>> = {
@@ -75,30 +102,59 @@ function round(value: number): string {
  * @returns Разметка со значком либо исходная, если холст пиктограммы разобрать не удалось
  */
 export function composeAdoptedSvg(baseSvg: string): string {
-	return composeBadgeSvg(baseSvg, 'adopted');
+	return composeBadgeSvg(baseSvg, ['adopted'], 'light');
 }
 
-function composeBadgeSvg(baseSvg: string, kind: BadgeKind): string {
+/**
+ * Накладывает значки на пиктограмму.
+ *
+ * @param kinds Виды значков; каждый стоит в своём углу, поэтому складываются без наложения
+ * @param theme Тема пиктограммы: от неё зависит цвет подложки под замком
+ */
+export function composeBadgeSvg(baseSvg: string, kinds: readonly BadgeKind[], theme: IconTheme): string {
 	const box = viewBox(baseSvg);
 	const close = baseSvg.lastIndexOf('</svg>');
-	if (!box || close < 0) {
+	if (!box || close < 0 || kinds.length === 0) {
 		return baseSvg;
 	}
-	const paint = BADGE_KINDS[kind];
-	const cx = box.x + box.width * BADGE_GEOMETRY.centerX;
-	const cy = box.y + box.height * BADGE_GEOMETRY.centerY;
-	const badge =
-		kind === 'locked'
-			? lockBadgeSvg(box, cx, cy, paint.color)
-			: `\t<circle cx="${round(cx)}" cy="${round(cy)}" r="${round(box.width * BADGE_GEOMETRY.radius)}"` +
-				` fill="none" stroke="${paint.color}" stroke-width="${round(box.width * BADGE_GEOMETRY.stroke)}"/>\n` +
-				`\t<text x="${round(cx)}" y="${round(box.y + box.height * BADGE_GEOMETRY.baseline)}" text-anchor="middle"` +
-				` font-size="${round(box.width * BADGE_GEOMETRY.fontSize)}" font-family="Segoe UI, Arial, sans-serif"` +
-				` fill="${paint.color}">${paint.letter}</text>\n`;
-	return baseSvg.slice(0, close) + badge + baseSvg.slice(close);
+	const badges = kinds.map((kind) => badgeSvg(box, kind, theme)).join('');
+	return baseSvg.slice(0, close) + badges + baseSvg.slice(close);
 }
 
-/** Маленький замочек: дужка и корпус в углу пиктограммы, приглушённый серый. */
+function badgeSvg(
+	box: { x: number; y: number; width: number; height: number },
+	kind: BadgeKind,
+	theme: IconTheme
+): string {
+	const paint = BADGE_KINDS[kind];
+	if (kind === 'support') {
+		const side = box.width * SUPPORT_GEOMETRY.side;
+		const x = box.x + box.width * SUPPORT_GEOMETRY.centerX - side / 2;
+		const y = box.y + box.height * SUPPORT_GEOMETRY.centerY - side / 2;
+		return (
+			`\t<rect x="${round(x)}" y="${round(y)}" width="${round(side)}" height="${round(side)}"` +
+			` rx="${round(box.width * SUPPORT_GEOMETRY.radius)}" fill="${paint.color}"/>\n`
+		);
+	}
+	const cx = box.x + box.width * BADGE_GEOMETRY.centerX;
+	const cy = box.y + box.height * BADGE_GEOMETRY.centerY;
+	if (kind === 'locked') {
+		return (
+			`\t<circle cx="${round(cx)}" cy="${round(cy + box.width * 0.06)}"` +
+			` r="${round(box.width * 0.26)}" fill="${BADGE_BACKING[theme]}"/>\n` +
+			lockBadgeSvg(box, cx, cy, paint.color)
+		);
+	}
+	return (
+		`\t<circle cx="${round(cx)}" cy="${round(cy)}" r="${round(box.width * BADGE_GEOMETRY.radius)}"` +
+		` fill="none" stroke="${paint.color}" stroke-width="${round(box.width * BADGE_GEOMETRY.stroke)}"/>\n` +
+		`\t<text x="${round(cx)}" y="${round(box.y + box.height * BADGE_GEOMETRY.baseline)}" text-anchor="middle"` +
+		` font-size="${round(box.width * BADGE_GEOMETRY.fontSize)}" font-family="Segoe UI, Arial, sans-serif"` +
+		` fill="${paint.color}">${paint.letter}</text>\n`
+	);
+}
+
+/** Маленький замок: дужка и корпус в правом верхнем углу пиктограммы. */
 function lockBadgeSvg(
 	box: { x: number; y: number; width: number; height: number },
 	cx: number,
@@ -141,22 +197,25 @@ export function initAdoptedIcons(cacheDir: string): void {
 	composedIcons.clear();
 }
 
-/** Путь готовой пиктограммы со значком; пусто, если составить её не удалось. */
+/** Путь готовой пиктограммы со значками; пусто, если составить её не удалось. */
 function composedIconPath(
 	cacheDir: string,
-	variant: 'light' | 'dark',
+	variant: IconTheme,
 	baseFsPath: string,
-	kind: BadgeKind
+	kinds: readonly BadgeKind[]
 ): string | undefined {
-	const cacheKey = `${kind} ${baseFsPath}`;
+	const suffix = kinds.join('-');
+	// Тема в ключе: подложка под замком у светлой и тёмной разная, даже когда
+	// пиктограмма у них одна
+	const cacheKey = `${suffix} ${variant} ${baseFsPath}`;
 	if (composedIcons.has(cacheKey)) {
 		return composedIcons.get(cacheKey);
 	}
 	let composed: string | undefined;
 	try {
-		const target = path.join(cacheDir, kind, variant, path.basename(baseFsPath));
+		const target = path.join(cacheDir, suffix, variant, path.basename(baseFsPath));
 		fs.mkdirSync(path.dirname(target), { recursive: true });
-		fs.writeFileSync(target, composeBadgeSvg(fs.readFileSync(baseFsPath, 'utf8'), kind), 'utf8');
+		fs.writeFileSync(target, composeBadgeSvg(fs.readFileSync(baseFsPath, 'utf8'), kinds, variant), 'utf8');
 		composed = target;
 	} catch (error) {
 		logger.warn(`Не удалось пометить пиктограмму значком: ${String(error)}`);
@@ -172,24 +231,29 @@ function composedIconPath(
  * @returns Пиктограмма со значком либо исходная, если составить её не удалось
  */
 export function adoptedIcon(base: ThemedIcon): ThemedIcon {
-	return badgedIcon(base, 'adopted');
+	return badgedIcon(base, ['adopted']);
 }
 
-/** Пиктограмма с замочком: объект на поддержке поставщика, изменение запрещено. */
-export function lockedIcon(base: ThemedIcon): ThemedIcon {
-	return badgedIcon(base, 'locked');
+/**
+ * Пиктограмма с признаками поддержки: бледный квадрат слева снизу говорит, что объект на
+ * поддержке, серый замок справа сверху - что изменение запрещено.
+ *
+ * @param support Действующее правило узла: {@code locked} либо {@code editable}
+ */
+export function supportIcon(base: ThemedIcon, support: string): ThemedIcon {
+	if (support === 'locked') {
+		return badgedIcon(base, ['support', 'locked']);
+	}
+	return support === 'editable' ? badgedIcon(base, ['support']) : base;
 }
 
-function badgedIcon(base: ThemedIcon, kind: BadgeKind): ThemedIcon {
+function badgedIcon(base: ThemedIcon, kinds: readonly BadgeKind[]): ThemedIcon {
 	const cacheDir = iconCacheDir;
 	if (cacheDir === undefined) {
 		return base;
 	}
-	const light = composedIconPath(cacheDir, 'light', base.light.fsPath, kind);
-	const dark =
-		base.dark.fsPath === base.light.fsPath
-			? light
-			: composedIconPath(cacheDir, 'dark', base.dark.fsPath, kind);
+	const light = composedIconPath(cacheDir, 'light', base.light.fsPath, kinds);
+	const dark = composedIconPath(cacheDir, 'dark', base.dark.fsPath, kinds);
 	if (light === undefined || dark === undefined) {
 		return base;
 	}

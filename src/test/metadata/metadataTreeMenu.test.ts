@@ -249,12 +249,24 @@ suite('контекстное меню дерева метаданных', () =>
 		assert.deepStrictEqual(positions, [...positions].sort((a, b) => a - b), supported.join(' → '));
 	});
 
-	test('у конфигурации поддержка идёт после сборки и до проверки', () => {
-		const locked = menuFor('metadataSourceConfigLike mdSupportRules mdSupportLocked');
-		const order = ['Собрать', 'Включить возможность изменения', 'Снять с поддержки', 'Проверить выгрузку', 'Свойства'];
+	test('на полной поддержке правило менять нечем: только снятие', () => {
+		// Возможность изменения включает конфигуратор: он же кладёт рядом файл поставки
+		const locked = menuFor('metadataSourceConfigLike mdSupportRules');
+		const order = ['Собрать', 'Снять с поддержки', 'Проверить выгрузку', 'Свойства'];
 		const positions = order.map((title) => locked.indexOf(title));
 		assert.ok(positions.every((value) => value >= 0), locked.join(' → '));
 		assert.deepStrictEqual(positions, [...positions].sort((a, b) => a - b), locked.join(' → '));
+		assert.ok(!locked.includes('Режим поддержки'), 'правила ещё не включены');
+	});
+
+	test('у конфигурации с действующими правилами правило поддержки и снятие', () => {
+		// Окно правила у конфигуратора одно на все субъекты, корень конфигурации в нём тоже узел
+		const open = menuFor('metadataSourceConfigLike mdSupportRules mdSupportRule');
+		const order = ['Режим поддержки', 'Снять с поддержки'];
+		const positions = order.map((title) => open.indexOf(title));
+		assert.ok(positions.every((value) => value >= 0), open.join(' → '));
+		assert.deepStrictEqual(positions, [...positions].sort((a, b) => a - b), open.join(' → '));
+		assert.ok(!open.includes('Включить возможность изменения'), 'правила уже действуют');
 	});
 
 	test('у группы и узла без файла меню пустое', () => {

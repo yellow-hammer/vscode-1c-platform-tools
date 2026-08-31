@@ -17,6 +17,7 @@ import {
 	runMdSparrowParamsRead,
 	type MdSparrowOp,
 	type MdSparrowParams,
+	supportEnabled,
 } from './mdSparrowParams';
 import {
 	applyEditedScalars,
@@ -2140,6 +2141,9 @@ async function loadOriginModel(
 	props: MdObjectPropertiesDto | null
 ): Promise<MetadataPanelOriginModel | undefined> {
 	const adopted = propsIsAdopted(props);
+	if (!supportEnabled()) {
+		return adopted ? { adopted: true } : undefined;
+	}
 	const objectState = await runMdSparrowJson<{
 		editable?: boolean;
 		reason?: string;
@@ -2241,7 +2245,13 @@ async function loadSubsystemNodes(
 	return res.value;
 }
 
-/** Участие объекта в подсистемах по дереву состава. Подсистемам вкладка не нужна: у них своя. */
+/**
+ * Участие объекта в подсистемах по дереву состава.
+ *
+ * В состав подсистемы входят объекты конфигурации, в том числе общие формы и
+ * общие команды. Форма и макет объекта в состав не входят: они часть своего
+ * объекта, а не подсистемы. Подсистеме вкладка не нужна: у неё своя.
+ */
 function buildSubsystemsModel(
 	nodes: SubsystemTreeNodeDto[] | null,
 	params: OpenMetadataObjectPropertiesParams,
@@ -2251,6 +2261,9 @@ function buildSubsystemsModel(
 	const objectType = normalizeObjectType(params.objectType ?? '') || objectTypeFromKind(props?.kind ?? '');
 	const internalName = props?.internalName || structure?.internalName || '';
 	if (!nodes || nodes.length === 0 || !objectType || !internalName || objectType === 'Subsystem') {
+		return undefined;
+	}
+	if (objectType === 'Form' || objectType === 'Template') {
 		return undefined;
 	}
 	const objectRef = `${objectType}.${internalName}`;

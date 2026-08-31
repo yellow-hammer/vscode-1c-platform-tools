@@ -1368,11 +1368,6 @@
         "category": "1С: Конфигурация"
       },
       {
-        "command": "1c-platform-tools.metadata.supportEnableEditing",
-        "title": "Включить возможность изменения",
-        "category": "1С: Конфигурация"
-      },
-      {
         "command": "1c-platform-tools.metadata.supportRemove",
         "title": "Снять с поддержки",
         "category": "1С: Конфигурация"
@@ -2480,10 +2475,6 @@
           "when": "false"
         },
         {
-          "command": "1c-platform-tools.metadata.supportEnableEditing",
-          "when": "false"
-        },
-        {
           "command": "1c-platform-tools.metadata.supportSetObjectMode",
           "when": "false"
         },
@@ -3295,11 +3286,6 @@
           "group": "inline"
         },
         {
-          "command": "1c-platform-tools.metadata.supportEnableEditing",
-          "when": "view == 1c-platform-tools-metadata-tree && viewItem =~ /(^| )mdSupportLocked( |$)/",
-          "group": "5_support@1"
-        },
-        {
           "command": "1c-platform-tools.metadata.supportSetObjectMode",
           "when": "view == 1c-platform-tools-metadata-tree && viewItem =~ /(^| )mdSupportRule( |$)/",
           "group": "5_support@1"
@@ -3973,6 +3959,11 @@
             ],
             "default": "mermaid",
             "description": "Формат экспорта ER-диаграммы по умолчанию в canvas."
+          },
+          "1c-platform-tools.metadata.supportEnabled": {
+            "type": "boolean",
+            "default": false,
+            "description": "Учитывать поддержку поставщика: признаки в дереве, отказ в правке запрещённых объектов и управление правилами. Выключено - выгрузка правится так, будто поддержки нет."
           }
         }
       },

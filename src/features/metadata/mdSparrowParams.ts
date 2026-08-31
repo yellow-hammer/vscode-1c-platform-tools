@@ -17,7 +17,7 @@
 import * as os from 'node:os';
 import * as path from 'node:path';
 import * as fs from 'node:fs/promises';
-import type * as vscode from 'vscode';
+import * as vscode from 'vscode';
 import { runMdSparrow, type MdSparrowRunResult } from './mdSparrowRunner';
 import type { MdSparrowRuntime } from './mdSparrowBootstrap';
 
@@ -105,7 +105,6 @@ export type MdSparrowOp =
 	| 'cf-support-get'
 	| 'cf-support-object-get'
 	| 'cf-support-object-states'
-	| 'cf-support-enable-rules'
 	| 'cf-support-object-mode-set'
 	| 'cf-support-element-mode-set'
 	| 'cf-support-remove'
@@ -162,6 +161,18 @@ export interface MdSparrowParams {
 	expectedGeneration?: string;
 	/** Полезная нагрузка для set-операций: JSON DTO как строка. */
 	payloadJson?: string;
+	/** Не смотреть на правила поддержки: правка идёт так, будто поставки нет. */
+	ignoreSupport?: boolean;
+}
+
+/**
+ * Учитывать ли поддержку поставщика: настройка расширения, по умолчанию выключена.
+ *
+ * Пока она выключена, выгрузка правится так, будто поставки нет: библиотека не отказывает в
+ * правке запрещённых объектов, а дерево не показывает признаков поддержки.
+ */
+export function supportEnabled(): boolean {
+	return vscode.workspace.getConfiguration('1c-platform-tools').get<boolean>('metadata.supportEnabled') === true;
 }
 
 /** Сквозной счётчик имён params-файлов: параллельные вызовы в одну миллисекунду не должны делить файл. */
@@ -178,7 +189,9 @@ async function writeParamsAndRun(
 ): Promise<MdSparrowRunResult> {
 	paramsFileSeq += 1;
 	const tmpPath = path.join(os.tmpdir(), `md-sparrow-${command}-${Date.now()}-${process.pid}-${paramsFileSeq}.json`);
-	await fs.writeFile(tmpPath, JSON.stringify(params), 'utf8');
+	// Работа с поддержкой выключена: библиотека не смотрит на правила поставки
+	const payload = supportEnabled() ? params : { ...params, ignoreSupport: true };
+	await fs.writeFile(tmpPath, JSON.stringify(payload), 'utf8');
 	try {
 		return await runMdSparrow(runtime, [command, '--params', tmpPath], options);
 	} finally {
