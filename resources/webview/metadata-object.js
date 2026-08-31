@@ -325,6 +325,34 @@
 		}
 	}
 
+	/** Изменённые права роли: «объект право» → выдано. */
+	const editedRoleRights = new Map();
+
+	function roleRightKey(objectName, rightName) {
+		return objectName + ' ' + rightName;
+	}
+
+	function roleRightBaseline(objectName, rightName) {
+		const model_ = model.roleRights;
+		const object = model_ && model_.objects.find((item) => item.name === objectName);
+		const right = object && object.rights.find((item) => item.name === rightName);
+		return right ? right.value : false;
+	}
+
+	function roleRightChecked(objectName, rightName) {
+		const key = roleRightKey(objectName, rightName);
+		return editedRoleRights.has(key) ? editedRoleRights.get(key) : roleRightBaseline(objectName, rightName);
+	}
+
+	function toggleRoleRight(objectName, rightName, value) {
+		const key = roleRightKey(objectName, rightName);
+		if (value === roleRightBaseline(objectName, rightName)) {
+			editedRoleRights.delete(key);
+		} else {
+			editedRoleRights.set(key, value);
+		}
+	}
+
 	function contentEditKey(sectionKey, ref) {
 		return sectionKey + ' ' + ref;
 	}
@@ -380,7 +408,12 @@
 		if (!editable || !editedProps) {
 			return false;
 		}
-		if (editedSubsystems.size > 0 || editedContent.size > 0 || editedCommandVisibility.size > 0) {
+		if (
+			editedSubsystems.size > 0 ||
+			editedContent.size > 0 ||
+			editedCommandVisibility.size > 0 ||
+			editedRoleRights.size > 0
+		) {
 			return true;
 		}
 		for (const field of editableFields()) {
@@ -540,6 +573,9 @@
 				return;
 			case 'commandInterface':
 				renderCommandInterfaceTab();
+				return;
+			case 'roleRights':
+				renderRoleRightsTab();
 				return;
 			default:
 				contentRoot.innerHTML = '<div class="empty">Нет данных.</div>';
@@ -724,6 +760,375 @@
 				list.appendChild(item);
 			}
 		}
+	}
+
+	/** Подписи прав: полное имя права остаётся в подсказке. */
+	const RIGHT_LABELS = new Map([
+		['Read', 'Чтение'],
+		['Insert', 'Добавление'],
+		['Update', 'Изменение'],
+		['Delete', 'Удаление'],
+		['View', 'Просмотр'],
+		['Edit', 'Редактирование'],
+		['InteractiveInsert', 'Интерактивное добавление'],
+		['InteractiveDelete', 'Интерактивное удаление'],
+		['InteractiveSetDeletionMark', 'Интерактивная пометка удаления'],
+		['InteractiveClearDeletionMark', 'Интерактивное снятие пометки удаления'],
+		['InteractiveDeleteMarked', 'Интерактивное удаление помеченных'],
+		['Posting', 'Проведение'],
+		['UndoPosting', 'Отмена проведения'],
+		['InteractivePosting', 'Интерактивное проведение'],
+		['InteractivePostingRegular', 'Интерактивное проведение неоперативное'],
+		['InteractiveUndoPosting', 'Интерактивная отмена проведения'],
+		['InteractiveChangeOfPosted', 'Интерактивное изменение проведенных'],
+		['InputByString', 'Ввод по строке'],
+		['TotalsControl', 'Управление итогами'],
+		['Use', 'Использование'],
+		['Get', 'Получение'],
+		['Set', 'Установка'],
+		['Start', 'Старт'],
+		['InteractiveStart', 'Интерактивный старт'],
+		['InteractiveActivate', 'Интерактивная активация'],
+		['Execute', 'Выполнение'],
+		['InteractiveExecute', 'Интерактивное выполнение'],
+		['Output', 'Вывод'],
+		['Administration', 'Администрирование'],
+		['DataAdministration', 'Администрирование данных'],
+		['UpdateDataBaseConfiguration', 'Обновление конфигурации базы данных'],
+		['ConfigurationExtensionsAdministration', 'Администрирование расширений конфигурации'],
+		['ExclusiveMode', 'Монопольный режим'],
+		['ActiveUsers', 'Активные пользователи'],
+		['EventLog', 'Журнал регистрации'],
+		['ThinClient', 'Тонкий клиент'],
+		['WebClient', 'Веб-клиент'],
+		['MobileClient', 'Мобильный клиент'],
+		['ThickClient', 'Толстый клиент'],
+		['ExternalConnection', 'Внешнее соединение'],
+		['Automation', 'Automation'],
+		['AllFunctionsMode', 'Режим «Все функции»'],
+		['TechnicalSpecialistMode', 'Режим технического специалиста'],
+		['SaveUserData', 'Сохранение данных пользователя'],
+		['InteractiveOpenExtDataProcessors', 'Интерактивное открытие внешних обработок'],
+		['InteractiveOpenExtReports', 'Интерактивное открытие внешних отчетов'],
+		['SessionOsAuthenticationChange', 'Изменение ОС-аутентификации сеанса'],
+		['SessionStandardAuthenticationChange', 'Изменение стандартной аутентификации сеанса'],
+		['ReadDataHistory', 'Чтение истории данных'],
+		['ReadDataHistoryOfMissingData', 'Чтение истории отсутствующих данных'],
+		['UpdateDataHistory', 'Изменение истории данных'],
+		['UpdateDataHistoryOfMissingData', 'Изменение истории отсутствующих данных'],
+		['UpdateDataHistorySettings', 'Изменение настроек истории данных'],
+		['UpdateDataHistoryVersionComment', 'Изменение комментария версии истории данных'],
+		['ViewDataHistory', 'Просмотр истории данных'],
+		['EditDataHistoryVersionComment', 'Редактирование комментария версии истории данных'],
+		['SwitchToDataHistoryVersion', 'Переход на версию истории данных'],
+		['CollaborationSystemInfoBaseRegistration', 'Регистрация информационной базы системы взаимодействия'],
+		['MainWindowModeNormal', 'Основной режим окна: обычный'],
+		['MainWindowModeWorkplace', 'Основной режим окна: рабочее место'],
+		['MainWindowModeEmbeddedWorkplace', 'Основной режим окна: встроенное рабочее место'],
+		['MainWindowModeFullscreenWorkplace', 'Основной режим окна: полноэкранное рабочее место'],
+		['MainWindowModeKiosk', 'Основной режим окна: киоск'],
+		['AnalyticsSystemClient', 'Клиент системы аналитики'],
+		['ExternalSourceTableFullAccess', 'Полный доступ к таблице внешнего источника'],
+	]);
+
+	/** Служебные сегменты пути права: в подписи остаются только имена. */
+	const RIGHT_PATH_TOKENS = new Set([
+		'Attribute',
+		'StandardAttribute',
+		'TabularSection',
+		'StandardTabularSection',
+		'Dimension',
+		'Resource',
+		'Command',
+		'Form',
+		'Template',
+		'EnumValue',
+		'AddressingAttribute',
+		'AccountingFlag',
+		'ExtDimensionAccountingFlag',
+		'Recalculation',
+		'Operation',
+		'Field',
+		'Table',
+		'Cube',
+		'DimensionTable',
+		'URLTemplate',
+	]);
+
+	/** Виды, встречающиеся в правах, но не в ссылочных составах. */
+	const RIGHT_KIND_LABELS = {
+		Configuration: 'Конфигурация',
+		SessionParameter: 'Параметр сеанса',
+		CommonAttribute: 'Общий реквизит',
+		CommonForm: 'Общая форма',
+		CommonCommand: 'Общая команда',
+		FilterCriterion: 'Критерий отбора',
+		DocumentNumerator: 'Нумератор',
+		Sequence: 'Последовательность',
+		ScheduledJob: 'Регламентное задание',
+		WebService: 'Web-сервис',
+		HTTPService: 'HTTP-сервис',
+		IntegrationService: 'Сервис интеграции',
+		ExternalDataSource: 'Внешний источник данных',
+		SettingsStorage: 'Хранилище настроек',
+	};
+
+	/** «Catalog.Номенклатура.Attribute.Артикул» → «Справочник: Номенклатура.Артикул». */
+	function roleObjectCaption(name) {
+		const parts = String(name).split('.');
+		if (parts.length < 2) {
+			return RIGHT_KIND_LABELS[parts[0]] || name;
+		}
+		const label = RIGHT_KIND_LABELS[parts[0]] || refKindLabels[parts[0]];
+		const names = parts.slice(1).filter((part) => !RIGHT_PATH_TOKENS.has(part));
+		return (label ? label + ': ' : parts[0] + '.') + names.join('.');
+	}
+
+	/** Колонки кросс-таблицы прав: имя в файле и короткая подпись шапки. */
+	const RIGHT_COLUMNS = [
+		['Read', 'Чтение'],
+		['Insert', 'Добавление'],
+		['Update', 'Изменение'],
+		['Delete', 'Удаление'],
+		['Posting', 'Проведение'],
+		['UndoPosting', 'Отмена проведения'],
+		['View', 'Просмотр'],
+		['Edit', 'Редактирование'],
+		['Use', 'Использование'],
+		['InteractiveInsert', 'Инт. добавление'],
+		['InteractiveDelete', 'Инт. удаление'],
+		['InteractiveSetDeletionMark', 'Пометка удаления'],
+		['InteractiveClearDeletionMark', 'Снятие пометки'],
+		['InteractiveDeleteMarked', 'Удаление помеченных'],
+		['InputByString', 'Ввод по строке'],
+		['TotalsControl', 'Управление итогами'],
+	];
+
+	/** Строк в таблице за раз: дальше просят уточнить фильтр. */
+	const RIGHTS_ROW_CAP = 1000;
+
+	/** Состояние фильтров вкладки прав: живёт, пока открыта панель. */
+	const rightsFilter = { query: '', showAll: false, tag: '' };
+
+	/** Права роли: кросс-таблица, строки - объекты конфигурации, колонки - права. */
+	function renderRoleRightsTab() {
+		if (!contentRoot) {
+			return;
+		}
+		const model_ = model.roleRights;
+		if (!model_) {
+			contentRoot.innerHTML = '<div class="empty">Файл прав не прочитан.</div>';
+			return;
+		}
+		const readonly = !editable || editable.readonly === true;
+		contentRoot.textContent = '';
+
+		const flags = document.createElement('div');
+		flags.className = 'struct-list';
+		const flagRows = [
+			['Устанавливать права для новых объектов', model_.setForNewObjects],
+			['Устанавливать права для реквизитов и табличных частей по умолчанию', model_.setForAttributesByDefault],
+			['Независимые права подчиненных объектов', model_.independentRightsOfChildObjects],
+		];
+		for (const pair of flagRows) {
+			const item = document.createElement('div');
+			item.className = 'struct-item';
+			const name = document.createElement('span');
+			name.className = 'struct-item-name';
+			name.textContent = pair[0];
+			item.appendChild(name);
+			const value = document.createElement('span');
+			value.className = 'struct-item-syn ref-selected-mode';
+			value.textContent = pair[1] ? 'Да' : 'Нет';
+			item.appendChild(value);
+			flags.appendChild(item);
+		}
+		contentRoot.appendChild(flags);
+
+		// Выданные права из файла: объект -> право -> значение
+		const grantedByObject = new Map();
+		for (const object of model_.objects || []) {
+			const rights = new Map();
+			for (const right of object.rights || []) {
+				rights.set(right.name, right.value);
+			}
+			grantedByObject.set(object.name, rights);
+		}
+
+		// Строки: конфигурация, все объекты по видам, затем ссылки из файла вне списка
+		const rows = [];
+		rows.push({ name: 'Configuration', caption: 'Конфигурация', tag: 'Configuration' });
+		const allObjects = model_.allObjects || {};
+		const tags = Object.keys(allObjects).sort(function (a, b) {
+			return roleObjectCaption(a + '.x').localeCompare(roleObjectCaption(b + '.x'), 'ru');
+		});
+		for (const tag of tags) {
+			for (const name of allObjects[tag] || []) {
+				rows.push({ name: tag + '.' + name, caption: roleObjectCaption(tag + '.' + name), tag });
+			}
+		}
+		const known = new Set(rows.map(function (row) { return row.name; }));
+		for (const object of model_.objects || []) {
+			if (!known.has(object.name)) {
+				rows.push({ name: object.name, caption: roleObjectCaption(object.name), tag: object.name.split('.')[0] });
+			}
+		}
+
+		const controls = document.createElement('div');
+		controls.className = 'rights-controls';
+		const filter = document.createElement('input');
+		filter.type = 'text';
+		filter.className = 'list-filter';
+		filter.placeholder = 'Фильтр по списку...';
+		filter.value = rightsFilter.query;
+		controls.appendChild(filter);
+		const toggle = document.createElement('label');
+		toggle.className = 'rights-toggle';
+		const toggleBox = document.createElement('input');
+		toggleBox.type = 'checkbox';
+		toggleBox.checked = rightsFilter.showAll;
+		toggle.appendChild(toggleBox);
+		toggle.appendChild(document.createTextNode(' Все объекты'));
+		controls.appendChild(toggle);
+		const tagSelect = document.createElement('select');
+		const anyOption = document.createElement('option');
+		anyOption.value = '';
+		anyOption.textContent = 'Все виды';
+		tagSelect.appendChild(anyOption);
+		for (const tag of tags) {
+			const option = document.createElement('option');
+			option.value = tag;
+			option.textContent = roleObjectCaption(tag + '.x').replace(/: .*$/, '');
+			tagSelect.appendChild(option);
+		}
+		tagSelect.value = rightsFilter.tag;
+		controls.appendChild(tagSelect);
+		contentRoot.appendChild(controls);
+
+		const box = document.createElement('div');
+		box.className = 'rights-table-box';
+		contentRoot.appendChild(box);
+		const note = document.createElement('div');
+		note.className = 'empty';
+		contentRoot.appendChild(note);
+
+		function objectHasAnyRight(name) {
+			const granted = grantedByObject.get(name);
+			if (granted) {
+				for (const value of granted.values()) {
+					if (value) {
+						return true;
+					}
+				}
+			}
+			// Правка в панели тоже делает строку «с правами»
+			for (const key of editedRoleRights.keys()) {
+				if (key.startsWith(name + ' ') && editedRoleRights.get(key)) {
+					return true;
+				}
+			}
+			return false;
+		}
+
+		function renderTable() {
+			const needle = rightsFilter.query.trim().toLowerCase();
+			const visible = [];
+			for (const row of rows) {
+				if (!rightsFilter.showAll && !objectHasAnyRight(row.name)) {
+					continue;
+				}
+				if (rightsFilter.tag && row.tag !== rightsFilter.tag) {
+					continue;
+				}
+				if (needle && !row.caption.toLowerCase().includes(needle) && !row.name.toLowerCase().includes(needle)) {
+					continue;
+				}
+				visible.push(row);
+				if (visible.length >= RIGHTS_ROW_CAP) {
+					break;
+				}
+			}
+			box.textContent = '';
+			note.textContent = '';
+			if (visible.length === 0) {
+				note.textContent = rightsFilter.showAll
+					? 'Ничего не найдено: уточните фильтр.'
+					: 'Выданных прав нет. Флажок «Все объекты» показывает всю конфигурацию.';
+				return;
+			}
+			if (visible.length >= RIGHTS_ROW_CAP) {
+				note.textContent = 'Показаны первые ' + RIGHTS_ROW_CAP + ' строк: уточните фильтр.';
+			}
+			const table = document.createElement('table');
+			table.className = 'rights-table';
+			const thead = document.createElement('thead');
+			const head = document.createElement('tr');
+			const objectTh = document.createElement('th');
+			objectTh.className = 'rights-object-col';
+			objectTh.textContent = 'Объект';
+			head.appendChild(objectTh);
+			for (const column of RIGHT_COLUMNS) {
+				const th = document.createElement('th');
+				th.textContent = column[1];
+				th.title = RIGHT_LABELS.get(column[0]) || column[0];
+				head.appendChild(th);
+			}
+			thead.appendChild(head);
+			table.appendChild(thead);
+			const tbody = document.createElement('tbody');
+			for (const row of visible) {
+				const tr = document.createElement('tr');
+				const nameTd = document.createElement('td');
+				nameTd.className = 'rights-object-col';
+				nameTd.title = row.name;
+				nameTd.textContent = row.caption;
+				tr.appendChild(nameTd);
+				for (const column of RIGHT_COLUMNS) {
+					const td = document.createElement('td');
+					const boxInput = document.createElement('input');
+					boxInput.type = 'checkbox';
+					boxInput.checked = roleRightChecked(row.name, column[0]);
+					boxInput.disabled = readonly;
+					boxInput.addEventListener('change', (function (objectName, rightName, input) {
+						return function () {
+							toggleRoleRight(objectName, rightName, input.checked);
+							renderSaveBar();
+						};
+					})(row.name, column[0], boxInput));
+					td.appendChild(boxInput);
+					tr.appendChild(td);
+				}
+				tbody.appendChild(tr);
+			}
+			table.appendChild(tbody);
+			box.appendChild(table);
+			// Права вне колонок (редкие) остаются видны подсказкой
+			const extras = [];
+			for (const [objectName, rights] of grantedByObject) {
+				for (const [rightName, value] of rights) {
+					if (value && !RIGHT_COLUMNS.some(function (column) { return column[0] === rightName; })) {
+						extras.push(roleObjectCaption(objectName) + ': ' + (RIGHT_LABELS.get(rightName) || rightName));
+					}
+				}
+			}
+			if (extras.length > 0 && !note.textContent) {
+				note.textContent = 'Вне таблицы: ' + extras.slice(0, 6).join('; ') + (extras.length > 6 ? '…' : '');
+			}
+		}
+
+		filter.addEventListener('input', function () {
+			rightsFilter.query = filter.value || '';
+			renderTable();
+		});
+		toggleBox.addEventListener('change', function () {
+			rightsFilter.showAll = toggleBox.checked;
+			renderTable();
+		});
+		tagSelect.addEventListener('change', function () {
+			rightsFilter.tag = tagSelect.value;
+			renderTable();
+		});
+		renderTable();
 	}
 
 	/** Состав объекта деревом с флажками: секции, группы по видам, реквизиты отдельным списком. */
@@ -1687,6 +2092,10 @@
 					const space = key.indexOf(' ');
 					return { key: key.slice(0, space), ref: key.slice(space + 1), member: edit.member, mode: edit.mode };
 				}),
+				roleRights: [...editedRoleRights.entries()].map(([key, value]) => {
+					const space = key.indexOf(' ');
+					return { object: key.slice(0, space), right: key.slice(space + 1), value };
+				}),
 			});
 		});
 		resetBtn.addEventListener('click', function () {
@@ -1699,6 +2108,7 @@
 			editedSubsystems.clear();
 			editedContent.clear();
 			editedCommandVisibility.clear();
+			editedRoleRights.clear();
 			saveError = '';
 			savedFlash = false;
 			if (currentTabIsEdit()) {
@@ -1721,9 +2131,13 @@
 				if (msg.commandInterface && typeof msg.commandInterface === 'object') {
 					model.commandInterface = msg.commandInterface;
 				}
+				if (msg.roleRights && typeof msg.roleRights === 'object') {
+					model.roleRights = msg.roleRights;
+				}
 				editedSubsystems.clear();
 				editedContent.clear();
 				editedCommandVisibility.clear();
+				editedRoleRights.clear();
 				editedStructure = model.structureLists ? structureEditsFromLists(model.structureLists) : null;
 				structBaselineOrderKey = structOrderKey(editedStructure);
 				if (Array.isArray(msg.tabs)) {

@@ -100,6 +100,11 @@ export type MdSparrowOp =
 	| 'cf-md-subsystem-tree'
 	| 'cf-md-subsystem-command-interface-get'
 	| 'cf-md-subsystem-command-visibility-set'
+	| 'cf-role-rights-get'
+	| 'cf-role-rights-set'
+	| 'cf-support-get'
+	| 'cf-support-enable-rules'
+	| 'cf-support-object-mode-set'
 	| 'project-metadata-tree'
 	| 'cf-md-graph'
 	| 'cf-validate-dump';

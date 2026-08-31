@@ -121,7 +121,7 @@ interface MetadataPanelTab {
 	id: string;
 	title: string;
 	count?: number;
-	render: 'overview' | 'named' | 'tabular' | 'list' | 'kv' | 'json' | 'subsystemContent' | 'subsystems' | 'refContent' | 'commandInterface' | 'edit';
+	render: 'overview' | 'named' | 'tabular' | 'list' | 'kv' | 'json' | 'subsystemContent' | 'subsystems' | 'refContent' | 'commandInterface' | 'roleRights' | 'edit';
 	data?: unknown;
 }
 
@@ -229,6 +229,16 @@ interface MetadataPanelCommandInterfaceModel {
 	placement: Array<{ command: string; group: string }>;
 }
 
+/** Права роли: кросс-таблица объектов и прав. Файл хранит только выданные права. */
+interface MetadataPanelRoleRightsModel {
+	setForNewObjects: boolean;
+	setForAttributesByDefault: boolean;
+	independentRightsOfChildObjects: boolean;
+	objects: Array<{ name: string; rights: Array<{ name: string; value: boolean }> }>;
+	/** Все объекты конфигурации по видам: строки кросс-таблицы. */
+	allObjects: Record<string, string[]>;
+}
+
 interface MetadataPanelViewModel {
 	objectKind: string;
 	objectKindLabel: string;
@@ -245,6 +255,7 @@ interface MetadataPanelViewModel {
 	subsystems?: MetadataPanelSubsystemsModel;
 	refContent?: MetadataPanelRefContentModel;
 	commandInterface?: MetadataPanelCommandInterfaceModel;
+	roleRights?: MetadataPanelRoleRightsModel;
 }
 
 interface OpenMetadataObjectPropertiesParams {
@@ -1144,7 +1155,8 @@ function buildTabs(
 	editable?: MetadataPanelEditableModel,
 	subsystems?: MetadataPanelSubsystemsModel,
 	refContent?: MetadataPanelRefContentModel,
-	commandInterface?: MetadataPanelCommandInterfaceModel
+	commandInterface?: MetadataPanelCommandInterfaceModel,
+	roleRights?: MetadataPanelRoleRightsModel
 ): MetadataPanelTab[] {
 	const profileTabs = buildProfileTabs(objectType, props, structure).filter(
 		// Дерево состава с флажками замещает вкладку-просмотр состава
@@ -1165,6 +1177,9 @@ function buildTabs(
 	}
 	if (commandInterface) {
 		out.push({ id: 'commandInterface', title: 'Командный интерфейс', render: 'commandInterface' });
+	}
+	if (roleRights) {
+		out.push({ id: 'roleRights', title: 'Права', render: 'roleRights' });
 	}
 	return out;
 }
@@ -1679,7 +1694,8 @@ function buildViewModel(
 	enums: MetadataEnumDictionary = {},
 	subsystems?: MetadataPanelSubsystemsModel,
 	refContent?: MetadataPanelRefContentModel,
-	commandInterface?: MetadataPanelCommandInterfaceModel
+	commandInterface?: MetadataPanelCommandInterfaceModel,
+	roleRights?: MetadataPanelRoleRightsModel
 ): MetadataPanelViewModel {
 	const declaredObjectType = normalizeObjectType(params.objectType ?? '');
 	const internalName = props?.internalName || structure?.internalName || path.parse(params.objectXmlFsPath).name;
@@ -1700,13 +1716,14 @@ function buildViewModel(
 		comment: props?.comment ?? '',
 		objectXmlPath: params.objectXmlFsPath,
 		warnings,
-		tabs: buildTabs(props, structure, objectType, editable, subsystems, refContent, commandInterface),
+		tabs: buildTabs(props, structure, objectType, editable, subsystems, refContent, commandInterface, roleRights),
 		technicalJson: JSON.stringify(technicalPayload, null, 2),
 		editable,
 		structureLists,
 		subsystems,
 		refContent,
 		commandInterface,
+		roleRights,
 	};
 }
 
@@ -2087,12 +2104,53 @@ async function loadCommandInterfaceModel(
 	const visibility = (res.value.visibility ?? []).map((entry) => ({
 		command: entry.command,
 		common: entry.value === 'true',
+		stored: true,
 	}));
 	const placement = (res.value.placement ?? []).map((entry) => ({ command: entry.command, group: entry.value }));
 	if (visibility.length === 0 && placement.length === 0) {
 		return undefined;
 	}
 	return { visibility, placement };
+}
+
+/** Права роли: файл хранит только выданные, пустой файл даёт вкладку с флагами. */
+async function loadRoleRightsModel(
+	runtime: Awaited<ReturnType<typeof ensureMdSparrowRuntime>>,
+	params: OpenMetadataObjectPropertiesParams,
+	schema: string,
+	props: MdObjectPropertiesDto | null
+): Promise<MetadataPanelRoleRightsModel | undefined> {
+	if (props?.kind !== 'role') {
+		return undefined;
+	}
+	const res = await runMdSparrowJson<MetadataPanelRoleRightsModel>(
+		runtime,
+		{ op: 'cf-role-rights-get', objectXml: params.objectXmlFsPath, schemaVersion: schema },
+		params.cwd
+	);
+	if (!res.ok) {
+		log.warn(`права роли: ${res.error.slice(0, ERR_PREVIEW)}`);
+		return undefined;
+	}
+	// Строки кросс-таблицы: все объекты конфигурации, а не только упомянутые в файле
+	let allObjects: Record<string, string[]> = {};
+	if (params.cfgPath) {
+		const objects = await runMdSparrowJson<Record<string, string[]>>(
+			runtime,
+			{ op: 'cf-list-all-child-objects', configurationXml: params.cfgPath, schemaVersion: schema },
+			params.cwd
+		);
+		if (objects.ok) {
+			allObjects = objects.value;
+		}
+	}
+	return {
+		setForNewObjects: res.value.setForNewObjects === true,
+		setForAttributesByDefault: res.value.setForAttributesByDefault === true,
+		independentRightsOfChildObjects: res.value.independentRightsOfChildObjects === true,
+		objects: Array.isArray(res.value.objects) ? res.value.objects : [],
+		allObjects,
+	};
 }
 
 /** Узел ответа cf-md-subsystem-tree. */
@@ -2161,6 +2219,25 @@ function parseCommandVisibilityEdits(raw: unknown): Array<{ command: string; val
 		}
 	}
 	return out.length > 0 ? out : null;
+}
+
+/** Разбирает правки прав роли из сообщения webview: объект, право, выдано или снято. */
+function parseRoleRightsEdits(raw: unknown): Array<{ object: string; right: string; value: boolean }> {
+	if (!Array.isArray(raw)) {
+		return [];
+	}
+	const out: Array<{ object: string; right: string; value: boolean }> = [];
+	for (const item of raw) {
+		if (
+			isRecord(item) &&
+			typeof item.object === 'string' &&
+			typeof item.right === 'string' &&
+			typeof item.value === 'boolean'
+		) {
+			out.push({ object: item.object, right: item.right, value: item.value });
+		}
+	}
+	return out;
 }
 
 /** Разбирает изменения состава из сообщения webview: секция, ссылка, членство. */
@@ -2272,6 +2349,7 @@ async function openMetadataObjectPropertiesEditorInner(
 	const scheduleAware = await withScheduleFieldOptions(runtime, params, schema, propsDto, candidates);
 	const refContent = await loadRefContentModel(runtime, params, schema, propsDto);
 	const commandInterface = await loadCommandInterfaceModel(runtime, params, schema, propsDto);
+	const roleRights = await loadRoleRightsModel(runtime, params, schema, propsDto);
 	const viewModel = buildViewModel(
 		params,
 		propsDto,
@@ -2281,7 +2359,8 @@ async function openMetadataObjectPropertiesEditorInner(
 		enums,
 		subsystems,
 		refContent,
-		commandInterface
+		commandInterface,
+		roleRights
 	);
 	const title = panelTitleForKind(viewModel.objectKind, viewModel.internalName);
 	const webviewRoot = vscode.Uri.joinPath(context.extensionUri, 'resources', 'webview');
@@ -2503,6 +2582,8 @@ interface MetadataPanelSaveMessage {
 	content?: unknown;
 	/** Изменённая видимость команд подсистемы. */
 	commandVisibility?: unknown;
+	/** Изменённые права роли. */
+	roleRights?: unknown;
 }
 
 const IDENTIFIER_RE = /^[A-Za-zА-ЯЁа-яё_][A-Za-zА-ЯЁа-яё0-9_]*$/;
@@ -2931,6 +3012,7 @@ function registerEditableSaveHandler(
 		const scheduleAware = await withScheduleFieldOptions(runtime, params, schema, propsResult.value, candidates);
 		const refContent = await loadRefContentModel(runtime, params, schema, propsResult.value);
 		const commandInterface = await loadCommandInterfaceModel(runtime, params, schema, propsResult.value);
+		const roleRights = await loadRoleRightsModel(runtime, params, schema, propsResult.value);
 		const vm = buildViewModel(
 			params,
 			propsResult.value,
@@ -2940,7 +3022,8 @@ function registerEditableSaveHandler(
 			enums,
 			subsystems,
 			refContent,
-			commandInterface
+			commandInterface,
+			roleRights
 		);
 		if (vm.editable) {
 			editable.props = vm.editable.props;
@@ -2955,6 +3038,7 @@ function registerEditableSaveHandler(
 			subsystems: vm.subsystems,
 			refContent: vm.refContent,
 			commandInterface: vm.commandInterface,
+			roleRights: vm.roleRights,
 			tabsChanged: true,
 		});
 	}
@@ -3028,6 +3112,19 @@ function registerEditableSaveHandler(
 	}
 
 	async function handleSave(msg: MetadataPanelSaveMessage): Promise<void> {
+		const roleRightsEdits = parseRoleRightsEdits(msg.roleRights);
+		if (roleRightsEdits.length > 0) {
+			const error = await runOneMutation({
+				op: 'cf-role-rights-set',
+				objectXml: params.objectXmlFsPath,
+				schemaVersion: schema,
+				payloadJson: JSON.stringify(roleRightsEdits),
+			});
+			if (error) {
+				void panel.webview.postMessage({ type: 'saved', ok: false, error: `Права: ${error}` });
+				return;
+			}
+		}
 		const visibilityEdits = parseCommandVisibilityEdits(msg.commandVisibility);
 		if (visibilityEdits) {
 			const error = await runOneMutation({

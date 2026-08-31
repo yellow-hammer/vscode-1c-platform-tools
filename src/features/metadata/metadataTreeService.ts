@@ -27,6 +27,8 @@ export interface MetadataSourceDto {
 	readonly label: string;
 	readonly configurationXmlRelativePath: string;
 	readonly metadataRootRelativePath: string;
+	/** Поддержка поставщика выгрузки: locked - полная поддержка, editable - изменение включено. */
+	readonly support?: string;
 	readonly groups: MetadataGroupDto[];
 }
 
@@ -60,6 +62,8 @@ export interface MetadataItemDto {
 	readonly relativePath: string;
 	/** Принадлежность объекта расширения: `Adopted` у заимствованного; у конфигурации пусто. */
 	readonly objectBelonging?: string;
+	/** Поддержка поставщика: locked - изменение запрещено, editable - разрешено. */
+	readonly support?: string;
 	/** Необязательная цель открытия из md-sparrow; клик в IDE работает и без неё. */
 	readonly open?: MetadataItemOpenDto;
 }

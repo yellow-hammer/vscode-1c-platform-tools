@@ -19,7 +19,7 @@ import { ensureMdSparrowRuntime } from './mdSparrowBootstrap';
 import { runMdSparrowParamsRead } from './mdSparrowParams';
 import { mdSparrowSchemaFlagFromConfigurationXml } from './mdSparrowSchemaVersion';
 import { offerGithubTokenOnRateLimit } from '../../shared/githubToken';
-import { ADOPTED_HINT, adoptedIcon, initAdoptedIcons, isAdopted } from './objectBelonging';
+import { ADOPTED_HINT, SUPPORT_HINTS, adoptedIcon, initAdoptedIcons, isAdopted, lockedIcon } from './objectBelonging';
 import {
 	childKindIsMutatable,
 	childKindOfSection,
@@ -214,7 +214,9 @@ export class MetadataSourceTreeItem extends vscode.TreeItem {
 		public readonly sourceKind: string,
 		public readonly configurationXmlAbs: string | undefined,
 		public readonly metadataRootAbs: string | undefined,
-		expanded?: boolean
+		expanded?: boolean,
+		/** Поддержка поставщика выгрузки: locked либо editable. */
+		public readonly support?: string
 	) {
 		super(
 			label,
@@ -228,7 +230,16 @@ export class MetadataSourceTreeItem extends vscode.TreeItem {
 		} else if (sourceKind === 'externalErf' || sourceKind === 'externalEpf') {
 			this.contextValue = 'metadataSourceExternalArtifact';
 		}
+		if (support === 'locked') {
+			this.contextValue = `${this.contextValue} mdSupportLocked`;
+		}
 		this.iconPath = new vscode.ThemeIcon('root-folder');
+		if (support === 'locked' || support === 'editable') {
+			this.tooltip =
+				support === 'locked'
+					? 'Конфигурация поставщика на полной поддержке'
+					: 'Конфигурация поставщика, возможность изменения включена';
+		}
 	}
 }
 
@@ -342,7 +353,9 @@ export class MetadataLeafTreeItem extends vscode.TreeItem {
 		public readonly configurationXmlAbs: string | undefined,
 		public readonly metadataRootAbs: string | undefined,
 		/** Необязательная цель из дерева md-sparrow; клик работает и без неё. */
-		public readonly open?: MetadataObjectOpen
+		public readonly open?: MetadataObjectOpen,
+		/** Поддержка поставщика: locked - изменение запрещено, editable - разрешено. */
+		public readonly support?: string
 	) {
 		const absFromRelativePath =
 			relativePath && relativePath.length > 0
@@ -386,14 +399,29 @@ export class MetadataLeafTreeItem extends vscode.TreeItem {
 			if (moduleKinds) {
 				tokens.push(...moduleKinds.map((kind) => OBJECT_MODULE_DESCRIPTORS[kind].contextToken));
 			}
+			if (support === 'locked' || support === 'editable') {
+				tokens.push('mdSupportRule');
+			}
 			if (tokens.length > 0) {
 				this.contextValue = [this.contextValue, ...tokens].join(' ');
 			}
 		}
-		this.iconPath = metadataObjectTypeIcon(normalizedObjectType, extensionUri, objectBelonging, groupId, subgroupId);
-		if (isAdopted(objectBelonging)) {
-			this.tooltip = this.tooltip ? `${ADOPTED_HINT}
-${this.tooltip}` : ADOPTED_HINT;
+		this.iconPath = metadataObjectTypeIcon(
+			normalizedObjectType,
+			extensionUri,
+			objectBelonging,
+			groupId,
+			subgroupId,
+			support
+		);
+		const hint = isAdopted(objectBelonging)
+			? ADOPTED_HINT
+			: support === 'locked' || support === 'editable'
+				? SUPPORT_HINTS[support]
+				: undefined;
+		if (hint) {
+			this.tooltip = this.tooltip ? `${hint}
+${this.tooltip}` : hint;
 		}
 		this.description = '';
 		assignMetadataLeafOpenCommand(this);
@@ -483,7 +511,8 @@ export class MetadataSubsystemChildTreeItem extends MetadataLeafTreeItem {
 		extensionUri: vscode.Uri,
 		configurationXmlAbs: string | undefined,
 		metadataRootAbs: string | undefined,
-		open?: MetadataObjectOpen
+		open?: MetadataObjectOpen,
+		support?: string
 	) {
 		super(
 			sourceId,
@@ -497,7 +526,8 @@ export class MetadataSubsystemChildTreeItem extends MetadataLeafTreeItem {
 			extensionUri,
 			configurationXmlAbs,
 			metadataRootAbs,
-			open
+			open,
+			support
 		);
 	}
 }
@@ -623,8 +653,19 @@ export class MetadataObjectSectionTreeItem extends vscode.TreeItem {
 			childKindOfSection(sectionKind) || sectionKind === 'forms'
 				? 'metadataObjectSection mdSectionAdd'
 				: 'metadataObjectSection';
-		this.iconPath = metadataSectionIcon(sectionKind, extensionUri);
+		this.iconPath = ownerAwareIcon(metadataSectionIcon(sectionKind, extensionUri), owner);
 	}
+}
+
+/** Замочек владельца распространяется на его разделы и узлы состава. */
+function ownerAwareIcon(
+	icon: vscode.ThemeIcon | { light: vscode.Uri; dark: vscode.Uri },
+	owner: MetadataLeafTreeItem
+): vscode.ThemeIcon | { light: vscode.Uri; dark: vscode.Uri } {
+	if (owner.support !== 'locked' || icon instanceof vscode.ThemeIcon) {
+		return icon;
+	}
+	return lockedIcon(icon);
 }
 
 /**
@@ -664,14 +705,14 @@ export class MetadataObjectNodeTreeItem extends vscode.TreeItem {
 		super(label, hasChildren ? vscode.TreeItemCollapsibleState.Collapsed : vscode.TreeItemCollapsibleState.None);
 		this.contextValue = childNodeContextValue(nodeKind);
 		if (nodeKind === 'attribute' || nodeKind === 'tabularAttribute') {
-			this.iconPath = metadataSvgIcon(extensionUri, 'attribute.svg');
+			this.iconPath = ownerAwareIcon(metadataSvgIcon(extensionUri, 'attribute.svg'), owner);
 			return;
 		}
 		if (nodeKind === 'tabularSection') {
-			this.iconPath = metadataSvgIcon(extensionUri, 'tabularSection.svg');
+			this.iconPath = ownerAwareIcon(metadataSvgIcon(extensionUri, 'tabularSection.svg'), owner);
 			return;
 		}
-		this.iconPath = metadataNodeKindIcon(nodeKind, extensionUri);
+		this.iconPath = ownerAwareIcon(metadataNodeKindIcon(nodeKind, extensionUri), owner);
 		if (nodeKind === 'form') {
 			this.command = {
 				command: '1c-platform-tools.metadata.openForm',
@@ -1045,10 +1086,15 @@ function metadataObjectTypeIcon(
 	extensionUri: vscode.Uri,
 	objectBelonging: string | undefined,
 	groupId?: string,
-	subgroupId?: string
+	subgroupId?: string,
+	support?: string
 ): vscode.ThemeIcon | { light: vscode.Uri; dark: vscode.Uri } {
 	const icon = metadataSvgIcon(extensionUri, metadataObjectTypeIconFileName(objectType, groupId, subgroupId));
-	return isAdopted(objectBelonging) ? adoptedIcon(icon) : icon;
+	if (isAdopted(objectBelonging)) {
+		return adoptedIcon(icon);
+	}
+	// Замочек только у запрещённых: разрешённое изменение дерево не подкрашивает
+	return support === 'locked' ? lockedIcon(icon) : icon;
 }
 
 function metadataGroupIcon(
@@ -1363,8 +1409,12 @@ export class MetadataTreeDataProvider implements vscode.TreeDataProvider<vscode.
 			const metaAbs = path.join(workspaceRoot, src.metadataRootRelativePath);
 			const expanded = this.expandedSources();
 			const sItem = new MetadataSourceTreeItem(
-				src.id, src.label, src.kind, cfgAbs, metaAbs, expanded?.has(src.id));
-			sItem.iconPath = metadataSourceIcon(src.kind, this._context.extensionUri);
+				src.id, src.label, src.kind, cfgAbs, metaAbs, expanded?.has(src.id), src.support);
+			const sourceIcon = metadataSourceIcon(src.kind, this._context.extensionUri);
+			sItem.iconPath =
+				src.support === 'locked' && !(sourceIcon instanceof vscode.ThemeIcon)
+					? lockedIcon(sourceIcon)
+					: sourceIcon;
 			this._sourceItems.push(sItem);
 
 			if (isExternalArtifactSourceKind(src.kind)) {
@@ -1996,7 +2046,8 @@ export class MetadataTreeDataProvider implements vscode.TreeDataProvider<vscode.
 						this._context.extensionUri,
 						childTemplate.configurationXmlAbs,
 						childTemplate.metadataRootAbs,
-						childTemplate.open
+						childTemplate.open,
+						childTemplate.support
 					)
 				);
 			}
@@ -2047,7 +2098,8 @@ export class MetadataTreeDataProvider implements vscode.TreeDataProvider<vscode.
 			this._context.extensionUri,
 			parentLeaf.configurationXmlAbs,
 			parentLeaf.metadataRootAbs,
-			{ action: 'properties' }
+			{ action: 'properties' },
+			parentLeaf.support
 		);
 	}
 }
@@ -2075,7 +2127,8 @@ function createMetadataLeaf(
 		extensionUri,
 		configurationXmlAbs,
 		metadataRootAbs,
-		resolveMetadataOpen(item.open, workspaceRoot)
+		resolveMetadataOpen(item.open, workspaceRoot),
+		item.support
 	);
 }
 

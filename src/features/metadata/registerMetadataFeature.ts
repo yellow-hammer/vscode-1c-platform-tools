@@ -366,7 +366,7 @@ export function registerMetadataFeature(
 		void vscode.commands.executeCommand('1c-platform-tools.metadata.refresh');
 	}
 
-	async function openObjectPropertiesTab(node: MetadataLeafTreeItem): Promise<void> {
+	async function openObjectPropertiesTab(node: MetadataLeafTreeItem, initialTabId?: string): Promise<void> {
 		if (!node.resourceUri) {
 			void vscode.window.showInformationMessage('У объекта нет файла в выгрузке.');
 			return;
@@ -382,6 +382,7 @@ export function registerMetadataFeature(
 			schemaFlag: schemaFlagFallback,
 			cwd: node.metadataRootAbs ?? path.dirname(node.resourceUri.fsPath),
 			objectType: node.objectType,
+			initialTabId,
 			enqueueMutation: runMdSparrowMutation,
 		});
 	}
@@ -1853,6 +1854,82 @@ export function registerMetadataFeature(
 						return;
 					}
 					notifyQuiet(`«${node.name}» добавлен в расширение ${picked.label}`);
+					void vscode.commands.executeCommand('1c-platform-tools.metadata.refresh');
+				});
+			}
+		),
+		vscode.commands.registerCommand(
+			'1c-platform-tools.metadata.supportEnableEditing',
+			async (item?: MetadataSourceTreeItem) => {
+				await runMdSparrowMutation(async () => {
+					const source = item instanceof MetadataSourceTreeItem ? item : undefined;
+					if (!source?.configurationXmlAbs) {
+						void vscode.window.showInformationMessage('Выберите конфигурацию в дереве.');
+						return;
+					}
+					const answer = await vscode.window.showWarningMessage(
+						'Включить возможность изменения конфигурации? Правила поставщика откроются, каждому объекту будет установлено «не редактируется».',
+						{ modal: true },
+						'Включить'
+					);
+					if (answer !== 'Включить') {
+						return;
+					}
+					const runtime = await ensureMdSparrowRuntime(context);
+					const res = await runMdSparrowParamsMutation(
+						runtime,
+						{ op: 'cf-support-enable-rules', configurationXml: source.configurationXmlAbs },
+						{ cwd: source.metadataRootAbs ?? path.dirname(source.configurationXmlAbs) }
+					);
+					if (res.exitCode !== 0) {
+						void vscode.window.showErrorMessage(
+							`Не удалось включить возможность изменения. ${(res.stderr || res.stdout).trim()}`.slice(0, 400)
+						);
+						return;
+					}
+					notifyQuiet('Возможность изменения включена: изменение объектов разрешается по одному');
+					void vscode.commands.executeCommand('1c-platform-tools.metadata.refresh');
+				});
+			}
+		),
+		vscode.commands.registerCommand(
+			'1c-platform-tools.metadata.supportSetObjectMode',
+			async (item?: MetadataLeafTreeItem) => {
+				await runMdSparrowMutation(async () => {
+					const node = resolveSelectedMetadataLeaf(item instanceof MetadataLeafTreeItem ? item : undefined);
+					if (!node?.resourceUri || !node.configurationXmlAbs) {
+						void vscode.window.showInformationMessage('Выберите объект конфигурации.');
+						return;
+					}
+					const picked = await vscode.window.showQuickPick(
+						[
+							{ label: 'Разрешить изменение', description: 'объект на поддержке, правка разрешена', mode: '1' },
+							{ label: 'Запретить изменение', description: 'объект поставщика не редактируется', mode: '0' },
+							{ label: 'Снять с поддержки', description: 'объект перестаёт сверяться с поставкой', mode: '2' },
+						],
+						{ placeHolder: `Режим поддержки: ${node.name}` }
+					);
+					if (!picked) {
+						return;
+					}
+					const runtime = await ensureMdSparrowRuntime(context);
+					const res = await runMdSparrowParamsMutation(
+						runtime,
+						{
+							op: 'cf-support-object-mode-set',
+							objectXml: node.resourceUri.fsPath,
+							configurationXml: node.configurationXmlAbs,
+							name: picked.mode,
+						},
+						{ cwd: node.metadataRootAbs ?? path.dirname(node.resourceUri.fsPath) }
+					);
+					if (res.exitCode !== 0) {
+						void vscode.window.showErrorMessage(
+							`Не удалось сменить режим поддержки. ${(res.stderr || res.stdout).trim()}`.slice(0, 400)
+						);
+						return;
+					}
+					notifyQuiet(`«${node.name}»: ${picked.label.toLowerCase()}`);
 					void vscode.commands.executeCommand('1c-platform-tools.metadata.refresh');
 				});
 			}

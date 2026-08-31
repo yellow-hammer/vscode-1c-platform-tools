@@ -1358,6 +1358,16 @@
         "category": "1С: Конфигурация"
       },
       {
+        "command": "1c-platform-tools.metadata.supportEnableEditing",
+        "title": "Включить возможность изменения",
+        "category": "1С: Конфигурация"
+      },
+      {
+        "command": "1c-platform-tools.metadata.supportSetObjectMode",
+        "title": "Режим поддержки",
+        "category": "1С: Конфигурация"
+      },
+      {
         "command": "1c-platform-tools.cfe.compile",
         "title": "Собрать *.cfe из src/cfe",
         "category": "1С: Расширения"
@@ -2453,6 +2463,14 @@
         {
           "command": "1c-platform-tools.epf.addBspRegistration",
           "when": "false"
+        },
+        {
+          "command": "1c-platform-tools.metadata.supportEnableEditing",
+          "when": "false"
+        },
+        {
+          "command": "1c-platform-tools.metadata.supportSetObjectMode",
+          "when": "false"
         }
       ],
       "debug/toolBar": [
@@ -2821,7 +2839,7 @@
         },
         {
           "command": "1c-platform-tools.metadata.validateDump",
-          "when": "view == 1c-platform-tools-metadata-tree && viewItem == metadataSourceConfigLike",
+          "when": "view == 1c-platform-tools-metadata-tree && viewItem =~ /(^| )metadataSourceConfigLike( |$)/",
           "group": "9_check@1"
         },
         {
@@ -3106,17 +3124,17 @@
         },
         {
           "command": "1c-platform-tools.metadata.openExternalConnectionModule",
-          "when": "view == 1c-platform-tools-metadata-tree && viewItem == metadataSourceConfigLike",
+          "when": "view == 1c-platform-tools-metadata-tree && viewItem =~ /(^| )metadataSourceConfigLike( |$)/",
           "group": "1_open@2"
         },
         {
           "command": "1c-platform-tools.metadata.openApplicationModule",
-          "when": "view == 1c-platform-tools-metadata-tree && viewItem == metadataSourceConfigLike",
+          "when": "view == 1c-platform-tools-metadata-tree && viewItem =~ /(^| )metadataSourceConfigLike( |$)/",
           "group": "1_open@3"
         },
         {
           "command": "1c-platform-tools.metadata.openSessionModule",
-          "when": "view == 1c-platform-tools-metadata-tree && viewItem == metadataSourceConfigLike",
+          "when": "view == 1c-platform-tools-metadata-tree && viewItem =~ /(^| )metadataSourceConfigLike( |$)/",
           "group": "1_open@4"
         },
         {
@@ -3151,12 +3169,12 @@
         },
         {
           "command": "1c-platform-tools.metadata.openProperties",
-          "when": "view == 1c-platform-tools-metadata-tree && (viewItem == metadataSourceConfigLike || viewItem =~ /(^| )(metadataObjectProperties(Subsystem)?|metadataLeafFile)( |$)/ || viewItem =~ /(^| )metadataChild_/)",
+          "when": "view == 1c-platform-tools-metadata-tree && (viewItem =~ /(^| )metadataSourceConfigLike( |$)/ || viewItem =~ /(^| )(metadataObjectProperties(Subsystem)?|metadataLeafFile)( |$)/ || viewItem =~ /(^| )metadataChild_/)",
           "group": "9_properties@1"
         },
         {
           "command": "1c-platform-tools.metadata.openSourceXml",
-          "when": "view == 1c-platform-tools-metadata-tree && (viewItem == metadataSourceConfigLike || viewItem =~ /(^| )(metadataObjectProperties(Subsystem)?|metadataLeafFile|metadataObjectForm)( |$)/)",
+          "when": "view == 1c-platform-tools-metadata-tree && (viewItem =~ /(^| )metadataSourceConfigLike( |$)/ || viewItem =~ /(^| )(metadataObjectProperties(Subsystem)?|metadataLeafFile|metadataObjectForm)( |$)/)",
           "group": "2_reveal@1"
         },
         {
@@ -3166,7 +3184,7 @@
         },
         {
           "command": "1c-platform-tools.metadata.compile",
-          "when": "view == 1c-platform-tools-metadata-tree && (viewItem == metadataSourceConfigLike || viewItem =~ /(^| )metadataLeafFile( |$)/)",
+          "when": "view == 1c-platform-tools-metadata-tree && (viewItem =~ /(^| )metadataSourceConfigLike( |$)/ || viewItem =~ /(^| )metadataLeafFile( |$)/)",
           "group": "4_build@1"
         },
         {
@@ -3248,6 +3266,16 @@
           "command": "1c-platform-tools.pipelines.run",
           "when": "view == 1c-platform-tools-tools-commands && viewItem == pipelineEntry",
           "group": "inline"
+        },
+        {
+          "command": "1c-platform-tools.metadata.supportEnableEditing",
+          "when": "view == 1c-platform-tools-metadata-tree && viewItem =~ /(^| )mdSupportLocked( |$)/",
+          "group": "6_support@1"
+        },
+        {
+          "command": "1c-platform-tools.metadata.supportSetObjectMode",
+          "when": "view == 1c-platform-tools-metadata-tree && viewItem =~ /(^| )mdSupportRule( |$)/",
+          "group": "6_support@1"
         }
       ],
       "editor/title": [
