@@ -33,10 +33,10 @@ suite('xunitAdapter', () => {
 		assert.ok(info.processorDir.endsWith('Тест_Один'));
 	});
 
-	test('поиск обработок идёт по корню тестов, а не по старому src/tests', () => {
+	test('поиск обработок идёт по корню тестов, а не по старому src/tests', async () => {
 		const adapter = new XUnitAdapter(VRunnerManager.getInstance());
 
-		const globs = adapter.getIncludeGlobs();
+		const globs = await adapter.getIncludeGlobs();
 
 		// исходники тестовых обработок переехали в tests/epf: панель ищет их там же,
 		// куда смотрят команды сборки, иначе ветка xUnit опустеет
@@ -60,10 +60,10 @@ suite('xunitAdapter', () => {
 });
 
 suite('поиск тестов в раскладке EDT', () => {
-	test('xUnit ищет тестовые обработки и в проекте EDT', () => {
+	test('xUnit ищет тестовые обработки и в проекте EDT', async () => {
 		const adapter = new XUnitAdapter(VRunnerManager.getInstance());
 
-		const globs = adapter.getIncludeGlobs();
+		const globs = await adapter.getIncludeGlobs();
 
 		assert.ok(
 			globs.some((glob) => glob.endsWith('/src/ExternalDataProcessors/*/ObjectModule.bsl')),

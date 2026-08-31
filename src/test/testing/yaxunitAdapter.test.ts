@@ -7,7 +7,7 @@ import { VRunnerManager } from '../../shared/vrunnerManager';
 import { YaxunitAdapter, extractModuleName, extensionSourceDir } from '../../features/testing/adapters/yaxunitAdapter';
 
 suite('yaxunitAdapter', () => {
-	test('isTestFile: служебный модуль фреймворка (без зарегистрированных тестов) отсекается', () => {
+	test('isTestFile: служебный модуль фреймворка (без зарегистрированных тестов) отсекается', async () => {
 		const adapter = new YaxunitAdapter(VRunnerManager.getInstance());
 		// Похоже на ЮТТестыСлужебный: есть ИсполняемыеСценарии и текст «ДобавитьТест(»,
 		// но нет ни одной регистрации .ДобавитьТест("Имя") — это плумбинг, не тесты
@@ -23,7 +23,7 @@ suite('yaxunitAdapter', () => {
 		assert.strictEqual(adapter.isTestFile(serviceModule), false);
 	});
 
-	test('isTestFile: модуль с .ДобавитьТест("...") распознаётся тестовым', () => {
+	test('isTestFile: модуль с .ДобавитьТест("...") распознаётся тестовым', async () => {
 		const adapter = new YaxunitAdapter(VRunnerManager.getInstance());
 		const testModule = [
 			'Процедура ИсполняемыеСценарии() Экспорт',
@@ -122,10 +122,10 @@ suite('yaxunitAdapter', () => {
 		}
 	});
 
-	test('поиск идёт и по расширениям решения, и по тестовым', () => {
+	test('поиск идёт и по расширениям решения, и по тестовым', async () => {
 		const adapter = new YaxunitAdapter(VRunnerManager.getInstance());
 
-		const globs = adapter.getIncludeGlobs();
+		const globs = await adapter.getIncludeGlobs();
 
 		// расширение с тестами держат отдельно от поставки: без второго корня
 		// панель тестирования перестала бы видеть тесты после переноса
@@ -141,10 +141,10 @@ suite('yaxunitAdapter', () => {
 });
 
 suite('yaxunitAdapter: раскладка EDT', () => {
-	test('модули тестового расширения ищутся в обеих раскладках', () => {
+	test('модули тестового расширения ищутся в обеих раскладках', async () => {
 		const adapter = new YaxunitAdapter(VRunnerManager.getInstance());
 
-		const globs = adapter.getIncludeGlobs();
+		const globs = await adapter.getIncludeGlobs();
 
 		assert.ok(
 			globs.some((glob) => glob.endsWith('/*/CommonModules/*/Ext/Module.bsl')),

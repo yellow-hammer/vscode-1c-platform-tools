@@ -7,7 +7,7 @@ import { TestFrameworkAdapter, AdapterRunPlan, RunUnit } from '../frameworkAdapt
 import { DiscoveredFile } from '../parsers/parserTypes';
 import { parseBslTestModule } from '../parsers/bslTestParser';
 import { resolveConfigPath } from '../projectTestConfig';
-import { normalizeGlobBase } from './adapterUtils';
+import { activeSourceGlobBases, normalizeGlobBase } from './adapterUtils';
 import { DEFAULT_TESTING } from '../../../shared/pathDefaults';
 import { resolveExtensionNameFromSrc } from '../../extensions/extensionNames';
 
@@ -37,16 +37,23 @@ export class YaxunitAdapter implements TestFrameworkAdapter {
 		return config.get<boolean>('test.frameworks.yaxunit', true);
 	}
 
-	public getIncludeGlobs(): string[] {
-		const roots = [this.vrunner.getCfePath(), this.vrunner.getTestsCfePath()];
-		return roots
+	public async getIncludeGlobs(): Promise<string[]> {
+		const configured = [this.vrunner.getCfePath(), this.vrunner.getTestsCfePath()]
 			.map((root) => normalizeGlobBase(root))
-			.filter((base, index, all) => base.length > 0 && all.indexOf(base) === index)
+			.filter((base) => base.length > 0)
 			.flatMap((base) => [
-				// форматы конфигуратора и EDT
+				// расширения лежат подкаталогами настроенного пути
 				`${base}/*/CommonModules/*/Ext/Module.bsl`,
 				`${base}/*/src/CommonModules/*/Module.bsl`,
 			]);
+
+		// В формате EDT конфигурация и расширения - отдельные проекты рабочей
+		// области, настроенными путями их не описать.
+		const projects = (await activeSourceGlobBases(this.vrunner)).map(
+			(base) => `${base}/src/CommonModules/*/Module.bsl`
+		);
+
+		return [...configured, ...projects].filter((glob, index, all) => all.indexOf(glob) === index);
 	}
 
 	public parseFile(content: string): DiscoveredFile | undefined {
