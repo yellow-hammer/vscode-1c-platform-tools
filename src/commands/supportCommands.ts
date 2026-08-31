@@ -3,6 +3,7 @@ import * as path from 'node:path';
 import * as fs from 'node:fs/promises';
 import * as vscode from 'vscode';
 import { BaseCommand } from './baseCommand';
+import type { VRunnerIntent } from '../shared/vrunnerCli';
 import {
 	getUpdateCfgSupportCommandName,
 	getDisableCfgSupportCommandName,
@@ -120,16 +121,11 @@ export class SupportCommands extends BaseCommand {
 		const additionalParam = ' /UpdateCfg "' + cfCfuRelative + '" -Settings "' + settingsRelative + '"' + optionsPart;
 
 		const ibConnectionParam = await this.vrunner.getIbConnectionParam();
-		const [args] = await this.vrunner.planIntent(
-			{ kind: 'run.designer', additional: additionalParam, common: ibConnectionParam }
-		);
+		const intent: VRunnerIntent = { kind: 'run.designer', additional: additionalParam, common: ibConnectionParam };
+		const [args] = await this.vrunner.planIntent(intent);
 		const commandName = getUpdateCfgSupportCommandName();
 
-		this.vrunner.executeVRunnerInTerminal(args, {
-			cwd: workspaceRoot,
-			name: commandName.title,
-			appendOverrides: false
-		});
+		await this.runPlanned([args], [intent], { cwd: workspaceRoot, name: commandName.title, appendOverrides: false });
 	}
 
 	/**
@@ -147,12 +143,11 @@ export class SupportCommands extends BaseCommand {
 
 		const additionalParam = ' /ManageCfgSupport -disableSupport -force';
 		const ibConnectionParam = await this.vrunner.getIbConnectionParam();
-		const [args] = await this.vrunner.planIntent(
-			{ kind: 'run.designer', additional: additionalParam, common: ibConnectionParam }
-		);
+		const intent: VRunnerIntent = { kind: 'run.designer', additional: additionalParam, common: ibConnectionParam };
+		const [args] = await this.vrunner.planIntent(intent);
 		const commandName = getDisableCfgSupportCommandName();
 
-		this.vrunner.executeVRunnerInTerminal(args, { cwd: workspaceRoot, name: commandName.title, appendOverrides: false });
+		await this.runPlanned([args], [intent], { cwd: workspaceRoot, name: commandName.title, appendOverrides: false });
 	}
 
 	/**
@@ -212,11 +207,10 @@ export class SupportCommands extends BaseCommand {
 		}
 
 		const ibConnectionParam = await this.vrunner.getIbConnectionParam();
-		const [args] = await this.vrunner.planIntent(
-			{ kind: 'run.designer', additional: additionalParam, common: ibConnectionParam }
-		);
+		const intent: VRunnerIntent = { kind: 'run.designer', additional: additionalParam, common: ibConnectionParam };
+		const [args] = await this.vrunner.planIntent(intent);
 		const commandName = getCreateTemplateListFileCommandName();
-		this.vrunner.executeVRunnerInTerminal(args, { cwd: workspaceRoot, name: commandName.title, appendOverrides: false });
+		await this.runPlanned([args], [intent], { cwd: workspaceRoot, name: commandName.title, appendOverrides: false });
 	}
 
 	/**
@@ -373,11 +367,10 @@ export class SupportCommands extends BaseCommand {
 		}
 
 		const ibConnectionParam = await this.vrunner.getIbConnectionParam();
-		const [args] = await this.vrunner.planIntent(
-			{ kind: 'run.designer', additional: additionalParam, common: ibConnectionParam }
-		);
+		const intent: VRunnerIntent = { kind: 'run.designer', additional: additionalParam, common: ibConnectionParam };
+		const [args] = await this.vrunner.planIntent(intent);
 		const commandName = getCreateDistributivePackageCommandName();
-		this.vrunner.executeVRunnerInTerminal(args, { cwd: workspaceRoot, name: commandName.title, appendOverrides: false });
+		await this.runPlanned([args], [intent], { cwd: workspaceRoot, name: commandName.title, appendOverrides: false });
 	}
 
 	/**
@@ -455,11 +448,10 @@ export class SupportCommands extends BaseCommand {
 		}
 
 		const ibConnectionParam = await this.vrunner.getIbConnectionParam();
-		const [args] = await this.vrunner.planIntent(
-			{ kind: 'run.designer', additional: additionalParam, common: ibConnectionParam }
-		);
+		const intent: VRunnerIntent = { kind: 'run.designer', additional: additionalParam, common: ibConnectionParam };
+		const [args] = await this.vrunner.planIntent(intent);
 		const commandName = getCreateDistributionFilesCommandName();
-		this.vrunner.executeVRunnerInTerminal(args, { cwd: workspaceRoot, name: commandName.title, appendOverrides: false });
+		await this.runPlanned([args], [intent], { cwd: workspaceRoot, name: commandName.title, appendOverrides: false });
 	}
 
 	/**

@@ -1,4 +1,5 @@
-import { BaseCommand } from './baseCommand';
+import { BaseCommand, INFOBASE_BUSY } from './baseCommand';
+import type { VRunnerIntent } from '../shared/vrunnerCli';
 import { confirmGuiCommandInRemote } from '../shared/remoteEnv';
 import { getRunEnterpriseCommandName, getRunDesignerCommandName } from '../features/tools/commandNames';
 import type { CommandExecutionOptions, StructuredCommandResult } from '../shared/commandExecutionTypes';
@@ -59,12 +60,14 @@ export class RunCommands extends BaseCommand {
 		if (!(await confirmGuiCommandInRemote(commandName.title))) {
 			return;
 		}
-		const [args] = await this.vrunner.planIntent(
-			{ kind: 'run.enterprise', noWait: true, common: connectionArgs },
-			opts?.settingsFile, opts?.ibConnection
-		);
+		const intent: VRunnerIntent = { kind: 'run.enterprise', noWait: true, common: connectionArgs };
+		const window = await this.openInfobaseWindow([intent], opts);
+		if (window === 'blocked') {
+			return opts?.wait === true ? this.executionError(INFOBASE_BUSY) : undefined;
+		}
+		const [args] = await this.vrunner.planIntent(intent, opts?.settingsFile, opts?.ibConnection);
 
-		return this.runVRunner(args, opts, commandName.title, undefined, commandName.id, true);
+		return this.runVRunner(args, opts, commandName.title, undefined, commandName.id, true, window.restore);
 	}
 
 	/**
@@ -93,11 +96,13 @@ export class RunCommands extends BaseCommand {
 		if (!(await confirmGuiCommandInRemote(commandName.title))) {
 			return;
 		}
-		const [args] = await this.vrunner.planIntent(
-			{ kind: 'run.designer', noWait: true, common: connectionArgs },
-			opts?.settingsFile, opts?.ibConnection
-		);
+		const intent: VRunnerIntent = { kind: 'run.designer', noWait: true, common: connectionArgs };
+		const window = await this.openInfobaseWindow([intent], opts);
+		if (window === 'blocked') {
+			return opts?.wait === true ? this.executionError(INFOBASE_BUSY) : undefined;
+		}
+		const [args] = await this.vrunner.planIntent(intent, opts?.settingsFile, opts?.ibConnection);
 
-		return this.runVRunner(args, opts, commandName.title, undefined, commandName.id, true);
+		return this.runVRunner(args, opts, commandName.title, undefined, commandName.id, true, window.restore);
 	}
 }

@@ -8,6 +8,7 @@ import * as vscode from 'vscode';
 import { BaseCommand } from './baseCommand';
 import { resolveExtensionNameFromSrc } from '../features/extensions/extensionNames';
 import { BUILD_SUBDIRS } from '../shared/pathDefaults';
+import type { VRunnerIntent } from '../shared/vrunnerCli';
 
 function getRelativePath(uri: vscode.Uri): string {
 	const folders = vscode.workspace.workspaceFolders;
@@ -132,8 +133,9 @@ export class ArtifactCommands extends BaseCommand {
 			return;
 		}
 		const srcRel = getRelativePath(artifactUri);
-		const [args] = await this.vrunner.planIntent({ kind: 'cf.build', src: srcRel, out: outFile });
-		this.vrunner.executeVRunnerInTerminal(args, {
+		const intent: VRunnerIntent = { kind: 'cf.build', src: srcRel, out: outFile };
+		const [args] = await this.vrunner.planIntent(intent);
+		await this.runPlanned([args], [intent], {
 			cwd: workspaceRoot,
 			name: `Собрать конфигурацию: ${path.basename(artifactUri.fsPath)}`,
 			appendOverrides: false,
@@ -155,8 +157,9 @@ export class ArtifactCommands extends BaseCommand {
 			return;
 		}
 		const inRel = getRelativePath(artifactUri);
-		const [args] = await this.vrunner.planIntent({ kind: 'cf.decompileFile', file: inRel, out: outDir });
-		this.vrunner.executeVRunnerInTerminal(args, {
+		const intent: VRunnerIntent = { kind: 'cf.decompileFile', file: inRel, out: outDir };
+		const [args] = await this.vrunner.planIntent(intent);
+		await this.runPlanned([args], [intent], {
 			cwd: workspaceRoot,
 			name: `Разобрать конфигурацию: ${path.basename(artifactUri.fsPath)}`,
 			appendOverrides: false,
@@ -184,8 +187,9 @@ export class ArtifactCommands extends BaseCommand {
 		const name = path.basename(artifactUri.fsPath);
 		const outFile = path.join(outPath, `${name}.cfe`);
 		const extensionName = await resolveExtensionNameFromSrc(artifactUri.fsPath);
-		const [args] = await this.vrunner.planIntent({ kind: 'cfe.buildCfe', src: srcRel, out: outFile, extensionName });
-		this.vrunner.executeVRunnerInTerminal(args, {
+		const intent: VRunnerIntent = { kind: 'cfe.buildCfe', src: srcRel, out: outFile, extensionName };
+		const [args] = await this.vrunner.planIntent(intent);
+		await this.runPlanned([args], [intent], {
 			cwd: workspaceRoot,
 			name: `Собрать расширение: ${name}`,
 			appendOverrides: false,
@@ -228,14 +232,15 @@ export class ArtifactCommands extends BaseCommand {
 		const cfeRel = getRelativePath(artifactUri);
 		const targetDir = this.pathForCmd(path.join(outDir, folderName));
 		const ibConnectionParam = await this.vrunner.getIbConnectionParam();
-		const steps = await this.vrunner.planIntent({
+		const intent: VRunnerIntent = {
 			kind: 'cfe.decompileCfeFile',
 			file: cfeRel,
 			extensionName,
 			out: targetDir,
 			common: ibConnectionParam,
-		});
-		await this.vrunner.executeVRunnerCommandsInSequence(steps, {
+		};
+		const steps = await this.vrunner.planIntent(intent);
+		await this.runPlanned(steps, [intent], {
 			cwd: workspaceRoot,
 			name: `Разобрать расширение: ${cfeName}`,
 			appendOverrides: false,
@@ -258,10 +263,9 @@ export class ArtifactCommands extends BaseCommand {
 		}
 		const srcRel = getRelativePath(artifactUri);
 		const ibConnectionParam = await this.vrunner.getIbConnectionParam();
-		const [args] = await this.vrunner.planIntent(
-			{ kind: 'epf.build', src: srcRel, out: outDir, common: ibConnectionParam }
-		);
-		this.vrunner.executeVRunnerInTerminal(args, {
+		const intent: VRunnerIntent = { kind: 'epf.build', src: srcRel, out: outDir, common: ibConnectionParam };
+		const [args] = await this.vrunner.planIntent(intent);
+		await this.runPlanned([args], [intent], {
 			cwd: workspaceRoot,
 			name: `Собрать обработку: ${path.basename(artifactUri.fsPath)}`,
 			appendOverrides: false,
@@ -284,10 +288,9 @@ export class ArtifactCommands extends BaseCommand {
 		}
 		const inRel = getRelativePath(artifactUri);
 		const ibConnectionParam = await this.vrunner.getIbConnectionParam();
-		const [args] = await this.vrunner.planIntent(
-			{ kind: 'epf.decompile', input: inRel, out: epfPath, common: ibConnectionParam }
-		);
-		this.vrunner.executeVRunnerInTerminal(args, {
+		const intent: VRunnerIntent = { kind: 'epf.decompile', input: inRel, out: epfPath, common: ibConnectionParam };
+		const [args] = await this.vrunner.planIntent(intent);
+		await this.runPlanned([args], [intent], {
 			cwd: workspaceRoot,
 			name: `Разобрать обработку: ${path.basename(artifactUri.fsPath)}`,
 			appendOverrides: false,
@@ -310,10 +313,9 @@ export class ArtifactCommands extends BaseCommand {
 		}
 		const srcRel = getRelativePath(artifactUri);
 		const ibConnectionParam = await this.vrunner.getIbConnectionParam();
-		const [args] = await this.vrunner.planIntent(
-			{ kind: 'epf.build', src: srcRel, out: outDir, common: ibConnectionParam }
-		);
-		this.vrunner.executeVRunnerInTerminal(args, {
+		const intent: VRunnerIntent = { kind: 'epf.build', src: srcRel, out: outDir, common: ibConnectionParam };
+		const [args] = await this.vrunner.planIntent(intent);
+		await this.runPlanned([args], [intent], {
 			cwd: workspaceRoot,
 			name: `Собрать отчёт: ${path.basename(artifactUri.fsPath)}`,
 			appendOverrides: false,
@@ -336,10 +338,9 @@ export class ArtifactCommands extends BaseCommand {
 		}
 		const inRel = getRelativePath(artifactUri);
 		const ibConnectionParam = await this.vrunner.getIbConnectionParam();
-		const [args] = await this.vrunner.planIntent(
-			{ kind: 'epf.decompile', input: inRel, out: erfPath, common: ibConnectionParam }
-		);
-		this.vrunner.executeVRunnerInTerminal(args, {
+		const intent: VRunnerIntent = { kind: 'epf.decompile', input: inRel, out: erfPath, common: ibConnectionParam };
+		const [args] = await this.vrunner.planIntent(intent);
+		await this.runPlanned([args], [intent], {
 			cwd: workspaceRoot,
 			name: `Разобрать отчёт: ${path.basename(artifactUri.fsPath)}`,
 			appendOverrides: false,

@@ -6,6 +6,7 @@
  */
 
 import * as vscode from 'vscode';
+import { registerInfobaseHolder } from '../../shared/exclusiveInfobase';
 import { openLocalUrl } from '../../shared/remoteEnv';
 import { VRunnerManager } from '../../shared/vrunnerManager';
 import { ServerUrls } from '../../shared/ibsrvPublication';
@@ -381,8 +382,22 @@ export function registerPlatformServerFeature(
 
 	refresh();
 
+	// Пока ibsrv держит файловую базу, конфигуратор её не откроет: команды
+	// загрузки, выгрузки и обновления конфигурации БД просят освободить её
+	// на время работы и возвращают сервер сам.
+	registerInfobaseHolder({
+		label: 'Автономный сервер',
+		isHolding: () => manager.state === 'running' || manager.state === 'starting',
+		release: async () => {
+			await manager.stop();
+			return manager.state === 'stopped';
+		},
+		restore: () => manager.start(),
+	});
+
 	const disposables: vscode.Disposable[] = [
 		manager,
+		new vscode.Disposable(() => registerInfobaseHolder(undefined)),
 		statusItem,
 		manager.onDidChangeState(() => refresh()),
 		// Профиль задаёт адрес ИБ — при его смене сервер перегенерирует конфиг
