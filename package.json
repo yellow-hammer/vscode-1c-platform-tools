@@ -1520,6 +1520,12 @@
         "icon": "$(tools)"
       },
       {
+        "command": "1c-platform-tools.project.selectConfiguration",
+        "title": "Выбрать конфигурацию проекта",
+        "category": "1С: Проект",
+        "icon": "$(symbol-namespace)"
+      },
+      {
         "command": "1c-platform-tools.env.selectProfile",
         "title": "Выбрать env-профиль",
         "category": "1С: Конфигурации запуска",

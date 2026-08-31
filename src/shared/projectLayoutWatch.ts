@@ -16,13 +16,21 @@ const MARKERS = '**/Configuration.{xml,mdo}';
 /** Раздел настроек с путями проекта. */
 const PATH_SECTION = '1c-platform-tools.path';
 
+const changed = new vscode.EventEmitter<void>();
+
+/** Срабатывает, когда раскладку проекта нужно перечитать. */
+export const onDidChangeProjectLayout = changed.event;
+
 /**
  * Подписывается на изменения, после которых раскладку нужно перечитать.
  *
  * @param context - Контекст расширения
  */
 export function registerProjectLayoutWatch(context: vscode.ExtensionContext): void {
-	const forget = () => invalidateProjectLayout();
+	const forget = () => {
+		invalidateProjectLayout();
+		changed.fire();
+	};
 	const watcher = vscode.workspace.createFileSystemWatcher(MARKERS);
 
 	context.subscriptions.push(

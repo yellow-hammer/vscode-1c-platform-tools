@@ -121,6 +121,7 @@
                     "1c-platform-tools.infobase.runUpdateHandlers",
                     "1c-platform-tools.infobase.updateDb",
                     "1c-platform-tools.pipelines.run",
+                    "1c-platform-tools.project.selectConfiguration",
                     "1c-platform-tools.properties.show",
                     "1c-platform-tools.run.designer",
                     "1c-platform-tools.run.enterprise",

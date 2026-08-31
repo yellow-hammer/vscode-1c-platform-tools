@@ -46,9 +46,11 @@ suite('раскладка проекта', () => {
 	test('расширение EDT берёт имя из метаданных, а не из имени каталога', async () => {
 		const layout = await resolveProjectLayout(EDT_WORKSPACE, DEFAULT_PATHS);
 
+		// Раскладка отдаёт все расширения рабочей области; по конфигурациям их
+		// раскладывает выбор активной конфигурации.
 		assert.deepStrictEqual(
 			layout.extensions.map((extension) => extension.name),
-			['_ДемоРасширение']
+			['_ДемоРасширение', 'РасширениеУчёта']
 		);
 		assert.strictEqual(
 			layout.extensions[0].dir,
