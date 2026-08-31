@@ -317,14 +317,14 @@ export class VRunnerManager {
 	/**
 	 * Получает путь к allure
 	 * 
-	 * Путь берется из настроек VS Code (1c-platform-tools.allure.path).
+	 * Путь берется из настроек VS Code (1c-platform-tools.components.path.allure).
 	 * По умолчанию: 'allure'
 	 * 
 	 * @returns Путь к allure (для поиска в PATH или абсолютный путь)
 	 */
 	public getAllurePath(): string {
 		const config = vscode.workspace.getConfiguration('1c-platform-tools');
-		return config.get<string>('allure.path', 'allure');
+		return config.get<string>('components.path.allure', '').trim() || 'allure';
 	}
 
 	/**
@@ -579,14 +579,14 @@ export class VRunnerManager {
 	private async resolveBinaryPath(name: string, versionArg: string): Promise<string | undefined> {
 		const configured = vscode.workspace
 			.getConfiguration('1c-platform-tools')
-			.get<string>('oscript.path', '')
+			.get<string>('components.path.oscript', '')
 			.trim();
 		if (name === 'oscript' && configured !== '') {
 			if (await this.runCommandForCheck(configured, [versionArg])) {
-				log.info(`oscript: указан настройкой oscript.path: ${configured}`);
+				log.info(`oscript: указан настройкой components.path.oscript: ${configured}`);
 				return configured;
 			}
-			log.warn(`oscript.path не запускается: ${configured}`);
+			log.warn(`components.path.oscript не запускается: ${configured}`);
 		}
 
 		// Установка OVM идёт перед PATH: её ставит сам пользователь командой

@@ -142,7 +142,7 @@ async function ensureJar(
 		if (cached) {
 			return { jarPath: cached.assetPath, tag: cached.tag };
 		}
-		throw new Error('Укажите components.path.metadataJar или включите components.metadataJarAutoload.');
+		throw new Error('Укажите components.path.metadataJar или включите components.autoload.metadataJar.');
 	}
 
 	const ensured = await ensureReleaseComponent(baseDir, MD_SPARROW_SPEC, githubToken);
@@ -174,8 +174,8 @@ let runtimeInFlight: Promise<MdSparrowRuntime> | undefined = undefined;
  */
 async function prepareMdSparrowRuntime(context: vscode.ExtensionContext): Promise<MdSparrowRuntime> {
 	const cfg = vscode.workspace.getConfiguration('1c-platform-tools');
-	const download = cfg.get<boolean>('components.metadataJarAutoload', true);
-	const downloadJre = cfg.get<boolean>('components.jreAutoload', true);
+	const download = cfg.get<boolean>('components.autoload.metadataJar', true);
+	const downloadJre = cfg.get<boolean>('components.autoload.java', true);
 	const jarPathSetting = cfg.get<string>('components.path.metadataJar', '').trim();
 	const javaPathSetting = cfg.get<string>('components.path.java', '').trim();
 	if (javaPathSetting.includes('${')) {
@@ -206,7 +206,7 @@ export function checkMdSparrowUpdateInBackground(
 	if (cfg.get<string>('components.path.metadataJar', '').trim()) {
 		return;
 	}
-	if (!cfg.get<boolean>('components.metadataJarAutoload', true)) {
+	if (!cfg.get<boolean>('components.autoload.metadataJar', true)) {
 		return;
 	}
 	checkReleaseUpdateInBackground(installBaseDir(context), MD_SPARROW_SPEC, resolveGithubToken(), onUpdateApplied);

@@ -74,20 +74,18 @@ export function findAllureBinary(extractRoot: string): string | undefined {
  */
 export async function ensureAllure(context: vscode.ExtensionContext): Promise<string> {
 	const config = vscode.workspace.getConfiguration('1c-platform-tools');
-	const override = config.get<string>('allure.path', '').trim();
-	// «allure» - историческое значение по умолчанию: означает поиск в PATH,
-	// своей установкой не считается
-	if (override && override !== 'allure') {
+	const override = config.get<string>('components.path.allure', '').trim();
+	if (override) {
 		if (override.includes('${')) {
-			throw new Error('1c-platform-tools.allure.path: укажите полный путь к allure.');
+			throw new Error('1c-platform-tools.components.path.allure: укажите полный путь к allure.');
 		}
 		if (path.isAbsolute(override) && !fssync.existsSync(override)) {
-			throw new Error(`1c-platform-tools.allure.path не найден: ${override}.`);
+			throw new Error(`1c-platform-tools.components.path.allure не найден: ${override}.`);
 		}
 		return override;
 	}
 
-	if (!config.get<boolean>('components.allureAutoload', true)) {
+	if (!config.get<boolean>('components.autoload.allure', true)) {
 		// автозагрузка выключена намеренно: берём загруженный ранее или из комплекта, иначе PATH
 		const cached = await cachedReleaseComponent(installBaseDir(context), ALLURE_SPEC);
 		return (cached ? findAllureBinary(cached.assetPath) : undefined) ?? 'allure';
@@ -98,14 +96,14 @@ export async function ensureAllure(context: vscode.ExtensionContext): Promise<st
 	if (!binary) {
 		throw new Error(
 			`В релизе Allure ${ensured.tag} не найден ${allureBinaryName()}. ` +
-			'Укажите свой путь настройкой 1c-platform-tools.allure.path.'
+			'Укажите свой путь настройкой 1c-platform-tools.components.path.allure.'
 		);
 	}
 	return binary;
 }
 
 /**
- * Загружает Allure, не глядя на `allure.path` и `components.allureAutoload`.
+ * Загружает Allure, не глядя на `components.path.allure` и `components.autoload.allure`.
  *
  * @param context - Контекст расширения
  * @returns Путь к загруженному каталогу релиза

@@ -48,12 +48,12 @@ export async function ensureOvm(context: vscode.ExtensionContext): Promise<strin
 		}
 		return override;
 	}
-	if (!cfg.get<boolean>('components.ovmAutoload', true)) {
+	if (!cfg.get<boolean>('components.autoload.ovm', true)) {
 		const cached = await cachedReleaseComponent(installBaseDir(context), OVM_SPEC);
 		if (cached) {
 			return cached.assetPath;
 		}
-		throw new Error('Укажите components.path.ovm или включите components.ovmAutoload.');
+		throw new Error('Укажите components.path.ovm или включите components.autoload.ovm.');
 	}
 
 	const ensured = await ensureReleaseComponent(installBaseDir(context), OVM_SPEC, resolveGithubToken());
@@ -61,7 +61,7 @@ export async function ensureOvm(context: vscode.ExtensionContext): Promise<strin
 }
 
 /**
- * Загружает OVM, не глядя на `components.path.ovm` и `components.ovmAutoload`.
+ * Загружает OVM, не глядя на `components.path.ovm` и `components.autoload.ovm`.
  *
  * @param context - Контекст расширения
  * @returns Путь к загруженному ovm.exe

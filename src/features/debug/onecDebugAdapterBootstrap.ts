@@ -223,14 +223,14 @@ export async function ensureOnecDebugAdapter(context: vscode.ExtensionContext): 
 		return runtime;
 	}
 	const spec = onecDebugAdapterSpec();
-	if (!cfg.get<boolean>('components.adapterAutoload', true)) {
+	if (!cfg.get<boolean>('components.autoload.adapter', true)) {
 		const cached = await cachedReleaseComponent(installBaseDir(context), spec);
 		const cachedRuntime = cached ? resolveAdapterRuntime(cached.assetPath) : undefined;
 		if (cachedRuntime) {
 			log.info(`адаптер готов: ${describeRuntime(cachedRuntime)} (${cached?.tag}, автозагрузка выключена)`);
 			return { ...cachedRuntime, releaseTag: cached?.tag };
 		}
-		throw new Error('Укажите components.path.adapter или включите components.adapterAutoload.');
+		throw new Error('Укажите components.path.adapter или включите components.autoload.adapter.');
 	}
 
 	const ensured = await ensureReleaseComponent(installBaseDir(context), spec, resolveGithubToken());
@@ -258,7 +258,7 @@ export function checkOnecDebugAdapterUpdateInBackground(context: vscode.Extensio
 	if (cfg.get<string>('components.path.adapter', '').trim()) {
 		return;
 	}
-	if (!cfg.get<boolean>('components.adapterAutoload', true)) {
+	if (!cfg.get<boolean>('components.autoload.adapter', true)) {
 		return;
 	}
 	checkReleaseUpdateInBackground(installBaseDir(context), onecDebugAdapterSpec(), resolveGithubToken(), () => {

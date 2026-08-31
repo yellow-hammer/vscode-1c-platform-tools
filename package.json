@@ -21,12 +21,12 @@
       "description": "Команды 1С, установка OneScript и компонентов, Docker и автономный сервер запускают код из открытой папки, поэтому в режиме ограниченной функциональности они не выполняются. Панели и просмотр метаданных работают.",
       "restrictedConfigurations": [
         "1c-platform-tools.vrunner.path.executable",
-        "1c-platform-tools.oscript.path",
-        "1c-platform-tools.allure.path",
         "1c-platform-tools.components.path.adapter",
         "1c-platform-tools.components.path.metadataJar",
         "1c-platform-tools.components.path.java",
         "1c-platform-tools.components.path.ovm",
+        "1c-platform-tools.components.path.allure",
+        "1c-platform-tools.components.path.oscript",
         "1c-platform-tools.test.path.onescriptRunner",
         "1c-platform-tools.test.path.onebdd",
         "1c-platform-tools.server.path.platform",
@@ -3640,11 +3640,6 @@
             "default": "vrunner",
             "description": "Путь к vrunner (vanessa-runner)"
           },
-          "1c-platform-tools.oscript.path": {
-            "type": "string",
-            "default": "",
-            "description": "Путь к oscript.exe. Пусто: сначала берётся установка OVM, затем oscript из PATH. Задайте явно, если установок несколько и нужна конкретная."
-          },
           "1c-platform-tools.execution.useTasks": {
             "type": "boolean",
             "default": true,
@@ -3737,11 +3732,6 @@
             "type": "string",
             "default": "tests",
             "markdownDescription": "Корневой каталог тестов. Раскладка внутри фиксированная: `*.os` в корне, исходники тестовых расширений в `cfe`, исходники тестовых обработок в `epf`. Бинарники тестов здесь не хранятся: дымовые наборы Vanessa-ADD поставляются в пакете add (oscript_modules), собранное уходит в `build/out/tests`."
-          },
-          "1c-platform-tools.allure.path": {
-            "type": "string",
-            "default": "allure",
-            "description": "Путь к запускаемому файлу Allure. Пусто или «allure»: командная строка загружается с GitHub Releases (см. «Allure: автозагрузка») либо берётся из PATH."
           },
           "1c-platform-tools.docker.enabled": {
             "type": "boolean",
@@ -3996,50 +3986,60 @@
         "id": "1c-platform-tools.components",
         "order": 6,
         "properties": {
-          "1c-platform-tools.components.adapterAutoload": {
+          "1c-platform-tools.components.autoload.adapter": {
             "type": "boolean",
             "default": true,
-            "description": "Загружать отладчик с GitHub Releases и обновлять его автоматически. Выключите, если используете локальную сборку из «Отладчик: путь к файлу»."
+            "description": "Загружать отладчик с GitHub Releases и обновлять его автоматически. Выключите, если путь задан в components.path.adapter."
           },
           "1c-platform-tools.components.path.adapter": {
             "type": "string",
             "default": "",
-            "description": "Отладчик: полный путь к локальной сборке адаптера, исполняемый файл OnecDebugAdapter или OnecDebugAdapter.dll (запускается через dotnet). Пусто: используется загруженный с GitHub."
+            "description": "Отладчик: полный путь к своей сборке адаптера, исполняемый файл OnecDebugAdapter или OnecDebugAdapter.dll (запускается через dotnet). Пусто: используется загруженный с GitHub."
           },
-          "1c-platform-tools.components.metadataJarAutoload": {
+          "1c-platform-tools.components.autoload.metadataJar": {
             "type": "boolean",
             "default": true,
-            "description": "Загружать компонент дерева метаданных (md-sparrow) с GitHub Releases и обновлять его автоматически. Выключите, если используете локальную сборку из «Дерево метаданных: путь к файлу»."
+            "description": "Загружать дерево метаданных (md-sparrow) с GitHub Releases и обновлять его автоматически. Выключите, если путь задан в components.path.metadataJar."
           },
           "1c-platform-tools.components.path.metadataJar": {
             "type": "string",
             "default": "",
-            "description": "Дерево метаданных: полный путь к локальной сборке md-sparrow-*-all.jar. Пусто: используется загруженный с GitHub."
+            "description": "Дерево метаданных: полный путь к своей сборке md-sparrow-*-all.jar. Пусто: используется загруженная с GitHub."
           },
-          "1c-platform-tools.components.jreAutoload": {
+          "1c-platform-tools.components.autoload.java": {
             "type": "boolean",
             "default": true,
-            "description": "Скачивать portable JRE 21 для дерева метаданных. Выключите, если Java установлена и указана в «Java: путь к исполняемому файлу» или доступна в PATH."
+            "description": "Скачивать portable JRE 21 для дерева метаданных. Выключите, если путь задан в components.path.java или java доступна в PATH."
           },
           "1c-platform-tools.components.path.java": {
             "type": "string",
             "default": "",
             "description": "Java: полный путь к java или javaw для дерева метаданных. Пусто: portable JRE из кэша либо java из PATH."
           },
-          "1c-platform-tools.components.allureAutoload": {
+          "1c-platform-tools.components.autoload.ovm": {
             "type": "boolean",
             "default": true,
-            "description": "Загружать Allure с GitHub Releases и обновлять его автоматически. Выключите, если Allure установлен в системе или указан в «Путь к allure»."
-          },
-          "1c-platform-tools.components.ovmAutoload": {
-            "type": "boolean",
-            "default": true,
-            "description": "Загружать OVM с GitHub Releases и обновлять его автоматически. Выключите, если используете локальный ovm.exe из «OVM: путь к файлу»."
+            "description": "Загружать OVM с GitHub Releases и обновлять его автоматически. Выключите, если путь задан в components.path.ovm."
           },
           "1c-platform-tools.components.path.ovm": {
             "type": "string",
             "default": "",
-            "description": "OVM: полный путь к локальному ovm.exe. Пусто: используется загруженный с GitHub."
+            "description": "OVM: полный путь к своему ovm.exe. Пусто: используется загруженный с GitHub."
+          },
+          "1c-platform-tools.components.autoload.allure": {
+            "type": "boolean",
+            "default": true,
+            "description": "Загружать Allure с GitHub Releases и обновлять его автоматически. Выключите, если путь задан в components.path.allure или allure доступен в PATH."
+          },
+          "1c-platform-tools.components.path.allure": {
+            "type": "string",
+            "default": "",
+            "description": "Allure: полный путь к запускаемому файлу (bin/allure.bat или bin/allure). Пусто: используется загруженный с GitHub либо allure из PATH."
+          },
+          "1c-platform-tools.components.path.oscript": {
+            "type": "string",
+            "default": "",
+            "description": "OneScript: полный путь к oscript.exe. Пусто: сначала берётся установка OVM, затем oscript из PATH. Задайте явно, если установок несколько и нужна конкретная."
           }
         }
       },
