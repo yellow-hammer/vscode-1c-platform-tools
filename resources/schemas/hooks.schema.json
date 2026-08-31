@@ -22,6 +22,7 @@
         "enum": [
           "*",
           "1c-platform-tools.cf.compile",
+          "1c-platform-tools.cf.convert",
           "1c-platform-tools.cf.decompile",
           "1c-platform-tools.cf.dump",
           "1c-platform-tools.cf.dumpIncrement",
@@ -108,6 +109,7 @@
           "1c-platform-tools.test.decompileExtensions",
           "1c-platform-tools.test.dumpExtensions",
           "1c-platform-tools.test.loadExtensions",
+          "1c-platform-tools.test.validateEdt",
           "1c-platform-tools.test.vanessa",
           "1c-platform-tools.test.xunit",
           "1c-platform-tools.test.yaxunit"

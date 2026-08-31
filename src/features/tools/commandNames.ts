@@ -367,6 +367,28 @@ export function getSyntaxCheckCommandName(): CommandNameAndTitle {
 }
 
 /**
+ * Получить название и заголовок для команды проверки проекта EDT
+ */
+export function getValidateEdtCommandName(): CommandNameAndTitle {
+	return {
+		id: '1c-platform-tools.test.validateEdt',
+		name: 'Проверить проект EDT',
+		title: 'Проверить проект EDT'
+	};
+}
+
+/**
+ * Получить название и заголовок для команды конвертации исходников
+ */
+export function getConvertSourcesCommandName(): CommandNameAndTitle {
+	return {
+		id: '1c-platform-tools.cf.convert',
+		name: 'Конвертировать исходники',
+		title: 'Конвертировать исходники'
+	};
+}
+
+/**
  * Получить название и заголовок для команды Vanessa тестов
  */
 export function getVanessaTestsCommandName(mode: 'normal' | 'currentFile' = 'normal'): CommandNameAndTitle {

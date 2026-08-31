@@ -234,6 +234,22 @@ export class V2CliAdapter implements VRunnerCliAdapter {
 					'действие cluster session list появилось в 3.x.'
 				);
 
+			case 'validate.edt': {
+				const args = ['edt-validate'];
+				if (intent.junitPath !== undefined) {
+					args.push('--junitpath', intent.junitPath);
+				}
+				return [[...args, ...common(intent)]];
+			}
+
+			case 'cf.convert':
+			case 'cfe.convert':
+				// Конвертация исходников между форматами появилась в 3.0.0-rc8
+				throw new Error(
+					'vanessa-runner 2.x не умеет конвертировать исходники между форматами EDT ' +
+					'и конфигуратора: команда появилась в 3.x.'
+				);
+
 			// ---- Регламентные задания ----
 			case 'jobs.lock':
 				return [['scheduledjobs', 'lock', ...common(intent)]];

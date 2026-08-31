@@ -8,6 +8,7 @@ import { showComponentError } from '../shared/githubToken';
 import {
 	getXUnitTestsCommandName,
 	getSyntaxCheckCommandName,
+	getValidateEdtCommandName,
 	getVanessaTestsCommandName,
 	getAllureReportCommandName,
 	getBuildTestEpfCommandName,
@@ -15,6 +16,8 @@ import {
 	getYAxUnitTestsCommandName
 } from '../features/tools/commandNames';
 import { collectAllureResultDirs } from '../utils/allureResults';
+import { configurationScope } from '../shared/activeConfiguration';
+import { VRUNNER_FEATURES, isAtLeast } from '../shared/vrunnerVersion';
 import type { CommandExecutionOptions, StructuredCommandResult, SyntaxCheckError } from '../shared/commandExecutionTypes';
 import { DEFAULT_TESTING, DEFAULT_PATHS, BUILD_SUBDIRS } from '../shared/pathDefaults';
 import { legacyTestsSrcHint } from '../features/testing/legacyTestsSrc';
@@ -280,6 +283,49 @@ export class TestCommands extends BaseCommand {
 
 		const errors = await this.readSyntaxCheckErrors(opts);
 		return errors.length > 0 ? { ...result, errors } : result;
+	}
+
+	/**
+	 * Проверяет проект средствами EDT.
+	 *
+	 * Проверку выполняет 1cedtcli, поэтому нужна установленная EDT; каталог
+	 * проекта берётся у активной конфигурации.
+	 *
+	 * @param opts - Опции выполнения
+	 */
+	async runEdtValidate(opts?: CommandExecutionOptions): Promise<StructuredCommandResult | void> {
+		const version = await this.vrunner.getVRunnerVersion();
+		if (version !== undefined && !isAtLeast(version, VRUNNER_FEATURES.cli3)) {
+			return this.reportUnavailable(
+				'Проверка проекта EDT в vanessa-runner 2.x доступна только командой edt-validate ' +
+				'из файла настроек: обновите раннер до 3.x.',
+				opts
+			);
+		}
+
+		const workspaceRoot = this.ensureWorkspace();
+		if (!workspaceRoot) {
+			return;
+		}
+
+		const scope = await configurationScope(workspaceRoot, {
+			configuration: this.vrunner.getCfPath(),
+			extensions: [this.vrunner.getCfePath(), this.vrunner.getTestsCfePath()],
+		});
+		const project = scope.configuration;
+		if (!project || project.format !== 'edt') {
+			return this.reportUnavailable(
+				'Проверка выполняется над проектом EDT, а активная конфигурация в другом формате.',
+				opts
+			);
+		}
+
+		const commandName = getValidateEdtCommandName();
+		const relativeSource = path.relative(workspaceRoot, project.dir).split(path.sep).join('/');
+		return this.runIntent(
+			{ kind: 'validate.edt', src: relativeSource || undefined },
+			opts, commandName.title, undefined, commandName.id
+		);
 	}
 
 	/**

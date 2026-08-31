@@ -1637,6 +1637,16 @@
         "category": "1С: Тестирование"
       },
       {
+        "command": "1c-platform-tools.test.validateEdt",
+        "title": "Проверить проект EDT",
+        "category": "1С: Тестирование"
+      },
+      {
+        "command": "1c-platform-tools.cf.convert",
+        "title": "Конвертировать исходники",
+        "category": "1С: Конфигурация"
+      },
+      {
         "command": "1c-platform-tools.syntaxCheck.refresh",
         "title": "Обновить ошибки в Problems",
         "category": "1С: Тестирование"

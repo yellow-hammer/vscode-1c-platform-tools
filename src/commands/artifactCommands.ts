@@ -40,41 +40,6 @@ export class ArtifactCommands extends BaseCommand {
 		return roots.some((root) => rel === root || rel.startsWith(`${root}/`));
 	}
 
-	private async pickOutputPath(
-		defaultPath: string,
-		title: string
-	): Promise<string | undefined> {
-		const workspaceRoot = this.ensureWorkspace();
-		if (!workspaceRoot) {
-			return undefined;
-		}
-
-		const DEFAULT_LABEL = '$(folder-opened) По умолчанию';
-		const picked = await vscode.window.showQuickPick(
-			[
-				{ label: DEFAULT_LABEL, description: defaultPath },
-				{ label: '$(file-directory) Выбрать каталог...', description: '' },
-			],
-			{ title, placeHolder: 'Каталог для выходных файлов' }
-		);
-		if (!picked) {
-			return undefined;
-		}
-		if (picked.label === DEFAULT_LABEL) {
-			return defaultPath;
-		}
-
-		const uris = await vscode.window.showOpenDialog({
-			canSelectFolders: true,
-			canSelectMany: false,
-			defaultUri: vscode.Uri.file(workspaceRoot),
-			title,
-		});
-		return uris?.length
-			? vscode.workspace.asRelativePath(uris[0], false).replaceAll('\\', '/')
-			: undefined;
-	}
-
 	private async pickOutputFile(
 		defaultDir: string,
 		defaultName: string,

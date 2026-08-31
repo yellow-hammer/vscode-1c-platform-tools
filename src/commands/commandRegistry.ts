@@ -264,6 +264,9 @@ export function registerCommands(
 		registerVRunnerCommand('1c-platform-tools.cf.decompile', (opts) =>
 			commands.configuration.decompile(opts)
 		),
+		registerVRunnerCommand('1c-platform-tools.cf.convert', (opts) =>
+			commands.configuration.convertSources(opts)
+		),
 	];
 
 	// Команды расширений
@@ -387,6 +390,9 @@ export function registerCommands(
 		registerVRunnerCommand('1c-platform-tools.test.xunit', (opts) => commands.test.runXUnit(opts)),
 		registerVRunnerCommand('1c-platform-tools.syntaxCheck.run', (opts) =>
 			commands.test.runSyntaxCheck(opts)
+		),
+		registerVRunnerCommand('1c-platform-tools.test.validateEdt', (opts) =>
+			commands.test.runEdtValidate(opts)
 		),
 		registerVRunnerCommand('1c-platform-tools.test.vanessa', (opts) =>
 			commands.test.runVanessa('normal', opts)

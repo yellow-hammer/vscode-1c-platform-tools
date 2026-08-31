@@ -345,8 +345,7 @@ async function downloadV3Sources(ref) {
 	const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'vrunner-src-'));
 	const zipPath = path.join(tempDir, 'src.zip');
 	fs.writeFileSync(zipPath, Buffer.from(await response.arrayBuffer()));
-	const { default: extract } = await import('extract-zip');
-	await extract(zipPath, { dir: tempDir });
+	await unzip(zipPath, tempDir);
 	const rootEntry = fs
 		.readdirSync(tempDir, { withFileTypes: true })
 		.find((entry) => entry.isDirectory());
@@ -354,6 +353,49 @@ async function downloadV3Sources(ref) {
 		throw new Error('В архиве исходников не найден корневой каталог');
 	}
 	return path.join(tempDir, rootEntry.name);
+}
+
+/**
+ * Распаковывает zip в каталог, пропуская записи с путями наружу.
+ */
+async function unzip(zipPath, outDir) {
+	const { default: yauzl } = await import('yauzl');
+	const root = path.resolve(outDir);
+
+	await new Promise((resolve, reject) => {
+		yauzl.open(zipPath, { lazyEntries: true }, (openError, zip) => {
+			if (openError) {
+				reject(openError);
+				return;
+			}
+			zip.on('entry', (entry) => {
+				const target = path.resolve(root, entry.fileName);
+				if (target !== root && !target.startsWith(root + path.sep)) {
+					zip.readEntry();
+					return;
+				}
+				if (entry.fileName.endsWith('/')) {
+					fs.mkdirSync(target, { recursive: true });
+					zip.readEntry();
+					return;
+				}
+				zip.openReadStream(entry, (streamError, stream) => {
+					if (streamError) {
+						reject(streamError);
+						return;
+					}
+					fs.mkdirSync(path.dirname(target), { recursive: true });
+					const file = fs.createWriteStream(target);
+					stream.pipe(file);
+					file.on('close', () => zip.readEntry());
+					file.on('error', reject);
+				});
+			});
+			zip.on('end', resolve);
+			zip.on('error', reject);
+			zip.readEntry();
+		});
+	});
 }
 
 function argValue(name) {

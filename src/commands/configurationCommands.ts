@@ -12,8 +12,11 @@ import {
 	getBuildConfigurationCommandName,
 	getDecompileConfigurationCommandName,
 	getLoadConfigurationIncrementFromSrcCommandName,
-	getLoadConfigurationFromFilesByListCommandName
+	getLoadConfigurationFromFilesByListCommandName,
+	getConvertSourcesCommandName
 } from '../features/tools/commandNames';
+import { configurationScope } from '../shared/activeConfiguration';
+import { VRUNNER_FEATURES, isAtLeast } from '../shared/vrunnerVersion';
 import {
 	checkVersionFileExists,
 	handleMissingVersionFile
@@ -244,6 +247,54 @@ export class ConfigurationCommands extends BaseCommand {
 		return this.runIntent(
 			{ kind: 'cf.build', src: srcPath, out: outputPath },
 			opts, buildCmd.title, outputPath, buildCmd.id
+		);
+	}
+
+	/**
+	 * Конвертирует исходники конфигурации между форматами EDT и конфигуратора.
+	 *
+	 * Формат источника определяет сам vanessa-runner по маркерам каталога,
+	 * результат пишется в противоположном формате.
+	 *
+	 * @param opts - Опции выполнения
+	 */
+	async convertSources(opts?: CommandExecutionOptions): Promise<StructuredCommandResult | void> {
+		const version = await this.vrunner.getVRunnerVersion();
+		if (version !== undefined && !isAtLeast(version, VRUNNER_FEATURES.edtSources)) {
+			return this.reportUnavailable(
+				'Конвертация исходников между форматами появилась в vanessa-runner 3.0.0-rc8.',
+				opts
+			);
+		}
+
+		const workspaceRoot = this.ensureWorkspace();
+		if (!workspaceRoot) {
+			return;
+		}
+
+		const scope = await configurationScope(workspaceRoot, {
+			configuration: this.vrunner.getCfPath(),
+			extensions: [this.vrunner.getCfePath(), this.vrunner.getTestsCfePath()],
+		});
+		const source = scope.configuration;
+		if (!source) {
+			return this.reportUnavailable('В рабочей области нет исходников конфигурации.', opts);
+		}
+
+		const relativeSource = path.relative(workspaceRoot, source.dir).split(path.sep).join('/');
+		const suffix = source.format === 'edt' ? 'cf-designer' : 'cf-edt';
+		const defaultOut = path.join(this.vrunner.getOutPath(), suffix);
+		const outputPath = opts?.wait === true
+			? defaultOut
+			: await this.pickOutputPath(defaultOut, 'Каталог для конвертированных исходников');
+		if (!outputPath) {
+			return;
+		}
+
+		const commandName = getConvertSourcesCommandName();
+		return this.runIntent(
+			{ kind: 'cf.convert', src: relativeSource || undefined, out: outputPath },
+			opts, commandName.title, outputPath, commandName.id
 		);
 	}
 

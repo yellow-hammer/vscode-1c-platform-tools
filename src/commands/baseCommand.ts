@@ -396,6 +396,66 @@ export abstract class BaseCommand {
 	}
 
 	/**
+	 * Сообщает, что команда недоступна: ошибкой в UI или результатом агенту.
+	 *
+	 * @param message - Причина, понятная пользователю
+	 * @param opts - Опции выполнения
+	 */
+	protected reportUnavailable(
+		message: string,
+		opts?: CommandExecutionOptions
+	): StructuredCommandResult | void {
+		if (opts?.wait === true) {
+			return this.executionError(message);
+		}
+		void vscode.window.showErrorMessage(message);
+		return undefined;
+	}
+
+	/**
+	 * Спрашивает каталог для результата: по умолчанию или выбранный вручную.
+	 *
+	 * @param defaultPath - Каталог по умолчанию (относительно рабочей области)
+	 * @param title - Заголовок выбора
+	 * @returns Относительный путь или undefined, если выбор отменён
+	 */
+	protected async pickOutputPath(
+		defaultPath: string,
+		title: string
+	): Promise<string | undefined> {
+		const workspaceRoot = this.ensureWorkspace();
+		if (!workspaceRoot) {
+			return undefined;
+		}
+
+		const DEFAULT_LABEL = '$(folder-opened) По умолчанию';
+		const picked = await vscode.window.showQuickPick(
+			[
+				{ label: DEFAULT_LABEL, description: defaultPath },
+				{ label: '$(file-directory) Выбрать каталог...', description: '' },
+			],
+			{ title, placeHolder: 'Каталог для выходных файлов' }
+		);
+		if (!picked) {
+			return undefined;
+		}
+		if (picked.label === DEFAULT_LABEL) {
+			return defaultPath;
+		}
+
+		const uris = await vscode.window.showOpenDialog({
+			canSelectFolders: true,
+			canSelectMany: false,
+			defaultUri: vscode.Uri.file(workspaceRoot),
+			title,
+		});
+		return uris?.length
+			? vscode.workspace.asRelativePath(uris[0], false).replaceAll('\\', '/')
+			: undefined;
+	}
+
+
+	/**
 	 * Запуск заранее спланированной команды vrunner с освобождением базы.
 	 *
 	 * Для мест, которые строят план сами через `planIntent`: базу нужно

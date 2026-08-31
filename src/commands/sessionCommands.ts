@@ -1,4 +1,3 @@
-import * as vscode from 'vscode';
 import { BaseCommand } from './baseCommand';
 import type { CommandExecutionOptions, StructuredCommandResult } from '../shared/commandExecutionTypes';
 import { VRUNNER_FEATURES, isAtLeast } from '../shared/vrunnerVersion';
@@ -32,17 +31,6 @@ export class SessionCommands extends BaseCommand {
 	 * @param opts - Опции выполнения
 	 * @returns Результат для синхронного вызова
 	 */
-	private reportUnavailable(
-		message: string,
-		opts?: CommandExecutionOptions
-	): StructuredCommandResult | void {
-		if (opts?.wait === true) {
-			return this.executionError(message);
-		}
-		void vscode.window.showErrorMessage(message);
-		return undefined;
-	}
-
 	/**
 	 * Запрещает начало сеансов.
 	 *
