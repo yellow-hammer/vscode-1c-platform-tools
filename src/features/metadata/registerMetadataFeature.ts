@@ -35,6 +35,7 @@ import { registerMetadataPaletteSource } from '../properties/metadataPaletteSour
 import {
 	openMetadataSourcePropertiesPanel,
 	type SourcePropertiesDto,
+	type SourcePropertyDictionaries,
 } from './metadataSourcePropertiesPanel';
 import { mdSparrowSchemaFlagFromConfigurationXml } from './mdSparrowSchemaVersion';
 import {
@@ -42,6 +43,7 @@ import {
 	runMdSparrowParamsRead,
 	type MdSparrowParams,
 } from './mdSparrowParams';
+import { openDcsEditorPanel } from './dcsEditorPanel';
 import { loadProjectMetadataTree } from './metadataTreeService';
 import { openErCanvasPanel } from './er/erCanvasPanel';
 import type { ErScope } from './er/erTypes';
@@ -542,7 +544,7 @@ export function registerMetadataFeature(
 	async function loadSourcePropertiesDto(
 		cfgPath: string,
 		cfRoot: string
-	): Promise<{ schema: string; dto: SourcePropertiesDto }> {
+	): Promise<{ schema: string; dto: SourcePropertiesDto; dictionaries: SourcePropertyDictionaries }> {
 		const schema = await mdSparrowSchemaFlagFromConfigurationXml(cfgPath);
 		const runtime = await ensureMdSparrowRuntime(context);
 		const getRes = await runMdSparrowParamsRead(
@@ -563,7 +565,51 @@ export function registerMetadataFeature(
 		} catch {
 			throw new Error('Не удалось разобрать свойства Configuration.xml.');
 		}
-		return { schema, dto };
+		return { schema, dto, dictionaries: await loadSourcePropertyDictionaries(cfgPath, cfRoot, schema) };
+	}
+
+	/** Перечисления и подписи значений: панель показывает словами то, что в файле кодами. */
+	async function loadSourcePropertyDictionaries(
+		cfgPath: string,
+		cfRoot: string,
+		schema: string
+	): Promise<SourcePropertyDictionaries> {
+		const empty: SourcePropertyDictionaries = { enums: {}, labels: { values: {}, byProperty: {} } };
+		try {
+			const runtime = await ensureMdSparrowRuntime(context);
+			const [enumsRes, labelsRes] = await Promise.all([
+				runMdSparrowParamsRead(
+					runtime,
+					{ op: 'cf-md-object-enums', configurationXml: cfgPath, schemaVersion: schema },
+					{ cwd: cfRoot }
+				),
+				runMdSparrowParamsRead(runtime, { op: 'cf-enum-labels' }, { cwd: cfRoot }),
+			]);
+			const enumsAll =
+				enumsRes.exitCode === 0
+					? (JSON.parse(enumsRes.stdout.trim()) as Record<string, string[]>)
+					: {};
+			const enums: Record<string, string[]> = {};
+			for (const [key, values] of Object.entries(enumsAll)) {
+				if (key.startsWith('configuration.')) {
+					enums[key.slice('configuration.'.length)] = values;
+				}
+			}
+			const labels =
+				labelsRes.exitCode === 0
+					? (JSON.parse(labelsRes.stdout.trim()) as SourcePropertyDictionaries['labels'])
+					: empty.labels;
+			const rolesRes = await runMdSparrowParamsRead(
+				runtime,
+				{ op: 'cf-list-child-objects', configurationXml: cfgPath, tag: 'Role', schemaVersion: schema },
+				{ cwd: cfRoot }
+			);
+			const roleNames =
+				rolesRes.exitCode === 0 ? (JSON.parse(rolesRes.stdout.trim()) as string[]) : [];
+			return { enums, labels, roleNames };
+		} catch {
+			return empty;
+		}
 	}
 
 	async function saveSourcePropertiesDto(
@@ -1594,7 +1640,7 @@ export function registerMetadataFeature(
 				if (source?.configurationXmlAbs && source.metadataRootAbs) {
 					await runMdSparrowMutation(async () => {
 						try {
-							const { schema, dto } = await loadSourcePropertiesDto(
+							const { schema, dto, dictionaries } = await loadSourcePropertiesDto(
 								source.configurationXmlAbs!,
 								source.metadataRootAbs!
 							);
@@ -1604,6 +1650,7 @@ export function registerMetadataFeature(
 									label: typeof source.label === 'string' ? source.label : source.sourceId,
 									sourceKind: source.sourceKind,
 									configurationXmlAbs: source.configurationXmlAbs!,
+									dictionaries,
 								},
 								dto,
 								async (nextDto) => {
@@ -1859,6 +1906,68 @@ export function registerMetadataFeature(
 			}
 		),
 		vscode.commands.registerCommand(
+			'1c-platform-tools.metadata.openCommandInterface',
+			async (item?: MetadataLeafTreeItem) => {
+				const node = resolveSelectedMetadataLeaf(item instanceof MetadataLeafTreeItem ? item : undefined);
+				if (!node) {
+					void vscode.window.showInformationMessage('Выберите подсистему в дереве.');
+					return;
+				}
+				await openObjectPropertiesTab(node, 'commandInterface');
+			}
+		),
+		vscode.commands.registerCommand(
+			'1c-platform-tools.metadata.openDcs',
+			async (item?: vscode.TreeItem) => {
+				let templateXml: string | undefined;
+				let descriptorXml: string | undefined;
+				let title = '';
+				let cwd: string | undefined;
+				let configurationXmlAbs: string | undefined;
+				if (item instanceof MetadataObjectNodeTreeItem && item.nodeKind === 'template' && item.owner.resourceUri) {
+					const objectDir = item.owner.resourceUri.fsPath.replace(/\.xml$/i, '');
+					descriptorXml = path.join(objectDir, 'Templates', `${item.name}.xml`);
+					templateXml = path.join(objectDir, 'Templates', item.name, 'Ext', 'Template.xml');
+					title = `${item.owner.name}.${item.name}`;
+					cwd = item.owner.metadataRootAbs ?? path.dirname(item.owner.resourceUri.fsPath);
+					configurationXmlAbs = item.owner.configurationXmlAbs;
+				} else if (item instanceof MetadataLeafTreeItem && item.resourceUri) {
+					const stem = item.resourceUri.fsPath.replace(/\.xml$/i, '');
+					descriptorXml = item.resourceUri.fsPath;
+					templateXml = path.join(stem, 'Ext', 'Template.xml');
+					title = item.name;
+					cwd = item.metadataRootAbs ?? path.dirname(item.resourceUri.fsPath);
+					configurationXmlAbs = item.configurationXmlAbs;
+				}
+				if (!templateXml || !descriptorXml || !cwd) {
+					void vscode.window.showInformationMessage('Выберите макет в дереве.');
+					return;
+				}
+				try {
+					const descriptor = await fs.promises.readFile(descriptorXml, 'utf8');
+					if (!descriptor.includes('DataCompositionSchema')) {
+						void vscode.window.showInformationMessage('Макет не является схемой компоновки данных.');
+						return;
+					}
+				} catch {
+					void vscode.window.showInformationMessage('Описание макета не прочитано.');
+					return;
+				}
+				const schema = configurationXmlAbs
+					? await mdSparrowSchemaFlagFromConfigurationXml(configurationXmlAbs)
+					: await mainSchemaFlag();
+				if (!schema) {
+					return;
+				}
+				await openDcsEditorPanel(context, {
+					templateXmlFsPath: templateXml,
+					title,
+					cwd,
+					schemaFlag: schema,
+				});
+			}
+		),
+		vscode.commands.registerCommand(
 			'1c-platform-tools.metadata.supportEnableEditing',
 			async (item?: MetadataSourceTreeItem) => {
 				await runMdSparrowMutation(async () => {
@@ -1867,18 +1976,30 @@ export function registerMetadataFeature(
 						void vscode.window.showInformationMessage('Выберите конфигурацию в дереве.');
 						return;
 					}
-					const answer = await vscode.window.showWarningMessage(
-						'Включить возможность изменения конфигурации? Правила поставщика откроются, каждому объекту будет установлено «не редактируется».',
-						{ modal: true },
-						'Включить'
+					// Как в конфигураторе: включение возможности изменения задаёт правило
+					// поддержки по умолчанию для всех объектов, дальше режим меняется по одному
+					const rule = await vscode.window.showQuickPick(
+						[
+							{
+								label: 'Объект поставщика не редактируется',
+								description: 'обновления поставщика ложатся автоматически, правка разрешается по объекту',
+								mode: '0',
+							},
+							{
+								label: 'Объект поставщика редактируется с сохранением поддержки',
+								description: 'объекты можно менять сразу, при обновлении изменения объединяются вручную',
+								mode: '1',
+							},
+						],
+						{ placeHolder: 'Правило поддержки объектов по умолчанию' }
 					);
-					if (answer !== 'Включить') {
+					if (!rule) {
 						return;
 					}
 					const runtime = await ensureMdSparrowRuntime(context);
 					const res = await runMdSparrowParamsMutation(
 						runtime,
-						{ op: 'cf-support-enable-rules', configurationXml: source.configurationXmlAbs },
+						{ op: 'cf-support-enable-rules', configurationXml: source.configurationXmlAbs, name: rule.mode },
 						{ cwd: source.metadataRootAbs ?? path.dirname(source.configurationXmlAbs) }
 					);
 					if (res.exitCode !== 0) {
@@ -1887,7 +2008,7 @@ export function registerMetadataFeature(
 						);
 						return;
 					}
-					notifyQuiet('Возможность изменения включена: изменение объектов разрешается по одному');
+					notifyQuiet('Возможность изменения включена');
 					void vscode.commands.executeCommand('1c-platform-tools.metadata.refresh');
 				});
 			}

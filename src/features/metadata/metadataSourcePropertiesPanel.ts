@@ -8,6 +8,16 @@ export interface SourcePropertiesInput {
 	sourceKind: string;
 	/** Configuration.xml источника: по нему вкладка находит себя при повторном открытии. */
 	configurationXmlAbs: string;
+	/** Словари формата: варианты перечислимых свойств и русские подписи значений. */
+	dictionaries?: SourcePropertyDictionaries;
+}
+
+/** Перечисления и подписи приходят от md-sparrow: панель своей копии формата не держит. */
+export interface SourcePropertyDictionaries {
+	enums: Record<string, string[]>;
+	labels: { values: Record<string, string>; byProperty: Record<string, Record<string, string>> };
+	/** Роли конфигурации: кандидаты в основные роли. */
+	roleNames?: string[];
 }
 
 export interface SourcePropertiesDto {
@@ -103,7 +113,8 @@ export async function openMetadataSourcePropertiesPanel(
 		nonce,
 		input.sourceKind,
 		sourceKindLabel(input.sourceKind),
-		input.label
+		input.label,
+		input.dictionaries
 	);
 
 	panel.webview.onDidReceiveMessage(
@@ -136,7 +147,8 @@ async function loadMetadataSourceHtml(
 	nonce: string,
 	sourceKind: string,
 	sourceKindLabelValue: string,
-	sourceLabel: string
+	sourceLabel: string,
+	dictionaries?: SourcePropertyDictionaries
 ): Promise<string> {
 	const templateUri = vscode.Uri.joinPath(extensionUri, 'resources', 'webview', 'metadata-source-properties.html');
 	const bytes = await vscode.workspace.fs.readFile(templateUri);
@@ -152,6 +164,9 @@ async function loadMetadataSourceHtml(
 		vscode.Uri.joinPath(extensionUri, 'resources', 'webview', 'metadata-source-properties.js')
 	);
 	const initialJson = JSON.stringify(dto).replaceAll('<', String.raw`\u003c`);
+	const dictionariesJson = JSON.stringify(
+		dictionaries ?? { enums: {}, labels: { values: {}, byProperty: {} } }
+	).replaceAll('<', String.raw`\u003c`);
 	return template
 		.replaceAll('{{CSP_SOURCE}}', webview.cspSource)
 		.replaceAll('{{NONCE}}', nonce)
@@ -161,5 +176,6 @@ async function loadMetadataSourceHtml(
 		.replaceAll('{{SOURCE_KIND}}', escapeHtml(sourceKind))
 		.replaceAll('{{SOURCE_KIND_LABEL}}', escapeHtml(sourceKindLabelValue))
 		.replaceAll('{{SOURCE_LABEL}}', escapeHtml(sourceLabel))
-		.replaceAll('{{INITIAL_JSON}}', initialJson);
+		.replaceAll('{{INITIAL_JSON}}', initialJson)
+		.replaceAll('{{DICTIONARIES_JSON}}', dictionariesJson);
 }

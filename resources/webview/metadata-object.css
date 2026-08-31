@@ -1110,3 +1110,30 @@ select.edit-input {
 	height: 15px;
 	cursor: pointer;
 }
+
+/* Командный интерфейс: селект группы и стрелки порядка */
+.ci-group-select {
+	background: var(--vscode-dropdown-background);
+	color: var(--vscode-dropdown-foreground);
+	border: 1px solid var(--vscode-dropdown-border);
+	border-radius: 2px;
+	padding: 2px 6px;
+	outline: none;
+	max-width: 280px;
+}
+.ci-order-btn {
+	background: transparent;
+	color: var(--vscode-foreground);
+	border: 1px solid var(--vscode-panel-border);
+	border-radius: 2px;
+	cursor: pointer;
+	padding: 0 6px;
+	margin-left: 4px;
+}
+.ci-order-btn:hover:not(:disabled) {
+	background: var(--vscode-list-hoverBackground);
+}
+.ci-order-btn:disabled {
+	opacity: 0.4;
+	cursor: default;
+}

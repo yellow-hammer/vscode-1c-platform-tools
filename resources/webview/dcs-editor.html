@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="ru">
+<head>
+	<meta charset="UTF-8">
+	<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src {{CSP_SOURCE}}; script-src 'nonce-{{NONCE}}';">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>Схема компоновки данных</title>
+	<link rel="stylesheet" href="{{BASE_CSS_URI}}">
+	<link rel="stylesheet" href="{{CSS_URI}}">
+</head>
+<body>
+	<div class="page">
+		<header class="page-header">
+			<div class="header-main">
+				<div class="kind-badge">Схема компоновки данных</div>
+				<h1 class="title">{{TITLE}}</h1>
+			</div>
+		</header>
+		<div class="content" id="content"></div>
+		<footer class="save-bar" id="saveBar">
+			<span id="status" class="save-status"></span>
+		</footer>
+	</div>
+	<script nonce="{{NONCE}}">
+		window.__INITIAL_DATA__ = {{INITIAL_JSON}};
+	</script>
+	<script nonce="{{NONCE}}" src="{{JS_URI}}"></script>
+</body>
+</html>

@@ -878,6 +878,11 @@
         "category": "1С: Метаданные"
       },
       {
+        "command": "1c-platform-tools.metadata.openDcs",
+        "title": "Открыть схему компоновки",
+        "category": "1С: Метаданные"
+      },
+      {
         "command": "1c-platform-tools.metadata.open",
         "title": "Открыть",
         "category": "1С: Метаданные"
@@ -891,6 +896,11 @@
       {
         "command": "1c-platform-tools.metadata.openProperties",
         "title": "Свойства",
+        "category": "1С: Метаданные"
+      },
+      {
+        "command": "1c-platform-tools.metadata.openCommandInterface",
+        "title": "Командный интерфейс",
         "category": "1С: Метаданные"
       },
       {
@@ -2471,6 +2481,14 @@
         {
           "command": "1c-platform-tools.metadata.supportSetObjectMode",
           "when": "false"
+        },
+        {
+          "command": "1c-platform-tools.metadata.openDcs",
+          "when": "false"
+        },
+        {
+          "command": "1c-platform-tools.metadata.openCommandInterface",
+          "when": "false"
         }
       ],
       "debug/toolBar": [
@@ -3276,6 +3294,16 @@
           "command": "1c-platform-tools.metadata.supportSetObjectMode",
           "when": "view == 1c-platform-tools-metadata-tree && viewItem =~ /(^| )mdSupportRule( |$)/",
           "group": "6_support@1"
+        },
+        {
+          "command": "1c-platform-tools.metadata.openDcs",
+          "when": "view == 1c-platform-tools-metadata-tree && viewItem =~ /(^| )(metadataChild_template|mdDcsOpen)( |$)/",
+          "group": "1_open@5"
+        },
+        {
+          "command": "1c-platform-tools.metadata.openCommandInterface",
+          "when": "view == 1c-platform-tools-metadata-tree && viewItem =~ /(^| )metadataObjectPropertiesSubsystem( |$)/",
+          "group": "1_open@6"
         }
       ],
       "editor/title": [

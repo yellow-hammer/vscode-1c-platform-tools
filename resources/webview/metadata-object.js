@@ -26,7 +26,12 @@
 	const toggleTechnicalButton = /** @type {HTMLButtonElement | null} */ (document.getElementById('toggleTechnical'));
 
 	const tabs = Array.isArray(model.tabs) ? model.tabs : [];
-	let activeTabId = tabs[0] ? tabs[0].id : '';
+	let activeTabId =
+		model.initialTabId && tabs.some((tab) => tab.id === model.initialTabId)
+			? model.initialTabId
+			: tabs[0]
+				? tabs[0].id
+				: '';
 	let technicalVisible = false;
 
 	const vscodeApi = typeof acquireVsCodeApi === 'function' ? acquireVsCodeApi() : null;
@@ -305,6 +310,34 @@
 	/** Изменённая видимость команд подсистемы: команда → флажок. */
 	const editedCommandVisibility = new Map();
 
+	/** Изменённое размещение команд: команда → группа. */
+	const editedCommandPlacement = new Map();
+
+	/** Изменённый порядок команд: копия списка после первой перестановки. */
+	let editedCommandOrder = null;
+
+	function commandPlacementGroup(entry) {
+		return editedCommandPlacement.has(entry.command)
+			? editedCommandPlacement.get(entry.command)
+			: entry.group;
+	}
+
+	function setCommandPlacement(entry, group) {
+		if (group === entry.group) {
+			editedCommandPlacement.delete(entry.command);
+		} else {
+			editedCommandPlacement.set(entry.command, group);
+		}
+	}
+
+	function commandOrderDirty() {
+		if (!editedCommandOrder || !model.commandInterface) {
+			return false;
+		}
+		const base = model.commandInterface.order || [];
+		return editedCommandOrder.some((entry, index) => base[index] && base[index].command !== entry.command);
+	}
+
 	function commandVisibilityBaseline(command) {
 		const model_ = model.commandInterface;
 		const entry = model_ && model_.visibility.find((item) => item.command === command);
@@ -327,6 +360,63 @@
 
 	/** Изменённые права роли: «объект право» → выдано. */
 	const editedRoleRights = new Map();
+
+	/** Изменённые флаги прав по умолчанию роли. */
+	const editedRoleFlags = new Map();
+
+	function roleFlagBaseline(name) {
+		return Boolean(model.roleRights && model.roleRights[name]);
+	}
+
+	function roleFlagChecked(name) {
+		return editedRoleFlags.has(name) ? editedRoleFlags.get(name) : roleFlagBaseline(name);
+	}
+
+	function toggleRoleFlag(name, value) {
+		if (value === roleFlagBaseline(name)) {
+			editedRoleFlags.delete(name);
+		} else {
+			editedRoleFlags.set(name, value);
+		}
+	}
+
+	/** Право тянет зависимые, как конфигуратор: изменение и удаление требуют чтения. */
+	function applyRightDependencies(objectName, rightName, value) {
+		const set = (name, v) => toggleRoleRight(objectName, name, v);
+		if (value) {
+			if (rightName === 'Update' || rightName === 'Delete') {
+				set('Read', true);
+			}
+			if (rightName === 'Posting' || rightName === 'UndoPosting') {
+				set('Update', true);
+				set('Read', true);
+			}
+			if (rightName === 'InteractiveInsert') {
+				set('Insert', true);
+			}
+			if (rightName === 'InteractiveDelete' || rightName === 'InteractiveDeleteMarked') {
+				set('Delete', true);
+				set('Read', true);
+			}
+		} else {
+			if (rightName === 'Read') {
+				for (const dependent of ['Update', 'Delete', 'Posting', 'UndoPosting', 'InteractiveDelete', 'InteractiveDeleteMarked']) {
+					set(dependent, false);
+				}
+			}
+			if (rightName === 'Update') {
+				set('Posting', false);
+				set('UndoPosting', false);
+			}
+			if (rightName === 'Insert') {
+				set('InteractiveInsert', false);
+			}
+			if (rightName === 'Delete') {
+				set('InteractiveDelete', false);
+				set('InteractiveDeleteMarked', false);
+			}
+		}
+	}
 
 	function roleRightKey(objectName, rightName) {
 		return objectName + ' ' + rightName;
@@ -412,7 +502,10 @@
 			editedSubsystems.size > 0 ||
 			editedContent.size > 0 ||
 			editedCommandVisibility.size > 0 ||
-			editedRoleRights.size > 0
+			editedCommandPlacement.size > 0 ||
+			commandOrderDirty() ||
+			editedRoleRights.size > 0 ||
+			editedRoleFlags.size > 0
 		) {
 			return true;
 		}
@@ -683,6 +776,28 @@
 		['CreateFolder', 'Создать группу'],
 	]);
 
+	/** Подписи групп командного интерфейса; пользовательская группа остаётся именем. */
+	const COMMAND_GROUP_LABELS = new Map([
+		['NavigationPanelImportant', 'Панель навигации: Важное'],
+		['NavigationPanelOrdinary', 'Панель навигации: Обычное'],
+		['NavigationPanelSeeAlso', 'Панель навигации: См. также'],
+		['ActionsPanelCreate', 'Панель действий: Создать'],
+		['ActionsPanelReports', 'Панель действий: Отчеты'],
+		['ActionsPanelTools', 'Панель действий: Сервис'],
+	]);
+
+	function commandGroupCaption(group) {
+		const known = COMMAND_GROUP_LABELS.get(group);
+		if (known) {
+			return known;
+		}
+		const parts = String(group).split('.');
+		if (parts[0] === 'CommandGroup' && parts[1]) {
+			return 'Группа: ' + parts[1];
+		}
+		return group;
+	}
+
 	/** Командный интерфейс подсистемы: флажки общей видимости, размещение списком. */
 	function renderCommandInterfaceTab() {
 		if (!contentRoot) {
@@ -737,11 +852,41 @@
 				tree.appendChild(row);
 			}
 		}
+		function namedListSection(title, rows) {
+			if (rows.length === 0) {
+				return;
+			}
+			const heading = document.createElement('div');
+			heading.className = 'section-title section-title-spaced';
+			heading.textContent = title;
+			contentRoot.appendChild(heading);
+			const list = document.createElement('div');
+			list.className = 'struct-list';
+			contentRoot.appendChild(list);
+			for (const row of rows) {
+				const item = document.createElement('div');
+				item.className = 'struct-item';
+				const name = document.createElement('span');
+				name.className = 'struct-item-name';
+				name.title = row.hint || row.name;
+				name.textContent = row.name;
+				item.appendChild(name);
+				if (row.value) {
+					const value = document.createElement('span');
+					value.className = 'struct-item-syn ref-selected-mode';
+					value.textContent = row.value;
+					item.appendChild(value);
+				}
+				list.appendChild(item);
+			}
+		}
+
+		// Размещение: группа панели меняется селектом и пишется своей операцией
 		if (model_.placement.length > 0) {
-			const title = document.createElement('div');
-			title.className = 'section-title section-title-spaced';
-			title.textContent = 'Размещение';
-			contentRoot.appendChild(title);
+			const heading = document.createElement('div');
+			heading.className = 'section-title section-title-spaced';
+			heading.textContent = 'Размещение';
+			contentRoot.appendChild(heading);
 			const list = document.createElement('div');
 			list.className = 'struct-list';
 			contentRoot.appendChild(list);
@@ -753,13 +898,91 @@
 				name.title = entry.command;
 				name.textContent = commandCaption(entry.command);
 				item.appendChild(name);
-				const group = document.createElement('span');
-				group.className = 'struct-item-syn ref-selected-mode';
-				group.textContent = entry.group;
-				item.appendChild(group);
+				const select = document.createElement('select');
+				select.className = 'ci-group-select';
+				select.disabled = readonly;
+				const groups = [...COMMAND_GROUP_LABELS.keys()];
+				if (!groups.includes(entry.group)) {
+					groups.unshift(entry.group);
+				}
+				for (const group of groups) {
+					const option = document.createElement('option');
+					option.value = group;
+					option.textContent = commandGroupCaption(group);
+					select.appendChild(option);
+				}
+				select.value = commandPlacementGroup(entry);
+				select.addEventListener('change', (function (placementEntry, el) {
+					return function () {
+						setCommandPlacement(placementEntry, el.value);
+						renderSaveBar();
+					};
+				})(entry, select));
+				item.appendChild(select);
 				list.appendChild(item);
 			}
 		}
+
+		// Порядок команд: строки переставляются стрелками, блок пишется целиком
+		const orderEntries = editedCommandOrder || model_.order || [];
+		if (orderEntries.length > 0) {
+			const heading = document.createElement('div');
+			heading.className = 'section-title section-title-spaced';
+			heading.textContent = 'Порядок команд';
+			contentRoot.appendChild(heading);
+			const list = document.createElement('div');
+			list.className = 'struct-list';
+			contentRoot.appendChild(list);
+			orderEntries.forEach(function (entry, index) {
+				const item = document.createElement('div');
+				item.className = 'struct-item';
+				const name = document.createElement('span');
+				name.className = 'struct-item-name';
+				name.title = entry.command;
+				name.textContent = commandCaption(entry.command);
+				item.appendChild(name);
+				const group = document.createElement('span');
+				group.className = 'struct-item-syn ref-selected-mode';
+				group.textContent = commandGroupCaption(entry.group);
+				item.appendChild(group);
+				if (!readonly) {
+					for (const move of [
+						['▲', -1],
+						['▼', 1],
+					]) {
+						const btn = document.createElement('button');
+						btn.type = 'button';
+						btn.className = 'ci-order-btn';
+						btn.textContent = move[0];
+						const target = index + move[1];
+						btn.disabled = target < 0 || target >= orderEntries.length;
+						btn.addEventListener('click', function () {
+							if (!editedCommandOrder) {
+								editedCommandOrder = (model_.order || []).map((row) => ({ command: row.command, group: row.group }));
+							}
+							const swap = editedCommandOrder[index];
+							editedCommandOrder[index] = editedCommandOrder[target];
+							editedCommandOrder[target] = swap;
+							renderCommandInterfaceTab();
+							renderSaveBar();
+						});
+						item.appendChild(btn);
+					}
+				}
+				list.appendChild(item);
+			});
+		}
+		namedListSection(
+			'Порядок подсистем',
+			(model_.subsystemsOrder || []).map((ref) => {
+				const parts = String(ref).split('.');
+				return { name: parts[parts.length - 1] || ref, hint: ref, value: '' };
+			})
+		);
+		namedListSection(
+			'Порядок групп',
+			(model_.groupsOrder || []).map((group) => ({ name: commandGroupCaption(group), hint: group, value: '' }))
+		);
 	}
 
 	/** Подписи прав: полное имя права остаётся в подсказке. */
@@ -926,21 +1149,26 @@
 		const flags = document.createElement('div');
 		flags.className = 'struct-list';
 		const flagRows = [
-			['Устанавливать права для новых объектов', model_.setForNewObjects],
-			['Устанавливать права для реквизитов и табличных частей по умолчанию', model_.setForAttributesByDefault],
-			['Независимые права подчиненных объектов', model_.independentRightsOfChildObjects],
+			['setForNewObjects', 'Устанавливать права для новых объектов'],
+			['setForAttributesByDefault', 'Устанавливать права для реквизитов и табличных частей по умолчанию'],
+			['independentRightsOfChildObjects', 'Независимые права подчиненных объектов'],
 		];
 		for (const pair of flagRows) {
 			const item = document.createElement('div');
 			item.className = 'struct-item';
-			const name = document.createElement('span');
-			name.className = 'struct-item-name';
-			name.textContent = pair[0];
-			item.appendChild(name);
-			const value = document.createElement('span');
-			value.className = 'struct-item-syn ref-selected-mode';
-			value.textContent = pair[1] ? 'Да' : 'Нет';
-			item.appendChild(value);
+			const label = document.createElement('label');
+			label.className = 'rights-toggle struct-item-name';
+			const box = document.createElement('input');
+			box.type = 'checkbox';
+			box.checked = roleFlagChecked(pair[0]);
+			box.disabled = readonly;
+			box.addEventListener('change', function () {
+				toggleRoleFlag(pair[0], box.checked);
+				renderSaveBar();
+			});
+			label.appendChild(box);
+			label.appendChild(document.createTextNode(' ' + pair[1]));
+			item.appendChild(label);
 			flags.appendChild(item);
 		}
 		contentRoot.appendChild(flags);
@@ -1092,6 +1320,8 @@
 					boxInput.addEventListener('change', (function (objectName, rightName, input) {
 						return function () {
 							toggleRoleRight(objectName, rightName, input.checked);
+							applyRightDependencies(objectName, rightName, input.checked);
+							renderTable();
 							renderSaveBar();
 						};
 					})(row.name, column[0], boxInput));
@@ -2083,10 +2313,12 @@
 				subsystems: [...editedSubsystems.entries()].map(([xmlPath, member]) => ({ xmlPath, member })),
 				commandVisibility:
 					editedCommandVisibility.size > 0 && model.commandInterface
-						? model.commandInterface.visibility.map((entry) => ({
-								command: entry.command,
-								common: commandVisibilityChecked(entry.command),
-							}))
+						? model.commandInterface.visibility
+								.filter((entry) => entry.stored !== false || editedCommandVisibility.has(entry.command))
+								.map((entry) => ({
+									command: entry.command,
+									common: commandVisibilityChecked(entry.command),
+								}))
 						: [],
 				content: [...editedContent.entries()].map(([key, edit]) => {
 					const space = key.indexOf(' ');
@@ -2096,6 +2328,16 @@
 					const space = key.indexOf(' ');
 					return { object: key.slice(0, space), right: key.slice(space + 1), value };
 				}),
+				roleRightsFlags: Object.fromEntries(editedRoleFlags),
+				commandPlacement:
+					editedCommandPlacement.size > 0 && model.commandInterface
+						? model.commandInterface.placement.map((entry) => ({
+								command: entry.command,
+								group: commandPlacementGroup(entry),
+								place: entry.place || 'Auto',
+							}))
+						: [],
+				commandOrder: commandOrderDirty() ? editedCommandOrder : [],
 			});
 		});
 		resetBtn.addEventListener('click', function () {
@@ -2108,7 +2350,10 @@
 			editedSubsystems.clear();
 			editedContent.clear();
 			editedCommandVisibility.clear();
+			editedCommandPlacement.clear();
+			editedCommandOrder = null;
 			editedRoleRights.clear();
+			editedRoleFlags.clear();
 			saveError = '';
 			savedFlash = false;
 			if (currentTabIsEdit()) {
@@ -2137,7 +2382,10 @@
 				editedSubsystems.clear();
 				editedContent.clear();
 				editedCommandVisibility.clear();
+				editedCommandPlacement.clear();
+				editedCommandOrder = null;
 				editedRoleRights.clear();
+				editedRoleFlags.clear();
 				editedStructure = model.structureLists ? structureEditsFromLists(model.structureLists) : null;
 				structBaselineOrderKey = structOrderKey(editedStructure);
 				if (Array.isArray(msg.tabs)) {

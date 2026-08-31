@@ -105,6 +105,11 @@ export type MdSparrowOp =
 	| 'cf-support-get'
 	| 'cf-support-enable-rules'
 	| 'cf-support-object-mode-set'
+	| 'cf-md-subsystem-command-placement-set'
+	| 'cf-md-subsystem-command-order-set'
+	| 'cf-dcs-info'
+	| 'cf-dcs-set-query'
+	| 'cf-dcs-add-calculated-field'
 	| 'project-metadata-tree'
 	| 'cf-md-graph'
 	| 'cf-validate-dump';

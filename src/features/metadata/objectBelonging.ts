@@ -42,7 +42,7 @@ const BADGE_GEOMETRY = {
 /** Виды значков: буквенный у заимствованных, замочек у запрещённых к изменению. */
 const BADGE_KINDS = {
 	adopted: { color: '#E1B74D', letter: '&#1040;' },
-	locked: { color: '#8A8A8A', letter: '' },
+	locked: { color: '#E1B74D', letter: '' },
 } as const;
 
 type BadgeKind = keyof typeof BADGE_KINDS;

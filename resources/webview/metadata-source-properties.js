@@ -2,32 +2,41 @@
 	const vscode = acquireVsCodeApi();
 	const initial = window.__INITIAL_DATA__ || {};
 	const sourceKind = window.__SOURCE_KIND__ || '';
+	const dictionaries = window.__DICTIONARIES__ || { enums: {}, labels: { values: {}, byProperty: {} } };
 	const statusEl = document.getElementById('status');
 
-	const selects = {
-		defaultRunMode: ['MANAGED_APPLICATION', 'ORDINARY_APPLICATION'],
-		scriptVariant: ['RUSSIAN', 'ENGLISH'],
-		dataLockControlMode: ['AUTOMATIC', 'MANAGED', 'AUTOMATIC_AND_MANAGED'],
-		objectAutonumerationMode: ['AUTO_FREE', 'NOT_AUTO_FREE'],
-		modalityUseMode: ['USE', 'USE_WITH_WARNINGS', 'DONT_USE'],
-		synchronousPlatformExtensionAndAddInCallUseMode: ['USE', 'USE_WITH_WARNINGS', 'DONT_USE'],
-		interfaceCompatibilityMode: ['TAXI', 'TAXI_ENABLE_VERSION_8_2', 'VERSION_8_2_ENABLE_TAXI', 'VERSION_8_2'],
-		compatibilityMode: [
-			'DONT_USE', 'VERSION_8_3_27', 'VERSION_8_3_26', 'VERSION_8_3_25', 'VERSION_8_3_24',
-			'VERSION_8_3_23', 'VERSION_8_3_22', 'VERSION_8_3_21', 'VERSION_8_3_20', 'VERSION_8_3_19',
-			'VERSION_8_3_18', 'VERSION_8_3_17', 'VERSION_8_3_16', 'VERSION_8_3_15', 'VERSION_8_3_14',
-			'VERSION_8_3_13', 'VERSION_8_3_12', 'VERSION_8_3_11', 'VERSION_8_3_10', 'VERSION_8_3_9',
-			'VERSION_8_3_8', 'VERSION_8_3_7', 'VERSION_8_3_6', 'VERSION_8_3_5', 'VERSION_8_3_4',
-			'VERSION_8_3_3', 'VERSION_8_3_2', 'VERSION_8_3_1', 'VERSION_8_2_16', 'VERSION_8_2_13', 'VERSION_8_1'
-		]
-	};
+	/** Подпись значения: словарь md-sparrow, версии собираются из имени. */
+	function valueLabel(property, name) {
+		if (!name) {
+			return '';
+		}
+		const special = (dictionaries.labels.byProperty['configuration.' + property] || {})[name];
+		if (special) {
+			return special;
+		}
+		const known = dictionaries.labels.values[name];
+		if (known) {
+			return known;
+		}
+		const version = /^VERSION_(\d+)_(\d+)(?:_(\d+))?$/.exec(name);
+		if (version) {
+			return 'Версия ' + version[1] + '.' + version[2] + (version[3] ? '.' + version[3] : '');
+		}
+		return name;
+	}
 
-	function initSelect(id, values, selected) {
+	function initSelect(id, selected) {
 		const el = document.getElementById(id);
+		el.textContent = '';
+		const values = (dictionaries.enums[id] || []).slice();
+		// Значение вне словаря формата остаётся выбираемым, а не теряется
+		if (selected && !values.includes(selected)) {
+			values.unshift(selected);
+		}
 		for (const v of values) {
 			const opt = document.createElement('option');
 			opt.value = v;
-			opt.textContent = v;
+			opt.textContent = valueLabel(id, v);
 			el.appendChild(opt);
 		}
 		el.value = selected && values.includes(selected) ? selected : (values[0] || '');
@@ -41,11 +50,37 @@
 		el.value = value || '';
 	}
 
-	function splitCsv(value) {
-		return (value || '')
-			.split(',')
-			.map((v) => v.trim())
-			.filter((v) => v.length > 0);
+	/** Список флажков: значения с подписями, отмеченные собираются по data-value. */
+	function initCheckList(id, values, selected, labelOf) {
+		const el = document.getElementById(id);
+		el.textContent = '';
+		const all = values.slice();
+		// Отмеченное значение вне словаря остаётся видимым и снимаемым
+		for (const v of selected || []) {
+			if (!all.includes(v)) {
+				all.push(v);
+			}
+		}
+		for (const v of all) {
+			const label = document.createElement('label');
+			const box = document.createElement('input');
+			box.type = 'checkbox';
+			box.dataset.value = v;
+			box.checked = (selected || []).includes(v);
+			label.appendChild(box);
+			label.appendChild(document.createTextNode(' ' + labelOf(v)));
+			el.appendChild(label);
+		}
+	}
+
+	function collectCheckList(id) {
+		const out = [];
+		for (const box of document.getElementById(id).querySelectorAll('input[type="checkbox"]')) {
+			if (box.checked) {
+				out.push(box.dataset.value);
+			}
+		}
+		return out;
 	}
 
 	function collect() {
@@ -54,9 +89,9 @@
 			synonymRu: document.getElementById('synonymRu').value,
 			comment: document.getElementById('comment').value,
 			defaultRunMode: document.getElementById('defaultRunMode').value,
-			usePurposes: splitCsv(document.getElementById('usePurposes').value),
+			usePurposes: collectCheckList('usePurposes'),
 			scriptVariant: document.getElementById('scriptVariant').value,
-			defaultRoles: splitCsv(document.getElementById('defaultRoles').value),
+			defaultRoles: collectCheckList('defaultRoles'),
 			managedApplicationModule: initial.managedApplicationModule || '',
 			sessionModule: initial.sessionModule || '',
 			externalConnectionModule: initial.externalConnectionModule || '',
@@ -81,8 +116,14 @@
 		setValue('name', dto.name);
 		setValue('synonymRu', dto.synonymRu);
 		setValue('comment', dto.comment);
-		setValue('usePurposes', (dto.usePurposes || []).join(', '));
-		setValue('defaultRoles', (dto.defaultRoles || []).join(', '));
+		initCheckList('usePurposes', dto.usePurposeOptions || [], dto.usePurposes || [], (v) => valueLabel('usePurposes', v));
+		// Роли конфигурации: кандидаты из словаря, значения хранятся ссылками Role.Имя
+		initCheckList(
+			'defaultRoles',
+			(dictionaries.roleNames || []).map((name) => 'Role.' + name),
+			dto.defaultRoles || [],
+			(v) => String(v).replace(/^Role\./, '')
+		);
 		setValue('briefInformationRu', dto.briefInformationRu);
 		setValue('detailedInformationRu', dto.detailedInformationRu);
 		setValue('copyrightRu', dto.copyrightRu);
@@ -92,18 +133,17 @@
 		setValue('version', dto.version);
 		setValue('updateCatalogAddress', dto.updateCatalogAddress);
 
-		initSelect('defaultRunMode', selects.defaultRunMode, dto.defaultRunMode);
-		initSelect('scriptVariant', selects.scriptVariant, dto.scriptVariant);
-		initSelect('dataLockControlMode', selects.dataLockControlMode, dto.dataLockControlMode);
-		initSelect('objectAutonumerationMode', selects.objectAutonumerationMode, dto.objectAutonumerationMode);
-		initSelect('modalityUseMode', selects.modalityUseMode, dto.modalityUseMode);
+		initSelect('defaultRunMode', dto.defaultRunMode);
+		initSelect('scriptVariant', dto.scriptVariant);
+		initSelect('dataLockControlMode', dto.dataLockControlMode);
+		initSelect('objectAutonumerationMode', dto.objectAutonumerationMode);
+		initSelect('modalityUseMode', dto.modalityUseMode);
 		initSelect(
 			'synchronousPlatformExtensionAndAddInCallUseMode',
-			selects.synchronousPlatformExtensionAndAddInCallUseMode,
 			dto.synchronousPlatformExtensionAndAddInCallUseMode
 		);
-		initSelect('interfaceCompatibilityMode', selects.interfaceCompatibilityMode, dto.interfaceCompatibilityMode);
-		initSelect('compatibilityMode', selects.compatibilityMode, dto.compatibilityMode);
+		initSelect('interfaceCompatibilityMode', dto.interfaceCompatibilityMode);
+		initSelect('compatibilityMode', dto.compatibilityMode);
 	}
 
 	document.getElementById('openExternalConnectionModule').addEventListener('click', () => {

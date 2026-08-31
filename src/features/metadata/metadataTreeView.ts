@@ -355,7 +355,9 @@ export class MetadataLeafTreeItem extends vscode.TreeItem {
 		/** Необязательная цель из дерева md-sparrow; клик работает и без неё. */
 		public readonly open?: MetadataObjectOpen,
 		/** Поддержка поставщика: locked - изменение запрещено, editable - разрешено. */
-		public readonly support?: string
+		public readonly support?: string,
+		/** Правила поставщика открыты: смена режима объекта доступна. */
+		public readonly supportRulesOpen?: boolean
 	) {
 		const absFromRelativePath =
 			relativePath && relativePath.length > 0
@@ -399,8 +401,12 @@ export class MetadataLeafTreeItem extends vscode.TreeItem {
 			if (moduleKinds) {
 				tokens.push(...moduleKinds.map((kind) => OBJECT_MODULE_DESCRIPTORS[kind].contextToken));
 			}
-			if (support === 'locked' || support === 'editable') {
+			// Пока правила поставки закрыты, конфигуратор не даёт менять режим объекта
+			if (supportRulesOpen && (support === 'locked' || support === 'editable')) {
 				tokens.push('mdSupportRule');
+			}
+			if (normalizedObjectType === 'CommonTemplate') {
+				tokens.push('mdDcsOpen');
 			}
 			if (tokens.length > 0) {
 				this.contextValue = [this.contextValue, ...tokens].join(' ');
@@ -512,7 +518,8 @@ export class MetadataSubsystemChildTreeItem extends MetadataLeafTreeItem {
 		configurationXmlAbs: string | undefined,
 		metadataRootAbs: string | undefined,
 		open?: MetadataObjectOpen,
-		support?: string
+		support?: string,
+		supportRulesOpen?: boolean
 	) {
 		super(
 			sourceId,
@@ -527,7 +534,8 @@ export class MetadataSubsystemChildTreeItem extends MetadataLeafTreeItem {
 			configurationXmlAbs,
 			metadataRootAbs,
 			open,
-			support
+			support,
+			supportRulesOpen
 		);
 	}
 }
@@ -1497,7 +1505,8 @@ export class MetadataTreeDataProvider implements vscode.TreeDataProvider<vscode.
 								workspaceRoot,
 								this._context.extensionUri,
 								cfgAbs,
-								metaAbs
+								metaAbs,
+								src.support === 'editable'
 							);
 							leaves.push(leaf);
 							if (normalizeMetadataObjectType(it.objectType) === 'Subsystem') {
@@ -1518,7 +1527,8 @@ export class MetadataTreeDataProvider implements vscode.TreeDataProvider<vscode.
 								workspaceRoot,
 								this._context.extensionUri,
 								cfgAbs,
-								metaAbs
+								metaAbs,
+								src.support === 'editable'
 							)
 						);
 					}
@@ -1535,7 +1545,8 @@ export class MetadataTreeDataProvider implements vscode.TreeDataProvider<vscode.
 								workspaceRoot,
 								this._context.extensionUri,
 								cfgAbs,
-								metaAbs
+								metaAbs,
+								src.support === 'editable'
 							)
 						);
 					}
@@ -2047,7 +2058,8 @@ export class MetadataTreeDataProvider implements vscode.TreeDataProvider<vscode.
 						childTemplate.configurationXmlAbs,
 						childTemplate.metadataRootAbs,
 						childTemplate.open,
-						childTemplate.support
+						childTemplate.support,
+						childTemplate.supportRulesOpen
 					)
 				);
 			}
@@ -2099,7 +2111,8 @@ export class MetadataTreeDataProvider implements vscode.TreeDataProvider<vscode.
 			parentLeaf.configurationXmlAbs,
 			parentLeaf.metadataRootAbs,
 			{ action: 'properties' },
-			parentLeaf.support
+			parentLeaf.support,
+			parentLeaf.supportRulesOpen
 		);
 	}
 }
@@ -2112,7 +2125,8 @@ function createMetadataLeaf(
 	workspaceRoot: string,
 	extensionUri: vscode.Uri,
 	configurationXmlAbs: string | undefined,
-	metadataRootAbs: string | undefined
+	metadataRootAbs: string | undefined,
+	supportRulesOpen?: boolean
 ): MetadataLeafTreeItem {
 	const rel = item.relativePath?.length ? item.relativePath : undefined;
 	return new MetadataLeafTreeItem(
@@ -2128,7 +2142,8 @@ function createMetadataLeaf(
 		configurationXmlAbs,
 		metadataRootAbs,
 		resolveMetadataOpen(item.open, workspaceRoot),
-		item.support
+		item.support,
+		supportRulesOpen
 	);
 }
 

@@ -13,7 +13,7 @@
 import * as vscode from 'vscode';
 
 /** Вид вкладки: у одного файла бывают и свойства, и форма. */
-export type OpenPanelKind = 'objectProperties' | 'sourceProperties' | 'form';
+export type OpenPanelKind = 'objectProperties' | 'sourceProperties' | 'form' | 'dcsEditor';
 
 /** Открытые вкладки по ключу «вид + путь». */
 const panels = new Map<string, vscode.WebviewPanel>();

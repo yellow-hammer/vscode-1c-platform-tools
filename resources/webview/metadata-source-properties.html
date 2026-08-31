@@ -63,16 +63,16 @@
 							<div class="edit-control"><select id="defaultRunMode" class="edit-input"></select></div>
 						</div>
 						<div class="edit-row">
-							<label class="edit-label" for="usePurposes">Назначение использования</label>
-							<div class="edit-control"><input id="usePurposes" class="edit-input" type="text" placeholder="через запятую"></div>
+							<label class="edit-label">Назначение использования</label>
+							<div class="edit-control"><div id="usePurposes" class="check-list"></div></div>
 						</div>
 						<div class="edit-row">
 							<label class="edit-label" for="scriptVariant">Вариант встроенного языка</label>
 							<div class="edit-control"><select id="scriptVariant" class="edit-input"></select></div>
 						</div>
 						<div class="edit-row">
-							<label class="edit-label" for="defaultRoles">Основные роли</label>
-							<div class="edit-control"><textarea id="defaultRoles" class="edit-input" rows="2" placeholder="через запятую"></textarea></div>
+							<label class="edit-label">Основные роли</label>
+							<div class="edit-control"><div id="defaultRoles" class="check-list check-list-scroll"></div></div>
 						</div>
 					</div>
 				</div>
@@ -161,6 +161,7 @@
 	<script nonce="{{NONCE}}">
 		window.__INITIAL_DATA__ = {{INITIAL_JSON}};
 		window.__SOURCE_KIND__ = "{{SOURCE_KIND}}";
+		window.__DICTIONARIES__ = {{DICTIONARIES_JSON}};
 	</script>
 	<script nonce="{{NONCE}}" src="{{JS_URI}}"></script>
 </body>

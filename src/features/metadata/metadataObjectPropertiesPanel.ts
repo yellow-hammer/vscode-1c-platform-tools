@@ -225,8 +225,15 @@ interface MetadataPanelRefContentModel {
 
 /** Командный интерфейс подсистемы: видимость и размещение команд. */
 interface MetadataPanelCommandInterfaceModel {
-	visibility: Array<{ command: string; common: boolean }>;
-	placement: Array<{ command: string; group: string }>;
+	/** stored: запись уже есть в файле настроек; без неё пишутся только правки. */
+	visibility: Array<{ command: string; common: boolean; stored: boolean }>;
+	placement: Array<{ command: string; group: string; place: string }>;
+	/** Порядок команд внутри групп из файла настроек. */
+	order: Array<{ command: string; group: string }>;
+	/** Порядок подчинённых подсистем. */
+	subsystemsOrder: string[];
+	/** Порядок групп командного интерфейса. */
+	groupsOrder: string[];
 }
 
 /** Права роли: кросс-таблица объектов и прав. Файл хранит только выданные права. */
@@ -256,6 +263,8 @@ interface MetadataPanelViewModel {
 	refContent?: MetadataPanelRefContentModel;
 	commandInterface?: MetadataPanelCommandInterfaceModel;
 	roleRights?: MetadataPanelRoleRightsModel;
+	/** Вкладка, открываемая первой. */
+	initialTabId?: string;
 }
 
 interface OpenMetadataObjectPropertiesParams {
@@ -264,6 +273,8 @@ interface OpenMetadataObjectPropertiesParams {
 	cfgPath?: string;
 	schemaFlag?: string;
 	objectType?: string;
+	/** Вкладка, открываемая первой: по умолчанию первая в списке. */
+	initialTabId?: string;
 	/** Общая очередь мутаций md-sparrow; без неё сохранение выполняется вне очереди. */
 	enqueueMutation?: <T>(fn: () => Promise<T>) => Promise<T>;
 }
@@ -1724,6 +1735,7 @@ function buildViewModel(
 		refContent,
 		commandInterface,
 		roleRights,
+		initialTabId: params.initialTabId,
 	};
 }
 
@@ -2091,7 +2103,11 @@ async function loadCommandInterfaceModel(
 	}
 	const res = await runMdSparrowJson<{
 		visibility?: Array<{ command: string; value: string }>;
-		placement?: Array<{ command: string; value: string }>;
+		placement?: Array<{ command: string; value: string; place?: string }>;
+		order?: Array<{ command: string; value: string }>;
+		subsystemsOrder?: string[];
+		groupsOrder?: string[];
+		contentCommands?: string[];
 	}>(
 		runtime,
 		{ op: 'cf-md-subsystem-command-interface-get', objectXml: params.objectXmlFsPath, schemaVersion: schema },
@@ -2106,11 +2122,24 @@ async function loadCommandInterfaceModel(
 		common: entry.value === 'true',
 		stored: true,
 	}));
-	const placement = (res.value.placement ?? []).map((entry) => ({ command: entry.command, group: entry.value }));
-	if (visibility.length === 0 && placement.length === 0) {
-		return undefined;
+	// Стандартные команды состава видны и без файла настроек: их даёт md-sparrow
+	const known = new Set(visibility.map((entry) => entry.command));
+	for (const command of res.value.contentCommands ?? []) {
+		if (!known.has(command)) {
+			visibility.push({ command, common: false, stored: false });
+		}
 	}
-	return { visibility, placement };
+	return {
+		visibility,
+		placement: (res.value.placement ?? []).map((entry) => ({
+			command: entry.command,
+			group: entry.value,
+			place: entry.place ?? '',
+		})),
+		order: (res.value.order ?? []).map((entry) => ({ command: entry.command, group: entry.value })),
+		subsystemsOrder: res.value.subsystemsOrder ?? [],
+		groupsOrder: res.value.groupsOrder ?? [],
+	};
 }
 
 /** Права роли: файл хранит только выданные, пустой файл даёт вкладку с флагами. */
@@ -2221,6 +2250,34 @@ function parseCommandVisibilityEdits(raw: unknown): Array<{ command: string; val
 	return out.length > 0 ? out : null;
 }
 
+/** Полное размещение команд после правок: команда, группа, способ; null без правок. */
+function parseCommandPlacement(raw: unknown): Array<{ command: string; value: string; place: string }> | null {
+	if (!Array.isArray(raw) || raw.length === 0) {
+		return null;
+	}
+	const out: Array<{ command: string; value: string; place: string }> = [];
+	for (const item of raw) {
+		if (isRecord(item) && typeof item.command === 'string' && typeof item.group === 'string') {
+			out.push({ command: item.command, value: item.group, place: typeof item.place === 'string' ? item.place : 'Auto' });
+		}
+	}
+	return out.length > 0 ? out : null;
+}
+
+/** Полный порядок команд после перестановок; null без правок. */
+function parseCommandOrder(raw: unknown): Array<{ command: string; value: string }> | null {
+	if (!Array.isArray(raw) || raw.length === 0) {
+		return null;
+	}
+	const out: Array<{ command: string; value: string }> = [];
+	for (const item of raw) {
+		if (isRecord(item) && typeof item.command === 'string' && typeof item.group === 'string') {
+			out.push({ command: item.command, value: item.group });
+		}
+	}
+	return out.length > 0 ? out : null;
+}
+
 /** Разбирает правки прав роли из сообщения webview: объект, право, выдано или снято. */
 function parseRoleRightsEdits(raw: unknown): Array<{ object: string; right: string; value: boolean }> {
 	if (!Array.isArray(raw)) {
@@ -2235,6 +2292,20 @@ function parseRoleRightsEdits(raw: unknown): Array<{ object: string; right: stri
 			typeof item.value === 'boolean'
 		) {
 			out.push({ object: item.object, right: item.right, value: item.value });
+		}
+	}
+	return out;
+}
+
+/** Разбирает флаги прав роли из сообщения webview: только известные шапке файла имена. */
+function parseRoleRightsFlags(raw: unknown): Record<string, boolean> {
+	const allowed = new Set(['setForNewObjects', 'setForAttributesByDefault', 'independentRightsOfChildObjects']);
+	const out: Record<string, boolean> = {};
+	if (isRecord(raw)) {
+		for (const [key, value] of Object.entries(raw)) {
+			if (allowed.has(key) && typeof value === 'boolean') {
+				out[key] = value;
+			}
 		}
 	}
 	return out;
@@ -2582,8 +2653,14 @@ interface MetadataPanelSaveMessage {
 	content?: unknown;
 	/** Изменённая видимость команд подсистемы. */
 	commandVisibility?: unknown;
+	/** Полное размещение команд после правок. */
+	commandPlacement?: unknown;
+	/** Полный порядок команд после перестановок. */
+	commandOrder?: unknown;
 	/** Изменённые права роли. */
 	roleRights?: unknown;
+	/** Изменённые флаги прав по умолчанию роли. */
+	roleRightsFlags?: unknown;
 }
 
 const IDENTIFIER_RE = /^[A-Za-zА-ЯЁа-яё_][A-Za-zА-ЯЁа-яё0-9_]*$/;
@@ -3113,12 +3190,13 @@ function registerEditableSaveHandler(
 
 	async function handleSave(msg: MetadataPanelSaveMessage): Promise<void> {
 		const roleRightsEdits = parseRoleRightsEdits(msg.roleRights);
-		if (roleRightsEdits.length > 0) {
+		const roleRightsFlags = parseRoleRightsFlags(msg.roleRightsFlags);
+		if (roleRightsEdits.length > 0 || Object.keys(roleRightsFlags).length > 0) {
 			const error = await runOneMutation({
 				op: 'cf-role-rights-set',
 				objectXml: params.objectXmlFsPath,
 				schemaVersion: schema,
-				payloadJson: JSON.stringify(roleRightsEdits),
+				payloadJson: JSON.stringify({ edits: roleRightsEdits, flags: roleRightsFlags }),
 			});
 			if (error) {
 				void panel.webview.postMessage({ type: 'saved', ok: false, error: `Права: ${error}` });
@@ -3135,6 +3213,32 @@ function registerEditableSaveHandler(
 			});
 			if (error) {
 				void panel.webview.postMessage({ type: 'saved', ok: false, error: `Командный интерфейс: ${error}` });
+				return;
+			}
+		}
+		const placementEdits = parseCommandPlacement(msg.commandPlacement);
+		if (placementEdits) {
+			const error = await runOneMutation({
+				op: 'cf-md-subsystem-command-placement-set',
+				objectXml: params.objectXmlFsPath,
+				schemaVersion: schema,
+				payloadJson: JSON.stringify(placementEdits),
+			});
+			if (error) {
+				void panel.webview.postMessage({ type: 'saved', ok: false, error: `Размещение: ${error}` });
+				return;
+			}
+		}
+		const orderEdits = parseCommandOrder(msg.commandOrder);
+		if (orderEdits) {
+			const error = await runOneMutation({
+				op: 'cf-md-subsystem-command-order-set',
+				objectXml: params.objectXmlFsPath,
+				schemaVersion: schema,
+				payloadJson: JSON.stringify(orderEdits),
+			});
+			if (error) {
+				void panel.webview.postMessage({ type: 'saved', ok: false, error: `Порядок команд: ${error}` });
 				return;
 			}
 		}
