@@ -46,7 +46,7 @@ export class ConfigurationCommands extends BaseCommand {
 		mode: 'init' | 'load' = 'load',
 		opts?: CommandExecutionOptions
 	): Promise<StructuredCommandResult | void> {
-		const srcPath = this.vrunner.getCfPath();
+		const srcPath = await this.activeCfPath();
 		const ibConnectionParam = await this.vrunner.getIbConnectionParam();
 		const commandName = getLoadConfigurationFromSrcCommandName(mode);
 		if (mode === 'init') {
@@ -81,7 +81,7 @@ export class ConfigurationCommands extends BaseCommand {
 	}
 
 	async dumpToSrc(opts?: CommandExecutionOptions): Promise<StructuredCommandResult | void> {
-		const srcPath = this.vrunner.getCfPath();
+		const srcPath = await this.activeCfPath();
 		const ibConnectionParam = await this.vrunner.getIbConnectionParam();
 		const dumpToSrcCmd = getDumpConfigurationToSrcCommandName();
 		return this.runIntent(
@@ -108,7 +108,7 @@ export class ConfigurationCommands extends BaseCommand {
 			return;
 		}
 
-		const srcPath = this.vrunner.getCfPath();
+		const srcPath = await this.activeCfPath();
 		const srcFullPath = path.join(cwd, srcPath);
 		const configDumpInfoPath = path.join(srcFullPath, 'ConfigDumpInfo.xml');
 		const versionFileExists = await checkVersionFileExists(configDumpInfoPath);
@@ -228,7 +228,7 @@ export class ConfigurationCommands extends BaseCommand {
 			return;
 		}
 
-		const srcPath = this.vrunner.getCfPath();
+		const srcPath = await this.activeCfPath();
 		const buildPath = this.vrunner.getOutPath();
 		const buildFullPath = path.join(cwd, buildPath);
 		if (!(await this.ensureDirectoryForExecution(
@@ -301,7 +301,7 @@ export class ConfigurationCommands extends BaseCommand {
 	async decompile(opts?: CommandExecutionOptions): Promise<StructuredCommandResult | void> {
 		const buildPath = this.vrunner.getOutPath();
 		const inputPath = path.join(buildPath, '1Cv8.cf');
-		const srcPath = this.vrunner.getCfPath();
+		const srcPath = await this.activeCfPath();
 		const decompileCmd = getDecompileConfigurationCommandName();
 		return this.runIntent(
 			{ kind: 'cf.decompileFile', file: inputPath, out: srcPath },
@@ -324,7 +324,7 @@ export class ConfigurationCommands extends BaseCommand {
 			return;
 		}
 
-		const srcPath = this.vrunner.getCfPath();
+		const srcPath = await this.activeCfPath();
 		const lastUploadedCommitPath = path.join(workspaceRoot, srcPath, 'lastUploadedCommit.txt');
 
 		let currentSha = '';
@@ -402,7 +402,7 @@ export class ConfigurationCommands extends BaseCommand {
 			return;
 		}
 
-		const srcPath = this.vrunner.getCfPath();
+		const srcPath = await this.activeCfPath();
 		const configFullPath = path.resolve(workspaceRoot, srcPath);
 		const content = await fs.readFile(objlistPath, 'utf-8');
 		const lines = this.parseObjlistLines(content);

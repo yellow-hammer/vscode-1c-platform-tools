@@ -1647,6 +1647,11 @@
         "category": "1С: Конфигурация"
       },
       {
+        "command": "1c-platform-tools.cfe.convert",
+        "title": "Конвертировать исходники расширения",
+        "category": "1С: Расширения"
+      },
+      {
         "command": "1c-platform-tools.syntaxCheck.refresh",
         "title": "Обновить ошибки в Problems",
         "category": "1С: Тестирование"

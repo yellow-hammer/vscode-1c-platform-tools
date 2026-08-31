@@ -3,9 +3,11 @@ import * as vscode from 'vscode';
 import * as fs from 'node:fs/promises';
 import { VRunnerManager, type VRunnerExecutionResult } from '../shared/vrunnerManager';
 import type { VRunnerIntent } from '../shared/vrunnerCli';
+import type { SourceFormat } from '../shared/projectLayout';
 import { logger } from '../shared/logger';
 import { runWithHooks, runHooksAroundTerminalTask } from '../shared/commandHooks';
 import { anyNeedsExclusiveInfobase, infobaseHolder, keepsInfobaseAfterRun } from '../shared/exclusiveInfobase';
+import { configurationScope } from '../shared/activeConfiguration';
 import { notifyQuiet } from '../shared/notify';
 import type { CommandExecutionOptions, StructuredCommandResult } from '../shared/commandExecutionTypes';
 
@@ -393,6 +395,55 @@ export abstract class BaseCommand {
 				}
 			},
 		};
+	}
+
+	/**
+	 * Каталог исходников конфигурации, с которой работают команды.
+	 *
+	 * В формате конфигуратора это настроенный каталог, в формате EDT - каталог
+	 * проекта: раннер сам разбирается, что внутри. Настройка остаётся запасным
+	 * вариантом, пока автоопределение не нашло исходников.
+	 *
+	 * @returns Путь относительно рабочей области
+	 */
+	protected async activeCfPath(): Promise<string> {
+		const workspaceRoot = this.vrunner.getWorkspaceRoot();
+		if (!workspaceRoot) {
+			return this.vrunner.getCfPath();
+		}
+
+		const scope = await configurationScope(workspaceRoot, {
+			configuration: this.vrunner.getCfPath(),
+			extensions: [this.vrunner.getCfePath(), this.vrunner.getTestsCfePath()],
+		});
+		if (!scope.configuration) {
+			return this.vrunner.getCfPath();
+		}
+
+		const relative = path.relative(workspaceRoot, scope.configuration.dir).split(path.sep).join('/');
+		return relative.length > 0 ? relative : this.vrunner.getCfPath();
+	}
+
+	/**
+	 * Расширения конфигурации, с которой работают команды.
+	 *
+	 * @returns Имя из метаданных, каталог относительно рабочей области и формат
+	 */
+	protected async activeExtensions(): Promise<{ name: string; dir: string; format: SourceFormat }[]> {
+		const workspaceRoot = this.vrunner.getWorkspaceRoot();
+		if (!workspaceRoot) {
+			return [];
+		}
+
+		const scope = await configurationScope(workspaceRoot, {
+			configuration: this.vrunner.getCfPath(),
+			extensions: [this.vrunner.getCfePath(), this.vrunner.getTestsCfePath()],
+		});
+		return scope.extensions.map((extension) => ({
+			name: extension.name,
+			dir: path.relative(workspaceRoot, extension.dir).split(path.sep).join('/'),
+			format: extension.format,
+		}));
 	}
 
 	/**

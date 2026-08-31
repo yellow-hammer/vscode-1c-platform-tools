@@ -54,6 +54,7 @@ import {
 	getSyntaxCheckCommandName,
 	getValidateEdtCommandName,
 	getConvertSourcesCommandName,
+	getConvertExtensionSourcesCommandName,
 	getVanessaTestsCommandName,
 	getAllureReportCommandName,
 	getYAxUnitTestsCommandName,
@@ -147,6 +148,7 @@ export const TREE_GROUPS: TreeGroup[] = [
 			{ command: '1c-platform-tools.cfe.unload', title: getDumpExtensionToCfeCommandName().title, treeLabel: '📤 Выгрузить в *.cfe' },
 			{ command: '1c-platform-tools.cfe.compile', title: getBuildExtensionCommandName().title, treeLabel: '🔨 Собрать *.cfe из src/cfe' },
 			{ command: '1c-platform-tools.cfe.decompile', title: getDecompileExtensionCommandName().title, treeLabel: '🔓 Разобрать *.cfe в src/cfe' },
+			{ command: '1c-platform-tools.cfe.convert', title: getConvertExtensionSourcesCommandName().title, treeLabel: '🔀 Конвертировать исходники (EDT ↔ конфигуратор)' },
 		],
 	},
 	{

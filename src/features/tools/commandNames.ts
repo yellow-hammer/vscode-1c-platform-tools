@@ -389,6 +389,17 @@ export function getConvertSourcesCommandName(): CommandNameAndTitle {
 }
 
 /**
+ * Получить название и заголовок для команды конвертации исходников расширения
+ */
+export function getConvertExtensionSourcesCommandName(): CommandNameAndTitle {
+	return {
+		id: '1c-platform-tools.cfe.convert',
+		name: 'Конвертировать исходники расширения',
+		title: 'Конвертировать исходники расширения'
+	};
+}
+
+/**
  * Получить название и заголовок для команды Vanessa тестов
  */
 export function getVanessaTestsCommandName(mode: 'normal' | 'currentFile' = 'normal'): CommandNameAndTitle {

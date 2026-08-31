@@ -267,6 +267,9 @@ export function registerCommands(
 		registerVRunnerCommand('1c-platform-tools.cf.convert', (opts) =>
 			commands.configuration.convertSources(opts)
 		),
+		registerVRunnerCommand('1c-platform-tools.cfe.convert', (opts) =>
+			commands.extensions.convertExtensionSources(opts)
+		),
 	];
 
 	// Команды расширений
