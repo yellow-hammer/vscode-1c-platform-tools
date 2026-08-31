@@ -944,6 +944,11 @@
         "category": "1С: Метаданные"
       },
       {
+        "command": "1c-platform-tools.metadata.setChildNodeType",
+        "title": "Изменить тип",
+        "category": "1С: Метаданные"
+      },
+      {
         "command": "1c-platform-tools.metadata.deleteChildNode",
         "title": "Удалить",
         "icon": "$(trash)",
@@ -3224,6 +3229,11 @@
           "command": "1c-platform-tools.metadata.renameChildNode",
           "when": "view == 1c-platform-tools-metadata-tree && viewItem =~ /(^| )mdChildEdit( |$)/",
           "group": "5_edit@1"
+        },
+        {
+          "command": "1c-platform-tools.metadata.setChildNodeType",
+          "when": "view == 1c-platform-tools-metadata-tree && viewItem =~ /(^| )mdChildEdit( |$)/",
+          "group": "5_edit@2"
         },
         {
           "command": "1c-platform-tools.metadata.duplicateChildNode",

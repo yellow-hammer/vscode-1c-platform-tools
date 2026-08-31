@@ -22,7 +22,13 @@ import { createMdSparrowMutationRunner } from './mdSparrowMutationQueue';
 import type { MetadataFilterViewProvider } from './metadataFilterView';
 import { MetadataSearchViewProvider } from './metadataSearchView';
 import { computeSubsystemFilter, findSubsystemByName, loadSubsystemTrees } from './metadataSubsystemFilter';
-import { openMetadataObjectPropertiesEditor } from './metadataObjectPropertiesPanel';
+import {
+	mdObjectKindLabel,
+	openMetadataObjectPropertiesEditor,
+	runMdSparrowJson,
+} from './metadataObjectPropertiesPanel';
+import { PRIMITIVE_TYPES, refTypeName } from './metadataObjectEditSpec';
+import { childNodeDtoList } from '../properties/childNodePropertiesSpec';
 import {
 	commonFormXmlPath,
 	formModulePath,
@@ -988,6 +994,168 @@ export function registerMetadataFeature(
 	 * @param successMessage Сообщение после успешного завершения.
 	 * @returns Промис, который разрешается после выполнения операции.
 	 */
+	/**
+	 * Меняет тип узла состава: список типов отмечается галочками, поэтому одним
+	 * окном задаётся и простой, и составной тип.
+	 *
+	 * Кандидаты приходят от md-sparrow: примитивы платформы и ссылочные типы
+	 * конфигурации. Квалификаторы примитивов остаются как в файле - панель их
+	 * не трогает, для них есть свойства объекта.
+	 *
+	 * @param node - Узел состава: реквизит, измерение, ресурс
+	 */
+	async function editChildNodeType(node: MutatableChildNode): Promise<void> {
+		const objectXml = node.owner.resourceUri?.fsPath;
+		if (!objectXml) {
+			return;
+		}
+		const schema = node.owner.configurationXmlAbs
+			? await mdSparrowSchemaFlagFromConfigurationXml(node.owner.configurationXmlAbs)
+			: await mainSchemaFlag();
+		if (!schema) {
+			void vscode.window.showWarningMessage('Не удалось определить схему для правки типа.');
+			return;
+		}
+		const runtime = await ensureMdSparrowRuntime(context);
+		const cwd = node.owner.metadataRootAbs ?? path.dirname(objectXml);
+		const dto = await runMdSparrowJson<Record<string, unknown>>(
+			runtime,
+			{ op: 'cf-md-object-get', objectXml, schemaVersion: schema },
+			cwd
+		);
+		if (!dto.ok) {
+			void vscode.window.showErrorMessage(`Не удалось прочитать свойства объекта. ${dto.error}`.slice(0, MD_SPARROW_CLI_ERR_PREVIEW));
+			return;
+		}
+		const target = findNodeInDto(dto.value, node);
+		if (!target) {
+			void vscode.window.showWarningMessage(`Узел «${node.name}» не найден в свойствах объекта.`);
+			return;
+		}
+		const current = typeListOf(target.type);
+		const options = await typePickItems(runtime, node, schema, cwd, current);
+		if (options.length === 0) {
+			void vscode.window.showWarningMessage('Список типов пуст: библиотека не отдала ссылочные типы конфигурации.');
+			return;
+		}
+		const picked = await vscode.window.showQuickPick(options, {
+			title: `Тип: ${node.name}`,
+			placeHolder: 'Отметьте типы; несколько отмеченных дают составной тип',
+			canPickMany: true,
+			matchOnDescription: true,
+		});
+		if (!picked) {
+			return;
+		}
+		if (picked.length === 0) {
+			void vscode.window.showWarningMessage('Тип обязателен: платформа не примет узел без типа.');
+			return;
+		}
+		const next = picked.filter((option) => option.value !== '').map((option) => option.value);
+		if (next.length === 0) {
+			void vscode.window.showWarningMessage('Тип обязателен: платформа не примет узел без типа.');
+			return;
+		}
+		if (next.length === current.length && next.every((type, index) => type === current[index])) {
+			return;
+		}
+		target.type = { ...(target.type as Record<string, unknown> | undefined), types: next };
+		const res = await runMdSparrowParamsMutation(
+			runtime,
+			{ op: 'cf-md-object-set', objectXml, schemaVersion: schema, payloadJson: JSON.stringify(dto.value) },
+			{ cwd }
+		);
+		if (res.exitCode !== 0) {
+			void vscode.window.showErrorMessage(
+				`Не удалось записать тип. ${(res.stderr || res.stdout).trim()}`.slice(0, MD_SPARROW_CLI_ERR_PREVIEW)
+			);
+			return;
+		}
+		notifyQuiet(`Тип «${node.name}» записан`);
+		void metadataTreeProvider.refresh();
+	}
+
+	/** Узел состава в свойствах объекта: реквизит табличной части лежит внутри своей части. */
+	function findNodeInDto(
+		dto: Record<string, unknown>,
+		node: MutatableChildNode
+	): Record<string, unknown> | undefined {
+		const listName = childNodeDtoList(node.nodeKind);
+		if (node.nodeKind === 'tabularAttribute' && node.tabularSectionName) {
+			const sections = dto.tabularSections;
+			const section = Array.isArray(sections)
+				? (sections.find((item) => (item as { name?: string }).name === node.tabularSectionName) as
+						| Record<string, unknown>
+						| undefined)
+				: undefined;
+			const list = section?.attributes;
+			return Array.isArray(list)
+				? (list.find((item) => (item as { name?: string }).name === node.name) as Record<string, unknown> | undefined)
+				: undefined;
+		}
+		const list = listName ? dto[listName] : undefined;
+		return Array.isArray(list)
+			? (list.find((item) => (item as { name?: string }).name === node.name) as Record<string, unknown> | undefined)
+			: undefined;
+	}
+
+	/** Типы узла списком: пусто, когда типа у вида узла нет. */
+	function typeListOf(type: unknown): string[] {
+		const types = (type as { types?: unknown })?.types;
+		return Array.isArray(types) ? types.filter((item): item is string => typeof item === 'string') : [];
+	}
+
+	/** Кандидаты в тип: примитивы платформы и ссылочные типы конфигурации. */
+	async function typePickItems(
+		runtime: Awaited<ReturnType<typeof ensureMdSparrowRuntime>>,
+		node: MutatableChildNode,
+		schema: string,
+		cwd: string,
+		current: readonly string[]
+	): Promise<(vscode.QuickPickItem & { value: string })[]> {
+		const items: (vscode.QuickPickItem & { value: string })[] = PRIMITIVE_TYPES.map((option) => ({
+			label: option.label,
+			description: option.value,
+			value: option.value,
+			picked: current.includes(option.value),
+		}));
+		const configurationXml = node.owner.configurationXmlAbs;
+		if (!configurationXml) {
+			return items;
+		}
+		const refTypes = await runMdSparrowJson<Record<string, string[]>>(
+			runtime,
+			{ op: 'cf-list-ref-types', configurationXml, schemaVersion: schema },
+			cwd
+		);
+		if (!refTypes.ok) {
+			void vscode.window.showWarningMessage(`Не удалось прочитать ссылочные типы: ${refTypes.error}`.slice(0, MD_SPARROW_CLI_ERR_PREVIEW));
+			return items;
+		}
+		for (const [objectType, types] of Object.entries(refTypes.value)) {
+			const kind = mdObjectKindLabel(objectType) ?? objectType;
+			for (const type of types) {
+				items.push({
+					label: refTypeName(type),
+					description: kind,
+					value: type,
+					picked: current.includes(type),
+				});
+			}
+		}
+		// Выбранное наверх: в конфигурации сотни типов, и без этого не видно, что стоит сейчас
+		const chosen = items.filter((item) => item.picked);
+		const rest = items.filter((item) => !item.picked);
+		return chosen.length === 0
+			? items
+			: [
+					{ label: 'Выбрано', kind: vscode.QuickPickItemKind.Separator, value: '' },
+					...chosen,
+					{ label: 'Остальные типы', kind: vscode.QuickPickItemKind.Separator, value: '' },
+					...rest,
+				];
+	}
+
 	async function runChildNodeMutation(
 		node: MutatableChildNode,
 		params: MdSparrowParams,
@@ -1620,6 +1788,18 @@ export function registerMetadataFeature(
 					}
 					const params = buildChildNodeMutationParams(node, 'delete', node.name);
 					await runChildNodeMutation(node, params, 'Удаление выполнено.');
+				});
+			}
+		),
+		vscode.commands.registerCommand(
+			'1c-platform-tools.metadata.setChildNodeType',
+			async (item?: MetadataObjectNodeTreeItem) => {
+				await runMdSparrowMutation(async () => {
+					const node = resolveChildNodeForMutation(item, 'У этого узла типа нет.');
+					if (!node) {
+						return;
+					}
+					await editChildNodeType(node);
 				});
 			}
 		),
