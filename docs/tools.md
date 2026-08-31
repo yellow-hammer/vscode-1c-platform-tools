@@ -136,7 +136,6 @@
 
 Звук берётся из системы: на Windows - звуковая схема («Звуковое уведомление» и «Критическая ошибка»), на macOS - `afplay` со стандартными звуками, на Linux - `paplay` со звуковой темой freedesktop. Если проигрывателя или звуковой темы в системе нет, сигнал молча пропускается, строка состояния и журнал остаются.
 
-
 Сигнал приходит для команд, запущенных задачами VS Code. При `execution.useTasks: false` расширение о завершении не знает: команда живёт в интерактивном терминале.
 
 ### Свои задачи в `tasks.json`
@@ -245,6 +244,6 @@
 - `1c-platform-tools.vrunner.*` — путь и параметры vanessa-runner; по умолчанию используется `oscript_modules/bin/vrunner.bat` проекта, если он есть.
 - `1c-platform-tools.execution.useTasks` — запускать команды как задачи VS Code (Rerun Last Task, запуск из списка задач); по умолчанию `true`. `false` — обычный интерактивный терминал.
 - `1c-platform-tools.notifications.onCommandFinish`, `1c-platform-tools.notifications.sound` — сигнал по завершении команды, см. [Сигнал о завершении](#сигнал-о-завершении).
-- `1c-platform-tools.useIbcmd` — выполнять команды через `ibcmd` без GUI (нужен компонент сервера 1С).
+- `1c-platform-tools.docker.*` — выполнение команд в контейнере с платформой, см. [Docker и ibcmd](docker.md).
 - `1c-platform-tools.components.*` — пути к внешним компонентам и их автозагрузка, включая выбор `oscript.exe`; см. [Внешние компоненты](components.md).
 - Выполнение в Docker — [docker.md](docker.md).

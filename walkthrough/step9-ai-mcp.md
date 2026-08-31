@@ -10,4 +10,4 @@
 
 **MCP.** Для вызова команд через Model Context Protocol установите расширение [mcp-1c-platform-tools](https://github.com/yellow-hammer/mcp-1c-platform-tools). В VS Code больше ничего не нужно. В Cursor выполните команду [Настроить MCP для Cursor](command:1c-platform-tools.mcp.configureCursor) из группы «Навыки для AI»: она пропишет сервер в `.cursor/mcp.json` проекта и включит канал связи. После настройки перезагрузите окно.
 
-Порт и токен канала задаются в настройках: [открыть настройки](command:1c-platform-tools.tools.openSettings). Что писать агенту и какие параметры принимают инструменты — в [документации AI и MCP](https://github.com/yellow-hammer/vscode-1c-platform-tools/blob/main/docs/ai-mcp.md).
+Порт и токен канала задаются в настройках: [открыть настройки](command:1c-platform-tools.tools.openSettings). Что писать агенту и какие параметры принимают инструменты — в [документации AI и MCP](https://yellow-hammer.github.io/vscode-1c-platform-tools/ai-mcp.html).
