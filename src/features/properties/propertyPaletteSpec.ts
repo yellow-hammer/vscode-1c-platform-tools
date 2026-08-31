@@ -86,6 +86,7 @@ function row(field: MetadataEditField, dto: unknown): PropertyRow | undefined {
 		readonly: false,
 		hint: field.path,
 		options: field.options?.map((option) => ({ value: option.value, label: option.label })),
+		...(field.rebuilds ? { rebuilds: true } : {}),
 	};
 }
 

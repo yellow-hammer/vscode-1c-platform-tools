@@ -75,6 +75,8 @@ export interface MetadataEditField {
 	readonly items?: readonly string[];
 	/** Элементы списка открываются и удаляются: формы объекта. */
 	readonly itemsKind?: 'objectForms';
+	/** От значения зависит состав полей: палитра пересобирает показ сразу после выбора. */
+	readonly rebuilds?: boolean;
 }
 
 export interface MetadataEditGroup {
@@ -4012,28 +4014,33 @@ function normalizeFieldValue(
 }
 
 /**
- * Описание типа из webview: правим только примитивные типы с квалификаторами.
- * Ссылочный и составной тип отдаём как есть с диска — их правит пикер типов.
+ * Описание типа из webview: список типов и квалификаторы примитивов.
+ *
+ * Типов может быть несколько - тогда это составной тип, и платформа хранит их одним
+ * списком. Квалификаторы идут к своему примитиву: строковые к строке, числовые к числу,
+ * датные к дате. Ссылочные типы записываются как есть, их состав проверяет md-sparrow.
  */
 function normalizeTypeValue(value: unknown, rawValue: unknown): { ok: boolean; value?: unknown } {
 	if (!isRecord(value) || !Array.isArray(value.types)) {
 		return { ok: false };
 	}
 	const types = value.types.filter((item): item is string => typeof item === 'string');
-	if (types.length !== 1) {
-		// Составной тип из панели не собираем: оставляем то, что на диске.
-		return { ok: false };
-	}
-	const type = types[0];
-	if (!PRIMITIVE_TYPES.some((option) => option.value === type)) {
+	if (types.length === 0) {
+		// Тип обязателен: платформа не примет реквизит без него
 		return { ok: false };
 	}
 	const rawTypes = isRecord(rawValue) && Array.isArray(rawValue.types) ? rawValue.types : [];
+	if (types.length > 1 || rawTypes.length > 1) {
+		return normalizeCompositeTypeValue(types, value, rawValue);
+	}
+	const type = types[0];
+	if (!PRIMITIVE_TYPES.some((option) => option.value === type)) {
+		return normalizeCompositeTypeValue(types, value, rawValue);
+	}
 	const rawIsSinglePrimitive =
 		rawTypes.length === 1 && PRIMITIVE_TYPES.some((option) => option.value === rawTypes[0]);
 	if (!rawIsSinglePrimitive) {
-		// На диске ссылочный или составной тип: панель их только показывает.
-		return { ok: false };
+		return normalizeCompositeTypeValue(types, value, rawValue);
 	}
 	const typeKept = rawTypes[0] === type;
 	const next: Record<string, unknown> = { types: [type] };
@@ -4058,6 +4065,51 @@ function normalizeTypeValue(value: unknown, rawValue: unknown): { ok: boolean; v
 	} else if (typeKept && isRecord(rawValue)) {
 		// Тип не меняли, а квалификаторы webview не прислал — оставляем прочитанные.
 		copyQualifiers(rawValue, next);
+	}
+	return { ok: true, value: next };
+}
+
+/** Какой квалификатор относится к какому примитиву. */
+const QUALIFIER_BY_PRIMITIVE: Readonly<Record<string, 'stringQualifiers' | 'numberQualifiers' | 'dateQualifiers'>> = {
+	'xs:string': 'stringQualifiers',
+	'xs:decimal': 'numberQualifiers',
+	'xs:dateTime': 'dateQualifiers',
+};
+
+/**
+ * Составной тип и одиночный ссылочный: список типов плюс квалификаторы тех примитивов,
+ * что в нём есть.
+ *
+ * Квалификатор без своего примитива в списке не пишется: платформа держит их рядом с типом,
+ * и оставшийся от прежней правки набор выглядел бы как чужая длина строки.
+ */
+function normalizeCompositeTypeValue(
+	types: readonly string[],
+	value: Record<string, unknown>,
+	rawValue: unknown
+): { ok: boolean; value?: unknown } {
+	const next: Record<string, unknown> = { types: [...types] };
+	const raw = isRecord(rawValue) ? rawValue : {};
+	const shapes = {
+		stringQualifiers: { length: 'number', allowedLength: ['VARIABLE', 'FIXED'] },
+		numberQualifiers: { digits: 'number', fractionDigits: 'number', allowedSign: ['ANY', 'NONNEGATIVE'] },
+		dateQualifiers: { dateFractions: ['DATE', 'TIME', 'DATE_TIME'] },
+	} as const;
+	for (const type of types) {
+		const key = QUALIFIER_BY_PRIMITIVE[type];
+		if (!key) {
+			continue;
+		}
+		const fromPanel = normalizeQualifiers(value[key], shapes[key]);
+		if (fromPanel) {
+			next[key] = fromPanel;
+		} else if (raw[key] !== undefined && raw[key] !== null) {
+			next[key] = raw[key];
+		}
+	}
+	// Набор типов (v8:TypeSet) панель не собирает: он приходит из определяемого типа
+	if (Array.isArray(raw.typeSets) && raw.typeSets.length > 0) {
+		next.typeSets = raw.typeSets;
 	}
 	return { ok: true, value: next };
 }
@@ -4376,6 +4428,79 @@ export interface EnumValueLabels {
 /** Подпись значения; без подписи остаётся само значение. */
 export function labelOf(labels: EnumValueLabels, property: string, value: string): string {
 	return labels.byProperty?.[property]?.[value] ?? labels.values?.[value] ?? value;
+}
+
+/** Ссылочные типы конфигурации: вид объекта -> тексты типов, как их отдаёт md-sparrow. */
+export type MetadataRefTypeDictionary = Readonly<Record<string, readonly string[]>>;
+
+/**
+ * Подставляет в поля типа список того, чем реквизит может быть: примитивы платформы
+ * и ссылочные типы конфигурации.
+ *
+ * Список ссылочных типов приходит от md-sparrow: своей карты «вид объекта - суффикс
+ * ссылки» расширение не держит, иначе новый вид пришлось бы дописывать руками.
+ *
+ * @param tabs - Спецификация вкладок
+ * @param refTypes - Ссылочные типы конфигурации по видам объектов
+ * @param kindLabels - Подписи видов объектов: их тоже отдаёт md-sparrow
+ * @returns Спецификация, где у полей типа заполнены кандидаты
+ */
+/** Имя объекта из текста ссылочного типа: `cfg:CatalogRef.Валюты` -> `Валюты`. */
+export function refTypeName(type: string): string {
+	const dot = type.indexOf('.');
+	return dot < 0 ? type.replace(/^cfg:/, '') : type.slice(dot + 1);
+}
+
+/**
+ * Подпись типа для показа: примитивы по-русски, ссылочные видом и именем.
+ *
+ * Подписи видов приходят от md-sparrow: своих словарей расширение не держит,
+ * иначе в панели протекали бы служебные `cfg:CatalogRef.…`.
+ *
+ * @param type - Текст типа, как он лежит в описании типа
+ * @param kindLabels - Подписи видов объектов
+ * @returns Читаемая подпись
+ */
+export function typeDisplayText(type: string, kindLabels: Readonly<Record<string, string>> = {}): string {
+	const primitive = PRIMITIVE_TYPES.find((option) => option.value === type);
+	if (primitive) {
+		return primitive.label;
+	}
+	const match = /^cfg:(\w+)\.(.+)$/.exec(type);
+	if (!match) {
+		return type.replace(/^cfg:/, '');
+	}
+	const label = kindLabels[match[1]];
+	return label ? `${label}: ${match[2]}` : match[2];
+}
+
+export function applyTypeOptions(
+	tabs: readonly MetadataEditTabSpec[],
+	refTypes: MetadataRefTypeDictionary,
+	kindLabels: Readonly<Record<string, string>> = {}
+): MetadataEditTabSpec[] {
+	const refOptions: MetadataEditOption[] = [];
+	for (const [objectType, types] of Object.entries(refTypes)) {
+		const hint = kindLabels[objectType] ?? objectType;
+		for (const type of types) {
+			// Вид объекта уже подписан группой, поэтому в строке остаётся имя
+			refOptions.push({ value: type, label: refTypeName(type), hint });
+		}
+	}
+	if (refOptions.length === 0) {
+		return [...tabs];
+	}
+	const options: MetadataEditOption[] = [
+		...PRIMITIVE_TYPES.map((option) => ({ value: option.value, label: option.label })),
+		...refOptions,
+	];
+	return tabs.map((tab) => ({
+		...tab,
+		groups: tab.groups.map((group) => ({
+			...group,
+			fields: group.fields.map((field) => (field.control === 'type' ? { ...field, options } : field)),
+		})),
+	}));
 }
 
 export function applyEnumDictionary(

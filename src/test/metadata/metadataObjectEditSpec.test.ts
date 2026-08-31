@@ -690,16 +690,79 @@ suite('metadataObjectEditSpec: тип значения константы', () =
 		assert.deepStrictEqual(type, raw, 'нечисловая длина откатывает поле к прочитанному');
 	});
 
-	test('ссылочный и составной тип из панели не переписываются', () => {
+	test('ссылочный тип меняется на примитивный и обратно', () => {
 		const ref = { types: ['cfg:CatalogRef.Валюты'] };
-		assert.deepStrictEqual(editType(ref, { types: ['xs:string'] }), ref, 'ссылочный тип остаётся как на диске');
-
-		const composite = { types: ['xs:string', 'xs:decimal'] };
 		assert.deepStrictEqual(
-			editType(composite, { types: ['xs:string'] }),
-			composite,
-			'составной тип правит пикер типов, а не панель'
+			editType(ref, { types: ['xs:string'], stringQualifiers: { length: '10', allowedLength: 'VARIABLE' } }),
+			{ types: ['xs:string'], stringQualifiers: { length: '10', allowedLength: 'VARIABLE' } }
 		);
+		assert.deepStrictEqual(editType({ types: ['xs:boolean'] }, ref), ref, 'ссылочный тип записывается как есть');
+	});
+
+	test('составной тип собирается из списка типов', () => {
+		const type = editType(
+			{ types: ['xs:string'], stringQualifiers: { length: '10', allowedLength: 'VARIABLE' } },
+			{
+				types: ['xs:string', 'cfg:CatalogRef.Валюты'],
+				stringQualifiers: { length: '25', allowedLength: 'VARIABLE' },
+			}
+		);
+		assert.deepStrictEqual(type, {
+			types: ['xs:string', 'cfg:CatalogRef.Валюты'],
+			stringQualifiers: { length: '25', allowedLength: 'VARIABLE' },
+		});
+	});
+
+	test('квалификаторы держатся своих примитивов', () => {
+		const type = editType(
+			{ types: ['xs:string'], stringQualifiers: { length: '10', allowedLength: 'VARIABLE' } },
+			{
+				types: ['cfg:CatalogRef.Валюты', 'xs:decimal'],
+				stringQualifiers: { length: '10', allowedLength: 'VARIABLE' },
+				numberQualifiers: { digits: '15', fractionDigits: '2', allowedSign: 'ANY' },
+			}
+		);
+		assert.deepStrictEqual(type, {
+			types: ['cfg:CatalogRef.Валюты', 'xs:decimal'],
+			numberQualifiers: { digits: '15', fractionDigits: '2', allowedSign: 'ANY' },
+		}, 'строковые квалификаторы ушли вместе со строкой');
+	});
+
+	test('без типов правка не принимается', () => {
+		const raw = { types: ['xs:string'], stringQualifiers: { length: '10', allowedLength: 'VARIABLE' } };
+		assert.deepStrictEqual(editType(raw, { types: [] }), raw, 'реквизит без типа платформа не примет');
+	});
+});
+
+suite('metadataObjectEditSpec: кандидаты типов', () => {
+	const { applyTypeOptions, buildConstantEditTabs } = require('../../features/metadata/metadataObjectEditSpec');
+
+	const tabs = () => buildConstantEditTabs({ internalName: 'ВалютаУчета', formNames: [], commandNames: [] });
+
+	function typeField(list: Array<{ groups: Array<{ fields: Array<Record<string, unknown>> }> }>) {
+		return list
+			.flatMap((tab) => tab.groups)
+			.flatMap((group) => group.fields)
+			.find((field) => (field as { path: string }).path === 'constant.type') as
+			| { options?: Array<{ value: string; label: string; hint?: string }> }
+			| undefined;
+	}
+
+	test('ссылочные типы конфигурации становятся кандидатами рядом с примитивами', () => {
+		const withOptions = applyTypeOptions(
+			tabs(),
+			{ Catalog: ['cfg:CatalogRef.Валюты'], Document: ['cfg:DocumentRef.Заказ'] },
+			{ Catalog: 'Справочник', Document: 'Документ' }
+		);
+		const options = typeField(withOptions)?.options ?? [];
+		assert.ok(options.some((option) => option.value === 'xs:string' && option.label === 'Строка'));
+		const currency = options.find((option) => option.value === 'cfg:CatalogRef.Валюты');
+		assert.strictEqual(currency?.label, 'Валюты', 'вид объекта уже подписан группой');
+		assert.strictEqual(currency?.hint, 'Справочник', 'вид объекта подписан словарём библиотеки');
+	});
+
+	test('без ссылочных типов спека остаётся прежней', () => {
+		assert.strictEqual(typeField(applyTypeOptions(tabs(), {}))?.options, undefined);
 	});
 });
 

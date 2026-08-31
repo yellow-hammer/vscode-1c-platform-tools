@@ -24,6 +24,8 @@ export interface PropertyRow {
 	readonly options?: readonly { readonly value: string; readonly label: string }[];
 	/** Свойство только для чтения: источник его не записывает. */
 	readonly readonly?: boolean;
+	/** От значения зависит состав строк: выбор перестраивает панель, не записывая файл. */
+	readonly rebuilds?: boolean;
 	/** Пояснение к свойству: показывается внизу панели у выделенной строки. */
 	readonly hint?: string;
 }
@@ -38,6 +40,16 @@ export type PropertyEdits = Readonly<Record<string, string>>;
  * @throws Текст ошибки показывается в панели.
  */
 export type PropertyApplyHandler = (edits: PropertyEdits) => Promise<PropertyPaletteState | undefined>;
+
+/**
+ * Пересобирает свойства с наложенной правкой, не записывая файл.
+ *
+ * Нужен свойствам, от которых зависит состав строк: выбрали тип - под ним появились
+ * его квалификаторы, как в конфигураторе.
+ *
+ * @returns Свойства с учётом правки или undefined, если пересобрать нечем
+ */
+export type PropertyPreviewHandler = (edits: PropertyEdits) => Promise<PropertyPaletteState | undefined>;
 
 /** Группа свойств: заголовок и строки в порядке источника. */
 export interface PropertyGroup {
@@ -62,6 +74,7 @@ export class PropertyPaletteViewProvider implements vscode.WebviewViewProvider {
 	/** Кто последним показал свойства: чужой источник не гасит чужое выделение. */
 	private _ownerId: string | undefined;
 	private _onApply: PropertyApplyHandler | undefined;
+	private _onPreview: PropertyPreviewHandler | undefined;
 	private readonly _onDidChangeVisibility = new vscode.EventEmitter<void>();
 
 	/** Панель открыта: пока она закрыта, источникам незачем читать свойства. */
@@ -92,6 +105,8 @@ export class PropertyPaletteViewProvider implements vscode.WebviewViewProvider {
 				this.push();
 			} else if (msg?.type === 'apply') {
 				void this.apply(msg.edits ?? {});
+			} else if (msg?.type === 'preview') {
+				void this.preview(msg.edits ?? {});
 			}
 		});
 		view.onDidDispose(() => {
@@ -108,10 +123,16 @@ export class PropertyPaletteViewProvider implements vscode.WebviewViewProvider {
 	 * @param state Что показать.
 	 * @param onApply Запись изменений; без него свойства только для чтения.
 	 */
-	show(ownerId: string, state: PropertyPaletteState, onApply?: PropertyApplyHandler): void {
+	show(
+		ownerId: string,
+		state: PropertyPaletteState,
+		onApply?: PropertyApplyHandler,
+		onPreview?: PropertyPreviewHandler
+	): void {
 		this._ownerId = ownerId;
 		this._state = state;
 		this._onApply = onApply;
+		this._onPreview = onPreview;
 		this.push();
 		this.syncHeader();
 	}
@@ -124,8 +145,28 @@ export class PropertyPaletteViewProvider implements vscode.WebviewViewProvider {
 		this._ownerId = undefined;
 		this._state = undefined;
 		this._onApply = undefined;
+		this._onPreview = undefined;
 		this.push();
 		this.syncHeader();
+	}
+
+	/**
+	 * Пересобирает свойства с черновиком правок: файл не меняется, меняется только показ.
+	 */
+	private async preview(edits: PropertyEdits): Promise<void> {
+		const handler = this._onPreview;
+		if (!handler) {
+			return;
+		}
+		try {
+			const state = await handler(edits);
+			if (state) {
+				this._state = state;
+				void this._view?.webview.postMessage({ type: 'rebuilt', state, edits });
+			}
+		} catch {
+			// Пересборка показа не критична: панель останется с прежним составом строк
+		}
 	}
 
 	/** Записывает изменения и показывает свойства заново: в файле лежит уже другое. */
@@ -429,6 +470,10 @@ export class PropertyPaletteViewProvider implements vscode.WebviewViewProvider {
 			}
 			line.classList.toggle('is-changed', draft.has(row.key));
 			syncSaveBar();
+			if (row.rebuilds) {
+				// Состав строк зависит от значения: просим пересобрать показ, файл не трогаем
+				vscode.postMessage({ type: 'preview', edits: Object.fromEntries(draft) });
+			}
 		}
 
 		function editor(row, line) {
@@ -565,6 +610,11 @@ export class PropertyPaletteViewProvider implements vscode.WebviewViewProvider {
 			if (message.type === 'state') {
 				reset(message.state, message.editable === true);
 				saveStatus.textContent = '';
+			} else if (message.type === 'rebuilt') {
+				// Черновик держим: пересобрался только состав строк
+				current = message.state;
+				render();
+				syncSaveBar();
 			} else if (message.type === 'applied') {
 				if (message.ok) {
 					reset(message.state || current, editable);

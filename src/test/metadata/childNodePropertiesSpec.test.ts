@@ -28,12 +28,12 @@ suite('Свойства узлов состава объекта', () => {
 		assert.strictEqual(childNodeKindLabel('tabularAttribute'), 'Реквизит табличной части');
 	});
 
-	test('узел находится по имени, тип показывается строкой', () => {
+	test('узел находится по имени, один тип идёт значением для списка', () => {
 		const node = findChildNode(objectDto, 'attributes', 'Наценка');
 
 		assert.strictEqual(node?.synonymRu, 'Наценка');
 		assert.strictEqual(node?.comment, 'процент');
-		assert.strictEqual(node?.typeText, 'xs:decimal');
+		assert.strictEqual(node?.typeSingle, 'xs:decimal', 'тип правится списком, значение идёт как в XML');
 	});
 
 	test('нет такого узла - нет и свойств', () => {
@@ -41,16 +41,18 @@ suite('Свойства узлов состава объекта', () => {
 		assert.strictEqual(findChildNode(objectDto, 'dimensions', 'Наценка'), undefined);
 	});
 
-	test('правятся синоним и комментарий, имя и тип только показываются', () => {
+	test('правятся синоним, комментарий и тип, имя только показывается', () => {
 		const node = findChildNode(objectDto, 'attributes', 'Наценка');
+		const options = [{ value: 'xs:decimal', label: 'Число' }, { value: 'xs:string', label: 'Строка' }];
 		const rows = new Map(
-			paletteGroupsFromSpec(childNodeTabs(true), node).flatMap((g) => g.rows).map((r) => [r.key, r])
+			paletteGroupsFromSpec(childNodeTabs(true, node, options), node).flatMap((g) => g.rows).map((r) => [r.key, r])
 		);
 
 		assert.strictEqual(rows.get('synonymRu')?.readonly, false);
 		assert.strictEqual(rows.get('comment')?.readonly, false);
 		assert.strictEqual(rows.get('name')?.readonly, true, 'переименование - отдельная операция');
-		assert.strictEqual(rows.get('typeText')?.readonly, true);
+		assert.strictEqual(rows.get('typeSingle')?.readonly, false, 'тип выбирается списком');
+		assert.strictEqual(rows.get('typeSingle')?.kind, 'select');
 	});
 
 	test('у нередактируемого вида все строки только для чтения', () => {
