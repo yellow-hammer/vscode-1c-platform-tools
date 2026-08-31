@@ -236,6 +236,23 @@ interface MetadataPanelCommandInterfaceModel {
 	groupsOrder: string[];
 }
 
+/**
+ * Происхождение объекта: заимствование из расширяемой конфигурации и поддержка
+ * поставщика. Показывается в шапке и решает, правится ли объект.
+ */
+interface MetadataPanelOriginModel {
+	/** Объект заимствован расширением. */
+	adopted: boolean;
+	/** Поддержка поставщика: locked, editable либо пусто. */
+	support?: 'locked' | 'editable';
+	/** Поставщик из правил поставки. */
+	vendor?: string;
+	/** Версия поставки. */
+	version?: string;
+	/** Почему панель открыта только на просмотр. */
+	readonlyReason?: string;
+}
+
 /** Права роли: кросс-таблица объектов и прав. Файл хранит только выданные права. */
 interface MetadataPanelRoleRightsModel {
 	setForNewObjects: boolean;
@@ -256,7 +273,6 @@ interface MetadataPanelViewModel {
 	objectXmlPath: string;
 	warnings: string[];
 	tabs: MetadataPanelTab[];
-	technicalJson: string;
 	editable?: MetadataPanelEditableModel;
 	structureLists?: MetadataPanelStructureLists;
 	subsystems?: MetadataPanelSubsystemsModel;
@@ -265,6 +281,8 @@ interface MetadataPanelViewModel {
 	roleRights?: MetadataPanelRoleRightsModel;
 	/** Вкладка, открываемая первой. */
 	initialTabId?: string;
+	/** Происхождение объекта: заимствование и поддержка поставщика. */
+	origin?: MetadataPanelOriginModel;
 }
 
 interface OpenMetadataObjectPropertiesParams {
@@ -1261,7 +1279,8 @@ function buildEditableModel(
 	structure: MdObjectStructureDto | null,
 	internalName: string,
 	candidates: MetadataEditCandidates = EMPTY_CANDIDATES,
-	enums: MetadataEnumDictionary = {}
+	enums: MetadataEnumDictionary = {},
+	origin?: MetadataPanelOriginModel
 ): MetadataPanelEditableModel | undefined {
 	const model = buildEditableModelBySpec(props, structure, internalName, candidates);
 	if (!model) {
@@ -1279,8 +1298,9 @@ function buildEditableModel(
 	const withEnums = applyEnumDictionary(normalizeTabLayout(withTemplates), enums, valueLabels);
 	const withCurrent = ensureCurrentSelectValues(withEnums, props as unknown as Record<string, unknown>, valueLabels);
 	const tabs = withTabsForStructure(withCurrent, buildStructureLists(props, structure));
-	if (propsIsAdopted(props)) {
-		// Свои правила состава XML у заимствованных: показываем ту же форму без правки
+	// Заимствованный объект и объект на поддержке без изменения показываются
+	// той же формой, но только на просмотр: запись всё равно отклонит md-sparrow
+	if (propsIsAdopted(props) || origin?.support === 'locked') {
 		return { ...model, readonly: true, tabs: tabsAsReadonly(tabs) };
 	}
 	return { ...model, tabs };
@@ -1706,17 +1726,14 @@ function buildViewModel(
 	subsystems?: MetadataPanelSubsystemsModel,
 	refContent?: MetadataPanelRefContentModel,
 	commandInterface?: MetadataPanelCommandInterfaceModel,
-	roleRights?: MetadataPanelRoleRightsModel
+	roleRights?: MetadataPanelRoleRightsModel,
+	origin?: MetadataPanelOriginModel
 ): MetadataPanelViewModel {
 	const declaredObjectType = normalizeObjectType(params.objectType ?? '');
 	const internalName = props?.internalName || structure?.internalName || path.parse(params.objectXmlFsPath).name;
 	const objectKind = props?.kind || structure?.kind || declaredObjectType || 'object';
 	const objectType = declaredObjectType || normalizeObjectType(objectTypeFromKind(objectKind));
-	const technicalPayload = {
-		properties: props ? { ...props, scalarMeta: undefined } : props,
-		structure,
-	};
-	const editable = buildEditableModel(props, structure, internalName, candidates, enums);
+	const editable = buildEditableModel(props, structure, internalName, candidates, enums, origin);
 	const structureLists = editable ? buildStructureLists(props, structure) : undefined;
 	return {
 		objectKind,
@@ -1728,7 +1745,6 @@ function buildViewModel(
 		objectXmlPath: params.objectXmlFsPath,
 		warnings,
 		tabs: buildTabs(props, structure, objectType, editable, subsystems, refContent, commandInterface, roleRights),
-		technicalJson: JSON.stringify(technicalPayload, null, 2),
 		editable,
 		structureLists,
 		subsystems,
@@ -1736,6 +1752,7 @@ function buildViewModel(
 		commandInterface,
 		roleRights,
 		initialTabId: params.initialTabId,
+		origin,
 	};
 }
 
@@ -2142,6 +2159,45 @@ async function loadCommandInterfaceModel(
 	};
 }
 
+/**
+ * Происхождение объекта: заимствование читается из свойств, поддержка - из
+ * правил поставки выгрузки. Без правил и заимствования модель пустая.
+ */
+async function loadOriginModel(
+	runtime: Awaited<ReturnType<typeof ensureMdSparrowRuntime>>,
+	params: OpenMetadataObjectPropertiesParams,
+	props: MdObjectPropertiesDto | null
+): Promise<MetadataPanelOriginModel | undefined> {
+	const adopted = propsIsAdopted(props);
+	const objectState = await runMdSparrowJson<{
+		editable?: boolean;
+		reason?: string;
+		state?: string;
+		vendor?: string;
+		version?: string;
+	}>(runtime, { op: 'cf-support-object-get', objectXml: params.objectXmlFsPath }, params.cwd);
+	let support: 'locked' | 'editable' | undefined;
+	let readonlyReason: string | undefined;
+	let vendor: string | undefined;
+	let version: string | undefined;
+	if (objectState.ok) {
+		const state = objectState.value.state;
+		support = state === 'locked' || state === 'editable' ? state : undefined;
+		vendor = objectState.value.vendor;
+		version = objectState.value.version;
+		if (objectState.value.editable === false) {
+			readonlyReason = objectState.value.reason;
+		}
+	}
+	if (!adopted && !support) {
+		return undefined;
+	}
+	if (adopted && !readonlyReason) {
+		readonlyReason = 'Заимствованный объект расширения правится в расширяемой конфигурации.';
+	}
+	return { adopted, support, vendor, version, readonlyReason };
+}
+
 /** Права роли: файл хранит только выданные, пустой файл даёт вкладку с флагами. */
 async function loadRoleRightsModel(
 	runtime: Awaited<ReturnType<typeof ensureMdSparrowRuntime>>,
@@ -2430,6 +2486,7 @@ async function openMetadataObjectPropertiesEditorInner(
 	const refContent = await loadRefContentModel(runtime, params, schema, propsDto);
 	const commandInterface = await loadCommandInterfaceModel(runtime, params, schema, propsDto);
 	const roleRights = await loadRoleRightsModel(runtime, params, schema, propsDto);
+	const origin = await loadOriginModel(runtime, params, propsDto);
 	const viewModel = buildViewModel(
 		params,
 		propsDto,
@@ -2440,7 +2497,8 @@ async function openMetadataObjectPropertiesEditorInner(
 		subsystems,
 		refContent,
 		commandInterface,
-		roleRights
+		roleRights,
+		origin
 	);
 	const title = panelTitleForKind(viewModel.objectKind, viewModel.internalName);
 	const webviewRoot = vscode.Uri.joinPath(context.extensionUri, 'resources', 'webview');
@@ -3103,6 +3161,7 @@ function registerEditableSaveHandler(
 		const refContent = await loadRefContentModel(runtime, params, schema, propsResult.value);
 		const commandInterface = await loadCommandInterfaceModel(runtime, params, schema, propsResult.value);
 		const roleRights = await loadRoleRightsModel(runtime, params, schema, propsResult.value);
+		const origin = await loadOriginModel(runtime, params, propsResult.value);
 		const vm = buildViewModel(
 			params,
 			propsResult.value,
@@ -3113,7 +3172,8 @@ function registerEditableSaveHandler(
 			subsystems,
 			refContent,
 			commandInterface,
-			roleRights
+			roleRights,
+			origin
 		);
 		if (vm.editable) {
 			editable.props = vm.editable.props;
@@ -3129,6 +3189,7 @@ function registerEditableSaveHandler(
 			refContent: vm.refContent,
 			commandInterface: vm.commandInterface,
 			roleRights: vm.roleRights,
+			origin: vm.origin,
 			tabsChanged: true,
 		});
 	}

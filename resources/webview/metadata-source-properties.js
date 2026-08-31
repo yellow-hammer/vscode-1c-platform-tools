@@ -3,7 +3,52 @@
 	const initial = window.__INITIAL_DATA__ || {};
 	const sourceKind = window.__SOURCE_KIND__ || '';
 	const dictionaries = window.__DICTIONARIES__ || { enums: {}, labels: { values: {}, byProperty: {} } };
+	const support = window.__SUPPORT__ || null;
 	const statusEl = document.getElementById('status');
+
+	/** Поддержка поставщика: бейдж в шапке и запрет правки при полной поддержке. */
+	function applySupportState() {
+		const host = document.getElementById('originBadges');
+		if (host && support && support.configurationState) {
+			const badge = document.createElement('span');
+			badge.className = 'origin-badge '
+				+ (support.configurationState === 'locked' ? 'origin-badge-locked' : 'origin-badge-support');
+			badge.textContent = support.configurationState === 'locked'
+				? 'На полной поддержке'
+				: 'На поддержке: изменение включено';
+			const hint = [];
+			if (support.vendor) {
+				hint.push('Поставщик: ' + support.vendor);
+			}
+			if (support.version) {
+				hint.push('Версия поставки: ' + support.version);
+			}
+			badge.title = hint.join(' • ');
+			host.appendChild(badge);
+		}
+		if (!support || support.configurationState !== 'locked') {
+			return;
+		}
+		const notice = document.getElementById('readonlyNotice');
+		if (notice) {
+			notice.classList.remove('hidden');
+			const item = document.createElement('div');
+			item.className = 'warning-item warning-item-readonly';
+			item.textContent = 'Конфигурация на полной поддержке: свойства открыты только на просмотр.'
+				+ ' Включите возможность изменения или снимите конфигурацию с поддержки.';
+			notice.appendChild(item);
+		}
+		for (const el of document.querySelectorAll('.edit-input')) {
+			el.disabled = true;
+		}
+		for (const el of document.querySelectorAll('#defaultRoles button, #usePurposes input')) {
+			el.disabled = true;
+		}
+		const save = document.getElementById('saveBtn');
+		if (save) {
+			save.disabled = true;
+		}
+	}
 
 	/** Подпись значения: словарь md-sparrow, версии собираются из имени. */
 	function valueLabel(property, name) {
@@ -33,13 +78,19 @@
 		if (selected && !values.includes(selected)) {
 			values.unshift(selected);
 		}
+		// Свойства нет в файле - пустой вариант: иначе сохранение дописало бы
+		// в выгрузку значение, которого там не было
+		const empty = document.createElement('option');
+		empty.value = '';
+		empty.textContent = 'Не задано';
+		el.appendChild(empty);
 		for (const v of values) {
 			const opt = document.createElement('option');
 			opt.value = v;
 			opt.textContent = valueLabel(id, v);
 			el.appendChild(opt);
 		}
-		el.value = selected && values.includes(selected) ? selected : (values[0] || '');
+		el.value = selected && values.includes(selected) ? selected : '';
 	}
 
 	function setValue(id, value) {
@@ -228,6 +279,7 @@
 	});
 
 	fillFromDto(initial);
+	applySupportState();
 
 	if (sourceKind === 'externalErf' || sourceKind === 'externalEpf') {
 		const modulesSection = document.getElementById('modulesSection');

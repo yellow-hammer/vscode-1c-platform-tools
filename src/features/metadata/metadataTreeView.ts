@@ -24,6 +24,7 @@ import {
 	childKindIsMutatable,
 	childKindOfSection,
 	childKindSupportsDuplicate,
+	childSupportElementKey,
 } from './metadataChildMutations';
 import {
 	METADATA_OBJECT_NON_EXPANDABLE_TYPES,
@@ -216,7 +217,9 @@ export class MetadataSourceTreeItem extends vscode.TreeItem {
 		public readonly metadataRootAbs: string | undefined,
 		expanded?: boolean,
 		/** Поддержка поставщика выгрузки: locked либо editable. */
-		public readonly support?: string
+		public readonly support?: string,
+		/** Отпечаток правил поддержки: правка сверяется с ним. */
+		public readonly supportGeneration?: string
 	) {
 		super(
 			label,
@@ -360,7 +363,9 @@ export class MetadataLeafTreeItem extends vscode.TreeItem {
 		/** Поддержка поставщика: locked - изменение запрещено, editable - разрешено. */
 		public readonly support?: string,
 		/** Правила поставщика открыты: смена режима объекта доступна. */
-		public readonly supportRulesOpen?: boolean
+		public readonly supportRulesOpen?: boolean,
+		/** Отпечаток правил поддержки: правка сверяется с ним. */
+		public readonly supportGeneration?: string
 	) {
 		const absFromRelativePath =
 			relativePath && relativePath.length > 0
@@ -522,7 +527,8 @@ export class MetadataSubsystemChildTreeItem extends MetadataLeafTreeItem {
 		metadataRootAbs: string | undefined,
 		open?: MetadataObjectOpen,
 		support?: string,
-		supportRulesOpen?: boolean
+		supportRulesOpen?: boolean,
+		supportGeneration?: string
 	) {
 		super(
 			sourceId,
@@ -538,7 +544,8 @@ export class MetadataSubsystemChildTreeItem extends MetadataLeafTreeItem {
 			metadataRootAbs,
 			open,
 			support,
-			supportRulesOpen
+			supportRulesOpen,
+			supportGeneration
 		);
 	}
 }
@@ -671,12 +678,38 @@ export class MetadataObjectSectionTreeItem extends vscode.TreeItem {
 /** Замочек владельца распространяется на его разделы и узлы состава. */
 function ownerAwareIcon(
 	icon: vscode.ThemeIcon | { light: vscode.Uri; dark: vscode.Uri },
-	owner: MetadataLeafTreeItem
+	owner: MetadataLeafTreeItem,
+	ownSupport?: string,
+	ownFile = true
 ): vscode.ThemeIcon | { light: vscode.Uri; dark: vscode.Uri } {
-	if (owner.support !== 'locked' || icon instanceof vscode.ThemeIcon) {
+	const support = childNodeSupport(owner.support, ownSupport, ownFile);
+	if (support !== 'locked' || icon instanceof vscode.ThemeIcon) {
 		return icon;
 	}
 	return lockedIcon(icon);
+}
+
+/**
+ * Действующее правило узла состава.
+ *
+ * Своё правило важнее правила объекта, пока у узла свой файл: форму разрешают
+ * отдельно. Элемент живёт в файле объекта, поэтому запрет объекта закрывает и
+ * его - правка всё равно пишет в закрытый файл.
+ *
+ * @param ownFile У узла свой файл выгрузки: форма, макет.
+ */
+export function childNodeSupport(
+	ownerSupport: string | undefined,
+	ownSupport: string | undefined,
+	ownFile: boolean
+): string | undefined {
+	if (ownSupport === undefined) {
+		return ownerSupport;
+	}
+	if (ownFile) {
+		return ownSupport;
+	}
+	return ownerSupport === 'locked' ? 'locked' : ownSupport;
 }
 
 /**
@@ -711,19 +744,26 @@ export class MetadataObjectNodeTreeItem extends vscode.TreeItem {
 		hasChildren: boolean,
 		extensionUri: vscode.Uri,
 		public readonly owner: MetadataLeafTreeItem,
-		public readonly tabularSectionName?: string
+		public readonly tabularSectionName?: string,
+		/** Своё правило поддержки: у формы и макета оно отдельное от объекта. */
+		public readonly support?: string
 	) {
 		super(label, hasChildren ? vscode.TreeItemCollapsibleState.Collapsed : vscode.TreeItemCollapsibleState.None);
 		this.contextValue = childNodeContextValue(nodeKind);
+		const ownFile = nodeKind === 'form' || nodeKind === 'template';
+		const effectiveSupport = childNodeSupport(owner.support, support, ownFile);
+		if (owner.supportRulesOpen && (effectiveSupport === 'locked' || effectiveSupport === 'editable')) {
+			this.contextValue = `${this.contextValue} mdSupportRule`;
+		}
 		if (nodeKind === 'attribute' || nodeKind === 'tabularAttribute') {
-			this.iconPath = ownerAwareIcon(metadataSvgIcon(extensionUri, 'attribute.svg'), owner);
+			this.iconPath = ownerAwareIcon(metadataSvgIcon(extensionUri, 'attribute.svg'), owner, support, ownFile);
 			return;
 		}
 		if (nodeKind === 'tabularSection') {
-			this.iconPath = ownerAwareIcon(metadataSvgIcon(extensionUri, 'tabularSection.svg'), owner);
+			this.iconPath = ownerAwareIcon(metadataSvgIcon(extensionUri, 'tabularSection.svg'), owner, support, ownFile);
 			return;
 		}
-		this.iconPath = ownerAwareIcon(metadataNodeKindIcon(nodeKind, extensionUri), owner);
+		this.iconPath = ownerAwareIcon(metadataNodeKindIcon(nodeKind, extensionUri), owner, support, ownFile);
 		if (nodeKind === 'form') {
 			this.command = {
 				command: '1c-platform-tools.metadata.openForm',
@@ -1420,7 +1460,7 @@ export class MetadataTreeDataProvider implements vscode.TreeDataProvider<vscode.
 			const metaAbs = path.join(workspaceRoot, src.metadataRootRelativePath);
 			const expanded = this.expandedSources();
 			const sItem = new MetadataSourceTreeItem(
-				src.id, src.label, src.kind, cfgAbs, metaAbs, expanded?.has(src.id), src.support);
+				src.id, src.label, src.kind, cfgAbs, metaAbs, expanded?.has(src.id), src.support, src.supportGeneration);
 			const sourceIcon = metadataSourceIcon(src.kind, this._context.extensionUri);
 			sItem.iconPath =
 				src.support === 'locked' && !(sourceIcon instanceof vscode.ThemeIcon)
@@ -1509,7 +1549,8 @@ export class MetadataTreeDataProvider implements vscode.TreeDataProvider<vscode.
 								this._context.extensionUri,
 								cfgAbs,
 								metaAbs,
-								src.support === 'editable'
+								src.support === 'editable',
+								src.supportGeneration
 							);
 							leaves.push(leaf);
 							if (normalizeMetadataObjectType(it.objectType) === 'Subsystem') {
@@ -1531,7 +1572,8 @@ export class MetadataTreeDataProvider implements vscode.TreeDataProvider<vscode.
 								this._context.extensionUri,
 								cfgAbs,
 								metaAbs,
-								src.support === 'editable'
+								src.support === 'editable',
+								src.supportGeneration
 							)
 						);
 					}
@@ -1549,7 +1591,8 @@ export class MetadataTreeDataProvider implements vscode.TreeDataProvider<vscode.
 								this._context.extensionUri,
 								cfgAbs,
 								metaAbs,
-								src.support === 'editable'
+								src.support === 'editable',
+								src.supportGeneration
 							)
 						);
 					}
@@ -1899,6 +1942,25 @@ export class MetadataTreeDataProvider implements vscode.TreeDataProvider<vscode.
 				log.warn(`структура: ${e instanceof Error ? e.message : String(e)}`);
 			}
 		}
+		// Состояния подчинённых субъектов одним чтением: своё правило есть у
+		// формы, макета и каждого элемента объекта
+		const childStates = await this.loadChildSupportStates(leaf);
+		const childSupport = (
+			nodeKind: MetadataNodeKind,
+			name: string,
+			tabularSection?: string
+		): string | undefined => {
+			const subdir = nodeKind === 'form' ? 'Forms' : nodeKind === 'template' ? 'Templates' : undefined;
+			if (subdir) {
+				if (!leaf.resourceUri) {
+					return undefined;
+				}
+				const stem = path.basename(leaf.resourceUri.fsPath, '.xml');
+				return childStates.get(`${stem}/${subdir}/${name}.xml`);
+			}
+			const elementKey = childSupportElementKey(nodeKind, name, tabularSection);
+			return elementKey ? childStates.get(elementKey) : undefined;
+		};
 		const sections: MetadataObjectSectionTreeItem[] = [];
 		for (const spec of sectionSpecs) {
 			if (spec.source === 'tabularSections') {
@@ -1922,7 +1984,8 @@ export class MetadataTreeDataProvider implements vscode.TreeDataProvider<vscode.
 						ts.attributes.length > 0,
 						this._context.extensionUri,
 						leaf,
-						ts.name
+						ts.name,
+						childSupport('tabularSection', ts.name)
 					);
 					tsNodes.push(node);
 					this._tabularAttrsByNode.set(
@@ -1937,7 +2000,8 @@ export class MetadataTreeDataProvider implements vscode.TreeDataProvider<vscode.
 									false,
 									this._context.extensionUri,
 									leaf,
-									ts.name
+									ts.name,
+									childSupport('tabularAttribute', it.name, ts.name)
 								)
 						)
 					);
@@ -1967,13 +2031,48 @@ export class MetadataTreeDataProvider implements vscode.TreeDataProvider<vscode.
 							itemName,
 							false,
 							this._context.extensionUri,
-							leaf
+							leaf,
+							undefined,
+							childSupport(spec.nodeKind, itemName)
 						)
 				)
 			);
 		}
 		this._objectSectionsByLeaf.set(leafKey, sections);
 		return sections;
+	}
+
+	/**
+	 * Состояния поддержки объекта и его форм с макетами: путь файла внутри
+	 * выгрузки -> locked либо editable. Вне поддержки карта пустая.
+	 */
+	private async loadChildSupportStates(leaf: MetadataLeafTreeItem): Promise<Map<string, string>> {
+		const out = new Map<string, string>();
+		if (!leaf.resourceUri || (leaf.support !== 'locked' && leaf.support !== 'editable')) {
+			return out;
+		}
+		try {
+			const runtime = await ensureMdSparrowRuntime(this._context);
+			const res = await runMdSparrowParamsRead(
+				runtime,
+				{ op: 'cf-support-object-states', objectXml: leaf.resourceUri.fsPath },
+				{ cwd: leaf.metadataRootAbs ?? path.dirname(leaf.resourceUri.fsPath) }
+			);
+			if (res.exitCode !== 0) {
+				return out;
+			}
+			const states = JSON.parse(res.stdout.trim()) as Record<string, string | null>;
+			for (const [key, state] of Object.entries(states)) {
+				if (typeof state !== 'string' || state.length === 0) {
+					continue;
+				}
+				// Ключ элемента приходит готовым, у файла путь режется до каталога объекта
+				out.set(key.startsWith('element:') ? key : key.split('/').slice(1).join('/'), state);
+			}
+		} catch (e) {
+			log.warn(`поддержка состава: ${e instanceof Error ? e.message : String(e)}`);
+		}
+		return out;
 	}
 
 	private async loadObjectStructure(leaf: MetadataLeafTreeItem): Promise<MdObjectStructureDto> {
@@ -2062,7 +2161,8 @@ export class MetadataTreeDataProvider implements vscode.TreeDataProvider<vscode.
 						childTemplate.metadataRootAbs,
 						childTemplate.open,
 						childTemplate.support,
-						childTemplate.supportRulesOpen
+						childTemplate.supportRulesOpen,
+						childTemplate.supportGeneration
 					)
 				);
 			}
@@ -2115,7 +2215,8 @@ export class MetadataTreeDataProvider implements vscode.TreeDataProvider<vscode.
 			parentLeaf.metadataRootAbs,
 			{ action: 'properties' },
 			parentLeaf.support,
-			parentLeaf.supportRulesOpen
+			parentLeaf.supportRulesOpen,
+			parentLeaf.supportGeneration
 		);
 	}
 }
@@ -2129,7 +2230,8 @@ function createMetadataLeaf(
 	extensionUri: vscode.Uri,
 	configurationXmlAbs: string | undefined,
 	metadataRootAbs: string | undefined,
-	supportRulesOpen?: boolean
+	supportRulesOpen?: boolean,
+	supportGeneration?: string
 ): MetadataLeafTreeItem {
 	const rel = item.relativePath?.length ? item.relativePath : undefined;
 	return new MetadataLeafTreeItem(
@@ -2146,7 +2248,8 @@ function createMetadataLeaf(
 		metadataRootAbs,
 		resolveMetadataOpen(item.open, workspaceRoot),
 		item.support,
-		supportRulesOpen
+		supportRulesOpen,
+		supportGeneration
 	);
 }
 

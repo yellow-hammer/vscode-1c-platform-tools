@@ -319,14 +319,6 @@ body {
 	white-space: pre;
 }
 
-.technical {
-	margin-top: 12px;
-}
-
-.technical .code {
-	max-height: 42vh;
-}
-
 @media (max-width: 920px) {
 	.kv-row {
 		grid-template-columns: 1fr;
@@ -1120,4 +1112,42 @@ select.edit-input {
 	padding: 2px 6px;
 	outline: none;
 	max-width: 280px;
+}
+
+/* Происхождение объекта: заимствование и поддержка поставщика */
+.badges {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	flex-wrap: wrap;
+	margin-bottom: 8px;
+}
+.origin-badges {
+	display: inline-flex;
+	gap: 6px;
+	flex-wrap: wrap;
+}
+.badges .kind-badge {
+	margin-bottom: 0;
+}
+.origin-badge {
+	font-size: 11px;
+	text-transform: uppercase;
+	letter-spacing: 0.02em;
+	padding: 2px 9px;
+	border-radius: 999px;
+	border: 1px solid transparent;
+	white-space: nowrap;
+}
+.origin-badge-adopted,
+.origin-badge-locked {
+	color: var(--vscode-editorWarning-foreground, #E1B74D);
+	border-color: var(--vscode-editorWarning-foreground, #E1B74D);
+}
+.origin-badge-support {
+	color: var(--vscode-descriptionForeground);
+	border-color: var(--vscode-panel-border);
+}
+.warning-item-readonly {
+	color: var(--vscode-descriptionForeground);
 }

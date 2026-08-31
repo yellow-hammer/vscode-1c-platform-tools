@@ -237,6 +237,26 @@ suite('контекстное меню дерева метаданных', () =>
 		assert.deepStrictEqual(positions, sorted, `порядок пунктов нарушен: ${catalog.join(' → ')}`);
 	});
 
+	test('поддержка стоит среди правок, а не среди копирования', () => {
+		// Смена режима поддержки меняет объект: её место рядом с переименованием
+		const supported = menuFor('metadataObjectProperties mdSupportRule');
+		const order = ['Переименовать', 'Дублировать', 'Режим поддержки', 'Копировать имя', 'Удалить', 'Свойства'];
+		const positions = order.map((title) => supported.indexOf(title));
+		assert.ok(
+			positions.every((value) => value >= 0),
+			`в меню объекта на поддержке не хватает пунктов: ${supported.join(' → ')}`
+		);
+		assert.deepStrictEqual(positions, [...positions].sort((a, b) => a - b), supported.join(' → '));
+	});
+
+	test('у конфигурации поддержка идёт после сборки и до проверки', () => {
+		const locked = menuFor('metadataSourceConfigLike mdSupportRules mdSupportLocked');
+		const order = ['Собрать', 'Включить возможность изменения', 'Снять с поддержки', 'Проверить выгрузку', 'Свойства'];
+		const positions = order.map((title) => locked.indexOf(title));
+		assert.ok(positions.every((value) => value >= 0), locked.join(' → '));
+		assert.deepStrictEqual(positions, [...positions].sort((a, b) => a - b), locked.join(' → '));
+	});
+
 	test('у группы и узла без файла меню пустое', () => {
 		assert.deepStrictEqual(menuFor(NODES.groupWithoutCreate), []);
 		assert.deepStrictEqual(menuFor(NODES.leafNoFile), []);

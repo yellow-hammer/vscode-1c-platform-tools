@@ -15,6 +15,7 @@ import {
 	MetadataLeafTreeItem,
 	MetadataObjectNodeTreeItem,
 	MetadataSourceTreeItem,
+	childNodeSupport,
 } from '../metadata/metadataTreeView';
 import type { MetadataTreeDataProvider } from '../metadata/metadataTreeView';
 import type { MetadataEditTabSpec } from '../metadata/metadataObjectEditSpec';
@@ -138,6 +139,8 @@ interface PaletteTarget {
 	readonly objectType?: string;
 	/** Узел состава объекта: реквизит, табличная часть, значение перечисления. */
 	readonly child?: { readonly nodeKind: string; readonly name: string; readonly tabularSection?: string };
+	/** Объект поставщика без возможности изменения: палитра только показывает. */
+	readonly locked?: boolean;
 }
 
 function targetFor(item: vscode.TreeItem): PaletteTarget | undefined {
@@ -174,6 +177,7 @@ function targetFor(item: vscode.TreeItem): PaletteTarget | undefined {
 				cwd: owner.metadataRootAbs ?? path.dirname(owner.resourceUri.fsPath),
 				schemaFrom: owner.configurationXmlAbs ?? owner.resourceUri.fsPath,
 				objectType: item.nodeKind === 'form' ? 'Form' : 'Template',
+				locked: childNodeSupport(owner.support, item.support, true) === 'locked',
 			};
 		}
 		return {
@@ -186,6 +190,7 @@ function targetFor(item: vscode.TreeItem): PaletteTarget | undefined {
 			cwd: owner.metadataRootAbs ?? path.dirname(owner.resourceUri.fsPath),
 			schemaFrom: owner.configurationXmlAbs ?? owner.resourceUri.fsPath,
 			child: { nodeKind: item.nodeKind, name: item.name, tabularSection: item.tabularSectionName },
+			locked: childNodeSupport(owner.support, item.support, false) === 'locked',
 		};
 	}
 	if (!(item instanceof MetadataLeafTreeItem) || !item.resourceUri) {
@@ -209,6 +214,7 @@ function targetFor(item: vscode.TreeItem): PaletteTarget | undefined {
 		cwd,
 		schemaFrom: item.configurationXmlAbs ?? filePath,
 		objectType: item.objectType,
+		locked: item.support === 'locked',
 	};
 }
 
@@ -259,7 +265,8 @@ export function registerMetadataPaletteSource(params: MetadataPaletteSourceParam
 			}
 			const shown = state(target, tabs, dto);
 			// Панель сохранения незачем показывать там, где править нечего: форма, команда, макет.
-			const editable = shown.groups.some((group) => group.rows.some((row) => row.readonly !== true));
+			const editable =
+				!target.locked && shown.groups.some((group) => group.rows.some((row) => row.readonly !== true));
 			propertyPaletteProvider.show(
 				PALETTE_OWNER,
 				shown,

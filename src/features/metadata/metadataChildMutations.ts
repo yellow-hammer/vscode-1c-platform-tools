@@ -121,3 +121,25 @@ export function childMutationOp(kind: MutatableChildKind, mode: ChildMutationMod
 export function childKindNeedsTabularSection(kind: MutatableChildKind): boolean {
 	return SPEC_BY_KIND[kind].insideTabularSection === true;
 }
+
+/**
+ * Ключ правила поддержки узла состава: правило поставки заведено на каждый
+ * элемент объекта, а не только на его файл.
+ *
+ * Ключ строит md-sparrow из той же общей части операций, поэтому виды
+ * элементов формата в расширении не дублируются.
+ *
+ * @param tabularSection Имя табличной части для узла внутри неё.
+ */
+export function childSupportElementKey(
+	kind: string,
+	name: string,
+	tabularSection?: string
+): string | undefined {
+	if (!childKindIsMutatable(kind)) {
+		return undefined;
+	}
+	const spec = SPEC_BY_KIND[kind];
+	const path = spec.insideTabularSection && tabularSection ? `${tabularSection}/${name}` : name;
+	return `element:${spec.op}:${path}`;
+}

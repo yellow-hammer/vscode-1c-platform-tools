@@ -10,6 +10,16 @@ export interface SourcePropertiesInput {
 	configurationXmlAbs: string;
 	/** Словари формата: варианты перечислимых свойств и русские подписи значений. */
 	dictionaries?: SourcePropertyDictionaries;
+	/** Поддержка поставщика выгрузки: поставщик, версия и состояние правил. */
+	support?: SourceSupportState;
+}
+
+/** Состояние поддержки выгрузки из правил поставки. */
+export interface SourceSupportState {
+	vendor?: string;
+	version?: string;
+	/** locked - полная поддержка, editable - возможность изменения включена. */
+	configurationState?: string;
 }
 
 /** Перечисления и подписи приходят от md-sparrow: панель своей копии формата не держит. */
@@ -116,7 +126,8 @@ export async function openMetadataSourcePropertiesPanel(
 		input.sourceKind,
 		sourceKindLabel(input.sourceKind),
 		input.label,
-		input.dictionaries
+		input.dictionaries,
+		input.support
 	);
 
 	panel.webview.onDidReceiveMessage(
@@ -168,7 +179,8 @@ async function loadMetadataSourceHtml(
 	sourceKind: string,
 	sourceKindLabelValue: string,
 	sourceLabel: string,
-	dictionaries?: SourcePropertyDictionaries
+	dictionaries?: SourcePropertyDictionaries,
+	support?: SourceSupportState
 ): Promise<string> {
 	const templateUri = vscode.Uri.joinPath(extensionUri, 'resources', 'webview', 'metadata-source-properties.html');
 	const bytes = await vscode.workspace.fs.readFile(templateUri);
@@ -187,6 +199,7 @@ async function loadMetadataSourceHtml(
 	const dictionariesJson = JSON.stringify(
 		dictionaries ?? { enums: {}, labels: { values: {}, byProperty: {} } }
 	).replaceAll('<', String.raw`\u003c`);
+	const supportJson = JSON.stringify(support ?? null).replaceAll('<', String.raw`\u003c`);
 	return template
 		.replaceAll('{{CSP_SOURCE}}', webview.cspSource)
 		.replaceAll('{{NONCE}}', nonce)
@@ -197,5 +210,6 @@ async function loadMetadataSourceHtml(
 		.replaceAll('{{SOURCE_KIND_LABEL}}', escapeHtml(sourceKindLabelValue))
 		.replaceAll('{{SOURCE_LABEL}}', escapeHtml(sourceLabel))
 		.replaceAll('{{INITIAL_JSON}}', initialJson)
-		.replaceAll('{{DICTIONARIES_JSON}}', dictionariesJson);
+		.replaceAll('{{DICTIONARIES_JSON}}', dictionariesJson)
+		.replaceAll('{{SUPPORT_JSON}}', supportJson);
 }

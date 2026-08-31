@@ -6,6 +6,15 @@
 
 	const vscode = acquireVsCodeApi();
 	const data = window.__FORM_DATA__ || {};
+
+	// Форма объекта поставщика без изменения: правка запрещена, показываем причину
+	(function showReadonlyNotice() {
+		const notice = document.getElementById('readonlyNotice');
+		if (notice && data.readonlyReason) {
+			notice.textContent = data.readonlyReason;
+			notice.classList.remove('hidden');
+		}
+	})();
 	let content = data.content || {};
 	// Умолчания раскладки: в файле лежит только изменённое, поэтому пустое свойство берём отсюда.
 	const layoutDefaults = data.layoutDefaults || {};
@@ -38,11 +47,8 @@
 	const barAdditions = new Map();
 
 	/**
-	 * Служебные элементы: показываются переключателем в шапке.
-	 *
-	 * Расширенную подсказку и контекстное меню редактор формы отдельными элементами не рисует.
-	 * Строка поиска, состояние просмотра и управление поиском видны, но по свойствам положения
-	 * у таблицы, а не всегда.
+	 * Расширенную подсказку и контекстное меню платформа отдельными элементами
+	 * не рисует: в дереве и на превью их нет.
 	 */
 	const SERVICE_TYPES = new Set(['ExtendedTooltip', 'ContextMenu']);
 
@@ -175,7 +181,6 @@
 	const state = {
 		selected: null,
 		collapsed: new Set(),
-		showService: false,
 		dataTab: 'attributes',
 		/** Открытая закладка каждой группы страниц: ключ группы -> ключ страницы. */
 		activePage: new Map(),
@@ -262,7 +267,7 @@
 	}
 
 	function visibleNodes(nodes) {
-		return state.showService ? nodes : nodes.filter((node) => !SERVICE_TYPES.has(node.item.type));
+		return nodes.filter((node) => !SERVICE_TYPES.has(node.item.type));
 	}
 
 	function findNode(nodes, key) {
@@ -1854,12 +1859,6 @@
 	}
 
 	// Запуск
-
-	document.getElementById('showService').addEventListener('change', (event) => {
-		state.showService = event.target.checked;
-		renderTree();
-		renderPreview();
-	});
 
 	for (const tab of document.querySelectorAll('.pane-tab')) {
 		tab.addEventListener('click', () => {

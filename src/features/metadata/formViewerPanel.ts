@@ -299,6 +299,22 @@ export async function openFormViewer(
 	trackOpenPanel('form', params.formXmlFsPath, panel);
 	endOpenPanel('form', params.formXmlFsPath);
 
+	// Форма принадлежит объекту: правку запрещает поддержка самого объекта
+	const support = await runMdSparrowParamsRead(
+		runtime,
+		{ op: 'cf-support-object-get', objectXml: params.formXmlFsPath },
+		{ cwd: params.cwd }
+	);
+	let readonlyReason: string | undefined;
+	if (support.exitCode === 0) {
+		try {
+			const state = JSON.parse(support.stdout.trim()) as { editable?: boolean; reason?: string };
+			readonlyReason = state.editable === false ? state.reason : undefined;
+		} catch {
+			readonlyReason = undefined;
+		}
+	}
+
 	const paletteOwner = params.formXmlFsPath;
 
 	const showProperties = (item: FormItemDto): void => {
@@ -307,7 +323,9 @@ export async function openFormViewer(
 		params.propertyPalette?.show(
 			paletteOwner,
 			formItemProperties(item, dictionary),
-			itemId === undefined ? undefined : (edits) => applyEdits(itemId, specs, edits)
+			itemId === undefined || readonlyReason !== undefined
+				? undefined
+				: (edits) => applyEdits(itemId, specs, edits)
 		);
 	};
 
@@ -374,6 +392,7 @@ export async function openFormViewer(
 			tableCommandBar: titles.tableCommandBar,
 			tableKinds: titles.tableKinds,
 			autoCommandBarKnown: titles.autoCommandBarKnown,
+			readonlyReason,
 		});
 	} catch (e) {
 		log.error(`шаблон формы: ${e instanceof Error ? e.message : String(e)}`);
@@ -808,6 +827,8 @@ interface FormViewerViewModel {
 	tableKinds: Record<string, string>;
 	/** Снят ли набор панели формы: пустой набор и неснятый вид рисуются по-разному. */
 	autoCommandBarKnown: boolean;
+	/** Причина, по которой форма открыта только на просмотр; пусто - правка доступна. */
+	readonlyReason?: string;
 }
 
 /** Реквизит объекта-владельца: имя, синоним и тип значения. */

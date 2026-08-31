@@ -4,7 +4,7 @@
 	/** @type {HTMLElement | null} */
 	const initialEl = document.getElementById('metadata-object-initial');
 	const raw = initialEl ? initialEl.textContent : '{}';
-	/** @type {{tabs?: Array<{id:string,title:string,count?:number,render:string,data?:unknown}>, warnings?: string[], internalName?: string, objectKind?: string, objectKindLabel?: string, objectType?: string, synonymRu?: string, comment?: string, objectXmlPath?: string, technicalJson?: string}} */
+	/** @type {{tabs?: Array<{id:string,title:string,count?:number,render:string,data?:unknown}>, warnings?: string[], internalName?: string, objectKind?: string, objectKindLabel?: string, objectType?: string, synonymRu?: string, comment?: string, objectXmlPath?: string}} */
 	let model = {};
 	try {
 		model = JSON.parse(raw || '{}');
@@ -19,11 +19,8 @@
 	/** @type {HTMLElement | null} */
 	const warningsRoot = document.getElementById('warnings');
 	/** @type {HTMLElement | null} */
-	const technicalRoot = document.getElementById('technical');
 	/** @type {HTMLElement | null} */
-	const technicalJsonRoot = document.getElementById('technicalJson');
 	/** @type {HTMLButtonElement | null} */
-	const toggleTechnicalButton = /** @type {HTMLButtonElement | null} */ (document.getElementById('toggleTechnical'));
 
 	const tabs = Array.isArray(model.tabs) ? model.tabs : [];
 	let activeTabId =
@@ -32,7 +29,6 @@
 			: tabs[0]
 				? tabs[0].id
 				: '';
-	let technicalVisible = false;
 
 	const vscodeApi = typeof acquireVsCodeApi === 'function' ? acquireVsCodeApi() : null;
 	const editable = model.editable && typeof model.editable === 'object' ? model.editable : null;
@@ -623,6 +619,60 @@
 		Constant: 'Константа',
 		ConstantRef: 'Константа',
 	};
+
+	/** Бейджи происхождения: заимствование и поддержка поставщика. */
+	function renderOriginBadges() {
+		const host = document.getElementById('originBadges');
+		if (!host) {
+			return;
+		}
+		host.textContent = '';
+		const origin = model.origin;
+		if (!origin) {
+			return;
+		}
+		function badge(text, cls, hint) {
+			const el = document.createElement('span');
+			el.className = 'origin-badge ' + cls;
+			el.textContent = text;
+			if (hint) {
+				el.title = hint;
+			}
+			host.appendChild(el);
+		}
+		if (origin.adopted) {
+			badge('Заимствованный', 'origin-badge-adopted', 'Объект заимствован из расширяемой конфигурации');
+		}
+		if (origin.support === 'locked') {
+			const vendor = origin.vendor ? 'Поставщик: ' + origin.vendor : '';
+			badge('На поддержке: изменение запрещено', 'origin-badge-locked', vendor);
+		} else if (origin.support === 'editable') {
+			const parts = [];
+			if (origin.vendor) {
+				parts.push('Поставщик: ' + origin.vendor);
+			}
+			if (origin.version) {
+				parts.push('Версия поставки: ' + origin.version);
+			}
+			badge('На поддержке: изменение разрешено', 'origin-badge-support', parts.join(' • '));
+		}
+	}
+
+	/** Полоса «только просмотр»: причина, по которой правка недоступна. */
+	function renderReadonlyNotice() {
+		const host = document.getElementById('warnings');
+		if (!host || !editable || editable.readonly !== true) {
+			return;
+		}
+		const origin = model.origin;
+		const text = (origin && origin.readonlyReason)
+			|| 'Объект открыт только на просмотр.';
+		const note = document.createElement('div');
+		note.className = 'warning-item warning-item-readonly';
+		note.textContent = text;
+		host.classList.remove('hidden');
+		host.appendChild(note);
+	}
 
 	function renderWarnings() {
 		if (!warningsRoot) {
@@ -2466,6 +2516,10 @@
 				if (msg.roleRights && typeof msg.roleRights === 'object') {
 					model.roleRights = msg.roleRights;
 				}
+				if (msg.origin && typeof msg.origin === 'object') {
+					model.origin = msg.origin;
+					renderOriginBadges();
+				}
 				editedSubsystems.clear();
 				editedContent.clear();
 				editedCommandVisibility.clear();
@@ -2924,20 +2978,6 @@
 		contentRoot.innerHTML = `<pre class="code">${escapeHtml(formatted)}</pre>`;
 	}
 
-	function renderTechnical() {
-		if (!technicalRoot || !technicalJsonRoot || !toggleTechnicalButton) {
-			return;
-		}
-		if (!technicalVisible) {
-			technicalRoot.classList.add('hidden');
-			toggleTechnicalButton.textContent = 'Технические данные';
-			return;
-		}
-		technicalRoot.classList.remove('hidden');
-		toggleTechnicalButton.textContent = 'Скрыть технические данные';
-		technicalJsonRoot.textContent = model.technicalJson || '{}';
-	}
-
 	function toDisplayText(value) {
 		if (value === null || value === undefined || value === '') {
 			return '(пусто)';
@@ -3006,17 +3046,11 @@
 			.replaceAll("'", '&#39;');
 	}
 
-	if (toggleTechnicalButton) {
-		toggleTechnicalButton.addEventListener('click', function () {
-			technicalVisible = !technicalVisible;
-			renderTechnical();
-		});
-	}
-
+	renderOriginBadges();
 	renderWarnings();
+	renderReadonlyNotice();
 	renderTabs();
 	renderContent();
-	renderTechnical();
 	initSaveBar();
 	renderSaveBar();
 })();

@@ -103,8 +103,11 @@ export type MdSparrowOp =
 	| 'cf-role-rights-get'
 	| 'cf-role-rights-set'
 	| 'cf-support-get'
+	| 'cf-support-object-get'
+	| 'cf-support-object-states'
 	| 'cf-support-enable-rules'
 	| 'cf-support-object-mode-set'
+	| 'cf-support-element-mode-set'
 	| 'cf-support-remove'
 	| 'cf-md-subsystem-command-placement-set'
 	| 'cf-md-subsystem-command-order-set'
@@ -155,6 +158,8 @@ export interface MdSparrowParams {
 	synonymRu?: string;
 	synonymEmpty?: boolean;
 	autoName?: boolean;
+	/** Отпечаток прочитанных правил поддержки: правка поверх устаревшего снимка отклоняется. */
+	expectedGeneration?: string;
 	/** Полезная нагрузка для set-операций: JSON DTO как строка. */
 	payloadJson?: string;
 }
