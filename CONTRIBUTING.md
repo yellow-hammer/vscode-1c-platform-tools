@@ -84,16 +84,9 @@ src/
 
 ## Внешние компоненты
 
-Часть инструментов не бандлится в VSIX: расширение скачивает их с GitHub Releases в рантайме и держит в globalStorage. Для разработки самого компонента соберите его локально и укажите путь в настройках:
+Часть инструментов не бандлится в VSIX: расширение скачивает их с GitHub Releases в рантайме и держит в globalStorage. Что это за компоненты, откуда берутся и какими настройками подставляется свой файл — [Внешние компоненты](docs/components.md).
 
-| Компонент             | Репозиторий                                                               | Локальная сборка          | Настройки (раздел «Внешние компоненты»)                                                                                 |
-|-----------------------|---------------------------------------------------------------------------|---------------------------|-------------------------------------------------------------------------------------------------------------------------|
-| Адаптер отладки (DAP) | [onec-debug-adapter](https://github.com/yellow-hammer/onec-debug-adapter) | `dotnet build -c Release` | `1c-platform-tools.components.path.adapter` — путь к `OnecDebugAdapter.dll`, `components.adapterAutoload: false`         |
-| Дерево метаданных     | [md-sparrow](https://github.com/yellow-hammer/md-sparrow)                 | `gradlew shadowJar`       | `1c-platform-tools.components.path.metadataJar` — путь к `md-sparrow-*-all.jar`, `components.metadataJarAutoload: false` |
-| Менеджер версий OneScript | [ovm](https://github.com/oscript-library/ovm)                         | не требуется              | `1c-platform-tools.components.path.ovm` — путь к `ovm.exe`, `components.ovmAutoload: false`                              |
-| Отчёты Allure         | [allure2](https://github.com/allure-framework/allure2)                    | не требуется              | `1c-platform-tools.allure.path` — путь к `allure`, `components.allureAutoload: false`                                   |
-
-После изменения компонента достаточно пересобрать его и перезапустить сессию отладки (адаптер) или обновить дерево (md-sparrow) — переустановка расширения не нужна. Кэш любого компонента сбрасывается командой «Обновить внешние компоненты».
+Чтобы работать со своей сборкой, соберите компонент (`dotnet build -c Release` у адаптера отладки, `gradlew shadowJar` у md-sparrow) и укажите путь в `components.path.*`, выключив парную автозагрузку. Расширение переустанавливать не нужно: пересобранный адаптер подхватывается следующей сессией отладки, md-sparrow — обновлением дерева.
 
 ## Коммиты и Pull Request
 

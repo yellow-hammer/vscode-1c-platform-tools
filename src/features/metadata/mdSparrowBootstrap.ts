@@ -72,9 +72,6 @@ async function ensurePortableJre(baseDir: string, download: boolean, javaOverrid
 	if (trimmed) {
 		return trimmed;
 	}
-	if (!download) {
-		return 'java';
-	}
 
 	const jreRoot = path.join(baseDir, 'jre-temurin-21');
 	const stamp = path.join(jreRoot, '.java-path');
@@ -86,6 +83,10 @@ async function ensurePortableJre(baseDir: string, download: boolean, javaOverrid
 		}
 	} catch {
 		/* fetch fresh */
+	}
+	if (!download) {
+		// автозагрузка выключена намеренно: работаем на java из PATH
+		return 'java';
 	}
 
 	log.info('загрузка portable JRE 21 (Eclipse Temurin)…');
@@ -127,17 +128,21 @@ async function ensureJar(
 	const trimmed = jarOverride.trim();
 	if (trimmed) {
 		if (trimmed.includes('${')) {
-			throw new Error('components.metadataJarFile: укажите полный путь к md-sparrow-*-all.jar.');
+			throw new Error('components.path.metadataJar: укажите полный путь к md-sparrow-*-all.jar.');
 		}
 		if (!fssync.existsSync(trimmed)) {
 			throw new Error(
-				`components.metadataJarFile не найден: ${trimmed}. Соберите артефакт: в каталоге md-sparrow выполните ./gradlew shadowJar (build/libs/md-sparrow-*-all.jar).`
+				`components.path.metadataJar не найден: ${trimmed}. Соберите артефакт: в каталоге md-sparrow выполните ./gradlew shadowJar (build/libs/md-sparrow-*-all.jar).`
 			);
 		}
 		return { jarPath: trimmed };
 	}
 	if (!download) {
-		throw new Error('Укажите components.metadataJarFile или включите components.metadataJarAutoload.');
+		const cached = await cachedReleaseComponent(baseDir, MD_SPARROW_SPEC);
+		if (cached) {
+			return { jarPath: cached.assetPath, tag: cached.tag };
+		}
+		throw new Error('Укажите components.path.metadataJar или включите components.autoload.metadataJar.');
 	}
 
 	const ensured = await ensureReleaseComponent(baseDir, MD_SPARROW_SPEC, githubToken);
@@ -169,12 +174,12 @@ let runtimeInFlight: Promise<MdSparrowRuntime> | undefined = undefined;
  */
 async function prepareMdSparrowRuntime(context: vscode.ExtensionContext): Promise<MdSparrowRuntime> {
 	const cfg = vscode.workspace.getConfiguration('1c-platform-tools');
-	const download = cfg.get<boolean>('components.metadataJarAutoload', true);
-	const downloadJre = cfg.get<boolean>('components.jreAutoload', true);
+	const download = cfg.get<boolean>('components.autoload.metadataJar', true);
+	const downloadJre = cfg.get<boolean>('components.autoload.java', true);
 	const jarPathSetting = cfg.get<string>('components.path.metadataJar', '').trim();
 	const javaPathSetting = cfg.get<string>('components.path.java', '').trim();
 	if (javaPathSetting.includes('${')) {
-		throw new Error('components.javaExecutable: укажите полный путь к java или оставьте поле пустым.');
+		throw new Error('components.path.java: укажите полный путь к java или оставьте поле пустым.');
 	}
 
 	const base = installBaseDir(context);
@@ -201,14 +206,14 @@ export function checkMdSparrowUpdateInBackground(
 	if (cfg.get<string>('components.path.metadataJar', '').trim()) {
 		return;
 	}
-	if (!cfg.get<boolean>('components.metadataJarAutoload', true)) {
+	if (!cfg.get<boolean>('components.autoload.metadataJar', true)) {
 		return;
 	}
 	checkReleaseUpdateInBackground(installBaseDir(context), MD_SPARROW_SPEC, resolveGithubToken(), onUpdateApplied);
 }
 
 /**
- * Загружает jar md-sparrow, не глядя на `components.metadataJarFile` и автозагрузку.
+ * Загружает jar md-sparrow, не глядя на `components.path.metadataJar` и автозагрузку.
  *
  * @param context - Контекст расширения
  * @returns Путь к загруженному jar
@@ -219,7 +224,7 @@ export async function downloadMdSparrowJar(context: vscode.ExtensionContext): Pr
 }
 
 /**
- * Загружает portable JRE, не глядя на `components.javaExecutable` и автозагрузку.
+ * Загружает portable JRE, не глядя на `components.path.java` и автозагрузку.
  *
  * @param context - Контекст расширения
  * @returns Путь к java

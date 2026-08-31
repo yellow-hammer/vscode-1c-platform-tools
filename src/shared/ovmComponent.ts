@@ -34,22 +34,26 @@ const OVM_SPEC: ReleaseComponentSpec = {
  *
  * @param context контекст расширения (кэш живёт в globalStorage)
  * @returns абсолютный путь к файлу
- * @throws Error если автозагрузка выключена и не задан components.ovmFile, либо файл не найден.
+ * @throws Error если автозагрузка выключена и не задан components.path.ovm, либо файл не найден.
  */
 export async function ensureOvm(context: vscode.ExtensionContext): Promise<string> {
 	const cfg = vscode.workspace.getConfiguration('1c-platform-tools');
 	const override = cfg.get<string>('components.path.ovm', '').trim();
 	if (override) {
 		if (override.includes('${')) {
-			throw new Error('components.ovmFile: укажите полный путь к ovm.exe.');
+			throw new Error('components.path.ovm: укажите полный путь к ovm.exe.');
 		}
 		if (!fssync.existsSync(override)) {
-			throw new Error(`components.ovmFile не найден: ${override}.`);
+			throw new Error(`components.path.ovm не найден: ${override}.`);
 		}
 		return override;
 	}
-	if (!cfg.get<boolean>('components.ovmAutoload', true)) {
-		throw new Error('Укажите components.ovmFile или включите components.ovmAutoload.');
+	if (!cfg.get<boolean>('components.autoload.ovm', true)) {
+		const cached = await cachedReleaseComponent(installBaseDir(context), OVM_SPEC);
+		if (cached) {
+			return cached.assetPath;
+		}
+		throw new Error('Укажите components.path.ovm или включите components.autoload.ovm.');
 	}
 
 	const ensured = await ensureReleaseComponent(installBaseDir(context), OVM_SPEC, resolveGithubToken());
@@ -57,7 +61,7 @@ export async function ensureOvm(context: vscode.ExtensionContext): Promise<strin
 }
 
 /**
- * Загружает OVM, не глядя на `components.ovmFile` и `components.ovmAutoload`.
+ * Загружает OVM, не глядя на `components.path.ovm` и `components.autoload.ovm`.
  *
  * @param context - Контекст расширения
  * @returns Путь к загруженному ovm.exe
