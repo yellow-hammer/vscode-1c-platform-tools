@@ -17,7 +17,7 @@
 import * as os from 'node:os';
 import * as path from 'node:path';
 import * as fs from 'node:fs/promises';
-import type * as vscode from 'vscode';
+import * as vscode from 'vscode';
 import { runMdSparrow, type MdSparrowRunResult } from './mdSparrowRunner';
 import type { MdSparrowRuntime } from './mdSparrowBootstrap';
 
@@ -47,6 +47,12 @@ export type MdSparrowOp =
 	| 'cf-md-enum-value-delete'
 	| 'cf-md-enum-value-duplicate'
 	| 'cf-md-enum-value-reorder'
+	| 'cf-md-accounting-flag-add'
+	| 'cf-md-accounting-flag-rename'
+	| 'cf-md-accounting-flag-delete'
+	| 'cf-md-ext-dimension-accounting-flag-add'
+	| 'cf-md-ext-dimension-accounting-flag-rename'
+	| 'cf-md-ext-dimension-accounting-flag-delete'
 	| 'cf-md-dimension-add'
 	| 'cf-md-dimension-rename'
 	| 'cf-md-dimension-delete'
@@ -83,8 +89,32 @@ export type MdSparrowOp =
 	| 'external-artifact-properties-get'
 	| 'cf-configuration-properties-get'
 	| 'cf-list-child-objects'
+	| 'cf-list-all-child-objects'
+	| 'cfe-borrow-object'
+	| 'cf-form-add'
+	| 'cf-form-compile'
+	| 'cf-md-form-delete'
+	| 'cf-md-exchange-plan-content-get'
+	| 'cf-md-exchange-plan-content-set'
 	| 'cf-list-catalogs'
 	| 'cf-md-subsystem-tree'
+	| 'cf-md-subsystem-command-interface-get'
+	| 'cf-md-subsystem-command-visibility-set'
+	| 'cf-role-rights-get'
+	| 'cf-role-rights-set'
+	| 'cf-support-get'
+	| 'cf-support-object-get'
+	| 'cf-support-object-states'
+	| 'cf-support-object-mode-set'
+	| 'cf-support-element-mode-set'
+	| 'cf-support-remove'
+	| 'cf-md-subsystem-command-placement-set'
+	| 'cf-md-subsystem-command-order-set'
+	| 'cf-md-subsystem-subsystems-order-set'
+	| 'cf-md-subsystem-groups-order-set'
+	| 'cf-dcs-info'
+	| 'cf-dcs-set-query'
+	| 'cf-dcs-add-calculated-field'
 	| 'project-metadata-tree'
 	| 'cf-md-graph'
 	| 'cf-validate-dump';
@@ -127,8 +157,22 @@ export interface MdSparrowParams {
 	synonymRu?: string;
 	synonymEmpty?: boolean;
 	autoName?: boolean;
+	/** Отпечаток прочитанных правил поддержки: правка поверх устаревшего снимка отклоняется. */
+	expectedGeneration?: string;
 	/** Полезная нагрузка для set-операций: JSON DTO как строка. */
 	payloadJson?: string;
+	/** Не смотреть на правила поддержки: правка идёт так, будто поставки нет. */
+	ignoreSupport?: boolean;
+}
+
+/**
+ * Учитывать ли поддержку поставщика: настройка расширения, по умолчанию включена.
+ *
+ * Когда её выключают, выгрузка правится так, будто поставки нет: библиотека не отказывает в
+ * правке запрещённых объектов, а дерево не показывает признаков поддержки.
+ */
+export function supportEnabled(): boolean {
+	return vscode.workspace.getConfiguration('1c-platform-tools').get<boolean>('metadata.supportEnabled') !== false;
 }
 
 /** Сквозной счётчик имён params-файлов: параллельные вызовы в одну миллисекунду не должны делить файл. */
@@ -145,7 +189,9 @@ async function writeParamsAndRun(
 ): Promise<MdSparrowRunResult> {
 	paramsFileSeq += 1;
 	const tmpPath = path.join(os.tmpdir(), `md-sparrow-${command}-${Date.now()}-${process.pid}-${paramsFileSeq}.json`);
-	await fs.writeFile(tmpPath, JSON.stringify(params), 'utf8');
+	// Работа с поддержкой выключена: библиотека не смотрит на правила поставки
+	const payload = supportEnabled() ? params : { ...params, ignoreSupport: true };
+	await fs.writeFile(tmpPath, JSON.stringify(payload), 'utf8');
 	try {
 		return await runMdSparrow(runtime, [command, '--params', tmpPath], options);
 	} finally {

@@ -213,7 +213,7 @@ export class SourceTerminalLinkProvider implements vscode.TerminalLinkProvider<R
 			const layout = await resolveProjectLayout(workspaceRoot, {
 				configuration: vscode.workspace
 					.getConfiguration('1c-platform-tools')
-					.get<string>('paths.cf', DEFAULT_PATHS.cf),
+					.get<string>('path.cf', DEFAULT_PATHS.cf),
 				extensions: [this.vrunner.getCfePath(), this.vrunner.getTestsCfePath()],
 			});
 			roots = [

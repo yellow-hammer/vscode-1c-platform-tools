@@ -62,7 +62,7 @@ export class AutodetectProvider implements vscode.TreeDataProvider<ProjectNode> 
 						? path.basename(path.dirname(prj.description))
 						: undefined,
 				}, {
-					command: '1c-platform-tools.projects._open',
+					command: '1c-platform-tools.projects.open',
 					title: '',
 					arguments: [prj.description, prj.label],
 				})

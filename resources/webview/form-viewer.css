@@ -29,15 +29,6 @@ body {
 	font-weight: 600;
 }
 
-.form-toggle {
-	font-size: 12px;
-	opacity: 0.85;
-	display: inline-flex;
-	align-items: center;
-	gap: 5px;
-	cursor: pointer;
-}
-
 .form-layout {
 	flex: 1;
 	min-height: 0;
@@ -884,4 +875,17 @@ body {
 	background: var(--vscode-editorWidget-background);
 	border-color: var(--vscode-panel-border);
 	border-bottom-color: transparent;
+}
+
+/* Форма объекта на поддержке: только просмотр */
+.form-readonly-notice {
+	margin: 6px 0 0;
+	padding: 6px 10px;
+	border-left: 3px solid var(--vscode-editorWarning-foreground, #E1B74D);
+	background: var(--vscode-inputValidation-warningBackground, transparent);
+	color: var(--vscode-descriptionForeground);
+	font-size: 12px;
+}
+.form-readonly-notice.hidden {
+	display: none;
 }

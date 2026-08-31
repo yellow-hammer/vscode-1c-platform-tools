@@ -48,7 +48,7 @@ function resolveCacheFile(context: vscode.ExtensionContext): string {
 	return path.join(storageUri.fsPath, 'er-cache', 'er-graph.json');
 }
 
-/** Список «интересных» каталогов по настройкам paths.*: cf, cfe/*, erf/*, epf/*. */
+/** Список «интересных» каталогов по настройкам path.*: cf, cfe/*, erf/*, epf/*. */
 async function collectGraphRoots(workspaceRoot: string): Promise<string[]> {
 	const dirs = configuredSourceDirs();
 	const roots: string[] = [];

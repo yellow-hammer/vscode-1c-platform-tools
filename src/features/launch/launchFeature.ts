@@ -459,7 +459,7 @@ async function selectProfile(vrunner: VRunnerManager, refresh: () => void): Prom
 		}
 		items.push(
 			{ label: '$(add) Создать профиль…', action: 'create' },
-			{ label: '$(refresh) Определить версию заново', description: versionLabel, action: 'redetect' }
+			{ label: '$(refresh) Определить версию', description: versionLabel, action: 'redetect' }
 		);
 
 		const picked = await vscode.window.showQuickPick(items, {
@@ -633,7 +633,7 @@ export function registerLaunchFeature(
 		vrunner.watchVRunnerInstallation(),
 		vscode.workspace.onDidChangeWorkspaceFolders(() => refresh()),
 		vscode.workspace.onDidChangeConfiguration((event) => {
-			if (event.affectsConfiguration('1c-platform-tools.defaultEnvProfile')) {
+			if (event.affectsConfiguration('1c-platform-tools.env.defaultProfile')) {
 				refresh();
 			}
 		}),

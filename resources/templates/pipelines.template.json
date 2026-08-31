@@ -166,7 +166,7 @@
 				{
 					"id": "buildEpf",
 					"type": "command",
-					"command": "1c-platform-tools.test.buildEpf",
+					"command": "1c-platform-tools.test.compileEpf",
 					"x": 330,
 					"y": 60
 				},
@@ -187,7 +187,7 @@
 				{
 					"id": "syntax",
 					"type": "command",
-					"command": "1c-platform-tools.test.syntaxCheck",
+					"command": "1c-platform-tools.syntaxCheck.run",
 					"x": 1140,
 					"y": 60
 				},

@@ -174,9 +174,9 @@ async function findRoots(root: string, depth: number, found: SourceRoot[]): Prom
 
 /** Настройки путей проекта; пустой путь означает корень рабочей области. */
 export interface LayoutPaths {
-	/** Каталог конфигурации (paths.cf). */
+	/** Каталог конфигурации (path.cf). */
 	configuration: string;
-	/** Каталоги, внутри которых лежат расширения (paths.cfe, <paths.tests>/cfe). */
+	/** Каталоги, внутри которых лежат расширения (path.cfe, <path.tests>/cfe). */
 	extensions: string[];
 }
 

@@ -45,7 +45,7 @@ export async function bootstrapApp(context: vscode.ExtensionContext): Promise<vo
 
 	const { registerRuntime: registerProjectsRuntime } = registerProjectsFlow(context);
 
-	// Панель «Администрирование 1С» не зависит от открытого проекта: список баз
+	// Панель «1С: Администрирование» не зависит от открытого проекта: список баз
 	// и консоль кластера нужны и без исходников в рабочей области.
 	const clustersFeatureDisposables = registerClustersFeature(context);
 	const ibasesFeatureDisposables = registerIbasesFeature();

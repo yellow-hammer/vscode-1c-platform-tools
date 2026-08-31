@@ -549,7 +549,7 @@ export class DependenciesCommands extends BaseCommand {
 			log.info(`Файл packagedef успешно создан: ${packagedefPath}`);
 			notifyQuiet('Файл packagedef успешно создан');
 
-			// Полная активация расширения: панель «Инструменты 1С» и дерево появятся без перезагрузки окна
+			// Полная активация расширения: панель «1С: Инструменты» и дерево появятся без перезагрузки окна
 			notifyProjectCreated();
 
 			// Открываем файл в редакторе

@@ -8,13 +8,13 @@ import * as vscode from 'vscode';
 import { DEFAULT_PATHS } from './pathDefaults';
 
 export interface SourceDirs {
-	/** paths.cf */
+	/** path.cf */
 	cf: string;
-	/** paths.cfe */
+	/** path.cfe */
 	cfe: string;
-	/** paths.epf */
+	/** path.epf */
 	epf: string;
-	/** paths.erf */
+	/** path.erf */
 	erf: string;
 }
 
@@ -27,14 +27,14 @@ function readPath(cfg: vscode.WorkspaceConfiguration, key: string, def: string):
 export function configuredSourceDirs(): SourceDirs {
 	const cfg = vscode.workspace.getConfiguration('1c-platform-tools');
 	return {
-		cf: readPath(cfg, 'paths.cf', DEFAULT_PATHS.cf),
-		cfe: readPath(cfg, 'paths.cfe', DEFAULT_PATHS.cfe),
-		epf: readPath(cfg, 'paths.epf', DEFAULT_PATHS.epf),
-		erf: readPath(cfg, 'paths.erf', DEFAULT_PATHS.erf),
+		cf: readPath(cfg, 'path.cf', DEFAULT_PATHS.cf),
+		cfe: readPath(cfg, 'path.cfe', DEFAULT_PATHS.cfe),
+		epf: readPath(cfg, 'path.epf', DEFAULT_PATHS.epf),
+		erf: readPath(cfg, 'path.erf', DEFAULT_PATHS.erf),
 	};
 }
 
-/** Абсолютный путь к корню исходников конфигурации (paths.cf) от корня workspace. */
+/** Абсолютный путь к корню исходников конфигурации (path.cf) от корня workspace. */
 export function configuredCfRootAbs(workspaceRoot: string): string {
 	return path.join(workspaceRoot, ...configuredSourceDirs().cf.split('/'));
 }

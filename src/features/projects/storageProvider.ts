@@ -88,7 +88,7 @@ export class StorageProvider implements vscode.TreeDataProvider<ProjectNode | Ta
 
 		const showAsList = this.context.globalState.get<boolean>('1c-platform-tools.projects.viewAsList', true);
 		const cfg = vscode.workspace.getConfiguration('1c-platform-tools');
-		const collapseMode = cfg.get<string>('projects.tags.collapseItems', 'startExpanded');
+		const collapseMode = cfg.get<string>('projects.collapseTags', 'startExpanded');
 
 		if (!showAsList) {
 			const tagNodes = this.createTagNodes(collapseMode);
@@ -140,7 +140,7 @@ export class StorageProvider implements vscode.TreeDataProvider<ProjectNode | Ta
 				detail: dupes.has(e.label.toLowerCase()) ? path.basename(path.dirname(fullPath)) : undefined,
 				tags: proj?.tags,
 			}, {
-				command: '1c-platform-tools.projects._open',
+				command: '1c-platform-tools.projects.open',
 				title: '',
 				arguments: [fullPath, e.label],
 			});

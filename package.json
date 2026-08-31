@@ -20,17 +20,17 @@
       "supported": "limited",
       "description": "Команды 1С, установка OneScript и компонентов, Docker и автономный сервер запускают код из открытой папки, поэтому в режиме ограниченной функциональности они не выполняются. Панели и просмотр метаданных работают.",
       "restrictedConfigurations": [
-        "1c-platform-tools.vrunner.path",
+        "1c-platform-tools.vrunner.path.executable",
         "1c-platform-tools.oscript.path",
         "1c-platform-tools.allure.path",
-        "1c-platform-tools.components.adapterFile",
-        "1c-platform-tools.components.metadataJarFile",
-        "1c-platform-tools.components.javaExecutable",
-        "1c-platform-tools.components.ovmFile",
-        "1c-platform-tools.test.onescriptRunnerPath",
-        "1c-platform-tools.test.onebddPath",
-        "1c-platform-tools.server.platformPath",
-        "1c-platform-tools.clusters.platformPath",
+        "1c-platform-tools.components.path.adapter",
+        "1c-platform-tools.components.path.metadataJar",
+        "1c-platform-tools.components.path.java",
+        "1c-platform-tools.components.path.ovm",
+        "1c-platform-tools.test.path.onescriptRunner",
+        "1c-platform-tools.test.path.onebdd",
+        "1c-platform-tools.server.path.platform",
+        "1c-platform-tools.clusters.path.platform",
         "1c-platform-tools.docker.enabled",
         "1c-platform-tools.docker.image"
       ]
@@ -69,16 +69,16 @@
     "workspaceContains:packagedef",
     "onCommand:1c-platform-tools.dependencies.initializePackagedef",
     "onCommand:1c-platform-tools.projects.create",
-    "onView:1c-platform-tools-clusters-tree",
-    "onView:1c-platform-tools-infobases",
+    "onView:1c-platform-tools-admin-clusters",
+    "onView:1c-platform-tools-admin-infobases",
     "onView:1c-platform-tools-projects-favorites",
     "onView:1c-platform-tools-projects-all",
     "onView:1c-platform-tools-projects-help",
     "onCommand:1c-platform-tools.projects.listOpen",
-    "onCommand:1c-platform-tools.settings.openProjects",
+    "onCommand:1c-platform-tools.projects.openSettings",
     "onCommand:1c-platform-tools.clusters.addConnection",
     "onCommand:1c-platform-tools.clusters.editCredentials",
-    "onCommand:1c-platform-tools.ibases.list"
+    "onCommand:1c-platform-tools.infobaseList.open"
   ],
   "main": "./out/extension.js",
   "contributes": {
@@ -129,29 +129,29 @@
       "activitybar": [
         {
           "id": "1c-platform-tools-projects",
-          "title": "Проекты 1С",
+          "title": "1С: Проекты",
           "icon": "resources/activitybar-projects.svg"
         },
         {
           "id": "1c-platform-tools-admin",
-          "title": "Администрирование 1С",
+          "title": "1С: Администрирование",
           "icon": "resources/activitybar-admin.svg"
         },
         {
-          "id": "1c-platform-tools",
-          "title": "Инструменты 1С",
+          "id": "1c-platform-tools-tools",
+          "title": "1С: Инструменты",
           "icon": "resources/activitybar-tools.svg",
           "when": "1c-platform-tools.is1CProject == true"
         },
         {
           "id": "1c-platform-tools-metadata",
-          "title": "Метаданные 1С",
+          "title": "1С: Метаданные",
           "icon": "resources/activitybar-metadata.svg",
           "when": "1c-platform-tools.is1CProject == true"
         },
         {
           "id": "1c-platform-tools-properties",
-          "title": "Свойства 1С",
+          "title": "1С: Свойства",
           "icon": "resources/property-palette.svg",
           "when": "1c-platform-tools.is1CProject == true"
         }
@@ -159,7 +159,7 @@
       "panel": [
         {
           "id": "1c-platform-tools-todo",
-          "title": "Список дел 1С",
+          "title": "1С: Список дел",
           "icon": "resources/activitybar-todo.svg",
           "when": "1c-platform-tools.is1CProject == true"
         }
@@ -168,12 +168,12 @@
     "views": {
       "1c-platform-tools-admin": [
         {
-          "id": "1c-platform-tools-infobases",
+          "id": "1c-platform-tools-admin-infobases",
           "name": "Информационные базы",
           "contextualTitle": "Информационные базы"
         },
         {
-          "id": "1c-platform-tools-clusters-tree",
+          "id": "1c-platform-tools-admin-clusters",
           "name": "Кластеры",
           "contextualTitle": "Кластеры"
         },
@@ -202,22 +202,22 @@
           "visibility": "collapsed"
         }
       ],
-      "1c-platform-tools": [
+      "1c-platform-tools-tools": [
         {
-          "id": "1c-platform-tools",
+          "id": "1c-platform-tools-tools-commands",
           "name": "Команды",
           "when": "1c-platform-tools.is1CProject == true"
         },
         {
-          "id": "1c-platform-tools-profile",
+          "id": "1c-platform-tools-tools-profile",
           "name": "Профиль запуска",
           "contextualTitle": "Профиль запуска",
           "when": "1c-platform-tools.is1CProject == true"
         },
         {
-          "id": "1c-platform-tools-help",
+          "id": "1c-platform-tools-tools-help",
           "name": "Помощь и поддержка",
-          "contextualTitle": "Помощь",
+          "contextualTitle": "Помощь и поддержка",
           "when": "1c-platform-tools.is1CProject == true",
           "visibility": "collapsed"
         }
@@ -242,22 +242,22 @@
         },
         {
           "id": "1c-platform-tools-metadata-tree",
-          "name": "Дерево метаданных",
-          "contextualTitle": "Метаданные выгрузки",
+          "name": "Дерево",
+          "contextualTitle": "Дерево метаданных",
           "when": "1c-platform-tools.is1CProject == true",
           "initialSize": 30
         },
         {
           "id": "1c-platform-tools-metadata-help",
           "name": "Помощь и поддержка",
-          "contextualTitle": "Помощь",
+          "contextualTitle": "Помощь и поддержка",
           "when": "1c-platform-tools.is1CProject == true",
           "visibility": "collapsed"
         }
       ],
       "1c-platform-tools-properties": [
         {
-          "id": "1c-platform-tools-properties",
+          "id": "1c-platform-tools-properties-palette",
           "name": "Палитра",
           "type": "webview",
           "icon": "resources/property-palette.svg",
@@ -267,22 +267,22 @@
       "1c-platform-tools-todo": [
         {
           "id": "1c-platform-tools-todo-list",
-          "name": "Список дел 1С",
+          "name": "Список дел",
           "when": "1c-platform-tools.is1CProject == true"
         }
       ],
       "explorer": [
         {
-          "id": "1c-platform-tools-artifacts-tree",
-          "name": "Артефакты 1С",
+          "id": "1c-platform-tools-artifacts",
+          "name": "1С: Артефакты",
           "contextualTitle": "Артефакты проекта",
           "when": "1c-platform-tools.is1CProject == true"
         }
       ],
       "debug": [
         {
-          "id": "debug.debugTargets",
-          "name": "Debug targets",
+          "id": "1c-platform-tools-debug-targets",
+          "name": "Цели отладки",
           "when": "debugState != inactive"
         }
       ]
@@ -582,494 +582,498 @@
     "commands": [
       {
         "command": "1c-platform-tools.clusters.addConnection",
-        "title": "Создать подключение к кластеру",
-        "category": "1C: Кластеры",
+        "title": "Создать подключение",
+        "category": "1С: Кластеры",
         "icon": "$(add)"
       },
       {
         "command": "1c-platform-tools.clusters.editCredentials",
         "title": "Учётные данные",
-        "category": "1C: Кластеры",
+        "category": "1С: Кластеры",
         "icon": "$(key)"
       },
       {
         "command": "1c-platform-tools.clusters.bindInfobaseCredentials",
         "title": "Назначить учётные данные",
-        "category": "1C: Кластеры",
+        "category": "1С: Кластеры",
         "icon": "$(key)"
       },
       {
         "command": "1c-platform-tools.clusters.unbindInfobaseCredentials",
         "title": "Снять учётные данные",
-        "category": "1C: Кластеры"
+        "category": "1С: Кластеры"
       },
       {
         "command": "1c-platform-tools.clusters.removeConnection",
         "title": "Удалить",
-        "category": "1C: Кластеры",
+        "category": "1С: Кластеры",
         "icon": "$(trash)"
       },
       {
         "command": "1c-platform-tools.clusters.refresh",
-        "title": "Обновить дерево кластеров",
-        "category": "1C: Кластеры",
+        "title": "Обновить",
+        "category": "1С: Кластеры",
         "icon": "$(refresh)"
       },
       {
         "command": "1c-platform-tools.clusters.refreshNode",
         "title": "Обновить",
-        "category": "1C: Кластеры",
+        "category": "1С: Кластеры",
         "icon": "$(refresh)"
       },
       {
         "command": "1c-platform-tools.clusters.enableAutoRefresh",
-        "title": "Включить автообновление дерева кластеров",
-        "category": "1C: Кластеры",
+        "title": "Включить автообновление",
+        "category": "1С: Кластеры",
         "icon": "$(sync-ignored)"
       },
       {
         "command": "1c-platform-tools.clusters.disableAutoRefresh",
-        "title": "Выключить автообновление дерева кластеров",
-        "category": "1C: Кластеры",
+        "title": "Выключить автообновление",
+        "category": "1С: Кластеры",
         "icon": "$(sync)"
       },
       {
         "command": "1c-platform-tools.clusters.showActivity",
         "title": "Списки таблицей",
-        "category": "1C: Кластеры",
+        "category": "1С: Кластеры",
         "icon": "$(pulse)"
       },
       {
         "command": "1c-platform-tools.clusters.properties",
         "title": "Свойства",
-        "category": "1C: Кластеры",
+        "category": "1С: Кластеры",
         "icon": "$(settings)"
       },
       {
         "command": "1c-platform-tools.clusters.addAdmin",
         "title": "Добавить",
-        "category": "1C: Кластеры",
+        "category": "1С: Кластеры",
         "icon": "$(add)"
       },
       {
         "command": "1c-platform-tools.clusters.removeAdmin",
         "title": "Удалить",
-        "category": "1C: Кластеры",
+        "category": "1С: Кластеры",
         "icon": "$(trash)"
       },
       {
         "command": "1c-platform-tools.clusters.terminateSession",
         "title": "Завершить",
-        "category": "1C: Кластеры",
+        "category": "1С: Кластеры",
         "icon": "$(debug-stop)"
       },
       {
         "command": "1c-platform-tools.clusters.interruptSessionCall",
         "title": "Прервать текущий вызов",
-        "category": "1C: Кластеры",
+        "category": "1С: Кластеры",
         "icon": "$(debug-pause)"
       },
       {
         "command": "1c-platform-tools.clusters.turnOffProcess",
         "title": "Выключить",
-        "category": "1C: Кластеры",
+        "category": "1С: Кластеры",
         "icon": "$(circle-slash)"
       },
       {
         "command": "1c-platform-tools.clusters.terminateInfobaseSessions",
         "title": "Завершить все сеансы",
-        "category": "1C: Кластеры",
+        "category": "1С: Кластеры",
         "icon": "$(debug-stop)"
       },
       {
         "command": "1c-platform-tools.clusters.dropInfobase",
         "title": "Удалить",
-        "category": "1C: Кластеры",
+        "category": "1С: Кластеры",
         "icon": "$(trash)"
       },
       {
         "command": "1c-platform-tools.clusters.disconnectConnection",
         "title": "Разорвать",
-        "category": "1C: Кластеры",
+        "category": "1С: Кластеры",
         "icon": "$(debug-disconnect)"
       },
       {
         "command": "1c-platform-tools.clusters.lockSessions",
         "title": "Запретить начало сеансов",
-        "category": "1C: Кластеры",
+        "category": "1С: Кластеры",
         "icon": "$(lock)"
       },
       {
         "command": "1c-platform-tools.clusters.unlockSessions",
         "title": "Разрешить начало сеансов",
-        "category": "1C: Кластеры",
+        "category": "1С: Кластеры",
         "icon": "$(unlock)"
       },
       {
         "command": "1c-platform-tools.clusters.lockScheduledJobs",
         "title": "Запретить регламентные задания",
-        "category": "1C: Кластеры",
+        "category": "1С: Кластеры",
         "icon": "$(clock)"
       },
       {
         "command": "1c-platform-tools.clusters.unlockScheduledJobs",
         "title": "Разрешить регламентные задания",
-        "category": "1C: Кластеры",
+        "category": "1С: Кластеры",
         "icon": "$(clock)"
       },
       {
         "command": "1c-platform-tools.clusters.openSettings",
-        "title": "Настройки кластеров",
-        "category": "1C: Кластеры",
+        "title": "Настройки",
+        "category": "1С: Кластеры",
         "icon": "$(gear)"
       },
       {
-        "command": "1c-platform-tools.ibases.list",
-        "title": "Список информационных баз",
-        "category": "1C: Информационные базы",
+        "command": "1c-platform-tools.infobaseList.open",
+        "title": "Открыть список",
+        "category": "1С: Администрирование",
         "icon": "$(database)"
       },
       {
-        "command": "1c-platform-tools.ibases.refresh",
-        "title": "Обновить список информационных баз",
-        "category": "1C: Информационные базы",
+        "command": "1c-platform-tools.infobaseList.refresh",
+        "title": "Обновить",
+        "category": "1С: Администрирование",
         "icon": "$(refresh)"
       },
       {
-        "command": "1c-platform-tools.ibases.launchEnterprise",
-        "title": "Предприятие",
-        "category": "1C: Информационные базы",
+        "command": "1c-platform-tools.infobaseList.launchEnterprise",
+        "title": "Запустить Предприятие",
+        "category": "1С: Администрирование",
         "icon": "$(play)"
       },
       {
-        "command": "1c-platform-tools.ibases.launchDesigner",
-        "title": "Конфигуратор",
-        "category": "1C: Информационные базы",
+        "command": "1c-platform-tools.infobaseList.launchDesigner",
+        "title": "Запустить Конфигуратор",
+        "category": "1С: Администрирование",
         "icon": "$(tools)"
       },
       {
         "command": "1c-platform-tools.env.openProfileEditor",
-        "title": "Открыть редактор профиля запуска",
-        "category": "1C: Конфигурации запуска",
+        "title": "Открыть редактор профиля",
+        "category": "1С: Конфигурации запуска",
         "icon": "$(server-environment)"
       },
       {
         "command": "1c-platform-tools.tools.refresh",
-        "title": "Обновить дерево инструментов",
+        "title": "Обновить",
         "icon": "$(refresh)",
-        "category": "1C: Дерево"
+        "category": "1С: Инструменты"
       },
       {
         "command": "1c-platform-tools.metadata.refresh",
-        "title": "Обновить дерево метаданных",
+        "title": "Обновить",
         "icon": "$(refresh)",
-        "category": "1C: Метаданные"
+        "category": "1С: Метаданные"
       },
       {
         "command": "1c-platform-tools.metadata.revealInTree",
-        "title": "Показать в дереве метаданных",
-        "category": "1C: Метаданные",
+        "title": "Показать в дереве",
+        "category": "1С: Метаданные",
         "icon": "$(list-tree)"
       },
       {
         "command": "1c-platform-tools.metadata.filters.collapseAll",
-        "title": "Свернуть дерево",
-        "category": "1C: Метаданные",
+        "title": "Свернуть подсистемы",
+        "category": "1С: Метаданные",
         "icon": "$(collapse-all)"
       },
       {
         "command": "1c-platform-tools.metadata.filters.reset",
-        "title": "Сбросить фильтры метаданных",
+        "title": "Сбросить фильтры",
         "shortTitle": "Сбросить фильтры",
-        "category": "1C: Метаданные",
+        "category": "1С: Метаданные",
         "icon": "$(clear-all)"
       },
       {
-        "command": "1c-platform-tools.metadata.addDocument",
-        "title": "Добавить документ",
-        "category": "1C: Метаданные"
+        "command": "1c-platform-tools.metadata.addObject",
+        "title": "Добавить объект",
+        "shortTitle": "Добавить",
+        "icon": "$(add)",
+        "category": "1С: Метаданные"
       },
       {
-        "command": "1c-platform-tools.metadata.addMdObject",
-        "title": "Добавить объект метаданных",
-        "shortTitle": "Добавить объект",
-        "icon": "$(add)",
-        "category": "1C: Метаданные"
+        "command": "1c-platform-tools.metadata.compile",
+        "title": "Собрать",
+        "icon": "$(play)",
+        "category": "1С: Метаданные"
       },
       {
         "command": "1c-platform-tools.metadata.validateDump",
         "title": "Проверить выгрузку",
         "shortTitle": "Проверить выгрузку",
         "icon": "$(verified)",
-        "category": "1C: Метаданные"
+        "category": "1С: Метаданные"
       },
       {
         "command": "1c-platform-tools.metadata.initEmptyCf",
         "title": "Создать новую конфигурацию",
         "shortTitle": "Создать конфигурацию",
         "icon": "$(add)",
-        "category": "1C: Метаданные"
+        "category": "1С: Метаданные"
       },
       {
         "command": "1c-platform-tools.metadata.initEmptyCfe",
         "title": "Создать новое расширение",
         "shortTitle": "Создать расширение",
         "icon": "$(extensions)",
-        "category": "1C: Метаданные"
-      },
-      {
-        "command": "1c-platform-tools.metadata.openObjectProperties",
-        "title": "Свойства объекта",
-        "category": "1C: Метаданные"
+        "category": "1С: Метаданные"
       },
       {
         "command": "1c-platform-tools.metadata.openExternalConnectionModule",
         "title": "Открыть модуль внешнего соединения",
-        "category": "1C: Метаданные"
+        "category": "1С: Метаданные"
       },
       {
         "command": "1c-platform-tools.metadata.openApplicationModule",
         "title": "Открыть модуль приложения",
         "shortTitle": "Модуль приложения",
-        "category": "1C: Метаданные"
+        "category": "1С: Метаданные"
       },
       {
         "command": "1c-platform-tools.metadata.openSessionModule",
         "title": "Открыть модуль сеанса",
         "shortTitle": "Модуль сеанса",
-        "category": "1C: Метаданные"
+        "category": "1С: Метаданные"
       },
       {
         "command": "1c-platform-tools.metadata.openObjectModule",
         "title": "Открыть модуль объекта",
         "shortTitle": "Модуль объекта",
-        "category": "1C: Метаданные"
+        "category": "1С: Метаданные"
       },
       {
         "command": "1c-platform-tools.metadata.openManagerModule",
         "title": "Открыть модуль менеджера",
         "shortTitle": "Модуль менеджера",
-        "category": "1C: Метаданные"
+        "category": "1С: Метаданные"
       },
       {
         "command": "1c-platform-tools.metadata.openRecordSetModule",
         "title": "Открыть модуль набора записей",
         "shortTitle": "Модуль набора записей",
-        "category": "1C: Метаданные"
+        "category": "1С: Метаданные"
       },
       {
         "command": "1c-platform-tools.metadata.openValueManagerModule",
         "title": "Открыть модуль менеджера значения",
         "shortTitle": "Модуль менеджера значения",
-        "category": "1C: Метаданные"
+        "category": "1С: Метаданные"
       },
       {
         "command": "1c-platform-tools.metadata.openModule",
         "title": "Открыть модуль",
         "shortTitle": "Модуль",
-        "category": "1C: Метаданные"
+        "category": "1С: Метаданные"
       },
       {
         "command": "1c-platform-tools.metadata.openFormModule",
         "title": "Открыть модуль формы",
         "shortTitle": "Модуль формы",
-        "category": "1C: Метаданные"
+        "category": "1С: Метаданные"
       },
       {
         "command": "1c-platform-tools.metadata.openForm",
         "title": "Открыть форму",
         "shortTitle": "Форма",
-        "category": "1C: Метаданные"
+        "category": "1С: Метаданные"
+      },
+      {
+        "command": "1c-platform-tools.metadata.openDcs",
+        "title": "Открыть схему компоновки",
+        "category": "1С: Метаданные"
       },
       {
         "command": "1c-platform-tools.metadata.open",
         "title": "Открыть",
-        "category": "1C: Метаданные"
+        "category": "1С: Метаданные"
       },
       {
         "command": "1c-platform-tools.properties.show",
-        "title": "Открыть панель свойств",
+        "title": "Открыть панель",
         "shortTitle": "Свойства",
-        "category": "1C: Метаданные"
+        "category": "1С: Свойства"
       },
       {
-        "command": "1c-platform-tools.metadata.openSourceProperties",
+        "command": "1c-platform-tools.metadata.openProperties",
         "title": "Свойства",
-        "category": "1C: Метаданные"
+        "category": "1С: Метаданные"
+      },
+      {
+        "command": "1c-platform-tools.metadata.openCommandInterface",
+        "title": "Командный интерфейс",
+        "category": "1С: Метаданные"
       },
       {
         "command": "1c-platform-tools.metadata.openSourceXml",
         "title": "Открыть XML",
-        "category": "1C: Метаданные"
+        "category": "1С: Метаданные"
       },
       {
-        "command": "1c-platform-tools.metadata.createObject",
-        "title": "Добавить объект",
-        "icon": "$(add)",
-        "category": "1C: Метаданные"
+        "command": "1c-platform-tools.metadata.openFormContentXml",
+        "title": "Открыть XML содержимого",
+        "category": "1С: Метаданные"
       },
       {
         "command": "1c-platform-tools.metadata.renameObject",
         "title": "Переименовать",
         "icon": "$(edit)",
-        "category": "1C: Метаданные"
+        "category": "1С: Метаданные"
       },
       {
         "command": "1c-platform-tools.metadata.deleteObject",
         "title": "Удалить",
         "icon": "$(trash)",
-        "category": "1C: Метаданные"
+        "category": "1С: Метаданные"
       },
       {
         "command": "1c-platform-tools.metadata.duplicateObject",
         "title": "Дублировать",
         "icon": "$(copy)",
-        "category": "1C: Метаданные"
+        "category": "1С: Метаданные"
       },
       {
         "command": "1c-platform-tools.metadata.addChildNode",
         "title": "Добавить",
         "icon": "$(add)",
-        "category": "1C: Метаданные"
+        "category": "1С: Метаданные"
       },
       {
         "command": "1c-platform-tools.metadata.renameChildNode",
         "title": "Переименовать",
         "icon": "$(edit)",
-        "category": "1C: Метаданные"
+        "category": "1С: Метаданные"
       },
       {
         "command": "1c-platform-tools.metadata.deleteChildNode",
         "title": "Удалить",
         "icon": "$(trash)",
-        "category": "1C: Метаданные"
+        "category": "1С: Метаданные"
       },
       {
         "command": "1c-platform-tools.metadata.duplicateChildNode",
         "title": "Дублировать",
         "icon": "$(copy)",
-        "category": "1C: Метаданные"
+        "category": "1С: Метаданные"
       },
       {
         "command": "1c-platform-tools.metadata.filterBySubsystem",
         "title": "Фильтр по подсистеме",
         "icon": "$(filter)",
-        "category": "1C: Метаданные"
+        "category": "1С: Метаданные"
       },
       {
         "command": "1c-platform-tools.metadata.clearSubsystemFilter",
         "title": "Сбросить фильтр подсистемы",
         "shortTitle": "Сбросить фильтр",
         "icon": "$(clear-all)",
-        "category": "1C: Метаданные"
+        "category": "1С: Метаданные"
       },
       {
         "command": "1c-platform-tools.metadata.copyObjectName",
         "title": "Копировать имя",
-        "category": "1C: Метаданные"
+        "category": "1С: Метаданные"
       },
       {
         "command": "1c-platform-tools.metadata.copyObjectPath",
         "title": "Копировать путь",
-        "category": "1C: Метаданные"
+        "category": "1С: Метаданные"
       },
       {
         "command": "1c-platform-tools.metadata.getProjectTree",
         "title": "Получить дерево метаданных проекта (JSON)",
-        "category": "1C: Метаданные"
+        "category": "1С: Метаданные"
       },
       {
         "command": "1c-platform-tools.components.update",
-        "title": "Обновить внешние компоненты",
-        "shortTitle": "Обновить компоненты",
-        "category": "1C: Внешние компоненты"
+        "title": "Обновить",
+        "category": "1С: Внешние компоненты"
       },
       {
         "command": "1c-platform-tools.components.setGithubToken",
         "title": "Указать токен GitHub",
-        "category": "1C: Внешние компоненты"
+        "category": "1С: Внешние компоненты"
       },
       {
         "command": "1c-platform-tools.components.forgetGithubToken",
         "title": "Забыть токен GitHub",
-        "category": "1C: Внешние компоненты"
+        "category": "1С: Внешние компоненты"
       },
       {
         "command": "1c-platform-tools.debug.showVariableInWindow",
         "title": "Показать значение в окне",
         "shortTitle": "Показать в окне",
-        "category": "1C: Отладка"
+        "category": "1С: Отладка"
       },
       {
         "command": "1c-platform-tools.debug.measure.start",
         "title": "Начать замер производительности",
         "shortTitle": "Начать замер",
         "icon": "$(dashboard)",
-        "category": "1C: Отладка"
+        "category": "1С: Отладка"
       },
       {
         "command": "1c-platform-tools.debug.measure.stop",
         "title": "Закончить замер производительности",
         "shortTitle": "Закончить замер",
         "icon": "$(stop-circle)",
-        "category": "1C: Отладка"
+        "category": "1С: Отладка"
       },
       {
         "command": "1c-platform-tools.debug.measure.showResults",
         "title": "Показать результаты замера производительности",
         "shortTitle": "Результаты замера",
-        "category": "1C: Отладка"
+        "category": "1С: Отладка"
       },
       {
         "command": "1c-platform-tools.debug.measure.clear",
         "title": "Очистить результаты замера производительности",
         "shortTitle": "Очистить замер",
-        "category": "1C: Отладка"
+        "category": "1С: Отладка"
       },
       {
         "command": "1c-platform-tools.metadata.er.openCanvas",
         "title": "Открыть ER-диаграмму",
         "icon": "$(type-hierarchy)",
-        "category": "1C: Метаданные"
+        "category": "1С: Метаданные"
       },
       {
         "command": "1c-platform-tools.metadata.er.openForObject",
-        "title": "ER: диаграмма по объекту",
+        "title": "Открыть ER-диаграмму объекта",
         "shortTitle": "ER-диаграмма объекта",
-        "category": "1C: Метаданные"
+        "category": "1С: Метаданные"
       },
       {
-        "command": "1c-platform-tools.settings.openMetadata",
-        "title": "Настройки метаданных",
+        "command": "1c-platform-tools.metadata.openSettings",
+        "title": "Настройки",
         "icon": "$(gear)",
-        "category": "1C: Метаданные"
+        "category": "1С: Метаданные"
       },
       {
-        "command": "debug.debugTargets.connect",
-        "title": "Подключиться к цели отладки",
+        "command": "1c-platform-tools.debug.connectTarget",
+        "title": "Подключиться к цели",
         "shortTitle": "Подключиться",
         "icon": "$(plug)",
-        "category": "1C: Отладка"
+        "category": "1С: Отладка"
       },
       {
         "command": "1c-platform-tools.artifacts.refresh",
-        "title": "Обновить список артефактов",
+        "title": "Обновить",
         "icon": "$(refresh)",
-        "category": "1C: Артефакты"
+        "category": "1С: Артефакты"
       },
       {
-        "command": "1c-platform-tools.artifacts._viewAsList",
+        "command": "1c-platform-tools.artifacts.viewAsList",
         "title": "Показать списком",
         "shortTitle": "Списком",
-        "category": "1C: Артефакты",
+        "category": "1С: Артефакты",
         "icon": "$(list-flat)",
         "enablement": "!1c-platform-tools.artifacts.viewAsList"
       },
       {
-        "command": "1c-platform-tools.artifacts._viewByFolder",
+        "command": "1c-platform-tools.artifacts.viewByFolder",
         "title": "Показать по каталогам",
         "shortTitle": "По каталогам",
-        "category": "1C: Артефакты",
+        "category": "1С: Артефакты",
         "icon": "$(list-tree)",
         "enablement": "1c-platform-tools.artifacts.viewAsList"
       },
@@ -1077,913 +1081,927 @@
         "command": "1c-platform-tools.artifacts.open",
         "title": "Открыть",
         "icon": "$(folder-opened)",
-        "category": "1C: Артефакты"
+        "category": "1С: Артефакты"
       },
       {
-        "command": "1c-platform-tools.artifacts.buildConfiguration",
+        "command": "1c-platform-tools.artifacts.compileConfiguration",
         "title": "Собрать",
         "icon": "$(play)",
-        "category": "1C: Артефакты"
+        "category": "1С: Артефакты"
       },
       {
         "command": "1c-platform-tools.artifacts.decompileConfiguration",
         "title": "Разобрать",
         "icon": "$(play)",
-        "category": "1C: Артефакты"
+        "category": "1С: Артефакты"
       },
       {
-        "command": "1c-platform-tools.artifacts.buildExtension",
+        "command": "1c-platform-tools.artifacts.compileExtension",
         "title": "Собрать",
         "icon": "$(play)",
-        "category": "1C: Артефакты"
+        "category": "1С: Артефакты"
       },
       {
         "command": "1c-platform-tools.artifacts.decompileExtension",
         "title": "Разобрать",
         "icon": "$(play)",
-        "category": "1C: Артефакты"
+        "category": "1С: Артефакты"
       },
       {
-        "command": "1c-platform-tools.artifacts.buildProcessor",
+        "command": "1c-platform-tools.artifacts.compileProcessor",
         "title": "Собрать",
         "icon": "$(play)",
-        "category": "1C: Артефакты"
+        "category": "1С: Артефакты"
       },
       {
         "command": "1c-platform-tools.artifacts.decompileProcessor",
         "title": "Разобрать",
         "icon": "$(play)",
-        "category": "1C: Артефакты"
+        "category": "1С: Артефакты"
       },
       {
-        "command": "1c-platform-tools.artifacts.buildReport",
+        "command": "1c-platform-tools.artifacts.compileReport",
         "title": "Собрать",
         "icon": "$(play)",
-        "category": "1C: Артефакты"
+        "category": "1С: Артефакты"
       },
       {
         "command": "1c-platform-tools.artifacts.decompileReport",
         "title": "Разобрать",
         "icon": "$(play)",
-        "category": "1C: Артефакты"
+        "category": "1С: Артефакты"
       },
       {
         "command": "1c-platform-tools.artifacts.delete",
         "title": "Удалить",
         "icon": "$(trash)",
-        "category": "1C: Артефакты"
+        "category": "1С: Артефакты"
       },
       {
-        "command": "1c-platform-tools.artifacts.decompileConfiguration.fromEditor",
+        "command": "1c-platform-tools.artifacts.decompileConfigurationFromEditor",
         "title": "Разобрать",
         "icon": "$(play)",
-        "category": "1C: Артефакты"
+        "category": "1С: Артефакты"
       },
       {
-        "command": "1c-platform-tools.artifacts.decompileExtension.fromEditor",
+        "command": "1c-platform-tools.artifacts.decompileExtensionFromEditor",
         "title": "Разобрать",
         "icon": "$(play)",
-        "category": "1C: Артефакты"
+        "category": "1С: Артефакты"
       },
       {
-        "command": "1c-platform-tools.artifacts.decompileProcessor.fromEditor",
+        "command": "1c-platform-tools.artifacts.decompileProcessorFromEditor",
         "title": "Разобрать",
         "icon": "$(play)",
-        "category": "1C: Артефакты"
+        "category": "1С: Артефакты"
       },
       {
-        "command": "1c-platform-tools.artifacts.decompileReport.fromEditor",
+        "command": "1c-platform-tools.artifacts.decompileReportFromEditor",
         "title": "Разобрать",
         "icon": "$(play)",
-        "category": "1C: Артефакты"
+        "category": "1С: Артефакты"
       },
       {
-        "command": "1c-platform-tools.settings.open",
+        "command": "1c-platform-tools.projects.openSettings",
         "title": "Настройки",
         "icon": "$(gear)",
-        "category": "1C: Дерево"
+        "category": "1С: Проекты"
       },
       {
-        "command": "1c-platform-tools.settings.openProjects",
-        "title": "Настройки проектов",
+        "command": "1c-platform-tools.tools.openSettings",
+        "title": "Настройки",
         "icon": "$(gear)",
-        "category": "1C: Проекты"
+        "category": "1С: Инструменты"
       },
       {
-        "command": "1c-platform-tools.settings.openTools",
-        "title": "Настройки инструментов",
+        "command": "1c-platform-tools.todo.openSettings",
+        "title": "Настройки",
         "icon": "$(gear)",
-        "category": "1C: Дерево"
+        "category": "1С: Список дел"
       },
       {
-        "command": "1c-platform-tools.settings.openTodo",
-        "title": "Настройки списка дел",
+        "command": "1c-platform-tools.artifacts.openSettings",
+        "title": "Настройки",
         "icon": "$(gear)",
-        "category": "1C: Список дел"
+        "category": "1С: Артефакты"
       },
       {
-        "command": "1c-platform-tools.settings.openArtifacts",
-        "title": "Настройки артефактов",
-        "icon": "$(gear)",
-        "category": "1C: Артефакты"
-      },
-      {
-        "command": "1c-platform-tools.favorites.configure",
-        "title": "Настроить избранное",
+        "command": "1c-platform-tools.tools.configureFavorites",
+        "title": "Избранное",
         "icon": "$(star-full)",
-        "category": "1C: Дерево"
+        "category": "1С: Инструменты"
       },
       {
         "command": "1c-platform-tools.tools.configureGroupVisibility",
-        "title": "Настроить видимость групп",
+        "title": "Видимость групп",
         "shortTitle": "Видимость групп",
         "icon": "$(eye)",
-        "category": "1C: Дерево"
+        "category": "1С: Инструменты"
       },
       {
         "command": "1c-platform-tools.tools.configureGroupVisibilityActive",
-        "title": "Настроить видимость групп",
+        "title": "Видимость групп",
         "shortTitle": "Видимость групп",
         "icon": "$(eye-closed)",
-        "category": "1C: Дерево"
+        "category": "1С: Инструменты"
       },
       {
         "command": "1c-platform-tools.infobase.create",
         "title": "Создать пустую ИБ",
-        "category": "1C: Информационная база"
+        "category": "1С: Информационная база"
       },
       {
         "command": "1c-platform-tools.infobase.updateDb",
         "title": "Обновить конфигурацию в ИБ",
-        "category": "1C: Конфигурация"
+        "category": "1С: Конфигурация"
       },
       {
         "command": "1c-platform-tools.infobase.runUpdateHandlers",
         "title": "Выполнить обработчики обновления",
-        "category": "1C: Информационная база"
+        "category": "1С: Информационная база"
       },
       {
         "command": "1c-platform-tools.infobase.blockExternalResources",
         "title": "Запретить работу с внешними ресурсами",
-        "category": "1C: Информационная база"
+        "category": "1С: Информационная база"
       },
       {
         "command": "1c-platform-tools.infobase.initialize",
         "title": "Инициализировать данные",
-        "category": "1C: Информационная база"
+        "category": "1С: Информационная база"
       },
       {
         "command": "1c-platform-tools.infobase.dumpDt",
         "title": "Выгрузить в dt",
-        "category": "1C: Информационная база"
+        "category": "1С: Информационная база"
       },
       {
         "command": "1c-platform-tools.infobase.restoreDt",
         "title": "Загрузить из dt",
-        "category": "1C: Информационная база"
+        "category": "1С: Информационная база"
       },
       {
         "command": "1c-platform-tools.session.lock",
-        "title": "Запретить начало сеансов",
+        "title": "Запретить начало",
         "icon": "$(lock)",
-        "category": "1C: Сеансы"
+        "category": "1С: Сеансы"
       },
       {
         "command": "1c-platform-tools.session.unlock",
-        "title": "Разрешить начало сеансов",
+        "title": "Разрешить начало",
         "icon": "$(unlock)",
-        "category": "1C: Сеансы"
+        "category": "1С: Сеансы"
       },
       {
         "command": "1c-platform-tools.session.lockJobs",
         "title": "Запретить регламентные задания",
         "icon": "$(lock)",
-        "category": "1C: Сеансы"
+        "category": "1С: Сеансы"
       },
       {
         "command": "1c-platform-tools.session.unlockJobs",
         "title": "Разрешить регламентные задания",
         "icon": "$(unlock)",
-        "category": "1C: Сеансы"
+        "category": "1С: Сеансы"
       },
       {
         "command": "1c-platform-tools.session.kill",
-        "title": "Завершить сеансы",
+        "title": "Завершить",
         "icon": "$(trash)",
-        "category": "1C: Сеансы"
+        "category": "1С: Сеансы"
       },
       {
         "command": "1c-platform-tools.session.list",
-        "title": "Показать сеансы",
+        "title": "Показать",
         "icon": "$(list-unordered)",
-        "category": "1C: Сеансы"
+        "category": "1С: Сеансы"
       },
       {
         "command": "1c-platform-tools.session.checkClosed",
-        "title": "Проверить отсутствие сеансов",
+        "title": "Проверить отсутствие",
         "icon": "$(search)",
-        "category": "1C: Сеансы"
+        "category": "1С: Сеансы"
       },
       {
         "command": "1c-platform-tools.cf.load",
         "title": "Загрузить конфигурацию из src/cf",
-        "category": "1C: Конфигурация"
+        "category": "1С: Конфигурация"
       },
       {
         "command": "1c-platform-tools.infobase.initFromSrc",
         "title": "Инициализировать конфигурацию из src/cf",
-        "category": "1C: Конфигурация"
+        "category": "1С: Конфигурация"
       },
       {
         "command": "1c-platform-tools.cf.loadIncrement",
         "title": "Загрузить изменения (git diff)",
-        "category": "1C: Конфигурация"
+        "category": "1С: Конфигурация"
       },
       {
         "command": "1c-platform-tools.cf.loadByList",
         "title": "Загрузить из objlist.txt",
-        "category": "1C: Конфигурация"
+        "category": "1С: Конфигурация"
       },
       {
         "command": "1c-platform-tools.cf.loadFile",
         "title": "Загрузить конфигурацию из 1Cv8.cf",
-        "category": "1C: Конфигурация"
+        "category": "1С: Конфигурация"
       },
       {
         "command": "1c-platform-tools.cf.dump",
         "title": "Выгрузить конфигурацию в src/cf",
-        "category": "1C: Конфигурация"
+        "category": "1С: Конфигурация"
       },
       {
         "command": "1c-platform-tools.cf.dumpIncrement",
         "title": "Выгрузить изменения в src/cf",
-        "category": "1C: Конфигурация"
+        "category": "1С: Конфигурация"
       },
       {
         "command": "1c-platform-tools.cf.unload",
         "title": "Выгрузить конфигурацию в 1Cv8.cf",
-        "category": "1C: Конфигурация"
+        "category": "1С: Конфигурация"
       },
       {
         "command": "1c-platform-tools.cf.makeDist",
         "title": "Выгрузить в 1Cv8dist.cf",
-        "category": "1C: Поддержка"
+        "category": "1С: Поддержка"
       },
       {
         "command": "1c-platform-tools.cf.compile",
         "title": "Собрать 1Cv8.cf из src/cf",
-        "category": "1C: Конфигурация"
+        "category": "1С: Конфигурация"
       },
       {
         "command": "1c-platform-tools.cf.decompile",
         "title": "Разобрать 1Cv8.cf в src/cf",
-        "category": "1C: Конфигурация"
+        "category": "1С: Конфигурация"
       },
       {
         "command": "1c-platform-tools.cfe.load",
         "title": "Загрузить расширения из src/cfe",
-        "category": "1C: Расширения"
+        "category": "1С: Расширения"
       },
       {
         "command": "1c-platform-tools.cfe.loadByList",
         "title": "Загрузить из objlist.txt",
-        "category": "1C: Расширения"
+        "category": "1С: Расширения"
       },
       {
         "command": "1c-platform-tools.cfe.loadFile",
         "title": "Загрузить расширения из *.cfe",
-        "category": "1C: Расширения"
+        "category": "1С: Расширения"
       },
       {
         "command": "1c-platform-tools.cfe.dump",
         "title": "Выгрузить расширения в src/cfe",
-        "category": "1C: Расширения"
+        "category": "1С: Расширения"
       },
       {
         "command": "1c-platform-tools.cfe.unload",
         "title": "Выгрузить расширения в *.cfe",
-        "category": "1C: Расширения"
+        "category": "1С: Расширения"
+      },
+      {
+        "command": "1c-platform-tools.cfe.borrowObject",
+        "title": "Добавить объект в расширение",
+        "category": "1С: Конфигурация"
+      },
+      {
+        "command": "1c-platform-tools.metadata.supportRemove",
+        "title": "Снять с поддержки",
+        "category": "1С: Конфигурация"
+      },
+      {
+        "command": "1c-platform-tools.metadata.supportSetObjectMode",
+        "title": "Режим поддержки",
+        "category": "1С: Конфигурация"
       },
       {
         "command": "1c-platform-tools.cfe.compile",
         "title": "Собрать *.cfe из src/cfe",
-        "category": "1C: Расширения"
+        "category": "1С: Расширения"
       },
       {
         "command": "1c-platform-tools.cfe.decompile",
         "title": "Разобрать *.cfe в src/cfe",
-        "category": "1C: Расширения"
+        "category": "1С: Расширения"
       },
       {
         "command": "1c-platform-tools.cfe.updateDb",
         "title": "Обновить расширения в ИБ",
-        "category": "1C: Расширения"
+        "category": "1С: Расширения"
+      },
+      {
+        "command": "1c-platform-tools.epf.addBspRegistration",
+        "title": "Добавить регистрацию БСП",
+        "category": "1С: Внешние файлы"
       },
       {
         "command": "1c-platform-tools.epf.compileProcessor",
-        "title": "Собрать внешнюю обработку",
-        "category": "1C: Внешние файлы"
+        "title": "Собрать обработки",
+        "category": "1С: Внешние файлы"
       },
       {
         "command": "1c-platform-tools.epf.decompileProcessor",
-        "title": "Разобрать внешнюю обработку",
-        "category": "1C: Внешние файлы"
+        "title": "Разобрать обработки",
+        "category": "1С: Внешние файлы"
       },
       {
         "command": "1c-platform-tools.epf.compileReport",
-        "title": "Собрать внешний отчёт",
-        "category": "1C: Внешние файлы"
+        "title": "Собрать отчёты",
+        "category": "1С: Внешние файлы"
       },
       {
         "command": "1c-platform-tools.epf.decompileReport",
-        "title": "Разобрать внешний отчёт",
-        "category": "1C: Внешние файлы"
+        "title": "Разобрать отчёты",
+        "category": "1С: Внешние файлы"
       },
       {
         "command": "1c-platform-tools.epf.clearCache",
         "title": "Удалить кэш",
-        "category": "1C: Внешние файлы"
+        "category": "1С: Внешние файлы"
       },
       {
         "command": "1c-platform-tools.support.updateCfg",
         "title": "Загрузить из cf/cfu",
-        "category": "1C: Поддержка"
+        "category": "1С: Поддержка"
       },
       {
         "command": "1c-platform-tools.support.disableCfgSupport",
-        "title": "Удалить",
-        "category": "1C: Поддержка"
+        "title": "Снять",
+        "category": "1С: Поддержка"
       },
       {
         "command": "1c-platform-tools.support.createDeliveryDescriptionFile",
-        "title": "Создать файл описания шаблона поставки",
-        "category": "1C: Поставка"
+        "title": "Создать файл описания шаблона",
+        "category": "1С: Поставка"
       },
       {
         "command": "1c-platform-tools.support.createDistributivePackage",
         "title": "Создать комплект",
-        "category": "1C: Поставка"
+        "category": "1С: Поставка"
       },
       {
         "command": "1c-platform-tools.support.createTemplateListFile",
         "title": "Создать файл списка шаблонов",
-        "category": "1C: Поставка"
+        "category": "1С: Поставка"
       },
       {
         "command": "1c-platform-tools.support.createDistributionFiles",
         "title": "Создать файлы поставки и обновления (cf/cfu)",
-        "category": "1C: Поставка"
+        "category": "1С: Поставка"
       },
       {
         "command": "1c-platform-tools.dependencies.initializeProjectStructure",
         "title": "Инициализировать структуру проекта",
-        "category": "1C: Зависимости"
+        "category": "1С: Зависимости"
       },
       {
         "command": "1c-platform-tools.dependencies.initializePackagedef",
         "title": "Инициализировать проект",
-        "category": "1C: Зависимости"
+        "category": "1С: Зависимости"
       },
       {
         "command": "1c-platform-tools.dependencies.setupGit",
         "title": "Настроить Git",
-        "category": "1C: Зависимости"
+        "category": "1С: Зависимости"
       },
       {
         "command": "1c-platform-tools.dependencies.installOscript",
         "title": "Установить OneScript",
-        "category": "1C: Зависимости"
+        "category": "1С: Зависимости"
       },
       {
         "command": "1c-platform-tools.dependencies.updateOpm",
         "title": "Обновить пакетный менеджер opm",
-        "category": "1C: Зависимости"
+        "category": "1С: Зависимости"
       },
       {
         "command": "1c-platform-tools.dependencies.install",
         "title": "Установить зависимости",
-        "category": "1C: Зависимости"
+        "category": "1С: Зависимости"
       },
       {
         "command": "1c-platform-tools.dependencies.remove",
         "title": "Удалить зависимости",
-        "category": "1C: Зависимости"
+        "category": "1С: Зависимости"
       },
       {
         "command": "1c-platform-tools.mcp.configureCursor",
         "title": "Настроить MCP для Cursor",
-        "category": "1C: Навыки для AI"
+        "category": "1С: Навыки для AI"
       },
       {
         "command": "1c-platform-tools.skills.addDevSkills",
         "title": "Добавить навыки разработки 1С (cc-1c-skills)",
-        "category": "1C: Навыки для AI"
+        "category": "1С: Навыки для AI"
       },
       {
         "command": "1c-platform-tools.skills.add1cpt",
         "title": "Добавить навыки расширения (команды и MCP)",
-        "category": "1C: Навыки для AI"
+        "category": "1С: Навыки для AI"
       },
       {
         "command": "1c-platform-tools.run.enterprise",
         "title": "Запустить Предприятие",
-        "category": "1C: Запуск",
+        "category": "1С: Запуск",
         "icon": "$(play)"
       },
       {
         "command": "1c-platform-tools.run.designer",
         "title": "Запустить Конфигуратор",
-        "category": "1C: Запуск",
+        "category": "1С: Запуск",
         "icon": "$(tools)"
       },
       {
         "command": "1c-platform-tools.env.selectProfile",
-        "title": "Выбрать env-профиль запуска",
-        "category": "1C: Конфигурации запуска",
+        "title": "Выбрать env-профиль",
+        "category": "1С: Конфигурации запуска",
         "icon": "$(server-environment)"
       },
       {
         "command": "1c-platform-tools.env.createProfile",
-        "title": "Создать env-профиль запуска",
-        "category": "1C: Конфигурации запуска"
+        "title": "Создать env-профиль",
+        "category": "1С: Конфигурации запуска"
       },
       {
         "command": "1c-platform-tools.env.setOverrides",
-        "title": "Задать временные параметры запуска",
-        "category": "1C: Конфигурации запуска"
+        "title": "Задать временные параметры",
+        "category": "1С: Конфигурации запуска"
       },
       {
         "command": "1c-platform-tools.env.clearOverrides",
-        "title": "Сбросить временные параметры запуска",
-        "category": "1C: Конфигурации запуска"
+        "title": "Сбросить временные параметры",
+        "category": "1С: Конфигурации запуска"
       },
       {
         "command": "1c-platform-tools.server.menu",
-        "title": "Меню автономного сервера",
-        "category": "1C: Автономный сервер",
+        "title": "Меню",
+        "category": "1С: Автономный сервер",
         "icon": "$(server)"
       },
       {
         "command": "1c-platform-tools.server.start",
-        "title": "Запустить автономный сервер",
-        "category": "1C: Автономный сервер",
+        "title": "Запустить",
+        "category": "1С: Автономный сервер",
         "icon": "$(run)"
       },
       {
         "command": "1c-platform-tools.server.stop",
-        "title": "Остановить автономный сервер",
-        "category": "1C: Автономный сервер",
+        "title": "Остановить",
+        "category": "1С: Автономный сервер",
         "icon": "$(debug-stop)"
       },
       {
         "command": "1c-platform-tools.server.restart",
-        "title": "Перезапустить автономный сервер",
-        "category": "1C: Автономный сервер",
+        "title": "Перезапустить",
+        "category": "1С: Автономный сервер",
         "icon": "$(debug-restart)"
       },
       {
         "command": "1c-platform-tools.server.openInBrowser",
         "title": "Открыть публикацию в браузере",
-        "category": "1C: Автономный сервер",
+        "category": "1С: Автономный сервер",
         "icon": "$(globe)"
       },
       {
         "command": "1c-platform-tools.server.selectServices",
         "title": "Выбрать публикуемые сервисы",
-        "category": "1C: Автономный сервер",
+        "category": "1С: Автономный сервер",
         "icon": "$(checklist)"
       },
       {
         "command": "1c-platform-tools.server.debug",
-        "title": "Отладка через автономный сервер",
-        "category": "1C: Автономный сервер",
+        "title": "Отладка",
+        "category": "1С: Автономный сервер",
         "icon": "$(debug-alt)"
       },
       {
         "command": "1c-platform-tools.server.showLogs",
-        "title": "Показать журнал автономного сервера",
-        "category": "1C: Автономный сервер",
+        "title": "Показать журнал",
+        "category": "1С: Автономный сервер",
         "icon": "$(output)"
       },
       {
         "command": "1c-platform-tools.server.openConfig",
         "title": "Открыть конфиг публикации",
-        "category": "1C: Автономный сервер",
+        "category": "1С: Автономный сервер",
         "icon": "$(settings-gear)"
       },
       {
         "command": "1c-platform-tools.serviceFiles.create",
-        "title": "Создать служебные файлы…",
-        "category": "1C: Служебные файлы",
+        "title": "Создать…",
+        "category": "1С: Служебные файлы",
         "icon": "$(new-file)"
       },
       {
         "command": "1c-platform-tools.serviceFiles.createGitignore",
         "title": "Создать .gitignore",
-        "category": "1C: Служебные файлы"
+        "category": "1С: Служебные файлы"
       },
       {
         "command": "1c-platform-tools.serviceFiles.createGitattributes",
         "title": "Создать .gitattributes",
-        "category": "1C: Служебные файлы"
+        "category": "1С: Служебные файлы"
       },
       {
         "command": "1c-platform-tools.serviceFiles.createEnvJson",
         "title": "Создать env.json",
-        "category": "1C: Служебные файлы"
+        "category": "1С: Служебные файлы"
       },
       {
         "command": "1c-platform-tools.serviceFiles.createRecommendedSet",
-        "title": "Создать базовый набор служебных файлов",
-        "category": "1C: Служебные файлы"
+        "title": "Создать базовый набор",
+        "category": "1С: Служебные файлы"
       },
       {
         "command": "1c-platform-tools.test.xunit",
         "title": "XUnit тесты",
-        "category": "1C: Тестирование"
+        "category": "1С: Тестирование"
       },
       {
-        "command": "1c-platform-tools.test.syntaxCheck",
+        "command": "1c-platform-tools.syntaxCheck.run",
         "title": "Синтаксический контроль",
-        "category": "1C: Тестирование"
+        "category": "1С: Тестирование"
       },
       {
         "command": "1c-platform-tools.syntaxCheck.refresh",
-        "title": "Синтаксический контроль: обновить ошибки в Problems",
-        "category": "1C: Тестирование"
+        "title": "Обновить ошибки в Problems",
+        "category": "1С: Тестирование"
       },
       {
         "command": "1c-platform-tools.syntaxCheck.clear",
-        "title": "Синтаксический контроль: очистить ошибки в Problems",
-        "category": "1C: Тестирование"
+        "title": "Очистить ошибки в Problems",
+        "category": "1С: Тестирование"
       },
       {
         "command": "1c-platform-tools.test.vanessa",
         "title": "Vanessa тесты",
-        "category": "1C: Тестирование"
+        "category": "1С: Тестирование"
       },
       {
         "command": "1c-platform-tools.test.configure",
         "title": "Настроить тесты",
-        "category": "1C: Тестирование"
+        "category": "1С: Тестирование"
       },
       {
         "command": "1c-platform-tools.test.yaxunit",
         "title": "YAxUnit тесты",
-        "category": "1C: Тестирование"
+        "category": "1С: Тестирование"
       },
       {
         "command": "1c-platform-tools.test.loadExtensions",
         "title": "Загрузить тестовые расширения",
         "icon": "$(cloud-upload)",
-        "category": "1C: Тестирование"
+        "category": "1С: Тестирование"
       },
       {
-        "command": "1c-platform-tools.test.buildExtensions",
+        "command": "1c-platform-tools.test.compileExtensions",
         "title": "Собрать тестовые расширения",
         "icon": "$(tools)",
-        "category": "1C: Тестирование"
+        "category": "1С: Тестирование"
       },
       {
         "command": "1c-platform-tools.test.dumpExtensions",
         "title": "Выгрузить тестовые расширения",
         "icon": "$(repo-pull)",
-        "category": "1C: Тестирование"
+        "category": "1С: Тестирование"
       },
       {
         "command": "1c-platform-tools.test.decompileExtensions",
         "title": "Разобрать тестовые расширения",
         "icon": "$(file-binary)",
-        "category": "1C: Тестирование"
+        "category": "1С: Тестирование"
       },
       {
-        "command": "1c-platform-tools.test.buildEpf",
+        "command": "1c-platform-tools.test.compileEpf",
         "title": "Собрать unit-тесты",
-        "category": "1C: Тестирование"
+        "category": "1С: Тестирование"
       },
       {
         "command": "1c-platform-tools.test.decompileEpf",
         "title": "Разобрать unit-тесты",
-        "category": "1C: Тестирование"
+        "category": "1С: Тестирование"
       },
       {
         "command": "1c-platform-tools.test.allure",
         "title": "Отчёт Allure",
-        "category": "1C: Тестирование"
+        "category": "1С: Тестирование"
       },
       {
-        "command": "1c-platform-tools.setVersion.configuration",
-        "title": "Конфигурацию",
-        "category": "1C: Установить версию"
+        "command": "1c-platform-tools.cf.setVersion",
+        "title": "Установить версию",
+        "category": "1С: Конфигурация"
       },
       {
-        "command": "1c-platform-tools.setVersion.extension",
-        "title": "Расширение",
-        "category": "1C: Установить версию"
+        "command": "1c-platform-tools.cfe.setVersion",
+        "title": "Установить версию",
+        "category": "1С: Расширения"
       },
       {
-        "command": "1c-platform-tools.setVersion.report",
-        "title": "Внешний отчёт",
-        "category": "1C: Установить версию"
+        "command": "1c-platform-tools.epf.setVersionReport",
+        "title": "Установить версию отчёта",
+        "category": "1С: Внешние файлы"
       },
       {
-        "command": "1c-platform-tools.setVersion.processor",
-        "title": "Внешнюю обработку",
-        "category": "1C: Установить версию"
+        "command": "1c-platform-tools.epf.setVersionProcessor",
+        "title": "Установить версию обработки",
+        "category": "1С: Внешние файлы"
       },
       {
-        "command": "1c-platform-tools.launch.view",
-        "title": "Просмотр задач (workspace)",
-        "category": "1C: Задачи"
+        "command": "1c-platform-tools.tasks.view",
+        "title": "Просмотр (workspace)",
+        "category": "1С: Задачи"
       },
       {
-        "command": "1c-platform-tools.launch.run",
-        "title": "Запустить задачу",
-        "category": "1C: Задачи"
+        "command": "1c-platform-tools.tasks.run",
+        "title": "Запустить",
+        "category": "1С: Задачи"
       },
       {
-        "command": "1c-platform-tools.oscript.run",
-        "title": "Запустить задачу oscript (opm run)",
-        "category": "1C: Задачи"
+        "command": "1c-platform-tools.tasks.runOscript",
+        "title": "Запустить oscript (opm run)",
+        "category": "1С: Задачи"
       },
       {
-        "command": "1c-platform-tools.oscript.addTask",
-        "title": "Добавить задачу oscript",
-        "category": "1C: Задачи"
+        "command": "1c-platform-tools.tasks.addOscript",
+        "title": "Добавить oscript",
+        "category": "1С: Задачи"
       },
       {
-        "command": "1c-platform-tools.launch.edit",
-        "title": "Редактировать задачи",
-        "category": "1C: Задачи"
+        "command": "1c-platform-tools.tasks.edit",
+        "title": "Редактировать",
+        "category": "1С: Задачи"
       },
       {
         "command": "1c-platform-tools.launch.editConfigurations",
-        "title": "Редактировать конфигурации запуска",
-        "category": "1C: Конфигурации запуска"
+        "title": "Редактировать launch.json",
+        "category": "1С: Конфигурации запуска"
       },
       {
         "command": "1c-platform-tools.file.open",
         "title": "Открыть файл",
-        "category": "1C: Задачи"
+        "category": "1С: Задачи"
       },
       {
         "command": "1c-platform-tools.todo.showPanel",
         "title": "Показать список дел",
         "shortTitle": "Список дел",
-        "category": "1C: Список дел",
+        "category": "1С: Список дел",
         "icon": "$(checklist)"
       },
       {
         "command": "1c-platform-tools.todo.refresh",
-        "title": "Обновить список дел",
-        "category": "1C: Список дел",
+        "title": "Обновить",
+        "category": "1С: Список дел",
         "icon": "$(refresh)"
       },
       {
         "command": "1c-platform-tools.todo.toggleGroupBy",
         "title": "Группировать по иерархии (файлам)",
-        "category": "1C: Список дел",
+        "category": "1С: Список дел",
         "icon": "$(list-tree)"
       },
       {
-        "command": "1c-platform-tools.todo._viewAsList",
+        "command": "1c-platform-tools.todo.viewAsList",
         "title": "Показать списком",
         "shortTitle": "Списком",
-        "category": "1C: Список дел",
+        "category": "1С: Список дел",
         "icon": "$(list-flat)",
         "enablement": "1c-platform-tools.todo.groupByHierarchy"
       },
       {
-        "command": "1c-platform-tools.todo._viewAsHierarchy",
+        "command": "1c-platform-tools.todo.viewAsHierarchy",
         "title": "Показать по файлам",
         "shortTitle": "По файлам",
-        "category": "1C: Список дел",
+        "category": "1С: Список дел",
         "icon": "$(list-tree)",
         "enablement": "!1c-platform-tools.todo.groupByHierarchy"
       },
       {
         "command": "1c-platform-tools.todo.filterByTag",
         "title": "Фильтр по тегу",
-        "category": "1C: Список дел",
+        "category": "1С: Список дел",
         "icon": "$(filter)"
       },
       {
         "command": "1c-platform-tools.todo.filterByScope",
         "title": "Задать область поиска",
-        "category": "1C: Список дел",
+        "category": "1С: Список дел",
         "icon": "$(folder-opened)"
       },
       {
         "command": "1c-platform-tools.todo.clearFilter",
-        "title": "Сбросить фильтры списка дел",
+        "title": "Сбросить фильтры",
         "shortTitle": "Сбросить фильтры",
-        "category": "1C: Список дел",
+        "category": "1С: Список дел",
         "icon": "$(clear-all)"
       },
       {
         "command": "1c-platform-tools.env.editSettingsFile",
         "title": "Редактировать env.json",
-        "category": "1C: Конфигурации запуска"
+        "category": "1С: Конфигурации запуска"
       },
       {
         "command": "1c-platform-tools.projects.create",
-        "title": "Создать проект 1С...",
-        "category": "1C: Проекты"
+        "title": "Создать проект…",
+        "category": "1С: Проекты"
       },
       {
-        "command": "1c-platform-tools.getStarted.open",
+        "command": "1c-platform-tools.help.openGetStarted",
         "title": "С чего начать?",
-        "category": "1C: Помощь и поддержка",
+        "category": "1С: Помощь и поддержка",
         "icon": "$(lightbulb)"
       },
       {
         "command": "1c-platform-tools.help.openDocs",
         "title": "Документация",
-        "category": "1C: Помощь и поддержка",
+        "category": "1С: Помощь и поддержка",
         "icon": "$(book)"
       },
       {
         "command": "1c-platform-tools.help.copyEnvironmentSummary",
         "title": "Скопировать сводку окружения",
-        "category": "1C: Помощь и поддержка",
+        "category": "1С: Помощь и поддержка",
         "icon": "$(copy)"
       },
       {
         "command": "1c-platform-tools.help.openCreateIssue",
         "title": "Сообщить о проблемах",
-        "category": "1C: Помощь и поддержка",
+        "category": "1С: Помощь и поддержка",
         "icon": "$(comment-discussion)"
       },
       {
         "command": "1c-platform-tools.help.openWriteReview",
         "title": "Написать отзыв",
-        "category": "1C: Помощь и поддержка",
+        "category": "1С: Помощь и поддержка",
         "icon": "$(feedback)"
       },
       {
         "command": "1c-platform-tools.help.openSponsor",
         "title": "Стать спонсором",
-        "category": "1C: Помощь и поддержка",
+        "category": "1С: Помощь и поддержка",
         "icon": "$(heart)"
       },
       {
         "command": "1c-platform-tools.projects.saveProject",
         "title": "Сохранить проект",
-        "category": "1C: Проекты",
+        "category": "1С: Проекты",
         "icon": "$(save)"
       },
       {
         "command": "1c-platform-tools.projects.editProjects",
         "title": "Редактировать проекты",
-        "category": "1C: Проекты",
+        "category": "1С: Проекты",
         "icon": "$(edit)"
       },
       {
         "command": "1c-platform-tools.projects.configureFavorites",
-        "title": "Настроить избранное",
-        "category": "1C: Проекты",
+        "title": "Избранное",
+        "category": "1С: Проекты",
         "icon": "$(star-full)"
       },
       {
         "command": "1c-platform-tools.projects.listOpen",
-        "title": "Открыть список проектов 1С",
-        "shortTitle": "Список проектов",
-        "category": "1C: Проекты",
+        "title": "Открыть список",
+        "shortTitle": "Список",
+        "category": "1С: Проекты",
         "icon": "$(search)"
       },
       {
         "command": "1c-platform-tools.projects.listNewWindow",
-        "title": "Открыть список проектов (новое окно)",
-        "category": "1C: Проекты",
+        "title": "Открыть список в новом окне",
+        "category": "1С: Проекты",
         "icon": "$(link-external)"
       },
       {
         "command": "1c-platform-tools.projects.filterByTag",
         "title": "Отфильтровать по тегам",
-        "category": "1C: Проекты",
+        "category": "1С: Проекты",
         "icon": "$(tag)"
       },
       {
         "command": "1c-platform-tools.projects.refresh",
-        "title": "Обновить список проектов",
-        "category": "1C: Проекты",
+        "title": "Обновить",
+        "category": "1С: Проекты",
         "icon": "$(refresh)"
       },
       {
-        "command": "1c-platform-tools.projects._open",
+        "command": "1c-platform-tools.projects.open",
         "title": "Открыть",
-        "category": "1C: Проекты"
+        "category": "1С: Проекты"
       },
       {
-        "command": "1c-platform-tools.projects._openInNewWindow",
+        "command": "1c-platform-tools.projects.openInNewWindow",
         "title": "Открыть в новом окне",
-        "category": "1C: Проекты",
+        "category": "1С: Проекты",
         "icon": "$(link-external)"
       },
       {
-        "command": "1c-platform-tools.projects._sortByName",
+        "command": "1c-platform-tools.projects.sortByName",
         "title": "Сортировать по имени",
-        "category": "1C: Проекты",
+        "category": "1С: Проекты",
         "enablement": "config.1c-platform-tools.projects.sortList != 'Name'"
       },
       {
-        "command": "1c-platform-tools.projects._sortByPath",
+        "command": "1c-platform-tools.projects.sortByPath",
         "title": "Сортировать по пути",
-        "category": "1C: Проекты",
+        "category": "1С: Проекты",
         "enablement": "config.1c-platform-tools.projects.sortList != 'Path'"
       },
       {
         "command": "1c-platform-tools.projects.addToWorkspace",
         "title": "Добавить в рабочую область",
         "shortTitle": "В рабочую область",
-        "category": "1C: Проекты"
+        "category": "1С: Проекты"
       },
       {
         "command": "1c-platform-tools.projects.revealInExplorer",
         "title": "Показать в проводнике",
-        "category": "1C: Проекты"
+        "category": "1С: Проекты"
       },
       {
         "command": "1c-platform-tools.projects.revealInFinder",
         "title": "Показать в Finder",
-        "category": "1C: Проекты"
+        "category": "1С: Проекты"
       },
       {
         "command": "1c-platform-tools.projects.revealInFileManager",
         "title": "Показать в файловом менеджере",
         "shortTitle": "В файловом менеджере",
-        "category": "1C: Проекты"
+        "category": "1С: Проекты"
       },
       {
         "command": "1c-platform-tools.projects.deleteProject",
         "title": "Удалить",
-        "category": "1C: Проекты"
+        "category": "1С: Проекты"
       },
       {
         "command": "1c-platform-tools.projects.renameProject",
         "title": "Переименовать",
-        "category": "1C: Проекты"
+        "category": "1С: Проекты"
       },
       {
         "command": "1c-platform-tools.projects.editTags",
         "title": "Изменить теги",
-        "category": "1C: Проекты"
+        "category": "1С: Проекты"
       },
       {
         "command": "1c-platform-tools.projects.toggleEnabled",
         "title": "Включить/скрыть",
-        "category": "1C: Проекты"
+        "category": "1С: Проекты"
       },
       {
         "command": "1c-platform-tools.projects.addToFavorites",
         "title": "Добавить в избранное",
-        "category": "1C: Проекты",
+        "category": "1С: Проекты",
         "icon": "$(star-add)"
       },
       {
-        "command": "1c-platform-tools.projects._viewAsList",
+        "command": "1c-platform-tools.projects.viewAsList",
         "title": "Показать списком",
         "shortTitle": "Списком",
-        "category": "1C: Проекты",
+        "category": "1С: Проекты",
         "icon": "$(list-flat)",
         "enablement": "!1c-platform-tools.projects.viewAsList"
       },
       {
-        "command": "1c-platform-tools.projects._viewAsTags",
+        "command": "1c-platform-tools.projects.viewAsTags",
         "title": "Показать по тегам",
         "shortTitle": "По тегам",
-        "category": "1C: Проекты",
+        "category": "1С: Проекты",
         "icon": "$(list-tree)",
         "enablement": "1c-platform-tools.projects.viewAsList"
       },
       {
         "command": "1c-platform-tools.pipelines.run",
-        "title": "Запустить пайплайн",
-        "category": "1C: Пайплайны",
+        "title": "Запустить",
+        "category": "1С: Пайплайны",
         "icon": "$(play)"
       },
       {
         "command": "1c-platform-tools.pipelines.addTemplates",
-        "title": "Добавить типовые пайплайны",
-        "category": "1C: Пайплайны",
+        "title": "Добавить типовые",
+        "category": "1С: Пайплайны",
         "icon": "$(add)"
       },
       {
         "command": "1c-platform-tools.pipelines.openEditor",
-        "title": "Открыть редактор пайплайнов",
-        "category": "1C: Пайплайны",
+        "title": "Открыть редактор",
+        "category": "1С: Пайплайны",
         "icon": "$(circuit-board)"
       },
       {
         "command": "1c-platform-tools.hooks.openEditor",
-        "title": "Открыть редактор хуков",
-        "category": "1C: Хуки",
+        "title": "Открыть редактор",
+        "category": "1С: Хуки",
         "icon": "$(zap)"
       },
       {
         "command": "1c-platform-tools.editors.save",
-        "title": "Сохранить изменения формы",
-        "category": "1C: Служебные файлы"
+        "title": "Сохранить",
+        "category": "1С: Редакторы"
       }
     ],
     "viewsWelcome": [
@@ -1999,15 +2017,15 @@
       },
       {
         "view": "1c-platform-tools-projects-favorites",
-        "contents": "Нет избранных проектов.\n[Открыть папку](command:vscode.openFolder)\n[Настройка](command:1c-platform-tools.settings.openProjects)"
+        "contents": "Нет избранных проектов.\n[Открыть папку](command:vscode.openFolder)\n[Настройка](command:1c-platform-tools.projects.openSettings)"
       },
       {
-        "view": "1c-platform-tools-clusters-tree",
+        "view": "1c-platform-tools-admin-clusters",
         "contents": "Нет подключений к кластерам 1С.\n[Создать подключение](command:1c-platform-tools.clusters.addConnection)\n[Настройка](command:1c-platform-tools.clusters.openSettings)"
       },
       {
-        "view": "1c-platform-tools-infobases",
-        "contents": "В списке информационных баз 1С нет ни одной базы.\n[Обновить](command:1c-platform-tools.ibases.refresh)"
+        "view": "1c-platform-tools-admin-infobases",
+        "contents": "В списке информационных баз 1С нет ни одной базы.\n[Обновить](command:1c-platform-tools.infobaseList.refresh)"
       }
     ],
     "menus": {
@@ -2093,11 +2111,11 @@
           "when": "false"
         },
         {
-          "command": "1c-platform-tools.ibases.launchEnterprise",
+          "command": "1c-platform-tools.infobaseList.launchEnterprise",
           "when": "false"
         },
         {
-          "command": "1c-platform-tools.ibases.launchDesigner",
+          "command": "1c-platform-tools.infobaseList.launchDesigner",
           "when": "false"
         },
         {
@@ -2129,15 +2147,11 @@
           "when": "false"
         },
         {
-          "command": "1c-platform-tools.metadata.addDocument",
+          "command": "1c-platform-tools.metadata.addObject",
           "when": "false"
         },
         {
-          "command": "1c-platform-tools.metadata.addMdObject",
-          "when": "false"
-        },
-        {
-          "command": "1c-platform-tools.metadata.openObjectProperties",
+          "command": "1c-platform-tools.metadata.compile",
           "when": "false"
         },
         {
@@ -2185,7 +2199,7 @@
           "when": "false"
         },
         {
-          "command": "1c-platform-tools.metadata.openSourceProperties",
+          "command": "1c-platform-tools.metadata.openProperties",
           "when": "false"
         },
         {
@@ -2193,7 +2207,7 @@
           "when": "false"
         },
         {
-          "command": "1c-platform-tools.metadata.createObject",
+          "command": "1c-platform-tools.metadata.openFormContentXml",
           "when": "false"
         },
         {
@@ -2241,6 +2255,10 @@
           "when": "false"
         },
         {
+          "command": "1c-platform-tools.metadata.getProjectTree",
+          "when": "false"
+        },
+        {
           "command": "1c-platform-tools.metadata.er.openCanvas",
           "when": "false"
         },
@@ -2253,15 +2271,15 @@
           "when": "false"
         },
         {
-          "command": "1c-platform-tools.artifacts._viewAsList",
+          "command": "1c-platform-tools.artifacts.viewAsList",
           "when": "false"
         },
         {
-          "command": "1c-platform-tools.artifacts._viewByFolder",
+          "command": "1c-platform-tools.artifacts.viewByFolder",
           "when": "false"
         },
         {
-          "command": "1c-platform-tools.artifacts.buildConfiguration",
+          "command": "1c-platform-tools.artifacts.compileConfiguration",
           "when": "false"
         },
         {
@@ -2269,7 +2287,7 @@
           "when": "false"
         },
         {
-          "command": "1c-platform-tools.artifacts.buildExtension",
+          "command": "1c-platform-tools.artifacts.compileExtension",
           "when": "false"
         },
         {
@@ -2277,7 +2295,7 @@
           "when": "false"
         },
         {
-          "command": "1c-platform-tools.artifacts.buildProcessor",
+          "command": "1c-platform-tools.artifacts.compileProcessor",
           "when": "false"
         },
         {
@@ -2285,7 +2303,7 @@
           "when": "false"
         },
         {
-          "command": "1c-platform-tools.artifacts.buildReport",
+          "command": "1c-platform-tools.artifacts.compileReport",
           "when": "false"
         },
         {
@@ -2297,23 +2315,23 @@
           "when": "false"
         },
         {
-          "command": "1c-platform-tools.artifacts.decompileConfiguration.fromEditor",
+          "command": "1c-platform-tools.artifacts.decompileConfigurationFromEditor",
           "when": "false"
         },
         {
-          "command": "1c-platform-tools.artifacts.decompileExtension.fromEditor",
+          "command": "1c-platform-tools.artifacts.decompileExtensionFromEditor",
           "when": "false"
         },
         {
-          "command": "1c-platform-tools.artifacts.decompileProcessor.fromEditor",
+          "command": "1c-platform-tools.artifacts.decompileProcessorFromEditor",
           "when": "false"
         },
         {
-          "command": "1c-platform-tools.artifacts.decompileReport.fromEditor",
+          "command": "1c-platform-tools.artifacts.decompileReportFromEditor",
           "when": "false"
         },
         {
-          "command": "1c-platform-tools.favorites.configure",
+          "command": "1c-platform-tools.tools.configureFavorites",
           "when": "false"
         },
         {
@@ -2321,7 +2339,7 @@
           "when": "false"
         },
         {
-          "command": "1c-platform-tools.launch.view",
+          "command": "1c-platform-tools.tasks.view",
           "when": "false"
         },
         {
@@ -2337,11 +2355,11 @@
           "when": "false"
         },
         {
-          "command": "1c-platform-tools.todo._viewAsList",
+          "command": "1c-platform-tools.todo.viewAsList",
           "when": "false"
         },
         {
-          "command": "1c-platform-tools.todo._viewAsHierarchy",
+          "command": "1c-platform-tools.todo.viewAsHierarchy",
           "when": "false"
         },
         {
@@ -2381,23 +2399,23 @@
           "when": "false"
         },
         {
-          "command": "1c-platform-tools.projects._open",
+          "command": "1c-platform-tools.projects.open",
           "when": "false"
         },
         {
-          "command": "1c-platform-tools.projects._openInNewWindow",
+          "command": "1c-platform-tools.projects.openInNewWindow",
           "when": "false"
         },
         {
-          "command": "1c-platform-tools.settings.openProjects",
+          "command": "1c-platform-tools.projects.openSettings",
           "when": "false"
         },
         {
-          "command": "1c-platform-tools.projects._sortByName",
+          "command": "1c-platform-tools.projects.sortByName",
           "when": "false"
         },
         {
-          "command": "1c-platform-tools.projects._sortByPath",
+          "command": "1c-platform-tools.projects.sortByPath",
           "when": "false"
         },
         {
@@ -2437,15 +2455,39 @@
           "when": "false"
         },
         {
-          "command": "1c-platform-tools.projects._viewAsList",
+          "command": "1c-platform-tools.projects.viewAsList",
           "when": "false"
         },
         {
-          "command": "1c-platform-tools.projects._viewAsTags",
+          "command": "1c-platform-tools.projects.viewAsTags",
           "when": "false"
         },
         {
           "command": "1c-platform-tools.editors.save",
+          "when": "false"
+        },
+        {
+          "command": "1c-platform-tools.cfe.borrowObject",
+          "when": "false"
+        },
+        {
+          "command": "1c-platform-tools.epf.addBspRegistration",
+          "when": "false"
+        },
+        {
+          "command": "1c-platform-tools.metadata.supportSetObjectMode",
+          "when": "false"
+        },
+        {
+          "command": "1c-platform-tools.metadata.openDcs",
+          "when": "false"
+        },
+        {
+          "command": "1c-platform-tools.metadata.openCommandInterface",
+          "when": "false"
+        },
+        {
+          "command": "1c-platform-tools.metadata.supportRemove",
           "when": "false"
         }
       ],
@@ -2477,93 +2519,93 @@
       ],
       "view/title": [
         {
-          "command": "1c-platform-tools.ibases.refresh",
-          "when": "view == 1c-platform-tools-infobases",
+          "command": "1c-platform-tools.infobaseList.refresh",
+          "when": "view == 1c-platform-tools-admin-infobases",
           "group": "navigation@30"
         },
         {
           "command": "1c-platform-tools.clusters.addConnection",
-          "when": "view == 1c-platform-tools-clusters-tree",
+          "when": "view == 1c-platform-tools-admin-clusters",
           "group": "navigation@1"
         },
         {
           "command": "1c-platform-tools.clusters.enableAutoRefresh",
-          "when": "view == 1c-platform-tools-clusters-tree && !1c-platform-tools.clusters.autoRefresh",
+          "when": "view == 1c-platform-tools-admin-clusters && !1c-platform-tools.clusters.autoRefresh",
           "group": "navigation@2"
         },
         {
           "command": "1c-platform-tools.clusters.disableAutoRefresh",
-          "when": "view == 1c-platform-tools-clusters-tree && 1c-platform-tools.clusters.autoRefresh",
+          "when": "view == 1c-platform-tools-admin-clusters && 1c-platform-tools.clusters.autoRefresh",
           "group": "navigation@2"
         },
         {
           "command": "1c-platform-tools.clusters.refresh",
-          "when": "view == 1c-platform-tools-clusters-tree",
+          "when": "view == 1c-platform-tools-admin-clusters",
           "group": "navigation@30"
         },
         {
           "command": "1c-platform-tools.clusters.openSettings",
-          "when": "view == 1c-platform-tools-clusters-tree",
+          "when": "view == 1c-platform-tools-admin-clusters",
           "group": "navigation@20"
         },
         {
-          "command": "debug.debugTargets.connect",
-          "when": "view == debug.debugTargets",
+          "command": "1c-platform-tools.debug.connectTarget",
+          "when": "view == 1c-platform-tools-debug-targets",
           "group": "navigation"
         },
         {
-          "command": "1c-platform-tools.favorites.configure",
-          "when": "view == 1c-platform-tools",
+          "command": "1c-platform-tools.tools.configureFavorites",
+          "when": "view == 1c-platform-tools-tools-commands",
           "group": "navigation@10"
         },
         {
           "command": "1c-platform-tools.tools.configureGroupVisibility",
-          "when": "view == 1c-platform-tools && !1c-platform-tools.hasHiddenToolGroups",
+          "when": "view == 1c-platform-tools-tools-commands && !1c-platform-tools.hasHiddenToolGroups",
           "group": "navigation@13"
         },
         {
           "command": "1c-platform-tools.tools.configureGroupVisibilityActive",
-          "when": "view == 1c-platform-tools && 1c-platform-tools.hasHiddenToolGroups",
+          "when": "view == 1c-platform-tools-tools-commands && 1c-platform-tools.hasHiddenToolGroups",
           "group": "navigation@13"
         },
         {
-          "command": "1c-platform-tools.settings.openTools",
-          "when": "view == 1c-platform-tools",
+          "command": "1c-platform-tools.tools.openSettings",
+          "when": "view == 1c-platform-tools-tools-commands",
           "group": "navigation@20"
         },
         {
           "command": "1c-platform-tools.todo.showPanel",
-          "when": "view == 1c-platform-tools",
+          "when": "view == 1c-platform-tools-tools-commands",
           "group": "navigation@40"
         },
         {
           "command": "1c-platform-tools.tools.refresh",
-          "when": "view == 1c-platform-tools",
+          "when": "view == 1c-platform-tools-tools-commands",
           "group": "navigation@30"
         },
         {
           "submenu": "1c-platform-tools.artifacts.viewAndSortMenu",
-          "when": "view == 1c-platform-tools-artifacts-tree",
+          "when": "view == 1c-platform-tools-artifacts",
           "group": "1_artifacts"
         },
         {
-          "command": "1c-platform-tools.settings.openArtifacts",
-          "when": "view == 1c-platform-tools-artifacts-tree",
+          "command": "1c-platform-tools.artifacts.openSettings",
+          "when": "view == 1c-platform-tools-artifacts",
           "group": "2_artifacts"
         },
         {
-          "command": "1c-platform-tools.artifacts._viewAsList",
-          "when": "view == 1c-platform-tools-artifacts-tree && !1c-platform-tools.artifacts.viewAsList",
+          "command": "1c-platform-tools.artifacts.viewAsList",
+          "when": "view == 1c-platform-tools-artifacts && !1c-platform-tools.artifacts.viewAsList",
           "group": "navigation@11"
         },
         {
-          "command": "1c-platform-tools.artifacts._viewByFolder",
-          "when": "view == 1c-platform-tools-artifacts-tree && 1c-platform-tools.artifacts.viewAsList",
+          "command": "1c-platform-tools.artifacts.viewByFolder",
+          "when": "view == 1c-platform-tools-artifacts && 1c-platform-tools.artifacts.viewAsList",
           "group": "navigation@11"
         },
         {
           "command": "1c-platform-tools.artifacts.refresh",
-          "when": "view == 1c-platform-tools-artifacts-tree",
+          "when": "view == 1c-platform-tools-artifacts",
           "group": "navigation@30"
         },
         {
@@ -2577,17 +2619,17 @@
           "group": "navigation@6"
         },
         {
-          "command": "1c-platform-tools.todo._viewAsList",
+          "command": "1c-platform-tools.todo.viewAsList",
           "when": "view == 1c-platform-tools-todo-list && 1c-platform-tools.todo.groupByHierarchy",
           "group": "navigation@11"
         },
         {
-          "command": "1c-platform-tools.todo._viewAsHierarchy",
+          "command": "1c-platform-tools.todo.viewAsHierarchy",
           "when": "view == 1c-platform-tools-todo-list && !1c-platform-tools.todo.groupByHierarchy",
           "group": "navigation@11"
         },
         {
-          "command": "1c-platform-tools.settings.openTodo",
+          "command": "1c-platform-tools.todo.openSettings",
           "when": "view == 1c-platform-tools-todo-list",
           "group": "navigation@20"
         },
@@ -2597,12 +2639,12 @@
           "group": "navigation@30"
         },
         {
-          "command": "1c-platform-tools.projects._viewAsTags",
+          "command": "1c-platform-tools.projects.viewAsTags",
           "when": "view == 1c-platform-tools-projects-favorites && 1c-platform-tools.projects.viewAsList",
           "group": "navigation@11"
         },
         {
-          "command": "1c-platform-tools.projects._viewAsList",
+          "command": "1c-platform-tools.projects.viewAsList",
           "when": "view == 1c-platform-tools-projects-favorites && !1c-platform-tools.projects.viewAsList",
           "group": "navigation@11"
         },
@@ -2627,12 +2669,12 @@
           "group": "1_projects"
         },
         {
-          "command": "1c-platform-tools.settings.openProjects",
+          "command": "1c-platform-tools.projects.openSettings",
           "when": "view == 1c-platform-tools-projects-favorites",
           "group": "2_projects"
         },
         {
-          "command": "1c-platform-tools.settings.openProjects",
+          "command": "1c-platform-tools.projects.openSettings",
           "when": "view == 1c-platform-tools-projects-all",
           "group": "navigation@20"
         },
@@ -2687,159 +2729,164 @@
           "group": "navigation@12"
         },
         {
-          "command": "1c-platform-tools.settings.openMetadata",
+          "command": "1c-platform-tools.metadata.openSettings",
           "when": "view == 1c-platform-tools-metadata-tree",
           "group": "navigation@20"
         }
       ],
       "view/item/context": [
         {
-          "command": "1c-platform-tools.ibases.launchEnterprise",
-          "when": "view == 1c-platform-tools-infobases && viewItem == ibase",
+          "command": "1c-platform-tools.infobaseList.launchEnterprise",
+          "when": "view == 1c-platform-tools-admin-infobases && viewItem == ibase",
           "group": "inline@1"
         },
         {
-          "command": "1c-platform-tools.ibases.launchDesigner",
-          "when": "view == 1c-platform-tools-infobases && viewItem == ibase",
+          "command": "1c-platform-tools.infobaseList.launchDesigner",
+          "when": "view == 1c-platform-tools-admin-infobases && viewItem == ibase",
           "group": "inline@2"
         },
         {
           "command": "1c-platform-tools.clusters.properties",
-          "when": "view == 1c-platform-tools-clusters-tree && viewItem =~ /^(clusterConnection|clusterNode|clusterServer|clusterProcess|clusterManager|clusterInfobase|clusterInfobaseBound|clusterSession|clusterConnectionItem|clusterAdmin|clusterAgentAdmin)$/",
+          "when": "view == 1c-platform-tools-admin-clusters && viewItem =~ /^(clusterConnection|clusterNode|clusterServer|clusterProcess|clusterManager|clusterInfobase|clusterInfobaseBound|clusterSession|clusterConnectionItem|clusterAdmin|clusterAgentAdmin)$/",
           "group": "1_details@0"
         },
         {
           "command": "1c-platform-tools.clusters.properties",
-          "when": "view == 1c-platform-tools-clusters-tree && viewItem =~ /^(clusterConnection|clusterNode|clusterServer|clusterProcess|clusterManager|clusterInfobase|clusterInfobaseBound|clusterSession|clusterConnectionItem|clusterAdmin|clusterAgentAdmin)$/",
+          "when": "view == 1c-platform-tools-admin-clusters && viewItem =~ /^(clusterConnection|clusterNode|clusterServer|clusterProcess|clusterManager|clusterInfobase|clusterInfobaseBound|clusterSession|clusterConnectionItem|clusterAdmin|clusterAgentAdmin)$/",
           "group": "inline@20"
         },
         {
           "command": "1c-platform-tools.clusters.addAdmin",
-          "when": "view == 1c-platform-tools-clusters-tree && viewItem =~ /^clusterGroup[.](clusterAdmins|agentAdmins)$/",
+          "when": "view == 1c-platform-tools-admin-clusters && viewItem =~ /^clusterGroup[.](clusterAdmins|agentAdmins)$/",
           "group": "inline@10"
         },
         {
           "command": "1c-platform-tools.clusters.removeAdmin",
-          "when": "view == 1c-platform-tools-clusters-tree && viewItem =~ /^(clusterAdmin|clusterAgentAdmin)$/",
+          "when": "view == 1c-platform-tools-admin-clusters && viewItem =~ /^(clusterAdmin|clusterAgentAdmin)$/",
           "group": "3_danger@1"
         },
         {
           "command": "1c-platform-tools.clusters.refreshNode",
-          "when": "view == 1c-platform-tools-clusters-tree && viewItem != clusterMessage",
+          "when": "view == 1c-platform-tools-admin-clusters && viewItem != clusterMessage",
           "group": "inline@90"
         },
         {
           "command": "1c-platform-tools.clusters.removeConnection",
-          "when": "view == 1c-platform-tools-clusters-tree && viewItem == clusterConnection",
+          "when": "view == 1c-platform-tools-admin-clusters && viewItem == clusterConnection",
           "group": "1_connection@2"
         },
         {
           "command": "1c-platform-tools.clusters.showActivity",
-          "when": "view == 1c-platform-tools-clusters-tree && (viewItem =~ /^(clusterNode|clusterInfobase|clusterInfobaseBound)$/ || viewItem =~ /(^| )clusterGroupTable( |$)/)",
+          "when": "view == 1c-platform-tools-admin-clusters && viewItem =~ /^(clusterNode|clusterInfobase|clusterInfobaseBound)$/",
+          "group": "1_details@0"
+        },
+        {
+          "command": "1c-platform-tools.clusters.showActivity",
+          "when": "view == 1c-platform-tools-admin-clusters && (viewItem =~ /^(clusterNode|clusterInfobase|clusterInfobaseBound)$/ || viewItem =~ /(^| )clusterGroupTable( |$)/)",
           "group": "inline@30"
         },
         {
           "command": "1c-platform-tools.clusters.bindInfobaseCredentials",
-          "when": "view == 1c-platform-tools-clusters-tree && viewItem == clusterInfobase",
+          "when": "view == 1c-platform-tools-admin-clusters && viewItem == clusterInfobase",
           "group": "2_infobase@0"
         },
         {
           "command": "1c-platform-tools.clusters.unbindInfobaseCredentials",
-          "when": "view == 1c-platform-tools-clusters-tree && viewItem == clusterInfobaseBound",
+          "when": "view == 1c-platform-tools-admin-clusters && viewItem == clusterInfobaseBound",
           "group": "2_infobase@0"
         },
         {
           "command": "1c-platform-tools.clusters.lockSessions",
-          "when": "view == 1c-platform-tools-clusters-tree && viewItem =~ /^clusterInfobase/",
+          "when": "view == 1c-platform-tools-admin-clusters && viewItem =~ /^clusterInfobase/",
           "group": "2_infobase@1"
         },
         {
           "command": "1c-platform-tools.clusters.unlockSessions",
-          "when": "view == 1c-platform-tools-clusters-tree && viewItem =~ /^clusterInfobase/",
+          "when": "view == 1c-platform-tools-admin-clusters && viewItem =~ /^clusterInfobase/",
           "group": "2_infobase@2"
         },
         {
           "command": "1c-platform-tools.clusters.lockScheduledJobs",
-          "when": "view == 1c-platform-tools-clusters-tree && viewItem =~ /^clusterInfobase/",
+          "when": "view == 1c-platform-tools-admin-clusters && viewItem =~ /^clusterInfobase/",
           "group": "2_infobase@3"
         },
         {
           "command": "1c-platform-tools.clusters.unlockScheduledJobs",
-          "when": "view == 1c-platform-tools-clusters-tree && viewItem =~ /^clusterInfobase/",
+          "when": "view == 1c-platform-tools-admin-clusters && viewItem =~ /^clusterInfobase/",
           "group": "2_infobase@4"
         },
         {
           "command": "1c-platform-tools.clusters.terminateInfobaseSessions",
-          "when": "view == 1c-platform-tools-clusters-tree && viewItem =~ /^clusterInfobase/",
+          "when": "view == 1c-platform-tools-admin-clusters && viewItem =~ /^clusterInfobase/",
           "group": "3_danger@1"
         },
         {
           "command": "1c-platform-tools.clusters.dropInfobase",
-          "when": "view == 1c-platform-tools-clusters-tree && viewItem =~ /^clusterInfobase/",
+          "when": "view == 1c-platform-tools-admin-clusters && viewItem =~ /^clusterInfobase/",
           "group": "3_danger@2"
         },
         {
           "command": "1c-platform-tools.clusters.interruptSessionCall",
-          "when": "view == 1c-platform-tools-clusters-tree && viewItem == clusterSession",
+          "when": "view == 1c-platform-tools-admin-clusters && viewItem == clusterSession",
           "group": "3_danger@0"
         },
         {
           "command": "1c-platform-tools.clusters.turnOffProcess",
-          "when": "view == 1c-platform-tools-clusters-tree && viewItem == clusterProcess",
+          "when": "view == 1c-platform-tools-admin-clusters && viewItem == clusterProcess",
           "group": "3_danger@1"
         },
         {
           "command": "1c-platform-tools.clusters.terminateSession",
-          "when": "view == 1c-platform-tools-clusters-tree && viewItem == clusterSession",
+          "when": "view == 1c-platform-tools-admin-clusters && viewItem == clusterSession",
           "group": "inline@30"
         },
         {
           "command": "1c-platform-tools.clusters.terminateSession",
-          "when": "view == 1c-platform-tools-clusters-tree && viewItem == clusterSession",
+          "when": "view == 1c-platform-tools-admin-clusters && viewItem == clusterSession",
           "group": "3_danger@1"
         },
         {
           "command": "1c-platform-tools.clusters.disconnectConnection",
-          "when": "view == 1c-platform-tools-clusters-tree && viewItem == clusterConnectionItem",
+          "when": "view == 1c-platform-tools-admin-clusters && viewItem == clusterConnectionItem",
           "group": "inline@30"
         },
         {
           "command": "1c-platform-tools.clusters.disconnectConnection",
-          "when": "view == 1c-platform-tools-clusters-tree && viewItem == clusterConnectionItem",
+          "when": "view == 1c-platform-tools-admin-clusters && viewItem == clusterConnectionItem",
           "group": "3_danger@1"
         },
         {
           "command": "1c-platform-tools.metadata.validateDump",
-          "when": "view == 1c-platform-tools-metadata-tree && viewItem == metadataSourceConfigLike",
-          "group": "1_check@0"
+          "when": "view == 1c-platform-tools-metadata-tree && viewItem =~ /(^| )metadataSourceConfigLike( |$)/",
+          "group": "9_check@1"
         },
         {
-          "command": "1c-platform-tools.projects._openInNewWindow",
+          "command": "1c-platform-tools.projects.openInNewWindow",
           "when": "view == 1c-platform-tools-projects-favorites && viewItem == ProjectNodeKind",
           "group": "inline"
         },
         {
-          "command": "1c-platform-tools.projects._openInNewWindow",
+          "command": "1c-platform-tools.projects.openInNewWindow",
           "when": "view == 1c-platform-tools-projects-all && viewItem == ProjectNodeKind",
           "group": "inline"
         },
         {
-          "command": "1c-platform-tools.projects._open",
+          "command": "1c-platform-tools.projects.open",
           "when": "view == 1c-platform-tools-projects-favorites && viewItem == ProjectNodeKind",
           "group": "navigation"
         },
         {
-          "command": "1c-platform-tools.projects._openInNewWindow",
+          "command": "1c-platform-tools.projects.openInNewWindow",
           "when": "view == 1c-platform-tools-projects-favorites && viewItem == ProjectNodeKind",
           "group": "navigation"
         },
         {
-          "command": "1c-platform-tools.projects._open",
+          "command": "1c-platform-tools.projects.open",
           "when": "view == 1c-platform-tools-projects-all && viewItem == ProjectNodeKind",
           "group": "navigation"
         },
         {
-          "command": "1c-platform-tools.projects._openInNewWindow",
+          "command": "1c-platform-tools.projects.openInNewWindow",
           "when": "view == 1c-platform-tools-projects-all && viewItem == ProjectNodeKind",
           "group": "navigation"
         },
@@ -2910,338 +2957,373 @@
         },
         {
           "command": "1c-platform-tools.artifacts.open",
-          "when": "view == 1c-platform-tools-artifacts-tree && viewItem == 'artifactsConfigurationSource'",
+          "when": "view == 1c-platform-tools-artifacts && viewItem == 'artifactsConfigurationSource'",
           "group": "inline"
         },
         {
           "command": "1c-platform-tools.artifacts.open",
-          "when": "view == 1c-platform-tools-artifacts-tree && viewItem == 'artifactsConfigurationBinary'",
+          "when": "view == 1c-platform-tools-artifacts && viewItem == 'artifactsConfigurationBinary'",
           "group": "inline"
         },
         {
-          "command": "1c-platform-tools.artifacts.buildConfiguration",
-          "when": "view == 1c-platform-tools-artifacts-tree && viewItem == 'artifactsConfigurationSource'",
+          "command": "1c-platform-tools.artifacts.compileConfiguration",
+          "when": "view == 1c-platform-tools-artifacts && viewItem == 'artifactsConfigurationSource'",
           "group": "inline"
         },
         {
           "command": "1c-platform-tools.artifacts.decompileConfiguration",
-          "when": "view == 1c-platform-tools-artifacts-tree && viewItem == 'artifactsConfigurationBinary'",
+          "when": "view == 1c-platform-tools-artifacts && viewItem == 'artifactsConfigurationBinary'",
           "group": "inline"
         },
         {
           "command": "1c-platform-tools.artifacts.open",
-          "when": "view == 1c-platform-tools-artifacts-tree && viewItem == 'artifactsExtensionSource'",
+          "when": "view == 1c-platform-tools-artifacts && viewItem == 'artifactsExtensionSource'",
           "group": "inline"
         },
         {
           "command": "1c-platform-tools.artifacts.open",
-          "when": "view == 1c-platform-tools-artifacts-tree && viewItem == 'artifactsExtensionBinary'",
+          "when": "view == 1c-platform-tools-artifacts && viewItem == 'artifactsExtensionBinary'",
           "group": "inline"
         },
         {
-          "command": "1c-platform-tools.artifacts.buildExtension",
-          "when": "view == 1c-platform-tools-artifacts-tree && viewItem == 'artifactsExtensionSource'",
+          "command": "1c-platform-tools.artifacts.compileExtension",
+          "when": "view == 1c-platform-tools-artifacts && viewItem == 'artifactsExtensionSource'",
           "group": "inline"
         },
         {
           "command": "1c-platform-tools.artifacts.decompileExtension",
-          "when": "view == 1c-platform-tools-artifacts-tree && viewItem == 'artifactsExtensionBinary'",
+          "when": "view == 1c-platform-tools-artifacts && viewItem == 'artifactsExtensionBinary'",
           "group": "inline"
         },
         {
           "command": "1c-platform-tools.artifacts.open",
-          "when": "view == 1c-platform-tools-artifacts-tree && viewItem == 'artifactsProcessorSource'",
+          "when": "view == 1c-platform-tools-artifacts && viewItem == 'artifactsProcessorSource'",
           "group": "inline"
         },
         {
           "command": "1c-platform-tools.artifacts.open",
-          "when": "view == 1c-platform-tools-artifacts-tree && viewItem == 'artifactsProcessorBinary'",
+          "when": "view == 1c-platform-tools-artifacts && viewItem == 'artifactsProcessorBinary'",
           "group": "inline"
         },
         {
-          "command": "1c-platform-tools.artifacts.buildProcessor",
-          "when": "view == 1c-platform-tools-artifacts-tree && viewItem == 'artifactsProcessorSource'",
+          "command": "1c-platform-tools.artifacts.compileProcessor",
+          "when": "view == 1c-platform-tools-artifacts && viewItem == 'artifactsProcessorSource'",
           "group": "inline"
         },
         {
           "command": "1c-platform-tools.artifacts.decompileProcessor",
-          "when": "view == 1c-platform-tools-artifacts-tree && viewItem == 'artifactsProcessorBinary'",
+          "when": "view == 1c-platform-tools-artifacts && viewItem == 'artifactsProcessorBinary'",
           "group": "inline"
         },
         {
           "command": "1c-platform-tools.artifacts.open",
-          "when": "view == 1c-platform-tools-artifacts-tree && viewItem == 'artifactsReportSource'",
+          "when": "view == 1c-platform-tools-artifacts && viewItem == 'artifactsReportSource'",
           "group": "inline"
         },
         {
           "command": "1c-platform-tools.artifacts.open",
-          "when": "view == 1c-platform-tools-artifacts-tree && viewItem == 'artifactsReportBinary'",
+          "when": "view == 1c-platform-tools-artifacts && viewItem == 'artifactsReportBinary'",
           "group": "inline"
         },
         {
-          "command": "1c-platform-tools.artifacts.buildReport",
-          "when": "view == 1c-platform-tools-artifacts-tree && viewItem == 'artifactsReportSource'",
+          "command": "1c-platform-tools.artifacts.compileReport",
+          "when": "view == 1c-platform-tools-artifacts && viewItem == 'artifactsReportSource'",
           "group": "inline"
         },
         {
           "command": "1c-platform-tools.artifacts.decompileReport",
-          "when": "view == 1c-platform-tools-artifacts-tree && viewItem == 'artifactsReportBinary'",
+          "when": "view == 1c-platform-tools-artifacts && viewItem == 'artifactsReportBinary'",
           "group": "inline"
         },
         {
           "command": "1c-platform-tools.artifacts.open",
-          "when": "view == 1c-platform-tools-artifacts-tree && viewItem == 'artifactsConfigurationSource'",
+          "when": "view == 1c-platform-tools-artifacts && viewItem == 'artifactsConfigurationSource'",
           "group": "navigation"
         },
         {
           "command": "1c-platform-tools.artifacts.open",
-          "when": "view == 1c-platform-tools-artifacts-tree && viewItem == 'artifactsConfigurationBinary'",
+          "when": "view == 1c-platform-tools-artifacts && viewItem == 'artifactsConfigurationBinary'",
           "group": "navigation"
         },
         {
-          "command": "1c-platform-tools.artifacts.buildConfiguration",
-          "when": "view == 1c-platform-tools-artifacts-tree && viewItem == 'artifactsConfigurationSource'",
+          "command": "1c-platform-tools.artifacts.compileConfiguration",
+          "when": "view == 1c-platform-tools-artifacts && viewItem == 'artifactsConfigurationSource'",
           "group": "navigation"
         },
         {
           "command": "1c-platform-tools.artifacts.decompileConfiguration",
-          "when": "view == 1c-platform-tools-artifacts-tree && viewItem == 'artifactsConfigurationBinary'",
+          "when": "view == 1c-platform-tools-artifacts && viewItem == 'artifactsConfigurationBinary'",
           "group": "navigation"
         },
         {
           "command": "1c-platform-tools.artifacts.open",
-          "when": "view == 1c-platform-tools-artifacts-tree && viewItem == 'artifactsExtensionSource'",
+          "when": "view == 1c-platform-tools-artifacts && viewItem == 'artifactsExtensionSource'",
           "group": "navigation"
         },
         {
           "command": "1c-platform-tools.artifacts.open",
-          "when": "view == 1c-platform-tools-artifacts-tree && viewItem == 'artifactsExtensionBinary'",
+          "when": "view == 1c-platform-tools-artifacts && viewItem == 'artifactsExtensionBinary'",
           "group": "navigation"
         },
         {
-          "command": "1c-platform-tools.artifacts.buildExtension",
-          "when": "view == 1c-platform-tools-artifacts-tree && viewItem == 'artifactsExtensionSource'",
+          "command": "1c-platform-tools.artifacts.compileExtension",
+          "when": "view == 1c-platform-tools-artifacts && viewItem == 'artifactsExtensionSource'",
           "group": "navigation"
         },
         {
           "command": "1c-platform-tools.artifacts.decompileExtension",
-          "when": "view == 1c-platform-tools-artifacts-tree && viewItem == 'artifactsExtensionBinary'",
+          "when": "view == 1c-platform-tools-artifacts && viewItem == 'artifactsExtensionBinary'",
           "group": "navigation"
         },
         {
           "command": "1c-platform-tools.artifacts.open",
-          "when": "view == 1c-platform-tools-artifacts-tree && viewItem == 'artifactsProcessorSource'",
+          "when": "view == 1c-platform-tools-artifacts && viewItem == 'artifactsProcessorSource'",
           "group": "navigation"
         },
         {
           "command": "1c-platform-tools.artifacts.open",
-          "when": "view == 1c-platform-tools-artifacts-tree && viewItem == 'artifactsProcessorBinary'",
+          "when": "view == 1c-platform-tools-artifacts && viewItem == 'artifactsProcessorBinary'",
           "group": "navigation"
         },
         {
-          "command": "1c-platform-tools.artifacts.buildProcessor",
-          "when": "view == 1c-platform-tools-artifacts-tree && viewItem == 'artifactsProcessorSource'",
+          "command": "1c-platform-tools.artifacts.compileProcessor",
+          "when": "view == 1c-platform-tools-artifacts && viewItem == 'artifactsProcessorSource'",
           "group": "navigation"
         },
         {
           "command": "1c-platform-tools.artifacts.decompileProcessor",
-          "when": "view == 1c-platform-tools-artifacts-tree && viewItem == 'artifactsProcessorBinary'",
+          "when": "view == 1c-platform-tools-artifacts && viewItem == 'artifactsProcessorBinary'",
           "group": "navigation"
         },
         {
           "command": "1c-platform-tools.artifacts.open",
-          "when": "view == 1c-platform-tools-artifacts-tree && viewItem == 'artifactsReportSource'",
+          "when": "view == 1c-platform-tools-artifacts && viewItem == 'artifactsReportSource'",
           "group": "navigation"
         },
         {
           "command": "1c-platform-tools.artifacts.open",
-          "when": "view == 1c-platform-tools-artifacts-tree && viewItem == 'artifactsReportBinary'",
+          "when": "view == 1c-platform-tools-artifacts && viewItem == 'artifactsReportBinary'",
           "group": "navigation"
         },
         {
-          "command": "1c-platform-tools.artifacts.buildReport",
-          "when": "view == 1c-platform-tools-artifacts-tree && viewItem == 'artifactsReportSource'",
+          "command": "1c-platform-tools.artifacts.compileReport",
+          "when": "view == 1c-platform-tools-artifacts && viewItem == 'artifactsReportSource'",
           "group": "navigation"
         },
         {
           "command": "1c-platform-tools.artifacts.decompileReport",
-          "when": "view == 1c-platform-tools-artifacts-tree && viewItem == 'artifactsReportBinary'",
+          "when": "view == 1c-platform-tools-artifacts && viewItem == 'artifactsReportBinary'",
           "group": "navigation"
         },
         {
           "command": "1c-platform-tools.artifacts.delete",
-          "when": "view == 1c-platform-tools-artifacts-tree",
+          "when": "view == 1c-platform-tools-artifacts",
           "group": "9_cutcopypaste"
         },
         {
-          "command": "1c-platform-tools.metadata.addMdObject",
+          "command": "1c-platform-tools.metadata.addObject",
           "when": "view == 1c-platform-tools-metadata-tree && (viewItem == metadataGroup_catalogs || viewItem == metadataGroupExt_catalogs || viewItem == metadataGroup_constants || viewItem == metadataGroupExt_constants || viewItem == metadataGroup_enums || viewItem == metadataGroupExt_enums || viewItem == metadataGroup_documents || viewItem == metadataGroupExt_documents || viewItem == metadataGroup_reports || viewItem == metadataGroupExt_reports || viewItem == metadataGroup_externalReports || viewItem == metadataGroupExt_externalReports || viewItem == metadataGroup_dataProcessors || viewItem == metadataGroupExt_dataProcessors || viewItem == metadataGroup_externalDataProcessors || viewItem == metadataGroupExt_externalDataProcessors || viewItem == metadataGroup_tasks || viewItem == metadataGroupExt_tasks || viewItem == metadataGroup_chartOfCharacteristicTypes || viewItem == metadataGroupExt_chartOfCharacteristicTypes || viewItem == metadataGroup_chartOfAccounts || viewItem == metadataGroupExt_chartOfAccounts || viewItem == metadataGroup_chartOfCalculationTypes || viewItem == metadataGroupExt_chartOfCalculationTypes || viewItem == metadataGroup_externalDataSources || viewItem == metadataGroupExt_externalDataSources || viewItem == metadataSubgroup_common_common_subsystem || viewItem == metadataSubgroupExt_common_common_subsystem || viewItem == metadataSubgroup_common_common_commonmodule || viewItem == metadataSubgroupExt_common_common_commonmodule || viewItem == metadataSubgroup_common_common_sessionparam || viewItem == metadataSubgroupExt_common_common_sessionparam || viewItem == metadataSubgroup_common_common_role || viewItem == metadataSubgroupExt_common_common_role || viewItem == metadataSubgroup_common_common_commonattribute || viewItem == metadataSubgroupExt_common_common_commonattribute || viewItem == metadataSubgroup_common_common_exchangeplan || viewItem == metadataSubgroupExt_common_common_exchangeplan || viewItem == metadataSubgroup_common_common_commonpicture || viewItem == metadataSubgroupExt_common_common_commonpicture || viewItem == metadataSubgroup_documents_documentNumerators || viewItem == metadataSubgroupExt_documents_documentNumerators)",
           "group": "inline"
         },
         {
-          "command": "1c-platform-tools.metadata.createObject",
+          "command": "1c-platform-tools.metadata.addObject",
           "when": "view == 1c-platform-tools-metadata-tree && viewItem == metadataSourceExternalArtifact",
           "group": "inline"
         },
         {
-          "command": "1c-platform-tools.metadata.openObjectProperties",
-          "when": "view == 1c-platform-tools-metadata-tree && viewItem =~ /(^| )mdPropertiesCard( |$)/",
-          "group": "1_md_open"
-        },
-        {
-          "command": "1c-platform-tools.metadata.openObjectProperties",
-          "when": "view == 1c-platform-tools-metadata-tree && viewItem == metadataLeafFile",
-          "group": "1_md_open"
-        },
-        {
           "command": "1c-platform-tools.metadata.openForm",
-          "when": "view == 1c-platform-tools-metadata-tree && (viewItem == metadataObjectForm || viewItem =~ /(^| )mdFormModule( |$)/)",
-          "group": "1_md_open"
+          "when": "view == 1c-platform-tools-metadata-tree && viewItem =~ /(^| )mdFormModule( |$)/",
+          "group": "1_open@1"
         },
         {
           "command": "1c-platform-tools.metadata.er.openForObject",
-          "when": "view == 1c-platform-tools-metadata-tree && (viewItem =~ /metadataObjectProperties/ || viewItem == metadataLeafFile)",
-          "group": "1_md_open"
+          "when": "view == 1c-platform-tools-metadata-tree && viewItem =~ /(^| )(metadataObjectProperties(Subsystem)?|metadataLeafFile)( |$)/",
+          "group": "2_reveal@3"
         },
         {
           "command": "1c-platform-tools.metadata.openExternalConnectionModule",
-          "when": "view == 1c-platform-tools-metadata-tree && viewItem == metadataSourceConfigLike",
-          "group": "1_modules@1"
+          "when": "view == 1c-platform-tools-metadata-tree && viewItem =~ /(^| )metadataSourceConfigLike( |$)/",
+          "group": "1_open@2"
         },
         {
           "command": "1c-platform-tools.metadata.openApplicationModule",
-          "when": "view == 1c-platform-tools-metadata-tree && viewItem == metadataSourceConfigLike",
-          "group": "1_modules@2"
+          "when": "view == 1c-platform-tools-metadata-tree && viewItem =~ /(^| )metadataSourceConfigLike( |$)/",
+          "group": "1_open@3"
         },
         {
           "command": "1c-platform-tools.metadata.openSessionModule",
-          "when": "view == 1c-platform-tools-metadata-tree && viewItem == metadataSourceConfigLike",
-          "group": "1_modules@3"
+          "when": "view == 1c-platform-tools-metadata-tree && viewItem =~ /(^| )metadataSourceConfigLike( |$)/",
+          "group": "1_open@4"
         },
         {
           "command": "1c-platform-tools.metadata.openObjectModule",
           "when": "view == 1c-platform-tools-metadata-tree && viewItem =~ /(^| )mdObjModule( |$)/",
-          "group": "1_modules@1"
+          "group": "1_open@2"
         },
         {
           "command": "1c-platform-tools.metadata.openRecordSetModule",
           "when": "view == 1c-platform-tools-metadata-tree && viewItem =~ /(^| )mdRecModule( |$)/",
-          "group": "1_modules@1"
+          "group": "1_open@2"
         },
         {
           "command": "1c-platform-tools.metadata.openValueManagerModule",
           "when": "view == 1c-platform-tools-metadata-tree && viewItem =~ /(^| )mdValModule( |$)/",
-          "group": "1_modules@1"
+          "group": "1_open@2"
         },
         {
           "command": "1c-platform-tools.metadata.openModule",
           "when": "view == 1c-platform-tools-metadata-tree && viewItem =~ /(^| )mdModule( |$)/",
-          "group": "1_modules@1"
+          "group": "1_open@2"
         },
         {
           "command": "1c-platform-tools.metadata.openManagerModule",
           "when": "view == 1c-platform-tools-metadata-tree && viewItem =~ /(^| )mdMgrModule( |$)/",
-          "group": "1_modules@2"
+          "group": "1_open@3"
         },
         {
           "command": "1c-platform-tools.metadata.openFormModule",
           "when": "view == 1c-platform-tools-metadata-tree && viewItem =~ /(^| )mdFormModule( |$)/",
-          "group": "1_modules@3"
+          "group": "1_open@4"
         },
         {
-          "command": "1c-platform-tools.metadata.openSourceProperties",
-          "when": "view == 1c-platform-tools-metadata-tree && (viewItem == metadataSourceConfigLike || viewItem == metadataLeafFile)",
-          "group": "2_properties@1"
+          "command": "1c-platform-tools.metadata.openProperties",
+          "when": "view == 1c-platform-tools-metadata-tree && (viewItem =~ /(^| )metadataSourceConfigLike( |$)/ || viewItem =~ /(^| )(metadataObjectProperties(Subsystem)?|metadataLeafFile)( |$)/ || viewItem =~ /(^| )metadataChild_/)",
+          "group": "9_properties@1"
         },
         {
           "command": "1c-platform-tools.metadata.openSourceXml",
-          "when": "view == 1c-platform-tools-metadata-tree && (viewItem == metadataSourceConfigLike || viewItem == metadataLeafFile)",
-          "group": "3_xml@1"
+          "when": "view == 1c-platform-tools-metadata-tree && (viewItem =~ /(^| )metadataSourceConfigLike( |$)/ || viewItem =~ /(^| )(metadataObjectProperties(Subsystem)?|metadataLeafFile|metadataObjectForm)( |$)/)",
+          "group": "2_reveal@1"
         },
         {
-          "command": "1c-platform-tools.metadata.createObject",
+          "command": "1c-platform-tools.metadata.openFormContentXml",
+          "when": "view == 1c-platform-tools-metadata-tree && (viewItem =~ /(^| )metadataObjectForm( |$)/ || viewItem =~ /(^| )mdFormModule( |$)/)",
+          "group": "2_reveal@2"
+        },
+        {
+          "command": "1c-platform-tools.metadata.compile",
+          "when": "view == 1c-platform-tools-metadata-tree && (viewItem =~ /(^| )metadataSourceConfigLike( |$)/ || viewItem == metadataSourceExternalArtifact || viewItem =~ /(^| )metadataLeafFile( |$)/)",
+          "group": "4_build@1"
+        },
+        {
+          "command": "1c-platform-tools.metadata.addObject",
           "when": "view == 1c-platform-tools-metadata-tree && (viewItem == metadataGroup_catalogs || viewItem == metadataGroupExt_catalogs || viewItem == metadataGroup_constants || viewItem == metadataGroupExt_constants || viewItem == metadataGroup_enums || viewItem == metadataGroupExt_enums || viewItem == metadataGroup_documents || viewItem == metadataGroupExt_documents || viewItem == metadataGroup_reports || viewItem == metadataGroupExt_reports || viewItem == metadataGroup_externalReports || viewItem == metadataGroupExt_externalReports || viewItem == metadataGroup_dataProcessors || viewItem == metadataGroupExt_dataProcessors || viewItem == metadataGroup_externalDataProcessors || viewItem == metadataGroupExt_externalDataProcessors || viewItem == metadataGroup_tasks || viewItem == metadataGroupExt_tasks || viewItem == metadataGroup_chartOfCharacteristicTypes || viewItem == metadataGroupExt_chartOfCharacteristicTypes || viewItem == metadataGroup_chartOfAccounts || viewItem == metadataGroupExt_chartOfAccounts || viewItem == metadataGroup_chartOfCalculationTypes || viewItem == metadataGroupExt_chartOfCalculationTypes || viewItem == metadataGroup_externalDataSources || viewItem == metadataGroupExt_externalDataSources || viewItem == metadataSubgroup_common_common_subsystem || viewItem == metadataSubgroupExt_common_common_subsystem || viewItem == metadataSubgroup_common_common_commonmodule || viewItem == metadataSubgroupExt_common_common_commonmodule || viewItem == metadataSubgroup_common_common_sessionparam || viewItem == metadataSubgroupExt_common_common_sessionparam || viewItem == metadataSubgroup_common_common_role || viewItem == metadataSubgroupExt_common_common_role || viewItem == metadataSubgroup_common_common_commonattribute || viewItem == metadataSubgroupExt_common_common_commonattribute || viewItem == metadataSubgroup_common_common_exchangeplan || viewItem == metadataSubgroupExt_common_common_exchangeplan || viewItem == metadataSubgroup_common_common_commonpicture || viewItem == metadataSubgroupExt_common_common_commonpicture || viewItem == metadataSubgroup_documents_documentNumerators || viewItem == metadataSubgroupExt_documents_documentNumerators || viewItem == metadataSourceExternalArtifact)",
-          "group": "2_md_create"
+          "group": "3_create@1"
         },
         {
           "command": "1c-platform-tools.metadata.addChildNode",
-          "when": "view == 1c-platform-tools-metadata-tree && (viewItem =~ /^metadataObjectProperties($| )/ || viewItem == metadataAttributesSection || viewItem == metadataTabularSectionsSection || viewItem == metadataTabularSection)",
-          "group": "3_md_mutate"
+          "when": "view == 1c-platform-tools-metadata-tree && viewItem =~ /(^| )(mdSectionAdd|mdChildAdd)( |$)/",
+          "group": "inline"
+        },
+        {
+          "command": "1c-platform-tools.metadata.addChildNode",
+          "when": "view == 1c-platform-tools-metadata-tree && viewItem =~ /(^| )(mdSectionAdd|mdChildAdd)( |$)/",
+          "group": "3_create@2"
         },
         {
           "command": "1c-platform-tools.metadata.renameChildNode",
-          "when": "view == 1c-platform-tools-metadata-tree && (viewItem == metadataAttribute || viewItem == metadataTabularSection || viewItem == metadataTabularAttribute)",
-          "group": "3_md_mutate"
+          "when": "view == 1c-platform-tools-metadata-tree && viewItem =~ /(^| )mdChildEdit( |$)/",
+          "group": "5_edit@1"
         },
         {
           "command": "1c-platform-tools.metadata.duplicateChildNode",
-          "when": "view == 1c-platform-tools-metadata-tree && (viewItem == metadataAttribute || viewItem == metadataTabularSection || viewItem == metadataTabularAttribute)",
-          "group": "3_md_mutate"
+          "when": "view == 1c-platform-tools-metadata-tree && viewItem =~ /(^| )mdChildDuplicate( |$)/",
+          "group": "5_edit@2"
         },
         {
           "command": "1c-platform-tools.metadata.deleteChildNode",
-          "when": "view == 1c-platform-tools-metadata-tree && (viewItem == metadataAttribute || viewItem == metadataTabularSection || viewItem == metadataTabularAttribute)",
-          "group": "3_md_mutate"
+          "when": "view == 1c-platform-tools-metadata-tree && viewItem =~ /(^| )(mdChildEdit|mdChildDelete)( |$)/",
+          "group": "7_delete@1"
         },
         {
           "command": "1c-platform-tools.metadata.renameObject",
-          "when": "view == 1c-platform-tools-metadata-tree && (viewItem =~ /metadataObjectProperties/ || viewItem == metadataLeafFile)",
-          "group": "3_md_mutate"
+          "when": "view == 1c-platform-tools-metadata-tree && viewItem =~ /(^| )(metadataObjectProperties(Subsystem)?|metadataLeafFile)( |$)/",
+          "group": "5_edit@1"
         },
         {
           "command": "1c-platform-tools.metadata.duplicateObject",
-          "when": "view == 1c-platform-tools-metadata-tree && (viewItem =~ /metadataObjectProperties/ || viewItem == metadataLeafFile)",
-          "group": "3_md_mutate"
+          "when": "view == 1c-platform-tools-metadata-tree && viewItem =~ /(^| )(metadataObjectProperties(Subsystem)?|metadataLeafFile)( |$)/",
+          "group": "5_edit@2"
+        },
+        {
+          "command": "1c-platform-tools.cfe.borrowObject",
+          "when": "view == 1c-platform-tools-metadata-tree && viewItem =~ /(^| )metadataObjectProperties( |$)/",
+          "group": "3_create@9"
+        },
+        {
+          "command": "1c-platform-tools.epf.addBspRegistration",
+          "when": "view == 1c-platform-tools-metadata-tree && viewItem =~ /(^| )metadataLeafFile( |$)/",
+          "group": "3_create@8"
         },
         {
           "command": "1c-platform-tools.metadata.deleteObject",
-          "when": "view == 1c-platform-tools-metadata-tree && (viewItem =~ /metadataObjectProperties/ || viewItem == metadataLeafFile)",
-          "group": "3_md_mutate"
+          "when": "view == 1c-platform-tools-metadata-tree && viewItem =~ /(^| )(metadataObjectProperties(Subsystem)?|metadataLeafFile)( |$)/",
+          "group": "7_delete@1"
         },
         {
           "command": "1c-platform-tools.metadata.filterBySubsystem",
-          "when": "view == 1c-platform-tools-metadata-tree && viewItem == metadataObjectPropertiesSubsystem",
-          "group": "4_md_filter"
+          "when": "view == 1c-platform-tools-metadata-tree && viewItem =~ /(^| )metadataObjectPropertiesSubsystem( |$)/",
+          "group": "8_filter@1"
         },
         {
           "command": "1c-platform-tools.metadata.clearSubsystemFilter",
           "when": "view == 1c-platform-tools-metadata-tree && 1c-platform-tools.metadata.subsystemFilterActive",
-          "group": "4_md_filter"
+          "group": "8_filter@2"
         },
         {
           "command": "1c-platform-tools.metadata.copyObjectName",
-          "when": "view == 1c-platform-tools-metadata-tree && (viewItem =~ /metadataObjectProperties/ || viewItem == metadataLeafFile)",
-          "group": "5_md_copy"
+          "when": "view == 1c-platform-tools-metadata-tree && viewItem =~ /(^| )(metadataObjectProperties(Subsystem)?|metadataLeafFile)( |$)/",
+          "group": "6_copy@1"
         },
         {
           "command": "1c-platform-tools.metadata.copyObjectPath",
-          "when": "view == 1c-platform-tools-metadata-tree && (viewItem =~ /metadataObjectProperties/ || viewItem == metadataLeafFile)",
-          "group": "5_md_copy"
+          "when": "view == 1c-platform-tools-metadata-tree && viewItem =~ /(^| )(metadataObjectProperties(Subsystem)?|metadataLeafFile)( |$)/",
+          "group": "6_copy@2"
         },
         {
           "command": "1c-platform-tools.pipelines.run",
-          "when": "view == 1c-platform-tools && viewItem == pipelineEntry",
+          "when": "view == 1c-platform-tools-tools-commands && viewItem == pipelineEntry",
           "group": "inline"
+        },
+        {
+          "command": "1c-platform-tools.metadata.supportSetObjectMode",
+          "when": "view == 1c-platform-tools-metadata-tree && viewItem =~ /(^| )mdSupportRule( |$)/",
+          "group": "5_support@1"
+        },
+        {
+          "command": "1c-platform-tools.metadata.openDcs",
+          "when": "view == 1c-platform-tools-metadata-tree && viewItem =~ /(^| )(metadataChild_template|mdDcsOpen)( |$)/",
+          "group": "1_open@5"
+        },
+        {
+          "command": "1c-platform-tools.metadata.openCommandInterface",
+          "when": "view == 1c-platform-tools-metadata-tree && viewItem =~ /(^| )metadataObjectPropertiesSubsystem( |$)/",
+          "group": "1_open@6"
+        },
+        {
+          "command": "1c-platform-tools.metadata.supportRemove",
+          "when": "view == 1c-platform-tools-metadata-tree && viewItem =~ /(^| )mdSupportRules( |$)/",
+          "group": "5_support@2"
         }
       ],
       "editor/title": [
         {
-          "command": "1c-platform-tools.artifacts.decompileConfiguration.fromEditor",
+          "command": "1c-platform-tools.artifacts.decompileConfigurationFromEditor",
           "when": "1c-platform-tools.is1CProject == true && resourceExtname == '.cf'",
           "group": "navigation"
         },
         {
-          "command": "1c-platform-tools.artifacts.decompileExtension.fromEditor",
+          "command": "1c-platform-tools.artifacts.decompileExtensionFromEditor",
           "when": "1c-platform-tools.is1CProject == true && resourceExtname == '.cfe'",
           "group": "navigation"
         },
         {
-          "command": "1c-platform-tools.artifacts.decompileProcessor.fromEditor",
+          "command": "1c-platform-tools.artifacts.decompileProcessorFromEditor",
           "when": "1c-platform-tools.is1CProject == true && (resourceExtname == '.epf' || resourcePath =~ /.*\\.epf$/i)",
           "group": "navigation"
         },
         {
-          "command": "1c-platform-tools.artifacts.decompileReport.fromEditor",
+          "command": "1c-platform-tools.artifacts.decompileReportFromEditor",
           "when": "1c-platform-tools.is1CProject == true && (resourceExtname == '.erf' || resourcePath =~ /.*\\.erf$/i)",
           "group": "navigation"
         },
@@ -3263,22 +3345,22 @@
       ],
       "editor/context": [
         {
-          "command": "1c-platform-tools.artifacts.decompileConfiguration.fromEditor",
+          "command": "1c-platform-tools.artifacts.decompileConfigurationFromEditor",
           "when": "1c-platform-tools.is1CProject == true && resourceExtname == '.cf'",
           "group": "1c_artifacts@1"
         },
         {
-          "command": "1c-platform-tools.artifacts.decompileExtension.fromEditor",
+          "command": "1c-platform-tools.artifacts.decompileExtensionFromEditor",
           "when": "1c-platform-tools.is1CProject == true && resourceExtname == '.cfe'",
           "group": "1c_artifacts@1"
         },
         {
-          "command": "1c-platform-tools.artifacts.decompileProcessor.fromEditor",
+          "command": "1c-platform-tools.artifacts.decompileProcessorFromEditor",
           "when": "1c-platform-tools.is1CProject == true && (resourceExtname == '.epf' || resourcePath =~ /.*\\.epf$/i)",
           "group": "1c_artifacts@1"
         },
         {
-          "command": "1c-platform-tools.artifacts.decompileReport.fromEditor",
+          "command": "1c-platform-tools.artifacts.decompileReportFromEditor",
           "when": "1c-platform-tools.is1CProject == true && (resourceExtname == '.erf' || resourcePath =~ /.*\\.erf$/i)",
           "group": "1c_artifacts@1"
         },
@@ -3290,29 +3372,29 @@
       ],
       "1c-platform-tools.projects.viewAndSortMenu": [
         {
-          "command": "1c-platform-tools.projects._viewAsList",
+          "command": "1c-platform-tools.projects.viewAsList",
           "group": "1_view@1"
         },
         {
-          "command": "1c-platform-tools.projects._viewAsTags",
+          "command": "1c-platform-tools.projects.viewAsTags",
           "group": "1_view@2"
         },
         {
-          "command": "1c-platform-tools.projects._sortByName",
+          "command": "1c-platform-tools.projects.sortByName",
           "group": "2_sort@1"
         },
         {
-          "command": "1c-platform-tools.projects._sortByPath",
+          "command": "1c-platform-tools.projects.sortByPath",
           "group": "2_sort@2"
         }
       ],
       "1c-platform-tools.artifacts.viewAndSortMenu": [
         {
-          "command": "1c-platform-tools.artifacts._viewAsList",
+          "command": "1c-platform-tools.artifacts.viewAsList",
           "group": "1_view@1"
         },
         {
-          "command": "1c-platform-tools.artifacts._viewByFolder",
+          "command": "1c-platform-tools.artifacts.viewByFolder",
           "group": "1_view@2"
         }
       ],
@@ -3373,7 +3455,7 @@
         "command": "1c-platform-tools.editors.save",
         "key": "ctrl+s",
         "mac": "cmd+s",
-        "when": "activeCustomEditorId == '1c-platform-tools.pipelineEditor' || activeCustomEditorId == '1c-platform-tools.hooksEditor' || activeWebviewPanelId == '1cMetadataObjectProperties' || activeWebviewPanelId == '1cMetadataSourceProperties' || activeWebviewPanelId == '1cExternalArtifactProperties'"
+        "when": "activeCustomEditorId == '1c-platform-tools.pipelineEditor' || activeCustomEditorId == '1c-platform-tools.hooksEditor' || activeWebviewPanelId == '1cMetadataObjectProperties' || activeWebviewPanelId == '1cMetadataSourceProperties'"
       },
       {
         "command": "1c-platform-tools.metadata.revealInTree",
@@ -3392,7 +3474,7 @@
         "mac": "cmd+alt+2"
       },
       {
-        "command": "workbench.view.extension.1c-platform-tools",
+        "command": "workbench.view.extension.1c-platform-tools-tools",
         "key": "ctrl+alt+3",
         "mac": "cmd+alt+3"
       },
@@ -3412,7 +3494,7 @@
         "mac": "cmd+alt+6"
       },
       {
-        "command": "1c-platform-tools.test.syntaxCheck",
+        "command": "1c-platform-tools.syntaxCheck.run",
         "key": "ctrl+f7",
         "when": "1c-platform-tools.is1CProject == true"
       }
@@ -3443,7 +3525,7 @@
           {
             "id": "step3-commands-panel",
             "title": "Панель с командами",
-            "description": "Дерево команд, избранное и палитра: всё для работы с проектом. Закрепите нужные команды в избранном.\n\n[Открыть панель «Инструменты 1С»](command:workbench.view.extension.1c-platform-tools)\n[Настроить избранное](command:1c-platform-tools.favorites.configure)",
+            "description": "Дерево команд, избранное и палитра: всё для работы с проектом. Закрепите нужные команды в избранном.\n\n[Открыть панель «1С: Инструменты»](command:workbench.view.extension.1c-platform-tools-tools)\n[Настроить избранное](command:1c-platform-tools.tools.configureFavorites)",
             "media": {
               "markdown": "walkthrough/step3-commands-panel.md"
             }
@@ -3451,7 +3533,7 @@
           {
             "id": "step4-artifacts",
             "title": "Панель артефактов",
-            "description": "Конфигурации, расширения, обработки, отчёты и feature-файлы. Открыть, собрать, разобрать, запустить Vanessa-Automation можно из панели проводника или панели редактора.\n\n[Настройки артефактов](command:1c-platform-tools.settings.openArtifacts)",
+            "description": "Конфигурации, расширения, обработки, отчёты и feature-файлы. Открыть, собрать, разобрать, запустить Vanessa-Automation можно из панели проводника или панели редактора.\n\n[Настройки артефактов](command:1c-platform-tools.artifacts.openSettings)",
             "media": {
               "markdown": "walkthrough/step4-artifacts.md"
             }
@@ -3467,7 +3549,7 @@
           {
             "id": "step6-projects",
             "title": "Панель проектов",
-            "description": "Укажите папки поиска, и расширение найдёт все проекты 1С. Избранное и теги помогут быстро переключаться.\n\n[Открыть панель «Проекты 1С»](command:workbench.view.extension.1c-platform-tools-projects)\n[Настройка проектов](command:1c-platform-tools.settings.openProjects)\n[Открыть список проектов](command:1c-platform-tools.projects.listOpen)",
+            "description": "Укажите папки поиска, и расширение найдёт все проекты 1С. Избранное и теги помогут быстро переключаться.\n\n[Открыть панель «1С: Проекты»](command:workbench.view.extension.1c-platform-tools-projects)\n[Настройка проектов](command:1c-platform-tools.projects.openSettings)\n[Открыть список проектов](command:1c-platform-tools.projects.listOpen)",
             "media": {
               "markdown": "walkthrough/step6-projects.md"
             }
@@ -3475,7 +3557,7 @@
           {
             "id": "step7-todo-list",
             "title": "Список дел",
-            "description": "Панель собирает TODO и FIXME по проекту. Фильтры и группировка помогают найти нужные пометки.\n\n[Открыть список дел](command:1c-platform-tools.todo.showPanel)\n[Настройки списка дел](command:1c-platform-tools.settings.openTodo)",
+            "description": "Панель собирает TODO и FIXME по проекту. Фильтры и группировка помогают найти нужные пометки.\n\n[Открыть список дел](command:1c-platform-tools.todo.showPanel)\n[Настройки списка дел](command:1c-platform-tools.todo.openSettings)",
             "media": {
               "markdown": "walkthrough/step7-todo-list.md"
             }
@@ -3507,7 +3589,7 @@
           {
             "id": "step9-ai-mcp",
             "title": "Интеграция с AI и MCP",
-            "description": "Навыки для агента: разработка 1С (cc-1c-skills), команды и MCP расширения.\n\n[Добавить навыки разработки 1С (cc-1c-skills)](command:1c-platform-tools.skills.addDevSkills) · [Добавить навыки расширения (команды и MCP)](command:1c-platform-tools.skills.add1cpt) · [Настройки сервера IPC](command:1c-platform-tools.settings.openIpc)",
+            "description": "Навыки для агента: разработка 1С (cc-1c-skills), команды и MCP расширения.\n\n[Добавить навыки разработки 1С (cc-1c-skills)](command:1c-platform-tools.skills.addDevSkills) · [Добавить навыки расширения (команды и MCP)](command:1c-platform-tools.skills.add1cpt) · [Настройки](command:1c-platform-tools.tools.openSettings)",
             "media": {
               "markdown": "walkthrough/step9-ai-mcp.md"
             }
@@ -3515,7 +3597,7 @@
           {
             "id": "step10-metadata-tree",
             "title": "Дерево метаданных",
-            "description": "Панель метаданных показывает структуру конфигурации и даёт быстрый доступ к операциям с объектами прямо из IDE.\n\n[Открыть панель «Метаданные 1С»](command:workbench.view.extension.1c-platform-tools-metadata)\n[Обновить дерево](command:1c-platform-tools.metadata.refresh)\n[Настройки метаданных](command:1c-platform-tools.settings.openMetadata)",
+            "description": "Панель метаданных показывает структуру конфигурации и даёт быстрый доступ к операциям с объектами прямо из IDE.\n\n[Открыть панель «1С: Метаданные»](command:workbench.view.extension.1c-platform-tools-metadata)\n[Обновить дерево](command:1c-platform-tools.metadata.refresh)\n[Настройки метаданных](command:1c-platform-tools.metadata.openSettings)",
             "media": {
               "markdown": "walkthrough/step10-metadata-tree.md"
             }
@@ -3523,7 +3605,7 @@
           {
             "id": "step11-er-diagrams",
             "title": "ER-диаграммы метаданных",
-            "description": "Интерактивная схема связей объектов конфигурации. Откройте из панели метаданных или через контекстное меню объекта.\n\n[Открыть ER-диаграмму](command:1c-platform-tools.metadata.er.openCanvas)\n[Настройки метаданных](command:1c-platform-tools.settings.openMetadata)",
+            "description": "Интерактивная схема связей объектов конфигурации. Откройте из панели метаданных или через контекстное меню объекта.\n\n[Открыть ER-диаграмму](command:1c-platform-tools.metadata.er.openCanvas)\n[Настройки метаданных](command:1c-platform-tools.metadata.openSettings)",
             "media": {
               "markdown": "walkthrough/step11-er-diagrams.md"
             }
@@ -3538,8 +3620,8 @@
           },
           {
             "id": "step15-admin",
-            "title": "Администрирование 1С",
-            "description": "Список информационных баз платформы и консоль кластера. Панель доступна всегда, проект 1С не обязателен.\n\n[Открыть панель «Администрирование 1С»](command:workbench.view.extension.1c-platform-tools-admin)\n[Список информационных баз](command:1c-platform-tools.ibases.list)\n[Создать подключение к кластеру](command:1c-platform-tools.clusters.addConnection)",
+            "title": "1С: Администрирование",
+            "description": "Список информационных баз платформы и консоль кластера. Панель доступна всегда, проект 1С не обязателен.\n\n[Открыть панель «1С: Администрирование»](command:workbench.view.extension.1c-platform-tools-admin)\n[Список информационных баз](command:1c-platform-tools.infobaseList.open)\n[Создать подключение к кластеру](command:1c-platform-tools.clusters.addConnection)",
             "media": {
               "markdown": "walkthrough/step15-admin.md"
             }
@@ -3553,7 +3635,7 @@
         "id": "1c-platform-tools.tools",
         "order": 0,
         "properties": {
-          "1c-platform-tools.vrunner.path": {
+          "1c-platform-tools.vrunner.path.executable": {
             "type": "string",
             "default": "vrunner",
             "description": "Путь к vrunner (vanessa-runner)"
@@ -3588,32 +3670,32 @@
             "default": true,
             "description": "Звук по завершении команды: успех и ошибка звучат по-разному. На Windows берутся звуки системной схемы, на macOS и Linux - системные звуки рабочего окружения."
           },
-          "1c-platform-tools.vrunner.initSettingsPath": {
+          "1c-platform-tools.vrunner.path.initSettings": {
             "type": "string",
             "default": "tools/vrunner.init.json",
             "description": "Путь к файлу настроек инициализации vrunner (vrunner.init.json)"
           },
-          "1c-platform-tools.defaultEnvProfile": {
+          "1c-platform-tools.env.defaultProfile": {
             "type": "string",
             "default": "",
             "description": "Идентификатор env-профиля по умолчанию (имя X из env.X.json; пусто: базовый env.json). Активный профиль выбирается локально и не коммитится, переопределяя это значение. Подставляется во все команды vrunner через --settings."
           },
-          "1c-platform-tools.paths.out": {
+          "1c-platform-tools.path.out": {
             "type": "string",
             "default": "build/out",
             "description": "Путь к результатам сборки"
           },
-          "1c-platform-tools.paths.dist": {
+          "1c-platform-tools.path.dist": {
             "type": "string",
             "default": "build/dist",
             "description": "Каталог хранения шаблонов (cf, cfu, файлы настроек объединения). Используется в группе «Поддержка» при выборе файлов."
           },
-          "1c-platform-tools.paths.cf": {
+          "1c-platform-tools.path.cf": {
             "type": "string",
             "default": "src/cf",
             "description": "Путь к исходному коду конфигурации"
           },
-          "1c-platform-tools.paths.cfe": {
+          "1c-platform-tools.path.cfe": {
             "type": "string",
             "default": "src/cfe",
             "description": "Путь к исходному коду расширений"
@@ -3626,7 +3708,7 @@
             "default": [],
             "markdownDescription": "Список расширений (имена каталогов в `src/cfe`), с которыми работают команды группы «Расширения» и установка версии расширений. Заданный список команды используют без интерактивного выбора. Если он пуст, при запуске команды показывается окно выбора с чекбоксами, а выбор запоминается для проекта."
           },
-          "1c-platform-tools.cf.updateDbAfterLoad": {
+          "1c-platform-tools.cf.load.updateDb": {
             "type": "string",
             "enum": [
               "ask",
@@ -3641,17 +3723,17 @@
             "default": "ask",
             "description": "Обновлять ли конфигурацию БД (UpdateDBCfg) сразу после загрузки конфигурации из исходников, из 1Cv8.cf или по objlist.txt. Заданное значение убирает вопрос."
           },
-          "1c-platform-tools.paths.epf": {
+          "1c-platform-tools.path.epf": {
             "type": "string",
             "default": "src/epf",
             "description": "Путь к исходному коду внешних обработок"
           },
-          "1c-platform-tools.paths.erf": {
+          "1c-platform-tools.path.erf": {
             "type": "string",
             "default": "src/erf",
-            "description": "Путь к исходному коду внешних отчетов"
+            "description": "Путь к исходному коду внешних отчётов"
           },
-          "1c-platform-tools.paths.tests": {
+          "1c-platform-tools.path.tests": {
             "type": "string",
             "default": "tests",
             "markdownDescription": "Корневой каталог тестов. Раскладка внутри фиксированная: `*.os` в корне, исходники тестовых расширений в `cfe`, исходники тестовых обработок в `epf`. Бинарники тестов здесь не хранятся: дымовые наборы Vanessa-ADD поставляются в пакете add (oscript_modules), собранное уходит в `build/out/tests`."
@@ -3744,7 +3826,7 @@
         "id": "1c-platform-tools.projects",
         "order": 3,
         "properties": {
-          "1c-platform-tools.projects.baseFolders": {
+          "1c-platform-tools.projects.path.baseFolders": {
             "type": "array",
             "items": {
               "type": "string"
@@ -3777,7 +3859,7 @@
             "default": 0,
             "description": "Максимальная глубина вложенности при сканировании baseFolders (0 снимает ограничение, положительное число ограничивает глубину)."
           },
-          "1c-platform-tools.projects.projectsLocation": {
+          "1c-platform-tools.projects.path.storage": {
             "type": "string",
             "default": "",
             "description": "Папка для хранения projects.json. Заданная папка хранит файл (для синхронизации между устройствами). Поддерживает ~ и $home."
@@ -3833,7 +3915,7 @@
             "default": "never",
             "description": "Подтверждение при переключении проекта в активном окне."
           },
-          "1c-platform-tools.projects.tags": {
+          "1c-platform-tools.projects.tagList": {
             "type": "array",
             "items": {
               "type": "string"
@@ -3844,7 +3926,7 @@
             ],
             "description": "Список тегов для организации проектов."
           },
-          "1c-platform-tools.projects.tags.collapseItems": {
+          "1c-platform-tools.projects.collapseTags": {
             "type": "string",
             "enum": [
               "alwaysExpanded",
@@ -3862,7 +3944,7 @@
         "id": "1c-platform-tools.metadata",
         "order": 4,
         "properties": {
-          "1c-platform-tools.metadata.er.exportDir": {
+          "1c-platform-tools.metadata.er.path.export": {
             "type": "string",
             "default": "docs/schemas",
             "description": "Каталог проекта для сохранения экспорта ER-диаграмм (mermaid/svg/png)."
@@ -3877,6 +3959,11 @@
             ],
             "default": "mermaid",
             "description": "Формат экспорта ER-диаграммы по умолчанию в canvas."
+          },
+          "1c-platform-tools.metadata.supportEnabled": {
+            "type": "boolean",
+            "default": true,
+            "description": "Учитывать поддержку поставщика: признаки в дереве, отказ в правке запрещённых объектов и управление правилами. Выключите, чтобы править выгрузку так, будто поставки нет."
           }
         }
       },
@@ -3914,7 +4001,7 @@
             "default": true,
             "description": "Загружать отладчик с GitHub Releases и обновлять его автоматически. Выключите, если используете локальную сборку из «Отладчик: путь к файлу»."
           },
-          "1c-platform-tools.components.adapterFile": {
+          "1c-platform-tools.components.path.adapter": {
             "type": "string",
             "default": "",
             "description": "Отладчик: полный путь к локальной сборке адаптера, исполняемый файл OnecDebugAdapter или OnecDebugAdapter.dll (запускается через dotnet). Пусто: используется загруженный с GitHub."
@@ -3924,7 +4011,7 @@
             "default": true,
             "description": "Загружать компонент дерева метаданных (md-sparrow) с GitHub Releases и обновлять его автоматически. Выключите, если используете локальную сборку из «Дерево метаданных: путь к файлу»."
           },
-          "1c-platform-tools.components.metadataJarFile": {
+          "1c-platform-tools.components.path.metadataJar": {
             "type": "string",
             "default": "",
             "description": "Дерево метаданных: полный путь к локальной сборке md-sparrow-*-all.jar. Пусто: используется загруженный с GitHub."
@@ -3934,7 +4021,7 @@
             "default": true,
             "description": "Скачивать portable JRE 21 для дерева метаданных. Выключите, если Java установлена и указана в «Java: путь к исполняемому файлу» или доступна в PATH."
           },
-          "1c-platform-tools.components.javaExecutable": {
+          "1c-platform-tools.components.path.java": {
             "type": "string",
             "default": "",
             "description": "Java: полный путь к java или javaw для дерева метаданных. Пусто: portable JRE из кэша либо java из PATH."
@@ -3949,7 +4036,7 @@
             "default": true,
             "description": "Загружать OVM с GitHub Releases и обновлять его автоматически. Выключите, если используете локальный ovm.exe из «OVM: путь к файлу»."
           },
-          "1c-platform-tools.components.ovmFile": {
+          "1c-platform-tools.components.path.ovm": {
             "type": "string",
             "default": "",
             "description": "OVM: полный путь к локальному ovm.exe. Пусто: используется загруженный с GitHub."
@@ -3961,23 +4048,23 @@
         "id": "1c-platform-tools.testing",
         "order": 7,
         "properties": {
-          "1c-platform-tools.test.enabled": {
+          "1c-platform-tools.test.panelEnabled": {
             "type": "boolean",
             "default": true,
             "description": "Интеграция тестов 1С с панелью тестирования VS Code (Test Explorer): дерево тестов, кнопки запуска в редакторе, статусы и переход к месту падения."
           },
-          "1c-platform-tools.test.featuresPath": {
+          "1c-platform-tools.test.path.features": {
             "type": "string",
             "default": "features",
             "description": "Каталог feature-файлов Vanessa Automation (относительно корня проекта)."
           },
-          "1c-platform-tools.test.onescriptTestsPath": {
+          "1c-platform-tools.test.path.onescriptTests": {
             "type": "string",
             "default": "tests",
             "markdownDescription": "Каталог тестов OneScript (1testrunner/OneUnit), относительно корня проекта.",
-            "markdownDeprecationMessage": "Каталог тестов задаётся в `#1c-platform-tools.paths.tests#`. Заданное здесь значение пока используется, о чём пишется в журнал."
+            "markdownDeprecationMessage": "Каталог тестов задаётся в `#1c-platform-tools.path.tests#`. Заданное здесь значение пока используется, о чём пишется в журнал."
           },
-          "1c-platform-tools.test.selectedExtensions": {
+          "1c-platform-tools.test.cfe.selected": {
             "type": "array",
             "items": {
               "type": "string"
@@ -3996,12 +4083,12 @@
             ],
             "description": "Сегменты пути, исключаемые при поиске тестов в панели тестирования (например: oscript_modules, build, vendor). build исключён, чтобы не находить собранные обработки и отчёты прогонов."
           },
-          "1c-platform-tools.test.reportsPath": {
+          "1c-platform-tools.test.path.reports": {
             "type": "string",
             "default": "build/out/testapi",
             "description": "Каталог временных файлов прогонов из панели тестирования (относительно корня проекта; должен быть внутри workspace для работы в Docker). Используется, только если пути отчётов не настроены в env.json/tools проекта."
           },
-          "1c-platform-tools.test.yaxunitConfigPath": {
+          "1c-platform-tools.test.path.yaxunitConfig": {
             "type": "string",
             "default": "tools/yaxunit.json",
             "description": "Базовый конфиг YAxUnit (RunUnitTests). Панель тестирования накладывает на него фильтр по выбранному модулю/тесту и берёт из него reportPath."
@@ -4041,12 +4128,12 @@
             "default": "auto",
             "description": "Раннер тестов OneScript. auto выбирает OneUnit при наличии в oscript_modules/bin, иначе 1testrunner. Оба пишут jUnit-отчёт: 1testrunner через xddReportPath, OneUnit через --junit."
           },
-          "1c-platform-tools.test.onescriptRunnerPath": {
+          "1c-platform-tools.test.path.onescriptRunner": {
             "type": "string",
             "default": "",
             "description": "Путь к раннеру тестов OneScript (1testrunner/oneunit). Поддерживаются относительные пути от корня проекта (например ./oscript_modules/bin/oneunit.bat). Пусто: локальная установка oscript_modules/bin, затем PATH."
           },
-          "1c-platform-tools.test.onebddPath": {
+          "1c-platform-tools.test.path.onebdd": {
             "type": "string",
             "default": "",
             "description": "Путь к раннеру 1bdd. Поддерживаются относительные пути от корня проекта. Пусто: локальная установка oscript_modules/bin, затем PATH."
@@ -4054,10 +4141,10 @@
         }
       },
       {
-        "title": "Автономный сервер и отладка",
+        "title": "Автономный сервер",
         "order": 8,
         "properties": {
-          "1c-platform-tools.server.platformPath": {
+          "1c-platform-tools.server.path.platform": {
             "type": "string",
             "default": "",
             "description": "Каталог установки платформы 1С для поиска ibsrv (автономный сервер). Пусто: определяется автоматически (%PROGRAMFILES%\\1cv8 в Windows, /opt/1cv8/x86_64 и /opt/1C/v8.3/x86_64 в Linux). Бинарь ищется в bin/, напрямую в каталоге версии и в самой базе."
@@ -4096,7 +4183,7 @@
             "patternErrorMessage": "Укажите диапазон в формате нижний:верхний, например 1660:1691.",
             "description": "Диапазон портов прямого соединения (--direct-range) в формате нижний:верхний. Пусто: умолчание платформы 1560:1591."
           },
-          "1c-platform-tools.server.dataPath": {
+          "1c-platform-tools.server.path.data": {
             "type": "string",
             "default": "",
             "description": "Каталог данных автономного сервера (сеансовые данные, журнал, конфиг публикации publication.yaml). Относительный путь считается от корня проекта. Пусто: build/ibsrv в корне проекта."
@@ -4138,7 +4225,7 @@
         "id": "1c-platform-tools.clusters",
         "order": 9,
         "properties": {
-          "1c-platform-tools.clusters.platformPath": {
+          "1c-platform-tools.clusters.path.platform": {
             "type": "string",
             "default": "",
             "description": "Каталог установки платформы 1С для поиска rac и 1cestart. Пусто: определяется автоматически (%PROGRAMFILES%\\1cv8 в Windows, /opt/1cv8/<архитектура> и /opt/1C/v8.3/<архитектура> в Linux и macOS). Версия rac задаётся у каждого подключения отдельно."
@@ -4171,7 +4258,7 @@
     "colors": [
       {
         "id": "1cplatformtools.projects.currentProjectHighlightForeground",
-        "description": "Цвет подсветки текущего проекта в панели «Проекты 1С».",
+        "description": "Цвет подсветки текущего проекта в панели «1С: Проекты».",
         "defaults": {
           "light": "#2fb15b",
           "dark": "#2fb15b",

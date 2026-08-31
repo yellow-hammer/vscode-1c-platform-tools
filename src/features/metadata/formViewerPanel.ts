@@ -11,7 +11,7 @@ import * as path from 'node:path';
 import * as fs from 'node:fs/promises';
 import * as vscode from 'vscode';
 import { ensureMdSparrowRuntime } from './mdSparrowBootstrap';
-import { runMdSparrowParamsMutation, runMdSparrowParamsRead } from './mdSparrowParams';
+import { runMdSparrowParamsMutation, runMdSparrowParamsRead, supportEnabled } from './mdSparrowParams';
 import { mdSparrowSchemaFlagFromConfigurationXml } from './mdSparrowSchemaVersion';
 import { logger } from '../../shared/logger';
 import { ensureBslModuleFile } from './bslModuleFile';
@@ -23,6 +23,7 @@ import type {
 	PropertyRow,
 } from '../properties/propertyPaletteView';
 import { PROPERTY_GROUP_ORDER, enumValueLabel, propertyGroupName, propertyLabel } from './formItemPropertySpec';
+import { beginOpenPanel, endOpenPanel, revealOpenPanel, trackOpenPanel } from '../editors/openPanels';
 
 /** Обработчик события формы или элемента. */
 export interface FormEventDto {
@@ -207,9 +208,26 @@ async function loadStandardCommands(
 
 const ERR_PREVIEW = 400;
 
-/** Путь к `Ext/Form.xml` формы объекта: `<Объект>/Forms/<Форма>/Ext/Form.xml`. */
-export function objectFormXmlPath(objectXmlFsPath: string, objectName: string, formName: string): string {
-	return path.join(path.dirname(objectXmlFsPath), objectName, 'Forms', formName, 'Ext', 'Form.xml');
+/**
+ * Путь к `Ext/Form.xml` формы объекта: `<Объект>/Forms/<Форма>/Ext/Form.xml`.
+ *
+ * Каталог состава назван по файлу объекта: у внешнего файла каталог артефакта
+ * носит имя erf, а объект внутри - своё, поэтому имя узла дерева не годится.
+ */
+export function objectFormXmlPath(objectXmlFsPath: string, formName: string): string {
+	const stem = path.basename(objectXmlFsPath, '.xml');
+	return path.join(path.dirname(objectXmlFsPath), stem, 'Forms', formName, 'Ext', 'Form.xml');
+}
+
+/**
+ * Путь к XML самой формы как объекта метаданных: `<Объект>/Forms/<Форма>.xml`.
+ *
+ * У формы два файла: этот - свойства формы (имя, синоним, тип), и `Ext/Form.xml`
+ * рядом - её содержимое с элементами и реквизитами формы.
+ */
+export function objectFormDescriptorXmlPath(objectXmlFsPath: string, formName: string): string {
+	const stem = path.basename(objectXmlFsPath, '.xml');
+	return path.join(path.dirname(objectXmlFsPath), stem, 'Forms', `${formName}.xml`);
 }
 
 /** Путь к `Ext/Form.xml` общей формы: у неё содержимое лежит прямо в каталоге объекта. */
@@ -232,6 +250,13 @@ export async function openFormViewer(
 	context: vscode.ExtensionContext,
 	params: OpenFormViewerParams
 ): Promise<void> {
+	if (revealOpenPanel('form', params.formXmlFsPath)) {
+		return;
+	}
+	// Бронь на время чтения: повторный щелчок не открывает копию вкладки
+	if (!beginOpenPanel('form', params.formXmlFsPath)) {
+		return;
+	}
 	let schema: string;
 	try {
 		schema = params.cfgPath
@@ -242,6 +267,7 @@ export async function openFormViewer(
 		}
 	} catch (e) {
 		void vscode.window.showErrorMessage((e instanceof Error ? e.message : String(e)).slice(0, ERR_PREVIEW));
+		endOpenPanel('form', params.formXmlFsPath);
 		return;
 	}
 
@@ -258,6 +284,7 @@ export async function openFormViewer(
 		const msg = e instanceof Error ? e.message : String(e);
 		log.error(`форма: не прочитана ${params.formXmlFsPath}: ${msg}`);
 		void vscode.window.showErrorMessage(`Не удалось прочитать форму. ${msg}`.slice(0, ERR_PREVIEW));
+		endOpenPanel('form', params.formXmlFsPath);
 		return;
 	}
 
@@ -269,6 +296,27 @@ export async function openFormViewer(
 		retainContextWhenHidden: true,
 		localResourceRoots: [webviewRoot],
 	});
+	trackOpenPanel('form', params.formXmlFsPath, panel);
+	endOpenPanel('form', params.formXmlFsPath);
+
+	// Форма принадлежит объекту: правку запрещает поддержка самого объекта
+	if (!supportEnabled()) {
+		return undefined;
+	}
+	const support = await runMdSparrowParamsRead(
+		runtime,
+		{ op: 'cf-support-object-get', objectXml: params.formXmlFsPath },
+		{ cwd: params.cwd }
+	);
+	let readonlyReason: string | undefined;
+	if (support.exitCode === 0) {
+		try {
+			const state = JSON.parse(support.stdout.trim()) as { editable?: boolean; reason?: string };
+			readonlyReason = state.editable === false ? state.reason : undefined;
+		} catch {
+			readonlyReason = undefined;
+		}
+	}
 
 	const paletteOwner = params.formXmlFsPath;
 
@@ -278,7 +326,9 @@ export async function openFormViewer(
 		params.propertyPalette?.show(
 			paletteOwner,
 			formItemProperties(item, dictionary),
-			itemId === undefined ? undefined : (edits) => applyEdits(itemId, specs, edits)
+			itemId === undefined || readonlyReason !== undefined
+				? undefined
+				: (edits) => applyEdits(itemId, specs, edits)
 		);
 	};
 
@@ -345,6 +395,7 @@ export async function openFormViewer(
 			tableCommandBar: titles.tableCommandBar,
 			tableKinds: titles.tableKinds,
 			autoCommandBarKnown: titles.autoCommandBarKnown,
+			readonlyReason,
 		});
 	} catch (e) {
 		log.error(`шаблон формы: ${e instanceof Error ? e.message : String(e)}`);
@@ -779,6 +830,8 @@ interface FormViewerViewModel {
 	tableKinds: Record<string, string>;
 	/** Снят ли набор панели формы: пустой набор и неснятый вид рисуются по-разному. */
 	autoCommandBarKnown: boolean;
+	/** Причина, по которой форма открыта только на просмотр; пусто - правка доступна. */
+	readonlyReason?: string;
 }
 
 /** Реквизит объекта-владельца: имя, синоним и тип значения. */

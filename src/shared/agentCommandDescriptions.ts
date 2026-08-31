@@ -18,17 +18,18 @@ export interface AgentCommandDescription {
 	category: string;
 }
 
-const TESTING = '1C: Тестирование';
-const INFOBASE = '1C: Информационная база';
-const CONFIGURATION = '1C: Конфигурация';
-const EXTENSIONS = '1C: Расширения';
-const EXTERNAL = '1C: Внешние файлы';
-const DEPENDENCIES = '1C: Зависимости';
-const LAUNCH = '1C: Запуск';
-const ENVIRONMENT = '1C: Окружение';
-const TASKS = '1C: Задачи';
-const SESSIONS = '1C: Сеансы';
-const PIPELINES = '1C: Пайплайны';
+const TESTING = '1С: Тестирование';
+const INFOBASE = '1С: Информационная база';
+const CONFIGURATION = '1С: Конфигурация';
+const EXTENSIONS = '1С: Расширения';
+const EXTERNAL = '1С: Внешние файлы';
+const DEPENDENCIES = '1С: Зависимости';
+const LAUNCH = '1С: Запуск';
+const ENVIRONMENT = '1С: Окружение';
+const TASKS = '1С: Задачи';
+const SESSIONS = '1С: Сеансы';
+const PIPELINES = '1С: Пайплайны';
+const SERVER = '1С: Автономный сервер';
 
 /** Описания команд, чей заголовок вне интерфейса непонятен. */
 export const AGENT_COMMAND_DESCRIPTIONS: Record<string, AgentCommandDescription> = {
@@ -59,7 +60,7 @@ export const AGENT_COMMAND_DESCRIPTIONS: Record<string, AgentCommandDescription>
 		title: 'Запустить тесты YAxUnit; результат берётся из jUnit-отчёта прогона',
 		category: TESTING,
 	},
-	'1c-platform-tools.test.syntaxCheck': {
+	'1c-platform-tools.syntaxCheck.run': {
 		title: 'Запустить синтаксический контроль конфигурации; ошибки возвращаются списком с путями к модулям',
 		category: TESTING,
 	},
@@ -71,7 +72,7 @@ export const AGENT_COMMAND_DESCRIPTIONS: Record<string, AgentCommandDescription>
 		title: 'Загрузить тестовые расширения в ИБ из исходников (подкаталог cfe корня тестов, по умолчанию tests/cfe): YAxUnit и расширение с тестами; параметр extensions отбирает нужные',
 		category: TESTING,
 	},
-	'1c-platform-tools.test.buildExtensions': {
+	'1c-platform-tools.test.compileExtensions': {
 		title: 'Собрать тестовые расширения из исходников в *.cfe в каталоге результатов сборки; параметр extensions отбирает нужные',
 		category: TESTING,
 	},
@@ -83,7 +84,7 @@ export const AGENT_COMMAND_DESCRIPTIONS: Record<string, AgentCommandDescription>
 		title: 'Разобрать собранные тестовые *.cfe в исходники (tests/cfe): так раскладывают полученный со стороны YAxUnit.cfe; параметр extensions отбирает нужные',
 		category: TESTING,
 	},
-	'1c-platform-tools.test.buildEpf': {
+	'1c-platform-tools.test.compileEpf': {
 		title: 'Собрать обработки с тестами из исходников',
 		category: TESTING,
 	},
@@ -212,11 +213,11 @@ export const AGENT_COMMAND_DESCRIPTIONS: Record<string, AgentCommandDescription>
 		category: EXTENSIONS,
 	},
 	'1c-platform-tools.cfe.dump': {
-		title: 'Выгрузить расширения ИБ в исходники проекта',
+		title: 'Выгрузить расширения ИБ в исходники проекта; пустой src/cfe заполняется по списку из базы',
 		category: EXTENSIONS,
 	},
 	'1c-platform-tools.cfe.unload': {
-		title: 'Выгрузить расширения ИБ в файлы .cfe',
+		title: 'Выгрузить расширения ИБ в файлы .cfe; при пустом src/cfe имена берутся из базы',
 		category: EXTENSIONS,
 	},
 	'1c-platform-tools.cfe.compile': {
@@ -280,11 +281,11 @@ export const AGENT_COMMAND_DESCRIPTIONS: Record<string, AgentCommandDescription>
 		title: 'Установить OneScript',
 		category: DEPENDENCIES,
 	},
-	'1c-platform-tools.launch.run': {
+	'1c-platform-tools.tasks.run': {
 		title: 'Запустить задачу из конфигураций запуска проекта',
 		category: TASKS,
 	},
-	'1c-platform-tools.oscript.run': {
+	'1c-platform-tools.tasks.runOscript': {
 		title: 'Запустить задачу OneScript (opm run)',
 		category: TASKS,
 	},
@@ -303,6 +304,28 @@ export const AGENT_COMMAND_DESCRIPTIONS: Record<string, AgentCommandDescription>
 	'1c-platform-tools.pipelines.run': {
 		title: 'Запустить пайплайн - граф шагов из .1cpt/pipelines.json; параметр pipeline - идентификатор или название цепочки, без него команда не выполняется; шаги идут по связям, упавший шаг без ветки error останавливает свою ветку, шаг с подтверждением в неинтерактивном запуске завершается ошибкой; возвращается пошаговый отчёт',
 		category: PIPELINES,
+	},
+
+	// Автономный сервер: заголовки короткие, объект действия виден из категории
+	'1c-platform-tools.server.start': {
+		title: 'Запустить автономный сервер ibsrv на текущей информационной базе',
+		category: SERVER,
+	},
+	'1c-platform-tools.server.stop': {
+		title: 'Остановить автономный сервер ibsrv',
+		category: SERVER,
+	},
+	'1c-platform-tools.server.restart': {
+		title: 'Перезапустить автономный сервер ibsrv',
+		category: SERVER,
+	},
+	'1c-platform-tools.server.showLogs': {
+		title: 'Показать журнал автономного сервера ibsrv',
+		category: SERVER,
+	},
+	'1c-platform-tools.server.debug': {
+		title: 'Запустить отладку через автономный сервер ibsrv',
+		category: SERVER,
 	},
 
 	// Окружение

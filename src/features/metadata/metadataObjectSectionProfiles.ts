@@ -81,7 +81,7 @@ export const METADATA_OBJECT_SECTION_SOURCES_BY_TYPE: Readonly<Record<string, re
 		WebService: ['operations'],
 		HTTPService: ['urlTemplates'],
 		IntegrationService: ['channels'],
-		Enum: ['values'],
+		Enum: ['values', 'forms', 'commands', 'templates'],
 		DocumentJournal: ['columns', 'forms', 'commands', 'templates'],
 		ChartOfAccounts: [
 			'attributes',
@@ -99,6 +99,29 @@ export const METADATA_OBJECT_SECTION_SOURCES_BY_TYPE: Readonly<Record<string, re
 		Task: ['addressingAttributes', ...OBJECT_SECTION_STANDARD],
 		ExternalDataSource: ['tables', 'cubes', 'functions'],
 	};
+
+/** Название раздела состава: используется деревом и вкладками панели свойств. */
+export const METADATA_SECTION_TITLE_BY_SOURCE: Readonly<Record<MetadataObjectSectionSource, string>> = {
+	attributes: 'Реквизиты',
+	tabularSections: 'Табличные части',
+	forms: 'Формы',
+	commands: 'Команды',
+	templates: 'Макеты',
+	values: 'Значения',
+	columns: 'Графы',
+	accountingFlags: 'Признаки учёта',
+	extDimensionAccountingFlags: 'Признаки учёта субконто',
+	dimensions: 'Измерения',
+	resources: 'Ресурсы',
+	recalculations: 'Перерасчёты',
+	addressingAttributes: 'Реквизиты адресации',
+	operations: 'Операции',
+	urlTemplates: 'Шаблоны URL',
+	channels: 'Каналы',
+	tables: 'Таблицы',
+	cubes: 'Кубы',
+	functions: 'Функции',
+};
 
 export const METADATA_OBJECT_NON_EXPANDABLE_TYPES: readonly string[] = [
 	'CommonModule',

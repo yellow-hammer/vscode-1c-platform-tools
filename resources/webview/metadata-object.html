@@ -14,20 +14,18 @@
 	<div class="page">
 		<header class="page-header">
 			<div class="header-main">
-				<div class="kind-badge">{{KIND_LABEL}}</div>
+				<div class="badges">
+					<span class="kind-badge">{{KIND_LABEL}}</span>
+					<span id="originBadges" class="origin-badges"></span>
+				</div>
 				<h1 class="title">{{OBJECT_NAME}}</h1>
 			</div>
-			<button id="toggleTechnical" class="ghost-btn" type="button">Технические данные</button>
 		</header>
 
 		<section id="warnings" class="warnings hidden"></section>
 
 		<nav id="tabs" class="tabs"></nav>
 		<section id="content" class="content"></section>
-
-		<section id="technical" class="technical hidden">
-			<pre id="technicalJson" class="code"></pre>
-		</section>
 	</div>
 
 	<footer id="saveBar" class="save-bar hidden">

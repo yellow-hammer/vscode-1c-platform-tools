@@ -8,3 +8,18 @@
 .hidden {
 	display: none;
 }
+
+/* Списки флажков: назначения использования и основные роли */
+.check-list {
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+	padding: 4px 0;
+}
+.check-list label {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	cursor: pointer;
+	user-select: none;
+}

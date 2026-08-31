@@ -14,7 +14,7 @@ export function registerArtifactsView(
 ): ArtifactsViewRegistration {
 	const artifactsProvider = new ProjectArtifactsTreeDataProvider(context);
 	const artifactsTreeView = vscode.window.createTreeView(
-		'1c-platform-tools-artifacts-tree',
+		'1c-platform-tools-artifacts',
 		{
 			treeDataProvider: artifactsProvider,
 			showCollapseAll: true,

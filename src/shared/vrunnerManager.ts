@@ -251,7 +251,7 @@ export class VRunnerManager {
 	/**
 	 * Получает путь к файлу настроек инициализации vrunner
 	 *
-	 * Путь берется из настроек VS Code (1c-platform-tools.vrunner.initSettingsPath).
+	 * Путь берется из настроек VS Code (1c-platform-tools.vrunner.path.initSettings).
 	 * По умолчанию: 'tools/vrunner.init.json'
 	 *
 	 * ВАЖНО: использовать только для команды инициализации ИБ данными
@@ -262,7 +262,7 @@ export class VRunnerManager {
 	 */
 	public getVRunnerInitSettingsPath(): string {
 		const config = vscode.workspace.getConfiguration('1c-platform-tools');
-		return config.get<string>('vrunner.initSettingsPath', DEFAULT_VRUNNER.initSettingsPath);
+		return config.get<string>('vrunner.path.initSettings', DEFAULT_VRUNNER.initSettingsPath);
 	}
 
 	/**
@@ -330,66 +330,66 @@ export class VRunnerManager {
 	/**
 	 * Получает путь к исходному коду конфигурации
 	 * 
-	 * Путь берется из настроек VS Code (1c-platform-tools.paths.cf).
+	 * Путь берется из настроек VS Code (1c-platform-tools.path.cf).
 	 * По умолчанию: 'src/cf'
 	 * 
 	 * @returns Путь к исходному коду конфигурации (относительно workspace)
 	 */
 	public getCfPath(): string {
 		const config = vscode.workspace.getConfiguration('1c-platform-tools');
-		return config.get<string>('paths.cf', DEFAULT_PATHS.cf);
+		return config.get<string>('path.cf', DEFAULT_PATHS.cf);
 	}
 
 	/**
 	 * Получает путь к результатам сборки
 	 * 
-	 * Путь берется из настроек VS Code (1c-platform-tools.paths.out).
+	 * Путь берется из настроек VS Code (1c-platform-tools.path.out).
 	 * По умолчанию: 'build/out'
 	 * 
 	 * @returns Путь к результатам сборки (относительно workspace)
 	 */
 	public getOutPath(): string {
 		const config = vscode.workspace.getConfiguration('1c-platform-tools');
-		return config.get<string>('paths.out', DEFAULT_PATHS.out);
+		return config.get<string>('path.out', DEFAULT_PATHS.out);
 	}
 
 	/**
 	 * Получает путь к каталогу хранения шаблонов (cf, cfu, настройки объединения и т.д.)
 	 *
-	 * Путь берётся из настроек VS Code (1c-platform-tools.paths.dist).
+	 * Путь берётся из настроек VS Code (1c-platform-tools.path.dist).
 	 * По умолчанию: 'build/dist'
 	 *
 	 * @returns Путь к каталогу шаблонов (относительно workspace)
 	 */
 	public getDistPath(): string {
 		const config = vscode.workspace.getConfiguration('1c-platform-tools');
-		return config.get<string>('paths.dist', DEFAULT_PATHS.dist);
+		return config.get<string>('path.dist', DEFAULT_PATHS.dist);
 	}
 
 	/**
 	 * Получает путь к исходникам внешних обработок
 	 * 
-	 * Путь берется из настроек VS Code (1c-platform-tools.paths.epf).
+	 * Путь берется из настроек VS Code (1c-platform-tools.path.epf).
 	 * По умолчанию: 'src/epf'
 	 * 
 	 * @returns Путь к исходникам внешних обработок (относительно workspace)
 	 */
 	public getEpfPath(): string {
 		const config = vscode.workspace.getConfiguration('1c-platform-tools');
-		return config.get<string>('paths.epf', DEFAULT_PATHS.epf);
+		return config.get<string>('path.epf', DEFAULT_PATHS.epf);
 	}
 
 	/**
 	 * Получает путь к исходникам внешних отчетов
 	 * 
-	 * Путь берется из настроек VS Code (1c-platform-tools.paths.erf).
+	 * Путь берется из настроек VS Code (1c-platform-tools.path.erf).
 	 * По умолчанию: 'src/erf'
 	 * 
 	 * @returns Путь к исходникам внешних отчетов (относительно workspace)
 	 */
 	public getErfPath(): string {
 		const config = vscode.workspace.getConfiguration('1c-platform-tools');
-		return config.get<string>('paths.erf', DEFAULT_PATHS.erf);
+		return config.get<string>('path.erf', DEFAULT_PATHS.erf);
 	}
 
 	/**
@@ -400,7 +400,7 @@ export class VRunnerManager {
 	 * метаданных и установка версии их не трогают. Собираются и подключаются
 	 * отдельными командами перед прогоном - как тестовые обработки.
 	 *
-	 * Подкаталог cfe внутри корня тестов (1c-platform-tools.paths.tests).
+	 * Подкаталог cfe внутри корня тестов (1c-platform-tools.path.tests).
 	 * По умолчанию: 'tests/cfe'
 	 *
 	 * @returns Путь к исходникам тестовых расширений (относительно workspace)
@@ -412,20 +412,20 @@ export class VRunnerManager {
 	/**
 	 * Получает путь к исходникам расширений
 	 *
-	 * Путь берется из настроек VS Code (1c-platform-tools.paths.cfe).
+	 * Путь берется из настроек VS Code (1c-platform-tools.path.cfe).
 	 * По умолчанию: 'src/cfe'
 	 *
 	 * @returns Путь к исходникам расширений (относительно workspace)
 	 */
 	public getCfePath(): string {
 		const config = vscode.workspace.getConfiguration('1c-platform-tools');
-		return config.get<string>('paths.cfe', DEFAULT_PATHS.cfe);
+		return config.get<string>('path.cfe', DEFAULT_PATHS.cfe);
 	}
 
 	/**
 	 * Получает путь к исходникам тестовых обработок (xUnit/Vanessa-ADD)
 	 *
-	 * Подкаталог epf внутри корня тестов (1c-platform-tools.paths.tests).
+	 * Подкаталог epf внутри корня тестов (1c-platform-tools.path.tests).
 	 * По умолчанию: 'tests/epf'
 	 *
 	 * @returns Путь к исходникам тестовых обработок (относительно workspace)
@@ -437,14 +437,14 @@ export class VRunnerManager {
 	/**
 	 * Получает путь к каталогу исполняемых тестов (*.os и собранные *.epf)
 	 *
-	 * Путь берется из настроек VS Code (1c-platform-tools.paths.tests).
+	 * Путь берется из настроек VS Code (1c-platform-tools.path.tests).
 	 * По умолчанию: 'tests'
 	 *
 	 * @returns Путь к каталогу тестов (относительно workspace)
 	 */
 	public getTestsPath(): string {
 		const config = vscode.workspace.getConfiguration('1c-platform-tools');
-		return config.get<string>('paths.tests', DEFAULT_PATHS.tests);
+		return config.get<string>('path.tests', DEFAULT_PATHS.tests);
 	}
 
 	// ibcmd — настройка проекта: задаётся пользователем в файле настроек
@@ -2199,7 +2199,7 @@ export class VRunnerManager {
 			return fromState;
 		}
 		const config = vscode.workspace.getConfiguration('1c-platform-tools');
-		const configured = config.get<string>('defaultEnvProfile', DEFAULT_ENV.defaultProfile);
+		const configured = config.get<string>('env.defaultProfile', DEFAULT_ENV.defaultProfile);
 		if (configured) {
 			return configured;
 		}

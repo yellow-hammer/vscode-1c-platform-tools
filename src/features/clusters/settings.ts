@@ -30,7 +30,7 @@ export interface ClustersSettings {
 export function readClustersSettings(): ClustersSettings {
 	const config = vscode.workspace.getConfiguration('1c-platform-tools.clusters');
 	return {
-		platformPath: config.get<string>('platformPath', ''),
+		platformPath: config.get<string>('path.platform', ''),
 		timeoutMs: Math.max(1, config.get<number>('timeoutSeconds', 30)) * 1000,
 		autoRefreshEnabled: config.get<boolean>('autoRefresh.enabled', false),
 		autoRefreshIntervalMs: Math.max(5, config.get<number>('autoRefresh.intervalSeconds', 30)) * 1000,

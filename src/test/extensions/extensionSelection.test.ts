@@ -111,7 +111,7 @@ suite('extensionSelection: области выбора', () => {
 
 	test('настройка области отбирает свои каталоги: имена решения к тестовым не подходят', () => {
 		// в settings.json списки разные: extensions.selected - решение,
-		// testing.selectedExtensions - тестовые; пересечения между ними нет
+		// test.cfe.selected - тестовые; пересечения между ними нет
 		const testFolders = ['yaxunit', 'yaxunit-test'];
 		assert.deepStrictEqual(
 			filterByConfiguredNames(testFolders, normalizeConfiguredExtensions(['РасширениеРешения'])),

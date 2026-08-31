@@ -95,7 +95,7 @@ export async function openErCanvasPanel(params: OpenErCanvasParams): Promise<voi
 
 	const cfg = vscode.workspace.getConfiguration('1c-platform-tools');
 	const defaultFormat = (cfg.get<string>('metadata.er.defaultExportFormat', 'mermaid') as ErExportFormat) || 'mermaid';
-	const exportDirRel = (cfg.get<string>('metadata.er.exportDir', 'docs/schemas') || 'docs/schemas').trim();
+	const exportDirRel = (cfg.get<string>('metadata.er.path.export', 'docs/schemas') || 'docs/schemas').trim();
 
 	const webviewRoot = vscode.Uri.joinPath(context.extensionUri, 'resources', 'webview');
 	const outRoot = vscode.Uri.joinPath(context.extensionUri, 'out', 'webviews', 'metadataErCanvas');

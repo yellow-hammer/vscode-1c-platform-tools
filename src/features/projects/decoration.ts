@@ -26,7 +26,7 @@ export function setCurrentProjectPath(rootPath: string | undefined): void {
 }
 
 /**
- * Регистрирует провайдер подсветки текущего проекта в панели «Проекты 1С».
+ * Регистрирует провайдер подсветки текущего проекта в панели «1С: Проекты».
  * @param context — контекст расширения
  */
 export function registerProjectsDecoration(context: vscode.ExtensionContext): void {

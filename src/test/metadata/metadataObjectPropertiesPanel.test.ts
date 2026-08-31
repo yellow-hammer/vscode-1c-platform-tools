@@ -1,5 +1,7 @@
 import * as assert from 'node:assert';
 import {
+	buildMetadataObjectPropertiesEditableForTest,
+	buildRefContentSectionsForTest,
 	buildMetadataObjectPropertiesTabsForTest,
 	buildStructureListsForTest,
 } from '../../features/metadata/metadataObjectPropertiesPanel';
@@ -186,5 +188,278 @@ suite('metadataObjectPropertiesPanel: команды объекта', () => {
 		const dataTitles = lists.lists.filter((list) => list.tab === 'edit_data').map((list) => list.title);
 
 		assert.deepStrictEqual(dataTitles, ['Реквизиты']);
+	});
+});
+
+suite('metadataObjectPropertiesPanel: единая форма для видов без спеки', () => {
+	const base = (kind: string, extra: Record<string, unknown> = {}) => ({
+		kind,
+		internalName: 'Объект',
+		synonymRu: 'Объект',
+		comment: '',
+		...extra,
+	});
+
+	/** Заголовки редактируемых вкладок. */
+	const editTitles = (objectType: string, props: unknown, structure: unknown = null): string[] =>
+		buildMetadataObjectPropertiesTabsForTest(objectType, props, structure)
+			.filter((tab) => tab.render === 'edit')
+			.map((tab) => tab.title);
+
+	test('вид без разделов: только «Основные»', () => {
+		for (const [objectType, kind] of [
+			['CommonTemplate', 'commonTemplate'],
+			['Language', 'language'],
+			['CommandGroup', 'commandGroup'],
+			['Sequence', 'sequence'],
+		] as const) {
+			assert.deepStrictEqual(editTitles(objectType, base(kind)), ['Основные'], objectType);
+		}
+	});
+
+	test('вкладки идут по разделам вида: у Web-сервиса операции, у HTTP-сервиса шаблоны URL', () => {
+		assert.deepStrictEqual(
+			editTitles('WebService', base('webService', { operations: [{ name: 'Ping' }] })),
+			['Основные', 'Данные']
+		);
+		assert.deepStrictEqual(editTitles('HTTPService', base('httpService')), ['Основные', 'Данные']);
+		assert.deepStrictEqual(editTitles('FilterCriterion', base('filterCriterion')), [
+			'Основные',
+			'Формы',
+			'Команды',
+		]);
+	});
+
+	test('регистр бухгалтерии: измерения, ресурсы и реквизиты, макеты добавляет обвязка', () => {
+		const titles = editTitles(
+			'AccountingRegister',
+			base('accountingRegister', { dimensions: [{ name: 'Счет' }] })
+		);
+		assert.deepStrictEqual(titles, ['Основные', 'Данные', 'Формы', 'Команды', 'Макеты']);
+	});
+
+	test('состав берётся из свойств, когда структуры нет', () => {
+		const tabs = buildMetadataObjectPropertiesTabsForTest(
+			'WebService',
+			base('webService', { operations: [{ name: 'Ping' }, { name: 'Exchange' }] }),
+			null
+		);
+		const data = tabs.find((tab) => tab.title === 'Данные' && tab.render === 'edit');
+		assert.ok(data, 'вкладка данных с операциями должна быть');
+	});
+
+	test('общая форма и общий макет редактируемы: синоним пишет общий путь', () => {
+		assert.deepStrictEqual(editTitles('CommonForm', base('commonForm')), ['Основные']);
+	});
+});
+
+suite('metadataObjectPropertiesPanel: скалярные свойства видов без спеки', () => {
+	const language = {
+		kind: 'language',
+		internalName: 'Русский',
+		synonymRu: 'Русский',
+		comment: '',
+		scalars: { LanguageCode: 'ru', ObjectBelonging: 'NATIVE' },
+		scalarMeta: {
+			LanguageCode: { type: 'string' },
+			ObjectBelonging: { type: 'enum', allowed: ['NATIVE', 'ADOPTED'] },
+		},
+	};
+
+	/** Редактируемые поля всех вкладок. */
+	const editFields = (objectType: string, props: unknown): Array<{ path: string; control: string }> => {
+		const model = buildMetadataObjectPropertiesEditableForTest(objectType, props, null);
+		return (model?.tabs ?? []).flatMap((tab) =>
+			tab.groups.flatMap((group) => group.fields.map((field) => ({ path: field.path, control: field.control })))
+		);
+	};
+
+	test('скаляр приходит полем со своим контролом', () => {
+		const fields = editFields('Language', language);
+		const code = fields.find((field) => field.path === 'scalars.LanguageCode');
+		assert.ok(code, 'код языка должен быть полем');
+		assert.strictEqual(code?.control, 'text');
+	});
+
+	test('принадлежность объекта полем не показывается', () => {
+		const fields = editFields('Language', language);
+		assert.ok(!fields.some((field) => field.path === 'scalars.ObjectBelonging'));
+	});
+
+	test('заимствованный объект расширения показывает ту же форму без правки', () => {
+		const adopted = {
+			...language,
+			scalars: { ...language.scalars, ObjectBelonging: 'ADOPTED' },
+		};
+		const model = buildMetadataObjectPropertiesEditableForTest('Language', adopted, null);
+		assert.strictEqual(model?.readonly, true);
+		const fields = (model?.tabs ?? []).flatMap((tab) => tab.groups).flatMap((group) => group.fields);
+		assert.ok(fields.every((field) => field.readonly === true));
+	});
+
+	test('флажок и перечисление получают свои контролы', () => {
+		const props = {
+			kind: 'commonForm',
+			internalName: 'Настройки',
+			synonymRu: 'Настройки',
+			comment: '',
+			scalars: { IncludeHelpInContents: false, FormType: 'MANAGED' },
+			scalarMeta: {
+				IncludeHelpInContents: { type: 'boolean' },
+				FormType: { type: 'enum', allowed: ['ORDINARY', 'MANAGED'] },
+			},
+		};
+		const fields = editFields('CommonForm', props);
+		assert.strictEqual(fields.find((f) => f.path === 'scalars.IncludeHelpInContents')?.control, 'check');
+		assert.strictEqual(fields.find((f) => f.path === 'scalars.FormType')?.control, 'select');
+	});
+});
+
+suite('metadataObjectPropertiesPanel: разделы состава без вкладок старого вида', () => {
+	test('признаки учёта плана счетов живут в единой форме, а не отдельной вкладкой', () => {
+		const props = {
+			kind: 'chartOfAccounts',
+			internalName: 'Основной',
+			synonymRu: 'Основной',
+			comment: '',
+			attributes: [],
+			tabularSections: [],
+			accountingFlags: [{ name: 'Валютный' }],
+			extDimensionAccountingFlags: [{ name: 'Суммовой' }],
+			chartOfAccounts: { objectBelonging: 'NATIVE' },
+		};
+		const tabs = buildMetadataObjectPropertiesTabsForTest('ChartOfAccounts', props, {
+			kind: 'chartOfAccounts',
+			internalName: 'Основной',
+			accountingFlags: ['Валютный'],
+			extDimensionAccountingFlags: ['Суммовой'],
+		});
+		const oldStyle = tabs.filter((tab) => tab.id.startsWith('section_'));
+		assert.deepStrictEqual(
+			oldStyle.map((tab) => tab.id),
+			[],
+			'разделы состава показывают структурные списки единой формы'
+		);
+	});
+});
+
+suite('metadataObjectPropertiesPanel: ссылочные скаляры кандидатами', () => {
+	test('хранение функциональной опции выбирается из констант', () => {
+		const props = {
+			kind: 'functionalOption',
+			internalName: 'ИспользоватьХарактеристики',
+			synonymRu: '',
+			comment: '',
+			scalars: { Location: 'Constant.ИспользоватьХарактеристики' },
+			scalarMeta: { Location: { type: 'string' } },
+		};
+		const model = buildMetadataObjectPropertiesEditableForTest('FunctionalOption', props, null, {
+			scalarRefOptions: {
+				Location: [{ value: 'Constant.ИспользоватьХарактеристики', label: 'ИспользоватьХарактеристики' }],
+			},
+		});
+		const field = model?.tabs
+			.flatMap((tab) => tab.groups)
+			.flatMap((group) => group.fields)
+			.find((item) => item.path === 'scalars.Location');
+		assert.strictEqual(field?.control, 'select');
+		assert.ok((field?.options ?? []).some((option) => option.value === 'Constant.ИспользоватьХарактеристики'));
+	});
+
+	test('основная форма критерия отбора выбирается из его форм полным именем', () => {
+		const props = {
+			kind: 'filterCriterion',
+			internalName: 'СвязанныеДокументы',
+			synonymRu: '',
+			comment: '',
+			scalars: { DefaultForm: '' },
+			scalarMeta: { DefaultForm: { type: 'string' } },
+		};
+		const structure = { kind: 'filterCriterion', internalName: 'СвязанныеДокументы', forms: ['ФормаСписка'] };
+		const model = buildMetadataObjectPropertiesEditableForTest('FilterCriterion', props, structure);
+		const field = model?.tabs
+			.flatMap((tab) => tab.groups)
+			.flatMap((group) => group.fields)
+			.find((item) => item.path === 'scalars.DefaultForm');
+		assert.strictEqual(field?.control, 'select');
+		assert.ok(
+			(field?.options ?? []).some((option) => option.value === 'FilterCriterion.СвязанныеДокументы.Form.ФормаСписка')
+		);
+	});
+});
+
+suite('metadataObjectPropertiesPanel: секции дерева состава', () => {
+	const allObjects = {
+		Subsystem: ['Продажи'],
+		Catalog: ['Номенклатура'],
+		Document: ['Заказ', 'Реализация'],
+		AccumulationRegister: ['Остатки'],
+		InformationRegister: ['Цены'],
+	};
+
+	test('у подсистемы один раздел состава и без подсистем в кандидатах', () => {
+		const sections = buildRefContentSectionsForTest(
+			'subsystem',
+			{ contentRefs: ['Catalog.Номенклатура'] },
+			allObjects
+		);
+		assert.strictEqual(sections?.length, 1);
+		assert.ok(!sections?.[0].groups.some((group) => group.tag === 'Subsystem'));
+	});
+
+	test('у функциональной опции подсистемы отмечаются', () => {
+		const sections = buildRefContentSectionsForTest('functionalOption', { contentRefs: [] }, allObjects);
+		assert.ok(sections?.[0].groups.some((group) => group.tag === 'Subsystem'));
+	});
+
+	test('у последовательности два раздела: документы и регистры своих видов', () => {
+		const sections = buildRefContentSectionsForTest(
+			'sequence',
+			{ documents: ['Document.Заказ'], registerRecords: [] },
+			allObjects
+		);
+		assert.deepStrictEqual(
+			sections?.map((section) => [section.key, section.groups.map((group) => group.tag)]),
+			[
+				['documents', ['Document']],
+				['registerRecords', ['AccumulationRegister', 'InformationRegister']],
+			]
+		);
+	});
+
+	test('вид без дерева состава не получает секций', () => {
+		assert.strictEqual(buildRefContentSectionsForTest('catalog', {}, allObjects), undefined);
+	});
+});
+
+suite('metadataObjectPropertiesPanel: состав общего реквизита', () => {
+	test('секция несёт режимы использования по ссылкам', () => {
+		const sections = buildRefContentSectionsForTest(
+			'commonAttribute',
+			{ contentMembers: [{ ref: 'Catalog.Номенклатура', mode: 'DONT_USE' }] },
+			{ Catalog: ['Номенклатура'], Document: ['Заказ'] }
+		);
+		assert.strictEqual(sections?.[0].key, 'contentMembers');
+		assert.deepStrictEqual(sections?.[0].refs, ['Catalog.Номенклатура']);
+		assert.strictEqual(sections?.[0].modes?.byRef['Catalog.Номенклатура'], 'DONT_USE');
+		assert.strictEqual(sections?.[0].modes?.defaultValue, 'USE');
+	});
+});
+
+suite('metadataObjectPropertiesPanel: состав плана обмена', () => {
+	test('секция несёт авторегистрацию и только участвующие виды', () => {
+		const sections = buildRefContentSectionsForTest(
+			'exchangePlan',
+			{ exchangeContent: [{ ref: 'Document.Заказ', mode: 'Deny' }] },
+			{ Document: ['Заказ'], Catalog: ['Номенклатура'], CommonModule: ['Общий'], Language: ['Русский'] }
+		);
+		assert.strictEqual(sections?.[0].key, 'exchangeContent');
+		assert.deepStrictEqual(
+			sections?.[0].groups.map((group) => group.tag).sort(),
+			['Catalog', 'Document'],
+			'общие модули и языки в план обмена не входят'
+		);
+		assert.strictEqual(sections?.[0].modes?.byRef['Document.Заказ'], 'Deny');
+		assert.strictEqual(sections?.[0].modes?.defaultValue, 'Deny');
 	});
 });

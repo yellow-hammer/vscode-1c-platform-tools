@@ -14,7 +14,7 @@ export interface ProjectsFlow {
 }
 
 /**
- * Инициализирует flow фичи «Проекты 1С»: bootstrap сразу, runtime по требованию.
+ * Инициализирует flow фичи «1С: Проекты»: bootstrap сразу, runtime по требованию.
  */
 export function registerProjectsFlow(
 	context: vscode.ExtensionContext

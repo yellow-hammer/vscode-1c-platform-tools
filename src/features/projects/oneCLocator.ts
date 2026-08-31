@@ -63,7 +63,7 @@ export class OneCLocator {
 
 	private refreshConfig(): void {
 		const config = vscode.workspace.getConfiguration('1c-platform-tools');
-		const folders = config.get<string[]>('projects.baseFolders');
+		const folders = config.get<string[]>('projects.path.baseFolders');
 		this.baseFolders = Array.isArray(folders) ? folders.filter((p): p is string => typeof p === 'string' && p.length > 0) : [];
 		const patterns = config.get<string[]>('projects.ignorePatterns');
 		this.ignoredFolders = Array.isArray(patterns) ? patterns.filter((p): p is string => typeof p === 'string') : [];

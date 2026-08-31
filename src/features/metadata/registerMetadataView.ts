@@ -32,7 +32,7 @@ export interface MetadataViewRegistration {
 }
 
 /**
- * Регистрирует tree view панели «Метаданные 1С» и базовые UI-контексты выбора.
+ * Регистрирует tree view панели «1С: Метаданные» и базовые UI-контексты выбора.
  */
 export function registerMetadataView(
 	context: vscode.ExtensionContext

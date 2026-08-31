@@ -52,7 +52,7 @@ export class SyntaxCheckDiagnostics implements vscode.Disposable {
 		// Дефолтный профиль может задаваться настройкой
 		this.disposables.push(
 			vscode.workspace.onDidChangeConfiguration((event) => {
-				if (event.affectsConfiguration('1c-platform-tools.defaultEnvProfile')) {
+				if (event.affectsConfiguration('1c-platform-tools.env.defaultProfile')) {
 					void this.reconfigure();
 				}
 			})
@@ -164,7 +164,7 @@ export class SyntaxCheckDiagnostics implements vscode.Disposable {
 	private async publish(findings: SyntaxCheckFinding[], root: string): Promise<void> {
 		const cfRel = vscode.workspace
 			.getConfiguration('1c-platform-tools')
-			.get<string>('paths.cf', DEFAULT_PATHS.cf);
+			.get<string>('path.cf', DEFAULT_PATHS.cf);
 		const cfRoot = path.join(root, cfRel);
 		const fallbackUri = await resolveFallbackUri(cfRoot, root);
 

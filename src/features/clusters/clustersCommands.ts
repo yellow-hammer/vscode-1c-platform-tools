@@ -46,7 +46,7 @@ import {
 } from './infobaseProperties';
 import type { ClustersProvider } from './clustersProvider';
 import type { RacFailure, RacRecord } from './racOutput';
-import { CLUSTERS_CONFIG_SECTION } from './constants';
+import { openExtensionSettings } from '../tools/settingsSections';
 import { formatRacDate, type InfobaseDropMode } from './racArgs';
 import {
 	AdminNode,
@@ -566,7 +566,7 @@ export function registerClustersCommands(deps: ClustersCommandsDeps): vscode.Dis
 	const openSettings = vscode.commands.registerCommand(
 		'1c-platform-tools.clusters.openSettings',
 		async () => {
-			await vscode.commands.executeCommand('workbench.action.openSettings', CLUSTERS_CONFIG_SECTION);
+			await openExtensionSettings();
 		}
 	);
 

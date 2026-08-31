@@ -1,6 +1,10 @@
 import * as assert from 'node:assert';
 import { applyEditedScalars, buildCatalogEditTabs } from '../../features/metadata/metadataObjectEditSpec';
-import { buildMetadataObjectPropertiesTabsForTest } from '../../features/metadata/metadataObjectPropertiesPanel';
+import {
+	buildMetadataObjectPropertiesEditableForTest,
+	buildMetadataObjectPropertiesTabsForTest,
+	buildStructureListsForTest,
+} from '../../features/metadata/metadataObjectPropertiesPanel';
 
 function catalogProps(): Record<string, unknown> {
 	return {
@@ -476,7 +480,7 @@ suite('metadataObjectEditSpec: перечисление, константа, о�
 		assert.strictEqual(tabs[0]?.render, 'edit');
 	});
 
-	test('заимствованное перечисление расширения не редактируется', () => {
+	test('заимствованное перечисление расширения показывает ту же форму без правки', () => {
 		const props = {
 			kind: 'enum',
 			internalName: 'СтатусыЗаказов',
@@ -486,8 +490,18 @@ suite('metadataObjectEditSpec: перечисление, константа, о�
 			tabularSections: [],
 			enumeration: { objectBelonging: 'ADOPTED' },
 		};
-		const tabs = buildMetadataObjectPropertiesTabsForTest('Enum', props, { kind: 'enum', forms: [], commands: [] });
-		assert.ok(!tabs.some((tab) => tab.render === 'edit'));
+		const model = buildMetadataObjectPropertiesEditableForTest('Enum', props, {
+			kind: 'enum',
+			forms: [],
+			commands: [],
+		});
+		assert.strictEqual(model?.readonly, true);
+		const fields = (model?.tabs ?? []).flatMap((tab) => tab.groups.flatMap((group) => [...group.fields]));
+		assert.ok(fields.length > 0, 'форма строится');
+		assert.ok(
+			fields.every((field) => field.readonly === true),
+			'все поля только для чтения'
+		);
 	});
 });
 
@@ -586,6 +600,7 @@ suite('metadataObjectEditSpec: значения перечисления', () =>
 				['Измерения', true],
 				['Ресурсы', true],
 				['Реквизиты', true],
+				['Команды', true],
 			],
 			'состав регистра правится, как реквизиты справочника'
 		);
@@ -750,7 +765,7 @@ suite('metadataObjectEditSpec: регистры', () => {
 		assert.strictEqual(tabs[0]?.render, 'edit');
 	});
 
-	test('заимствованный регистр расширения не редактируется', () => {
+	test('заимствованный регистр расширения показывает ту же форму без правки', () => {
 		const props = {
 			kind: 'accumulationRegister',
 			internalName: 'Остатки',
@@ -760,12 +775,17 @@ suite('metadataObjectEditSpec: регистры', () => {
 			tabularSections: [],
 			register: { objectBelonging: 'ADOPTED' },
 		};
-		const tabs = buildMetadataObjectPropertiesTabsForTest('AccumulationRegister', props, {
+		const model = buildMetadataObjectPropertiesEditableForTest('AccumulationRegister', props, {
 			kind: 'accumulationRegister',
 			forms: [],
 			commands: [],
 		});
-		assert.ok(!tabs.some((tab) => tab.render === 'edit'));
+		assert.strictEqual(model?.readonly, true);
+		const lists = buildStructureListsForTest(props, { kind: 'accumulationRegister' });
+		assert.ok(
+			lists.lists.every((list: { editable: boolean }) => list.editable === false),
+			'состав заимствованного смотрят, но не правят'
+		);
 	});
 });
 
@@ -1196,6 +1216,32 @@ suite('metadataObjectEditSpec: план видов расчёта', () => {
 				(field: Record<string, unknown>) => field.path === 'chartOfCalculationTypes.dependenceOnCalculationTypes'
 			)?.control,
 			'select'
+		);
+	});
+});
+
+suite('metadataObjectEditSpec: разделения общего реквизита', () => {
+	test('константы разделений совпадают с форматом', () => {
+		// В формате у разделений значения SEPARATE и DONT_USE: выдуманная
+		// константа отфильтровывалась словарём, значение из файла оставалось без подписи
+		const props = {
+			kind: 'commonAttribute',
+			internalName: 'Организация',
+			synonymRu: '',
+			comment: '',
+			commonAttribute: { objectBelonging: 'NATIVE', usersSeparation: 'DONT_USE' },
+		};
+		const model = buildMetadataObjectPropertiesEditableForTest('CommonAttribute', props, null);
+		const field = (model?.tabs ?? [])
+			.flatMap((tab) => tab.groups.flatMap((group) => [...group.fields]))
+			.find((item) => item.path === 'commonAttribute.usersSeparation');
+		assert.deepStrictEqual(
+			(field?.options ?? []).map((option) => option.value).sort(),
+			['DONT_USE', 'SEPARATE']
+		);
+		assert.strictEqual(
+			(field?.options ?? []).find((option) => option.value === 'DONT_USE')?.label,
+			'Не использовать'
 		);
 	});
 });

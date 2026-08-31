@@ -1335,7 +1335,7 @@ export class TestingController implements vscode.Disposable {
 			return undefined;
 		}
 		const config = vscode.workspace.getConfiguration('1c-platform-tools');
-		const reportsBase = config.get<string>('test.reportsPath', DEFAULT_TESTING.reportsPath);
+		const reportsBase = config.get<string>('test.path.reports', DEFAULT_TESTING.reportsPath);
 		return path.join(workspaceRoot, reportsBase);
 	}
 

@@ -11,10 +11,10 @@ description: Сборка и разборка внешних обработок 
 
 | Задача                      | Command ID                                       |
 |-----------------------------|--------------------------------------------------|
-| Собрать внешнюю обработку   | `1c-platform-tools.epf.compileProcessor`     |
-| Разобрать внешнюю обработку | `1c-platform-tools.epf.decompileProcessor` |
-| Собрать внешний отчёт       | `1c-platform-tools.epf.compileReport`        |
-| Разобрать внешний отчёт     | `1c-platform-tools.epf.decompileReport`    |
+| Собрать обработки   | `1c-platform-tools.epf.compileProcessor`     |
+| Разобрать обработки | `1c-platform-tools.epf.decompileProcessor` |
+| Собрать отчёты      | `1c-platform-tools.epf.compileReport`        |
+| Разобрать отчёты    | `1c-platform-tools.epf.decompileReport`    |
 | Удалить кэш                 | `1c-platform-tools.epf.clearCache`     |
 
 ## MCP (mcp-1c-platform-tools)
@@ -27,5 +27,5 @@ description: Сборка и разборка внешних обработок 
 
 ## Примеры
 
-- Собрать обработку: MCP `epf_compileProc` или команда `1c-platform-tools.epf.compileProcessor` с projectPath корня проекта.
-- Разобрать отчёт в исходники: `epf_decompileReport` (MCP) или `1c-platform-tools.epf.decompileReport` (команда).
+- Собрать обработки: MCP `epf_compileProc` или команда `1c-platform-tools.epf.compileProcessor` с projectPath корня проекта.
+- Разобрать отчёты в исходники: `epf_decompileReport` (MCP) или `1c-platform-tools.epf.decompileReport` (команда).

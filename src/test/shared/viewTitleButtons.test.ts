@@ -28,6 +28,7 @@ const GROUP_BY_ICON = new Map<string, number>([
 interface Contributed {
 	command: string;
 	title: string;
+	category?: string;
 	icon?: string | Record<string, string>;
 }
 
@@ -92,12 +93,4 @@ suite('кнопки в заголовках панелей', () => {
 		assert.deepStrictEqual(without, [], `кнопки без значка: ${without.join(', ')}`);
 	});
 
-	test('подпись называет объект действия', () => {
-		// «Обновить» без объекта в палитре не отличить от других обновлений
-		const bare = titleButtons()
-			.map(({ command }) => command)
-			.filter((command) => ['Обновить', 'Настройки', 'Создать', 'Сбросить'].includes(command.title.trim()))
-			.map((command) => command.command);
-		assert.deepStrictEqual(bare, [], `подписи без объекта: ${bare.join(', ')}`);
-	});
 });

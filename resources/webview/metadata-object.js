@@ -4,7 +4,7 @@
 	/** @type {HTMLElement | null} */
 	const initialEl = document.getElementById('metadata-object-initial');
 	const raw = initialEl ? initialEl.textContent : '{}';
-	/** @type {{tabs?: Array<{id:string,title:string,count?:number,render:string,data?:unknown}>, warnings?: string[], internalName?: string, objectKind?: string, objectKindLabel?: string, objectType?: string, synonymRu?: string, comment?: string, objectXmlPath?: string, technicalJson?: string}} */
+	/** @type {{tabs?: Array<{id:string,title:string,count?:number,render:string,data?:unknown}>, warnings?: string[], internalName?: string, objectKind?: string, objectKindLabel?: string, objectType?: string, synonymRu?: string, comment?: string, objectXmlPath?: string}} */
 	let model = {};
 	try {
 		model = JSON.parse(raw || '{}');
@@ -19,15 +19,16 @@
 	/** @type {HTMLElement | null} */
 	const warningsRoot = document.getElementById('warnings');
 	/** @type {HTMLElement | null} */
-	const technicalRoot = document.getElementById('technical');
 	/** @type {HTMLElement | null} */
-	const technicalJsonRoot = document.getElementById('technicalJson');
 	/** @type {HTMLButtonElement | null} */
-	const toggleTechnicalButton = /** @type {HTMLButtonElement | null} */ (document.getElementById('toggleTechnical'));
 
 	const tabs = Array.isArray(model.tabs) ? model.tabs : [];
-	let activeTabId = tabs[0] ? tabs[0].id : '';
-	let technicalVisible = false;
+	let activeTabId =
+		model.initialTabId && tabs.some((tab) => tab.id === model.initialTabId)
+			? model.initialTabId
+			: tabs[0]
+				? tabs[0].id
+				: '';
 
 	const vscodeApi = typeof acquireVsCodeApi === 'function' ? acquireVsCodeApi() : null;
 	const editable = model.editable && typeof model.editable === 'object' ? model.editable : null;
@@ -287,15 +288,271 @@
 	}
 
 	function normalizeForCompare(value) {
-		if (Array.isArray(value)) {
+		// Составное значение сравнивается по содержимому: editedProps - копия
+		// editable.props, у копии другие ссылки, и сравнение по ссылке считало бы
+		// поле изменённым сразу после открытия. Так вело себя поле «Тип».
+		if (value !== null && typeof value === 'object') {
 			return JSON.stringify(value);
 		}
 		return value === undefined || value === '' ? null : value;
 	}
 
+	/** Изменённое участие в подсистемах: путь XML подсистемы → членство. */
+	const editedSubsystems = new Map();
+
+	/** Изменённый состав: «секция ссылка» → членство. */
+	const editedContent = new Map();
+
+	/** Изменённая видимость команд подсистемы: команда → флажок. */
+	const editedCommandVisibility = new Map();
+
+	/** Изменённое размещение команд: команда → группа. */
+	const editedCommandPlacement = new Map();
+
+	/** Изменённый порядок команд: копия списка после первой перестановки. */
+	let editedCommandOrder = null;
+
+	/** Изменённый порядок подсистем и групп командного интерфейса. */
+	let editedSubsystemsOrder = null;
+	let editedGroupsOrder = null;
+
+	/** Стрелки порядка тем же видом, что в списках состава. */
+	function moveButtons(index, total, move) {
+		const actions = document.createElement('span');
+		actions.className = 'struct-actions-inline';
+		for (const spec of [
+			['↑', -1, 'Вверх'],
+			['↓', 1, 'Вниз'],
+		]) {
+			const btn = document.createElement('button');
+			btn.type = 'button';
+			btn.className = 'struct-btn';
+			btn.textContent = spec[0];
+			btn.title = spec[2];
+			const target = index + spec[1];
+			btn.disabled = target < 0 || target >= total;
+			btn.addEventListener('click', function () {
+				move(index, target);
+			});
+			actions.appendChild(btn);
+		}
+		return actions;
+	}
+
+	function orderListDirty(edited, base) {
+		if (!edited) {
+			return false;
+		}
+		return edited.some((value, index) => (base || [])[index] !== value);
+	}
+
+	function commandPlacementGroup(entry) {
+		return editedCommandPlacement.has(entry.command)
+			? editedCommandPlacement.get(entry.command)
+			: entry.group;
+	}
+
+	function setCommandPlacement(entry, group) {
+		if (group === entry.group) {
+			editedCommandPlacement.delete(entry.command);
+		} else {
+			editedCommandPlacement.set(entry.command, group);
+		}
+	}
+
+	function commandOrderDirty() {
+		if (!editedCommandOrder || !model.commandInterface) {
+			return false;
+		}
+		const base = model.commandInterface.order || [];
+		return editedCommandOrder.some((entry, index) => base[index] && base[index].command !== entry.command);
+	}
+
+	function commandVisibilityBaseline(command) {
+		const model_ = model.commandInterface;
+		const entry = model_ && model_.visibility.find((item) => item.command === command);
+		return entry ? entry.common : false;
+	}
+
+	function commandVisibilityChecked(command) {
+		return editedCommandVisibility.has(command)
+			? editedCommandVisibility.get(command)
+			: commandVisibilityBaseline(command);
+	}
+
+	function toggleCommandVisibility(command, common) {
+		if (common === commandVisibilityBaseline(command)) {
+			editedCommandVisibility.delete(command);
+		} else {
+			editedCommandVisibility.set(command, common);
+		}
+	}
+
+	/** Подписи платформы приходят от md-sparrow: своих копий вкладки не держат. */
+	function platformLabels() {
+		return model.labels || {};
+	}
+
+	function rightLabel(name) {
+		return (platformLabels().rights || {})[name] || name;
+	}
+
+	function objectKindLabel(kind) {
+		return (platformLabels().objectKinds || {})[kind];
+	}
+
+	/** Изменённые права роли: «объект право» → выдано. */
+	const editedRoleRights = new Map();
+
+	/** Изменённые флаги прав по умолчанию роли. */
+	const editedRoleFlags = new Map();
+
+	function roleFlagBaseline(name) {
+		return Boolean(model.roleRights && model.roleRights[name]);
+	}
+
+	function roleFlagChecked(name) {
+		return editedRoleFlags.has(name) ? editedRoleFlags.get(name) : roleFlagBaseline(name);
+	}
+
+	function toggleRoleFlag(name, value) {
+		if (value === roleFlagBaseline(name)) {
+			editedRoleFlags.delete(name);
+		} else {
+			editedRoleFlags.set(name, value);
+		}
+	}
+
+	/** Право тянет зависимые, как конфигуратор: изменение и удаление требуют чтения. */
+	function applyRightDependencies(objectName, rightName, value) {
+		const set = (name, v) => toggleRoleRight(objectName, name, v);
+		if (value) {
+			if (rightName === 'Update' || rightName === 'Delete') {
+				set('Read', true);
+			}
+			if (rightName === 'Posting' || rightName === 'UndoPosting') {
+				set('Update', true);
+				set('Read', true);
+			}
+			if (rightName === 'InteractiveInsert') {
+				set('Insert', true);
+			}
+			if (rightName === 'InteractiveDelete' || rightName === 'InteractiveDeleteMarked') {
+				set('Delete', true);
+				set('Read', true);
+			}
+		} else {
+			if (rightName === 'Read') {
+				for (const dependent of ['Update', 'Delete', 'Posting', 'UndoPosting', 'InteractiveDelete', 'InteractiveDeleteMarked']) {
+					set(dependent, false);
+				}
+			}
+			if (rightName === 'Update') {
+				set('Posting', false);
+				set('UndoPosting', false);
+			}
+			if (rightName === 'Insert') {
+				set('InteractiveInsert', false);
+			}
+			if (rightName === 'Delete') {
+				set('InteractiveDelete', false);
+				set('InteractiveDeleteMarked', false);
+			}
+		}
+	}
+
+	function roleRightKey(objectName, rightName) {
+		return objectName + ' ' + rightName;
+	}
+
+	function roleRightBaseline(objectName, rightName) {
+		const model_ = model.roleRights;
+		const object = model_ && model_.objects.find((item) => item.name === objectName);
+		const right = object && object.rights.find((item) => item.name === rightName);
+		return right ? right.value : false;
+	}
+
+	function roleRightChecked(objectName, rightName) {
+		const key = roleRightKey(objectName, rightName);
+		return editedRoleRights.has(key) ? editedRoleRights.get(key) : roleRightBaseline(objectName, rightName);
+	}
+
+	function toggleRoleRight(objectName, rightName, value) {
+		const key = roleRightKey(objectName, rightName);
+		if (value === roleRightBaseline(objectName, rightName)) {
+			editedRoleRights.delete(key);
+		} else {
+			editedRoleRights.set(key, value);
+		}
+	}
+
+	function contentEditKey(sectionKey, ref) {
+		return sectionKey + ' ' + ref;
+	}
+
+	function contentBaselineChecked(section, ref) {
+		return Array.isArray(section.refs) && section.refs.includes(ref);
+	}
+
+	function contentBaselineMode(section, ref) {
+		if (!section.modes) {
+			return '';
+		}
+		return section.modes.byRef[ref] || section.modes.defaultValue;
+	}
+
+	function setContentEdit(section, ref, member, mode) {
+		const key = contentEditKey(section.key, ref);
+		const sameMember = member === contentBaselineChecked(section, ref);
+		const sameMode = !section.modes || mode === contentBaselineMode(section, ref);
+		if (sameMember && sameMode) {
+			editedContent.delete(key);
+		} else {
+			editedContent.set(key, { member, mode });
+		}
+	}
+
+	function contentEdit(section, ref) {
+		const key = contentEditKey(section.key, ref);
+		if (editedContent.has(key)) {
+			return editedContent.get(key);
+		}
+		return { member: contentBaselineChecked(section, ref), mode: contentBaselineMode(section, ref) };
+	}
+
+	function contentChecked(section, ref) {
+		return contentEdit(section, ref).member;
+	}
+
+	/** Флажок вернулся к исходному: правка не считается. */
+	function toggleSubsystem(node, member) {
+		if (member === node.member) {
+			editedSubsystems.delete(node.xmlPath);
+		} else {
+			editedSubsystems.set(node.xmlPath, member);
+		}
+	}
+
+	function subsystemChecked(node) {
+		return editedSubsystems.has(node.xmlPath) ? editedSubsystems.get(node.xmlPath) : node.member;
+	}
+
 	function isDirty() {
 		if (!editable || !editedProps) {
 			return false;
+		}
+		if (
+			editedSubsystems.size > 0 ||
+			editedContent.size > 0 ||
+			editedCommandVisibility.size > 0 ||
+			editedCommandPlacement.size > 0 ||
+			commandOrderDirty() ||
+			orderListDirty(editedSubsystemsOrder, model.commandInterface && model.commandInterface.subsystemsOrder) ||
+			orderListDirty(editedGroupsOrder, model.commandInterface && model.commandInterface.groupsOrder) ||
+			editedRoleRights.size > 0 ||
+			editedRoleFlags.size > 0
+		) {
+			return true;
 		}
 		for (const field of editableFields()) {
 			if (normalizeForCompare(getPath(editedProps, field.path)) !== normalizeForCompare(getPath(editable.props, field.path))) {
@@ -335,46 +592,79 @@
 		Adopted: 'Заимствованный',
 		HierarchyFoldersAndItems: 'Иерархия групп и элементов',
 	};
-	const refKindLabels = {
-		Catalog: 'Справочник',
-		CatalogRef: 'Справочник',
-		Document: 'Документ',
-		DocumentRef: 'Документ',
-		DocumentJournal: 'Журнал документов',
-		DocumentJournalRef: 'Журнал документов',
-		Enum: 'Перечисление',
-		EnumRef: 'Перечисление',
-		Report: 'Отчет',
-		ReportRef: 'Отчет',
-		DataProcessor: 'Обработка',
-		DataProcessorRef: 'Обработка',
-		InformationRegister: 'Регистр сведений',
-		InformationRegisterRef: 'Регистр сведений',
-		AccumulationRegister: 'Регистр накопления',
-		AccumulationRegisterRef: 'Регистр накопления',
-		AccountingRegister: 'Регистр бухгалтерии',
-		AccountingRegisterRef: 'Регистр бухгалтерии',
-		CalculationRegister: 'Регистр расчета',
-		CalculationRegisterRef: 'Регистр расчета',
-		ChartOfAccounts: 'План счетов',
-		ChartOfAccountsRef: 'План счетов',
-		ChartOfCharacteristicTypes: 'План видов характеристик',
-		ChartOfCharacteristicTypesRef: 'План видов характеристик',
-		ChartOfCalculationTypes: 'План видов расчета',
-		ChartOfCalculationTypesRef: 'План видов расчета',
-		BusinessProcess: 'Бизнес-процесс',
-		BusinessProcessRef: 'Бизнес-процесс',
-		Task: 'Задача',
-		TaskRef: 'Задача',
-		ExchangePlan: 'План обмена',
-		ExchangePlanRef: 'План обмена',
-		CommonModule: 'Общий модуль',
-		CommonModuleRef: 'Общий модуль',
-		Subsystem: 'Подсистема',
-		SubsystemRef: 'Подсистема',
-		Constant: 'Константа',
-		ConstantRef: 'Константа',
-	};
+
+	/** Бейджи происхождения: заимствование и поддержка поставщика. */
+	/** Плашка запрета: овсянка, суть и что делать дальше. */
+	function readonlyNotice(lead, next) {
+		const item = document.createElement('div');
+		item.className = 'warning-item warning-item-readonly';
+		const text = document.createElement('div');
+		text.className = 'warning-text';
+		const head = document.createElement('strong');
+		head.textContent = lead;
+		text.appendChild(head);
+		if (next) {
+			const hint = document.createElement('span');
+			hint.className = 'warning-next';
+			hint.textContent = next;
+			text.appendChild(hint);
+		}
+		item.appendChild(text);
+		return item;
+	}
+
+	function renderOriginBadges() {
+		const host = document.getElementById('originBadges');
+		if (!host) {
+			return;
+		}
+		host.textContent = '';
+		const origin = model.origin;
+		if (!origin) {
+			return;
+		}
+		function badge(text, cls, hint) {
+			const el = document.createElement('span');
+			el.className = 'origin-badge ' + cls;
+			el.textContent = text;
+			if (hint) {
+				el.title = hint;
+			}
+			host.appendChild(el);
+		}
+		if (origin.adopted) {
+			badge('Заимствованный', 'origin-badge-adopted', 'Объект заимствован из расширяемой конфигурации');
+		}
+		if (origin.support === 'locked') {
+			const vendor = origin.vendor ? 'Поставщик: ' + origin.vendor : '';
+			badge('На поддержке: изменение запрещено', 'origin-badge-locked', vendor);
+		} else if (origin.support === 'editable') {
+			const parts = [];
+			if (origin.vendor) {
+				parts.push('Поставщик: ' + origin.vendor);
+			}
+			if (origin.version) {
+				parts.push('Версия поставки: ' + origin.version);
+			}
+			badge('На поддержке: изменение разрешено', 'origin-badge-support', parts.join(' • '));
+		}
+	}
+
+	/** Полоса «только просмотр»: причина, по которой правка недоступна. */
+	function renderReadonlyNotice() {
+		const host = document.getElementById('warnings');
+		if (!host || !editable || editable.readonly !== true) {
+			return;
+		}
+		const origin = model.origin;
+		// Причина приходит одной строкой: первое предложение - суть, остальное - что делать
+		const text = (origin && origin.readonlyReason) || 'Объект открыт только на просмотр.';
+		const split = text.indexOf('. ');
+		const lead = split > 0 ? text.slice(0, split + 1) : text;
+		const next = split > 0 ? text.slice(split + 2) : '';
+		host.classList.remove('hidden');
+		host.appendChild(readonlyNotice(lead, next));
+	}
 
 	function renderWarnings() {
 		if (!warningsRoot) {
@@ -446,9 +736,932 @@
 			case 'subsystemContent':
 				renderSubsystemContent(tab.data);
 				return;
+			case 'subsystems':
+				renderSubsystemsTab();
+				return;
+			case 'refContent':
+				renderRefContentTab();
+				return;
+			case 'commandInterface':
+				renderCommandInterfaceTab();
+				return;
+			case 'roleRights':
+				renderRoleRightsTab();
+				return;
 			default:
 				contentRoot.innerHTML = '<div class="empty">Нет данных.</div>';
 		}
+	}
+
+	/** Дерево подсистем с флажками участия: как в конфигураторе. */
+	function renderSubsystemsTab() {
+		if (!contentRoot) {
+			return;
+		}
+		const modelSubsystems = model.subsystems;
+		if (!modelSubsystems || !Array.isArray(modelSubsystems.nodes) || modelSubsystems.nodes.length === 0) {
+			contentRoot.innerHTML = '<div class="empty">Подсистем нет.</div>';
+			return;
+		}
+		const readonly = !editable || editable.readonly === true;
+		contentRoot.textContent = '';
+		const filter = document.createElement('input');
+		filter.type = 'text';
+		filter.className = 'list-filter';
+		filter.placeholder = 'Фильтр по списку...';
+		contentRoot.appendChild(filter);
+		const tree = document.createElement('div');
+		tree.className = 'subsys-tree';
+		contentRoot.appendChild(tree);
+
+		/** Строит узел; возвращает корневой элемент и признак совпадения с фильтром. */
+		function buildNode(node) {
+			const wrap = document.createElement('div');
+			wrap.className = 'subsys-node';
+			const row = document.createElement('div');
+			row.className = 'subsys-row';
+			const twist = document.createElement('span');
+			twist.className = 'subsys-twist';
+			const hasChildren = Array.isArray(node.children) && node.children.length > 0;
+			twist.textContent = hasChildren ? '▾' : '';
+			row.appendChild(twist);
+			const label = document.createElement('label');
+			label.className = 'subsys-label';
+			const box = document.createElement('input');
+			box.type = 'checkbox';
+			box.checked = subsystemChecked(node);
+			box.disabled = readonly;
+			box.addEventListener('change', function () {
+				toggleSubsystem(node, box.checked);
+				renderSaveBar();
+			});
+			label.appendChild(box);
+			label.appendChild(document.createTextNode(' ' + node.name));
+			row.appendChild(label);
+			wrap.appendChild(row);
+			let childrenBox = null;
+			if (hasChildren) {
+				childrenBox = document.createElement('div');
+				childrenBox.className = 'subsys-children';
+				for (const child of node.children) {
+					childrenBox.appendChild(buildNode(child).element);
+				}
+				wrap.appendChild(childrenBox);
+				twist.classList.add('clickable');
+				twist.addEventListener('click', function () {
+					const collapsed = childrenBox.classList.toggle('collapsed');
+					twist.textContent = collapsed ? '▸' : '▾';
+				});
+			}
+			wrap.dataset.name = String(node.name || '').toLowerCase();
+			return { element: wrap, childrenBox };
+		}
+
+		for (const node of modelSubsystems.nodes) {
+			tree.appendChild(buildNode(node).element);
+		}
+
+		filter.addEventListener('input', function () {
+			const needle = String(filter.value || '').trim().toLowerCase();
+			// Совпадение показывает узел и всех его предков; пустой фильтр - всё
+			function apply(el) {
+				let visible = !needle || el.dataset.name.includes(needle);
+				const childrenBox = el.querySelector(':scope > .subsys-children');
+				if (childrenBox) {
+					for (const child of childrenBox.querySelectorAll(':scope > .subsys-node')) {
+						if (apply(child)) {
+							visible = true;
+						}
+					}
+					if (needle) {
+						childrenBox.classList.remove('collapsed');
+					}
+				}
+				el.classList.toggle('hidden', !visible);
+				return visible;
+			}
+			for (const root of tree.querySelectorAll(':scope > .subsys-node')) {
+				apply(root);
+			}
+		});
+	}
+
+	/** Командный интерфейс подсистемы: флажки общей видимости, размещение списком. */
+	function renderCommandInterfaceTab() {
+		if (!contentRoot) {
+			return;
+		}
+		const model_ = model.commandInterface;
+		if (!model_ || (model_.visibility.length === 0 && model_.placement.length === 0)) {
+			contentRoot.innerHTML = '<div class="empty">Настроек командного интерфейса нет.</div>';
+			return;
+		}
+		const readonly = !editable || editable.readonly === true;
+		contentRoot.textContent = '';
+
+		function commandCaption(command) {
+			const parts = String(command).split('.');
+			if (parts.length === 4 && parts[2] === 'StandardCommand') {
+				const action = (platformLabels().objectStandardCommands || {})[parts[3]] || parts[3];
+				return roleObjectCaption(parts[0] + '.' + parts[1]) + ': ' + action;
+			}
+			if (parts.length === 2) {
+				return roleObjectCaption(command);
+			}
+			return command;
+		}
+
+		if (model_.visibility.length > 0) {
+			const title = document.createElement('div');
+			title.className = 'section-title';
+			title.textContent = 'Видимость команд';
+			contentRoot.appendChild(title);
+			const tree = document.createElement('div');
+			tree.className = 'subsys-tree';
+			contentRoot.appendChild(tree);
+			for (const entry of model_.visibility) {
+				const row = document.createElement('div');
+				row.className = 'subsys-row';
+				const pad = document.createElement('span');
+				pad.className = 'subsys-twist';
+				row.appendChild(pad);
+				const label = document.createElement('label');
+				label.className = 'subsys-label';
+				label.title = entry.command;
+				const box = document.createElement('input');
+				box.type = 'checkbox';
+				box.checked = commandVisibilityChecked(entry.command);
+				box.disabled = readonly;
+				box.addEventListener('change', function () {
+					toggleCommandVisibility(entry.command, box.checked);
+					renderSaveBar();
+				});
+				label.appendChild(box);
+				label.appendChild(document.createTextNode(' ' + commandCaption(entry.command)));
+				row.appendChild(label);
+				tree.appendChild(row);
+			}
+		}
+		function namedListSection(title, rows) {
+			if (rows.length === 0) {
+				return;
+			}
+			const heading = document.createElement('div');
+			heading.className = 'section-title section-title-spaced';
+			heading.textContent = title;
+			contentRoot.appendChild(heading);
+			const list = document.createElement('div');
+			list.className = 'struct-list';
+			contentRoot.appendChild(list);
+			for (const row of rows) {
+				const item = document.createElement('div');
+				item.className = 'struct-item';
+				const name = document.createElement('span');
+				name.className = 'struct-item-name';
+				name.title = row.hint || row.name;
+				name.textContent = row.name;
+				item.appendChild(name);
+				if (row.value) {
+					const value = document.createElement('span');
+					value.className = 'struct-item-syn ref-selected-mode';
+					value.textContent = row.value;
+					item.appendChild(value);
+				}
+				list.appendChild(item);
+			}
+		}
+
+		// Размещение: группа панели меняется селектом и пишется своей операцией
+		if (model_.placement.length > 0) {
+			const heading = document.createElement('div');
+			heading.className = 'section-title section-title-spaced';
+			heading.textContent = 'Размещение';
+			contentRoot.appendChild(heading);
+			const list = document.createElement('div');
+			list.className = 'struct-list';
+			contentRoot.appendChild(list);
+			for (const entry of model_.placement) {
+				const item = document.createElement('div');
+				item.className = 'struct-item';
+				const name = document.createElement('span');
+				name.className = 'struct-item-name';
+				name.title = entry.command;
+				name.textContent = commandCaption(entry.command);
+				item.appendChild(name);
+				const select = document.createElement('select');
+				select.className = 'ci-group-select';
+				select.disabled = readonly;
+				const groups = Object.keys(platformLabels().commandGroups || {});
+				if (!groups.includes(entry.group)) {
+					groups.unshift(entry.group);
+				}
+				for (const group of groups) {
+					const option = document.createElement('option');
+					option.value = group;
+					option.textContent = commandGroupCaption(group);
+					select.appendChild(option);
+				}
+				select.value = commandPlacementGroup(entry);
+				select.addEventListener('change', (function (placementEntry, el) {
+					return function () {
+						setCommandPlacement(placementEntry, el.value);
+						renderSaveBar();
+					};
+				})(entry, select));
+				item.appendChild(select);
+				list.appendChild(item);
+			}
+		}
+
+		// Порядок команд: строки переставляются стрелками, блок пишется целиком
+		const orderEntries = editedCommandOrder || model_.order || [];
+		if (orderEntries.length > 0) {
+			const heading = document.createElement('div');
+			heading.className = 'section-title section-title-spaced';
+			heading.textContent = 'Порядок команд';
+			contentRoot.appendChild(heading);
+			const list = document.createElement('div');
+			list.className = 'struct-list';
+			contentRoot.appendChild(list);
+			orderEntries.forEach(function (entry, index) {
+				const item = document.createElement('div');
+				item.className = 'struct-item';
+				const name = document.createElement('span');
+				name.className = 'struct-item-name';
+				name.title = entry.command;
+				name.textContent = commandCaption(entry.command);
+				item.appendChild(name);
+				const group = document.createElement('span');
+				group.className = 'struct-item-syn ref-selected-mode';
+				group.textContent = commandGroupCaption(entry.group);
+				item.appendChild(group);
+				if (!readonly) {
+					item.appendChild(
+						moveButtons(index, orderEntries.length, function (from, to) {
+							if (!editedCommandOrder) {
+								editedCommandOrder = (model_.order || []).map((row) => ({ command: row.command, group: row.group }));
+							}
+							const swap = editedCommandOrder[from];
+							editedCommandOrder[from] = editedCommandOrder[to];
+							editedCommandOrder[to] = swap;
+							renderCommandInterfaceTab();
+							renderSaveBar();
+						})
+					);
+				}
+				list.appendChild(item);
+			});
+		}
+		reorderableSection(
+			'Порядок подсистем',
+			editedSubsystemsOrder || model_.subsystemsOrder || [],
+			function (ref) {
+				const parts = String(ref).split('.');
+				return parts[parts.length - 1] || ref;
+			},
+			function (next) {
+				editedSubsystemsOrder = next;
+			}
+		);
+		reorderableSection(
+			'Порядок групп',
+			editedGroupsOrder || model_.groupsOrder || [],
+			commandGroupCaption,
+			function (next) {
+				editedGroupsOrder = next;
+			}
+		);
+
+		/** Список строк со стрелками: порядок правится, содержимое не меняется. */
+		function reorderableSection(title, values, captionOf, apply) {
+			if (values.length === 0) {
+				return;
+			}
+			const heading = document.createElement('div');
+			heading.className = 'section-title section-title-spaced';
+			heading.textContent = title;
+			contentRoot.appendChild(heading);
+			const list = document.createElement('div');
+			list.className = 'struct-list';
+			contentRoot.appendChild(list);
+			values.forEach(function (value, index) {
+				const item = document.createElement('div');
+				item.className = 'struct-item';
+				const name = document.createElement('span');
+				name.className = 'struct-item-name';
+				name.title = value;
+				name.textContent = captionOf(value);
+				item.appendChild(name);
+				if (!readonly) {
+					item.appendChild(
+						moveButtons(index, values.length, function (from, to) {
+							const next = values.slice();
+							const swap = next[from];
+							next[from] = next[to];
+							next[to] = swap;
+							apply(next);
+							renderCommandInterfaceTab();
+							renderSaveBar();
+						})
+					);
+				}
+				list.appendChild(item);
+			});
+		}
+	}
+
+	/** Служебные сегменты пути права: в подписи остаются только имена. */
+	const RIGHT_PATH_TOKENS = new Set([
+		'Attribute',
+		'StandardAttribute',
+		'TabularSection',
+		'StandardTabularSection',
+		'Dimension',
+		'Resource',
+		'Command',
+		'Form',
+		'Template',
+		'EnumValue',
+		'AddressingAttribute',
+		'AccountingFlag',
+		'ExtDimensionAccountingFlag',
+		'Recalculation',
+		'Operation',
+		'Field',
+		'Table',
+		'Cube',
+		'DimensionTable',
+		'URLTemplate',
+	]);
+
+	/** «Catalog.Номенклатура.Attribute.Артикул» → «Справочник: Номенклатура.Артикул». */
+	function roleObjectCaption(name) {
+		const parts = String(name).split('.');
+		if (parts.length < 2) {
+			return objectKindLabel(parts[0]) || name;
+		}
+		const label = objectKindLabel(parts[0]);
+		const names = parts.slice(1).filter((part) => !RIGHT_PATH_TOKENS.has(part));
+		return (label ? label + ': ' : parts[0] + '.') + names.join('.');
+	}
+
+	/** Колонки кросс-таблицы прав: имя в файле и короткая подпись шапки. */
+	const RIGHT_COLUMNS = [
+		['Read', 'Чтение'],
+		['Insert', 'Добавление'],
+		['Update', 'Изменение'],
+		['Delete', 'Удаление'],
+		['Posting', 'Проведение'],
+		['UndoPosting', 'Отмена проведения'],
+		['View', 'Просмотр'],
+		['Edit', 'Редактирование'],
+		['Use', 'Использование'],
+		['InteractiveInsert', 'Инт. добавление'],
+		['InteractiveDelete', 'Инт. удаление'],
+		['InteractiveSetDeletionMark', 'Пометка удаления'],
+		['InteractiveClearDeletionMark', 'Снятие пометки'],
+		['InteractiveDeleteMarked', 'Удаление помеченных'],
+		['InputByString', 'Ввод по строке'],
+		['TotalsControl', 'Управление итогами'],
+	];
+
+	/** Строк в таблице за раз: дальше просят уточнить фильтр. */
+	const RIGHTS_ROW_CAP = 1000;
+
+	/** Состояние фильтров вкладки прав: живёт, пока открыта панель. */
+	const rightsFilter = { query: '', showAll: false, tag: '' };
+
+	/** Права роли: кросс-таблица, строки - объекты конфигурации, колонки - права. */
+	function renderRoleRightsTab() {
+		if (!contentRoot) {
+			return;
+		}
+		const model_ = model.roleRights;
+		if (!model_) {
+			contentRoot.innerHTML = '<div class="empty">Файл прав не прочитан.</div>';
+			return;
+		}
+		const readonly = !editable || editable.readonly === true;
+		contentRoot.textContent = '';
+
+		const flags = document.createElement('div');
+		flags.className = 'struct-list';
+		const flagRows = [
+			['setForNewObjects', 'Устанавливать права для новых объектов'],
+			['setForAttributesByDefault', 'Устанавливать права для реквизитов и табличных частей по умолчанию'],
+			['independentRightsOfChildObjects', 'Независимые права подчиненных объектов'],
+		];
+		for (const pair of flagRows) {
+			const item = document.createElement('div');
+			item.className = 'struct-item';
+			const label = document.createElement('label');
+			label.className = 'rights-toggle struct-item-name';
+			const box = document.createElement('input');
+			box.type = 'checkbox';
+			box.checked = roleFlagChecked(pair[0]);
+			box.disabled = readonly;
+			box.addEventListener('change', function () {
+				toggleRoleFlag(pair[0], box.checked);
+				renderSaveBar();
+			});
+			label.appendChild(box);
+			label.appendChild(document.createTextNode(' ' + pair[1]));
+			item.appendChild(label);
+			flags.appendChild(item);
+		}
+		contentRoot.appendChild(flags);
+
+		// Выданные права из файла: объект -> право -> значение
+		const grantedByObject = new Map();
+		for (const object of model_.objects || []) {
+			const rights = new Map();
+			for (const right of object.rights || []) {
+				rights.set(right.name, right.value);
+			}
+			grantedByObject.set(object.name, rights);
+		}
+
+		// Строки: конфигурация, все объекты по видам, затем ссылки из файла вне списка
+		const rows = [];
+		rows.push({ name: 'Configuration', caption: 'Конфигурация', tag: 'Configuration' });
+		const allObjects = model_.allObjects || {};
+		const tags = Object.keys(allObjects).sort(function (a, b) {
+			return roleObjectCaption(a + '.x').localeCompare(roleObjectCaption(b + '.x'), 'ru');
+		});
+		for (const tag of tags) {
+			for (const name of allObjects[tag] || []) {
+				rows.push({ name: tag + '.' + name, caption: roleObjectCaption(tag + '.' + name), tag });
+			}
+		}
+		const known = new Set(rows.map(function (row) { return row.name; }));
+		for (const object of model_.objects || []) {
+			if (!known.has(object.name)) {
+				rows.push({ name: object.name, caption: roleObjectCaption(object.name), tag: object.name.split('.')[0] });
+			}
+		}
+
+		const controls = document.createElement('div');
+		controls.className = 'rights-controls';
+		const filter = document.createElement('input');
+		filter.type = 'text';
+		filter.className = 'list-filter';
+		filter.placeholder = 'Фильтр по списку...';
+		filter.value = rightsFilter.query;
+		controls.appendChild(filter);
+		const toggle = document.createElement('label');
+		toggle.className = 'rights-toggle';
+		const toggleBox = document.createElement('input');
+		toggleBox.type = 'checkbox';
+		toggleBox.checked = rightsFilter.showAll;
+		toggle.appendChild(toggleBox);
+		toggle.appendChild(document.createTextNode(' Все объекты'));
+		controls.appendChild(toggle);
+		const tagSelect = document.createElement('select');
+		const anyOption = document.createElement('option');
+		anyOption.value = '';
+		anyOption.textContent = 'Все виды';
+		tagSelect.appendChild(anyOption);
+		for (const tag of tags) {
+			const option = document.createElement('option');
+			option.value = tag;
+			option.textContent = roleObjectCaption(tag + '.x').replace(/: .*$/, '');
+			tagSelect.appendChild(option);
+		}
+		tagSelect.value = rightsFilter.tag;
+		controls.appendChild(tagSelect);
+		contentRoot.appendChild(controls);
+
+		const box = document.createElement('div');
+		box.className = 'rights-table-box';
+		contentRoot.appendChild(box);
+		const note = document.createElement('div');
+		note.className = 'empty';
+		contentRoot.appendChild(note);
+
+		function objectHasAnyRight(name) {
+			const granted = grantedByObject.get(name);
+			if (granted) {
+				for (const value of granted.values()) {
+					if (value) {
+						return true;
+					}
+				}
+			}
+			// Правка в панели тоже делает строку «с правами»
+			for (const key of editedRoleRights.keys()) {
+				if (key.startsWith(name + ' ') && editedRoleRights.get(key)) {
+					return true;
+				}
+			}
+			return false;
+		}
+
+		function renderTable() {
+			const needle = rightsFilter.query.trim().toLowerCase();
+			const visible = [];
+			for (const row of rows) {
+				if (!rightsFilter.showAll && !objectHasAnyRight(row.name)) {
+					continue;
+				}
+				if (rightsFilter.tag && row.tag !== rightsFilter.tag) {
+					continue;
+				}
+				if (needle && !row.caption.toLowerCase().includes(needle) && !row.name.toLowerCase().includes(needle)) {
+					continue;
+				}
+				visible.push(row);
+				if (visible.length >= RIGHTS_ROW_CAP) {
+					break;
+				}
+			}
+			box.textContent = '';
+			note.textContent = '';
+			if (visible.length === 0) {
+				note.textContent = rightsFilter.showAll
+					? 'Ничего не найдено: уточните фильтр.'
+					: 'Выданных прав нет. Флажок «Все объекты» показывает всю конфигурацию.';
+				return;
+			}
+			if (visible.length >= RIGHTS_ROW_CAP) {
+				note.textContent = 'Показаны первые ' + RIGHTS_ROW_CAP + ' строк: уточните фильтр.';
+			}
+			const table = document.createElement('table');
+			table.className = 'rights-table';
+			const thead = document.createElement('thead');
+			const head = document.createElement('tr');
+			const objectTh = document.createElement('th');
+			objectTh.className = 'rights-object-col';
+			objectTh.textContent = 'Объект';
+			head.appendChild(objectTh);
+			for (const column of RIGHT_COLUMNS) {
+				const th = document.createElement('th');
+				th.textContent = column[1];
+				th.title = rightLabel(column[0]);
+				head.appendChild(th);
+			}
+			thead.appendChild(head);
+			table.appendChild(thead);
+			const tbody = document.createElement('tbody');
+			for (const row of visible) {
+				const tr = document.createElement('tr');
+				const nameTd = document.createElement('td');
+				nameTd.className = 'rights-object-col';
+				nameTd.title = row.name;
+				nameTd.textContent = row.caption;
+				tr.appendChild(nameTd);
+				for (const column of RIGHT_COLUMNS) {
+					const td = document.createElement('td');
+					const boxInput = document.createElement('input');
+					boxInput.type = 'checkbox';
+					boxInput.checked = roleRightChecked(row.name, column[0]);
+					boxInput.disabled = readonly;
+					boxInput.addEventListener('change', (function (objectName, rightName, input) {
+						return function () {
+							toggleRoleRight(objectName, rightName, input.checked);
+							applyRightDependencies(objectName, rightName, input.checked);
+							renderTable();
+							renderSaveBar();
+						};
+					})(row.name, column[0], boxInput));
+					td.appendChild(boxInput);
+					tr.appendChild(td);
+				}
+				tbody.appendChild(tr);
+			}
+			table.appendChild(tbody);
+			box.appendChild(table);
+			// Права вне колонок (редкие) остаются видны подсказкой
+			const extras = [];
+			for (const [objectName, rights] of grantedByObject) {
+				for (const [rightName, value] of rights) {
+					if (value && !RIGHT_COLUMNS.some(function (column) { return column[0] === rightName; })) {
+						extras.push(roleObjectCaption(objectName) + ': ' + rightLabel(rightName));
+					}
+				}
+			}
+			if (extras.length > 0 && !note.textContent) {
+				note.textContent = 'Вне таблицы: ' + extras.slice(0, 6).join('; ') + (extras.length > 6 ? '…' : '');
+			}
+		}
+
+		filter.addEventListener('input', function () {
+			rightsFilter.query = filter.value || '';
+			renderTable();
+		});
+		toggleBox.addEventListener('change', function () {
+			rightsFilter.showAll = toggleBox.checked;
+			renderTable();
+		});
+		tagSelect.addEventListener('change', function () {
+			rightsFilter.tag = tagSelect.value;
+			renderTable();
+		});
+		renderTable();
+	}
+
+	/** Состав объекта деревом с флажками: секции, группы по видам, реквизиты отдельным списком. */
+	function renderRefContentTab() {
+		if (!contentRoot) {
+			return;
+		}
+		const refContent = model.refContent;
+		const sections = refContent && Array.isArray(refContent.sections) ? refContent.sections : [];
+		if (sections.length === 0) {
+			contentRoot.innerHTML = '<div class="empty">Нет данных.</div>';
+			return;
+		}
+		const readonly = !editable || editable.readonly === true;
+		contentRoot.textContent = '';
+		const filter = document.createElement('input');
+		filter.type = 'text';
+		filter.className = 'list-filter';
+		filter.placeholder = 'Фильтр по списку...';
+		contentRoot.appendChild(filter);
+
+		const labelByTag = new Map();
+		for (const section of sections) {
+			for (const group of section.groups) {
+				labelByTag.set(group.tag, group.label);
+			}
+		}
+
+		/** Служебные сегменты пути выгрузки: в подписи остаются только имена. */
+		const PATH_TOKENS = new Set([
+			'Attribute',
+			'TabularSection',
+			'Dimension',
+			'Resource',
+			'Command',
+			'Form',
+			'Template',
+			'Column',
+			'AccountingFlag',
+			'ExtDimensionAccountingFlag',
+			'AddressingAttribute',
+			'EnumValue',
+			'Recalculation',
+			'StandardAttribute',
+			'Operation',
+			'URLTemplate',
+		]);
+
+		const KIND_LABEL_BY_TAG = new Map([
+			['Subsystem', 'Подсистема'],
+			['CommonModule', 'Общий модуль'],
+			['CommonForm', 'Общая форма'],
+			['CommonCommand', 'Общая команда'],
+			['CommonAttribute', 'Общий реквизит'],
+			['SessionParameter', 'Параметр сеанса'],
+			['Role', 'Роль'],
+			['Constant', 'Константа'],
+			['Catalog', 'Справочник'],
+			['Document', 'Документ'],
+			['Enum', 'Перечисление'],
+			['Report', 'Отчёт'],
+			['DataProcessor', 'Обработка'],
+			['ChartOfCharacteristicTypes', 'План видов характеристик'],
+			['ChartOfAccounts', 'План счетов'],
+			['ChartOfCalculationTypes', 'План видов расчёта'],
+			['InformationRegister', 'Регистр сведений'],
+			['AccumulationRegister', 'Регистр накопления'],
+			['AccountingRegister', 'Регистр бухгалтерии'],
+			['CalculationRegister', 'Регистр расчёта'],
+			['ExchangePlan', 'План обмена'],
+			['BusinessProcess', 'Бизнес-процесс'],
+			['Task', 'Задача'],
+			['FilterCriterion', 'Критерий отбора'],
+			['DocumentJournal', 'Журнал документов'],
+			['Sequence', 'Последовательность'],
+			['DocumentNumerator', 'Нумератор документов'],
+			['FunctionalOption', 'Функциональная опция'],
+			['FunctionalOptionsParameter', 'Параметр функциональных опций'],
+			['SettingsStorage', 'Хранилище настроек'],
+			['WebService', 'Web-сервис'],
+			['HTTPService', 'HTTP-сервис'],
+			['IntegrationService', 'Сервис интеграции'],
+			['CommonTemplate', 'Общий макет'],
+			['CommonPicture', 'Общая картинка'],
+			['CommandGroup', 'Группа команд'],
+			['XDTOPackage', 'XDTO-пакет'],
+			['WSReference', 'WS-ссылка'],
+			['Style', 'Стиль'],
+			['StyleItem', 'Элемент стиля'],
+			['Language', 'Язык'],
+			['Interface', 'Интерфейс'],
+			['Bot', 'Бот'],
+			['WebSocketClient', 'WebSocket-клиент'],
+			['DefinedType', 'Определяемый тип'],
+			['EventSubscription', 'Подписка на событие'],
+			['ScheduledJob', 'Регламентное задание'],
+			['ExternalDataSource', 'Внешний источник данных'],
+			['ExternalReport', 'Внешний отчёт'],
+			['ExternalDataProcessor', 'Внешняя обработка'],
+		]);
+
+		/** «Document._Демо.TabularSection.Счета.Attribute.Счет» → «Документ: _Демо.Счета.Счет». */
+		function refCaption(ref) {
+			const parts = String(ref).split('.');
+			if (parts.length < 2) {
+				return ref;
+			}
+			const label = labelByTag.get(parts[0]) || KIND_LABEL_BY_TAG.get(parts[0]);
+			const names = parts.slice(1).filter((part) => !PATH_TOKENS.has(part));
+			return (label ? label + ': ' : parts[0] + '.') + names.join('.');
+		}
+
+		const rerenderSelected = [];
+
+		function renderSection(section) {
+			if (sections.length > 1) {
+				const heading = document.createElement('div');
+				heading.className = 'section-title section-title-spaced';
+				heading.textContent = section.title;
+				contentRoot.appendChild(heading);
+			}
+			const tree = document.createElement('div');
+			tree.className = 'subsys-tree';
+			contentRoot.appendChild(tree);
+			const selectedBlock = document.createElement('div');
+			selectedBlock.className = 'ref-selected';
+			const selectedTitle = document.createElement('div');
+			selectedTitle.className = 'section-title';
+			selectedBlock.appendChild(selectedTitle);
+			const selectedList = document.createElement('div');
+			selectedList.className = 'struct-list';
+			selectedBlock.appendChild(selectedList);
+			contentRoot.appendChild(selectedBlock);
+
+			function currentRefs() {
+				const refs = new Set(Array.isArray(section.refs) ? section.refs : []);
+				for (const [key, edit] of editedContent.entries()) {
+					const space = key.indexOf(' ');
+					if (key.slice(0, space) !== section.key) {
+						continue;
+					}
+					const ref = key.slice(space + 1);
+					if (edit.member) {
+						refs.add(ref);
+					} else {
+						refs.delete(ref);
+					}
+				}
+				return [...refs].sort((a, b) => a.localeCompare(b, 'ru'));
+			}
+
+			function renderSelected() {
+				const refs = currentRefs();
+				selectedTitle.textContent = 'Входит в состав (' + refs.length + ')';
+				selectedList.textContent = '';
+				if (refs.length === 0) {
+					const empty = document.createElement('div');
+					empty.className = 'edit-ref-empty';
+					empty.textContent = '(пусто)';
+					selectedList.appendChild(empty);
+					return;
+				}
+				for (const ref of refs) {
+					const item = document.createElement('div');
+					item.className = 'struct-item';
+					const name = document.createElement('span');
+					name.className = 'struct-item-name';
+					name.textContent = refCaption(ref);
+					item.appendChild(name);
+					if (section.modes) {
+						const edit = contentEdit(section, ref);
+						const option = section.modes.options.find((candidate) => candidate.value === edit.mode);
+						const mode = document.createElement('span');
+						mode.className = 'struct-item-syn ref-selected-mode';
+						mode.textContent = option ? option.label : edit.mode;
+						item.appendChild(mode);
+					}
+					selectedList.appendChild(item);
+				}
+			}
+			rerenderSelected.push(renderSelected);
+
+			function refRow(ref, name) {
+				const row = document.createElement('div');
+				row.className = 'subsys-node';
+				row.dataset.name = String(name).toLowerCase();
+				const inner = document.createElement('div');
+				inner.className = 'subsys-row';
+				const pad = document.createElement('span');
+				pad.className = 'subsys-twist';
+				inner.appendChild(pad);
+				const label = document.createElement('label');
+				label.className = 'subsys-label';
+				const box = document.createElement('input');
+				box.type = 'checkbox';
+				box.checked = contentChecked(section, ref);
+				box.disabled = readonly;
+				label.appendChild(box);
+				label.appendChild(document.createTextNode(' ' + name));
+				inner.appendChild(label);
+				let modeSelect = null;
+				if (section.modes) {
+					// Режим участника: у общего реквизита это использование
+					modeSelect = document.createElement('select');
+					modeSelect.className = 'subsys-mode';
+					for (const option of section.modes.options) {
+						const el = document.createElement('option');
+						el.value = option.value;
+						el.textContent = option.label;
+						modeSelect.appendChild(el);
+					}
+					const current = contentEdit(section, ref);
+					modeSelect.value = current.mode;
+					modeSelect.disabled = readonly || !current.member;
+					modeSelect.addEventListener('change', function () {
+						setContentEdit(section, ref, true, modeSelect.value);
+						renderSelected();
+						renderSaveBar();
+					});
+					inner.appendChild(modeSelect);
+				}
+				box.addEventListener('change', function () {
+					const mode = modeSelect ? modeSelect.value : '';
+					setContentEdit(section, ref, box.checked, mode);
+					if (modeSelect) {
+						modeSelect.disabled = readonly || !box.checked;
+					}
+					renderSelected();
+					renderSaveBar();
+				});
+				row.appendChild(inner);
+				return row;
+			}
+
+			function groupBlock(title, rows, expanded) {
+				const wrap = document.createElement('div');
+				wrap.className = 'subsys-node';
+				wrap.dataset.name = '';
+				const head = document.createElement('div');
+				head.className = 'subsys-row';
+				const twist = document.createElement('span');
+				twist.className = 'subsys-twist clickable';
+				head.appendChild(twist);
+				const caption = document.createElement('span');
+				caption.className = 'subsys-group-title';
+				caption.textContent = title;
+				head.appendChild(caption);
+				wrap.appendChild(head);
+				const childrenBox = document.createElement('div');
+				childrenBox.className = 'subsys-children';
+				for (const row of rows) {
+					childrenBox.appendChild(row);
+				}
+				wrap.appendChild(childrenBox);
+				const setState = (collapsed) => {
+					childrenBox.classList.toggle('collapsed', collapsed);
+					twist.textContent = collapsed ? '▸' : '▾';
+				};
+				setState(!expanded);
+				const toggle = () => setState(!childrenBox.classList.contains('collapsed'));
+				twist.addEventListener('click', toggle);
+				caption.addEventListener('click', toggle);
+				return wrap;
+			}
+
+			for (const group of section.groups) {
+				const rows = group.names.map((name) => refRow(group.tag + '.' + name, name));
+				// Раскрыта группа, где уже есть отмеченные: остальное свёрнуто, иначе список неподъёмный
+				const expanded =
+					section.groups.length === 1 ||
+					group.names.some((name) => contentChecked(section, group.tag + '.' + name));
+				tree.appendChild(groupBlock(group.label, rows, expanded));
+			}
+			if (Array.isArray(section.extras) && section.extras.length > 0) {
+				const rows = section.extras.map((ref) => refRow(ref, refCaption(ref)));
+				tree.appendChild(groupBlock('Отдельные реквизиты', rows, true));
+			}
+			renderSelected();
+			return tree;
+		}
+
+		const trees = sections.map((section) => renderSection(section));
+
+		filter.addEventListener('input', function () {
+			const needle = String(filter.value || '').trim().toLowerCase();
+			for (const tree of trees) {
+				for (const groupEl of tree.querySelectorAll(':scope > .subsys-node')) {
+					const childrenBox = groupEl.querySelector(':scope > .subsys-children');
+					let any = false;
+					for (const row of childrenBox.querySelectorAll(':scope > .subsys-node')) {
+						const visible = !needle || row.dataset.name.includes(needle);
+						row.classList.toggle('hidden', !visible);
+						if (visible) {
+							any = true;
+						}
+					}
+					groupEl.classList.toggle('hidden', Boolean(needle) && !any);
+					if (needle && any) {
+						childrenBox.classList.remove('collapsed');
+						const twist = groupEl.querySelector(':scope > .subsys-row > .subsys-twist');
+						twist.textContent = '▾';
+					}
+				}
+			}
+		});
 	}
 
 	function renderOverview() {
@@ -724,6 +1937,21 @@
 				if (items.length === 0) {
 					return '<div class="edit-static-empty">(пусто)</div>';
 				}
+				if (field.itemsKind === 'objectForms') {
+					const addButton = editable && editable.readonly !== true
+						? `<button type="button" class="struct-add-btn" data-form-create="1">+ Форма…</button>`
+						: '';
+					// Форма открывается щелчком, крестик удаляет её вместе с файлами
+					return `<div class="edit-chips">${items
+						.map(function (item) {
+							const name = escapeHtml(toDisplayText(item));
+							const remove = editable && editable.readonly !== true
+								? `<button type="button" class="edit-chip-remove" data-form-delete="${name}" title="Удалить форму">✕</button>`
+								: '';
+							return `<span class="edit-chip edit-chip-action"><button type="button" class="edit-chip-open" data-form-open="${name}" title="Открыть форму">${name}</button>${remove}</span>`;
+						})
+						.join('')}</div><div class="struct-add-row">${addButton}</div>`;
+				}
 				return `<div class="edit-chips">${items
 					.map((item) => `<span class="edit-chip">${escapeHtml(toDisplayText(item))}</span>`)
 					.join('')}</div>`;
@@ -731,6 +1959,30 @@
 			default:
 				return `<input id="${id}" class="edit-input" type="text" data-path="${escapeHtml(field.path)}" data-control="text" value="${escapeHtml(typeof value === 'string' ? value : '')}"${disabled} />`;
 		}
+	}
+
+	if (contentRoot) {
+		contentRoot.addEventListener('click', function (event) {
+			const open = event.target.closest ? event.target.closest('[data-form-open]') : null;
+			if (open) {
+				vscodeApi.postMessage({ type: 'openObjectForm', name: open.dataset.formOpen });
+				return;
+			}
+			const remove = event.target.closest ? event.target.closest('[data-form-delete]') : null;
+			if (remove) {
+				vscodeApi.postMessage({ type: 'deleteObjectForm', name: remove.dataset.formDelete });
+				return;
+			}
+			const command = event.target.closest ? event.target.closest('[data-command-open]') : null;
+			if (command) {
+				vscodeApi.postMessage({ type: 'openObjectCommand', name: command.dataset.commandOpen });
+				return;
+			}
+			const create = event.target.closest ? event.target.closest('[data-form-create]') : null;
+			if (create) {
+				vscodeApi.postMessage({ type: 'createObjectForm' });
+			}
+		});
 	}
 
 	function renderEditTab(tabId) {
@@ -1010,13 +2262,13 @@
 		resetBtn.disabled = saving || !dirty;
 		status.classList.toggle('save-status-error', Boolean(saveError) || Boolean(structError));
 		if (saving) {
-			status.textContent = 'Сохранение...';
+			status.textContent = 'Сохранение…';
 		} else if (dirty && structError) {
 			status.textContent = structError;
 		} else if (saveError) {
 			status.textContent = saveError;
 		} else if (dirty) {
-			status.textContent = 'Есть несохраненные изменения';
+			status.textContent = 'Есть несохранённые изменения';
 		} else if (savedFlash) {
 			status.textContent = 'Сохранено';
 		} else {
@@ -1052,7 +2304,51 @@
 			saveError = '';
 			savedFlash = false;
 			renderSaveBar();
-			vscodeApi.postMessage({ type: 'save', payload: editedProps, structure: serializeStructureEdits() });
+			vscodeApi.postMessage({
+				type: 'save',
+				payload: editedProps,
+				structure: serializeStructureEdits(),
+				subsystems: [...editedSubsystems.entries()].map(([xmlPath, member]) => ({ xmlPath, member })),
+				commandVisibility:
+					editedCommandVisibility.size > 0 && model.commandInterface
+						? model.commandInterface.visibility
+								.filter((entry) => entry.stored !== false || editedCommandVisibility.has(entry.command))
+								.map((entry) => ({
+									command: entry.command,
+									common: commandVisibilityChecked(entry.command),
+								}))
+						: [],
+				content: [...editedContent.entries()].map(([key, edit]) => {
+					const space = key.indexOf(' ');
+					return { key: key.slice(0, space), ref: key.slice(space + 1), member: edit.member, mode: edit.mode };
+				}),
+				roleRights: [...editedRoleRights.entries()].map(([key, value]) => {
+					const space = key.indexOf(' ');
+					return { object: key.slice(0, space), right: key.slice(space + 1), value };
+				}),
+				roleRightsFlags: Object.fromEntries(editedRoleFlags),
+				commandPlacement:
+					editedCommandPlacement.size > 0 && model.commandInterface
+						? model.commandInterface.placement.map((entry) => ({
+								command: entry.command,
+								group: commandPlacementGroup(entry),
+								place: entry.place || 'Auto',
+							}))
+						: [],
+				commandOrder: commandOrderDirty() ? editedCommandOrder : [],
+				subsystemsOrder: orderListDirty(
+					editedSubsystemsOrder,
+					model.commandInterface && model.commandInterface.subsystemsOrder
+				)
+					? editedSubsystemsOrder
+					: [],
+				groupsOrder: orderListDirty(
+					editedGroupsOrder,
+					model.commandInterface && model.commandInterface.groupsOrder
+				)
+					? editedGroupsOrder
+					: [],
+			});
 		});
 		resetBtn.addEventListener('click', function () {
 			if (saving || !editable) {
@@ -1061,6 +2357,15 @@
 			editedProps = deepClone(editable.props);
 			editedStructure = model.structureLists ? structureEditsFromLists(model.structureLists) : null;
 			structBaselineOrderKey = structOrderKey(editedStructure);
+			editedSubsystems.clear();
+			editedContent.clear();
+			editedCommandVisibility.clear();
+			editedCommandPlacement.clear();
+			editedCommandOrder = null;
+			editedSubsystemsOrder = null;
+			editedGroupsOrder = null;
+			editedRoleRights.clear();
+			editedRoleFlags.clear();
 			saveError = '';
 			savedFlash = false;
 			if (currentTabIsEdit()) {
@@ -1074,6 +2379,31 @@
 				if (msg.structureLists && typeof msg.structureLists === 'object') {
 					model.structureLists = msg.structureLists;
 				}
+				if (msg.subsystems && typeof msg.subsystems === 'object') {
+					model.subsystems = msg.subsystems;
+				}
+				if (msg.refContent && typeof msg.refContent === 'object') {
+					model.refContent = msg.refContent;
+				}
+				if (msg.commandInterface && typeof msg.commandInterface === 'object') {
+					model.commandInterface = msg.commandInterface;
+				}
+				if (msg.roleRights && typeof msg.roleRights === 'object') {
+					model.roleRights = msg.roleRights;
+				}
+				if (msg.origin && typeof msg.origin === 'object') {
+					model.origin = msg.origin;
+					renderOriginBadges();
+				}
+				editedSubsystems.clear();
+				editedContent.clear();
+				editedCommandVisibility.clear();
+				editedCommandPlacement.clear();
+				editedCommandOrder = null;
+				editedSubsystemsOrder = null;
+				editedGroupsOrder = null;
+				editedRoleRights.clear();
+				editedRoleFlags.clear();
 				editedStructure = model.structureLists ? structureEditsFromLists(model.structureLists) : null;
 				structBaselineOrderKey = structOrderKey(editedStructure);
 				if (Array.isArray(msg.tabs)) {
@@ -1142,14 +2472,18 @@
 		return ts;
 	}
 
-	function structEditRowHtml(row, spath) {
+	function structEditRowHtml(row, spath, options) {
 		const deleted = row.deleted;
 		const invalid = !deleted && !structNameValid(row.name) ? ' struct-input-invalid' : '';
 		const dis = deleted ? ' disabled' : '';
+		// У команды объекта модуль открывается прямо из списка: принцип тот же, что у форм
+		const moduleButton = options && options.commandModule && !deleted && row.originalName
+			? `<button type="button" class="struct-btn" data-command-open="${escapeHtml(row.originalName)}" title="Открыть модуль команды">⌘</button>`
+			: '';
 		return `<div class="struct-item${deleted ? ' struct-item-deleted' : ''}"${row.comment ? ` title="${escapeHtml(row.comment)}"` : ''}>
 			<input class="edit-input struct-input struct-input-name${invalid}" data-spath="${spath}" data-sfield="name" value="${escapeHtml(row.name)}" placeholder="Имя" spellcheck="false"${dis} />
 			<input class="edit-input struct-input" data-spath="${spath}" data-sfield="synonymRu" value="${escapeHtml(row.synonymRu)}" placeholder="Синоним"${dis} />
-			<span class="struct-actions-inline">
+			<span class="struct-actions-inline">${moduleButton}
 				<button type="button" class="struct-btn" data-smove="${spath}" data-smove-dir="-1" title="Вверх"${dis}>↑</button>
 				<button type="button" class="struct-btn" data-smove="${spath}" data-smove-dir="1" title="Вниз"${dis}>↓</button>
 				<button type="button" class="struct-btn${deleted ? '' : ' struct-btn-danger'}" data-sdel="${spath}" title="${deleted ? 'Вернуть' : 'Удалить'}">${deleted ? '↩' : '×'}</button>
@@ -1211,7 +2545,10 @@
 			return '<div class="edit-ref-empty">(нет данных)</div>';
 		}
 		const list = editedStructure.lists[listIdx];
-		const rows = list.rows.map((row, idx) => structEditRowHtml(row, `l.${listIdx}.${idx}`)).join('');
+		const commandModule = editedStructure.lists[listIdx] && editedStructure.lists[listIdx].kind === 'commands';
+		const rows = list.rows
+			.map((row, idx) => structEditRowHtml(row, `l.${listIdx}.${idx}`, { commandModule }))
+			.join('');
 		return `<div class="struct-list">${rows || '<div class="edit-ref-empty">(пусто)</div>'}</div>
 			<div class="struct-add-row"><button type="button" class="struct-add-btn" data-sadd="l.${listIdx}">${escapeHtml(
 				list.addLabel || '+ Строка…'
@@ -1516,20 +2853,6 @@
 		contentRoot.innerHTML = `<pre class="code">${escapeHtml(formatted)}</pre>`;
 	}
 
-	function renderTechnical() {
-		if (!technicalRoot || !technicalJsonRoot || !toggleTechnicalButton) {
-			return;
-		}
-		if (!technicalVisible) {
-			technicalRoot.classList.add('hidden');
-			toggleTechnicalButton.textContent = 'Технические данные';
-			return;
-		}
-		technicalRoot.classList.remove('hidden');
-		toggleTechnicalButton.textContent = 'Скрыть технические данные';
-		technicalJsonRoot.textContent = model.technicalJson || '{}';
-	}
-
 	function toDisplayText(value) {
 		if (value === null || value === undefined || value === '') {
 			return '(пусто)';
@@ -1578,7 +2901,7 @@
 		if (!match) {
 			return '';
 		}
-		const label = refKindLabels[match[1]];
+		const label = objectKindLabel(match[1]);
 		if (!label || !match[2]) {
 			return '';
 		}
@@ -1598,17 +2921,11 @@
 			.replaceAll("'", '&#39;');
 	}
 
-	if (toggleTechnicalButton) {
-		toggleTechnicalButton.addEventListener('click', function () {
-			technicalVisible = !technicalVisible;
-			renderTechnical();
-		});
-	}
-
+	renderOriginBadges();
 	renderWarnings();
+	renderReadonlyNotice();
 	renderTabs();
 	renderContent();
-	renderTechnical();
 	initSaveBar();
 	renderSaveBar();
 })();

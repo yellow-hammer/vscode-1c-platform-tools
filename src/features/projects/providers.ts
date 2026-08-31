@@ -1,5 +1,5 @@
 /**
- * Провайдеры TreeView для «Проекты 1С» — Избранное + Все проекты.
+ * Провайдеры TreeView для «1С: Проекты» — Избранное + Все проекты.
  */
 
 import * as vscode from 'vscode';
@@ -53,7 +53,7 @@ export class ProjectsProviders {
 		const el = event.element;
 		if (el instanceof TagNode) {
 			const config = vscode.workspace.getConfiguration('1c-platform-tools');
-			const behavior = config.get<string>('projects.tags.collapseItems', 'startExpanded');
+			const behavior = config.get<string>('projects.collapseTags', 'startExpanded');
 			if (behavior === 'startExpanded' || behavior === 'startCollapsed') {
 				const tagId = (el.label as string) || (el.description as string) || '';
 				await StorageProvider.setTagExpanded(this.context, tagId, expanded);

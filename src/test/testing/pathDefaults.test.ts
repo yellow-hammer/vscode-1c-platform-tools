@@ -1,7 +1,7 @@
 import * as assert from 'node:assert';
 import * as path from 'node:path';
 import { existsSync, readFileSync } from 'node:fs';
-import { DEFAULT_PATHS, DEFAULT_TESTING, DEFAULT_VRUNNER, TESTS_SUBDIRS, testsSubPath } from '../../shared/pathDefaults';
+import { SETTING_DEFAULTS, TESTS_SUBDIRS, testsSubPath } from '../../shared/pathDefaults';
 
 /**
  * Находит package.json расширения, поднимаясь от каталога теста вверх.
@@ -48,23 +48,12 @@ function readConfigDefaults(): Map<string, unknown> {
 suite('pathDefaults ↔ package.json', () => {
 	const defaults = readConfigDefaults();
 
-	const check = (group: string, constants: Record<string, string>) => {
-		for (const [key, value] of Object.entries(constants)) {
-			const settingKey = `1c-platform-tools.${group}.${key}`;
-			test(`${settingKey} = "${value}"`, () => {
-				assert.ok(defaults.has(settingKey), `Настройка ${settingKey} отсутствует в package.json`);
-				assert.strictEqual(
-					defaults.get(settingKey),
-					value,
-					`Дефолт ${settingKey} в package.json не совпадает с константой`
-				);
-			});
-		}
-	};
-
-	check('paths', DEFAULT_PATHS);
-	check('test', DEFAULT_TESTING);
-	check('vrunner', DEFAULT_VRUNNER);
+	for (const { key, value } of SETTING_DEFAULTS) {
+		test(`${key} = "${value}"`, () => {
+			assert.ok(defaults.has(key), `Настройка ${key} отсутствует в package.json`);
+			assert.strictEqual(defaults.get(key), value, `Дефолт ${key} в package.json не совпадает с константой`);
+		});
+	}
 });
 
 suite('каталоги тестов', () => {
@@ -84,7 +73,7 @@ suite('каталоги тестов', () => {
 
 	test('раскладка тестов не настраивается: отдельных настроек путей нет', () => {
 		const defaults = readConfigDefaults();
-		assert.ok(!defaults.has('1c-platform-tools.paths.testsCfe'), 'paths.testsCfe вернулась в манифест');
-		assert.ok(!defaults.has('1c-platform-tools.paths.testsSrc'), 'paths.testsSrc вернулась в манифест');
+		assert.ok(!defaults.has('1c-platform-tools.path.testsCfe'), 'path.testsCfe вернулась в манифест');
+		assert.ok(!defaults.has('1c-platform-tools.path.testsSrc'), 'path.testsSrc вернулась в манифест');
 	});
 });

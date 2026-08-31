@@ -16,14 +16,14 @@ export interface ProjectsBootstrap {
 }
 
 /**
- * Инициализирует базовые зависимости фичи «Проекты 1С».
+ * Инициализирует базовые зависимости фичи «1С: Проекты».
  */
 export function registerProjectsBootstrap(
 	context: vscode.ExtensionContext
 ): ProjectsBootstrap {
 	const oneCLocator = new OneCLocator(context);
 	const projectsConfig = vscode.workspace.getConfiguration('1c-platform-tools');
-	const projectsLocation = projectsConfig.get<string>('projects.projectsLocation', '');
+	const projectsLocation = projectsConfig.get<string>('projects.path.storage', '');
 	const projectFilePath = getProjectsFilePath(projectsLocation, context);
 	const projectStorage = new ProjectStorage(projectFilePath);
 	const loadError = projectStorage.load();

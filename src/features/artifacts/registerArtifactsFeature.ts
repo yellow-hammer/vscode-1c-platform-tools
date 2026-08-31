@@ -83,14 +83,14 @@ export function registerArtifactsFeature(
 	updateArtifactsViewContext();
 
 	const artifactsViewAsListCommand = vscode.commands.registerCommand(
-		'1c-platform-tools.artifacts._viewAsList',
+		'1c-platform-tools.artifacts.viewAsList',
 		async () => {
 			await artifactsProvider.setViewMode('list' as ArtifactsViewMode);
 		}
 	);
 
 	const artifactsViewByFolderCommand = vscode.commands.registerCommand(
-		'1c-platform-tools.artifacts._viewByFolder',
+		'1c-platform-tools.artifacts.viewByFolder',
 		async () => {
 			await artifactsProvider.setViewMode('folder' as ArtifactsViewMode);
 		}

@@ -1,5 +1,5 @@
 /**
- * Константы модуля «Проекты 1С».
+ * Константы модуля «1С: Проекты».
  */
 
 export const FAVORITES_FILENAME = 'projects.json';

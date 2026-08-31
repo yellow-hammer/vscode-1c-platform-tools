@@ -22,7 +22,7 @@ description: Операции с информационными базами 1С
 |---------------------------------------|-----------------------------------------------------|
 | Создать пустую ИБ                     | `1c-platform-tools.infobase.create`            |
 | Обновить конфигурацию в ИБ            | `1c-platform-tools.infobase.updateDb`         |
-| Постобработка обновления              | `1c-platform-tools.infobase.runUpdateHandlers`         |
+| Выполнить обработчики обновления              | `1c-platform-tools.infobase.runUpdateHandlers`         |
 | Запретить работу с внешними ресурсами | `1c-platform-tools.infobase.blockExternalResources` |
 | Инициализировать данные               | `1c-platform-tools.infobase.initialize`             |
 | Выгрузить в dt                        | `1c-platform-tools.infobase.dumpDt`               |

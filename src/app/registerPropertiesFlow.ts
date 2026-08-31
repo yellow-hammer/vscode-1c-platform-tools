@@ -2,7 +2,7 @@ import * as vscode from 'vscode';
 import { PROPERTY_PALETTE_VIEW_ID, PropertyPaletteViewProvider } from '../features/properties/propertyPaletteView';
 
 /**
- * Регистрирует панель «Свойства 1С». Панель отдельная: её наполняют разные источники,
+ * Регистрирует панель «1С: Свойства». Панель отдельная: её наполняют разные источники,
  * поэтому провайдер возвращается наружу и передаётся тем, кто показывает выделение.
  */
 export function registerPropertiesFlow(context: vscode.ExtensionContext): PropertyPaletteViewProvider {

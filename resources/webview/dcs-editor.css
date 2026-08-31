@@ -1,0 +1,45 @@
+/* Редактор схемы компоновки: структура списками, запрос текстом */
+.dcs-section {
+	margin-bottom: 18px;
+}
+.dcs-query {
+	width: 100%;
+	min-height: 220px;
+	resize: vertical;
+	background: var(--vscode-input-background);
+	color: var(--vscode-input-foreground);
+	border: 1px solid var(--vscode-input-border);
+	border-radius: 2px;
+	padding: 8px;
+	font-family: var(--vscode-editor-font-family, monospace);
+	font-size: var(--vscode-editor-font-size, 13px);
+	outline: none;
+	box-sizing: border-box;
+}
+.dcs-query:focus {
+	border-color: var(--vscode-focusBorder);
+}
+.dcs-actions {
+	margin-top: 8px;
+	display: flex;
+	gap: 8px;
+	align-items: center;
+}
+.dcs-add-grid {
+	display: grid;
+	grid-template-columns: 160px 1fr;
+	gap: 6px 10px;
+	align-items: center;
+	max-width: 720px;
+}
+.dcs-add-grid input {
+	background: var(--vscode-input-background);
+	color: var(--vscode-input-foreground);
+	border: 1px solid var(--vscode-input-border);
+	border-radius: 2px;
+	padding: 4px 8px;
+	outline: none;
+}
+.dcs-add-grid input:focus {
+	border-color: var(--vscode-focusBorder);
+}

@@ -31,7 +31,7 @@ export interface RegisterProjectsRuntimeResult {
 }
 
 /**
- * Регистрирует runtime-часть фичи «Проекты 1С» (view, команды, реакция на изменения).
+ * Регистрирует runtime-часть фичи «1С: Проекты» (view, команды, реакция на изменения).
  */
 export async function registerProjectsRuntime(
 	params: RegisterProjectsRuntimeParams

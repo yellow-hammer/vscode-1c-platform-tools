@@ -15,7 +15,7 @@ description: Поддержка конфигурации и поставка. И
 |-------------------------|-----------------------------------------------|
 | Выгрузить в 1Cv8dist.cf | `1c-platform-tools.cf.makeDist`  |
 | Загрузить из cf/cfu     | `1c-platform-tools.support.updateCfg`         |
-| Удалить поддержку       | `1c-platform-tools.support.disableCfgSupport` |
+| Снять с поддержки       | `1c-platform-tools.support.disableCfgSupport` |
 
 ### Поставка
 

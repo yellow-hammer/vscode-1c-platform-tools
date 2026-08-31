@@ -172,7 +172,7 @@ export class PlatformServerManager {
 		private readonly vrunner: VRunnerManager,
 		private readonly context: vscode.ExtensionContext
 	) {
-		this.output = vscode.window.createOutputChannel('1C: Автономный сервер');
+		this.output = vscode.window.createOutputChannel('1С: Автономный сервер');
 	}
 
 	/** Текущее состояние сервера. */
@@ -421,12 +421,12 @@ export class PlatformServerManager {
 	private readSettings(): ServerSettings {
 		const config = vscode.workspace.getConfiguration('1c-platform-tools.server');
 		return {
-			platformPath: config.get<string>('platformPath', ''),
+			platformPath: config.get<string>('path.platform', ''),
 			platformVersion: config.get<string>('platformVersion', ''),
 			host: config.get<string>('host', 'localhost'),
 			port: config.get<number>('port', 8314),
 			httpBase: config.get<string>('httpBase', 'ib'),
-			dataPath: config.get<string>('dataPath', ''),
+			dataPath: config.get<string>('path.data', ''),
 			distributeLicenses: config.get<boolean>('distributeLicenses', true),
 			debug: config.get<boolean>('debug', false),
 			debugPort: config.get<number>('debugPort', 1550),

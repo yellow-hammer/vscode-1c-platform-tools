@@ -146,18 +146,18 @@ async function showInfobaseList(): Promise<void> {
  */
 export function registerIbasesCommands(provider: IbasesProvider): vscode.Disposable[] {
 	return [
-		vscode.commands.registerCommand('1c-platform-tools.ibases.refresh', () => {
+		vscode.commands.registerCommand('1c-platform-tools.infobaseList.refresh', () => {
 			provider.refresh();
 		}),
-		vscode.commands.registerCommand('1c-platform-tools.ibases.list', () => showInfobaseList()),
-		vscode.commands.registerCommand('1c-platform-tools.ibases.launchEnterprise', async (node: unknown) => {
+		vscode.commands.registerCommand('1c-platform-tools.infobaseList.open', () => showInfobaseList()),
+		vscode.commands.registerCommand('1c-platform-tools.infobaseList.launchEnterprise', async (node: unknown) => {
 			const entry = ibaseEntryFrom(node);
 			if (!entry) {
 				return;
 			}
 			await runInfobase(entry, 'ENTERPRISE');
 		}),
-		vscode.commands.registerCommand('1c-platform-tools.ibases.launchDesigner', async (node: unknown) => {
+		vscode.commands.registerCommand('1c-platform-tools.infobaseList.launchDesigner', async (node: unknown) => {
 			const entry = ibaseEntryFrom(node);
 			if (!entry) {
 				return;

@@ -11,7 +11,7 @@ description: Установка версии конфигурации. Испо�
 
 | Задача                         | Command ID                                   |
 |--------------------------------|----------------------------------------------|
-| Установить версию конфигурации | `1c-platform-tools.setVersion.configuration` |
+| Установить версию конфигурации | `1c-platform-tools.cf.setVersion` |
 
 ## MCP (mcp-1c-platform-tools)
 
@@ -24,4 +24,4 @@ description: Установка версии конфигурации. Испо�
 ## Примеры
 
 - Вызови MCP-инструмент setVersion с `projectPath` = корень проекта 1С.
-- Выполни команду `1c-platform-tools.setVersion.configuration` — откроется выбор версии для текущего проекта.
+- Выполни команду `1c-platform-tools.cf.setVersion` — откроется выбор версии для текущего проекта.

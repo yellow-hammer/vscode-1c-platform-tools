@@ -246,24 +246,24 @@ export function getBuildConfigurationCommandName(): CommandNameAndTitle {
 }
 
 /**
- * Получить название и заголовок для команды сборки внешней обработки
+ * Получить название и заголовок для команды сборки внешних обработок
  */
 export function getBuildExternalProcessorCommandName(): CommandNameAndTitle {
 	return {
-		id: '1c-platform-tools.artifacts.buildProcessor',
-		name: 'Собрать внешнюю обработку',
-		title: 'Собрать внешнюю обработку'
+		id: '1c-platform-tools.epf.compileProcessor',
+		name: 'Собрать обработки',
+		title: 'Собрать обработки'
 	};
 }
 
 /**
- * Получить название и заголовок для команды сборки внешнего отчёта
+ * Получить название и заголовок для команды сборки внешних отчётов
  */
 export function getBuildExternalReportCommandName(): CommandNameAndTitle {
 	return {
-		id: '1c-platform-tools.artifacts.buildReport',
-		name: 'Собрать внешний отчёт',
-		title: 'Собрать внешний отчёт'
+		id: '1c-platform-tools.epf.compileReport',
+		name: 'Собрать отчёты',
+		title: 'Собрать отчёты'
 	};
 }
 
@@ -279,24 +279,24 @@ export function getDecompileConfigurationCommandName(): CommandNameAndTitle {
 }
 
 /**
- * Получить название и заголовок для команды разбора внешней обработки
+ * Получить название и заголовок для команды разбора внешних обработок
  */
 export function getDecompileExternalProcessorCommandName(): CommandNameAndTitle {
 	return {
-		id: '1c-platform-tools.artifacts.decompileProcessor',
-		name: 'Разобрать внешнюю обработку',
-		title: 'Разобрать внешнюю обработку'
+		id: '1c-platform-tools.epf.decompileProcessor',
+		name: 'Разобрать обработки',
+		title: 'Разобрать обработки'
 	};
 }
 
 /**
- * Получить название и заголовок для команды разбора внешнего отчёта
+ * Получить название и заголовок для команды разбора внешних отчётов
  */
 export function getDecompileExternalReportCommandName(): CommandNameAndTitle {
 	return {
-		id: '1c-platform-tools.artifacts.decompileReport',
-		name: 'Разобрать внешний отчёт',
-		title: 'Разобрать внешний отчёт'
+		id: '1c-platform-tools.epf.decompileReport',
+		name: 'Разобрать отчёты',
+		title: 'Разобрать отчёты'
 	};
 }
 
@@ -360,7 +360,7 @@ export function getXUnitTestsCommandName(): CommandNameAndTitle {
  */
 export function getSyntaxCheckCommandName(): CommandNameAndTitle {
 	return {
-		id: '1c-platform-tools.test.syntaxCheck',
+		id: '1c-platform-tools.syntaxCheck.run',
 		name: 'Синтаксический контроль',
 		title: 'Синтаксический контроль'
 	};
@@ -411,7 +411,7 @@ export function getYAxUnitTestsCommandName(): CommandNameAndTitle {
  */
 export function getBuildTestEpfCommandName(): CommandNameAndTitle {
 	return {
-		id: '1c-platform-tools.test.buildEpf',
+		id: '1c-platform-tools.test.compileEpf',
 		name: 'Собрать unit-тесты',
 		title: 'Собрать unit-тесты'
 	};
@@ -599,9 +599,9 @@ export function getBuildExtensionCommandName(): CommandNameAndTitle {
  */
 export function getSetVersionConfigurationCommandName(): CommandNameAndTitle {
 	return {
-		id: '1c-platform-tools.setVersion.configuration',
+		id: '1c-platform-tools.cf.setVersion',
 		name: 'Конфигурацию',
-		title: 'Конфигурацию'
+		title: 'Установить версию'
 	};
 }
 
@@ -610,9 +610,9 @@ export function getSetVersionConfigurationCommandName(): CommandNameAndTitle {
  */
 export function getSetVersionExtensionCommandName(): CommandNameAndTitle {
 	return {
-		id: '1c-platform-tools.setVersion.extension',
+		id: '1c-platform-tools.cfe.setVersion',
 		name: 'Расширение',
-		title: 'Расширение'
+		title: 'Установить версию'
 	};
 }
 
@@ -622,7 +622,7 @@ export function getSetVersionExtensionCommandName(): CommandNameAndTitle {
  */
 export function getSetVersionReportCommandName(reportName: string): CommandNameAndTitle {
 	return {
-		id: '1c-platform-tools.setVersion.report',
+		id: '1c-platform-tools.epf.setVersionReport',
 		name: reportName,
 		title: reportName
 	};
@@ -634,7 +634,7 @@ export function getSetVersionReportCommandName(reportName: string): CommandNameA
  */
 export function getSetVersionProcessorCommandName(processorName: string): CommandNameAndTitle {
 	return {
-		id: '1c-platform-tools.setVersion.processor',
+		id: '1c-platform-tools.epf.setVersionProcessor',
 		name: processorName,
 		title: processorName
 	};
@@ -661,8 +661,8 @@ export function getUpdateCfgSupportCommandName(): CommandNameAndTitle {
 export function getDisableCfgSupportCommandName(): CommandNameAndTitle {
 	return {
 		id: '1c-platform-tools.support.disableCfgSupport',
-		name: 'Удалить',
-		title: 'Удалить'
+		name: 'Снять с поддержки',
+		title: 'Снять'
 	};
 }
 
@@ -684,7 +684,7 @@ export function getCreateDeliveryDescriptionFileCommandName(): CommandNameAndTit
 	return {
 		id: '1c-platform-tools.support.createDeliveryDescriptionFile',
 		name: 'Создать файл описания шаблона поставки',
-		title: 'Создать файл описания шаблона поставки'
+		title: 'Создать файл описания шаблона'
 	};
 }
 
@@ -774,7 +774,7 @@ export function getLoadTestExtensionsCommandName(): CommandNameAndTitle {
  */
 export function getBuildTestExtensionsCommandName(): CommandNameAndTitle {
 	return {
-		id: '1c-platform-tools.test.buildExtensions',
+		id: '1c-platform-tools.test.compileExtensions',
 		name: 'Собрать тестовые расширения',
 		title: 'Собрать тестовые расширения'
 	};
@@ -842,7 +842,7 @@ export function getOpenPipelineEditorCommandName(): CommandNameAndTitle {
 	return {
 		id: '1c-platform-tools.pipelines.openEditor',
 		name: 'Открыть редактор пайплайнов',
-		title: 'Открыть редактор пайплайнов'
+		title: 'Открыть редактор'
 	};
 }
 
@@ -853,7 +853,7 @@ export function getOpenHooksEditorCommandName(): CommandNameAndTitle {
 	return {
 		id: '1c-platform-tools.hooks.openEditor',
 		name: 'Открыть редактор хуков',
-		title: 'Открыть редактор хуков'
+		title: 'Открыть редактор'
 	};
 }
 

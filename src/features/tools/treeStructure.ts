@@ -102,12 +102,12 @@ export interface TreeGroup {
  */
 export const TREE_GROUPS: TreeGroup[] = [
 	{
-		groupLabel: 'Информационные базы',
+		groupLabel: 'Информационная база',
 		sectionType: 'infobase',
 		defaultCollapsibleState: 'collapsed',
 		commands: [
 			{ command: '1c-platform-tools.infobase.create', title: getCreateEmptyInfobaseCommandName().title, treeLabel: '➕ Создать пустую ИБ' },
-			{ command: '1c-platform-tools.infobase.runUpdateHandlers', title: getUpdateDatabaseCommandName().title, treeLabel: '🔄 Постобработка обновления' },
+			{ command: '1c-platform-tools.infobase.runUpdateHandlers', title: getUpdateDatabaseCommandName().title, treeLabel: '🔄 Выполнить обработчики обновления' },
 			{ command: '1c-platform-tools.infobase.blockExternalResources', title: getBlockExternalResourcesCommandName().title, treeLabel: '🚫 Запретить работу с внешними ресурсами' },
 			{ command: '1c-platform-tools.infobase.initialize', title: getInitializeCommandName().title, treeLabel: '🚀 Инициализировать данные' },
 			{ command: '1c-platform-tools.infobase.dumpDt', title: getDumpInfobaseToDtCommandName().title, treeLabel: '📤 Выгрузить в dt' },
@@ -151,10 +151,10 @@ export const TREE_GROUPS: TreeGroup[] = [
 		sectionType: 'externalFile',
 		defaultCollapsibleState: 'collapsed',
 		commands: [
-			{ command: '1c-platform-tools.epf.compileProcessor', title: getBuildExternalProcessorCommandName().title, treeLabel: '🔨 Собрать внешнюю обработку' },
-			{ command: '1c-platform-tools.epf.compileReport', title: getBuildExternalReportCommandName().title, treeLabel: '🔨 Собрать внешний отчет' },
-			{ command: '1c-platform-tools.epf.decompileProcessor', title: getDecompileExternalProcessorCommandName().title, treeLabel: '🔓 Разобрать внешнюю обработку' },
-			{ command: '1c-platform-tools.epf.decompileReport', title: getDecompileExternalReportCommandName().title, treeLabel: '🔓 Разобрать внешний отчет' },
+			{ command: '1c-platform-tools.epf.compileProcessor', title: getBuildExternalProcessorCommandName().title, treeLabel: '🔨 Собрать обработки' },
+			{ command: '1c-platform-tools.epf.compileReport', title: getBuildExternalReportCommandName().title, treeLabel: '🔨 Собрать отчёты' },
+			{ command: '1c-platform-tools.epf.decompileProcessor', title: getDecompileExternalProcessorCommandName().title, treeLabel: '🔓 Разобрать обработки' },
+			{ command: '1c-platform-tools.epf.decompileReport', title: getDecompileExternalReportCommandName().title, treeLabel: '🔓 Разобрать отчёты' },
 			{ command: '1c-platform-tools.epf.clearCache', title: getClearCacheCommandName().title, treeLabel: '🗑️ Удалить кэш' },
 		],
 	},
@@ -165,7 +165,7 @@ export const TREE_GROUPS: TreeGroup[] = [
 		commands: [
 			{ command: '1c-platform-tools.cf.makeDist', title: getDumpConfigurationToDistCommandName().title, treeLabel: '📤 Выгрузить в 1Cv8dist.cf' },
 			{ command: '1c-platform-tools.support.updateCfg', title: getUpdateCfgSupportCommandName().title, treeLabel: '📥 Загрузить из cf/cfu' },
-			{ command: '1c-platform-tools.support.disableCfgSupport', title: getDisableCfgSupportCommandName().title, treeLabel: '🗑️ Удалить' },
+			{ command: '1c-platform-tools.support.disableCfgSupport', title: getDisableCfgSupportCommandName().title, treeLabel: '🗑️ Снять' },
 		],
 	},
 	{
@@ -186,14 +186,14 @@ export const TREE_GROUPS: TreeGroup[] = [
 		commands: [
 			{ command: '1c-platform-tools.dependencies.initializePackagedef', title: getInitializePackagedefCommandName().title, treeLabel: '📝 Инициализировать проект' },
 			{ command: '1c-platform-tools.dependencies.initializeProjectStructure', title: getInitializeProjectStructureCommandName().title, treeLabel: '📁 Инициализировать структуру проекта' },
+			{ command: '1c-platform-tools.dependencies.setupGit', title: getSetupGitCommandName().title, treeLabel: '🔧 Настроить Git' },
 			{ command: '1c-platform-tools.components.setGithubToken', title: 'Указать токен GitHub', treeLabel: '🔑 Указать токен GitHub' },
 			{ command: '1c-platform-tools.components.forgetGithubToken', title: 'Забыть токен GitHub', treeLabel: '🔓 Забыть токен GitHub' },
-			{ command: '1c-platform-tools.dependencies.setupGit', title: getSetupGitCommandName().title, treeLabel: '🔧 Настроить Git' },
+			{ command: '1c-platform-tools.components.update', title: 'Обновить внешние компоненты', treeLabel: '🔄 Обновить внешние компоненты' },
 			{ command: '1c-platform-tools.dependencies.installOscript', title: getInstallOneScriptCommandName().title, treeLabel: '📦 Установить OneScript' },
-			{ command: '1c-platform-tools.dependencies.updateOpm', title: getUpdateOpmCommandName().title, treeLabel: '📦 Установить пакетный менеджер' },
+			{ command: '1c-platform-tools.dependencies.updateOpm', title: getUpdateOpmCommandName().title, treeLabel: '📦 Обновить пакетный менеджер opm' },
 			{ command: '1c-platform-tools.dependencies.install', title: getInstallDependenciesCommandName().title, treeLabel: '📦 Установить зависимости' },
 			{ command: '1c-platform-tools.dependencies.remove', title: getRemoveDependenciesCommandName().title, treeLabel: '🗑️ Удалить зависимости' },
-			{ command: '1c-platform-tools.components.update', title: 'Обновить внешние компоненты', treeLabel: '🔄 Обновить внешние компоненты' },
 		],
 	},
 	{
@@ -226,10 +226,10 @@ export const TREE_GROUPS: TreeGroup[] = [
 		commands: [
 			{ command: '1c-platform-tools.test.loadExtensions', title: getLoadTestExtensionsCommandName().title, treeLabel: '📥 Загрузить тестовые расширения из tests/cfe' },
 			{ command: '1c-platform-tools.test.dumpExtensions', title: getDumpTestExtensionsCommandName().title, treeLabel: '📤 Выгрузить тестовые расширения в tests/cfe' },
-			{ command: '1c-platform-tools.test.buildExtensions', title: getBuildTestExtensionsCommandName().title, treeLabel: '🔨 Собрать тестовые *.cfe из tests/cfe' },
-			{ command: '1c-platform-tools.test.buildEpf', title: getBuildTestEpfCommandName().title, treeLabel: '🔨 Собрать unit тесты' },
+			{ command: '1c-platform-tools.test.compileExtensions', title: getBuildTestExtensionsCommandName().title, treeLabel: '🔨 Собрать тестовые *.cfe из tests/cfe' },
+			{ command: '1c-platform-tools.test.compileEpf', title: getBuildTestEpfCommandName().title, treeLabel: '🔨 Собрать unit-тесты' },
 			{ command: '1c-platform-tools.test.decompileExtensions', title: getDecompileTestExtensionsCommandName().title, treeLabel: '🔓 Разобрать тестовые *.cfe в tests/cfe' },
-			{ command: '1c-platform-tools.test.decompileEpf', title: getDecompileTestEpfCommandName().title, treeLabel: '🔓 Разобрать unit тесты' },
+			{ command: '1c-platform-tools.test.decompileEpf', title: getDecompileTestEpfCommandName().title, treeLabel: '🔓 Разобрать unit-тесты' },
 		],
 	},
 	{
@@ -238,10 +238,10 @@ export const TREE_GROUPS: TreeGroup[] = [
 		defaultCollapsibleState: 'collapsed',
 		commands: [
 			{ command: '1c-platform-tools.test.xunit', title: getXUnitTestsCommandName().title, treeLabel: '🧪 XUnit тесты' },
-			{ command: '1c-platform-tools.test.syntaxCheck', title: getSyntaxCheckCommandName().title, treeLabel: '🧪 Синтаксический контроль' },
+			{ command: '1c-platform-tools.syntaxCheck.run', title: getSyntaxCheckCommandName().title, treeLabel: '🧪 Синтаксический контроль' },
 			{ command: '1c-platform-tools.test.vanessa', title: getVanessaTestsCommandName('normal').title, treeLabel: '🧪 Vanessa тесты' },
 			{ command: '1c-platform-tools.test.yaxunit', title: getYAxUnitTestsCommandName().title, treeLabel: '🧪 YAxUnit тесты' },
-			{ command: '1c-platform-tools.test.allure', title: getAllureReportCommandName().title, treeLabel: '📊 Allure отчет' },
+			{ command: '1c-platform-tools.test.allure', title: getAllureReportCommandName().title, treeLabel: '📊 Отчёт Allure' },
 		],
 	},
 	{
@@ -249,8 +249,8 @@ export const TREE_GROUPS: TreeGroup[] = [
 		sectionType: 'setVersion',
 		defaultCollapsibleState: 'collapsed',
 		commands: [
-			{ command: '1c-platform-tools.setVersion.configuration', title: getSetVersionConfigurationCommandName().title, treeLabel: '🏷️ Конфигурации' },
-			{ command: '1c-platform-tools.setVersion.extension', title: getSetVersionExtensionCommandName().title, treeLabel: '🏷️ Расширения' },
+			{ command: '1c-platform-tools.cf.setVersion', title: getSetVersionConfigurationCommandName().title, treeLabel: '🏷️ Конфигурации' },
+			{ command: '1c-platform-tools.cfe.setVersion', title: getSetVersionExtensionCommandName().title, treeLabel: '🏷️ Расширения' },
 		],
 	},
 	{
@@ -259,7 +259,7 @@ export const TREE_GROUPS: TreeGroup[] = [
 		defaultCollapsibleState: 'collapsed',
 		commands: [
 			{ command: '1c-platform-tools.serviceFiles.create', title: 'Создать служебные файлы', treeLabel: 'Создать служебные файлы' },
-			{ command: '1c-platform-tools.serviceFiles.createRecommendedSet', title: 'Создать базовый набор', treeLabel: 'Базовый набор' },
+			{ command: '1c-platform-tools.serviceFiles.createRecommendedSet', title: 'Создать базовый набор служебных файлов', treeLabel: 'Базовый набор' },
 			{ command: '1c-platform-tools.serviceFiles.createGitignore', title: 'Создать .gitignore', treeLabel: '.gitignore' },
 			{ command: '1c-platform-tools.serviceFiles.createGitattributes', title: 'Создать .gitattributes', treeLabel: '.gitattributes' },
 			{ command: '1c-platform-tools.serviceFiles.createEnvJson', title: 'Создать env.json', treeLabel: 'env.json' },
@@ -280,7 +280,7 @@ export const TREE_GROUPS: TreeGroup[] = [
 		sectionType: 'helpAndSupport',
 		defaultCollapsibleState: 'collapsed',
 		commands: [
-			{ command: '1c-platform-tools.getStarted.open', title: 'С чего начать?', treeLabel: 'С чего начать?' },
+			{ command: '1c-platform-tools.help.openGetStarted', title: 'С чего начать?', treeLabel: 'С чего начать?' },
 			{ command: '1c-platform-tools.help.openDocs', title: 'Документация', treeLabel: 'Документация', icon: 'book' },
 			{ command: '1c-platform-tools.help.copyEnvironmentSummary', title: 'Скопировать сводку окружения', treeLabel: 'Скопировать сводку окружения', icon: 'copy' },
 			{ command: '1c-platform-tools.help.openCreateIssue', title: 'Сообщить о проблемах', treeLabel: 'Сообщить о проблемах', icon: 'comment-discussion' },
@@ -289,3 +289,28 @@ export const TREE_GROUPS: TreeGroup[] = [
 		],
 	},
 ];
+
+/** Подпись команды в дереве без ведущего эмодзи. */
+function labelWithoutEmoji(treeLabel: string): string {
+	return treeLabel.replace(/^[^\p{L}\p{N}.]+/u, '').trim();
+}
+
+/**
+ * Подпись команды такая же, как в её группе.
+ *
+ * Избранное показывает те же команды, что и группы, поэтому подпись берётся из
+ * структуры по идентификатору, а не из записи избранного: сохранённая запись
+ * несёт заголовок на момент добавления и после переименования команды протухает.
+ *
+ * @param command Идентификатор команды расширения
+ * @returns Подпись без эмодзи либо {@code undefined}, если команды нет в дереве
+ */
+export function treeCommandLabel(command: string): string | undefined {
+	for (const group of TREE_GROUPS) {
+		const entry = group.commands.find((item) => item.command === command);
+		if (entry) {
+			return labelWithoutEmoji(entry.treeLabel);
+		}
+	}
+	return undefined;
+}

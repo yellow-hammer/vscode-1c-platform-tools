@@ -56,7 +56,7 @@ async function pushSetVersionDynamicItems(
 	items.push({ label: '🏷️ Внешнего отчёта', kind: vscode.QuickPickItemKind.Separator });
 	const reports = await setVersionCommands.getReportFoldersForTree();
 	for (const name of reports) {
-		const command = '1c-platform-tools.setVersion.report';
+		const command = '1c-platform-tools.epf.setVersionReport';
 		const args = [name];
 		items.push({
 			label: `🏷️ Отчёт: ${name}`,
@@ -72,7 +72,7 @@ async function pushSetVersionDynamicItems(
 	items.push({ label: '🏷️ Внешней обработки', kind: vscode.QuickPickItemKind.Separator });
 	const processors = await setVersionCommands.getProcessorFoldersForTree();
 	for (const name of processors) {
-		const command = '1c-platform-tools.setVersion.processor';
+		const command = '1c-platform-tools.epf.setVersionProcessor';
 		const args = [name];
 		items.push({
 			label: `🏷️ Обработка: ${name}`,
@@ -142,9 +142,9 @@ async function pushOscriptTasksItems(
 		{ label: 'Задачи (oscript)', kind: vscode.QuickPickItemKind.Separator },
 		{
 			label: '➕ Добавить задачу',
-			description: '1c-platform-tools.oscript.addTask',
-			picked: favoriteKeys.has('1c-platform-tools.oscript.addTask|[]'),
-			command: '1c-platform-tools.oscript.addTask',
+			description: '1c-platform-tools.tasks.addOscript',
+			picked: favoriteKeys.has('1c-platform-tools.tasks.addOscript|[]'),
+			command: '1c-platform-tools.tasks.addOscript',
 			title: 'Добавить задачу',
 			groupLabel: 'Задачи (oscript)',
 			sectionType: 'oscriptTasks',
@@ -152,7 +152,7 @@ async function pushOscriptTasksItems(
 	);
 	const tasks = await oscriptTasksCommands.getOscriptTasks();
 	for (const task of tasks) {
-		const command = '1c-platform-tools.oscript.run';
+		const command = '1c-platform-tools.tasks.runOscript';
 		const args = [task.name];
 		items.push({
 			label: `▶️ ${task.name}`,
@@ -225,7 +225,7 @@ function toFavoriteEntries(selected: readonly vscode.QuickPickItem[]): FavoriteE
 }
 
 /**
- * Регистрирует команды главного дерева «Инструменты 1С».
+ * Регистрирует команды главного дерева «1С: Инструменты».
  */
 export function registerMainTreeCommands(
 	params: RegisterMainTreeCommandsParams
@@ -250,7 +250,7 @@ export function registerMainTreeCommands(
 		notifyQuiet('Дерево обновлено');
 	});
 
-	const launchViewCommand = vscode.commands.registerCommand('1c-platform-tools.launch.view', () => {
+	const launchViewCommand = vscode.commands.registerCommand('1c-platform-tools.tasks.view', () => {
 		if (!isProjectRef.current) {
 			showNot1CProjectMessage();
 			return;
@@ -259,7 +259,7 @@ export function registerMainTreeCommands(
 	});
 
 	const launchRunCommand = vscode.commands.registerCommand(
-		'1c-platform-tools.launch.run',
+		'1c-platform-tools.tasks.run',
 		async (taskLabel: string) => {
 			if (!isProjectRef.current) {
 				showNot1CProjectMessage();
@@ -270,7 +270,7 @@ export function registerMainTreeCommands(
 	);
 
 	const oscriptRunCommand = vscode.commands.registerCommand(
-		'1c-platform-tools.oscript.run',
+		'1c-platform-tools.tasks.runOscript',
 		async (taskName?: unknown) => {
 			if (isAgentOptions(taskName)) {
 				return agentInteractiveError('Передайте имя задачи строкой (см. tasks/*.os).');
@@ -284,7 +284,7 @@ export function registerMainTreeCommands(
 	);
 
 	const oscriptAddTaskCommand = vscode.commands.registerCommand(
-		'1c-platform-tools.oscript.addTask',
+		'1c-platform-tools.tasks.addOscript',
 		async (arg?: unknown) => {
 			if (isAgentOptions(arg)) {
 				return agentInteractiveError('Имя файла задачи запрашивается в окне VS Code; создайте файл в tasks/ напрямую.');
@@ -298,7 +298,7 @@ export function registerMainTreeCommands(
 		}
 	);
 
-	const launchEditCommand = vscode.commands.registerCommand('1c-platform-tools.launch.edit', () => {
+	const launchEditCommand = vscode.commands.registerCommand('1c-platform-tools.tasks.edit', () => {
 		if (!isProjectRef.current) {
 			showNot1CProjectMessage();
 			return;
@@ -345,7 +345,7 @@ export function registerMainTreeCommands(
 	});
 
 	const favoritesConfigureCommand = vscode.commands.registerCommand(
-		'1c-platform-tools.favorites.configure',
+		'1c-platform-tools.tools.configureFavorites',
 		async () => {
 			if (!isProjectRef.current) {
 				showNot1CProjectMessage();

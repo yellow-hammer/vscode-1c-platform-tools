@@ -250,7 +250,7 @@ async function startServerDebug(manager: PlatformServerManager): Promise<void> {
 
 	const cfPath = vscode.workspace
 		.getConfiguration('1c-platform-tools')
-		.get<string>('paths.cf', DEFAULT_PATHS.cf)
+		.get<string>('path.cf', DEFAULT_PATHS.cf)
 		.replace(/\\/g, '/')
 		.replace(/^\.?\//, '');
 

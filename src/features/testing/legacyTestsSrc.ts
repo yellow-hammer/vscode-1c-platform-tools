@@ -19,7 +19,7 @@ const log = logger.scope('testing');
  */
 export function legacyTestsSrcHint(workspaceRoot: string): string | undefined {
 	const config = vscode.workspace.getConfiguration('1c-platform-tools');
-	const testsRoot = config.get<string>('paths.tests', DEFAULT_PATHS.tests);
+	const testsRoot = config.get<string>('path.tests', DEFAULT_PATHS.tests);
 	const testsSrc = testsSubPath(testsRoot, TESTS_SUBDIRS.epf);
 	if (fs.existsSync(path.join(workspaceRoot, testsSrc))) {
 		return undefined;
@@ -30,7 +30,7 @@ export function legacyTestsSrcHint(workspaceRoot: string): string | undefined {
 	return (
 		`Исходники тестовых обработок теперь ожидаются в ${testsSrc}, ` +
 		'а в проекте они лежат в src/tests. Перенесите каталог: раскладка тестов фиксированная, ' +
-		'настройкой каталог не переопределяется. Корень тестов задаётся в 1c-platform-tools.paths.tests.'
+		'настройкой каталог не переопределяется. Корень тестов задаётся в 1c-platform-tools.path.tests.'
 	);
 }
 

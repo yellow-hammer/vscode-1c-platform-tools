@@ -27,6 +27,12 @@ export interface MetadataSourceDto {
 	readonly label: string;
 	readonly configurationXmlRelativePath: string;
 	readonly metadataRootRelativePath: string;
+	/** Правило поддержки самого корня конфигурации: locked либо editable. */
+	readonly support?: string;
+	/** Возможность изменения включена конфигуратором: без неё правила не правятся. */
+	readonly supportEditingEnabled?: boolean;
+	/** Отпечаток правил поддержки на момент чтения дерева. */
+	readonly supportGeneration?: string;
 	readonly groups: MetadataGroupDto[];
 }
 
@@ -60,6 +66,8 @@ export interface MetadataItemDto {
 	readonly relativePath: string;
 	/** Принадлежность объекта расширения: `Adopted` у заимствованного; у конфигурации пусто. */
 	readonly objectBelonging?: string;
+	/** Поддержка поставщика: locked - изменение запрещено, editable - разрешено. */
+	readonly support?: string;
 	/** Необязательная цель открытия из md-sparrow; клик в IDE работает и без неё. */
 	readonly open?: MetadataItemOpenDto;
 }
@@ -129,7 +137,7 @@ export async function loadProjectMetadataTree(
 	return parsed;
 }
 
-/** Параметры project-metadata-tree с каталогами исходников из настроек paths.*. */
+/** Параметры project-metadata-tree с каталогами исходников из настроек path.*. */
 export function projectMetadataTreeParams(projectRootAbs: string): MdSparrowParams {
 	const dirs = configuredSourceDirs();
 	return {

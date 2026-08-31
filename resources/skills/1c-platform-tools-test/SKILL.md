@@ -14,24 +14,24 @@ description: Тестирование 1С. Используй, когда пол
 | Запусти тесты, XUnit, Vanessa             | `test_xunit` / `test_vanessa` или команда |
 | Синтаксический контроль                   | `test_syntaxCheck` или команда            |
 | Построй Allure-отчёт                      | `test_allure` или команда                 |
-| Собери/разбери unit тесты (.epf)          | команда buildEpf / decompileEpf           |
+| Собери/разбери unit-тесты (.epf)          | команда buildEpf / decompileEpf           |
 
 ## Команды расширения
 
 | Задача                        | Command ID                            |
 |-------------------------------|---------------------------------------|
 | XUnit тесты                   | `1c-platform-tools.test.xunit`        |
-| Синтаксический контроль       | `1c-platform-tools.test.syntaxCheck`  |
+| Синтаксический контроль       | `1c-platform-tools.syntaxCheck.run`  |
 | Vanessa тесты                 | `1c-platform-tools.test.vanessa`      |
 | YAxUnit тесты                 | `1c-platform-tools.test.yaxunit`      |
 | Allure отчёт                  | `1c-platform-tools.test.allure`       |
-| Собрать unit тесты            | `1c-platform-tools.test.buildEpf`     |
-| Разобрать unit тесты          | `1c-platform-tools.test.decompileEpf` |
+| Собрать unit-тесты            | `1c-platform-tools.test.compileEpf`     |
+| Разобрать unit-тесты          | `1c-platform-tools.test.decompileEpf` |
 | Запустить EPF в Предприятии   | `1c-platform-tools.epf.run`    |
 | Настроить тестовые фреймворки | `1c-platform-tools.test.configure` |
 | Загрузить тестовые расширения | `1c-platform-tools.test.loadExtensions`  |
 | Выгрузить тестовые расширения | `1c-platform-tools.test.dumpExtensions`  |
-| Собрать тестовые расширения   | `1c-platform-tools.test.buildExtensions` |
+| Собрать тестовые расширения   | `1c-platform-tools.test.compileExtensions` |
 | Разобрать тестовые расширения | `1c-platform-tools.test.decompileExtensions` |
 
 Тестовые расширения (YAxUnit и расширение с тестами) живут в `tests/cfe`, собранные `*.cfe` — в `build/out/tests/cfe`; команды расширений решения их не трогают.

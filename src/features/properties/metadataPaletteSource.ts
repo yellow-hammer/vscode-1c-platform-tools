@@ -12,24 +12,29 @@ import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 import * as vscode from 'vscode';
 import {
-	isMetadataCommonForm,
 	MetadataLeafTreeItem,
 	MetadataObjectNodeTreeItem,
 	MetadataSourceTreeItem,
+	childNodeSupport,
 } from '../metadata/metadataTreeView';
 import type { MetadataTreeDataProvider } from '../metadata/metadataTreeView';
 import type { MetadataEditTabSpec } from '../metadata/metadataObjectEditSpec';
-import { MD_REF_KIND_LABEL_BY_PREFIX, objectPaletteTabs } from '../metadata/metadataObjectPropertiesPanel';
+import {
+	ensureMdObjectKindLabels,
+	mdObjectKindLabel,
+	objectPaletteTabs,
+} from '../metadata/metadataObjectPropertiesPanel';
 import { ensureMdSparrowRuntime } from '../metadata/mdSparrowBootstrap';
 import { runMdSparrowParamsMutation, runMdSparrowParamsRead, type MdSparrowOp } from '../metadata/mdSparrowParams';
 import { mdSparrowSchemaFlagFromConfigurationXml } from '../metadata/mdSparrowSchemaVersion';
 import { logger } from '../../shared/logger';
 import { applyPaletteEdits, paletteGroupsFromSpec } from './propertyPaletteSpec';
-import { EXTERNAL_ARTIFACT_TABS, SOURCE_PROPERTIES_TABS } from './sourcePropertiesSpec';
+import { SOURCE_PROPERTIES_TABS } from './sourcePropertiesSpec';
 import { applyEnumDictionary } from '../metadata/metadataObjectEditSpec';
 import {
 	applyChildNodeEdits,
 	childNodeDtoList,
+	findTabularAttribute,
 	childNodeKindLabel,
 	childNodeTabs,
 	findChildNode,
@@ -80,11 +85,46 @@ export function metadataLeafReadsObjectProperties(item: MetadataLeafTreeItem): b
 	if (item.objectType === 'ExternalReport' || item.objectType === 'ExternalDataProcessor') {
 		return true;
 	}
-	if (isMetadataCommonForm(item.objectType)) {
-		return false;
-	}
 	const tokens = new Set((item.contextValue ?? '').split(/\s+/));
 	return tokens.has('metadataObjectProperties') || tokens.has('metadataObjectPropertiesSubsystem');
+}
+
+/**
+ * Файл описания узла, у которого он свой: `<Объект>/Forms/<Имя>.xml` у формы и
+ * `<Объект>/Templates/<Имя>.xml` у макета.
+ *
+ * @returns Путь либо {@code undefined}, если свойства узла лежат в объекте
+ */
+function childOwnXmlPath(item: MetadataObjectNodeTreeItem): string | undefined {
+	const owner = item.owner;
+	if (!owner.resourceUri) {
+		return undefined;
+	}
+	const subdir = item.nodeKind === 'form' ? 'Forms' : item.nodeKind === 'template' ? 'Templates' : undefined;
+	if (!subdir) {
+		return undefined;
+	}
+	// Каталог состава назван по файлу объекта, а не по узлу дерева: у внешнего
+	// файла каталог артефакта носит имя erf, а объект внутри - своё
+	const stem = path.basename(owner.resourceUri.fsPath, '.xml');
+	return path.join(path.dirname(owner.resourceUri.fsPath), stem, subdir, `${item.name}.xml`);
+}
+
+/**
+ * Узел состава в свойствах объекта.
+ *
+ * Реквизит табличной части лежит внутри своей части, у остальных видов свой
+ * список верхнего уровня.
+ */
+function findChildInObject(
+	dto: Record<string, unknown>,
+	child: { readonly nodeKind: string; readonly name: string; readonly tabularSection?: string }
+): Record<string, unknown> | undefined {
+	if (child.nodeKind === 'tabularAttribute') {
+		return child.tabularSection ? findTabularAttribute(dto, child.tabularSection, child.name) : undefined;
+	}
+	const list = childNodeDtoList(child.nodeKind);
+	return list ? findChildNode(dto, list, child.name) : undefined;
 }
 
 /** Что выделено: чем читать свойства и чем их записывать. */
@@ -102,7 +142,9 @@ interface PaletteTarget {
 	/** Вид объекта метаданных: у объектов спека зависит от него. */
 	readonly objectType?: string;
 	/** Узел состава объекта: реквизит, табличная часть, значение перечисления. */
-	readonly child?: { readonly nodeKind: string; readonly name: string };
+	readonly child?: { readonly nodeKind: string; readonly name: string; readonly tabularSection?: string };
+	/** Объект поставщика без возможности изменения: палитра только показывает. */
+	readonly locked?: boolean;
 }
 
 function targetFor(item: vscode.TreeItem): PaletteTarget | undefined {
@@ -126,6 +168,22 @@ function targetFor(item: vscode.TreeItem): PaletteTarget | undefined {
 		if (!owner.resourceUri) {
 			return undefined;
 		}
+		// У формы и макета свой файл описания: в составе объекта от них только имя
+		const ownXml = childOwnXmlPath(item);
+		if (ownXml) {
+			return {
+				title: item.name,
+				subtitle: childNodeKindLabel(item.nodeKind),
+				readOp: 'cf-md-object-get',
+				writeOp: 'cf-md-object-set',
+				pathField: 'objectXml',
+				filePath: ownXml,
+				cwd: owner.metadataRootAbs ?? path.dirname(owner.resourceUri.fsPath),
+				schemaFrom: owner.configurationXmlAbs ?? owner.resourceUri.fsPath,
+				objectType: item.nodeKind === 'form' ? 'Form' : 'Template',
+				locked: childNodeSupport(owner.support, item.support, true) === 'locked',
+			};
+		}
 		return {
 			title: item.name,
 			subtitle: childNodeKindLabel(item.nodeKind),
@@ -135,7 +193,8 @@ function targetFor(item: vscode.TreeItem): PaletteTarget | undefined {
 			filePath: owner.resourceUri.fsPath,
 			cwd: owner.metadataRootAbs ?? path.dirname(owner.resourceUri.fsPath),
 			schemaFrom: owner.configurationXmlAbs ?? owner.resourceUri.fsPath,
-			child: { nodeKind: item.nodeKind, name: item.name },
+			child: { nodeKind: item.nodeKind, name: item.name, tabularSection: item.tabularSectionName },
+			locked: childNodeSupport(owner.support, item.support, false) === 'locked',
 		};
 	}
 	if (!(item instanceof MetadataLeafTreeItem) || !item.resourceUri) {
@@ -151,14 +210,15 @@ function targetFor(item: vscode.TreeItem): PaletteTarget | undefined {
 		title: item.name,
 		subtitle: external
 			? (item.objectType === 'ExternalReport' ? 'Внешний отчёт' : 'Внешняя обработка')
-			: (MD_REF_KIND_LABEL_BY_PREFIX[item.objectType] ?? item.objectType),
-		readOp: external ? 'external-artifact-properties-get' : 'cf-md-object-get',
-		writeOp: external ? 'external-artifact-properties-set' : 'cf-md-object-set',
+			: (mdObjectKindLabel(item.objectType) ?? item.objectType),
+		readOp: 'cf-md-object-get',
+		writeOp: 'cf-md-object-set',
 		pathField: 'objectXml',
 		filePath,
 		cwd,
 		schemaFrom: item.configurationXmlAbs ?? filePath,
-		objectType: external ? undefined : item.objectType,
+		objectType: item.objectType,
+		locked: item.support === 'locked',
 	};
 }
 
@@ -209,7 +269,8 @@ export function registerMetadataPaletteSource(params: MetadataPaletteSourceParam
 			}
 			const shown = state(target, tabs, dto);
 			// Панель сохранения незачем показывать там, где править нечего: форма, команда, макет.
-			const editable = shown.groups.some((group) => group.rows.some((row) => row.readonly !== true));
+			const editable =
+				!target.locked && shown.groups.some((group) => group.rows.some((row) => row.readonly !== true));
 			propertyPaletteProvider.show(
 				PALETTE_OWNER,
 				shown,
@@ -254,6 +315,7 @@ interface ReadResult {
 async function readProperties(context: vscode.ExtensionContext, target: PaletteTarget): Promise<ReadResult> {
 	const schema = await mdSparrowSchemaFlagFromConfigurationXml(target.schemaFrom);
 	const runtime = await ensureMdSparrowRuntime(context);
+	await ensureMdObjectKindLabels(runtime, target.cwd);
 	const dto = await readJson(runtime, target.readOp, target, schema);
 	if (target.readOp === 'cf-configuration-properties-get') {
 		// Ключи словаря перечислений идут с видом объекта, а пути полей конфигурации - без него.
@@ -269,12 +331,8 @@ async function readProperties(context: vscode.ExtensionContext, target: PaletteT
 		}
 		return { dto, tabs: applyEnumDictionary(SOURCE_PROPERTIES_TABS, forConfiguration, labels), schema };
 	}
-	if (target.readOp === 'external-artifact-properties-get') {
-		return { dto, tabs: EXTERNAL_ARTIFACT_TABS, schema };
-	}
 	if (target.child) {
-		const list = childNodeDtoList(target.child.nodeKind);
-		const node = list ? findChildNode(dto, list, target.child.name) : undefined;
+		const node = findChildInObject(dto, target.child);
 		return {
 			dto: node ?? { name: target.child.name },
 			tabs: childNodeTabs(node !== undefined),

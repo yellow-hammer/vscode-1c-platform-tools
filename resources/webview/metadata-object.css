@@ -73,6 +73,16 @@ body {
 	margin-top: 6px;
 }
 
+.warning-text strong {
+	font-weight: 600;
+}
+
+.warning-text .warning-next {
+	display: block;
+	margin-top: 4px;
+	opacity: 0.9;
+}
+
 .tabs {
 	display: flex;
 	flex-wrap: wrap;
@@ -317,14 +327,6 @@ body {
 	font-family: var(--vscode-editor-font-family);
 	font-size: var(--vscode-editor-font-size);
 	white-space: pre;
-}
-
-.technical {
-	margin-top: 12px;
-}
-
-.technical .code {
-	max-height: 42vh;
 }
 
 @media (max-width: 920px) {
@@ -915,4 +917,247 @@ select.edit-input {
 	display: inline-flex;
 	gap: 2px;
 	align-items: center;
+}
+
+/* Деревья с флажками: подсистемы и состав опции. Вид как у дерева формы. */
+.subsys-tree {
+	margin-top: 10px;
+}
+.subsys-row {
+	display: flex;
+	align-items: center;
+	gap: 4px;
+	height: 24px;
+	padding: 0 4px;
+	border-radius: 4px;
+	white-space: nowrap;
+}
+.subsys-row:hover {
+	background: var(--vscode-list-hoverBackground);
+}
+.subsys-twist {
+	width: 12px;
+	text-align: center;
+	opacity: 0.7;
+	user-select: none;
+	flex: none;
+}
+.subsys-twist.clickable {
+	cursor: pointer;
+}
+.subsys-children {
+	margin-left: 9px;
+	padding-left: 8px;
+	border-left: 1px solid var(--vscode-tree-indentGuidesStroke, rgba(128, 128, 128, 0.4));
+}
+.subsys-children.collapsed {
+	display: none;
+}
+.subsys-node.hidden {
+	display: none;
+}
+.subsys-label {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	cursor: pointer;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+.subsys-label input[type='checkbox'] {
+	margin: 0;
+	flex: none;
+}
+
+.subsys-group-title {
+	font-weight: 600;
+	cursor: pointer;
+}
+
+/* Нижний список состава: что вошло, плоско и без группировки */
+.ref-selected {
+	margin-top: 14px;
+	border-top: 1px solid var(--vscode-widget-border, rgba(128, 128, 128, 0.35));
+	padding-top: 8px;
+}
+.ref-selected .struct-list {
+	max-height: 220px;
+	overflow-y: auto;
+}
+
+.subsys-mode {
+	margin-left: auto;
+	max-width: 170px;
+}
+
+/* Формы объекта: чип открывает форму, крестик удаляет */
+.edit-chip-action {
+	display: inline-flex;
+	align-items: center;
+	gap: 4px;
+	padding-right: 4px;
+}
+.edit-chip-open {
+	background: none;
+	border: none;
+	color: inherit;
+	font: inherit;
+	padding: 0;
+	cursor: pointer;
+}
+.edit-chip-open:hover {
+	text-decoration: underline;
+}
+.edit-chip-remove {
+	background: none;
+	border: none;
+	color: var(--vscode-descriptionForeground);
+	cursor: pointer;
+	padding: 0 2px;
+	line-height: 1;
+}
+.edit-chip-remove:hover {
+	color: var(--vscode-errorForeground, #f66);
+}
+.ref-selected .struct-item {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+}
+.ref-selected-mode {
+	margin-left: auto;
+	flex: none;
+}
+
+/* Права роли: кросс-таблица объектов и прав */
+.rights-controls {
+	display: flex;
+	gap: 12px;
+	align-items: center;
+	flex-wrap: wrap;
+	margin-bottom: 10px;
+}
+.rights-controls .list-filter {
+	margin-bottom: 0;
+	min-width: 200px;
+}
+.rights-controls select {
+	background: var(--vscode-dropdown-background);
+	color: var(--vscode-dropdown-foreground);
+	border: 1px solid var(--vscode-dropdown-border);
+	padding: 3px 8px;
+	border-radius: 2px;
+	outline: none;
+}
+.rights-toggle {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	cursor: pointer;
+	user-select: none;
+	white-space: nowrap;
+}
+.rights-table-box {
+	overflow: auto;
+	border: 1px solid var(--vscode-panel-border);
+	border-radius: 2px;
+	max-height: calc(100vh - 260px);
+}
+.rights-table {
+	border-collapse: separate;
+	border-spacing: 0;
+	width: max-content;
+	min-width: 100%;
+}
+.rights-table th {
+	position: sticky;
+	top: 0;
+	z-index: 2;
+	background: var(--vscode-editorGroupHeader-tabsBackground, var(--vscode-editor-background));
+	font-weight: 600;
+	padding: 6px 8px;
+	text-align: center;
+	border-bottom: 1px solid var(--vscode-panel-border);
+	border-right: 1px solid var(--vscode-panel-border);
+	white-space: nowrap;
+}
+.rights-table th.rights-object-col {
+	left: 0;
+	z-index: 3;
+	text-align: left;
+	min-width: 220px;
+}
+.rights-table td {
+	padding: 3px 8px;
+	border-bottom: 1px solid var(--vscode-panel-border);
+	border-right: 1px solid var(--vscode-panel-border);
+	text-align: center;
+}
+.rights-table td.rights-object-col {
+	position: sticky;
+	left: 0;
+	z-index: 1;
+	background: var(--vscode-editor-background);
+	text-align: left;
+	white-space: nowrap;
+	max-width: 360px;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+.rights-table tbody tr:hover td {
+	background: var(--vscode-list-hoverBackground);
+}
+.rights-table input[type='checkbox'] {
+	width: 15px;
+	height: 15px;
+	cursor: pointer;
+}
+
+/* Командный интерфейс: селект группы и стрелки порядка */
+.ci-group-select {
+	background: var(--vscode-dropdown-background);
+	color: var(--vscode-dropdown-foreground);
+	border: 1px solid var(--vscode-dropdown-border);
+	border-radius: 2px;
+	padding: 2px 6px;
+	outline: none;
+	max-width: 280px;
+}
+
+/* Происхождение объекта: заимствование и поддержка поставщика */
+.badges {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	flex-wrap: wrap;
+	margin-bottom: 8px;
+}
+.origin-badges {
+	display: inline-flex;
+	gap: 6px;
+	flex-wrap: wrap;
+}
+.badges .kind-badge {
+	margin-bottom: 0;
+}
+.origin-badge {
+	font-size: 11px;
+	text-transform: uppercase;
+	letter-spacing: 0.02em;
+	padding: 2px 9px;
+	border-radius: 999px;
+	border: 1px solid transparent;
+	white-space: nowrap;
+}
+.origin-badge-adopted,
+.origin-badge-locked {
+	color: var(--vscode-editorWarning-foreground, #E1B74D);
+	border-color: var(--vscode-editorWarning-foreground, #E1B74D);
+}
+.origin-badge-support {
+	color: var(--vscode-descriptionForeground);
+	border-color: var(--vscode-panel-border);
+}
+.warning-item-readonly {
+	color: var(--vscode-descriptionForeground);
 }

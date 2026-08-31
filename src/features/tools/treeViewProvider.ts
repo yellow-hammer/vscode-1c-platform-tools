@@ -19,7 +19,7 @@ import { commandTitle } from '../../shared/commandCatalog';
 import type { SetVersionCommands } from '../../commands/setVersionCommands';
 import { getFavorites, type FavoriteEntry } from './favorites';
 import { getHiddenToolGroups } from './toolsGroupVisibility';
-import { TREE_GROUPS } from './treeStructure';
+import { TREE_GROUPS, treeCommandLabel } from './treeStructure';
 
 /** Ключ в globalState для сохранения состояния раскрытия групп дерева (кроме «Избранное») */
 export const TREE_GROUP_EXPANDED_STATE_KEY = '1c-platform-tools.treeGroupExpanded';
@@ -302,7 +302,7 @@ export class PlatformTreeDataProvider implements vscode.TreeDataProvider<Platfor
 		// env.json / autumn-properties.json, CI-файлы) зависит от версии vrunner,
 		// которая могла определиться уже после первого построения дерева.
 		if (element.groupId === 'serviceFiles') {
-			return Promise.resolve(this.buildServiceFilesChildren());
+			return this.buildServiceFilesChildren();
 		}
 
 		return Promise.resolve(element.children || []);
@@ -318,7 +318,10 @@ export class PlatformTreeDataProvider implements vscode.TreeDataProvider<Platfor
 			return undefined;
 		}
 		const favoriteItems = favorites.map((entry) => {
-			const label = entry.groupLabel ? `${entry.groupLabel} › ${entry.title}` : entry.title;
+			// Подпись берётся из структуры дерева: у команды с параметрами её нет,
+			// там заголовок записи и есть имя выбранного объекта
+			const title = (entry.arguments ? undefined : treeCommandLabel(entry.command)) ?? entry.title;
+			const label = entry.groupLabel ? `${entry.groupLabel} › ${title}` : title;
 			const iconType = this.sectionTypeToIconType(entry.sectionType);
 			return this.createTreeItem(
 				label,
@@ -388,7 +391,7 @@ export class PlatformTreeDataProvider implements vscode.TreeDataProvider<Platfor
 	 * наличие в проекте и действие создать (если нет) или открыть (если есть).
 	 * @returns Массив элементов дерева
 	 */
-	private buildServiceFilesChildren(): PlatformTreeItem[] {
+	private async buildServiceFilesChildren(): Promise<PlatformTreeItem[]> {
 		const workspaceRoot = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
 		const items: PlatformTreeItem[] = [
 			this.createTreeItem(
@@ -429,9 +432,41 @@ export class PlatformTreeDataProvider implements vscode.TreeDataProvider<Platfor
 			);
 			item.tooltip = exists ? `Открыть ${spec.relPath}` : `Создать ${spec.relPath}`;
 			items.push(item);
+			// Типовые цепочки наполняют .1cpt/pipelines.json, поэтому стоят сразу за ним
+			if (spec.id === 'pipelines') {
+				items.push(await this.createPipelineTemplatesItem(workspaceRoot));
+			}
 		}
 
 		return items;
+	}
+
+	/**
+	 * Строка «Типовые пайплайны» рядом с файлом цепочек.
+	 *
+	 * Значок как у служебного файла: плюс, пока типовых цепочек в проекте нет,
+	 * и галка, когда они уже стоят.
+	 *
+	 * @param workspaceRoot Корень проекта; без него цепочки не читаются
+	 * @returns Элемент дерева
+	 */
+	private async createPipelineTemplatesItem(workspaceRoot: string | undefined): Promise<PlatformTreeItem> {
+		const pipelines = workspaceRoot ? await readPipelines(workspaceRoot) : [];
+		const installed = pipelines.some((pipeline) => pipeline.id.startsWith(PIPELINE_TEMPLATE_ID_PREFIX));
+		const item = this.createTreeItem(
+			'1cpt: типовые пайплайны',
+			TreeItemType.Task,
+			vscode.TreeItemCollapsibleState.None,
+			{ command: '1c-platform-tools.pipelines.addTemplates', title: '1cpt: типовые пайплайны' },
+			undefined,
+			undefined,
+			undefined,
+			installed ? 'check' : 'add'
+		);
+		item.tooltip = installed
+			? 'Обновить типовые цепочки до поставляемых с расширением'
+			: 'Добавить в проект типовые цепочки шагов';
+		return item;
 	}
 
 	/**
@@ -467,11 +502,6 @@ export class PlatformTreeDataProvider implements vscode.TreeDataProvider<Platfor
 					cmd.icon
 				)
 			);
-
-			if (group.sectionType === 'serviceFiles') {
-				children.length = 0;
-				children.push(...this.buildServiceFilesChildren());
-			}
 
 			if (group.sectionType === 'setVersion') {
 				children.push(
@@ -549,7 +579,7 @@ export class PlatformTreeDataProvider implements vscode.TreeDataProvider<Platfor
 		}
 
 		// Группа «Помощь и поддержка» вынесена в отдельную плашку (view
-		// 1c-platform-tools-help), данные даёт HelpAndSupportProvider.
+		// 1c-platform-tools-tools-help), данные даёт HelpAndSupportProvider.
 
 		const favorites = this.extensionContext ? getFavorites(this.extensionContext) : [];
 		const favoritesRoot = this.createFavoritesRootItem(favorites);
@@ -567,7 +597,7 @@ export class PlatformTreeDataProvider implements vscode.TreeDataProvider<Platfor
 				TreeItemType.Task,
 				vscode.TreeItemCollapsibleState.None,
 				{
-					command: '1c-platform-tools.launch.edit',
+					command: '1c-platform-tools.tasks.edit',
 					title: 'Добавить задачу',
 				}
 			),
@@ -582,7 +612,7 @@ export class PlatformTreeDataProvider implements vscode.TreeDataProvider<Platfor
 						TreeItemType.Launch,
 						vscode.TreeItemCollapsibleState.None,
 						{
-							command: '1c-platform-tools.launch.run',
+							command: '1c-platform-tools.tasks.run',
 							title: 'Запустить задачу workspace',
 							arguments: [task.label],
 						}
@@ -598,7 +628,7 @@ export class PlatformTreeDataProvider implements vscode.TreeDataProvider<Platfor
 						TreeItemType.Launch,
 						vscode.TreeItemCollapsibleState.None,
 						{
-							command: '1c-platform-tools.launch.run',
+							command: '1c-platform-tools.tasks.run',
 							title: 'Запустить конфигурацию',
 							arguments: [config.name],
 						}
@@ -652,25 +682,6 @@ export class PlatformTreeDataProvider implements vscode.TreeDataProvider<Platfor
 		}
 
 		const pipelines = await readPipelines(workspaceRoot);
-		// Как у служебных файлов: пока цепочек шаблона нет - плюс, когда стоят - галка.
-		const installed = pipelines.some((pipeline) => pipeline.id.startsWith(PIPELINE_TEMPLATE_ID_PREFIX));
-		const templates = this.createTreeItem(
-			'Типовые пайплайны',
-			TreeItemType.Task,
-			vscode.TreeItemCollapsibleState.None,
-			{
-				command: '1c-platform-tools.pipelines.addTemplates',
-				title: 'Типовые пайплайны',
-			},
-			undefined,
-			undefined,
-			undefined,
-			installed ? 'check' : 'add'
-		);
-		templates.tooltip = installed
-			? 'Обновить типовые цепочки до поставляемых с расширением'
-			: 'Добавить в проект типовые цепочки шагов';
-		items.push(templates);
 
 		// Клик по цепочке открывает её в редакторе: запуск - кнопкой в строке,
 		// иначе один промах мышью запускает команды по базе
@@ -734,7 +745,7 @@ export class PlatformTreeDataProvider implements vscode.TreeDataProvider<Platfor
 				TreeItemType.Task,
 				vscode.TreeItemCollapsibleState.None,
 				{
-					command: '1c-platform-tools.oscript.addTask',
+					command: '1c-platform-tools.tasks.addOscript',
 					title: 'Добавить задачу',
 				}
 			),
@@ -749,7 +760,7 @@ export class PlatformTreeDataProvider implements vscode.TreeDataProvider<Platfor
 						TreeItemType.Launch,
 						vscode.TreeItemCollapsibleState.None,
 						{
-							command: '1c-platform-tools.oscript.run',
+							command: '1c-platform-tools.tasks.runOscript',
 							title: 'Запустить задачу oscript',
 							arguments: [task.name],
 						}
@@ -805,7 +816,7 @@ export class PlatformTreeDataProvider implements vscode.TreeDataProvider<Platfor
 					TreeItemType.Task,
 					vscode.TreeItemCollapsibleState.None,
 					{
-						command: '1c-platform-tools.setVersion.report',
+						command: '1c-platform-tools.epf.setVersionReport',
 						title: getSetVersionReportCommandName(name).title,
 						arguments: [name],
 					}
@@ -848,7 +859,7 @@ export class PlatformTreeDataProvider implements vscode.TreeDataProvider<Platfor
 					TreeItemType.Task,
 					vscode.TreeItemCollapsibleState.None,
 					{
-						command: '1c-platform-tools.setVersion.processor',
+						command: '1c-platform-tools.epf.setVersionProcessor',
 						title: getSetVersionProcessorCommandName(name).title,
 						arguments: [name],
 					}

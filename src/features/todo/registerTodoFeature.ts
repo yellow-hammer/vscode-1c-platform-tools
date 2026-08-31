@@ -10,7 +10,7 @@ export interface RegisterTodoFeatureParams {
 }
 
 /**
- * Регистрирует команды и обработчики панели «Список дел 1С».
+ * Регистрирует команды и обработчики панели «1С: Список дел».
  */
 export function registerTodoFeature(
 	params: RegisterTodoFeatureParams
@@ -59,7 +59,7 @@ export function registerTodoFeature(
 	);
 
 	const todoViewAsListCommand = vscode.commands.registerCommand(
-		'1c-platform-tools.todo._viewAsList',
+		'1c-platform-tools.todo.viewAsList',
 		async () => {
 			await todoPanelProvider.setGroupByFile(false);
 			updateTodoGroupByContext();
@@ -67,7 +67,7 @@ export function registerTodoFeature(
 	);
 
 	const todoViewAsHierarchyCommand = vscode.commands.registerCommand(
-		'1c-platform-tools.todo._viewAsHierarchy',
+		'1c-platform-tools.todo.viewAsHierarchy',
 		async () => {
 			await todoPanelProvider.setGroupByFile(true);
 			updateTodoGroupByContext();

@@ -96,6 +96,10 @@ export const METADATA_OBJECT_PROPERTY_PROFILE_BY_TYPE: Readonly<Record<string, M
 		specialSections: ['nestedSubsystems', 'contentRefs'],
 		includeUnknownScalarTab: true,
 	},
+	// Состав функциональной опции и использование её параметра приходят
+	// списком ссылок и показываются той же вкладкой, что состав подсистемы
+	FunctionalOption: { ...DEFAULT_PROFILE, specialSections: ['contentRefs'] },
+	FunctionalOptionsParameter: { ...DEFAULT_PROFILE, specialSections: ['contentRefs'] },
 };
 
 export function metadataObjectPropertyProfileByType(objectType: string): MetadataObjectPropertyProfile {

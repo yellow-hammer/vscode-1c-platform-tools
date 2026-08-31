@@ -38,7 +38,7 @@ const OVM_SPEC: ReleaseComponentSpec = {
  */
 export async function ensureOvm(context: vscode.ExtensionContext): Promise<string> {
 	const cfg = vscode.workspace.getConfiguration('1c-platform-tools');
-	const override = cfg.get<string>('components.ovmFile', '').trim();
+	const override = cfg.get<string>('components.path.ovm', '').trim();
 	if (override) {
 		if (override.includes('${')) {
 			throw new Error('components.ovmFile: укажите полный путь к ovm.exe.');

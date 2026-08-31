@@ -1,12 +1,12 @@
 <img src="../resources/brand/cat-sleep.png" alt="" width="72" align="right">
 
-# Список дел 1С
+# 1С: Список дел
 
 > <img src="../resources/brand/cat-sleep.png" alt="" width="26" align="left"> Панель живёт внизу, рядом с терминалом.
 
-Панель **Список дел 1С** в нижней панели VS Code собирает комментарии с тегами `TODO`, `FIXME`, `XXX`, `HACK`, `BUG` по файлам BSL, OScript, Markdown и Gherkin.
+Панель **1С: Список дел** в нижней панели VS Code собирает комментарии с тегами `TODO`, `FIXME`, `XXX`, `HACK`, `BUG` по файлам BSL, OScript, Markdown и Gherkin.
 
-![Панель «Список дел 1С»](../walkthrough/images/step7.png)
+![Панель «1С: Список дел»](../walkthrough/images/step7.png)
 
 ## Работа с панелью
 

@@ -113,6 +113,10 @@ export class V3CliAdapter implements VRunnerCliAdapter {
 				return [cmd(['infobase', 'dump-dt'], common(intent), [intent.out])];
 			case 'infobase.restoreDt':
 				return [cmd(['infobase', 'restore-dt'], common(intent), [intent.file])];
+			case 'infobase.listExtensions': {
+				const options = intent.json ? ['--json'] : [];
+				return [cmd(['infobase', 'extensions', 'list'], [...options, ...common(intent)], [])];
+			}
 
 			// ---- Конфигурация ----
 			case 'cf.build':

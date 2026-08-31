@@ -24,7 +24,7 @@ export interface CestartLookup {
 
 /** Опции поиска 1cestart. */
 export interface FindCestartOptions {
-	/** Дополнительные корни установки (например `clusters.platformPath`). */
+	/** Дополнительные корни установки (например `clusters.path.platform`). */
 	readonly extraRoots?: readonly string[];
 	/** Платформа ОС. */
 	readonly platform?: NodeJS.Platform;
