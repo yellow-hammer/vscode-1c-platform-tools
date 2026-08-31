@@ -18,8 +18,12 @@ export interface SourcePropertiesInput {
 export interface SourceSupportState {
 	vendor?: string;
 	version?: string;
-	/** locked - полная поддержка, editable - возможность изменения включена. */
+	/** Правило корня конфигурации: locked либо editable. */
 	configurationState?: string;
+	/** Возможность изменения включена конфигуратором. */
+	editingEnabled?: boolean;
+	/** Правило самого корня конфигурации: locked либо editable. */
+	rootState?: string;
 }
 
 /** Перечисления и подписи приходят от md-sparrow: панель своей копии формата не держит. */

@@ -881,9 +881,10 @@ export function registerMetadataFeature(
 			void vscode.window.showInformationMessage('Выберите конфигурацию в дереве.');
 			return;
 		}
-		if (source.support !== 'editable') {
+		if (source.supportEditingEnabled !== true) {
 			void vscode.window.showInformationMessage(
-				'Правила поддержки закрыты: включите возможность изменения конфигурации.'
+				'Возможность изменения конфигурации не включена: включите её в конфигураторе'
+					+ ' или снимите конфигурацию с поддержки.'
 			);
 			return;
 		}
@@ -1151,11 +1152,14 @@ export function registerMetadataFeature(
 						void vscode.window.showInformationMessage('Не найден Configuration.xml в выгрузке.');
 						return;
 					}
-					// Состав конфигурации на полной поддержке платформа менять не даёт
+					// Состав закрыт, пока корень конфигурации не открыт своим правилом
 					const support = await loadSourceSupportState(cfgPath, cfRoot);
-					if (support?.configurationState === 'locked') {
+					if (support && (support.editingEnabled === false || support.rootState === 'locked')) {
 						void vscode.window.showInformationMessage(
-							'Конфигурация на полной поддержке: включите возможность изменения или снимите её с поддержки.'
+							support.editingEnabled === false
+								? 'Возможность изменения конфигурации не включена: включите её в конфигураторе'
+									+ ' или снимите конфигурацию с поддержки.'
+								: 'Корень конфигурации не редактируется: смените его правило поддержки.'
 						);
 						return;
 					}
@@ -2238,7 +2242,8 @@ export function registerMetadataFeature(
 					}
 					if (!node.supportRulesOpen) {
 						void vscode.window.showInformationMessage(
-							'Правила поддержки закрыты: включите возможность изменения конфигурации.'
+							'Возможность изменения конфигурации не включена: включите её в конфигураторе'
+								+ ' или снимите конфигурацию с поддержки.'
 						);
 						return;
 					}

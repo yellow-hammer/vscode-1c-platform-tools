@@ -216,8 +216,10 @@ export class MetadataSourceTreeItem extends vscode.TreeItem {
 		public readonly configurationXmlAbs: string | undefined,
 		public readonly metadataRootAbs: string | undefined,
 		expanded?: boolean,
-		/** Поддержка поставщика выгрузки: locked либо editable. */
+		/** Правило поддержки самого корня конфигурации: locked либо editable. */
 		public readonly support?: string,
+		/** Возможность изменения включена конфигуратором: без неё правила не правятся. */
+		public readonly supportEditingEnabled?: boolean,
 		/** Отпечаток правил поддержки: правка сверяется с ним. */
 		public readonly supportGeneration?: string
 	) {
@@ -233,19 +235,22 @@ export class MetadataSourceTreeItem extends vscode.TreeItem {
 		} else if (sourceKind === 'externalErf' || sourceKind === 'externalEpf') {
 			this.contextValue = 'metadataSourceExternalArtifact';
 		}
-		if (support === 'locked' || support === 'editable') {
+		const onSupport = support === 'locked' || support === 'editable' || supportEditingEnabled === true;
+		if (onSupport) {
 			this.contextValue = `${this.contextValue} mdSupportRules`;
 		}
-		// Правило поддержки ставится и самой конфигурации, пока правила действуют
-		if (support === 'editable') {
+		// Правило корня ставится, пока конфигуратор включил возможность изменения
+		if (supportEditingEnabled === true) {
 			this.contextValue = `${this.contextValue} mdSupportRule`;
 		}
 		this.iconPath = new vscode.ThemeIcon('root-folder');
-		if (support === 'locked' || support === 'editable') {
-			this.tooltip =
-				support === 'locked'
-					? 'Конфигурация поставщика: возможность изменения включают в конфигураторе'
-					: 'Конфигурация поставщика, возможность изменения включена';
+		if (onSupport) {
+			this.tooltip = supportEditingEnabled === true
+				? `Конфигурация поставщика, возможность изменения включена. Правило корня: ${
+					support === 'editable' ? 'редактируется с сохранением поддержки' : 'не редактируется'
+				}`
+				: 'Конфигурация поставщика: возможность изменения включают в конфигураторе.'
+					+ ' Из дерева метаданных доступно только снятие с поддержки';
 		}
 	}
 }
@@ -1201,6 +1206,9 @@ function metadataSourceIcon(
 	if (sourceKind === 'externalEpf') {
 		return metadataSvgIcon(extensionUri, 'dataProcessor.svg');
 	}
+	if (sourceKind === 'extension') {
+		return metadataSvgIcon(extensionUri, 'extension.svg');
+	}
 	return metadataSvgIcon(extensionUri, 'folder.svg');
 }
 
@@ -1460,10 +1468,15 @@ export class MetadataTreeDataProvider implements vscode.TreeDataProvider<vscode.
 			const metaAbs = path.join(workspaceRoot, src.metadataRootRelativePath);
 			const expanded = this.expandedSources();
 			const sItem = new MetadataSourceTreeItem(
-				src.id, src.label, src.kind, cfgAbs, metaAbs, expanded?.has(src.id), src.support, src.supportGeneration);
+				src.id, src.label, src.kind, cfgAbs, metaAbs, expanded?.has(src.id), src.support,
+				src.supportEditingEnabled, src.supportGeneration);
 			const sourceIcon = metadataSourceIcon(src.kind, this._context.extensionUri);
+			// Возможность изменения не включена: правки закрыты целиком, остаётся снятие с поддержки
+			const editingOff = (sItem.contextValue ?? '').includes('mdSupportRules') && src.supportEditingEnabled !== true;
 			sItem.iconPath =
-				sourceIcon instanceof vscode.ThemeIcon ? sourceIcon : supportIcon(sourceIcon, src.support ?? '');
+				sourceIcon instanceof vscode.ThemeIcon
+					? sourceIcon
+					: supportIcon(sourceIcon, src.support ?? '', editingOff);
 			this._sourceItems.push(sItem);
 
 			if (isExternalArtifactSourceKind(src.kind)) {
@@ -1547,7 +1560,7 @@ export class MetadataTreeDataProvider implements vscode.TreeDataProvider<vscode.
 								this._context.extensionUri,
 								cfgAbs,
 								metaAbs,
-								src.support === 'editable',
+								src.supportEditingEnabled === true,
 								src.supportGeneration
 							);
 							leaves.push(leaf);
@@ -1570,7 +1583,7 @@ export class MetadataTreeDataProvider implements vscode.TreeDataProvider<vscode.
 								this._context.extensionUri,
 								cfgAbs,
 								metaAbs,
-								src.support === 'editable',
+								src.supportEditingEnabled === true,
 								src.supportGeneration
 							)
 						);
@@ -1589,7 +1602,7 @@ export class MetadataTreeDataProvider implements vscode.TreeDataProvider<vscode.
 								this._context.extensionUri,
 								cfgAbs,
 								metaAbs,
-								src.support === 'editable',
+								src.supportEditingEnabled === true,
 								src.supportGeneration
 							)
 						);

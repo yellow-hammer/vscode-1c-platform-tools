@@ -73,6 +73,16 @@ body {
 	margin-top: 6px;
 }
 
+.warning-text strong {
+	font-weight: 600;
+}
+
+.warning-text .warning-next {
+	display: block;
+	margin-top: 4px;
+	opacity: 0.9;
+}
+
 .tabs {
 	display: flex;
 	flex-wrap: wrap;

@@ -594,6 +594,25 @@
 	};
 
 	/** Бейджи происхождения: заимствование и поддержка поставщика. */
+	/** Плашка запрета: овсянка, суть и что делать дальше. */
+	function readonlyNotice(lead, next) {
+		const item = document.createElement('div');
+		item.className = 'warning-item warning-item-readonly';
+		const text = document.createElement('div');
+		text.className = 'warning-text';
+		const head = document.createElement('strong');
+		head.textContent = lead;
+		text.appendChild(head);
+		if (next) {
+			const hint = document.createElement('span');
+			hint.className = 'warning-next';
+			hint.textContent = next;
+			text.appendChild(hint);
+		}
+		item.appendChild(text);
+		return item;
+	}
+
 	function renderOriginBadges() {
 		const host = document.getElementById('originBadges');
 		if (!host) {
@@ -638,13 +657,13 @@
 			return;
 		}
 		const origin = model.origin;
-		const text = (origin && origin.readonlyReason)
-			|| 'Объект открыт только на просмотр.';
-		const note = document.createElement('div');
-		note.className = 'warning-item warning-item-readonly';
-		note.textContent = text;
+		// Причина приходит одной строкой: первое предложение - суть, остальное - что делать
+		const text = (origin && origin.readonlyReason) || 'Объект открыт только на просмотр.';
+		const split = text.indexOf('. ');
+		const lead = split > 0 ? text.slice(0, split + 1) : text;
+		const next = split > 0 ? text.slice(split + 2) : '';
 		host.classList.remove('hidden');
-		host.appendChild(note);
+		host.appendChild(readonlyNotice(lead, next));
 	}
 
 	function renderWarnings() {

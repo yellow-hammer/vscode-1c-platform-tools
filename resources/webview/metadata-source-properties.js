@@ -6,16 +6,36 @@
 	const support = window.__SUPPORT__ || null;
 	const statusEl = document.getElementById('status');
 
-	/** Поддержка поставщика: бейдж в шапке и запрет правки при полной поддержке. */
+/** Плашка запрета: овсянка, суть и что делать дальше. */
+	function readonlyNotice(lead, next) {
+		const item = document.createElement('div');
+		item.className = 'warning-item warning-item-readonly';
+		const text = document.createElement('div');
+		text.className = 'warning-text';
+		const head = document.createElement('strong');
+		head.textContent = lead;
+		text.appendChild(head);
+		if (next) {
+			const hint = document.createElement('span');
+			hint.className = 'warning-next';
+			hint.textContent = next;
+			text.appendChild(hint);
+		}
+		item.appendChild(text);
+		return item;
+	}
+
+		/** Поддержка поставщика: бейдж в шапке и запрет правки при полной поддержке. */
 	function applySupportState() {
 		const host = document.getElementById('originBadges');
 		if (host && support && support.configurationState) {
 			const badge = document.createElement('span');
-			badge.className = 'origin-badge '
-				+ (support.configurationState === 'locked' ? 'origin-badge-locked' : 'origin-badge-support');
-			badge.textContent = support.configurationState === 'locked'
-				? 'На полной поддержке'
-				: 'На поддержке: изменение включено';
+			// корень закрыт своим правилом либо возможность изменения ещё не включена
+			const locked = support.rootState === 'locked' || support.editingEnabled === false;
+			badge.className = 'origin-badge ' + (locked ? 'origin-badge-locked' : 'origin-badge-support');
+			badge.textContent = support.editingEnabled === false
+				? 'На поддержке: изменение не включено'
+				: (locked ? 'На поддержке: изменение запрещено' : 'На поддержке: изменение разрешено');
 			const hint = [];
 			if (support.vendor) {
 				hint.push('Поставщик: ' + support.vendor);
@@ -26,17 +46,24 @@
 			badge.title = hint.join(' • ');
 			host.appendChild(badge);
 		}
-		if (!support || support.configurationState !== 'locked') {
+		const closed = support
+			&& (support.rootState === 'locked' || support.editingEnabled === false);
+		if (!closed) {
 			return;
 		}
 		const notice = document.getElementById('readonlyNotice');
 		if (notice) {
 			notice.classList.remove('hidden');
-			const item = document.createElement('div');
-			item.className = 'warning-item warning-item-readonly';
-			item.textContent = 'Конфигурация на полной поддержке: свойства открыты только на просмотр.'
-				+ ' Включите возможность изменения или снимите конфигурацию с поддержки.';
-			notice.appendChild(item);
+			notice.appendChild(support.editingEnabled === false
+				? readonlyNotice(
+					'Конфигурация на поддержке, возможность изменения не включена: свойства только на просмотр.',
+					'Включите возможность изменения в конфигураторе. Из дерева метаданных доступно только'
+						+ ' снятие с поддержки.'
+				)
+				: readonlyNotice(
+					'Корень конфигурации не редактируется: свойства только на просмотр.',
+					'Смените правило поддержки корня конфигурации или снимите её с поддержки.'
+				));
 		}
 		for (const el of document.querySelectorAll('.edit-input')) {
 			el.disabled = true;

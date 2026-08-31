@@ -27,8 +27,10 @@ export interface MetadataSourceDto {
 	readonly label: string;
 	readonly configurationXmlRelativePath: string;
 	readonly metadataRootRelativePath: string;
-	/** Поддержка поставщика выгрузки: locked - полная поддержка, editable - изменение включено. */
+	/** Правило поддержки самого корня конфигурации: locked либо editable. */
 	readonly support?: string;
+	/** Возможность изменения включена конфигуратором: без неё правила не правятся. */
+	readonly supportEditingEnabled?: boolean;
 	/** Отпечаток правил поддержки на момент чтения дерева. */
 	readonly supportGeneration?: string;
 	readonly groups: MetadataGroupDto[];
