@@ -7,7 +7,12 @@
  * признаком принадлежности объектов.
  *
  * Настройки путей главнее автоопределения: заданный каталог с маркером берётся как есть,
- * обход дерева включается только там, где по настройке маркера нет.
+ * обход дерева включается только там, где по настройке маркера нет. Настройки временные:
+ * когда все панели перейдут на автоопределение, они снимаются, и раскладка останется
+ * единственным источником путей, поэтому {@link LayoutPaths} необязателен.
+ *
+ * Результат кэшируется на рабочую область: потребителей у раскладки много, а обход
+ * дерева один и тот же. Кэш сбрасывает {@link invalidateProjectLayout}.
  * @module projectLayout
  */
 
@@ -172,6 +177,28 @@ async function findRoots(root: string, depth: number, found: SourceRoot[]): Prom
 	}
 }
 
+/** Разобранная раскладка и ключ настроек, по которому она получена. */
+interface CacheEntry {
+	key: string;
+	layout: Promise<ProjectLayout>;
+}
+
+/** Раскладки рабочих областей: ключ - корень рабочей области. */
+const cache = new Map<string, CacheEntry>();
+
+/**
+ * Забывает разобранную раскладку.
+ *
+ * @param workspaceRoot - Рабочая область; без него забываются все
+ */
+export function invalidateProjectLayout(workspaceRoot?: string): void {
+	if (workspaceRoot === undefined) {
+		cache.clear();
+		return;
+	}
+	cache.delete(path.resolve(workspaceRoot));
+}
+
 /** Настройки путей проекта; пустой путь означает корень рабочей области. */
 export interface LayoutPaths {
 	/** Каталог конфигурации (path.cf). */
@@ -181,18 +208,35 @@ export interface LayoutPaths {
 }
 
 /**
- * Раскладка рабочей области.
+ * Раскладка рабочей области; повторные вызовы отдают разобранную.
  *
  * @param workspaceRoot корень рабочей области
- * @param paths настройки путей проекта
+ * @param paths настройки путей проекта; без них раскладка определяется обходом
  */
-export async function resolveProjectLayout(workspaceRoot: string, paths: LayoutPaths): Promise<ProjectLayout> {
-	const configuration = await readRoot(path.resolve(workspaceRoot, paths.configuration));
+export function resolveProjectLayout(workspaceRoot: string, paths?: LayoutPaths): Promise<ProjectLayout> {
+	const root = path.resolve(workspaceRoot);
+	const key = paths ? JSON.stringify([paths.configuration, ...paths.extensions]) : '';
+	const cached = cache.get(root);
+	if (cached?.key === key) {
+		return cached.layout;
+	}
+
+	// Неудачную попытку не запоминаем: следующий вызов должен попробовать снова.
+	const layout = readLayout(root, paths).catch((error: unknown) => {
+		cache.delete(root);
+		throw error;
+	});
+	cache.set(root, { key, layout });
+	return layout;
+}
+
+async function readLayout(workspaceRoot: string, paths?: LayoutPaths): Promise<ProjectLayout> {
+	const configuration = paths ? await readRoot(path.resolve(workspaceRoot, paths.configuration)) : undefined;
 	const externals: string[] = [];
 	await findExternalRoots(workspaceRoot, MAX_DEPTH, externals);
 	const extensions: SourceRoot[] = [];
 
-	for (const relative of paths.extensions) {
+	for (const relative of paths?.extensions ?? []) {
 		const base = path.resolve(workspaceRoot, relative);
 		let entries: fssync.Dirent[];
 		try {

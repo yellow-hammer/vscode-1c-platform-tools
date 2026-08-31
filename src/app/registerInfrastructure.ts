@@ -1,5 +1,6 @@
 import * as vscode from 'vscode';
 import { registerRunCommandFileWatcher } from '../shared/runCommandFromFileWatcher';
+import { registerProjectLayoutWatch } from '../shared/projectLayoutWatch';
 import { startIpcServer } from '../shared/ipcServer';
 
 /**
@@ -7,5 +8,6 @@ import { startIpcServer } from '../shared/ipcServer';
  */
 export function registerInfrastructure(context: vscode.ExtensionContext): void {
 	registerRunCommandFileWatcher(context);
+	registerProjectLayoutWatch(context);
 	startIpcServer(context);
 }
