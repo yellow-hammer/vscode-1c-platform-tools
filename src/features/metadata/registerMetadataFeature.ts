@@ -368,7 +368,7 @@ export function registerMetadataFeature(
 				void vscode.window.showInformationMessage('У формы нет объекта-владельца.');
 				return;
 			}
-			await openOrCreateModuleFile(formModulePath(objectFormXmlPath(owner.resourceUri.fsPath, owner.name, node.name)));
+			await openOrCreateModuleFile(formModulePath(objectFormXmlPath(owner.resourceUri.fsPath, node.name)));
 			return;
 		}
 		if (node instanceof MetadataLeafTreeItem && isMetadataCommonForm(node.objectType)) {
@@ -1486,7 +1486,7 @@ export function registerMetadataFeature(
 					void vscode.window.showInformationMessage('У формы нет объекта-владельца.');
 					return;
 				}
-				const formXml = objectFormXmlPath(owner.resourceUri.fsPath, owner.name, node.name);
+				const formXml = objectFormXmlPath(owner.resourceUri.fsPath, node.name);
 				await openFormViewerForXml(formXml, formModulePath(formXml), `${owner.name}.${node.name}`, {
 					metadataRootAbs: owner.metadataRootAbs,
 					configurationXmlAbs: owner.configurationXmlAbs,
@@ -1624,7 +1624,7 @@ export function registerMetadataFeature(
 					void vscode.window.showInformationMessage('У формы нет объекта-владельца.');
 					return;
 				}
-				await openTextFile(objectFormXmlPath(owner.resourceUri.fsPath, owner.name, selected.name));
+				await openTextFile(objectFormXmlPath(owner.resourceUri.fsPath, selected.name));
 			}
 		),
 		vscode.commands.registerCommand(
@@ -1652,7 +1652,7 @@ export function registerMetadataFeature(
 						return;
 					}
 					await openTextFile(
-						objectFormDescriptorXmlPath(owner.resourceUri.fsPath, owner.name, selected.name)
+						objectFormDescriptorXmlPath(owner.resourceUri.fsPath, selected.name)
 					);
 					return;
 				}

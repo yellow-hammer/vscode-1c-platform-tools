@@ -103,30 +103,6 @@ export function childNodeTabs(editable: boolean): readonly MetadataEditTabSpec[]
 	];
 }
 
-/**
- * Спека формы и макета: у них свой файл описания, а свойств в нём немного.
- *
- * Имя правится переименованием узла, синоним и комментарий пишет
- * {@code cf-md-object-set}.
- */
-export function descriptorTabs(): readonly MetadataEditTabSpec[] {
-	return [
-		{
-			id: 'descriptor_main',
-			title: 'Основные',
-			groups: [
-				{
-					title: 'Основные',
-					fields: [
-						{ path: 'internalName', label: 'Имя', control: 'text', readonly: true },
-						{ path: 'synonymRu', label: 'Синоним', control: 'text' },
-						{ path: 'comment', label: 'Комментарий', control: 'text' },
-					],
-				},
-			],
-		},
-	];
-}
 
 /** Узел из DTO объекта по имени. */
 export function findChildNode(

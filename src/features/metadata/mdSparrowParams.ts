@@ -83,6 +83,7 @@ export type MdSparrowOp =
 	| 'external-artifact-properties-get'
 	| 'cf-configuration-properties-get'
 	| 'cf-list-child-objects'
+	| 'cf-list-all-child-objects'
 	| 'cf-list-catalogs'
 	| 'cf-md-subsystem-tree'
 	| 'project-metadata-tree'

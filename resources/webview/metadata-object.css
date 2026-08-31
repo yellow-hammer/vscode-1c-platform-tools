@@ -916,3 +916,69 @@ select.edit-input {
 	gap: 2px;
 	align-items: center;
 }
+
+/* Деревья с флажками: подсистемы и состав опции. Вид как у дерева формы. */
+.subsys-tree {
+	margin-top: 10px;
+}
+.subsys-row {
+	display: flex;
+	align-items: center;
+	gap: 4px;
+	height: 24px;
+	padding: 0 4px;
+	border-radius: 4px;
+	white-space: nowrap;
+}
+.subsys-row:hover {
+	background: var(--vscode-list-hoverBackground);
+}
+.subsys-twist {
+	width: 12px;
+	text-align: center;
+	opacity: 0.7;
+	user-select: none;
+	flex: none;
+}
+.subsys-twist.clickable {
+	cursor: pointer;
+}
+.subsys-children {
+	margin-left: 9px;
+	padding-left: 8px;
+	border-left: 1px solid var(--vscode-tree-indentGuidesStroke, rgba(128, 128, 128, 0.4));
+}
+.subsys-children.collapsed {
+	display: none;
+}
+.subsys-node.hidden {
+	display: none;
+}
+.subsys-label {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	cursor: pointer;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+.subsys-label input[type='checkbox'] {
+	margin: 0;
+	flex: none;
+}
+
+.subsys-group-title {
+	font-weight: 600;
+	cursor: pointer;
+}
+
+/* Нижний список состава: что вошло, плоско и без группировки */
+.ref-selected {
+	margin-top: 14px;
+	border-top: 1px solid var(--vscode-widget-border, rgba(128, 128, 128, 0.35));
+	padding-top: 8px;
+}
+.ref-selected .struct-list {
+	max-height: 220px;
+	overflow-y: auto;
+}

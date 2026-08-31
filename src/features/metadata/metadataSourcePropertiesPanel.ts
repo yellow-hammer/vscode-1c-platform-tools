@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import * as vscode from 'vscode';
 import { registerFormPanel } from '../editors/formPanels';
-import { revealOpenPanel, trackOpenPanel } from '../editors/openPanels';
+import { beginOpenPanel, endOpenPanel, revealOpenPanel, trackOpenPanel } from '../editors/openPanels';
 
 export interface SourcePropertiesInput {
 	label: string;
@@ -77,6 +77,10 @@ export async function openMetadataSourcePropertiesPanel(
 	if (revealOpenPanel('sourceProperties', input.configurationXmlAbs)) {
 		return;
 	}
+	// Бронь на время чтения: повторный щелчок не открывает копию вкладки
+	if (!beginOpenPanel('sourceProperties', input.configurationXmlAbs)) {
+		return;
+	}
 	const webviewRoot = vscode.Uri.joinPath(context.extensionUri, 'resources', 'webview');
 	const panel = vscode.window.createWebviewPanel(
 		'1cMetadataSourceProperties',
@@ -90,6 +94,7 @@ export async function openMetadataSourcePropertiesPanel(
 	);
 	registerFormPanel(panel);
 	trackOpenPanel('sourceProperties', input.configurationXmlAbs, panel);
+	endOpenPanel('sourceProperties', input.configurationXmlAbs);
 	const nonce = randomUUID();
 	panel.webview.html = await loadMetadataSourceHtml(
 		panel.webview,

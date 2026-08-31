@@ -296,9 +296,48 @@
 		return value === undefined || value === '' ? null : value;
 	}
 
+	/** Изменённое участие в подсистемах: путь XML подсистемы → членство. */
+	const editedSubsystems = new Map();
+
+	/** Изменённый состав опции: ссылка → членство. */
+	const editedContent = new Map();
+
+	function contentBaselineChecked(ref) {
+		const refContent = model.refContent;
+		return Boolean(refContent && Array.isArray(refContent.refs) && refContent.refs.includes(ref));
+	}
+
+	function toggleContentRef(ref, member) {
+		if (member === contentBaselineChecked(ref)) {
+			editedContent.delete(ref);
+		} else {
+			editedContent.set(ref, member);
+		}
+	}
+
+	function contentChecked(ref) {
+		return editedContent.has(ref) ? editedContent.get(ref) : contentBaselineChecked(ref);
+	}
+
+	/** Флажок вернулся к исходному: правка не считается. */
+	function toggleSubsystem(node, member) {
+		if (member === node.member) {
+			editedSubsystems.delete(node.xmlPath);
+		} else {
+			editedSubsystems.set(node.xmlPath, member);
+		}
+	}
+
+	function subsystemChecked(node) {
+		return editedSubsystems.has(node.xmlPath) ? editedSubsystems.get(node.xmlPath) : node.member;
+	}
+
 	function isDirty() {
 		if (!editable || !editedProps) {
 			return false;
+		}
+		if (editedSubsystems.size > 0 || editedContent.size > 0) {
+			return true;
 		}
 		for (const field of editableFields()) {
 			if (normalizeForCompare(getPath(editedProps, field.path)) !== normalizeForCompare(getPath(editable.props, field.path))) {
@@ -449,9 +488,278 @@
 			case 'subsystemContent':
 				renderSubsystemContent(tab.data);
 				return;
+			case 'subsystems':
+				renderSubsystemsTab();
+				return;
+			case 'refContent':
+				renderRefContentTab();
+				return;
 			default:
 				contentRoot.innerHTML = '<div class="empty">Нет данных.</div>';
 		}
+	}
+
+	/** Дерево подсистем с флажками участия: как в конфигураторе. */
+	function renderSubsystemsTab() {
+		if (!contentRoot) {
+			return;
+		}
+		const modelSubsystems = model.subsystems;
+		if (!modelSubsystems || !Array.isArray(modelSubsystems.nodes) || modelSubsystems.nodes.length === 0) {
+			contentRoot.innerHTML = '<div class="empty">Подсистем нет.</div>';
+			return;
+		}
+		const readonly = !editable;
+		contentRoot.textContent = '';
+		const filter = document.createElement('input');
+		filter.type = 'text';
+		filter.className = 'list-filter';
+		filter.placeholder = 'Фильтр по списку...';
+		contentRoot.appendChild(filter);
+		const tree = document.createElement('div');
+		tree.className = 'subsys-tree';
+		contentRoot.appendChild(tree);
+
+		/** Строит узел; возвращает корневой элемент и признак совпадения с фильтром. */
+		function buildNode(node) {
+			const wrap = document.createElement('div');
+			wrap.className = 'subsys-node';
+			const row = document.createElement('div');
+			row.className = 'subsys-row';
+			const twist = document.createElement('span');
+			twist.className = 'subsys-twist';
+			const hasChildren = Array.isArray(node.children) && node.children.length > 0;
+			twist.textContent = hasChildren ? '▾' : '';
+			row.appendChild(twist);
+			const label = document.createElement('label');
+			label.className = 'subsys-label';
+			const box = document.createElement('input');
+			box.type = 'checkbox';
+			box.checked = subsystemChecked(node);
+			box.disabled = readonly;
+			box.addEventListener('change', function () {
+				toggleSubsystem(node, box.checked);
+				renderSaveBar();
+			});
+			label.appendChild(box);
+			label.appendChild(document.createTextNode(' ' + node.name));
+			row.appendChild(label);
+			wrap.appendChild(row);
+			let childrenBox = null;
+			if (hasChildren) {
+				childrenBox = document.createElement('div');
+				childrenBox.className = 'subsys-children';
+				for (const child of node.children) {
+					childrenBox.appendChild(buildNode(child).element);
+				}
+				wrap.appendChild(childrenBox);
+				twist.classList.add('clickable');
+				twist.addEventListener('click', function () {
+					const collapsed = childrenBox.classList.toggle('collapsed');
+					twist.textContent = collapsed ? '▸' : '▾';
+				});
+			}
+			wrap.dataset.name = String(node.name || '').toLowerCase();
+			return { element: wrap, childrenBox };
+		}
+
+		for (const node of modelSubsystems.nodes) {
+			tree.appendChild(buildNode(node).element);
+		}
+
+		filter.addEventListener('input', function () {
+			const needle = String(filter.value || '').trim().toLowerCase();
+			// Совпадение показывает узел и всех его предков; пустой фильтр - всё
+			function apply(el) {
+				let visible = !needle || el.dataset.name.includes(needle);
+				const childrenBox = el.querySelector(':scope > .subsys-children');
+				if (childrenBox) {
+					for (const child of childrenBox.querySelectorAll(':scope > .subsys-node')) {
+						if (apply(child)) {
+							visible = true;
+						}
+					}
+					if (needle) {
+						childrenBox.classList.remove('collapsed');
+					}
+				}
+				el.classList.toggle('hidden', !visible);
+				return visible;
+			}
+			for (const root of tree.querySelectorAll(':scope > .subsys-node')) {
+				apply(root);
+			}
+		});
+	}
+
+	/** Состав опции деревом с флажками: группы по видам, реквизиты отдельным списком. */
+	function renderRefContentTab() {
+		if (!contentRoot) {
+			return;
+		}
+		const refContent = model.refContent;
+		if (!refContent || !Array.isArray(refContent.groups) || refContent.groups.length === 0) {
+			contentRoot.innerHTML = '<div class="empty">Нет данных.</div>';
+			return;
+		}
+		const readonly = !editable;
+		contentRoot.textContent = '';
+		const filter = document.createElement('input');
+		filter.type = 'text';
+		filter.className = 'list-filter';
+		filter.placeholder = 'Фильтр по списку...';
+		contentRoot.appendChild(filter);
+		const tree = document.createElement('div');
+		tree.className = 'subsys-tree';
+		contentRoot.appendChild(tree);
+		// Как в конфигураторе: под деревом плоский список вошедшего, без группировки
+		const selectedBlock = document.createElement('div');
+		selectedBlock.className = 'ref-selected';
+		const selectedTitle = document.createElement('div');
+		selectedTitle.className = 'section-title';
+		selectedBlock.appendChild(selectedTitle);
+		const selectedList = document.createElement('div');
+		selectedList.className = 'struct-list';
+		selectedBlock.appendChild(selectedList);
+		contentRoot.appendChild(selectedBlock);
+
+		function currentRefs() {
+			const refs = new Set(Array.isArray(refContent.refs) ? refContent.refs : []);
+			for (const [ref, member] of editedContent.entries()) {
+				if (member) {
+					refs.add(ref);
+				} else {
+					refs.delete(ref);
+				}
+			}
+			return [...refs].sort((a, b) => a.localeCompare(b, 'ru'));
+		}
+
+		const labelByTag = new Map(refContent.groups.map((group) => [group.tag, group.label]));
+
+		/** «Subsystem._ДемоАнкетирование» → «Подсистема: _ДемоАнкетирование». */
+		function refCaption(ref) {
+			const dot = ref.indexOf('.');
+			if (dot < 0) {
+				return ref;
+			}
+			const tag = ref.slice(0, dot);
+			const label = labelByTag.get(tag);
+			return label ? label + ': ' + ref.slice(dot + 1) : ref;
+		}
+
+		function renderSelected() {
+			const refs = currentRefs();
+			selectedTitle.textContent = 'Входит в состав (' + refs.length + ')';
+			selectedList.textContent = '';
+			if (refs.length === 0) {
+				const empty = document.createElement('div');
+				empty.className = 'edit-ref-empty';
+				empty.textContent = '(пусто)';
+				selectedList.appendChild(empty);
+				return;
+			}
+			for (const ref of refs) {
+				const item = document.createElement('div');
+				item.className = 'struct-item';
+				const name = document.createElement('span');
+				name.className = 'struct-item-name';
+				name.textContent = refCaption(ref);
+				item.appendChild(name);
+				selectedList.appendChild(item);
+			}
+		}
+
+		function refRow(ref, name) {
+			const row = document.createElement('div');
+			row.className = 'subsys-node';
+			row.dataset.name = String(name).toLowerCase();
+			const inner = document.createElement('div');
+			inner.className = 'subsys-row';
+			const pad = document.createElement('span');
+			pad.className = 'subsys-twist';
+			inner.appendChild(pad);
+			const label = document.createElement('label');
+			label.className = 'subsys-label';
+			const box = document.createElement('input');
+			box.type = 'checkbox';
+			box.checked = contentChecked(ref);
+			box.disabled = readonly;
+			box.addEventListener('change', function () {
+				toggleContentRef(ref, box.checked);
+				renderSelected();
+				renderSaveBar();
+			});
+			label.appendChild(box);
+			label.appendChild(document.createTextNode(' ' + name));
+			inner.appendChild(label);
+			row.appendChild(inner);
+			return row;
+		}
+
+		function groupBlock(title, rows, expanded) {
+			const wrap = document.createElement('div');
+			wrap.className = 'subsys-node';
+			wrap.dataset.name = '';
+			const head = document.createElement('div');
+			head.className = 'subsys-row';
+			const twist = document.createElement('span');
+			twist.className = 'subsys-twist clickable';
+			head.appendChild(twist);
+			const caption = document.createElement('span');
+			caption.className = 'subsys-group-title';
+			caption.textContent = title;
+			head.appendChild(caption);
+			wrap.appendChild(head);
+			const childrenBox = document.createElement('div');
+			childrenBox.className = 'subsys-children';
+			for (const row of rows) {
+				childrenBox.appendChild(row);
+			}
+			wrap.appendChild(childrenBox);
+			const setState = (collapsed) => {
+				childrenBox.classList.toggle('collapsed', collapsed);
+				twist.textContent = collapsed ? '▸' : '▾';
+			};
+			setState(!expanded);
+			const toggle = () => setState(!childrenBox.classList.contains('collapsed'));
+			twist.addEventListener('click', toggle);
+			caption.addEventListener('click', toggle);
+			return wrap;
+		}
+
+		for (const group of refContent.groups) {
+			const rows = group.names.map((name) => refRow(group.tag + '.' + name, name));
+			// Раскрыта группа, где уже есть отмеченные: остальное свёрнуто, иначе список неподъёмный
+			const expanded = group.names.some((name) => contentChecked(group.tag + '.' + name));
+			tree.appendChild(groupBlock(group.label, rows, expanded));
+		}
+		if (Array.isArray(refContent.extras) && refContent.extras.length > 0) {
+			const rows = refContent.extras.map((ref) => refRow(ref, ref));
+			tree.appendChild(groupBlock('Отдельные реквизиты', rows, true));
+		}
+		renderSelected();
+
+		filter.addEventListener('input', function () {
+			const needle = String(filter.value || '').trim().toLowerCase();
+			for (const groupEl of tree.querySelectorAll(':scope > .subsys-node')) {
+				const childrenBox = groupEl.querySelector(':scope > .subsys-children');
+				let any = false;
+				for (const row of childrenBox.querySelectorAll(':scope > .subsys-node')) {
+					const visible = !needle || row.dataset.name.includes(needle);
+					row.classList.toggle('hidden', !visible);
+					if (visible) {
+						any = true;
+					}
+				}
+				groupEl.classList.toggle('hidden', Boolean(needle) && !any);
+				if (needle && any) {
+					childrenBox.classList.remove('collapsed');
+					const twist = groupEl.querySelector(':scope > .subsys-row > .subsys-twist');
+					twist.textContent = '▾';
+				}
+			}
+		});
 	}
 
 	function renderOverview() {
@@ -1055,7 +1363,13 @@
 			saveError = '';
 			savedFlash = false;
 			renderSaveBar();
-			vscodeApi.postMessage({ type: 'save', payload: editedProps, structure: serializeStructureEdits() });
+			vscodeApi.postMessage({
+				type: 'save',
+				payload: editedProps,
+				structure: serializeStructureEdits(),
+				subsystems: [...editedSubsystems.entries()].map(([xmlPath, member]) => ({ xmlPath, member })),
+				content: [...editedContent.entries()].map(([ref, member]) => ({ ref, member })),
+			});
 		});
 		resetBtn.addEventListener('click', function () {
 			if (saving || !editable) {
@@ -1064,6 +1378,8 @@
 			editedProps = deepClone(editable.props);
 			editedStructure = model.structureLists ? structureEditsFromLists(model.structureLists) : null;
 			structBaselineOrderKey = structOrderKey(editedStructure);
+			editedSubsystems.clear();
+			editedContent.clear();
 			saveError = '';
 			savedFlash = false;
 			if (currentTabIsEdit()) {
@@ -1077,6 +1393,14 @@
 				if (msg.structureLists && typeof msg.structureLists === 'object') {
 					model.structureLists = msg.structureLists;
 				}
+				if (msg.subsystems && typeof msg.subsystems === 'object') {
+					model.subsystems = msg.subsystems;
+				}
+				if (msg.refContent && typeof msg.refContent === 'object') {
+					model.refContent = msg.refContent;
+				}
+				editedSubsystems.clear();
+				editedContent.clear();
 				editedStructure = model.structureLists ? structureEditsFromLists(model.structureLists) : null;
 				structBaselineOrderKey = structOrderKey(editedStructure);
 				if (Array.isArray(msg.tabs)) {

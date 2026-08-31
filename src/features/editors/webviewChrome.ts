@@ -58,7 +58,7 @@ export function chromeStyles(): string {
 	button:disabled { opacity: 0.5; cursor: default; }
 	button.primary { background: var(--vscode-button-background); color: var(--vscode-button-foreground); }
 	button.primary:hover:not(:disabled) { background: var(--vscode-button-hoverBackground); }
-	button.round { width: 26px; height: 26px; padding: 0; border-radius: 50%; font-size: 1em; line-height: 1; }
+	button.round { width: 34px; height: 34px; padding: 0; border-radius: 50%; font-size: 1.3em; line-height: 1; flex-shrink: 0; }
 	button.icon { background: none; color: var(--vscode-descriptionForeground); padding: 0 5px; }
 	button.icon:hover { color: var(--vscode-foreground); background: none; }
 	button.danger:hover:not(:disabled) { color: var(--fail); }

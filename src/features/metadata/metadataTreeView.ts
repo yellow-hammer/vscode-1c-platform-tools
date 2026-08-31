@@ -27,6 +27,7 @@ import {
 } from './metadataChildMutations';
 import {
 	METADATA_OBJECT_NON_EXPANDABLE_TYPES,
+	METADATA_SECTION_TITLE_BY_SOURCE,
 	METADATA_OBJECT_SECTION_SOURCES_BY_TYPE,
 	type MetadataObjectSectionSource,
 } from './metadataObjectSectionProfiles';
@@ -553,40 +554,36 @@ interface MetadataSectionSpec {
 	readonly source: MetadataObjectSectionSource;
 }
 
-const SECTION_SPEC_META_BY_SOURCE: Record<
+const SECTION_NODE_KIND_BY_SOURCE: Record<
 	MetadataObjectSectionSource,
-	{ kind: MetadataSectionKind; title: string; nodeKind: MetadataNodeKind }
+	{ kind: MetadataSectionKind; nodeKind: MetadataNodeKind }
 > = {
-	attributes: { kind: 'attributes', title: 'Реквизиты', nodeKind: 'attribute' },
-	tabularSections: { kind: 'tabularSections', title: 'Табличные части', nodeKind: 'tabularSection' },
-	forms: { kind: 'forms', title: 'Формы', nodeKind: 'form' },
-	commands: { kind: 'commands', title: 'Команды', nodeKind: 'command' },
-	templates: { kind: 'templates', title: 'Макеты', nodeKind: 'template' },
-	values: { kind: 'values', title: 'Значения', nodeKind: 'value' },
-	columns: { kind: 'columns', title: 'Графы', nodeKind: 'column' },
-	accountingFlags: { kind: 'accountingFlags', title: 'Признаки учёта', nodeKind: 'accountingFlag' },
-	extDimensionAccountingFlags: {
-		kind: 'extDimensionAccountingFlags',
-		title: 'Признаки учёта субконто',
-		nodeKind: 'extDimensionAccountingFlag',
-	},
-	dimensions: { kind: 'dimensions', title: 'Измерения', nodeKind: 'dimension' },
-	resources: { kind: 'resources', title: 'Ресурсы', nodeKind: 'resource' },
-	recalculations: { kind: 'recalculations', title: 'Перерасчёты', nodeKind: 'recalculation' },
-	addressingAttributes: { kind: 'addressingAttributes', title: 'Реквизиты адресации', nodeKind: 'addressingAttribute' },
-	operations: { kind: 'operations', title: 'Операции', nodeKind: 'operation' },
-	urlTemplates: { kind: 'urlTemplates', title: 'Шаблоны URL', nodeKind: 'urlTemplate' },
-	channels: { kind: 'channels', title: 'Каналы', nodeKind: 'channel' },
-	tables: { kind: 'tables', title: 'Таблицы', nodeKind: 'table' },
-	cubes: { kind: 'cubes', title: 'Кубы', nodeKind: 'cube' },
-	functions: { kind: 'functions', title: 'Функции', nodeKind: 'function' },
+	attributes: { kind: 'attributes', nodeKind: 'attribute' },
+	tabularSections: { kind: 'tabularSections', nodeKind: 'tabularSection' },
+	forms: { kind: 'forms', nodeKind: 'form' },
+	commands: { kind: 'commands', nodeKind: 'command' },
+	templates: { kind: 'templates', nodeKind: 'template' },
+	values: { kind: 'values', nodeKind: 'value' },
+	columns: { kind: 'columns', nodeKind: 'column' },
+	accountingFlags: { kind: 'accountingFlags', nodeKind: 'accountingFlag' },
+	extDimensionAccountingFlags: { kind: 'extDimensionAccountingFlags', nodeKind: 'extDimensionAccountingFlag' },
+	dimensions: { kind: 'dimensions', nodeKind: 'dimension' },
+	resources: { kind: 'resources', nodeKind: 'resource' },
+	recalculations: { kind: 'recalculations', nodeKind: 'recalculation' },
+	addressingAttributes: { kind: 'addressingAttributes', nodeKind: 'addressingAttribute' },
+	operations: { kind: 'operations', nodeKind: 'operation' },
+	urlTemplates: { kind: 'urlTemplates', nodeKind: 'urlTemplate' },
+	channels: { kind: 'channels', nodeKind: 'channel' },
+	tables: { kind: 'tables', nodeKind: 'table' },
+	cubes: { kind: 'cubes', nodeKind: 'cube' },
+	functions: { kind: 'functions', nodeKind: 'function' },
 };
 
 function sectionSpecFromSource(source: MetadataObjectSectionSource): MetadataSectionSpec {
-	const meta = SECTION_SPEC_META_BY_SOURCE[source];
+	const meta = SECTION_NODE_KIND_BY_SOURCE[source];
 	return {
 		kind: meta.kind,
-		title: meta.title,
+		title: METADATA_SECTION_TITLE_BY_SOURCE[source],
 		nodeKind: meta.nodeKind,
 		source,
 	};
@@ -910,8 +907,8 @@ const METADATA_OBJECT_TYPE_ICON_BY_TYPE: Record<string, string> = {
 	ExchangePlan: 'exchangePlan.svg',
 	EventSubscription: 'eventSubscription.svg',
 	ScheduledJob: 'scheduledJob.svg',
-	FunctionalOption: 'parameter.svg',
-	FunctionalOptionsParameter: 'parameter.svg',
+	FunctionalOption: 'functionalOption.svg',
+	FunctionalOptionsParameter: 'functionalOptionsParameter.svg',
 	DefinedType: 'enum.svg',
 	CommonCommand: 'command.svg',
 	CommandGroup: 'command.svg',

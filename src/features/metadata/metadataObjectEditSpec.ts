@@ -6,6 +6,11 @@
  * @module metadataObjectEditSpec
  */
 
+import {
+	METADATA_OBJECT_SECTION_SOURCES_BY_TYPE,
+	type MetadataObjectSectionSource,
+} from './metadataObjectSectionProfiles';
+
 export type MetadataEditControl =
 	| 'text'
 	| 'textarea'
@@ -4121,12 +4126,28 @@ const TAB_LAYOUT: ReadonlyArray<{ id: string; title: string; groups: readonly st
 			'Итоги',
 			'Поле ввода',
 			'Блокировка и история',
+			// Разделы состава: единая форма видов без спеки кладёт их сюда же,
+			// куда их кладут спеки - реквизиты и табличные части живут на «Данных»
+			'Реквизиты',
+			'Табличные части',
+			'Измерения',
+			'Ресурсы',
+			'Значения',
+			'Графы',
+			'Признаки учёта',
+			'Признаки учёта субконто',
+			'Операции',
+			'Шаблоны URL',
+			'Каналы',
+			'Таблицы',
+			'Кубы',
+			'Функции',
 		],
 	},
-	{ id: 'edit_addressing', title: 'Адресация', groups: ['Адресация'] },
+	{ id: 'edit_addressing', title: 'Адресация', groups: ['Адресация', 'Реквизиты адресации'] },
 	{ id: 'edit_composition', title: 'Компоновка', groups: ['Компоновка'] },
 	{ id: 'edit_subconto', title: 'Субконто', groups: ['Субконто'] },
-	{ id: 'edit_calculation', title: 'Расчёт', groups: ['Расчёт'] },
+	{ id: 'edit_calculation', title: 'Расчёт', groups: ['Расчёт', 'Перерасчёты'] },
 	{ id: 'edit_movements', title: 'Движения', groups: ['Проведение', 'Движения'] },
 	{ id: 'edit_registered', title: 'Регистрируемые документы', groups: ['Регистрируемые документы'] },
 	{ id: 'edit_exchange', title: 'Обмен данными', groups: ['Обмен данными'] },
@@ -4138,6 +4159,12 @@ const TAB_LAYOUT: ReadonlyArray<{ id: string; title: string; groups: readonly st
 
 /** Заголовки групп, которые знает канон раскладки: по ним группы расходятся по вкладкам. */
 export const KNOWN_GROUP_TITLES: readonly string[] = TAB_LAYOUT.flatMap((tab) => tab.groups);
+
+/** Канонический порядок вкладок: по нему панель вставляет недостающие вкладки состава. */
+export const TAB_ORDER: ReadonlyArray<{ id: string; title: string }> = TAB_LAYOUT.map((tab) => ({
+	id: tab.id,
+	title: tab.title,
+}));
 
 /**
  * Свойства, место которым канон назначает сам: у разных видов они лежали кто где, хотя означают
@@ -4380,6 +4407,106 @@ export function applyEnumDictionary(
  * @param tabs Вкладки вида.
  * @param templateNames Имена макетов объекта.
  */
+/** Списки состава по имени раздела: у общего построителя источник - структура объекта. */
+export type GenericSectionLists = Partial<Record<MetadataObjectSectionSource, readonly string[]>>;
+
+/**
+ * Вкладки для вида без своей спеки.
+ *
+ * Форма у всех одна: «Основные» с именем, синонимом и комментарием, у видов с
+ * формами - вкладка «Формы». Остальной состав вида рисует редактор состава на
+ * тех же вкладках, что и у видов со спекой, а вкладку «Макеты» добавляет общая
+ * обвязка панели.
+ *
+ * @param objectType Вид объекта в терминах выгрузки (WebService, CommonForm, …)
+ * @param sections Списки имён по разделам из структуры объекта
+ */
+/** Описание скалярного свойства от md-sparrow: тип значения и допустимые значения. */
+export interface ScalarPropertyMeta {
+	readonly type: string;
+	readonly allowed?: readonly string[];
+}
+
+/**
+ * Поля скалярных свойств вида без моста.
+ *
+ * Тип управления задаёт md-sparrow: флажок, число, выпадающий список с
+ * константами модели или текст. Группа берётся из канона по имени свойства,
+ * незнакомые свойства остаются в «Прочем». Принадлежность объекта наружу не
+ * выводится: по ней панель решает, редактировать ли заимствованный объект.
+ *
+ * @param labelForName Подпись свойства по ключу в нижнем camelCase
+ * @param labelForValue Подпись значения перечислимого свойства
+ */
+export function buildScalarGroups(
+	scalars: Readonly<Record<string, unknown>>,
+	meta: Readonly<Record<string, ScalarPropertyMeta>>,
+	labelForName: (key: string) => string,
+	labelForValue: (property: string, value: string) => string,
+	refOptions: Readonly<Record<string, readonly MetadataEditOption[]>> = {}
+): MetadataEditGroup[] {
+	const byGroup = new Map<string, MetadataEditField[]>();
+	for (const [name, description] of Object.entries(meta)) {
+		if (name === 'ObjectBelonging' || !(name in scalars)) {
+			continue;
+		}
+		const key = name.charAt(0).toLowerCase() + name.slice(1);
+		const label = labelForName(key);
+		const path = `scalars.${name}`;
+		const refs = refOptions[name];
+		let field: MetadataEditField;
+		if (refs && refs.length > 0) {
+			// Ссылка выбирается из кандидатов конфигурации; текущее значение
+			// вне списка досыпает общая обвязка
+			field = { path, label, control: 'select', options: refs, clearable: true };
+		} else if (description.type === 'boolean') {
+			field = { path, label, control: 'check' };
+		} else if (description.type === 'number') {
+			field = { path, label, control: 'number' };
+		} else if (description.type === 'enum') {
+			field = {
+				path,
+				label,
+				control: 'select',
+				options: (description.allowed ?? []).map((value) => ({ value, label: labelForValue(key, value) })),
+			};
+		} else {
+			field = { path, label, control: 'text' };
+		}
+		const group = PROPERTY_GROUP[key] ?? 'Прочее';
+		const fields = byGroup.get(group) ?? [];
+		fields.push(field);
+		byGroup.set(group, fields);
+	}
+	return [...byGroup.entries()].map(([title, fields]) => ({ title, fields }));
+}
+
+export function buildGenericEditTabs(
+	objectType: string,
+	sections: GenericSectionLists,
+	scalarGroups: readonly MetadataEditGroup[] = []
+): MetadataEditTabSpec[] {
+	const groups: MetadataEditGroup[] = [
+		{
+			title: 'Основные',
+			fields: [
+				{ path: 'internalName', label: 'Имя', control: 'text', readonly: true },
+				{ path: 'synonymRu', label: 'Синоним', control: 'text' },
+				{ path: 'comment', label: 'Комментарий', control: 'text' },
+			],
+		},
+		...scalarGroups,
+	];
+	const known = METADATA_OBJECT_SECTION_SOURCES_BY_TYPE[objectType] ?? [];
+	if (known.includes('forms')) {
+		groups.push({
+			title: 'Формы',
+			fields: [{ path: '', label: 'Формы объекта', control: 'staticList', items: sections.forms ?? [] }],
+		});
+	}
+	return [{ id: 'edit_main', title: 'Основные', groups }];
+}
+
 export function withTemplatesTab(
 	tabs: readonly MetadataEditTabSpec[],
 	templateNames: readonly string[]

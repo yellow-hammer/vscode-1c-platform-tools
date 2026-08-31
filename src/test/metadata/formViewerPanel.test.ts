@@ -26,7 +26,7 @@ suite('Просмотр формы: пути и переход к обработ
 
 	test('форма объекта лежит в Forms/<Имя>/Ext/Form.xml', () => {
 		assert.strictEqual(
-			objectFormXmlPath(objectXml, 'Валюты', 'ФормаСписка'),
+			objectFormXmlPath(objectXml, 'ФормаСписка'),
 			path.join('C:', 'проект', 'src', 'cf', 'Catalogs', 'Валюты', 'Forms', 'ФормаСписка', 'Ext', 'Form.xml')
 		);
 	});
@@ -40,7 +40,7 @@ suite('Просмотр формы: пути и переход к обработ
 	});
 
 	test('модуль формы лежит рядом с содержимым', () => {
-		const formXml = objectFormXmlPath(objectXml, 'Валюты', 'ФормаСписка');
+		const formXml = objectFormXmlPath(objectXml, 'ФормаСписка');
 		assert.strictEqual(formModulePath(formXml), path.join(path.dirname(formXml), 'Form', 'Module.bsl'));
 	});
 

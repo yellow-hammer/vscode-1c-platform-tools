@@ -3027,7 +3027,7 @@
         {
           "command": "1c-platform-tools.metadata.er.openForObject",
           "when": "view == 1c-platform-tools-metadata-tree && viewItem =~ /(^| )(metadataObjectProperties(Subsystem)?|metadataLeafFile)( |$)/",
-          "group": "3_reveal@3"
+          "group": "2_reveal@3"
         },
         {
           "command": "1c-platform-tools.metadata.openExternalConnectionModule",
@@ -3077,17 +3077,17 @@
         {
           "command": "1c-platform-tools.metadata.openProperties",
           "when": "view == 1c-platform-tools-metadata-tree && (viewItem == metadataSourceConfigLike || viewItem =~ /(^| )(metadataObjectProperties(Subsystem)?|metadataLeafFile)( |$)/ || viewItem =~ /(^| )metadataChild_/)",
-          "group": "2_properties@1"
+          "group": "9_properties@1"
         },
         {
           "command": "1c-platform-tools.metadata.openSourceXml",
           "when": "view == 1c-platform-tools-metadata-tree && (viewItem == metadataSourceConfigLike || viewItem =~ /(^| )(metadataObjectProperties(Subsystem)?|metadataLeafFile|metadataObjectForm)( |$)/)",
-          "group": "3_reveal@1"
+          "group": "2_reveal@1"
         },
         {
           "command": "1c-platform-tools.metadata.openFormContentXml",
           "when": "view == 1c-platform-tools-metadata-tree && (viewItem =~ /(^| )metadataObjectForm( |$)/ || viewItem =~ /(^| )mdFormModule( |$)/)",
-          "group": "3_reveal@2"
+          "group": "2_reveal@2"
         },
         {
           "command": "1c-platform-tools.metadata.compile",
@@ -3097,7 +3097,7 @@
         {
           "command": "1c-platform-tools.metadata.addObject",
           "when": "view == 1c-platform-tools-metadata-tree && (viewItem == metadataGroup_catalogs || viewItem == metadataGroupExt_catalogs || viewItem == metadataGroup_constants || viewItem == metadataGroupExt_constants || viewItem == metadataGroup_enums || viewItem == metadataGroupExt_enums || viewItem == metadataGroup_documents || viewItem == metadataGroupExt_documents || viewItem == metadataGroup_reports || viewItem == metadataGroupExt_reports || viewItem == metadataGroup_externalReports || viewItem == metadataGroupExt_externalReports || viewItem == metadataGroup_dataProcessors || viewItem == metadataGroupExt_dataProcessors || viewItem == metadataGroup_externalDataProcessors || viewItem == metadataGroupExt_externalDataProcessors || viewItem == metadataGroup_tasks || viewItem == metadataGroupExt_tasks || viewItem == metadataGroup_chartOfCharacteristicTypes || viewItem == metadataGroupExt_chartOfCharacteristicTypes || viewItem == metadataGroup_chartOfAccounts || viewItem == metadataGroupExt_chartOfAccounts || viewItem == metadataGroup_chartOfCalculationTypes || viewItem == metadataGroupExt_chartOfCalculationTypes || viewItem == metadataGroup_externalDataSources || viewItem == metadataGroupExt_externalDataSources || viewItem == metadataSubgroup_common_common_subsystem || viewItem == metadataSubgroupExt_common_common_subsystem || viewItem == metadataSubgroup_common_common_commonmodule || viewItem == metadataSubgroupExt_common_common_commonmodule || viewItem == metadataSubgroup_common_common_sessionparam || viewItem == metadataSubgroupExt_common_common_sessionparam || viewItem == metadataSubgroup_common_common_role || viewItem == metadataSubgroupExt_common_common_role || viewItem == metadataSubgroup_common_common_commonattribute || viewItem == metadataSubgroupExt_common_common_commonattribute || viewItem == metadataSubgroup_common_common_exchangeplan || viewItem == metadataSubgroupExt_common_common_exchangeplan || viewItem == metadataSubgroup_common_common_commonpicture || viewItem == metadataSubgroupExt_common_common_commonpicture || viewItem == metadataSubgroup_documents_documentNumerators || viewItem == metadataSubgroupExt_documents_documentNumerators || viewItem == metadataSourceExternalArtifact)",
-          "group": "4_create@1"
+          "group": "3_create@1"
         },
         {
           "command": "1c-platform-tools.metadata.addChildNode",
@@ -3107,7 +3107,7 @@
         {
           "command": "1c-platform-tools.metadata.addChildNode",
           "when": "view == 1c-platform-tools-metadata-tree && viewItem =~ /(^| )(mdSectionAdd|mdChildAdd)( |$)/",
-          "group": "4_create@2"
+          "group": "3_create@2"
         },
         {
           "command": "1c-platform-tools.metadata.renameChildNode",
@@ -3122,7 +3122,7 @@
         {
           "command": "1c-platform-tools.metadata.deleteChildNode",
           "when": "view == 1c-platform-tools-metadata-tree && viewItem =~ /(^| )mdChildEdit( |$)/",
-          "group": "6_delete@1"
+          "group": "7_delete@1"
         },
         {
           "command": "1c-platform-tools.metadata.renameObject",
@@ -3137,27 +3137,27 @@
         {
           "command": "1c-platform-tools.metadata.deleteObject",
           "when": "view == 1c-platform-tools-metadata-tree && viewItem =~ /(^| )(metadataObjectProperties(Subsystem)?|metadataLeafFile)( |$)/",
-          "group": "6_delete@1"
+          "group": "7_delete@1"
         },
         {
           "command": "1c-platform-tools.metadata.filterBySubsystem",
           "when": "view == 1c-platform-tools-metadata-tree && viewItem =~ /(^| )metadataObjectPropertiesSubsystem( |$)/",
-          "group": "7_filter@1"
+          "group": "8_filter@1"
         },
         {
           "command": "1c-platform-tools.metadata.clearSubsystemFilter",
           "when": "view == 1c-platform-tools-metadata-tree && 1c-platform-tools.metadata.subsystemFilterActive",
-          "group": "7_filter@2"
+          "group": "8_filter@2"
         },
         {
           "command": "1c-platform-tools.metadata.copyObjectName",
           "when": "view == 1c-platform-tools-metadata-tree && viewItem =~ /(^| )(metadataObjectProperties(Subsystem)?|metadataLeafFile)( |$)/",
-          "group": "8_copy@1"
+          "group": "6_copy@1"
         },
         {
           "command": "1c-platform-tools.metadata.copyObjectPath",
           "when": "view == 1c-platform-tools-metadata-tree && viewItem =~ /(^| )(metadataObjectProperties(Subsystem)?|metadataLeafFile)( |$)/",
-          "group": "8_copy@2"
+          "group": "6_copy@2"
         },
         {
           "command": "1c-platform-tools.pipelines.run",

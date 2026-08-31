@@ -12,7 +12,6 @@ import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 import * as vscode from 'vscode';
 import {
-	isMetadataCommonForm,
 	MetadataLeafTreeItem,
 	MetadataObjectNodeTreeItem,
 	MetadataSourceTreeItem,
@@ -30,7 +29,6 @@ import { applyEnumDictionary } from '../metadata/metadataObjectEditSpec';
 import {
 	applyChildNodeEdits,
 	childNodeDtoList,
-	descriptorTabs,
 	findTabularAttribute,
 	childNodeKindLabel,
 	childNodeTabs,
@@ -101,7 +99,10 @@ function childOwnXmlPath(item: MetadataObjectNodeTreeItem): string | undefined {
 	if (!subdir) {
 		return undefined;
 	}
-	return path.join(path.dirname(owner.resourceUri.fsPath), owner.name, subdir, `${item.name}.xml`);
+	// Каталог состава назван по файлу объекта, а не по узлу дерева: у внешнего
+	// файла каталог артефакта носит имя erf, а объект внутри - своё
+	const stem = path.basename(owner.resourceUri.fsPath, '.xml');
+	return path.join(path.dirname(owner.resourceUri.fsPath), stem, subdir, `${item.name}.xml`);
 }
 
 /**
@@ -196,8 +197,6 @@ function targetFor(item: vscode.TreeItem): PaletteTarget | undefined {
 	const filePath = item.resourceUri.fsPath;
 	const cwd = item.metadataRootAbs ?? path.dirname(filePath);
 	const external = item.objectType === 'ExternalReport' || item.objectType === 'ExternalDataProcessor';
-	// Общая форма описывается своим XML: он и есть файл объекта
-	const objectType = isMetadataCommonForm(item.objectType) ? 'Form' : item.objectType;
 	return {
 		title: item.name,
 		subtitle: external
@@ -209,7 +208,7 @@ function targetFor(item: vscode.TreeItem): PaletteTarget | undefined {
 		filePath,
 		cwd,
 		schemaFrom: item.configurationXmlAbs ?? filePath,
-		objectType,
+		objectType: item.objectType,
 	};
 }
 
@@ -319,9 +318,6 @@ async function readProperties(context: vscode.ExtensionContext, target: PaletteT
 			}
 		}
 		return { dto, tabs: applyEnumDictionary(SOURCE_PROPERTIES_TABS, forConfiguration, labels), schema };
-	}
-	if (target.objectType === 'Form' || target.objectType === 'Template') {
-		return { dto, tabs: descriptorTabs(), schema };
 	}
 	if (target.child) {
 		const node = findChildInObject(dto, target.child);

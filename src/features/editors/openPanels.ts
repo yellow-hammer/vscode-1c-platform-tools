@@ -18,8 +18,33 @@ export type OpenPanelKind = 'objectProperties' | 'sourceProperties' | 'form';
 /** Открытые вкладки по ключу «вид + путь». */
 const panels = new Map<string, vscode.WebviewPanel>();
 
+/**
+ * Вкладки, которые ещё открываются: чтение свойств занимает секунды, и без
+ * брони повторные щелчки за это время открывали копии одной вкладки.
+ */
+const pending = new Set<string>();
+
 function keyOf(kind: OpenPanelKind, target: string): string {
 	return `${kind} ${target.toLowerCase()}`;
+}
+
+/**
+ * Бронирует открытие вкладки на время чтения данных.
+ *
+ * @returns {@code false}, если этот предмет уже открывается: второй вызов лишний
+ */
+export function beginOpenPanel(kind: OpenPanelKind, target: string): boolean {
+	const key = keyOf(kind, target);
+	if (pending.has(key)) {
+		return false;
+	}
+	pending.add(key);
+	return true;
+}
+
+/** Снимает бронь: вкладка открыта или открытие сорвалось. */
+export function endOpenPanel(kind: OpenPanelKind, target: string): void {
+	pending.delete(keyOf(kind, target));
 }
 
 /**

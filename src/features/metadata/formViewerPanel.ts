@@ -23,7 +23,7 @@ import type {
 	PropertyRow,
 } from '../properties/propertyPaletteView';
 import { PROPERTY_GROUP_ORDER, enumValueLabel, propertyGroupName, propertyLabel } from './formItemPropertySpec';
-import { revealOpenPanel, trackOpenPanel } from '../editors/openPanels';
+import { beginOpenPanel, endOpenPanel, revealOpenPanel, trackOpenPanel } from '../editors/openPanels';
 
 /** Обработчик события формы или элемента. */
 export interface FormEventDto {
@@ -208,9 +208,15 @@ async function loadStandardCommands(
 
 const ERR_PREVIEW = 400;
 
-/** Путь к `Ext/Form.xml` формы объекта: `<Объект>/Forms/<Форма>/Ext/Form.xml`. */
-export function objectFormXmlPath(objectXmlFsPath: string, objectName: string, formName: string): string {
-	return path.join(path.dirname(objectXmlFsPath), objectName, 'Forms', formName, 'Ext', 'Form.xml');
+/**
+ * Путь к `Ext/Form.xml` формы объекта: `<Объект>/Forms/<Форма>/Ext/Form.xml`.
+ *
+ * Каталог состава назван по файлу объекта: у внешнего файла каталог артефакта
+ * носит имя erf, а объект внутри - своё, поэтому имя узла дерева не годится.
+ */
+export function objectFormXmlPath(objectXmlFsPath: string, formName: string): string {
+	const stem = path.basename(objectXmlFsPath, '.xml');
+	return path.join(path.dirname(objectXmlFsPath), stem, 'Forms', formName, 'Ext', 'Form.xml');
 }
 
 /**
@@ -219,12 +225,9 @@ export function objectFormXmlPath(objectXmlFsPath: string, objectName: string, f
  * У формы два файла: этот - свойства формы (имя, синоним, тип), и `Ext/Form.xml`
  * рядом - её содержимое с элементами и реквизитами формы.
  */
-export function objectFormDescriptorXmlPath(
-	objectXmlFsPath: string,
-	objectName: string,
-	formName: string
-): string {
-	return path.join(path.dirname(objectXmlFsPath), objectName, 'Forms', `${formName}.xml`);
+export function objectFormDescriptorXmlPath(objectXmlFsPath: string, formName: string): string {
+	const stem = path.basename(objectXmlFsPath, '.xml');
+	return path.join(path.dirname(objectXmlFsPath), stem, 'Forms', `${formName}.xml`);
 }
 
 /** Путь к `Ext/Form.xml` общей формы: у неё содержимое лежит прямо в каталоге объекта. */
@@ -250,6 +253,10 @@ export async function openFormViewer(
 	if (revealOpenPanel('form', params.formXmlFsPath)) {
 		return;
 	}
+	// Бронь на время чтения: повторный щелчок не открывает копию вкладки
+	if (!beginOpenPanel('form', params.formXmlFsPath)) {
+		return;
+	}
 	let schema: string;
 	try {
 		schema = params.cfgPath
@@ -260,6 +267,7 @@ export async function openFormViewer(
 		}
 	} catch (e) {
 		void vscode.window.showErrorMessage((e instanceof Error ? e.message : String(e)).slice(0, ERR_PREVIEW));
+		endOpenPanel('form', params.formXmlFsPath);
 		return;
 	}
 
@@ -276,6 +284,7 @@ export async function openFormViewer(
 		const msg = e instanceof Error ? e.message : String(e);
 		log.error(`форма: не прочитана ${params.formXmlFsPath}: ${msg}`);
 		void vscode.window.showErrorMessage(`Не удалось прочитать форму. ${msg}`.slice(0, ERR_PREVIEW));
+		endOpenPanel('form', params.formXmlFsPath);
 		return;
 	}
 
@@ -288,6 +297,7 @@ export async function openFormViewer(
 		localResourceRoots: [webviewRoot],
 	});
 	trackOpenPanel('form', params.formXmlFsPath, panel);
+	endOpenPanel('form', params.formXmlFsPath);
 
 	const paletteOwner = params.formXmlFsPath;
 
