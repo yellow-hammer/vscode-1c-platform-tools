@@ -4318,7 +4318,7 @@
     "@types/cytoscape": "^3.31.0",
     "@types/minimatch": "^6.0.0",
     "@types/node": "26.x",
-    "@types/vscode": "^1.134.0",
+    "@types/vscode": "^1.125.0",
     "@types/yauzl": "^3.4.0",
     "@types/yazl": "^3.3.1",
     "@vscode/test-cli": "^0.0.15",
