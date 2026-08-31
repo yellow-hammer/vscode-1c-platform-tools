@@ -14,4 +14,4 @@
 
 **Конфиг публикации.** Лежит в `build/ibsrv/publication.yaml`: можно остановить сервер, поправить параметры (например порт) прямо в файле и запустить заново.
 
-Подробнее — в [руководстве по автономному серверу](https://github.com/yellow-hammer/vscode-1c-platform-tools/blob/main/docs/autonomous-server.md).
+Подробнее — в [руководстве по автономному серверу](https://yellow-hammer.github.io/vscode-1c-platform-tools/autonomous-server.html).
