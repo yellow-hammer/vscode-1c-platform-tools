@@ -1,5 +1,5 @@
 /**
- * Регистрация команд модуля «Проекты 1С».
+ * Регистрация команд модуля «1С: Проекты».
  * @module projects/commands
  */
 
@@ -26,7 +26,7 @@ import {
 import { notifyQuiet } from '../../shared/notify';
 
 /**
- * Регистрирует команды панели «Проекты 1С».
+ * Регистрирует команды панели «1С: Проекты».
  * @param context — контекст расширения
  * @param projectStorage — хранилище избранного
  * @param locator — локатор проектов (autodetect)
@@ -50,7 +50,7 @@ export function registerProjectsCommands(
 	// Внутренняя команда открытия (текущее окно). Принимает node или (path, name).
 	disposables.push(
 		vscode.commands.registerCommand(
-			'1c-platform-tools.projects._open',
+			'1c-platform-tools.projects.open',
 			async (arg1: vscode.TreeItem | string, arg2?: string) => {
 				let projectPath: string;
 				let projectName: string;
@@ -78,7 +78,7 @@ export function registerProjectsCommands(
 	// Открыть в новом окне (inline-иконка + контекстное меню). Принимает node или (path, name).
 	disposables.push(
 		vscode.commands.registerCommand(
-			'1c-platform-tools.projects._openInNewWindow',
+			'1c-platform-tools.projects.openInNewWindow',
 			async (arg1: vscode.TreeItem | string, arg2?: string) => {
 				let projectPath: string;
 				let projectName: string;
@@ -443,12 +443,12 @@ export function registerProjectsCommands(
 	void vscode.commands.executeCommand('setContext', '1c-platform-tools.projects.viewAsList', viewAsList);
 
 	disposables.push(
-		vscode.commands.registerCommand('1c-platform-tools.projects._viewAsList', () => {
+		vscode.commands.registerCommand('1c-platform-tools.projects.viewAsList', () => {
 			context.globalState.update(viewAsListKey, true);
 			void vscode.commands.executeCommand('setContext', '1c-platform-tools.projects.viewAsList', true);
 			providers.refreshStorage();
 		}),
-		vscode.commands.registerCommand('1c-platform-tools.projects._viewAsTags', () => {
+		vscode.commands.registerCommand('1c-platform-tools.projects.viewAsTags', () => {
 			context.globalState.update(viewAsListKey, false);
 			void vscode.commands.executeCommand('setContext', '1c-platform-tools.projects.viewAsList', false);
 			providers.refreshStorage();
@@ -457,11 +457,11 @@ export function registerProjectsCommands(
 
 	// Sort by (только Name и Path — enablement через config в package.json)
 	disposables.push(
-		vscode.commands.registerCommand('1c-platform-tools.projects._sortByName', async () => {
+		vscode.commands.registerCommand('1c-platform-tools.projects.sortByName', async () => {
 			await config.update('projects.sortList', 'Name', vscode.ConfigurationTarget.Global);
 			providers.refreshStorage();
 		}),
-		vscode.commands.registerCommand('1c-platform-tools.projects._sortByPath', async () => {
+		vscode.commands.registerCommand('1c-platform-tools.projects.sortByPath', async () => {
 			await config.update('projects.sortList', 'Path', vscode.ConfigurationTarget.Global);
 			providers.refreshStorage();
 		})

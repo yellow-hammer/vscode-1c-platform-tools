@@ -14,7 +14,7 @@ export interface MainTreeViewRegistration {
 }
 
 /**
- * Регистрирует tree view панели «Инструменты 1С» и сохранение состояния раскрытия групп.
+ * Регистрирует tree view панели «1С: Инструменты» и сохранение состояния раскрытия групп.
  */
 export function registerMainTreeView(
 	context: vscode.ExtensionContext,
@@ -26,20 +26,20 @@ export function registerMainTreeView(
 		setVersionCommands,
 		context
 	);
-	const treeView = vscode.window.createTreeView('1c-platform-tools', {
+	const treeView = vscode.window.createTreeView('1c-platform-tools-tools-commands', {
 		treeDataProvider,
 		showCollapseAll: true,
 	});
 
 	// Плашка «Профиль запуска»: с чем работают команды vrunner
 	const launchProfileProvider = new LaunchProfileViewProvider(VRunnerManager.getInstance());
-	const profileTreeView = vscode.window.createTreeView('1c-platform-tools-profile', {
+	const profileTreeView = vscode.window.createTreeView('1c-platform-tools-tools-profile', {
 		treeDataProvider: launchProfileProvider,
 		showCollapseAll: false,
 	});
 
 	// Отдельная плашка «Помощь и поддержка» под деревом команд
-	const helpTreeView = vscode.window.createTreeView('1c-platform-tools-help', {
+	const helpTreeView = vscode.window.createTreeView('1c-platform-tools-tools-help', {
 		treeDataProvider: new HelpAndSupportProvider(),
 		showCollapseAll: false,
 	});

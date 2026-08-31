@@ -7,7 +7,7 @@ export interface TodoFlow {
 }
 
 /**
- * Инициализирует flow фичи «Список дел 1С»: view и runtime-команды.
+ * Инициализирует flow фичи «1С: Список дел»: view и runtime-команды.
  */
 export function registerTodoFlow(
 	context: vscode.ExtensionContext,

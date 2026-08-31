@@ -16,7 +16,7 @@ export interface ProjectsBootstrap {
 }
 
 /**
- * Инициализирует базовые зависимости фичи «Проекты 1С».
+ * Инициализирует базовые зависимости фичи «1С: Проекты».
  */
 export function registerProjectsBootstrap(
 	context: vscode.ExtensionContext

@@ -172,7 +172,7 @@ export class PlatformServerManager {
 		private readonly vrunner: VRunnerManager,
 		private readonly context: vscode.ExtensionContext
 	) {
-		this.output = vscode.window.createOutputChannel('1C: Автономный сервер');
+		this.output = vscode.window.createOutputChannel('1С: Автономный сервер');
 	}
 
 	/** Текущее состояние сервера. */

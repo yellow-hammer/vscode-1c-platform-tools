@@ -12,8 +12,8 @@ const EXTENSION_ROOT = path.resolve(__dirname, '../../..');
  * Остальные расхождения означают, что источники разъехались.
  */
 const INTENDED_DIFFERENCES = new Map<string, string>([
-	['1c-platform-tools.artifacts.buildProcessor', 'в меню артефакта достаточно «Собрать»'],
-	['1c-platform-tools.artifacts.buildReport', 'в меню артефакта достаточно «Собрать»'],
+	['1c-platform-tools.artifacts.compileProcessor', 'в меню артефакта достаточно «Собрать»'],
+	['1c-platform-tools.artifacts.compileReport', 'в меню артефакта достаточно «Собрать»'],
 	['1c-platform-tools.artifacts.decompileProcessor', 'в меню артефакта достаточно «Разобрать»'],
 	['1c-platform-tools.artifacts.decompileReport', 'в меню артефакта достаточно «Разобрать»'],
 	['1c-platform-tools.cf.compile', 'в журнале без путей: «Собрать конфигурацию»'],

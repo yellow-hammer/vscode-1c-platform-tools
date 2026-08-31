@@ -21,21 +21,21 @@ const HIDDEN_PREFIXES = [
 	// Консоль кластера: команды работают с выделенным узлом дерева, а действия
 	// вроде завершения сеанса необратимы и требуют подтверждения человеком
 	`${COMMAND_PREFIX}clusters.`,
-	`${COMMAND_PREFIX}ibases.`,
+	`${COMMAND_PREFIX}infobaseList.`,
 	`${COMMAND_PREFIX}metadata.`,
 	`${COMMAND_PREFIX}projects.`,
 	`${COMMAND_PREFIX}todo.`,
-	`${COMMAND_PREFIX}settings`,
 	`${COMMAND_PREFIX}focus`,
 	`${COMMAND_PREFIX}artifacts.`,
 	`${COMMAND_PREFIX}tools.`,
-	`${COMMAND_PREFIX}favorites.`,
 	`${COMMAND_PREFIX}support.`,
-	`${COMMAND_PREFIX}setVersion.`,
+	// Мастер установки версии: спрашивает номер у человека
+	`${COMMAND_PREFIX}cf.setVersion`,
+	`${COMMAND_PREFIX}cfe.setVersion`,
+	`${COMMAND_PREFIX}epf.setVersion`,
 	`${COMMAND_PREFIX}skills.`,
 	`${COMMAND_PREFIX}profile.`,
 	`${COMMAND_PREFIX}help.`,
-	`${COMMAND_PREFIX}getStarted.`,
 	`${COMMAND_PREFIX}mcp.`,
 	`${COMMAND_PREFIX}refresh`,
 	`${COMMAND_PREFIX}env.createProfile`,
@@ -45,7 +45,9 @@ const HIDDEN_PREFIXES = [
 	// Секрет вводит человек в поле с маскировкой, агенту его передавать незачем
 	`${COMMAND_PREFIX}components.setGithubToken`,
 	`${COMMAND_PREFIX}components.forgetGithubToken`,
-	`${COMMAND_PREFIX}oscript.addTask`,
+	`${COMMAND_PREFIX}tasks.addOscript`,
+	// Цель отладки выбирают в дереве по состоянию запущенных сеансов
+	`${COMMAND_PREFIX}debug.connectTarget`,
 	`${COMMAND_PREFIX}server.menu`,
 	`${COMMAND_PREFIX}launch.editConfigurations`,
 	`${COMMAND_PREFIX}config.env.edit`,
@@ -65,19 +67,17 @@ const WITHOUT_SYNC_RESULT_PREFIXES = [
 	`${COMMAND_PREFIX}metadata.`,
 	`${COMMAND_PREFIX}projects.`,
 	`${COMMAND_PREFIX}todo.`,
-	`${COMMAND_PREFIX}settings`,
 	`${COMMAND_PREFIX}focus`,
 	`${COMMAND_PREFIX}artifacts.open`,
 	`${COMMAND_PREFIX}artifacts.delete`,
 	`${COMMAND_PREFIX}server.`,
 	`${COMMAND_PREFIX}debug.`,
-	`${COMMAND_PREFIX}syntaxCheck.`,
+	// прогон синтаксического контроля исход возвращает, а Problems только правит
+	`${COMMAND_PREFIX}syntaxCheck.refresh`,
+	`${COMMAND_PREFIX}syntaxCheck.clear`,
 	`${COMMAND_PREFIX}dependencies.`,
 	`${COMMAND_PREFIX}components.update`,
-	`${COMMAND_PREFIX}oscript.run`,
-	`${COMMAND_PREFIX}launch.view`,
-	`${COMMAND_PREFIX}launch.run`,
-	`${COMMAND_PREFIX}launch.edit`,
+	`${COMMAND_PREFIX}tasks.`,
 ];
 
 /**

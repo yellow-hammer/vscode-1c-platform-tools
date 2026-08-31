@@ -51,8 +51,8 @@ function attachDebugTarget(id: string): void {
 
 export function init(context: vscode.ExtensionContext): void {
 	context.subscriptions.push(
-		vscode.window.registerTreeDataProvider('debug.debugTargets', debugTargetsProvider),
-		vscode.commands.registerCommand('debug.debugTargets.connect', (item?: DebugTargetItem) =>
+		vscode.window.registerTreeDataProvider('1c-platform-tools-debug-targets', debugTargetsProvider),
+		vscode.commands.registerCommand('1c-platform-tools.debug.connectTarget', (item?: DebugTargetItem) =>
 			connectDebugTarget(item)
 		)
 	);

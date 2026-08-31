@@ -218,11 +218,11 @@ const STRUCTURE_SECTION_TITLE_BY_KEY: Record<string, string> = {
 	templates: 'Макеты',
 	values: 'Значения',
 	columns: 'Графы',
-	accountingFlags: 'Признаки учета',
-	extDimensionAccountingFlags: 'Признаки учета субконто',
+	accountingFlags: 'Признаки учёта',
+	extDimensionAccountingFlags: 'Признаки учёта субконто',
 	dimensions: 'Измерения',
 	resources: 'Ресурсы',
-	recalculations: 'Перерасчеты',
+	recalculations: 'Перерасчёты',
 	addressingAttributes: 'Реквизиты адресации',
 	operations: 'Операции',
 	urlTemplates: 'Шаблоны URL',
@@ -305,12 +305,12 @@ export const MD_REF_KIND_LABEL_BY_PREFIX: Record<string, string> = {
 	DocumentJournalRef: 'Журнал документов',
 	Enum: 'Перечисление',
 	EnumRef: 'Перечисление',
-	Report: 'Отчет',
-	ReportRef: 'Отчет',
+	Report: 'Отчёт',
+	ReportRef: 'Отчёт',
 	DataProcessor: 'Обработка',
 	DataProcessorRef: 'Обработка',
-	ExternalReport: 'Внешний отчет',
-	ExternalReportRef: 'Внешний отчет',
+	ExternalReport: 'Внешний отчёт',
+	ExternalReportRef: 'Внешний отчёт',
 	ExternalDataProcessor: 'Внешняя обработка',
 	ExternalDataProcessorRef: 'Внешняя обработка',
 	InformationRegister: 'Регистр сведений',
@@ -319,14 +319,14 @@ export const MD_REF_KIND_LABEL_BY_PREFIX: Record<string, string> = {
 	AccumulationRegisterRef: 'Регистр накопления',
 	AccountingRegister: 'Регистр бухгалтерии',
 	AccountingRegisterRef: 'Регистр бухгалтерии',
-	CalculationRegister: 'Регистр расчета',
-	CalculationRegisterRef: 'Регистр расчета',
+	CalculationRegister: 'Регистр расчёта',
+	CalculationRegisterRef: 'Регистр расчёта',
 	ChartOfAccounts: 'План счетов',
 	ChartOfAccountsRef: 'План счетов',
 	ChartOfCharacteristicTypes: 'План видов характеристик',
 	ChartOfCharacteristicTypesRef: 'План видов характеристик',
-	ChartOfCalculationTypes: 'План видов расчета',
-	ChartOfCalculationTypesRef: 'План видов расчета',
+	ChartOfCalculationTypes: 'План видов расчёта',
+	ChartOfCalculationTypesRef: 'План видов расчёта',
 	BusinessProcess: 'Бизнес-процесс',
 	BusinessProcessRef: 'Бизнес-процесс',
 	Task: 'Задача',
@@ -514,7 +514,7 @@ function kindLabel(kind: string, objectType: string): string {
 		case 'Report':
 		case 'externalReport':
 		case 'ExternalReport':
-			return 'Отчет';
+			return 'Отчёт';
 		case 'dataProcessor':
 		case 'DataProcessor':
 		case 'externalDataProcessor':
@@ -531,7 +531,7 @@ function kindLabel(kind: string, objectType: string): string {
 			return 'План видов характеристик';
 		case 'chartOfCalculationTypes':
 		case 'ChartOfCalculationTypes':
-			return 'План видов расчета';
+			return 'План видов расчёта';
 		case 'subsystem':
 		case 'Subsystem':
 			return 'Подсистема';
@@ -549,7 +549,7 @@ function kindLabel(kind: string, objectType: string): string {
 			return 'Регистр бухгалтерии';
 		case 'calculationRegister':
 		case 'CalculationRegister':
-			return 'Регистр расчета';
+			return 'Регистр расчёта';
 		case 'businessProcess':
 		case 'BusinessProcess':
 			return 'Бизнес-процесс';
@@ -1650,7 +1650,7 @@ const REGISTER_TAG_LABEL: Record<string, string> = {
 	InformationRegister: 'Регистр сведений',
 	AccumulationRegister: 'Регистр накопления',
 	AccountingRegister: 'Регистр бухгалтерии',
-	CalculationRegister: 'Регистр расчета',
+	CalculationRegister: 'Регистр расчёта',
 };
 
 /** Читает списки конфигурации для подбора в редактируемых полях панели. */

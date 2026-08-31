@@ -385,7 +385,7 @@ export function registerCommands(
 	// Команды тестирования
 	const testCommands = [
 		registerVRunnerCommand('1c-platform-tools.test.xunit', (opts) => commands.test.runXUnit(opts)),
-		registerVRunnerCommand('1c-platform-tools.test.syntaxCheck', (opts) =>
+		registerVRunnerCommand('1c-platform-tools.syntaxCheck.run', (opts) =>
 			commands.test.runSyntaxCheck(opts)
 		),
 		registerVRunnerCommand('1c-platform-tools.test.vanessa', (opts) =>
@@ -400,7 +400,7 @@ export function registerCommands(
 		registerVRunnerCommand('1c-platform-tools.test.loadExtensions', (opts) =>
 			commands.extensions.loadTestsFromSrc(opts)
 		),
-		registerVRunnerCommand('1c-platform-tools.test.buildExtensions', (opts) =>
+		registerVRunnerCommand('1c-platform-tools.test.compileExtensions', (opts) =>
 			commands.extensions.buildTests(opts)
 		),
 		registerVRunnerCommand('1c-platform-tools.test.dumpExtensions', (opts) =>
@@ -409,7 +409,7 @@ export function registerCommands(
 		registerVRunnerCommand('1c-platform-tools.test.decompileExtensions', (opts) =>
 			commands.extensions.decompileTests(opts)
 		),
-		registerVRunnerCommand('1c-platform-tools.test.buildEpf', (opts) =>
+		registerVRunnerCommand('1c-platform-tools.test.compileEpf', (opts) =>
 			commands.test.buildTestEpf(opts)
 		),
 		registerVRunnerCommand('1c-platform-tools.test.decompileEpf', (opts) =>
@@ -424,16 +424,16 @@ export function registerCommands(
 	// агентный вызов отклоняется гейтом
 	const setVersionUiHint = 'Версия запрашивается в окне VS Code; выполняется пользователем.';
 	const setVersionCommands = [
-		vscode.commands.registerCommand('1c-platform-tools.setVersion.configuration', uiOnlyHandler(setVersionUiHint, () => {
+		vscode.commands.registerCommand('1c-platform-tools.cf.setVersion', uiOnlyHandler(setVersionUiHint, () => {
 			commands.setVersion.setVersionConfiguration();
 		})),
-		vscode.commands.registerCommand('1c-platform-tools.setVersion.extension', uiOnlyHandler(setVersionUiHint, () => {
+		vscode.commands.registerCommand('1c-platform-tools.cfe.setVersion', uiOnlyHandler(setVersionUiHint, () => {
 			commands.setVersion.setVersionExtension();
 		})),
-		vscode.commands.registerCommand('1c-platform-tools.setVersion.report', uiOnlyHandler(setVersionUiHint, (reportName?: unknown) => {
+		vscode.commands.registerCommand('1c-platform-tools.epf.setVersionReport', uiOnlyHandler(setVersionUiHint, (reportName?: unknown) => {
 			commands.setVersion.setVersionReport(typeof reportName === 'string' ? reportName : undefined);
 		})),
-		vscode.commands.registerCommand('1c-platform-tools.setVersion.processor', uiOnlyHandler(setVersionUiHint, (processorName?: unknown) => {
+		vscode.commands.registerCommand('1c-platform-tools.epf.setVersionProcessor', uiOnlyHandler(setVersionUiHint, (processorName?: unknown) => {
 			commands.setVersion.setVersionProcessor(typeof processorName === 'string' ? processorName : undefined);
 		}))
 	];
@@ -448,7 +448,7 @@ export function registerCommands(
 				void commands.artifact.open(openUri);
 			}
 		}),
-		vscode.commands.registerCommand('1c-platform-tools.artifacts.buildConfiguration', (element: vscode.TreeItem) => {
+		vscode.commands.registerCommand('1c-platform-tools.artifacts.compileConfiguration', (element: vscode.TreeItem) => {
 			if (element.resourceUri) {
 				void commands.artifact.buildConfiguration(element.resourceUri);
 			}
@@ -458,7 +458,7 @@ export function registerCommands(
 				void commands.artifact.decompileConfiguration(element.resourceUri);
 			}
 		}),
-		vscode.commands.registerCommand('1c-platform-tools.artifacts.buildExtension', (element: vscode.TreeItem) => {
+		vscode.commands.registerCommand('1c-platform-tools.artifacts.compileExtension', (element: vscode.TreeItem) => {
 			if (element.resourceUri) {
 				void commands.artifact.buildExtension(element.resourceUri);
 			}
@@ -468,7 +468,7 @@ export function registerCommands(
 				void commands.artifact.decompileExtension(element.resourceUri);
 			}
 		}),
-		vscode.commands.registerCommand('1c-platform-tools.artifacts.buildProcessor', (element: vscode.TreeItem) => {
+		vscode.commands.registerCommand('1c-platform-tools.artifacts.compileProcessor', (element: vscode.TreeItem) => {
 			if (element.resourceUri) {
 				void commands.artifact.buildProcessor(element.resourceUri);
 			}
@@ -478,7 +478,7 @@ export function registerCommands(
 				void commands.artifact.decompileProcessor(element.resourceUri);
 			}
 		}),
-		vscode.commands.registerCommand('1c-platform-tools.artifacts.buildReport', (element: vscode.TreeItem) => {
+		vscode.commands.registerCommand('1c-platform-tools.artifacts.compileReport', (element: vscode.TreeItem) => {
 			if (element.resourceUri) {
 				void commands.artifact.buildReport(element.resourceUri);
 			}
@@ -493,16 +493,16 @@ export function registerCommands(
 				void commands.artifact.delete(element.resourceUri);
 			}
 		}),
-		registerFromEditor('1c-platform-tools.artifacts.decompileConfiguration.fromEditor', (u) =>
+		registerFromEditor('1c-platform-tools.artifacts.decompileConfigurationFromEditor', (u) =>
 			commands.artifact.decompileConfiguration(u)
 		),
-		registerFromEditor('1c-platform-tools.artifacts.decompileExtension.fromEditor', (u) =>
+		registerFromEditor('1c-platform-tools.artifacts.decompileExtensionFromEditor', (u) =>
 			commands.artifact.decompileExtension(u)
 		),
-		registerFromEditor('1c-platform-tools.artifacts.decompileProcessor.fromEditor', (u) =>
+		registerFromEditor('1c-platform-tools.artifacts.decompileProcessorFromEditor', (u) =>
 			commands.artifact.decompileProcessor(u)
 		),
-		registerFromEditor('1c-platform-tools.artifacts.decompileReport.fromEditor', (u) =>
+		registerFromEditor('1c-platform-tools.artifacts.decompileReportFromEditor', (u) =>
 			commands.artifact.decompileReport(u)
 		),
 	];

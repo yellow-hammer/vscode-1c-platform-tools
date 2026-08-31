@@ -9,7 +9,7 @@ export interface MetadataFlow {
 }
 
 /**
- * Инициализирует flow фичи «Метаданные 1С»: view, команды и первичное обновление.
+ * Инициализирует flow фичи «1С: Метаданные»: view, команды и первичное обновление.
  */
 export function registerMetadataFlow(
 	context: vscode.ExtensionContext,

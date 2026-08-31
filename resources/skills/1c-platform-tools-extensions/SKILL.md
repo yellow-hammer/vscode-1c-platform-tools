@@ -29,7 +29,7 @@ description: Загрузка и выгрузка расширений конф�
 |-------------------------------------|------------------------------------------------|
 | Загрузить тестовые из tests/cfe     | `1c-platform-tools.test.loadExtensions`        |
 | Выгрузить тестовые в tests/cfe      | `1c-platform-tools.test.dumpExtensions`        |
-| Собрать тестовые *.cfe              | `1c-platform-tools.test.buildExtensions`       |
+| Собрать тестовые *.cfe              | `1c-platform-tools.test.compileExtensions`       |
 | Разобрать тестовые *.cfe            | `1c-platform-tools.test.decompileExtensions`   |
 
 Параметр `extensions` работает так же и отбирает каталоги в `tests/cfe`. Инструменты MCP:

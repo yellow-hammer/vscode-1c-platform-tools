@@ -1,14 +1,5 @@
 import * as vscode from 'vscode';
-import { SETTINGS_SECTIONS, SettingsSection, settingsQuery } from './settingsSections';
-
-/**
- * Открывает настройки расширения на нужном разделе.
- *
- * @param section - Раздел настроек
- */
-async function openSettings(section: SettingsSection['id']): Promise<void> {
-	await vscode.commands.executeCommand('workbench.action.openSettings', settingsQuery(section));
-}
+import { openExtensionSettings } from './settingsSections';
 
 /**
  * Регистрирует команды помощи и открытия настроек.
@@ -58,45 +49,25 @@ export function registerHelpAndSettingsCommands(): vscode.Disposable[] {
 		}
 	);
 
-	const settingsCommand = vscode.commands.registerCommand(
-		'1c-platform-tools.settings.open',
-		async () => {
-			const choice = await vscode.window.showQuickPick(
-				SETTINGS_SECTIONS.map((section) => ({
-					label: `$(${section.icon}) ${section.label}`,
-					detail: section.detail,
-					id: section.id,
-				})),
-				{ placeHolder: 'Раздел настроек' }
-			);
-			if (choice) {
-				await openSettings(choice.id);
-			}
-		}
-	);
+	/** Шестерёнка любой панели открывает один и тот же список настроек расширения. */
+	const registerSettingsCommand = (commandId: string): vscode.Disposable =>
+		vscode.commands.registerCommand(commandId, () => openExtensionSettings());
 
-	/** Команда открытия настроек конкретного раздела. */
-	const registerSectionCommand = (commandId: string, section: SettingsSection['id']): vscode.Disposable =>
-		vscode.commands.registerCommand(commandId, () => openSettings(section));
-
-	const settingsOpenProjectsCommand = registerSectionCommand('1c-platform-tools.settings.openProjects', 'projects');
-	const settingsOpenToolsCommand = registerSectionCommand('1c-platform-tools.settings.openTools', 'all');
-	const settingsOpenTodoCommand = registerSectionCommand('1c-platform-tools.settings.openTodo', 'todo');
-	const settingsOpenArtifactsCommand = registerSectionCommand('1c-platform-tools.settings.openArtifacts', 'artifacts');
-	const settingsOpenMetadataCommand = registerSectionCommand('1c-platform-tools.settings.openMetadata', 'metadata');
-	const settingsOpenIpcCommand = registerSectionCommand('1c-platform-tools.settings.openIpc', 'ipc');
+	const settingsOpenProjectsCommand = registerSettingsCommand('1c-platform-tools.projects.openSettings');
+	const settingsOpenToolsCommand = registerSettingsCommand('1c-platform-tools.tools.openSettings');
+	const settingsOpenTodoCommand = registerSettingsCommand('1c-platform-tools.todo.openSettings');
+	const settingsOpenArtifactsCommand = registerSettingsCommand('1c-platform-tools.artifacts.openSettings');
+	const settingsOpenMetadataCommand = registerSettingsCommand('1c-platform-tools.metadata.openSettings');
 
 	return [
 		openCreateIssueCommand,
 		openDocsCommand,
 		openWriteReviewCommand,
 		openSponsorCommand,
-		settingsCommand,
 		settingsOpenProjectsCommand,
 		settingsOpenToolsCommand,
 		settingsOpenTodoCommand,
 		settingsOpenArtifactsCommand,
 		settingsOpenMetadataCommand,
-		settingsOpenIpcCommand,
 	];
 }

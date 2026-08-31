@@ -69,12 +69,13 @@ suite('заголовки команд', () => {
 		}
 	});
 
-	test('категории записаны латинской «C» в префиксе', () => {
+	test('категории записаны кириллической «С» в префиксе', () => {
+		// Палитру ищут кириллицей: «1С Метаданные» набирается без смены раскладки
 		for (const command of contributes().commands) {
 			if (command.category) {
 				assert.ok(
-					command.category.startsWith('1C: '),
-					`категория «${command.category}» у ${command.command} записана не латиницей`
+					command.category.startsWith('1С: '),
+					`категория «${command.category}» у ${command.command} записана не кириллицей`
 				);
 			}
 		}

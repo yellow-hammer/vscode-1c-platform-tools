@@ -40,13 +40,13 @@ suite('agentCommandDescriptions', () => {
 	test('описание объясняет действие, а не повторяет имя команды', () => {
 		for (const [id, description] of Object.entries(AGENT_COMMAND_DESCRIPTIONS)) {
 			assert.ok(description.title.length > 10, `слишком короткое описание у ${id}`);
-			assert.ok(description.category.startsWith('1C: '), `категория без префикса у ${id}`);
+			assert.ok(description.category.startsWith('1С: '), `категория без префикса у ${id}`);
 			assert.ok(!description.title.includes('1c-platform-tools'), `описание ${id} содержит идентификатор`);
 		}
 	});
 
 	test('команды без описания обходятся заголовком из package.json', () => {
-		assert.strictEqual(agentCommandDescription('1c-platform-tools.server.start'), undefined);
+		assert.strictEqual(agentCommandDescription('1c-platform-tools.infobase.create'), undefined);
 		assert.ok(agentCommandDescription('1c-platform-tools.test.xunit'));
 	});
 

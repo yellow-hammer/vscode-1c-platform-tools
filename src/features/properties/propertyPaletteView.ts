@@ -10,7 +10,7 @@
 
 import * as vscode from 'vscode';
 
-export const PROPERTY_PALETTE_VIEW_ID = '1c-platform-tools-properties';
+export const PROPERTY_PALETTE_VIEW_ID = '1c-platform-tools-properties-palette';
 
 /** Вид редактора значения. */
 export type PropertyControlKind = 'text' | 'multiline' | 'number' | 'boolean' | 'select' | 'reference';

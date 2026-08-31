@@ -33,7 +33,7 @@ export function showStatusBar(
 
 	if (!statusItem) {
 		statusItem = vscode.window.createStatusBarItem('1c-platform-tools.projects.statusBar', vscode.StatusBarAlignment.Left);
-		statusItem.name = 'Проекты 1С';
+		statusItem.name = '1С: Проекты';
 	}
 
 	statusItem.tooltip = currentPath;

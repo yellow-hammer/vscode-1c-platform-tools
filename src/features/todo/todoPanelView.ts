@@ -1,5 +1,5 @@
 /**
- * Панель «Список дел 1С» в нижней части окна.
+ * Панель «1С: Список дел» в нижней части окна.
  * TreeDataProvider с группировкой по файлу, фильтрами по тегу и области.
  * @module todoPanelView
  */
@@ -69,7 +69,7 @@ export function isTodoEntryNode(node: TodoNode | undefined): node is { kind: 'en
 }
 
 /**
- * Провайдер дерева панели «Список дел 1С».
+ * Провайдер дерева панели «1С: Список дел».
  * Хранит кэш отсканированных записей, применяет фильтры по тегам и области, строит узлы с группировкой по файлу или плоский список.
  */
 export class TodoPanelTreeDataProvider implements vscode.TreeDataProvider<TodoNode> {
@@ -97,7 +97,7 @@ export class TodoPanelTreeDataProvider implements vscode.TreeDataProvider<TodoNo
 
 	private _updateViewTitle(): void {
 		if (this._treeView) {
-			this._treeView.title = 'Список дел 1С';
+			this._treeView.title = 'Список дел';
 		}
 	}
 

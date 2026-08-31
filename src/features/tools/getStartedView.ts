@@ -432,10 +432,10 @@ export function openGetStartedWalkthrough(
 	void openBuiltinWalkthroughWithFallback(context, scheduleDelayMs);
 }
 
-/** Регистрирует команду `1c-platform-tools.getStarted.open`. */
+/** Регистрирует команду `1c-platform-tools.help.openGetStarted`. */
 export function registerGetStarted(context: vscode.ExtensionContext): void {
 	context.subscriptions.push(
-		vscode.commands.registerCommand('1c-platform-tools.getStarted.open', () => {
+		vscode.commands.registerCommand('1c-platform-tools.help.openGetStarted', () => {
 			openGetStartedWalkthrough(context);
 		})
 	);

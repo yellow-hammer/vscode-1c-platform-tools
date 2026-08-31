@@ -250,7 +250,7 @@ export function getBuildConfigurationCommandName(): CommandNameAndTitle {
  */
 export function getBuildExternalProcessorCommandName(): CommandNameAndTitle {
 	return {
-		id: '1c-platform-tools.artifacts.buildProcessor',
+		id: '1c-platform-tools.artifacts.compileProcessor',
 		name: 'Собрать внешнюю обработку',
 		title: 'Собрать внешнюю обработку'
 	};
@@ -261,7 +261,7 @@ export function getBuildExternalProcessorCommandName(): CommandNameAndTitle {
  */
 export function getBuildExternalReportCommandName(): CommandNameAndTitle {
 	return {
-		id: '1c-platform-tools.artifacts.buildReport',
+		id: '1c-platform-tools.artifacts.compileReport',
 		name: 'Собрать внешний отчёт',
 		title: 'Собрать внешний отчёт'
 	};
@@ -360,7 +360,7 @@ export function getXUnitTestsCommandName(): CommandNameAndTitle {
  */
 export function getSyntaxCheckCommandName(): CommandNameAndTitle {
 	return {
-		id: '1c-platform-tools.test.syntaxCheck',
+		id: '1c-platform-tools.syntaxCheck.run',
 		name: 'Синтаксический контроль',
 		title: 'Синтаксический контроль'
 	};
@@ -411,7 +411,7 @@ export function getYAxUnitTestsCommandName(): CommandNameAndTitle {
  */
 export function getBuildTestEpfCommandName(): CommandNameAndTitle {
 	return {
-		id: '1c-platform-tools.test.buildEpf',
+		id: '1c-platform-tools.test.compileEpf',
 		name: 'Собрать unit-тесты',
 		title: 'Собрать unit-тесты'
 	};
@@ -599,9 +599,9 @@ export function getBuildExtensionCommandName(): CommandNameAndTitle {
  */
 export function getSetVersionConfigurationCommandName(): CommandNameAndTitle {
 	return {
-		id: '1c-platform-tools.setVersion.configuration',
+		id: '1c-platform-tools.cf.setVersion',
 		name: 'Конфигурацию',
-		title: 'Конфигурацию'
+		title: 'Установить версию'
 	};
 }
 
@@ -610,9 +610,9 @@ export function getSetVersionConfigurationCommandName(): CommandNameAndTitle {
  */
 export function getSetVersionExtensionCommandName(): CommandNameAndTitle {
 	return {
-		id: '1c-platform-tools.setVersion.extension',
+		id: '1c-platform-tools.cfe.setVersion',
 		name: 'Расширение',
-		title: 'Расширение'
+		title: 'Установить версию'
 	};
 }
 
@@ -622,7 +622,7 @@ export function getSetVersionExtensionCommandName(): CommandNameAndTitle {
  */
 export function getSetVersionReportCommandName(reportName: string): CommandNameAndTitle {
 	return {
-		id: '1c-platform-tools.setVersion.report',
+		id: '1c-platform-tools.epf.setVersionReport',
 		name: reportName,
 		title: reportName
 	};
@@ -634,7 +634,7 @@ export function getSetVersionReportCommandName(reportName: string): CommandNameA
  */
 export function getSetVersionProcessorCommandName(processorName: string): CommandNameAndTitle {
 	return {
-		id: '1c-platform-tools.setVersion.processor',
+		id: '1c-platform-tools.epf.setVersionProcessor',
 		name: processorName,
 		title: processorName
 	};
@@ -661,8 +661,8 @@ export function getUpdateCfgSupportCommandName(): CommandNameAndTitle {
 export function getDisableCfgSupportCommandName(): CommandNameAndTitle {
 	return {
 		id: '1c-platform-tools.support.disableCfgSupport',
-		name: 'Удалить',
-		title: 'Удалить'
+		name: 'Снять с поддержки',
+		title: 'Снять'
 	};
 }
 
@@ -774,7 +774,7 @@ export function getLoadTestExtensionsCommandName(): CommandNameAndTitle {
  */
 export function getBuildTestExtensionsCommandName(): CommandNameAndTitle {
 	return {
-		id: '1c-platform-tools.test.buildExtensions',
+		id: '1c-platform-tools.test.compileExtensions',
 		name: 'Собрать тестовые расширения',
 		title: 'Собрать тестовые расширения'
 	};

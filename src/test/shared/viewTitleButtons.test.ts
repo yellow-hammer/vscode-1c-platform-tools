@@ -25,9 +25,30 @@ const GROUP_BY_ICON = new Map<string, number>([
 	['$(refresh)', 30],
 ]);
 
+/**
+ * Слово категории в нижнем регистре: палитра показывает «категория: заголовок»,
+ * поэтому объект, названный категорией, в заголовке не повторяется.
+ */
+const CATEGORY_STEMS = new Map<string, string>([
+	['1С: Метаданные', 'метаданн'],
+	['1С: Кластеры', 'кластер'],
+	['1С: Администрирование', 'администрирован'],
+	['1С: Список дел', 'список дел'],
+	['1С: Артефакты', 'артефакт'],
+	['1С: Проекты', 'проектов'],
+	['1С: Инструменты', 'инструмент'],
+]);
+
+/** Кнопки, которым повтор нужен, с причиной. */
+const CATEGORY_IN_TITLE_ALLOWED = new Set([
+	// Кнопка стоит в заголовке панели инструментов: там подпись без объекта не читается
+	'1c-platform-tools.todo.showPanel',
+]);
+
 interface Contributed {
 	command: string;
 	title: string;
+	category?: string;
 	icon?: string | Record<string, string>;
 }
 
@@ -92,12 +113,47 @@ suite('кнопки в заголовках панелей', () => {
 		assert.deepStrictEqual(without, [], `кнопки без значка: ${without.join(', ')}`);
 	});
 
-	test('подпись называет объект действия', () => {
-		// «Обновить» без объекта в палитре не отличить от других обновлений
-		const bare = titleButtons()
-			.map(({ command }) => command)
-			.filter((command) => ['Обновить', 'Настройки', 'Создать', 'Сбросить'].includes(command.title.trim()))
-			.map((command) => command.command);
-		assert.deepStrictEqual(bare, [], `подписи без объекта: ${bare.join(', ')}`);
+	test('подпись не повторяет категорию', () => {
+		const stuttering: string[] = [];
+		for (const { command } of titleButtons()) {
+			const stem = command.category ? CATEGORY_STEMS.get(command.category) : undefined;
+			if (!stem || CATEGORY_IN_TITLE_ALLOWED.has(command.command)) {
+				continue;
+			}
+			if (command.title.toLowerCase().includes(stem)) {
+				stuttering.push(`${command.command}: «${command.category}: ${command.title}»`);
+			}
+		}
+		assert.deepStrictEqual(
+			stuttering,
+			[],
+			`палитра показывает «категория: заголовок», объект назван дважды:\n${stuttering.join('\n')}`
+		);
+	});
+
+	test('словарь категорий не разъехался с манифестом', () => {
+		// Опечатка в ключе молча выключила бы проверку повтора для всей категории
+		const declared = new Set(
+			manifest()
+				.contributes.commands.map((command) => command.category)
+				.filter((category): category is string => Boolean(category))
+		);
+		const stale = [...CATEGORY_STEMS.keys()].filter((category) => !declared.has(category));
+		assert.deepStrictEqual(stale, [], `категорий нет в манифесте: ${stale.join(', ')}`);
+	});
+
+	test('список разрешённых повторов не протух', () => {
+		const byId = new Map(manifest().contributes.commands.map((command) => [command.command, command]));
+		const stale: string[] = [];
+		for (const id of CATEGORY_IN_TITLE_ALLOWED) {
+			const command = byId.get(id);
+			const stem = command?.category ? CATEGORY_STEMS.get(command.category) : undefined;
+			if (!command) {
+				stale.push(`${id}: команды нет в манифесте`);
+			} else if (!stem || !command.title.toLowerCase().includes(stem)) {
+				stale.push(`${id}: заголовок уже не повторяет категорию`);
+			}
+		}
+		assert.deepStrictEqual(stale, [], `список разрешённых повторов устарел:\n${stale.join('\n')}`);
 	});
 });

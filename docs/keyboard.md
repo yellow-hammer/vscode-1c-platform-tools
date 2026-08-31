@@ -12,12 +12,12 @@
 
 | Сочетание | Панель |
 | --- | --- |
-| <kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>1</kbd> | Проекты 1С |
-| <kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>2</kbd> | Администрирование 1С |
-| <kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>3</kbd> | Инструменты 1С |
-| <kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>4</kbd> | Метаданные 1С |
-| <kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>5</kbd> | Свойства 1С |
-| <kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>6</kbd> | Список дел 1С |
+| <kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>1</kbd> | 1С: Проекты |
+| <kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>2</kbd> | 1С: Администрирование |
+| <kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>3</kbd> | 1С: Инструменты |
+| <kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>4</kbd> | 1С: Метаданные |
+| <kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>5</kbd> | 1С: Свойства |
+| <kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>6</kbd> | 1С: Список дел |
 
 На macOS вместо <kbd>Ctrl</kbd> — <kbd>Cmd</kbd>.
 
@@ -26,7 +26,7 @@
 | Сочетание | Команда | В конфигураторе |
 | --- | --- | --- |
 | <kbd>Ctrl</kbd>+<kbd>F7</kbd> | Синтаксический контроль | то же сочетание |
-| <kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>P</kbd> | Открыть список проектов 1С | — |
+| <kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>P</kbd> | Открыть список проектов | — |
 | <kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>T</kbd> | Показать в дереве метаданных | — |
 | <kbd>Ctrl</kbd>+<kbd>S</kbd> | Сохранить изменения формы | — |
 

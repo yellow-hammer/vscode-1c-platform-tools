@@ -51,7 +51,7 @@
 
 1. В `devcontainer.json` подключите Docker: feature `docker-in-docker` (или `docker-outside-of-docker`).
 2. Авторизуйтесь в своём registry (`docker login`) и укажите образ в `1c-platform-tools.docker.image`.
-3. Включите `1c-platform-tools.docker.enabled` — команды дерева **Инструменты 1С** будут выполняться в контейнере внутри Codespace.
+3. Включите `1c-platform-tools.docker.enabled` — команды дерева **1С: Инструменты** будут выполняться в контейнере внутри Codespace.
 
 ### Загрузка компонентов
 

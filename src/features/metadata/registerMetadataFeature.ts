@@ -62,7 +62,7 @@ export interface RegisterMetadataFeatureParams {
 }
 
 /**
- * Регистрирует команды и runtime-обработчики фичи «Метаданные 1С».
+ * Регистрирует команды и runtime-обработчики фичи «1С: Метаданные».
  */
 export function registerMetadataFeature(
 	params: RegisterMetadataFeatureParams
@@ -895,16 +895,20 @@ export function registerMetadataFeature(
 		vscode.commands.registerCommand('1c-platform-tools.metadata.filters.collapseAll', () => {
 			metadataFilterProvider.collapseAll();
 		}),
-		vscode.commands.registerCommand('1c-platform-tools.metadata.addDocument', async () => {
-			await vscode.commands.executeCommand('1c-platform-tools.metadata.addMdObject', 'DOCUMENT');
-		}),
 		vscode.commands.registerCommand(
-			'1c-platform-tools.metadata.addMdObject',
+			'1c-platform-tools.metadata.addObject',
 			async (...commandArgs: unknown[]) => {
+				const sourceKind = parseExternalArtifactSourceKindFromArgs(commandArgs);
+				if (sourceKind) {
+					await runMdSparrowMutation(async () => {
+						await addExternalArtifact(sourceKind);
+					});
+					return;
+				}
 				await runMdSparrowMutation(async () => {
 					const kind = parseMdBoilerplateKindFromCommandArgs(commandArgs);
 					if (!kind) {
-						void vscode.window.showErrorMessage('Не указан вид метаданных.');
+						void vscode.window.showInformationMessage('Выберите группу метаданных для добавления.');
 						return;
 					}
 					const paths = resolveCfPathsFromMetadataTree();
@@ -954,33 +958,6 @@ export function registerMetadataFeature(
 						void vscode.window.showErrorMessage(msg.slice(0, MD_SPARROW_CLI_ERR_PREVIEW));
 					}
 				});
-			}
-		),
-		vscode.commands.registerCommand(
-			'1c-platform-tools.metadata.createObject',
-			async (...commandArgs: unknown[]) => {
-				const sourceKind = parseExternalArtifactSourceKindFromArgs(commandArgs);
-				if (sourceKind === 'externalErf') {
-					await runMdSparrowMutation(async () => {
-						await addExternalArtifact('externalErf');
-					});
-					return;
-				}
-				if (sourceKind === 'externalEpf') {
-					await runMdSparrowMutation(async () => {
-						await addExternalArtifact('externalEpf');
-					});
-					return;
-				}
-				const kind = parseMdBoilerplateKindFromCommandArgs(commandArgs);
-				if (!kind) {
-					void vscode.window.showInformationMessage('Выберите группу метаданных для добавления.');
-					return;
-				}
-				await vscode.commands.executeCommand(
-					'1c-platform-tools.metadata.addMdObject',
-					kind
-				);
 			}
 		),
 		vscode.commands.registerCommand(

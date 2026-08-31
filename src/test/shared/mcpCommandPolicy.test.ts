@@ -4,7 +4,7 @@ import { isCommandExposedToMcp, commandSupportsWait } from '../../shared/mcpComm
 suite('mcpCommandPolicy', () => {
 	test('чужие команды VS Code агенту не публикуются', () => {
 		assert.strictEqual(isCommandExposedToMcp('workbench.action.files.save'), false);
-		assert.strictEqual(isCommandExposedToMcp('debug.debugTargets.connect'), false);
+		assert.strictEqual(isCommandExposedToMcp('1c-platform-tools.debug.connectTarget'), false);
 	});
 
 	test('рабочие команды публикуются', () => {
@@ -28,16 +28,16 @@ suite('mcpCommandPolicy', () => {
 	test('интерактивные мастера и навигация скрыты', () => {
 		for (const id of [
 			'1c-platform-tools.help.openCreateIssue',
-			'1c-platform-tools.getStarted.open',
-			'1c-platform-tools.settings.open',
+			'1c-platform-tools.help.openGetStarted',
+			'1c-platform-tools.tools.openSettings',
 			'1c-platform-tools.tools.refresh',
 			'1c-platform-tools.mcp.configureCursor',
 			'1c-platform-tools.metadata.openViewer',
 			'1c-platform-tools.env.createProfile',
 			'1c-platform-tools.env.setOverrides',
 			'1c-platform-tools.projects.create',
-			'1c-platform-tools.ibases.list',
-			'1c-platform-tools.ibases.launchEnterprise',
+			'1c-platform-tools.infobaseList.open',
+			'1c-platform-tools.infobaseList.launchEnterprise',
 		]) {
 			assert.strictEqual(isCommandExposedToMcp(id), false, id);
 		}
@@ -47,7 +47,7 @@ suite('mcpCommandPolicy', () => {
 		for (const id of [
 			'1c-platform-tools.cf.load',
 			'1c-platform-tools.infobase.updateDb',
-			'1c-platform-tools.test.syntaxCheck',
+			'1c-platform-tools.syntaxCheck.run',
 			'1c-platform-tools.cfe.compile',
 			'1c-platform-tools.env.selectProfile',
 			'1c-platform-tools.env.clearOverrides',
@@ -63,8 +63,8 @@ suite('mcpCommandPolicy', () => {
 			'1c-platform-tools.debug.measure.start',
 			'1c-platform-tools.dependencies.install',
 			'1c-platform-tools.syntaxCheck.refresh',
-			'1c-platform-tools.launch.run',
-			'1c-platform-tools.oscript.run',
+			'1c-platform-tools.tasks.run',
+			'1c-platform-tools.tasks.runOscript',
 			'1c-platform-tools.components.update',
 		]) {
 			assert.strictEqual(commandSupportsWait(id), false, id);

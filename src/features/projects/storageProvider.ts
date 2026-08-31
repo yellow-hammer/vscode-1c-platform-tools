@@ -140,7 +140,7 @@ export class StorageProvider implements vscode.TreeDataProvider<ProjectNode | Ta
 				detail: dupes.has(e.label.toLowerCase()) ? path.basename(path.dirname(fullPath)) : undefined,
 				tags: proj?.tags,
 			}, {
-				command: '1c-platform-tools.projects._open',
+				command: '1c-platform-tools.projects.open',
 				title: '',
 				arguments: [fullPath, e.label],
 			});

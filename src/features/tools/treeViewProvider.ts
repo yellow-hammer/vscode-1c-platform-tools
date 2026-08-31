@@ -19,7 +19,7 @@ import { commandTitle } from '../../shared/commandCatalog';
 import type { SetVersionCommands } from '../../commands/setVersionCommands';
 import { getFavorites, type FavoriteEntry } from './favorites';
 import { getHiddenToolGroups } from './toolsGroupVisibility';
-import { TREE_GROUPS } from './treeStructure';
+import { TREE_GROUPS, treeCommandLabel } from './treeStructure';
 
 /** Ключ в globalState для сохранения состояния раскрытия групп дерева (кроме «Избранное») */
 export const TREE_GROUP_EXPANDED_STATE_KEY = '1c-platform-tools.treeGroupExpanded';
@@ -318,7 +318,10 @@ export class PlatformTreeDataProvider implements vscode.TreeDataProvider<Platfor
 			return undefined;
 		}
 		const favoriteItems = favorites.map((entry) => {
-			const label = entry.groupLabel ? `${entry.groupLabel} › ${entry.title}` : entry.title;
+			// Подпись берётся из структуры дерева: у команды с параметрами её нет,
+			// там заголовок записи и есть имя выбранного объекта
+			const title = (entry.arguments ? undefined : treeCommandLabel(entry.command)) ?? entry.title;
+			const label = entry.groupLabel ? `${entry.groupLabel} › ${title}` : title;
 			const iconType = this.sectionTypeToIconType(entry.sectionType);
 			return this.createTreeItem(
 				label,
@@ -549,7 +552,7 @@ export class PlatformTreeDataProvider implements vscode.TreeDataProvider<Platfor
 		}
 
 		// Группа «Помощь и поддержка» вынесена в отдельную плашку (view
-		// 1c-platform-tools-help), данные даёт HelpAndSupportProvider.
+		// 1c-platform-tools-tools-help), данные даёт HelpAndSupportProvider.
 
 		const favorites = this.extensionContext ? getFavorites(this.extensionContext) : [];
 		const favoritesRoot = this.createFavoritesRootItem(favorites);
@@ -567,7 +570,7 @@ export class PlatformTreeDataProvider implements vscode.TreeDataProvider<Platfor
 				TreeItemType.Task,
 				vscode.TreeItemCollapsibleState.None,
 				{
-					command: '1c-platform-tools.launch.edit',
+					command: '1c-platform-tools.tasks.edit',
 					title: 'Добавить задачу',
 				}
 			),
@@ -582,7 +585,7 @@ export class PlatformTreeDataProvider implements vscode.TreeDataProvider<Platfor
 						TreeItemType.Launch,
 						vscode.TreeItemCollapsibleState.None,
 						{
-							command: '1c-platform-tools.launch.run',
+							command: '1c-platform-tools.tasks.run',
 							title: 'Запустить задачу workspace',
 							arguments: [task.label],
 						}
@@ -598,7 +601,7 @@ export class PlatformTreeDataProvider implements vscode.TreeDataProvider<Platfor
 						TreeItemType.Launch,
 						vscode.TreeItemCollapsibleState.None,
 						{
-							command: '1c-platform-tools.launch.run',
+							command: '1c-platform-tools.tasks.run',
 							title: 'Запустить конфигурацию',
 							arguments: [config.name],
 						}
@@ -734,7 +737,7 @@ export class PlatformTreeDataProvider implements vscode.TreeDataProvider<Platfor
 				TreeItemType.Task,
 				vscode.TreeItemCollapsibleState.None,
 				{
-					command: '1c-platform-tools.oscript.addTask',
+					command: '1c-platform-tools.tasks.addOscript',
 					title: 'Добавить задачу',
 				}
 			),
@@ -749,7 +752,7 @@ export class PlatformTreeDataProvider implements vscode.TreeDataProvider<Platfor
 						TreeItemType.Launch,
 						vscode.TreeItemCollapsibleState.None,
 						{
-							command: '1c-platform-tools.oscript.run',
+							command: '1c-platform-tools.tasks.runOscript',
 							title: 'Запустить задачу oscript',
 							arguments: [task.name],
 						}
@@ -805,7 +808,7 @@ export class PlatformTreeDataProvider implements vscode.TreeDataProvider<Platfor
 					TreeItemType.Task,
 					vscode.TreeItemCollapsibleState.None,
 					{
-						command: '1c-platform-tools.setVersion.report',
+						command: '1c-platform-tools.epf.setVersionReport',
 						title: getSetVersionReportCommandName(name).title,
 						arguments: [name],
 					}
@@ -848,7 +851,7 @@ export class PlatformTreeDataProvider implements vscode.TreeDataProvider<Platfor
 					TreeItemType.Task,
 					vscode.TreeItemCollapsibleState.None,
 					{
-						command: '1c-platform-tools.setVersion.processor',
+						command: '1c-platform-tools.epf.setVersionProcessor',
 						title: getSetVersionProcessorCommandName(name).title,
 						arguments: [name],
 					}

@@ -18,7 +18,6 @@ const REGISTERED_WITHOUT_DECLARATION = new Set([
 	'1c-platform-tools.epf.run',
 	'1c-platform-tools.server.statusBarRefresh',
 	'1c-platform-tools.serviceFiles.ensure',
-	'1c-platform-tools.settings.openIpc',
 	'1c-platform-tools.todo.openLocation',
 ]);
 
@@ -100,8 +99,8 @@ suite('манифест команд', () => {
 			[
 				'1c-platform-tools.test.loadExtensions',
 				'1c-platform-tools.test.dumpExtensions',
-				'1c-platform-tools.test.buildExtensions',
-				'1c-platform-tools.test.buildEpf',
+				'1c-platform-tools.test.compileExtensions',
+				'1c-platform-tools.test.compileEpf',
 				'1c-platform-tools.test.decompileExtensions',
 				'1c-platform-tools.test.decompileEpf',
 			],

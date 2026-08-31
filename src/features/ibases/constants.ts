@@ -3,4 +3,4 @@
  */
 
 /** Представление со списком баз из v8i. */
-export const IBASES_VIEW_ID = '1c-platform-tools-infobases';
+export const IBASES_VIEW_ID = '1c-platform-tools-admin-infobases';
