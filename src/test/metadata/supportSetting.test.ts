@@ -22,14 +22,14 @@ function configurationSections(): ConfigurationSection[] {
 }
 
 suite('Настройка работы с поддержкой', () => {
-	test('лежит в разделе метаданных и по умолчанию выключена', () => {
-		// Выключенная настройка означает: выгрузка правится так, будто поставки нет
+	test('лежит в разделе метаданных и по умолчанию включена', () => {
+		// Выключают её, чтобы править выгрузку так, будто поставки нет
 		const section = configurationSections().find((item) => item.properties?.[SUPPORT_KEY]);
 		assert.ok(section, `настройки ${SUPPORT_KEY} нет в package.json`);
 		assert.strictEqual(section.title, 'Метаданные');
 		const setting = section.properties?.[SUPPORT_KEY];
 		assert.strictEqual(setting?.type, 'boolean');
-		assert.strictEqual(setting?.default, false);
+		assert.strictEqual(setting?.default, true);
 		assert.ok((setting?.description ?? '').length > 0, 'у настройки нет описания');
 	});
 });

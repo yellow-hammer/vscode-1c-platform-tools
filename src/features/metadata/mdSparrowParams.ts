@@ -166,13 +166,13 @@ export interface MdSparrowParams {
 }
 
 /**
- * Учитывать ли поддержку поставщика: настройка расширения, по умолчанию выключена.
+ * Учитывать ли поддержку поставщика: настройка расширения, по умолчанию включена.
  *
- * Пока она выключена, выгрузка правится так, будто поставки нет: библиотека не отказывает в
+ * Когда её выключают, выгрузка правится так, будто поставки нет: библиотека не отказывает в
  * правке запрещённых объектов, а дерево не показывает признаков поддержки.
  */
 export function supportEnabled(): boolean {
-	return vscode.workspace.getConfiguration('1c-platform-tools').get<boolean>('metadata.supportEnabled') === true;
+	return vscode.workspace.getConfiguration('1c-platform-tools').get<boolean>('metadata.supportEnabled') !== false;
 }
 
 /** Сквозной счётчик имён params-файлов: параллельные вызовы в одну миллисекунду не должны делить файл. */
