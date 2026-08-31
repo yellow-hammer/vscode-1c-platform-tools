@@ -429,25 +429,25 @@ function applyStatus(item: vscode.StatusBarItem, manager: PlatformServerManager)
 		case 'running':
 			// Янтарный фон (единственный «выделяющий» фон статус-бара) — явный признак,
 			// что сервер запущен. Цвет текста VS Code подберёт контрастный автоматически.
-			item.text = `$(broadcast) Сервер 1С${manager.port ? ` :${manager.port}` : ''}`;
+			item.text = `$(broadcast) 1С: Сервер${manager.port ? ` :${manager.port}` : ''}`;
 			item.tooltip = urls ? `Автономный сервер запущен\n${urls.root}` : 'Автономный сервер запущен';
 			item.color = undefined;
 			item.backgroundColor = new vscode.ThemeColor('statusBarItem.warningBackground');
 			break;
 		case 'starting':
-			item.text = '$(sync~spin) Сервер 1С…';
+			item.text = '$(sync~spin) 1С: Сервер…';
 			item.tooltip = 'Автономный сервер запускается';
 			item.color = undefined;
 			item.backgroundColor = undefined;
 			break;
 		case 'error':
-			item.text = '$(error) Сервер 1С';
-			item.tooltip = 'Ошибка автономного сервера — откройте журнал';
+			item.text = '$(error) 1С: Сервер';
+			item.tooltip = 'Ошибка автономного сервера, откройте журнал';
 			item.color = undefined;
 			item.backgroundColor = new vscode.ThemeColor('statusBarItem.errorBackground');
 			break;
 		default:
-			item.text = '$(server) Сервер 1С';
+			item.text = '$(server) 1С: Сервер';
 			item.tooltip = 'Автономный сервер остановлен';
 			item.color = undefined;
 			item.backgroundColor = undefined;
