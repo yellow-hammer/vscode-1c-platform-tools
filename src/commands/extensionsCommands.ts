@@ -1,7 +1,8 @@
 import * as vscode from 'vscode';
 import * as path from 'node:path';
 import * as fs from 'node:fs/promises';
-import { BaseCommand } from './baseCommand';
+import { BaseCommand, INFOBASE_BUSY } from './baseCommand';
+import type { VRunnerExecutionResult } from '../shared/vrunnerManager';
 import {
 	getLoadExtensionFromSrcCommandName,
 	getLoadExtensionFromCfeCommandName,
@@ -118,17 +119,9 @@ export class ExtensionsCommands extends BaseCommand {
 		const intents = await Promise.all(selectedFolders.map(async (folder) =>
 			buildIntent(folder, await resolveExtensionNameFromSrc(path.join(cfeRoot, folder)))
 		));
-		const steps = await this.vrunner.planIntents(intents, opts?.settingsFile);
-
-		if (opts?.wait === true) {
-			return this.runVRunnerSequential(steps, opts, commandName, commandId, true);
-		}
-
-		await this.vrunner.executeVRunnerCommandsInSequence(steps, {
-			cwd: workspaceRoot,
-			name: commandName,
-			appendOverrides: false,
-		});
+		// Через общий путь, а не своим планированием: он же освобождает базу
+		// на время команд конфигуратора и возвращает её после
+		return this.runIntentsSequential(intents, opts, commandName, commandId);
 	}
 
 	/**
@@ -306,32 +299,39 @@ export class ExtensionsCommands extends BaseCommand {
 		opts: CommandExecutionOptions | undefined
 	): Promise<{ names: string[] } | { error: string; level: 'info' | 'error' }> {
 		const ibConnectionParam = await this.vrunner.getIbConnectionParam();
-		const steps = await this.vrunner.planIntent(
-			{
-				kind: 'infobase.listExtensions',
-				json: true,
-				out: listRel,
-				common: ibConnectionParam
-			},
-			opts?.settingsFile,
-			opts?.ibConnection
-		);
+		const intent: VRunnerIntent = {
+			kind: 'infobase.listExtensions',
+			json: true,
+			out: listRel,
+			common: ibConnectionParam
+		};
+		const steps = await this.vrunner.planIntent(intent, opts?.settingsFile, opts?.ibConnection);
 		this.vrunner.consumePlanNotices();
 		if (steps.length !== 1) {
 			return { error: 'Не удалось прочитать список расширений из базы', level: 'error' };
 		}
 
+		const window = await this.openInfobaseWindow([intent], opts);
+		if (window === 'blocked') {
+			return { error: INFOBASE_BUSY, level: 'error' };
+		}
+
 		const run = () => this.vrunner.executeVRunner(steps[0], { cwd: workspaceRoot });
 
-		const result = opts?.wait === true
-			? await run()
-			: await vscode.window.withProgress(
-				{
-					location: vscode.ProgressLocation.Notification,
-					title: 'Читаю список расширений из базы'
-				},
-				run
-			);
+		let result: VRunnerExecutionResult;
+		try {
+			result = opts?.wait === true
+				? await run()
+				: await vscode.window.withProgress(
+					{
+						location: vscode.ProgressLocation.Notification,
+						title: 'Читаю список расширений из базы'
+					},
+					run
+				);
+		} finally {
+			await window.restore?.();
+		}
 
 		if (!result.success) {
 			log.error(
@@ -625,7 +625,7 @@ export class ExtensionsCommands extends BaseCommand {
 		}
 
 		const steps = await this.vrunner.planIntents(intents, opts?.settingsFile);
-		await this.vrunner.executeVRunnerCommandsInSequence(steps, {
+		await this.runPlanned(steps, intents, {
 			cwd: workspaceRoot,
 			name: commandName.title,
 			appendOverrides: false,
@@ -761,20 +761,13 @@ export class ExtensionsCommands extends BaseCommand {
 				? EPF_NAMES.LOAD_EXTENSION_V3
 				: EPF_NAMES.LOAD_EXTENSION
 		);
-		const steps = await this.vrunner.planIntents(selectedCfeFiles.map((cfeFile) => {
+		const intents = selectedCfeFiles.map((cfeFile) => {
 			const cfeFilePath = path.join(buildPath, BUILD_SUBDIRS.cfe, cfeFile);
 			const commandParam = EPF_COMMANDS.LOAD_EXTENSION(cfeFilePath);
 			return { kind: 'run.enterprise' as const, command: commandParam, execute: epfPath, common: ibConnectionParam };
-		}), opts?.settingsFile);
-
-		if (opts?.wait === true) {
-			return this.runVRunnerSequential(steps, opts, commandName.title, commandName.id, true);
-		}
-
-		await this.vrunner.executeVRunnerCommandsInSequence(steps, {
-			cwd,
-			name: commandName.title,
 		});
+
+		return this.runIntentsSequential(intents, opts, commandName.title, commandName.id);
 	}
 
 	/**
@@ -1120,7 +1113,7 @@ export class ExtensionsCommands extends BaseCommand {
 		const ibConnectionParam = await this.vrunner.getIbConnectionParam();
 		const commandName = getDecompileTestExtensionsCommandName();
 		const testsCfePath = this.vrunner.getTestsCfePath();
-		const steps = await this.vrunner.planIntents(await Promise.all(selectedCfeFiles.map(async (cfeFile) => {
+		const intents = await Promise.all(selectedCfeFiles.map(async (cfeFile) => {
 			const folderName = cfeFile.replace(/\.cfe$/i, '');
 			const extensionName = await resolveExtensionNameFromSrc(path.join(cwd, testsCfePath, folderName));
 			return {
@@ -1130,16 +1123,9 @@ export class ExtensionsCommands extends BaseCommand {
 				out: this.pathForCmd(path.join(testsCfePath, folderName)),
 				common: ibConnectionParam,
 			};
-		})), opts?.settingsFile);
+		}));
 
-		if (opts?.wait === true) {
-			return this.runVRunnerSequential(steps, opts, commandName.title, commandName.id, true);
-		}
-
-		await this.vrunner.executeVRunnerCommandsInSequence(steps, {
-			cwd,
-			name: commandName.title,
-		});
+		return this.runIntentsSequential(intents, opts, commandName.title, commandName.id);
 	}
 
 	/**
@@ -1216,7 +1202,7 @@ export class ExtensionsCommands extends BaseCommand {
 		const ibConnectionParam = await this.vrunner.getIbConnectionParam();
 		const commandName = getDecompileExtensionCommandName();
 		const cfePath = this.vrunner.getCfePath();
-		const steps = await this.vrunner.planIntents(await Promise.all(selectedCfeFiles.map(async (cfeFile) => {
+		const intents = await Promise.all(selectedCfeFiles.map(async (cfeFile) => {
 			const folderName = cfeFile.replace(/\.cfe$/i, '');
 			const extensionName = await resolveExtensionNameFromSrc(path.join(cwd, cfePath, folderName));
 			return {
@@ -1225,15 +1211,8 @@ export class ExtensionsCommands extends BaseCommand {
 				out: path.join(cfePath, folderName),
 				common: ibConnectionParam,
 			};
-		})), opts?.settingsFile);
+		}));
 
-		if (opts?.wait === true) {
-			return this.runVRunnerSequential(steps, opts, commandName.title, commandName.id, true);
-		}
-
-		await this.vrunner.executeVRunnerCommandsInSequence(steps, {
-			cwd,
-			name: commandName.title,
-		});
+		return this.runIntentsSequential(intents, opts, commandName.title, commandName.id);
 	}
 }

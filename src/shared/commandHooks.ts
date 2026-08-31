@@ -161,12 +161,16 @@ export interface TerminalHookOptions {
  * - Есть post/onError → выполняем pre, затем `runTracked()` с ожиданием exit code,
  *   затем post (exitCode === 0) или onError (exitCode !== 0).
  *
+ * `trackCompletion` включает ожидание и без хуков: вызывающему нужно знать, что
+ * команда закончилась (так возвращают базу держателю после монопольной команды).
+ *
  * pre с ненулевым кодом (без continueOnError) блокирует запуск и запускает onError.
  */
 export async function runHooksAroundTerminalTask(
 	opts: TerminalHookOptions & {
 		runTracked: () => Promise<number>;
 		runUntracked: () => void | Promise<void>;
+		trackCompletion?: boolean;
 	}
 ): Promise<void> {
 	const { commandId, cwd, args, workspaceRoot } = opts;
@@ -174,7 +178,7 @@ export async function runHooksAroundTerminalTask(
 	const entry = config ? resolveEntry(config, commandId) : undefined;
 
 	if (!entry) {
-		await opts.runUntracked();
+		await runBody(opts);
 		return;
 	}
 
@@ -194,7 +198,7 @@ export async function runHooksAroundTerminalTask(
 
 	// Без post/onError отслеживать завершение незачем — обычный запуск.
 	if (postSteps.length === 0 && onErrorSteps.length === 0) {
-		await opts.runUntracked();
+		await runBody(opts);
 		return;
 	}
 
@@ -206,6 +210,21 @@ export async function runHooksAroundTerminalTask(
 	} else if (onErrorSteps.length > 0) {
 		await runPhase(onErrorSteps, buildEnv(commandId, cwd, args, 'onError', exitCode), cwd, 'onError');
 	}
+}
+
+/**
+ * Запуск команды без хуков: с ожиданием завершения или без.
+ */
+async function runBody(opts: {
+	runTracked: () => Promise<number>;
+	runUntracked: () => void | Promise<void>;
+	trackCompletion?: boolean;
+}): Promise<void> {
+	if (opts.trackCompletion) {
+		await opts.runTracked();
+		return;
+	}
+	await opts.runUntracked();
 }
 
 

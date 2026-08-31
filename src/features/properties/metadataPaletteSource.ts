@@ -22,6 +22,7 @@ import type { MetadataEditTabSpec } from '../metadata/metadataObjectEditSpec';
 import {
 	ensureMdObjectKindLabels,
 	mdObjectKindLabel,
+	mdObjectKindLabels,
 	objectPaletteTabs,
 } from '../metadata/metadataObjectPropertiesPanel';
 import { ensureMdSparrowRuntime } from '../metadata/mdSparrowBootstrap';
@@ -30,9 +31,10 @@ import { mdSparrowSchemaFlagFromConfigurationXml } from '../metadata/mdSparrowSc
 import { logger } from '../../shared/logger';
 import { applyPaletteEdits, paletteGroupsFromSpec } from './propertyPaletteSpec';
 import { SOURCE_PROPERTIES_TABS } from './sourcePropertiesSpec';
-import { applyEnumDictionary } from '../metadata/metadataObjectEditSpec';
+import { PRIMITIVE_TYPES, applyEnumDictionary, refTypeName } from '../metadata/metadataObjectEditSpec';
 import {
 	applyChildNodeEdits,
+	type ChildNodeDto,
 	childNodeDtoList,
 	findTabularAttribute,
 	childNodeKindLabel,
@@ -119,12 +121,42 @@ function childOwnXmlPath(item: MetadataObjectNodeTreeItem): string | undefined {
 function findChildInObject(
 	dto: Record<string, unknown>,
 	child: { readonly nodeKind: string; readonly name: string; readonly tabularSection?: string }
-): Record<string, unknown> | undefined {
+): ChildNodeDto | undefined {
+	// Подписи видов нужны, чтобы тип показывался «Справочник: Валюты», а не cfg:CatalogRef.Валюты
+	const kindLabels = mdObjectKindLabels();
 	if (child.nodeKind === 'tabularAttribute') {
-		return child.tabularSection ? findTabularAttribute(dto, child.tabularSection, child.name) : undefined;
+		return child.tabularSection
+			? findTabularAttribute(dto, child.tabularSection, child.name, kindLabels)
+			: undefined;
 	}
 	const list = childNodeDtoList(child.nodeKind);
-	return list ? findChildNode(dto, list, child.name) : undefined;
+	return list ? findChildNode(dto, list, child.name, kindLabels) : undefined;
+}
+
+/**
+ * Кандидаты в тип узла: примитивы платформы и ссылочные типы конфигурации.
+ *
+ * Вид объекта подписывается словарём библиотеки, поэтому в списке не появляется
+ * служебное `cfg:CatalogRef.…`.
+ *
+ * @param refTypes - Ссылочные типы по видам объектов, как их отдал md-sparrow
+ * @returns Значения для списка выбора
+ */
+function childNodeTypeOptions(
+	refTypes: Record<string, unknown>
+): { value: string; label: string; hint?: string }[] {
+	const kindLabels = mdObjectKindLabels();
+	const options = PRIMITIVE_TYPES.map((option) => ({ value: option.value, label: option.label }));
+	for (const [objectType, types] of Object.entries(refTypes)) {
+		if (!Array.isArray(types)) {
+			continue;
+		}
+		const kind = kindLabels[objectType] ?? objectType;
+		for (const type of types) {
+			options.push({ value: String(type), label: `${kind}: ${refTypeName(String(type))}` });
+		}
+	}
+	return options;
 }
 
 /** Что выделено: чем читать свойства и чем их записывать. */
@@ -274,7 +306,8 @@ export function registerMetadataPaletteSource(params: MetadataPaletteSourceParam
 			propertyPaletteProvider.show(
 				PALETTE_OWNER,
 				shown,
-				editable ? (edits) => writeProperties(context, target, tabs, dto, schema, edits) : undefined
+				editable ? (edits) => writeProperties(context, target, tabs, dto, schema, edits) : undefined,
+				editable ? (edits) => previewProperties(context, target, edits) : undefined
 			);
 		} catch (e) {
 			if (mine !== generation) {
@@ -312,11 +345,15 @@ interface ReadResult {
 }
 
 /** Читает свойства и подбирает спеку: у объекта метаданных она зависит от вида и состава. */
-async function readProperties(context: vscode.ExtensionContext, target: PaletteTarget): Promise<ReadResult> {
+async function readProperties(
+	context: vscode.ExtensionContext,
+	target: PaletteTarget,
+	objectOverride?: Record<string, unknown>
+): Promise<ReadResult> {
 	const schema = await mdSparrowSchemaFlagFromConfigurationXml(target.schemaFrom);
 	const runtime = await ensureMdSparrowRuntime(context);
 	await ensureMdObjectKindLabels(runtime, target.cwd);
-	const dto = await readJson(runtime, target.readOp, target, schema);
+	const dto = objectOverride ?? (await readJson(runtime, target.readOp, target, schema));
 	if (target.readOp === 'cf-configuration-properties-get') {
 		// Ключи словаря перечислений идут с видом объекта, а пути полей конфигурации - без него.
 		const [enums, labels] = await Promise.all([
@@ -333,9 +370,26 @@ async function readProperties(context: vscode.ExtensionContext, target: PaletteT
 	}
 	if (target.child) {
 		const node = findChildInObject(dto, target.child);
+		// Варианты значений свойств палитры узла приходят словарём под ключами вида
+		// attribute.indexing: своего списка констант расширение не держит
+		const [enums, labels] = await Promise.all([
+			readJson(runtime, 'cf-md-object-enums', target, schema).catch(() => ({})),
+			readJson(runtime, 'cf-enum-labels', target, schema).catch(() => ({})),
+		]);
+		const forNode: Record<string, string[]> = {};
+		const prefix = `${target.child.nodeKind}.`;
+		for (const [key, values] of Object.entries(enums)) {
+			if (key.startsWith(prefix) && Array.isArray(values)) {
+				forNode[key.slice(prefix.length)] = values as string[];
+			}
+		}
+		// Кандидаты в тип: примитивы платформы и ссылочные типы конфигурации
+		const typeOptions = node?.typeSingle === undefined
+			? []
+			: childNodeTypeOptions(await readJson(runtime, 'cf-list-ref-types', target, schema).catch(() => ({})));
 		return {
 			dto: node ?? { name: target.child.name },
-			tabs: childNodeTabs(node !== undefined),
+			tabs: applyEnumDictionary(childNodeTabs(node !== undefined, node, typeOptions), forNode, labels),
 			schema,
 		};
 	}
@@ -359,14 +413,21 @@ async function readJson(
 			return cached;
 		}
 	}
-	const key = `${await fileKey(target.filePath)}|${op}`;
+	// Ссылочные типы принадлежат конфигурации целиком, а не файлу выделенного объекта
+	const forConfiguration = op === 'cf-list-ref-types';
+	const filePath = forConfiguration ? target.schemaFrom : target.filePath;
+	const key = `${await fileKey(filePath)}|${op}`;
 	const cached = readCache.get(key);
 	if (cached) {
 		return cached;
 	}
 	const result = await runMdSparrowParamsRead(
 		runtime,
-		{ op, [target.pathField]: target.filePath, schemaVersion: schema },
+		{
+			op,
+			[forConfiguration ? 'configurationXml' : target.pathField]: filePath,
+			schemaVersion: schema,
+		},
 		{ cwd: target.cwd }
 	);
 	if (result.exitCode !== 0) {
@@ -383,6 +444,30 @@ async function readJson(
 	}
 	readCache.set(key, json);
 	return json;
+}
+
+/**
+ * Пересобирает показ с черновиком правок, ничего не записывая.
+ *
+ * Нужно свойствам, от которых зависит состав строк: выбрали тип - под ним появились
+ * его квалификаторы, ещё до записи.
+ *
+ * @param context - Контекст расширения
+ * @param target - Что выделено
+ * @param edits - Черновик правок из палитры
+ * @returns Свойства с учётом черновика
+ */
+async function previewProperties(
+	context: vscode.ExtensionContext,
+	target: PaletteTarget,
+	edits: Readonly<Record<string, string>>
+): Promise<PropertyPaletteState | undefined> {
+	if (!target.child) {
+		return undefined;
+	}
+	const withEdits = await childObjectDto(context, target, edits);
+	const fresh = await readProperties(context, target, withEdits);
+	return state(target, fresh.tabs, fresh.dto);
 }
 
 /** Пишет правки той же операцией, что и панель-вкладка, и отдаёт свойства из перечитанного файла. */

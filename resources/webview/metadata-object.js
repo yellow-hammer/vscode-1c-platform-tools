@@ -1780,15 +1780,15 @@
 		return PRIMITIVE_TYPES.some((option) => option.value === type) ? type : '';
 	}
 
-	/** Ссылочный и составной тип панель пока только показывает: правит их пикер типов. */
-	function typeSummary(value) {
-		if (!value || !Array.isArray(value.types) || value.types.length === 0) {
-			return '(не задан)';
-		}
-		if (value.types.length > 1) {
-			return `Составной тип (${value.types.length})`;
-		}
-		return value.types[0];
+	/** Типы значения списком: пусто - платформа такого не примет, о чём и говорим. */
+	function typesOf(value) {
+		return value && Array.isArray(value.types) ? value.types.filter((item) => typeof item === 'string') : [];
+	}
+
+	/** Подпись типа: примитивы по-русски, ссылочные без служебного префикса. */
+	function typeLabel(type) {
+		const primitive = PRIMITIVE_TYPES.find((option) => option.value === type);
+		return primitive ? primitive.label : String(type).replace(/^cfg:/, '');
 	}
 
 	function typeQualifierRows(field, value, type, disabled) {
@@ -1851,21 +1851,59 @@
 	}
 
 	function typeControlHtml(field, value, disabled) {
-		const type = primitiveTypeOf(value);
-		if (!type) {
-			// Ссылочный или составной тип: показываем как есть, менять пока нечем.
-			return `<div class="type-control"><span class="type-summary" title="${escapeHtml(
-				(value && Array.isArray(value.types) ? value.types : []).join(', ')
-			)}">${escapeHtml(typeSummary(value))}</span></div>`;
-		}
-		const options = PRIMITIVE_TYPES.map(
-			(option) =>
-				`<option value="${option.value}"${option.value === type ? ' selected' : ''}>${escapeHtml(option.label)}</option>`
-		).join('');
-		return `<div class="type-control">
+		const types = typesOf(value);
+		const single = primitiveTypeOf(value);
+		// Один примитив меняется списком на месте: так короче, чем плашка с добавлением
+		if (single && types.length === 1) {
+			const options = PRIMITIVE_TYPES.map(
+				(option) =>
+					`<option value="${option.value}"${option.value === single ? ' selected' : ''}>${escapeHtml(option.label)}</option>`
+			).join('');
+			return `<div class="type-control">
 				<select class="edit-input" data-type-path="${escapeHtml(field.path)}" data-type-primary="1"${disabled}>${options}</select>
-				${typeQualifierRows(field, value, type, disabled)}
+				${typeQualifierRows(field, value, single, disabled)}
+				${typeAddRowHtml(field, types, disabled)}
 			</div>`;
+		}
+		const chips = types.length === 0
+			? '<span class="edit-static-empty">(не задан)</span>'
+			: types
+					.map(function (type, index) {
+						const remove = disabled
+							? ''
+							: `<button type="button" class="edit-chip-remove" data-type-remove-path="${escapeHtml(
+									field.path
+								)}" data-type-remove-index="${index}" title="Убрать тип">✕</button>`;
+						return `<span class="edit-chip" title="${escapeHtml(type)}">${escapeHtml(typeLabel(type))}${remove}</span>`;
+					})
+					.join('');
+		const qualifiers = types
+			.filter((type) => TYPE_DEFAULT_QUALIFIERS[type])
+			.map((type) => typeQualifierRows(field, value, type, disabled))
+			.join('');
+		return `<div class="type-control">
+				<div class="edit-chips">${chips}</div>
+				${qualifiers}
+				${typeAddRowHtml(field, types, disabled)}
+			</div>`;
+	}
+
+	/**
+	 * Список добавления типа: кандидаты приходят от md-sparrow вместе со спекой,
+	 * поэтому без них строка не рисуется - выбирать было бы не из чего.
+	 */
+	function typeAddRowHtml(field, types, disabled) {
+		if (disabled || !Array.isArray(field.options) || field.options.length === 0) {
+			return '';
+		}
+		const chosen = new Set(types);
+		const options = field.options.filter((option) => !chosen.has(option.value));
+		if (options.length === 0) {
+			return '';
+		}
+		return `<div class="struct-add-row"><select class="edit-input" data-type-add-select="${escapeHtml(
+			field.path
+		)}"><option value="">+ Тип…</option>${refAddOptionsHtml(options)}</select></div>`;
 	}
 
 	function editControlHtml(field, index) {
@@ -2153,6 +2191,7 @@
 		}
 		bindRefListButtons(spec);
 		bindTypeInputs(spec);
+		bindTypeListControls(spec);
 	}
 
 	function bindTypeInputs(spec) {
@@ -2180,6 +2219,47 @@
 				const next = Object.assign({}, current);
 				next[qualifier] = Object.assign({}, next[qualifier] || {}, { [key]: input.value });
 				setPath(editedProps, path, next);
+				renderSaveBar();
+			});
+		}
+	}
+
+	/** Добавление и удаление типов: значение всегда остаётся списком, как в XML. */
+	function bindTypeListControls(spec) {
+		if (!contentRoot || !editedProps) {
+			return;
+		}
+		for (const btn of contentRoot.querySelectorAll('[data-type-remove-path]')) {
+			btn.addEventListener('click', function () {
+				const path = btn.getAttribute('data-type-remove-path');
+				const index = Number(btn.getAttribute('data-type-remove-index'));
+				const current = getPath(editedProps, path) || {};
+				const types = Array.isArray(current.types) ? current.types.slice() : [];
+				if (Number.isNaN(index) || types.length <= 1) {
+					// Последний тип не убираем: реквизит без типа платформа не примет
+					return;
+				}
+				types.splice(index, 1);
+				setPath(editedProps, path, Object.assign({}, current, { types: types }));
+				renderEditTab(spec.id);
+				renderSaveBar();
+			});
+		}
+		for (const select of contentRoot.querySelectorAll('[data-type-add-select]')) {
+			select.addEventListener('change', function () {
+				const path = select.getAttribute('data-type-add-select');
+				if (!select.value) {
+					return;
+				}
+				const current = getPath(editedProps, path) || {};
+				const types = Array.isArray(current.types) ? current.types.slice() : [];
+				if (types.indexOf(select.value) < 0) {
+					types.push(select.value);
+				}
+				// Квалификаторы нового примитива заводим такими же, как платформа
+				const next = Object.assign({}, current, { types: types }, TYPE_DEFAULT_QUALIFIERS[select.value] || {});
+				setPath(editedProps, path, next);
+				renderEditTab(spec.id);
 				renderSaveBar();
 			});
 		}

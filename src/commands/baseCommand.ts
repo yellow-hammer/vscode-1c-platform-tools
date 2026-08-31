@@ -5,9 +5,14 @@ import { VRunnerManager, type VRunnerExecutionResult } from '../shared/vrunnerMa
 import type { VRunnerIntent } from '../shared/vrunnerCli';
 import { logger } from '../shared/logger';
 import { runWithHooks, runHooksAroundTerminalTask } from '../shared/commandHooks';
+import { anyNeedsExclusiveInfobase, infobaseHolder, keepsInfobaseAfterRun } from '../shared/exclusiveInfobase';
+import { notifyQuiet } from '../shared/notify';
 import type { CommandExecutionOptions, StructuredCommandResult } from '../shared/commandExecutionTypes';
 
 const log = logger.scope('commands');
+
+/** Команда не начинается, пока базу держит чужой процесс. */
+export const INFOBASE_BUSY = 'Информационная база занята: команда не запущена.';
 
 /**
  * Базовый класс для всех команд
@@ -316,12 +321,111 @@ export abstract class BaseCommand {
 		if (gate) {
 			return gate === 'blocked' ? undefined : gate;
 		}
+		const window = await this.openInfobaseWindow([intent], opts);
+		if (window === 'blocked') {
+			return opts?.wait === true ? this.executionError(INFOBASE_BUSY) : undefined;
+		}
 		const steps = await this.vrunner.planIntent(intent, opts?.settingsFile, opts?.ibConnection);
 		const notices = this.vrunner.consumePlanNotices();
 		if (steps.length === 1) {
-			return this.appendNotices(await this.runVRunner(steps[0], opts, terminalName, artifact, commandId, true), notices);
+			return this.appendNotices(
+				await this.runVRunner(steps[0], opts, terminalName, artifact, commandId, true, window.restore),
+				notices
+			);
 		}
-		return this.appendNotices(await this.runVRunnerSequential(steps, opts, terminalName, commandId, true), notices);
+		return this.appendNotices(
+			await this.runVRunnerSequential(steps, opts, terminalName, commandId, true, window.restore),
+			notices
+		);
+	}
+
+	/**
+	 * Освобождает информационную базу на время команды, если её держит
+	 * автономный сервер, а намерению нужен монопольный доступ.
+	 *
+	 * Базу возвращает {@link InfobaseHolder.restore}: он попадает в план как
+	 * `onComplete` и срабатывает после фактического завершения работы. Когда
+	 * команда уходит в интерактивный терминал, о её завершении расширение не
+	 * знает, поэтому сервер остаётся выключенным и об этом говорится прямо.
+	 *
+	 * Так же расширение поступает с интерактивным запуском конфигуратора и
+	 * предприятия: vrunner завершается сразу, а базу держит само приложение.
+	 *
+	 * @param intents - Намерения команды
+	 * @param opts - Опции выполнения
+	 * @returns Возврат базы или `blocked`, если освободить не удалось
+	 */
+	protected async openInfobaseWindow(
+		intents: readonly VRunnerIntent[],
+		opts: CommandExecutionOptions | undefined
+	): Promise<{ restore?: () => Promise<void> } | 'blocked'> {
+		const holder = infobaseHolder();
+		if (!holder || !anyNeedsExclusiveInfobase(intents) || !holder.isHolding()) {
+			return {};
+		}
+
+		if (!(await holder.release())) {
+			void vscode.window.showErrorMessage(
+				`Не удалось остановить: ${holder.label}. Конфигуратор не откроет базу, пока её держит этот процесс.`
+			);
+			return 'blocked';
+		}
+
+		if (keepsInfobaseAfterRun(intents)) {
+			notifyQuiet(`${holder.label}: остановлен, запустите снова после закрытия 1С`);
+			return {};
+		}
+
+		const tracked =
+			opts?.wait === true ||
+			vscode.workspace.getConfiguration('1c-platform-tools').get<boolean>('execution.useTasks', true) !== false;
+		if (!tracked) {
+			notifyQuiet(`${holder.label}: остановлен, команда выполняется в терминале`);
+			return {};
+		}
+		notifyQuiet(`${holder.label}: остановлен на время команды`);
+		return {
+			restore: async () => {
+				try {
+					await holder.restore();
+				} catch (error) {
+					log.error(`Не удалось вернуть базу держателю: ${(error as Error).message}`);
+				}
+			},
+		};
+	}
+
+	/**
+	 * Запуск заранее спланированной команды vrunner с освобождением базы.
+	 *
+	 * Для мест, которые строят план сами через `planIntent`: базу нужно
+	 * освободить по тем же намерениям, что ушли в план. Когда база свободна,
+	 * команда запускается как обычно, без ожидания завершения.
+	 *
+	 * @param argsList - Наборы аргументов vrunner (каждый — одна команда)
+	 * @param intents - Намерения, из которых построен план
+	 * @param options - Каталог запуска и имя терминала
+	 */
+	protected async runPlanned(
+		argsList: string[][],
+		intents: readonly VRunnerIntent[],
+		options: { cwd: string; name: string; appendOverrides?: boolean }
+	): Promise<void> {
+		if (argsList.length === 0) {
+			return;
+		}
+		const window = await this.openInfobaseWindow(intents, undefined);
+		if (window === 'blocked') {
+			return;
+		}
+		const restore = window.restore;
+		if (!restore) {
+			await this.vrunner.executeVRunnerCommandsInSequence(argsList, options);
+			return;
+		}
+		void this.vrunner.executeVRunnerTaskSequenceAndWait(argsList, options)
+			.catch((error) => log.error(`Ошибка запуска команды: ${(error as Error).message}`))
+			.finally(() => void restore());
 	}
 
 	/**
@@ -337,9 +441,16 @@ export abstract class BaseCommand {
 		if (gate) {
 			return gate === 'blocked' ? undefined : gate;
 		}
+		const window = await this.openInfobaseWindow(intents, opts);
+		if (window === 'blocked') {
+			return opts?.wait === true ? this.executionError(INFOBASE_BUSY) : undefined;
+		}
 		const steps = await this.vrunner.planIntents(intents, opts?.settingsFile, opts?.ibConnection);
 		const notices = this.vrunner.consumePlanNotices();
-		return this.appendNotices(await this.runVRunnerSequential(steps, opts, terminalName, commandId, true), notices);
+		return this.appendNotices(
+			await this.runVRunnerSequential(steps, opts, terminalName, commandId, true, window.restore),
+			notices
+		);
 	}
 
 	/**
@@ -373,7 +484,8 @@ export abstract class BaseCommand {
 		terminalName: string,
 		artifact?: string,
 		commandId?: string,
-		planned = false
+		planned = false,
+		onComplete?: () => Promise<void>
 	): Promise<StructuredCommandResult | void> {
 		const cwd = this.getExecutionCwd(opts);
 		if (!cwd) {
@@ -400,18 +512,29 @@ export abstract class BaseCommand {
 				const result = await this.vrunner.executeVRunner(args, { cwd });
 				return this.vrunnerResultToStructured(result, artifact) as StructuredCommandResult;
 			};
-			if (!commandId) {
-				return execute();
+			try {
+				if (!commandId) {
+					return await execute();
+				}
+				return await runWithHooks({ commandId, cwd, args, workspaceRoot, run: execute });
+			} finally {
+				await onComplete?.();
 			}
-			return runWithHooks({ commandId, cwd, args, workspaceRoot, run: execute });
 		}
 
 		if (commandId) {
 			void runHooksAroundTerminalTask({
 				commandId, cwd, args, workspaceRoot,
+				trackCompletion: onComplete !== undefined,
 				runTracked: () => this.vrunner.executeVRunnerTaskAndWait(args, { cwd, name: terminalName, appendOverrides }),
 				runUntracked: () => this.vrunner.executeVRunnerInTerminal(args, { cwd, name: terminalName, appendOverrides }),
-			}).catch((err) => log.error(`Ошибка хуков команды: ${(err as Error).message}`));
+			})
+				.catch((err) => log.error(`Ошибка хуков команды: ${(err as Error).message}`))
+				.finally(() => void onComplete?.());
+		} else if (onComplete) {
+			void this.vrunner.executeVRunnerTaskAndWait(args, { cwd, name: terminalName, appendOverrides })
+				.catch((err) => log.error(`Ошибка запуска команды: ${(err as Error).message}`))
+				.finally(() => void onComplete());
 		} else {
 			this.vrunner.executeVRunnerInTerminal(args, { cwd, name: terminalName, appendOverrides });
 		}
@@ -426,7 +549,8 @@ export abstract class BaseCommand {
 		opts: CommandExecutionOptions | undefined,
 		terminalName: string,
 		commandId?: string,
-		planned = false
+		planned = false,
+		onComplete?: () => Promise<void>
 	): Promise<StructuredCommandResult | void> {
 		const cwd = this.getExecutionCwd(opts);
 		if (!cwd) {
@@ -467,10 +591,14 @@ export abstract class BaseCommand {
 				}
 				return { success, exitCode, stdout, stderr };
 			};
-			if (!commandId) {
-				return execute();
+			try {
+				if (!commandId) {
+					return await execute();
+				}
+				return await runWithHooks({ commandId, cwd, args: flatArgs, workspaceRoot, run: execute });
+			} finally {
+				await onComplete?.();
 			}
-			return runWithHooks({ commandId, cwd, args: flatArgs, workspaceRoot, run: execute });
 		}
 
 		// Объединяем в одну цепочку (&& / ; — в зависимости от оболочки),
@@ -479,9 +607,16 @@ export abstract class BaseCommand {
 		if (commandId) {
 			void runHooksAroundTerminalTask({
 				commandId, cwd, args: flatArgs, workspaceRoot,
+				trackCompletion: onComplete !== undefined,
 				runTracked: () => this.vrunner.executeVRunnerTaskSequenceAndWait(argsList, { cwd, name: terminalName, appendOverrides }),
 				runUntracked: () => this.vrunner.executeVRunnerCommandsInSequence(argsList, { cwd, name: terminalName, appendOverrides }),
-			}).catch((err) => log.error(`Ошибка хуков команды: ${(err as Error).message}`));
+			})
+				.catch((err) => log.error(`Ошибка хуков команды: ${(err as Error).message}`))
+				.finally(() => void onComplete?.());
+		} else if (onComplete) {
+			void this.vrunner.executeVRunnerTaskSequenceAndWait(argsList, { cwd, name: terminalName, appendOverrides })
+				.catch((err) => log.error(`Ошибка запуска команды: ${(err as Error).message}`))
+				.finally(() => void onComplete());
 		} else {
 			await this.vrunner.executeVRunnerCommandsInSequence(argsList, { cwd, name: terminalName, appendOverrides });
 		}

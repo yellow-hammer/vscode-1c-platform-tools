@@ -22,6 +22,8 @@ import {
 import {
 	applyEditedScalars,
 	applyEnumDictionary,
+	applyTypeOptions,
+	type MetadataRefTypeDictionary,
 	labelOf,
 	type EnumValueLabels,
 	ensureCurrentSelectValues,
@@ -463,6 +465,11 @@ let objectKindLabels: Readonly<Record<string, string>> = {};
 /** Подпись вида объекта или ссылочного типа; без словаря - само имя вида. */
 export function mdObjectKindLabel(prefix: string): string | undefined {
 	return objectKindLabels[prefix];
+}
+
+/** Все подписи видов объектов, как их отдала библиотека. */
+export function mdObjectKindLabels(): Readonly<Record<string, string>> {
+	return objectKindLabels;
 }
 
 /**
@@ -854,7 +861,7 @@ async function resolveSchemaFlag(params: OpenMetadataObjectPropertiesParams): Pr
 	throw new Error('Не удалось определить схему XSD для чтения свойств объекта.');
 }
 
-async function runMdSparrowJson<T>(
+export async function runMdSparrowJson<T>(
 	runtime: Awaited<ReturnType<typeof ensureMdSparrowRuntime>>,
 	params: MdSparrowParams,
 	cwd: string
@@ -872,7 +879,47 @@ async function runMdSparrowJson<T>(
 }
 
 /** Словари формата в рамках сеанса: набор констант меняется только вместе с версией формата. */
-const enumDictionaryCache = new Map<string, MetadataEnumDictionary>();
+const enumDictionaryCache = new Map<string, MetadataEnumDictionary>();
+
+/** Ссылочные типы конфигурации: читаются раз на конфигурацию, состав меняется вместе с ней. */
+const refTypesCache = new Map<string, MetadataRefTypeDictionary>();
+
+/**
+ * Ссылочные типы конфигурации: чем может быть реквизит.
+ *
+ * @param runtime - Рантайм md-sparrow
+ * @param configurationXml - Файл конфигурации, из состава которой берутся типы
+ * @param schema - Версия формата выгрузки
+ * @param cwd - Рабочий каталог запуска
+ * @returns Вид объекта -> тексты ссылочных типов; при ошибке пусто
+ */
+async function readRefTypes(
+	runtime: Awaited<ReturnType<typeof ensureMdSparrowRuntime>>,
+	configurationXml: string,
+	schema: string,
+	cwd: string
+): Promise<MetadataRefTypeDictionary> {
+	if (!configurationXml) {
+		// Внешние отчёты и обработки живут без конфигурации: ссылочных типов у них нет
+		return {};
+	}
+	const cacheKey = `${configurationXml}|${schema}`;
+	const cached = refTypesCache.get(cacheKey);
+	if (cached) {
+		return cached;
+	}
+	const res = await runMdSparrowJson<MetadataRefTypeDictionary>(
+		runtime,
+		{ op: 'cf-list-ref-types', configurationXml, schemaVersion: schema },
+		cwd
+	);
+	if (!res.ok) {
+		log.warn(`ссылочные типы конфигурации: ${res.error}`);
+		return {};
+	}
+	refTypesCache.set(cacheKey, res.value);
+	return res.value;
+}
 
 /**
  * Подписи значений от md-sparrow: набор значений задаёт формат выгрузки, и разбираться в нём должна
@@ -1246,7 +1293,8 @@ function buildEditableModel(
 	internalName: string,
 	candidates: MetadataEditCandidates = EMPTY_CANDIDATES,
 	enums: MetadataEnumDictionary = {},
-	origin?: MetadataPanelOriginModel
+	origin?: MetadataPanelOriginModel,
+	refTypes: MetadataRefTypeDictionary = {}
 ): MetadataPanelEditableModel | undefined {
 	const model = buildEditableModelBySpec(props, structure, internalName, candidates);
 	if (!model) {
@@ -1262,7 +1310,8 @@ function buildEditableModel(
 		? withTemplatesTab(model.tabs, rawNameList(structure?.templates))
 		: model.tabs;
 	const withEnums = applyEnumDictionary(normalizeTabLayout(withTemplates), enums, valueLabels);
-	const withCurrent = ensureCurrentSelectValues(withEnums, props as unknown as Record<string, unknown>, valueLabels);
+	const withTypes = applyTypeOptions(withEnums, refTypes, mdObjectKindLabels());
+	const withCurrent = ensureCurrentSelectValues(withTypes, props as unknown as Record<string, unknown>, valueLabels);
 	const tabs = withTabsForStructure(withCurrent, buildStructureLists(props, structure));
 	// Заимствованный объект и объект на поддержке без изменения показываются
 	// той же формой, но только на просмотр: запись всё равно отклонит md-sparrow
@@ -1693,13 +1742,14 @@ function buildViewModel(
 	refContent?: MetadataPanelRefContentModel,
 	commandInterface?: MetadataPanelCommandInterfaceModel,
 	roleRights?: MetadataPanelRoleRightsModel,
-	origin?: MetadataPanelOriginModel
+	origin?: MetadataPanelOriginModel,
+	refTypes: MetadataRefTypeDictionary = {}
 ): MetadataPanelViewModel {
 	const declaredObjectType = normalizeObjectType(params.objectType ?? '');
 	const internalName = props?.internalName || structure?.internalName || path.parse(params.objectXmlFsPath).name;
 	const objectKind = props?.kind || structure?.kind || declaredObjectType || 'object';
 	const objectType = declaredObjectType || normalizeObjectType(objectTypeFromKind(objectKind));
-	const editable = buildEditableModel(props, structure, internalName, candidates, enums, origin);
+	const editable = buildEditableModel(props, structure, internalName, candidates, enums, origin, refTypes);
 	const structureLists = editable ? buildStructureLists(props, structure) : undefined;
 	return {
 		objectKind,
@@ -2471,6 +2521,7 @@ async function openMetadataObjectPropertiesEditorInner(
 	const commandInterface = await loadCommandInterfaceModel(runtime, params, schema, propsDto);
 	const roleRights = await loadRoleRightsModel(runtime, params, schema, propsDto);
 	const origin = await loadOriginModel(runtime, params, propsDto);
+	const refTypes = await readRefTypes(runtime, params.cfgPath ?? '', schema, params.cwd);
 	const viewModel = buildViewModel(
 		params,
 		propsDto,
@@ -2482,7 +2533,8 @@ async function openMetadataObjectPropertiesEditorInner(
 		refContent,
 		commandInterface,
 		roleRights,
-		origin
+		origin,
+		refTypes
 	);
 	const title = panelTitleForKind(viewModel.objectKind, viewModel.internalName);
 	const webviewRoot = vscode.Uri.joinPath(context.extensionUri, 'resources', 'webview');
@@ -3146,6 +3198,7 @@ function registerEditableSaveHandler(
 		const commandInterface = await loadCommandInterfaceModel(runtime, params, schema, propsResult.value);
 		const roleRights = await loadRoleRightsModel(runtime, params, schema, propsResult.value);
 		const origin = await loadOriginModel(runtime, params, propsResult.value);
+		const refTypes = await readRefTypes(runtime, params.cfgPath ?? '', schema, params.cwd);
 		const vm = buildViewModel(
 			params,
 			propsResult.value,
@@ -3157,7 +3210,8 @@ function registerEditableSaveHandler(
 			refContent,
 			commandInterface,
 			roleRights,
-			origin
+			origin,
+			refTypes
 		);
 		if (vm.editable) {
 			editable.props = vm.editable.props;
