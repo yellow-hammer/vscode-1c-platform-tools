@@ -619,9 +619,10 @@ export class MetadataObjectSectionTreeItem extends vscode.TreeItem {
 		super(label, hasChildren ? vscode.TreeItemCollapsibleState.Collapsed : vscode.TreeItemCollapsibleState.None);
 		// Токен вместо перечисления видов в условиях меню: новый вид раздела
 		// получает пункт «Добавить» сам, как только md-sparrow научится его создавать
-		this.contextValue = childKindOfSection(sectionKind)
-			? 'metadataObjectSection mdSectionAdd'
-			: 'metadataObjectSection';
+		this.contextValue =
+			childKindOfSection(sectionKind) || sectionKind === 'forms'
+				? 'metadataObjectSection mdSectionAdd'
+				: 'metadataObjectSection';
 		this.iconPath = metadataSectionIcon(sectionKind, extensionUri);
 	}
 }
@@ -635,7 +636,7 @@ export class MetadataObjectSectionTreeItem extends vscode.TreeItem {
 export function childNodeContextValue(nodeKind: MetadataNodeKind): string {
 	const parts = [`metadataChild_${nodeKind}`];
 	if (nodeKind === 'form') {
-		parts.push('metadataObjectForm', 'mdFormModule');
+		parts.push('metadataObjectForm', 'mdFormModule', 'mdChildDelete');
 	}
 	if (childKindIsMutatable(nodeKind)) {
 		parts.push('mdChildEdit');

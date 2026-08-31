@@ -1,6 +1,7 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import * as vscode from 'vscode';
+import { BSP_REGISTRATION_MARKER, buildBspRegistration } from './bspRegistration';
 import { VRunnerManager } from '../../shared/vrunnerManager';
 import {
 	ensureMdSparrowRuntime,
@@ -292,6 +293,79 @@ export function registerMetadataFeature(
 	 * Общая форма сюда не попадает: её свойства живут в самой форме, поэтому для
 	 * неё открывается просмотрщик формы.
 	 */
+	/** Удаляет форму объекта вместе с файлами после подтверждения. */
+	async function deleteObjectFormFromTree(node: MetadataObjectNodeTreeItem): Promise<void> {
+		const owner = node.owner;
+		if (!owner.resourceUri) {
+			return;
+		}
+		const answer = await vscode.window.showWarningMessage(
+			`Удалить форму «${node.name}» вместе с файлами?`,
+			{ modal: true },
+			'Удалить'
+		);
+		if (answer !== 'Удалить') {
+			return;
+		}
+		const schema = owner.configurationXmlAbs
+			? await mdSparrowSchemaFlagFromConfigurationXml(owner.configurationXmlAbs)
+			: await mainSchemaFlag();
+		if (!schema) {
+			return;
+		}
+		const runtime = await ensureMdSparrowRuntime(context);
+		const res = await runMdSparrowParamsMutation(
+			runtime,
+			{ op: 'cf-md-form-delete', objectXml: owner.resourceUri.fsPath, name: node.name, schemaVersion: schema },
+			{ cwd: owner.metadataRootAbs ?? path.dirname(owner.resourceUri.fsPath) }
+		);
+		if (res.exitCode !== 0) {
+			void vscode.window.showErrorMessage(
+				`Не удалось удалить форму. ${(res.stderr || res.stdout).trim()}`.slice(0, 400)
+			);
+			return;
+		}
+		notifyQuiet(`Форма «${node.name}» удалена`);
+		void vscode.commands.executeCommand('1c-platform-tools.metadata.refresh');
+	}
+
+	/** Создаёт пустую управляемую форму объекта из эталона платформы. */
+	async function addObjectFormFromTree(leaf: MetadataLeafTreeItem): Promise<void> {
+		if (!leaf.resourceUri) {
+			void vscode.window.showInformationMessage('У объекта нет файла в выгрузке.');
+			return;
+		}
+		const name = await vscode.window.showInputBox({
+			title: 'Новая форма',
+			placeHolder: 'Имя',
+			validateInput: (value) => (!value.trim() ? 'Введите имя.' : null),
+		});
+		if (!name) {
+			return;
+		}
+		const schema = leaf.configurationXmlAbs
+			? await mdSparrowSchemaFlagFromConfigurationXml(leaf.configurationXmlAbs)
+			: await mainSchemaFlag();
+		if (!schema) {
+			void vscode.window.showWarningMessage('Не удалось определить схему для правки состава.');
+			return;
+		}
+		const runtime = await ensureMdSparrowRuntime(context);
+		const res = await runMdSparrowParamsMutation(
+			runtime,
+			{ op: 'cf-form-add', objectXml: leaf.resourceUri.fsPath, name: name.trim(), schemaVersion: schema },
+			{ cwd: leaf.metadataRootAbs ?? path.dirname(leaf.resourceUri.fsPath) }
+		);
+		if (res.exitCode !== 0) {
+			void vscode.window.showErrorMessage(
+				`Не удалось создать форму. ${(res.stderr || res.stdout).trim()}`.slice(0, 400)
+			);
+			return;
+		}
+		notifyQuiet(`Форма «${name.trim()}» создана`);
+		void vscode.commands.executeCommand('1c-platform-tools.metadata.refresh');
+	}
+
 	async function openObjectPropertiesTab(node: MetadataLeafTreeItem): Promise<void> {
 		if (!node.resourceUri) {
 			void vscode.window.showInformationMessage('У объекта нет файла в выгрузке.');
@@ -1216,6 +1290,11 @@ export function registerMetadataFeature(
 						tabularSection = selected.name;
 					} else if (selected instanceof MetadataObjectSectionTreeItem) {
 						leaf = selected.owner;
+						if (selected.sectionKind === 'forms') {
+							// Форма создаётся из эталона платформы своей операцией
+							await addObjectFormFromTree(selected.owner);
+							return;
+						}
 						kind = childKindOfSection(selected.sectionKind);
 						if (!kind) {
 							void vscode.window.showWarningMessage('В этот раздел добавление не поддерживается.');
@@ -1295,6 +1374,11 @@ export function registerMetadataFeature(
 			'1c-platform-tools.metadata.deleteChildNode',
 			async (item?: MetadataObjectNodeTreeItem) => {
 				await runMdSparrowMutation(async () => {
+					const selectedNode = item ?? (metadataTreeView.selection[0] as MetadataObjectNodeTreeItem | undefined);
+					if (selectedNode instanceof MetadataObjectNodeTreeItem && selectedNode.nodeKind === 'form') {
+						await deleteObjectFormFromTree(selectedNode);
+						return;
+					}
 					const node = resolveChildNodeForMutation(item, 'Этот узел нельзя удалить.');
 					if (!node) {
 						return;
@@ -1664,6 +1748,113 @@ export function registerMetadataFeature(
 					return;
 				}
 				void vscode.window.showInformationMessage('XML для выбранного узла не найден.');
+			}
+		),
+		vscode.commands.registerCommand(
+			'1c-platform-tools.epf.addBspRegistration',
+			async (item?: MetadataLeafTreeItem) => {
+				const node = resolveSelectedMetadataLeaf(item instanceof MetadataLeafTreeItem ? item : undefined);
+				if (!node?.resourceUri) {
+					void vscode.window.showInformationMessage('Выберите внешний отчёт или обработку.');
+					return;
+				}
+				const report = node.objectType === 'ExternalReport';
+				const stem = path.basename(node.resourceUri.fsPath, '.xml');
+				const modulePath = path.join(path.dirname(node.resourceUri.fsPath), stem, 'Ext', 'ObjectModule.bsl');
+				let existing = '';
+				try {
+					existing = new TextDecoder('utf-8').decode(
+						await vscode.workspace.fs.readFile(vscode.Uri.file(modulePath))
+					);
+				} catch {
+					existing = '';
+				}
+				if (existing.includes(BSP_REGISTRATION_MARKER)) {
+					void vscode.window.showInformationMessage('Регистрация БСП уже есть в объектном модуле.');
+					return;
+				}
+				const presentation = await vscode.window.showInputBox({
+					title: 'Представление команды',
+					value: node.name,
+					validateInput: (value) => (!value.trim() ? 'Введите представление.' : null),
+				});
+				if (!presentation) {
+					return;
+				}
+				const block = buildBspRegistration({
+					report,
+					presentation: presentation.trim().replaceAll("'", '"'),
+					commandId: report ? 'ОткрытьФорму' : 'ВыполнитьОбработку',
+				});
+				const bom = '\uFEFF';
+				const next = existing.length === 0
+					? bom + block
+					: existing + (existing.endsWith('\n') ? '' : '\r\n') + '\r\n' + block;
+				await vscode.workspace.fs.createDirectory(vscode.Uri.file(path.dirname(modulePath)));
+				await vscode.workspace.fs.writeFile(vscode.Uri.file(modulePath), new TextEncoder().encode(next));
+				const doc = await vscode.workspace.openTextDocument(vscode.Uri.file(modulePath));
+				await vscode.window.showTextDocument(doc, { preview: false });
+				notifyQuiet('Регистрация БСП добавлена');
+			}
+		),
+		vscode.commands.registerCommand(
+			'1c-platform-tools.cfe.borrowObject',
+			async (item?: MetadataLeafTreeItem) => {
+				await runMdSparrowMutation(async () => {
+					const node = resolveSelectedMetadataLeaf(item instanceof MetadataLeafTreeItem ? item : undefined);
+					if (!node?.resourceUri) {
+						void vscode.window.showInformationMessage('Выберите объект конфигурации.');
+						return;
+					}
+					const root = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+					if (!root) {
+						return;
+					}
+					const tree = await loadProjectMetadataTree(context, root);
+					const extensions = tree.sources.filter((source) => source.kind === 'extension');
+					if (extensions.length === 0) {
+						void vscode.window.showInformationMessage('В проекте нет расширений: создайте его командой «Создать новое расширение».');
+						return;
+					}
+					const picked =
+						extensions.length === 1
+							? extensions[0]
+							: (
+									await vscode.window.showQuickPick(
+										extensions.map((source) => ({ label: source.label, source })),
+										{ placeHolder: 'В какое расширение добавить объект' }
+									)
+								)?.source;
+					if (!picked) {
+						return;
+					}
+					const extensionConfiguration = path.join(root, picked.configurationXmlRelativePath);
+					const schema = node.configurationXmlAbs
+						? await mdSparrowSchemaFlagFromConfigurationXml(node.configurationXmlAbs)
+						: await mainSchemaFlag();
+					if (!schema) {
+						return;
+					}
+					const runtime = await ensureMdSparrowRuntime(context);
+					const res = await runMdSparrowParamsMutation(
+						runtime,
+						{
+							op: 'cfe-borrow-object',
+							objectXml: node.resourceUri.fsPath,
+							configurationXml: extensionConfiguration,
+							schemaVersion: schema,
+						},
+						{ cwd: node.metadataRootAbs ?? path.dirname(node.resourceUri.fsPath) }
+					);
+					if (res.exitCode !== 0) {
+						void vscode.window.showErrorMessage(
+							`Не удалось добавить объект в расширение. ${(res.stderr || res.stdout).trim()}`.slice(0, 400)
+						);
+						return;
+					}
+					notifyQuiet(`«${node.name}» добавлен в расширение ${picked.label}`);
+					void vscode.commands.executeCommand('1c-platform-tools.metadata.refresh');
+				});
 			}
 		),
 		vscode.commands.registerCommand('1c-platform-tools.metadata.initEmptyCfe', async () => {

@@ -121,7 +121,7 @@ interface MetadataPanelTab {
 	id: string;
 	title: string;
 	count?: number;
-	render: 'overview' | 'named' | 'tabular' | 'list' | 'kv' | 'json' | 'subsystemContent' | 'subsystems' | 'refContent' | 'edit';
+	render: 'overview' | 'named' | 'tabular' | 'list' | 'kv' | 'json' | 'subsystemContent' | 'subsystems' | 'refContent' | 'commandInterface' | 'edit';
 	data?: unknown;
 }
 
@@ -223,6 +223,12 @@ interface MetadataPanelRefContentModel {
 	sections: MetadataPanelRefContentSection[];
 }
 
+/** Командный интерфейс подсистемы: видимость и размещение команд. */
+interface MetadataPanelCommandInterfaceModel {
+	visibility: Array<{ command: string; common: boolean }>;
+	placement: Array<{ command: string; group: string }>;
+}
+
 interface MetadataPanelViewModel {
 	objectKind: string;
 	objectKindLabel: string;
@@ -238,6 +244,7 @@ interface MetadataPanelViewModel {
 	structureLists?: MetadataPanelStructureLists;
 	subsystems?: MetadataPanelSubsystemsModel;
 	refContent?: MetadataPanelRefContentModel;
+	commandInterface?: MetadataPanelCommandInterfaceModel;
 }
 
 interface OpenMetadataObjectPropertiesParams {
@@ -1136,7 +1143,8 @@ function buildTabs(
 	objectType: string,
 	editable?: MetadataPanelEditableModel,
 	subsystems?: MetadataPanelSubsystemsModel,
-	refContent?: MetadataPanelRefContentModel
+	refContent?: MetadataPanelRefContentModel,
+	commandInterface?: MetadataPanelCommandInterfaceModel
 ): MetadataPanelTab[] {
 	const profileTabs = buildProfileTabs(objectType, props, structure).filter(
 		// Дерево состава с флажками замещает вкладку-просмотр состава
@@ -1154,6 +1162,9 @@ function buildTabs(
 	}
 	if (refContent) {
 		out.push({ id: 'refContent', title: refContent.title, render: 'refContent' });
+	}
+	if (commandInterface) {
+		out.push({ id: 'commandInterface', title: 'Командный интерфейс', render: 'commandInterface' });
 	}
 	return out;
 }
@@ -1667,7 +1678,8 @@ function buildViewModel(
 	candidates: MetadataEditCandidates = EMPTY_CANDIDATES,
 	enums: MetadataEnumDictionary = {},
 	subsystems?: MetadataPanelSubsystemsModel,
-	refContent?: MetadataPanelRefContentModel
+	refContent?: MetadataPanelRefContentModel,
+	commandInterface?: MetadataPanelCommandInterfaceModel
 ): MetadataPanelViewModel {
 	const declaredObjectType = normalizeObjectType(params.objectType ?? '');
 	const internalName = props?.internalName || structure?.internalName || path.parse(params.objectXmlFsPath).name;
@@ -1688,12 +1700,13 @@ function buildViewModel(
 		comment: props?.comment ?? '',
 		objectXmlPath: params.objectXmlFsPath,
 		warnings,
-		tabs: buildTabs(props, structure, objectType, editable, subsystems, refContent),
+		tabs: buildTabs(props, structure, objectType, editable, subsystems, refContent, commandInterface),
 		technicalJson: JSON.stringify(technicalPayload, null, 2),
 		editable,
 		structureLists,
 		subsystems,
 		refContent,
+		commandInterface,
 	};
 }
 
@@ -2049,6 +2062,39 @@ export function buildRefContentSectionsForTest(
 	return spec.sections.map((section) => buildRefContentSection(section, allObjects, raw[section.key]));
 }
 
+/** Командный интерфейс подсистемы: видимость команд правится, размещение показывается. */
+async function loadCommandInterfaceModel(
+	runtime: Awaited<ReturnType<typeof ensureMdSparrowRuntime>>,
+	params: OpenMetadataObjectPropertiesParams,
+	schema: string,
+	props: MdObjectPropertiesDto | null
+): Promise<MetadataPanelCommandInterfaceModel | undefined> {
+	if (props?.kind !== 'subsystem') {
+		return undefined;
+	}
+	const res = await runMdSparrowJson<{
+		visibility?: Array<{ command: string; value: string }>;
+		placement?: Array<{ command: string; value: string }>;
+	}>(
+		runtime,
+		{ op: 'cf-md-subsystem-command-interface-get', objectXml: params.objectXmlFsPath, schemaVersion: schema },
+		params.cwd
+	);
+	if (!res.ok) {
+		log.warn(`командный интерфейс: ${res.error.slice(0, ERR_PREVIEW)}`);
+		return undefined;
+	}
+	const visibility = (res.value.visibility ?? []).map((entry) => ({
+		command: entry.command,
+		common: entry.value === 'true',
+	}));
+	const placement = (res.value.placement ?? []).map((entry) => ({ command: entry.command, group: entry.value }));
+	if (visibility.length === 0 && placement.length === 0) {
+		return undefined;
+	}
+	return { visibility, placement };
+}
+
 /** Узел ответа cf-md-subsystem-tree. */
 interface SubsystemTreeNodeDto {
 	name: string;
@@ -2101,6 +2147,20 @@ function buildSubsystemsModel(
 		children: (node.children ?? []).map(convert),
 	});
 	return { objectRef, nodes: nodes.map(convert) };
+}
+
+/** Полный список видимости команд после правок: null, когда правок не было. */
+function parseCommandVisibilityEdits(raw: unknown): Array<{ command: string; value: string }> | null {
+	if (!Array.isArray(raw) || raw.length === 0) {
+		return null;
+	}
+	const out: Array<{ command: string; value: string }> = [];
+	for (const item of raw) {
+		if (isRecord(item) && typeof item.command === 'string' && typeof item.common === 'boolean') {
+			out.push({ command: item.command, value: item.common ? 'true' : 'false' });
+		}
+	}
+	return out.length > 0 ? out : null;
 }
 
 /** Разбирает изменения состава из сообщения webview: секция, ссылка, членство. */
@@ -2211,6 +2271,7 @@ async function openMetadataObjectPropertiesEditorInner(
 	const subsystems = buildSubsystemsModel(subsystemNodes, params, propsDto, structureDto);
 	const scheduleAware = await withScheduleFieldOptions(runtime, params, schema, propsDto, candidates);
 	const refContent = await loadRefContentModel(runtime, params, schema, propsDto);
+	const commandInterface = await loadCommandInterfaceModel(runtime, params, schema, propsDto);
 	const viewModel = buildViewModel(
 		params,
 		propsDto,
@@ -2219,7 +2280,8 @@ async function openMetadataObjectPropertiesEditorInner(
 		scheduleAware,
 		enums,
 		subsystems,
-		refContent
+		refContent,
+		commandInterface
 	);
 	const title = panelTitleForKind(viewModel.objectKind, viewModel.internalName);
 	const webviewRoot = vscode.Uri.joinPath(context.extensionUri, 'resources', 'webview');
@@ -2439,6 +2501,8 @@ interface MetadataPanelSaveMessage {
 	subsystems?: unknown;
 	/** Изменённый состав опции: ссылка и членство. */
 	content?: unknown;
+	/** Изменённая видимость команд подсистемы. */
+	commandVisibility?: unknown;
 }
 
 const IDENTIFIER_RE = /^[A-Za-zА-ЯЁа-яё_][A-Za-zА-ЯЁа-яё0-9_]*$/;
@@ -2866,6 +2930,7 @@ function registerEditableSaveHandler(
 		// После смены графика поля даты и значения выбираются из нового регистра
 		const scheduleAware = await withScheduleFieldOptions(runtime, params, schema, propsResult.value, candidates);
 		const refContent = await loadRefContentModel(runtime, params, schema, propsResult.value);
+		const commandInterface = await loadCommandInterfaceModel(runtime, params, schema, propsResult.value);
 		const vm = buildViewModel(
 			params,
 			propsResult.value,
@@ -2874,7 +2939,8 @@ function registerEditableSaveHandler(
 			scheduleAware,
 			enums,
 			subsystems,
-			refContent
+			refContent,
+			commandInterface
 		);
 		if (vm.editable) {
 			editable.props = vm.editable.props;
@@ -2888,6 +2954,7 @@ function registerEditableSaveHandler(
 			structureLists: vm.structureLists,
 			subsystems: vm.subsystems,
 			refContent: vm.refContent,
+			commandInterface: vm.commandInterface,
 			tabsChanged: true,
 		});
 	}
@@ -2961,6 +3028,19 @@ function registerEditableSaveHandler(
 	}
 
 	async function handleSave(msg: MetadataPanelSaveMessage): Promise<void> {
+		const visibilityEdits = parseCommandVisibilityEdits(msg.commandVisibility);
+		if (visibilityEdits) {
+			const error = await runOneMutation({
+				op: 'cf-md-subsystem-command-visibility-set',
+				objectXml: params.objectXmlFsPath,
+				schemaVersion: schema,
+				payloadJson: JSON.stringify(visibilityEdits),
+			});
+			if (error) {
+				void panel.webview.postMessage({ type: 'saved', ok: false, error: `Командный интерфейс: ${error}` });
+				return;
+			}
+		}
 		const subsystemEdits = parseSubsystemEdits(msg.subsystems);
 		for (const edit of subsystemEdits) {
 			const error = await applySubsystemMembership(edit);
@@ -3066,6 +3146,30 @@ function registerEditableSaveHandler(
 	panel.webview.onDidReceiveMessage(
 		async (msg: MetadataPanelSaveMessage) => {
 			if (!msg) {
+				return;
+			}
+			if (msg.type === 'createObjectForm') {
+				const name = await vscode.window.showInputBox({
+					title: 'Новая форма',
+					placeHolder: 'Имя',
+					validateInput: (value) => (!value.trim() ? 'Введите имя.' : null),
+				});
+				if (!name) {
+					return;
+				}
+				const error = await runOneMutation({
+					op: 'cf-form-add',
+					objectXml: params.objectXmlFsPath,
+					schemaVersion: schema,
+					name: name.trim(),
+				});
+				if (error) {
+					void vscode.window.showErrorMessage(`Не удалось создать форму. ${error}`.slice(0, ERR_PREVIEW));
+					return;
+				}
+				notifyQuiet(`Форма «${name.trim()}» создана`);
+				await rereadAndPushModel();
+				void vscode.commands.executeCommand('1c-platform-tools.metadata.refresh');
 				return;
 			}
 			if (msg.type === 'openObjectForm' && typeof msg.name === 'string') {

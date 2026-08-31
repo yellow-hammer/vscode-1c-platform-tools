@@ -1353,6 +1353,11 @@
         "category": "1С: Расширения"
       },
       {
+        "command": "1c-platform-tools.cfe.borrowObject",
+        "title": "Добавить объект в расширение",
+        "category": "1С: Конфигурация"
+      },
+      {
         "command": "1c-platform-tools.cfe.compile",
         "title": "Собрать *.cfe из src/cfe",
         "category": "1С: Расширения"
@@ -1366,6 +1371,11 @@
         "command": "1c-platform-tools.cfe.updateDb",
         "title": "Обновить расширения в ИБ",
         "category": "1С: Расширения"
+      },
+      {
+        "command": "1c-platform-tools.epf.addBspRegistration",
+        "title": "Добавить регистрацию БСП",
+        "category": "1С: Внешние файлы"
       },
       {
         "command": "1c-platform-tools.epf.compileProcessor",
@@ -2435,6 +2445,14 @@
         {
           "command": "1c-platform-tools.editors.save",
           "when": "false"
+        },
+        {
+          "command": "1c-platform-tools.cfe.borrowObject",
+          "when": "false"
+        },
+        {
+          "command": "1c-platform-tools.epf.addBspRegistration",
+          "when": "false"
         }
       ],
       "debug/toolBar": [
@@ -3178,7 +3196,7 @@
         },
         {
           "command": "1c-platform-tools.metadata.deleteChildNode",
-          "when": "view == 1c-platform-tools-metadata-tree && viewItem =~ /(^| )mdChildEdit( |$)/",
+          "when": "view == 1c-platform-tools-metadata-tree && viewItem =~ /(^| )(mdChildEdit|mdChildDelete)( |$)/",
           "group": "7_delete@1"
         },
         {
@@ -3190,6 +3208,16 @@
           "command": "1c-platform-tools.metadata.duplicateObject",
           "when": "view == 1c-platform-tools-metadata-tree && viewItem =~ /(^| )(metadataObjectProperties(Subsystem)?|metadataLeafFile)( |$)/",
           "group": "5_edit@2"
+        },
+        {
+          "command": "1c-platform-tools.cfe.borrowObject",
+          "when": "view == 1c-platform-tools-metadata-tree && viewItem =~ /(^| )metadataObjectProperties( |$)/",
+          "group": "3_create@9"
+        },
+        {
+          "command": "1c-platform-tools.epf.addBspRegistration",
+          "when": "view == 1c-platform-tools-metadata-tree && viewItem =~ /(^| )metadataLeafFile( |$)/",
+          "group": "3_create@8"
         },
         {
           "command": "1c-platform-tools.metadata.deleteObject",

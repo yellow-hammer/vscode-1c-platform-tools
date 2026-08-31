@@ -352,7 +352,7 @@ suite('metadataTreeView nested nodes', () => {
 		);
 
 		assert.strictEqual(form.command?.command, '1c-platform-tools.metadata.openForm');
-		assert.strictEqual(form.contextValue, 'metadataChild_form metadataObjectForm mdFormModule');
+		assert.strictEqual(form.contextValue, 'metadataChild_form metadataObjectForm mdFormModule mdChildDelete');
 		assert.deepStrictEqual(form.command?.arguments, [form]);
 		assert.strictEqual(template.command, undefined, 'клик открывает только форму');
 		assert.strictEqual(template.contextValue, 'metadataChild_template');

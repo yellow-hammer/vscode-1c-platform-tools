@@ -302,6 +302,29 @@
 	/** Изменённый состав: «секция ссылка» → членство. */
 	const editedContent = new Map();
 
+	/** Изменённая видимость команд подсистемы: команда → флажок. */
+	const editedCommandVisibility = new Map();
+
+	function commandVisibilityBaseline(command) {
+		const model_ = model.commandInterface;
+		const entry = model_ && model_.visibility.find((item) => item.command === command);
+		return entry ? entry.common : false;
+	}
+
+	function commandVisibilityChecked(command) {
+		return editedCommandVisibility.has(command)
+			? editedCommandVisibility.get(command)
+			: commandVisibilityBaseline(command);
+	}
+
+	function toggleCommandVisibility(command, common) {
+		if (common === commandVisibilityBaseline(command)) {
+			editedCommandVisibility.delete(command);
+		} else {
+			editedCommandVisibility.set(command, common);
+		}
+	}
+
 	function contentEditKey(sectionKey, ref) {
 		return sectionKey + ' ' + ref;
 	}
@@ -357,7 +380,7 @@
 		if (!editable || !editedProps) {
 			return false;
 		}
-		if (editedSubsystems.size > 0 || editedContent.size > 0) {
+		if (editedSubsystems.size > 0 || editedContent.size > 0 || editedCommandVisibility.size > 0) {
 			return true;
 		}
 		for (const field of editableFields()) {
@@ -515,6 +538,9 @@
 			case 'refContent':
 				renderRefContentTab();
 				return;
+			case 'commandInterface':
+				renderCommandInterfaceTab();
+				return;
 			default:
 				contentRoot.innerHTML = '<div class="empty">Нет данных.</div>';
 		}
@@ -611,6 +637,93 @@
 				apply(root);
 			}
 		});
+	}
+
+	/** Подписи стандартных команд: полное имя остаётся в подсказке. */
+	const STANDARD_COMMAND_LABELS = new Map([
+		['OpenList', 'Открыть список'],
+		['Open', 'Открыть'],
+		['Create', 'Создать'],
+		['CreateFolder', 'Создать группу'],
+	]);
+
+	/** Командный интерфейс подсистемы: флажки общей видимости, размещение списком. */
+	function renderCommandInterfaceTab() {
+		if (!contentRoot) {
+			return;
+		}
+		const model_ = model.commandInterface;
+		if (!model_ || (model_.visibility.length === 0 && model_.placement.length === 0)) {
+			contentRoot.innerHTML = '<div class="empty">Настроек командного интерфейса нет.</div>';
+			return;
+		}
+		const readonly = !editable || editable.readonly === true;
+		contentRoot.textContent = '';
+
+		function commandCaption(command) {
+			const parts = String(command).split('.');
+			if (parts.length === 4 && parts[2] === 'StandardCommand') {
+				const kind = parts[0];
+				const action = STANDARD_COMMAND_LABELS.get(parts[3]) || parts[3];
+				return `${kind}.${parts[1]}: ${action}`;
+			}
+			return command;
+		}
+
+		if (model_.visibility.length > 0) {
+			const title = document.createElement('div');
+			title.className = 'section-title';
+			title.textContent = 'Видимость команд';
+			contentRoot.appendChild(title);
+			const tree = document.createElement('div');
+			tree.className = 'subsys-tree';
+			contentRoot.appendChild(tree);
+			for (const entry of model_.visibility) {
+				const row = document.createElement('div');
+				row.className = 'subsys-row';
+				const pad = document.createElement('span');
+				pad.className = 'subsys-twist';
+				row.appendChild(pad);
+				const label = document.createElement('label');
+				label.className = 'subsys-label';
+				label.title = entry.command;
+				const box = document.createElement('input');
+				box.type = 'checkbox';
+				box.checked = commandVisibilityChecked(entry.command);
+				box.disabled = readonly;
+				box.addEventListener('change', function () {
+					toggleCommandVisibility(entry.command, box.checked);
+					renderSaveBar();
+				});
+				label.appendChild(box);
+				label.appendChild(document.createTextNode(' ' + commandCaption(entry.command)));
+				row.appendChild(label);
+				tree.appendChild(row);
+			}
+		}
+		if (model_.placement.length > 0) {
+			const title = document.createElement('div');
+			title.className = 'section-title section-title-spaced';
+			title.textContent = 'Размещение';
+			contentRoot.appendChild(title);
+			const list = document.createElement('div');
+			list.className = 'struct-list';
+			contentRoot.appendChild(list);
+			for (const entry of model_.placement) {
+				const item = document.createElement('div');
+				item.className = 'struct-item';
+				const name = document.createElement('span');
+				name.className = 'struct-item-name';
+				name.title = entry.command;
+				name.textContent = commandCaption(entry.command);
+				item.appendChild(name);
+				const group = document.createElement('span');
+				group.className = 'struct-item-syn ref-selected-mode';
+				group.textContent = entry.group;
+				item.appendChild(group);
+				list.appendChild(item);
+			}
+		}
 	}
 
 	/** Состав объекта деревом с флажками: секции, группы по видам, реквизиты отдельным списком. */
@@ -1192,6 +1305,9 @@
 					return '<div class="edit-static-empty">(пусто)</div>';
 				}
 				if (field.itemsKind === 'objectForms') {
+					const addButton = editable && editable.readonly !== true
+						? `<button type="button" class="struct-add-btn" data-form-create="1">+ Форма…</button>`
+						: '';
 					// Форма открывается щелчком, крестик удаляет её вместе с файлами
 					return `<div class="edit-chips">${items
 						.map(function (item) {
@@ -1201,7 +1317,7 @@
 								: '';
 							return `<span class="edit-chip edit-chip-action"><button type="button" class="edit-chip-open" data-form-open="${name}" title="Открыть форму">${name}</button>${remove}</span>`;
 						})
-						.join('')}</div>`;
+						.join('')}</div><div class="struct-add-row">${addButton}</div>`;
 				}
 				return `<div class="edit-chips">${items
 					.map((item) => `<span class="edit-chip">${escapeHtml(toDisplayText(item))}</span>`)
@@ -1227,6 +1343,11 @@
 			const command = event.target.closest ? event.target.closest('[data-command-open]') : null;
 			if (command) {
 				vscodeApi.postMessage({ type: 'openObjectCommand', name: command.dataset.commandOpen });
+				return;
+			}
+			const create = event.target.closest ? event.target.closest('[data-form-create]') : null;
+			if (create) {
+				vscodeApi.postMessage({ type: 'createObjectForm' });
 			}
 		});
 	}
@@ -1555,6 +1676,13 @@
 				payload: editedProps,
 				structure: serializeStructureEdits(),
 				subsystems: [...editedSubsystems.entries()].map(([xmlPath, member]) => ({ xmlPath, member })),
+				commandVisibility:
+					editedCommandVisibility.size > 0 && model.commandInterface
+						? model.commandInterface.visibility.map((entry) => ({
+								command: entry.command,
+								common: commandVisibilityChecked(entry.command),
+							}))
+						: [],
 				content: [...editedContent.entries()].map(([key, edit]) => {
 					const space = key.indexOf(' ');
 					return { key: key.slice(0, space), ref: key.slice(space + 1), member: edit.member, mode: edit.mode };
@@ -1570,6 +1698,7 @@
 			structBaselineOrderKey = structOrderKey(editedStructure);
 			editedSubsystems.clear();
 			editedContent.clear();
+			editedCommandVisibility.clear();
 			saveError = '';
 			savedFlash = false;
 			if (currentTabIsEdit()) {
@@ -1589,8 +1718,12 @@
 				if (msg.refContent && typeof msg.refContent === 'object') {
 					model.refContent = msg.refContent;
 				}
+				if (msg.commandInterface && typeof msg.commandInterface === 'object') {
+					model.commandInterface = msg.commandInterface;
+				}
 				editedSubsystems.clear();
 				editedContent.clear();
+				editedCommandVisibility.clear();
 				editedStructure = model.structureLists ? structureEditsFromLists(model.structureLists) : null;
 				structBaselineOrderKey = structOrderKey(editedStructure);
 				if (Array.isArray(msg.tabs)) {
