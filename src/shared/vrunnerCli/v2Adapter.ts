@@ -67,6 +67,17 @@ export class V2CliAdapter implements VRunnerCliAdapter {
 				return [['dump', intent.out, ...common(intent)]];
 			case 'infobase.restoreDt':
 				return [['restore', intent.file, ...common(intent)]];
+			case 'infobase.listExtensions': {
+				if (intent.out === undefined) {
+					throw new Error('infobase.listExtensions: не задан каталог выгрузки');
+				}
+				return [[
+					'designer',
+					'--additional',
+					`/DumpConfigToFiles ${intent.out} -AllExtensions`,
+					...common(intent)
+				]];
+			}
 
 			// ---- Конфигурация ----
 			case 'cf.build':

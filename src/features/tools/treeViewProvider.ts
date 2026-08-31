@@ -454,10 +454,10 @@ export class PlatformTreeDataProvider implements vscode.TreeDataProvider<Platfor
 		const pipelines = workspaceRoot ? await readPipelines(workspaceRoot) : [];
 		const installed = pipelines.some((pipeline) => pipeline.id.startsWith(PIPELINE_TEMPLATE_ID_PREFIX));
 		const item = this.createTreeItem(
-			'Типовые пайплайны',
+			'1cpt: типовые пайплайны',
 			TreeItemType.Task,
 			vscode.TreeItemCollapsibleState.None,
-			{ command: '1c-platform-tools.pipelines.addTemplates', title: 'Типовые пайплайны' },
+			{ command: '1c-platform-tools.pipelines.addTemplates', title: '1cpt: типовые пайплайны' },
 			undefined,
 			undefined,
 			undefined,

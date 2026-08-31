@@ -768,6 +768,12 @@
         "category": "1С: Метаданные"
       },
       {
+        "command": "1c-platform-tools.metadata.compile",
+        "title": "Собрать",
+        "icon": "$(play)",
+        "category": "1С: Метаданные"
+      },
+      {
         "command": "1c-platform-tools.metadata.validateDump",
         "title": "Проверить выгрузку",
         "shortTitle": "Проверить выгрузку",
@@ -1339,22 +1345,22 @@
       },
       {
         "command": "1c-platform-tools.epf.compileProcessor",
-        "title": "Собрать обработку",
+        "title": "Собрать обработки",
         "category": "1С: Внешние файлы"
       },
       {
         "command": "1c-platform-tools.epf.decompileProcessor",
-        "title": "Разобрать обработку",
+        "title": "Разобрать обработки",
         "category": "1С: Внешние файлы"
       },
       {
         "command": "1c-platform-tools.epf.compileReport",
-        "title": "Собрать отчёт",
+        "title": "Собрать отчёты",
         "category": "1С: Внешние файлы"
       },
       {
         "command": "1c-platform-tools.epf.decompileReport",
-        "title": "Разобрать отчёт",
+        "title": "Разобрать отчёты",
         "category": "1С: Внешние файлы"
       },
       {
@@ -1525,7 +1531,7 @@
       },
       {
         "command": "1c-platform-tools.server.openConfig",
-        "title": "Открыть publication.yaml",
+        "title": "Открыть конфиг публикации",
         "category": "1С: Автономный сервер",
         "icon": "$(settings-gear)"
       },
@@ -2070,6 +2076,10 @@
         },
         {
           "command": "1c-platform-tools.metadata.addObject",
+          "when": "false"
+        },
+        {
+          "command": "1c-platform-tools.metadata.compile",
           "when": "false"
         },
         {
@@ -3066,7 +3076,7 @@
         },
         {
           "command": "1c-platform-tools.metadata.openProperties",
-          "when": "view == 1c-platform-tools-metadata-tree && (viewItem == metadataSourceConfigLike || viewItem == metadataSourceExternalArtifact || viewItem =~ /(^| )(metadataObjectProperties(Subsystem)?|metadataLeafFile)( |$)/ || viewItem =~ /(^| )metadataChild_/)",
+          "when": "view == 1c-platform-tools-metadata-tree && (viewItem == metadataSourceConfigLike || viewItem =~ /(^| )(metadataObjectProperties(Subsystem)?|metadataLeafFile)( |$)/ || viewItem =~ /(^| )metadataChild_/)",
           "group": "2_properties@1"
         },
         {
@@ -3078,6 +3088,11 @@
           "command": "1c-platform-tools.metadata.openFormContentXml",
           "when": "view == 1c-platform-tools-metadata-tree && (viewItem =~ /(^| )metadataObjectForm( |$)/ || viewItem =~ /(^| )mdFormModule( |$)/)",
           "group": "3_reveal@2"
+        },
+        {
+          "command": "1c-platform-tools.metadata.compile",
+          "when": "view == 1c-platform-tools-metadata-tree && (viewItem == metadataSourceConfigLike || viewItem =~ /(^| )metadataLeafFile( |$)/)",
+          "group": "4_build@1"
         },
         {
           "command": "1c-platform-tools.metadata.addObject",
@@ -3552,7 +3567,7 @@
             "default": [],
             "markdownDescription": "Список расширений (имена каталогов в `src/cfe`), с которыми работают команды группы «Расширения» и установка версии расширений. Заданный список команды используют без интерактивного выбора. Если он пуст, при запуске команды показывается окно выбора с чекбоксами, а выбор запоминается для проекта."
           },
-          "1c-platform-tools.cf.updateDbAfterLoad": {
+          "1c-platform-tools.cf.load.updateDb": {
             "type": "string",
             "enum": [
               "ask",
@@ -3903,7 +3918,7 @@
             "markdownDescription": "Каталог тестов OneScript (1testrunner/OneUnit), относительно корня проекта.",
             "markdownDeprecationMessage": "Каталог тестов задаётся в `#1c-platform-tools.path.tests#`. Заданное здесь значение пока используется, о чём пишется в журнал."
           },
-          "1c-platform-tools.test.selectedExtensions": {
+          "1c-platform-tools.test.cfe.selected": {
             "type": "array",
             "items": {
               "type": "string"

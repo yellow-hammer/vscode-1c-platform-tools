@@ -18,14 +18,25 @@ import {
 } from '../features/tools/commandNames';
 import { vanessaRunnerEpf, EPF_NAMES, EPF_COMMANDS } from '../shared/constants';
 import { logger } from '../shared/logger';
-import { filterCfeFilesBySelection } from '../features/extensions/extensionSelection';
+import {
+	filterCfeFilesBySelection,
+	normalizeConfiguredExtensions
+} from '../features/extensions/extensionSelection';
 import { resolveExtensionNameFromSrc } from '../features/extensions/extensionNames';
 import { pickExtensions } from '../features/extensions/extensionPicker';
+import { parseInfobaseExtensionsList } from '../features/extensions/infobaseExtensionsList';
+import {
+	isUsableExtensionFolderName,
+	resolveDumpTargets,
+	type DiskExtension,
+	type ExtensionDumpTarget
+} from '../features/extensions/extensionDumpTargets';
 import { decideUpdateDb } from '../features/configuration/updateDbDecision';
 import type { ExtensionScope } from '../features/extensions/extensionSelection';
 import type { CommandExecutionOptions, StructuredCommandResult } from '../shared/commandExecutionTypes';
 import type { VRunnerIntent } from '../shared/vrunnerCli';
 import { BUILD_SUBDIRS } from '../shared/pathDefaults';
+import { VRUNNER_FEATURES, isAtLeast } from '../shared/vrunnerVersion';
 
 const log = logger.scope('commands');
 
@@ -191,6 +202,280 @@ export class ExtensionsCommands extends BaseCommand {
 			return undefined;
 		}
 		return filterCfeFilesBySelection(cfeFiles, selected);
+	}
+
+	/**
+	 * Каталоги расширений на диске: пустой список, если корня ещё нет.
+	 * Сообщение «не найдено» здесь не показывается — выгрузка из ИБ сама
+	 * заведёт папки по списку базы.
+	 */
+	private async listDiskExtensions(
+		workspaceRoot: string,
+		cfePath: string
+	): Promise<DiskExtension[]> {
+		const root = path.join(workspaceRoot, cfePath);
+		try {
+			const stats = await fs.stat(root);
+			if (!stats.isDirectory()) {
+				return [];
+			}
+		} catch {
+			return [];
+		}
+
+		const folders = await this.getDirectories(root);
+		const disk: DiskExtension[] = [];
+		for (const folder of folders) {
+			disk.push({
+				folder,
+				extensionName: await resolveExtensionNameFromSrc(path.join(root, folder))
+			});
+		}
+		return disk;
+	}
+
+	/**
+	 * Сообщает, почему выгрузку из ИБ нельзя начать: агенту — структурой,
+	 * пользователю — коротким окном.
+	 */
+	private reportExportPrepareFailure(
+		message: string,
+		opts: CommandExecutionOptions | undefined,
+		level: 'info' | 'error'
+	): StructuredCommandResult | undefined {
+		if (opts?.wait === true) {
+			return this.executionError(message);
+		}
+		if (level === 'error') {
+			void vscode.window.showErrorMessage(message);
+		} else {
+			void vscode.window.showInformationMessage(message);
+		}
+		return undefined;
+	}
+
+	/**
+	 * Читает имена установленных расширений из информационной базы.
+	 *
+	 * В 3.x — `infobase extensions list --json`. В 2.x — выгрузка всех
+	 * расширений конфигуратором (`-AllExtensions`) и имена каталогов.
+	 */
+	private async listExtensionNamesFromInfobase(
+		workspaceRoot: string,
+		opts: CommandExecutionOptions | undefined
+	): Promise<{ names: string[] } | { error: string; level: 'info' | 'error' }> {
+		const version = await this.vrunner.getVRunnerVersion();
+		const viaDesigner = version === undefined || !isAtLeast(version, VRUNNER_FEATURES.cli3);
+		const listRel = this.pathForCmd(path.join(this.vrunner.getOutPath(), 'cfe-ib-list'));
+		const listAbs = path.join(workspaceRoot, listRel);
+
+		if (viaDesigner) {
+			try {
+				await fs.rm(listAbs, { recursive: true, force: true });
+				await fs.mkdir(listAbs, { recursive: true });
+			} catch (error) {
+				log.error(`Каталог списка расширений: ${(error as Error).message}`);
+				return { error: 'Не удалось прочитать список расширений из базы', level: 'error' };
+			}
+		}
+
+		try {
+			return await this.runExtensionsListCommand(workspaceRoot, listRel, listAbs, viaDesigner, opts);
+		} finally {
+			if (viaDesigner) {
+				// Выгрузка ради имён весит столько же, сколько сами расширения
+				await fs.rm(listAbs, { recursive: true, force: true }).catch((error: Error) => {
+					log.debug(`Каталог списка расширений не удалён: ${error.message}`);
+				});
+			}
+		}
+	}
+
+	/**
+	 * Выполняет команду списка расширений и разбирает её результат.
+	 *
+	 * @param listRel - Каталог выгрузки относительно корня проекта (нужен 2.x)
+	 * @param listAbs - Он же абсолютным путём
+	 * @param viaDesigner - Список снимается конфигуратором (vanessa-runner 2.x)
+	 */
+	private async runExtensionsListCommand(
+		workspaceRoot: string,
+		listRel: string,
+		listAbs: string,
+		viaDesigner: boolean,
+		opts: CommandExecutionOptions | undefined
+	): Promise<{ names: string[] } | { error: string; level: 'info' | 'error' }> {
+		const ibConnectionParam = await this.vrunner.getIbConnectionParam();
+		const steps = await this.vrunner.planIntent(
+			{
+				kind: 'infobase.listExtensions',
+				json: true,
+				out: listRel,
+				common: ibConnectionParam
+			},
+			opts?.settingsFile,
+			opts?.ibConnection
+		);
+		this.vrunner.consumePlanNotices();
+		if (steps.length !== 1) {
+			return { error: 'Не удалось прочитать список расширений из базы', level: 'error' };
+		}
+
+		const run = () => this.vrunner.executeVRunner(steps[0], { cwd: workspaceRoot });
+
+		const result = opts?.wait === true
+			? await run()
+			: await vscode.window.withProgress(
+				{
+					location: vscode.ProgressLocation.Notification,
+					title: 'Читаю список расширений из базы'
+				},
+				run
+			);
+
+		if (!result.success) {
+			log.error(
+				`Список расширений из ИБ: ${(result.stderr || result.stdout).trim().slice(0, 500)}`
+			);
+			return { error: 'Не удалось прочитать список расширений из базы', level: 'error' };
+		}
+
+		try {
+			const names = viaDesigner
+				? await this.extensionNamesFromDumpDir(listAbs)
+				: parseInfobaseExtensionsList(`${result.stdout}\n${result.stderr}`);
+			log.info(
+				names.length > 0
+					? `Из информационной базы: ${names.join(', ')}`
+					: 'В информационной базе нет расширений'
+			);
+			return { names };
+		} catch (error) {
+			log.error(`Список расширений из ИБ: ${(error as Error).message}`);
+			return { error: 'Не удалось разобрать список расширений из базы', level: 'error' };
+		}
+	}
+
+	/** Имена расширений — подкаталоги выгрузки `-AllExtensions`. */
+	private async extensionNamesFromDumpDir(dir: string): Promise<string[]> {
+		const entries = await fs.readdir(dir, { withFileTypes: true });
+		return entries
+			.filter((entry) => entry.isDirectory() && !entry.name.startsWith('.'))
+			.map((entry) => entry.name);
+	}
+
+	/**
+	 * Имена для выгрузки, когда в исходниках ещё нет каталогов:
+	 * настройка `cfe.selected` или список из информационной базы.
+	 */
+	private async namesWhenSourcesEmpty(
+		workspaceRoot: string,
+		opts: CommandExecutionOptions | undefined
+	): Promise<string[] | StructuredCommandResult | undefined> {
+		const configured = normalizeConfiguredExtensions(
+			vscode.workspace.getConfiguration('1c-platform-tools').get('cfe.selected')
+		);
+		if (configured.length > 0) {
+			return configured;
+		}
+
+		const listed = await this.listExtensionNamesFromInfobase(workspaceRoot, opts);
+		if ('error' in listed) {
+			return this.reportExportPrepareFailure(listed.error, opts, listed.level);
+		}
+		if (listed.names.length === 0) {
+			return this.reportExportPrepareFailure(
+				'В информационной базе нет расширений',
+				opts,
+				'info'
+			);
+		}
+		return this.selectExtensions(listed.names, opts);
+	}
+
+	/**
+	 * Создаёт корень и недостающие каталоги расширений. Существующие не трогает.
+	 *
+	 * @returns undefined — каталоги готовы; иначе причина отказа
+	 */
+	private async createMissingExtensionFolders(
+		workspaceRoot: string,
+		cfePath: string,
+		targets: readonly ExtensionDumpTarget[],
+		opts: CommandExecutionOptions | undefined
+	): Promise<string | undefined> {
+		const root = path.join(workspaceRoot, cfePath);
+		if (!(await this.ensureDirectoryForExecution(root, opts, `Ошибка при создании папки ${cfePath}`))) {
+			return `Не удалось создать каталог ${cfePath}`;
+		}
+		for (const target of targets) {
+			const dir = path.join(root, target.folder);
+			if (await this.ensureDirectoryForExecution(
+				dir,
+				opts,
+				`Ошибка при создании папки ${cfePath}/${target.folder}`
+			)) {
+				continue;
+			}
+			return `Не удалось создать каталог ${cfePath}/${target.folder}`;
+		}
+		return undefined;
+	}
+
+	/**
+	 * Собирает цели выгрузки из ИБ: каталоги на диске и, если их нет,
+	 * имена из настройки, параметра или самой базы.
+	 *
+	 * @param createFolders - Создать недостающие каталоги (выгрузка в исходники)
+	 */
+	private async prepareTargetsForIbExport(
+		workspaceRoot: string,
+		cfePath: string,
+		opts: CommandExecutionOptions | undefined,
+		createFolders: boolean
+	): Promise<ExtensionDumpTarget[] | StructuredCommandResult | undefined> {
+		const disk = await this.listDiskExtensions(workspaceRoot, cfePath);
+		// Явные имена от агента задают цели сами: среди них могут быть расширения
+		// базы, каталога под которые ещё нет, и отбор по диску их бы потерял
+		const explicit = normalizeConfiguredExtensions(opts?.extensions);
+		let selected: string[] | StructuredCommandResult | undefined;
+		if (explicit.length > 0) {
+			selected = explicit;
+		} else if (disk.length > 0) {
+			selected = await this.selectExtensions(disk.map((item) => item.folder), opts);
+		} else {
+			selected = await this.namesWhenSourcesEmpty(workspaceRoot, opts);
+		}
+		if (selected === undefined || !Array.isArray(selected)) {
+			return selected;
+		}
+		if (selected.length === 0) {
+			if (opts?.wait === true) {
+				return this.executionError('Не выбрано ни одного расширения');
+			}
+			void vscode.window.showInformationMessage('Не выбрано ни одного расширения.');
+			return undefined;
+		}
+
+		const targets = resolveDumpTargets(disk, selected);
+		const invalid = targets.find((target) => !isUsableExtensionFolderName(target.folder));
+		if (invalid !== undefined) {
+			return this.reportExportPrepareFailure(
+				`Нельзя создать каталог «${invalid.folder}»`,
+				opts,
+				'error'
+			);
+		}
+
+		if (createFolders) {
+			const failure = await this.createMissingExtensionFolders(workspaceRoot, cfePath, targets, opts);
+			if (failure !== undefined) {
+				// В UI-режиме сообщение уже показал ensureDirectoryForExecution
+				return opts?.wait === true ? this.executionError(failure) : undefined;
+			}
+		}
+
+		return targets;
 	}
 
 	/** Группирует пути из objlist по расширениям (src/cfe/<имя>). Пути — полные или относительно workspace. */
@@ -493,40 +778,13 @@ export class ExtensionsCommands extends BaseCommand {
 	}
 
 	/**
-	 * Выгружает расширения из информационной базы в исходники
-	 * 
-	 * Находит все подпапки в папке расширений и для каждой выполняет команду `decompileext`.
-	 * Расширения выгружаются из информационной базы в исходники в формате XML.
-	 * 
-	 * @returns Промис, который разрешается после запуска команд
+	 * Общие проверки перед выгрузкой из ИБ: корень проекта, oscript, файл настроек.
+	 *
+	 * @returns Путь проекта, результат ошибки для агента или undefined
 	 */
-	async dumpToSrc(opts?: CommandExecutionOptions): Promise<StructuredCommandResult | void> {
-		const ibConnectionParam = await this.vrunner.getIbConnectionParam();
-		const commandName = getDumpExtensionToSrcCommandName();
-		const cfePath = this.vrunner.getCfePath();
-
-		return this.executeForAllExtensions(
-			(extensionFolder, extensionName) => ({
-				kind: 'cfe.dumpIbToSrc',
-				extensionName,
-				out: path.join(cfePath, extensionFolder),
-				common: ibConnectionParam,
-			}),
-			commandName.title,
-			opts,
-			commandName.id
-		);
-	}
-
-	/**
-	 * Выгружает расширение из информационной базы в .cfe файл
-	 * 
-	 * Находит все подпапки в папке расширений и для каждой выполняет команду `unloadext`.
-	 * Расширения выгружаются из информационной базы в бинарные .cfe файлы в папку сборки.
-	 * 
-	 * @returns Промис, который разрешается после запуска команд
-	 */
-	async dumpToCfe(opts?: CommandExecutionOptions): Promise<StructuredCommandResult | void> {
+	private async beginIbExport(
+		opts: CommandExecutionOptions | undefined
+	): Promise<string | StructuredCommandResult | undefined> {
 		const cwd = this.getExecutionCwd(opts);
 		if (!cwd) {
 			if (opts?.wait === true) {
@@ -535,19 +793,83 @@ export class ExtensionsCommands extends BaseCommand {
 				);
 			}
 			this.ensureWorkspace();
-			return;
+			return undefined;
+		}
+		if (!(await this.ensureOscriptForExecution(opts))) {
+			return opts?.wait === true
+				? this.executionError('OneScript (oscript) или opm не найдены')
+				: undefined;
+		}
+		const gate = await this.settingsGate(opts);
+		if (gate) {
+			return gate === 'blocked' ? undefined : gate;
+		}
+		return cwd;
+	}
+
+	/**
+	 * Выгружает расширения из информационной базы в исходники
+	 *
+	 * Если в каталоге расширений уже есть подпапки — выгружает выбранные.
+	 * Если каталог пустой (проект только что инициализирован), берёт имена
+	 * из информационной базы, создаёт недостающие папки и выгружает в них.
+	 *
+	 * @returns Промис, который разрешается после запуска команд
+	 */
+	async dumpToSrc(opts?: CommandExecutionOptions): Promise<StructuredCommandResult | void> {
+		const started = await this.beginIbExport(opts);
+		if (started === undefined || typeof started !== 'string') {
+			return started;
 		}
 
-		const extensionFolders = await this.getExtensionFoldersFromSrc(cwd, this.vrunner.getCfePath());
-		if (!extensionFolders) {
-			if (opts?.wait === true) {
-				return this.executionError('В каталоге расширений не найдено подкаталогов');
-			}
-			return;
+		const cfePath = this.vrunner.getCfePath();
+		const prepared = await this.prepareTargetsForIbExport(started, cfePath, opts, true);
+		if (prepared === undefined || !Array.isArray(prepared)) {
+			return prepared;
+		}
+
+		const ibConnectionParam = await this.vrunner.getIbConnectionParam();
+		const commandName = getDumpExtensionToSrcCommandName();
+		return this.runIntentsSequential(
+			prepared.map((target) => ({
+				kind: 'cfe.dumpIbToSrc' as const,
+				extensionName: target.extensionName,
+				out: path.join(cfePath, target.folder),
+				common: ibConnectionParam
+			})),
+			opts,
+			commandName.title,
+			commandName.id
+		);
+	}
+
+	/**
+	 * Выгружает расширение из информационной базы в .cfe файл
+	 *
+	 * Если в исходниках есть каталоги — выгружает выбранные. Если каталогов
+	 * нет, берёт имена из информационной базы: для *.cfe папки исходников
+	 * не нужны.
+	 *
+	 * @returns Промис, который разрешается после запуска команд
+	 */
+	async dumpToCfe(opts?: CommandExecutionOptions): Promise<StructuredCommandResult | void> {
+		const started = await this.beginIbExport(opts);
+		if (started === undefined || typeof started !== 'string') {
+			return started;
+		}
+
+		const prepared = await this.prepareTargetsForIbExport(
+			started,
+			this.vrunner.getCfePath(),
+			opts,
+			false
+		);
+		if (prepared === undefined || !Array.isArray(prepared)) {
+			return prepared;
 		}
 
 		const buildPath = this.vrunner.getOutPath();
-		const cfeBuildPath = path.join(cwd, buildPath, BUILD_SUBDIRS.cfe);
+		const cfeBuildPath = path.join(started, buildPath, BUILD_SUBDIRS.cfe);
 		if (!(await this.ensureDirectoryForExecution(
 			cfeBuildPath,
 			opts,
@@ -561,16 +883,15 @@ export class ExtensionsCommands extends BaseCommand {
 
 		const ibConnectionParam = await this.vrunner.getIbConnectionParam();
 		const commandName = getDumpExtensionToCfeCommandName();
-
-		return this.executeForAllExtensions(
-			(extensionFolder, extensionName) => ({
-				kind: 'cfe.unloadIbToCfe',
-				extensionName,
-				out: path.join(buildPath, BUILD_SUBDIRS.cfe, `${extensionFolder}.cfe`),
-				common: ibConnectionParam,
-			}),
-			commandName.title,
+		return this.runIntentsSequential(
+			prepared.map((target) => ({
+				kind: 'cfe.unloadIbToCfe' as const,
+				extensionName: target.extensionName,
+				out: path.join(buildPath, BUILD_SUBDIRS.cfe, `${target.folder}.cfe`),
+				common: ibConnectionParam
+			})),
 			opts,
+			commandName.title,
 			commandName.id
 		);
 	}

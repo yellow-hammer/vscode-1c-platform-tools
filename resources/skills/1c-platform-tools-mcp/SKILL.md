@@ -90,10 +90,10 @@ Read-only инструмент `env_status` возвращает JSON: акти�
 
 | Задача              | Инструмент MCP              |
 |---------------------|-----------------------------|
-| Собрать обработку   | `epf_compileProc`       |
-| Разобрать обработку | `epf_decompileProc`   |
-| Собрать отчёт       | `epf_compileReport`     |
-| Разобрать отчёт     | `epf_decompileReport` |
+| Собрать обработки   | `epf_compileProc`       |
+| Разобрать обработки | `epf_decompileProc`   |
+| Собрать отчёты      | `epf_compileReport`     |
+| Разобрать отчёты    | `epf_decompileReport` |
 | Удалить кэш         | `epf_clearCache`  |
 
 ## Информационные базы, зависимости, запуск и др.

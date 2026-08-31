@@ -21,7 +21,7 @@ interface ExtensionPickItem extends vscode.QuickPickItem {
  * 1. Явный список в опциях вызова (агент, MCP) — используется без окна выбора
  *    и не меняет сохранённый выбор проекта.
  * 2. Настройка области в settings.json (`1c-platform-tools.cfe.selected`
- *    для расширений решения, `1c-platform-tools.test.selectedExtensions` для
+ *    для расширений решения, `1c-platform-tools.test.cfe.selected` для
  *    тестовых) — если задана, используется без окна выбора.
  * 3. Режим wait (MCP) — применяется сохранённый выбор (или все).
  * 4. Иначе — quickpick с чекбоксами: изначально отмечены все (либо ранее
@@ -44,12 +44,11 @@ export async function pickExtensions(
 		return filterByConfiguredNames(allNames, normalizeConfiguredExtensions(opts.extensions));
 	}
 
-	// У каждой области свой список в настройках: extensions.selected перечисляет
-	// расширения решения, testing.selectedExtensions - тестовые. Заданный список
-	// работает без окна выбора, поэтому команду можно закрепить в проекте файлом.
+	// У каждой области свой список в настройках: cfe.selected — решение,
+	// test.cfe.selected — тестовые. Заданный список работает без окна выбора.
 	const config = vscode.workspace.getConfiguration('1c-platform-tools');
 	const configured = normalizeConfiguredExtensions(
-		config.get(scope === 'tests' ? 'test.selectedExtensions' : 'cfe.selected')
+		config.get(scope === 'tests' ? 'test.cfe.selected' : 'cfe.selected')
 	);
 	if (configured.length > 0) {
 		return filterByConfiguredNames(allNames, configured);

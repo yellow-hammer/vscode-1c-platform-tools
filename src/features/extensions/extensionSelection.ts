@@ -104,7 +104,7 @@ export function normalizeConfiguredExtensions(raw: unknown): string[] {
  * Порядок исходного списка сохраняется.
  *
  * @param available - Доступные каталоги расширений (src/cfe или tests/cfe)
- * @param configured - Имена из настройки extensions.selected
+ * @param configured - Имена из настройки `cfe.selected` или `test.cfe.selected`
  * @returns Отфильтрованный список
  */
 export function filterByConfiguredNames(available: string[], configured: string[]): string[] {

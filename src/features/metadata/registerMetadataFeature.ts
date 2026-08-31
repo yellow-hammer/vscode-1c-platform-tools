@@ -63,6 +63,8 @@ import { showComponentError } from '../../shared/githubToken';
 import { uiOnlyHandler } from '../../shared/agentGate';
 import { describeComponentState, readComponentStates } from '../../shared/componentsRegistry';
 import { CfDumpFinding, DumpValidationDiagnostics } from './dumpValidationDiagnostics';
+import { metadataCompileTarget, type MetadataCompileKind } from './metadataCompileTarget';
+import { ArtifactCommands } from '../../commands/artifactCommands';
 
 export interface RegisterMetadataFeatureParams {
 	context: vscode.ExtensionContext;
@@ -88,6 +90,7 @@ export function registerMetadataFeature(
 	} = params;
 
 	const MD_SPARROW_CLI_ERR_PREVIEW = 500;
+	const artifactCommands = new ArtifactCommands();
 
 	// Палитра показывает свойства выделенного в дереве: объект, конфигурацию, внешний отчёт.
 	const paletteSource = registerMetadataPaletteSource({
@@ -1753,6 +1756,20 @@ export function registerMetadataFeature(
 			});
 		}),
 		vscode.commands.registerCommand(
+			'1c-platform-tools.metadata.compile',
+			async (item?: vscode.TreeItem) => {
+				const node = item ?? metadataTreeView.selection[0];
+				const target = metadataCompileTarget(node);
+				if (!target) {
+					void vscode.window.showInformationMessage(
+						'Выберите конфигурацию, расширение, обработку или отчёт.'
+					);
+					return;
+				}
+				await compileMetadataTarget(artifactCommands, target.kind, target.sourceUri);
+			}
+		),
+		vscode.commands.registerCommand(
 			'1c-platform-tools.metadata.validateDump',
 			async (item?: MetadataSourceTreeItem) => {
 				const source = resolveSelectedMetadataSource(item);
@@ -1926,4 +1943,30 @@ export function registerMetadataFeature(
 	];
 
 	return [...metadataDisposables, ...paletteSource];
+}
+
+/** Собирает файл выбранного узла. */
+async function compileMetadataTarget(
+	artifactCommands: ArtifactCommands,
+	kind: MetadataCompileKind,
+	sourceUri: vscode.Uri
+): Promise<void> {
+	switch (kind) {
+		case 'configuration':
+			await artifactCommands.buildConfiguration(sourceUri);
+			return;
+		case 'extension':
+			await artifactCommands.buildExtension(sourceUri);
+			return;
+		case 'processor':
+			await artifactCommands.buildProcessor(sourceUri);
+			return;
+		case 'report':
+			await artifactCommands.buildReport(sourceUri);
+			return;
+		default: {
+			const _exhaustive: never = kind;
+			return _exhaustive;
+		}
+	}
 }

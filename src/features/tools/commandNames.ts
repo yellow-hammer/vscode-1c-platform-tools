@@ -246,24 +246,24 @@ export function getBuildConfigurationCommandName(): CommandNameAndTitle {
 }
 
 /**
- * Получить название и заголовок для команды сборки внешней обработки
+ * Получить название и заголовок для команды сборки внешних обработок
  */
 export function getBuildExternalProcessorCommandName(): CommandNameAndTitle {
 	return {
-		id: '1c-platform-tools.artifacts.compileProcessor',
-		name: 'Собрать внешнюю обработку',
-		title: 'Собрать внешнюю обработку'
+		id: '1c-platform-tools.epf.compileProcessor',
+		name: 'Собрать обработки',
+		title: 'Собрать обработки'
 	};
 }
 
 /**
- * Получить название и заголовок для команды сборки внешнего отчёта
+ * Получить название и заголовок для команды сборки внешних отчётов
  */
 export function getBuildExternalReportCommandName(): CommandNameAndTitle {
 	return {
-		id: '1c-platform-tools.artifacts.compileReport',
-		name: 'Собрать внешний отчёт',
-		title: 'Собрать внешний отчёт'
+		id: '1c-platform-tools.epf.compileReport',
+		name: 'Собрать отчёты',
+		title: 'Собрать отчёты'
 	};
 }
 
@@ -279,24 +279,24 @@ export function getDecompileConfigurationCommandName(): CommandNameAndTitle {
 }
 
 /**
- * Получить название и заголовок для команды разбора внешней обработки
+ * Получить название и заголовок для команды разбора внешних обработок
  */
 export function getDecompileExternalProcessorCommandName(): CommandNameAndTitle {
 	return {
-		id: '1c-platform-tools.artifacts.decompileProcessor',
-		name: 'Разобрать внешнюю обработку',
-		title: 'Разобрать внешнюю обработку'
+		id: '1c-platform-tools.epf.decompileProcessor',
+		name: 'Разобрать обработки',
+		title: 'Разобрать обработки'
 	};
 }
 
 /**
- * Получить название и заголовок для команды разбора внешнего отчёта
+ * Получить название и заголовок для команды разбора внешних отчётов
  */
 export function getDecompileExternalReportCommandName(): CommandNameAndTitle {
 	return {
-		id: '1c-platform-tools.artifacts.decompileReport',
-		name: 'Разобрать внешний отчёт',
-		title: 'Разобрать внешний отчёт'
+		id: '1c-platform-tools.epf.decompileReport',
+		name: 'Разобрать отчёты',
+		title: 'Разобрать отчёты'
 	};
 }
 

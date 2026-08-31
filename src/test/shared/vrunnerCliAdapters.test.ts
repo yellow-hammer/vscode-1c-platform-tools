@@ -99,6 +99,15 @@ suite('vrunnerCli: адаптеры v2/v3', () => {
 		);
 	});
 
+	test('infobase.listExtensions: в 2.x designer --additional, в 3.x infobase extensions list', () => {
+		check(
+			{ kind: 'infobase.listExtensions', json: true, out: 'build/out/cfe-ib-list', common: conn },
+			[['designer', '--additional', '/DumpConfigToFiles build/out/cfe-ib-list -AllExtensions', ...conn]],
+			[['infobase', 'extensions', 'list', '--json', ...conn]]
+		);
+		assert.throws(() => v2.plan({ kind: 'infobase.listExtensions' }), /каталог выгрузки/);
+	});
+
 	// ---- Конфигурация ----
 	test('cf.build', () => {
 		check(

@@ -213,11 +213,11 @@ export const AGENT_COMMAND_DESCRIPTIONS: Record<string, AgentCommandDescription>
 		category: EXTENSIONS,
 	},
 	'1c-platform-tools.cfe.dump': {
-		title: 'Выгрузить расширения ИБ в исходники проекта',
+		title: 'Выгрузить расширения ИБ в исходники проекта; пустой src/cfe заполняется по списку из базы',
 		category: EXTENSIONS,
 	},
 	'1c-platform-tools.cfe.unload': {
-		title: 'Выгрузить расширения ИБ в файлы .cfe',
+		title: 'Выгрузить расширения ИБ в файлы .cfe; при пустом src/cfe имена берутся из базы',
 		category: EXTENSIONS,
 	},
 	'1c-platform-tools.cfe.compile': {

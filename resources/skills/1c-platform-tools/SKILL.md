@@ -55,10 +55,10 @@ description: Операции с платформой 1С в этом проек
 
 | Задача                      | Command ID                                       |
 |-----------------------------|--------------------------------------------------|
-| Собрать внешнюю обработку   | `1c-platform-tools.epf.compileProcessor`     |
-| Разобрать внешнюю обработку | `1c-platform-tools.epf.decompileProcessor` |
-| Собрать внешний отчёт       | `1c-platform-tools.epf.compileReport`        |
-| Разобрать внешний отчёт     | `1c-platform-tools.epf.decompileReport`    |
+| Собрать обработки   | `1c-platform-tools.epf.compileProcessor`     |
+| Разобрать обработки | `1c-platform-tools.epf.decompileProcessor` |
+| Собрать отчёты      | `1c-platform-tools.epf.compileReport`        |
+| Разобрать отчёты    | `1c-platform-tools.epf.decompileReport`    |
 | Удалить кэш                 | `1c-platform-tools.epf.clearCache`     |
 
 ## Поддержка и поставка

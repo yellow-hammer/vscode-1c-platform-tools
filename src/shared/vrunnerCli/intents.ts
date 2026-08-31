@@ -36,6 +36,8 @@ export type VRunnerIntent =
 	| { kind: 'infobase.dumpDt'; out: string; common?: CommonArgs }
 	/** Восстановить ИБ из .dt. */
 	| { kind: 'infobase.restoreDt'; file: string; common?: CommonArgs }
+	/** Список установленных в ИБ расширений. */
+	| { kind: 'infobase.listExtensions'; json?: boolean; out?: string; common?: CommonArgs }
 
 	// ---- Конфигурация (cf) ----
 	/** Собрать .cf из исходников. */

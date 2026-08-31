@@ -81,7 +81,6 @@ suite('контекстное меню дерева метаданных', () =>
 	test('«Свойства» есть ровно у тех узлов, у которых свойства бывают', () => {
 		const withProperties = [
 			NODES.source,
-			NODES.externalRoot,
 			NODES.catalog,
 			NODES.commonModule,
 			NODES.commonForm,
@@ -96,7 +95,13 @@ suite('контекстное меню дерева метаданных', () =>
 		for (const viewItem of withProperties) {
 			assert.ok(menuFor(viewItem).includes('Свойства'), `нет «Свойства» у ${viewItem}`);
 		}
-		for (const viewItem of [NODES.group, NODES.groupWithoutCreate, NODES.leafNoFile, NODES.otherSection]) {
+		for (const viewItem of [
+			NODES.externalRoot,
+			NODES.group,
+			NODES.groupWithoutCreate,
+			NODES.leafNoFile,
+			NODES.otherSection,
+		]) {
 			assert.ok(!menuFor(viewItem).includes('Свойства'), `лишние «Свойства» у ${viewItem}`);
 		}
 	});
@@ -178,7 +183,43 @@ suite('контекстное меню дерева метаданных', () =>
 		assert.ok(menuFor(NODES.subsystem).includes('Фильтр по подсистеме'));
 	});
 
-	test('порядок групп сквозной: открыть, свойства, показать, создать, править, удалить', () => {
+	test('«Собрать» только у корня выгрузки и у внешней обработки или отчёта', () => {
+		for (const viewItem of [NODES.source, NODES.externalArtifact]) {
+			assert.ok(menuFor(viewItem).includes('Собрать'), `нет «Собрать» у ${viewItem}`);
+		}
+		for (const viewItem of [
+			NODES.externalRoot,
+			NODES.catalog,
+			NODES.role,
+			NODES.group,
+			NODES.attribute,
+		]) {
+			assert.ok(!menuFor(viewItem).includes('Собрать'), `лишнее «Собрать» у ${viewItem}`);
+		}
+	});
+
+	test('на корне выгрузки: сначала смотрим, потом собираем, потом проверяем', () => {
+		assert.deepStrictEqual(menuFor(NODES.source), [
+			'Открыть модуль внешнего соединения',
+			'Открыть модуль приложения',
+			'Открыть модуль сеанса',
+			'Свойства',
+			'Открыть XML',
+			'Собрать',
+			'Проверить выгрузку',
+		]);
+	});
+
+	test('у внешней обработки «Собрать» стоит после просмотра и до правок', () => {
+		const menu = menuFor(NODES.externalArtifact);
+		const compile = menu.indexOf('Собрать');
+		const xml = menu.indexOf('Открыть XML');
+		const rename = menu.indexOf('Переименовать');
+		assert.ok(compile >= 0 && xml >= 0 && rename >= 0, `меню внешней обработки: ${menu.join(' → ')}`);
+		assert.ok(xml < compile && compile < rename, `ожидался XML → Собрать → Переименовать, а не ${menu.join(' → ')}`);
+	});
+
+	test('порядок групп сквозной: открыть, свойства, показать, собрать, создать, править, удалить', () => {
 		const groups = (menus: string[]) => menus;
 		const catalog = groups(menuFor(NODES.catalog));
 		const order = [
