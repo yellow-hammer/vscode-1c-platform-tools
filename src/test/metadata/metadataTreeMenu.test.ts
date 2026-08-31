@@ -183,17 +183,12 @@ suite('контекстное меню дерева метаданных', () =>
 		assert.ok(menuFor(NODES.subsystem).includes('Фильтр по подсистеме'));
 	});
 
-	test('«Собрать» только у корня выгрузки и у внешней обработки или отчёта', () => {
-		for (const viewItem of [NODES.source, NODES.externalArtifact]) {
+	test('«Собрать» у корня выгрузки, внешнего файла и группы внешних файлов', () => {
+		// Группа внешних файлов собирает всё содержимое разом
+		for (const viewItem of [NODES.source, NODES.externalArtifact, NODES.externalRoot]) {
 			assert.ok(menuFor(viewItem).includes('Собрать'), `нет «Собрать» у ${viewItem}`);
 		}
-		for (const viewItem of [
-			NODES.externalRoot,
-			NODES.catalog,
-			NODES.role,
-			NODES.group,
-			NODES.attribute,
-		]) {
+		for (const viewItem of [NODES.catalog, NODES.role, NODES.group, NODES.attribute]) {
 			assert.ok(!menuFor(viewItem).includes('Собрать'), `лишнее «Собрать» у ${viewItem}`);
 		}
 	});

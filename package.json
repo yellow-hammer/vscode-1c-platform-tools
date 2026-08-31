@@ -1373,6 +1373,11 @@
         "category": "1С: Конфигурация"
       },
       {
+        "command": "1c-platform-tools.metadata.supportRemove",
+        "title": "Снять с поддержки",
+        "category": "1С: Конфигурация"
+      },
+      {
         "command": "1c-platform-tools.metadata.supportSetObjectMode",
         "title": "Режим поддержки",
         "category": "1С: Конфигурация"
@@ -2489,6 +2494,10 @@
         {
           "command": "1c-platform-tools.metadata.openCommandInterface",
           "when": "false"
+        },
+        {
+          "command": "1c-platform-tools.metadata.supportRemove",
+          "when": "false"
         }
       ],
       "debug/toolBar": [
@@ -3202,7 +3211,7 @@
         },
         {
           "command": "1c-platform-tools.metadata.compile",
-          "when": "view == 1c-platform-tools-metadata-tree && (viewItem =~ /(^| )metadataSourceConfigLike( |$)/ || viewItem =~ /(^| )metadataLeafFile( |$)/)",
+          "when": "view == 1c-platform-tools-metadata-tree && (viewItem =~ /(^| )metadataSourceConfigLike( |$)/ || viewItem == metadataSourceExternalArtifact || viewItem =~ /(^| )metadataLeafFile( |$)/)",
           "group": "4_build@1"
         },
         {
@@ -3304,6 +3313,11 @@
           "command": "1c-platform-tools.metadata.openCommandInterface",
           "when": "view == 1c-platform-tools-metadata-tree && viewItem =~ /(^| )metadataObjectPropertiesSubsystem( |$)/",
           "group": "1_open@6"
+        },
+        {
+          "command": "1c-platform-tools.metadata.supportRemove",
+          "when": "view == 1c-platform-tools-metadata-tree && viewItem =~ /(^| )mdSupportRules( |$)/",
+          "group": "6_support@2"
         }
       ],
       "editor/title": [

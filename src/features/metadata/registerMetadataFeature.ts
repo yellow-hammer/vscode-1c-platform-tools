@@ -1976,30 +1976,13 @@ export function registerMetadataFeature(
 						void vscode.window.showInformationMessage('Выберите конфигурацию в дереве.');
 						return;
 					}
-					// Как в конфигураторе: включение возможности изменения задаёт правило
-					// поддержки по умолчанию для всех объектов, дальше режим меняется по одному
-					const rule = await vscode.window.showQuickPick(
-						[
-							{
-								label: 'Объект поставщика не редактируется',
-								description: 'обновления поставщика ложатся автоматически, правка разрешается по объекту',
-								mode: '0',
-							},
-							{
-								label: 'Объект поставщика редактируется с сохранением поддержки',
-								description: 'объекты можно менять сразу, при обновлении изменения объединяются вручную',
-								mode: '1',
-							},
-						],
-						{ placeHolder: 'Правило поддержки объектов по умолчанию' }
-					);
-					if (!rule) {
-						return;
-					}
+					// Как в конфигураторе: открывается только корень - свойства конфигурации
+					// и добавление объектов; сами объекты остаются «не редактируется»,
+					// режим каждого меняется отдельно
 					const runtime = await ensureMdSparrowRuntime(context);
 					const res = await runMdSparrowParamsMutation(
 						runtime,
-						{ op: 'cf-support-enable-rules', configurationXml: source.configurationXmlAbs, name: rule.mode },
+						{ op: 'cf-support-enable-rules', configurationXml: source.configurationXmlAbs, name: '0' },
 						{ cwd: source.metadataRootAbs ?? path.dirname(source.configurationXmlAbs) }
 					);
 					if (res.exitCode !== 0) {
@@ -2008,7 +1991,41 @@ export function registerMetadataFeature(
 						);
 						return;
 					}
-					notifyQuiet('Возможность изменения включена');
+					notifyQuiet('Возможность изменения включена: режим объектов меняется по одному');
+					void vscode.commands.executeCommand('1c-platform-tools.metadata.refresh');
+				});
+			}
+		),
+		vscode.commands.registerCommand(
+			'1c-platform-tools.metadata.supportRemove',
+			async (item?: MetadataSourceTreeItem) => {
+				await runMdSparrowMutation(async () => {
+					const source = item instanceof MetadataSourceTreeItem ? item : undefined;
+					if (!source?.configurationXmlAbs) {
+						void vscode.window.showInformationMessage('Выберите конфигурацию в дереве.');
+						return;
+					}
+					const answer = await vscode.window.showWarningMessage(
+						'Снять конфигурацию с поддержки? Файл поставки будет удалён, автоматическое обновление от поставщика станет недоступно.',
+						{ modal: true },
+						'Снять с поддержки'
+					);
+					if (answer !== 'Снять с поддержки') {
+						return;
+					}
+					const runtime = await ensureMdSparrowRuntime(context);
+					const res = await runMdSparrowParamsMutation(
+						runtime,
+						{ op: 'cf-support-remove', configurationXml: source.configurationXmlAbs },
+						{ cwd: source.metadataRootAbs ?? path.dirname(source.configurationXmlAbs) }
+					);
+					if (res.exitCode !== 0) {
+						void vscode.window.showErrorMessage(
+							`Не удалось снять с поддержки. ${(res.stderr || res.stdout).trim()}`.slice(0, 400)
+						);
+						return;
+					}
+					notifyQuiet('Конфигурация снята с поддержки');
 					void vscode.commands.executeCommand('1c-platform-tools.metadata.refresh');
 				});
 			}
@@ -2148,6 +2165,35 @@ export function registerMetadataFeature(
 			'1c-platform-tools.metadata.compile',
 			async (item?: vscode.TreeItem) => {
 				const node = item ?? metadataTreeView.selection[0];
+				// Группа внешних файлов собирает всё содержимое разом
+				if (
+					node instanceof MetadataSourceTreeItem &&
+					(node.sourceKind === 'externalErf' || node.sourceKind === 'externalEpf')
+				) {
+					const root = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+					if (!root) {
+						return;
+					}
+					const tree = await loadProjectMetadataTree(context, root);
+					const source = tree.sources.find((candidate) => candidate.kind === node.sourceKind);
+					const items = source?.groups.flatMap((group) => group.items) ?? [];
+					if (items.length === 0) {
+						void vscode.window.showInformationMessage('В группе нет внешних файлов.');
+						return;
+					}
+					const kind = node.sourceKind === 'externalErf' ? 'report' : 'processor';
+					for (const entry of items) {
+						if (!entry.relativePath) {
+							continue;
+						}
+						await compileMetadataTarget(
+							artifactCommands,
+							kind,
+							vscode.Uri.file(path.dirname(path.join(root, entry.relativePath)))
+						);
+					}
+					return;
+				}
 				const target = metadataCompileTarget(node);
 				if (!target) {
 					void vscode.window.showInformationMessage(

@@ -316,6 +316,40 @@
 	/** Изменённый порядок команд: копия списка после первой перестановки. */
 	let editedCommandOrder = null;
 
+	/** Изменённый порядок подсистем и групп командного интерфейса. */
+	let editedSubsystemsOrder = null;
+	let editedGroupsOrder = null;
+
+	/** Стрелки порядка тем же видом, что в списках состава. */
+	function moveButtons(index, total, move) {
+		const actions = document.createElement('span');
+		actions.className = 'struct-actions-inline';
+		for (const spec of [
+			['↑', -1, 'Вверх'],
+			['↓', 1, 'Вниз'],
+		]) {
+			const btn = document.createElement('button');
+			btn.type = 'button';
+			btn.className = 'struct-btn';
+			btn.textContent = spec[0];
+			btn.title = spec[2];
+			const target = index + spec[1];
+			btn.disabled = target < 0 || target >= total;
+			btn.addEventListener('click', function () {
+				move(index, target);
+			});
+			actions.appendChild(btn);
+		}
+		return actions;
+	}
+
+	function orderListDirty(edited, base) {
+		if (!edited) {
+			return false;
+		}
+		return edited.some((value, index) => (base || [])[index] !== value);
+	}
+
 	function commandPlacementGroup(entry) {
 		return editedCommandPlacement.has(entry.command)
 			? editedCommandPlacement.get(entry.command)
@@ -504,6 +538,8 @@
 			editedCommandVisibility.size > 0 ||
 			editedCommandPlacement.size > 0 ||
 			commandOrderDirty() ||
+			orderListDirty(editedSubsystemsOrder, model.commandInterface && model.commandInterface.subsystemsOrder) ||
+			orderListDirty(editedGroupsOrder, model.commandInterface && model.commandInterface.groupsOrder) ||
 			editedRoleRights.size > 0 ||
 			editedRoleFlags.size > 0
 		) {
@@ -814,9 +850,11 @@
 		function commandCaption(command) {
 			const parts = String(command).split('.');
 			if (parts.length === 4 && parts[2] === 'StandardCommand') {
-				const kind = parts[0];
 				const action = STANDARD_COMMAND_LABELS.get(parts[3]) || parts[3];
-				return `${kind}.${parts[1]}: ${action}`;
+				return roleObjectCaption(parts[0] + '.' + parts[1]) + ': ' + action;
+			}
+			if (parts.length === 2) {
+				return roleObjectCaption(command);
 			}
 			return command;
 		}
@@ -946,43 +984,78 @@
 				group.textContent = commandGroupCaption(entry.group);
 				item.appendChild(group);
 				if (!readonly) {
-					for (const move of [
-						['▲', -1],
-						['▼', 1],
-					]) {
-						const btn = document.createElement('button');
-						btn.type = 'button';
-						btn.className = 'ci-order-btn';
-						btn.textContent = move[0];
-						const target = index + move[1];
-						btn.disabled = target < 0 || target >= orderEntries.length;
-						btn.addEventListener('click', function () {
+					item.appendChild(
+						moveButtons(index, orderEntries.length, function (from, to) {
 							if (!editedCommandOrder) {
 								editedCommandOrder = (model_.order || []).map((row) => ({ command: row.command, group: row.group }));
 							}
-							const swap = editedCommandOrder[index];
-							editedCommandOrder[index] = editedCommandOrder[target];
-							editedCommandOrder[target] = swap;
+							const swap = editedCommandOrder[from];
+							editedCommandOrder[from] = editedCommandOrder[to];
+							editedCommandOrder[to] = swap;
 							renderCommandInterfaceTab();
 							renderSaveBar();
-						});
-						item.appendChild(btn);
-					}
+						})
+					);
 				}
 				list.appendChild(item);
 			});
 		}
-		namedListSection(
+		reorderableSection(
 			'Порядок подсистем',
-			(model_.subsystemsOrder || []).map((ref) => {
+			editedSubsystemsOrder || model_.subsystemsOrder || [],
+			function (ref) {
 				const parts = String(ref).split('.');
-				return { name: parts[parts.length - 1] || ref, hint: ref, value: '' };
-			})
+				return parts[parts.length - 1] || ref;
+			},
+			function (next) {
+				editedSubsystemsOrder = next;
+			}
 		);
-		namedListSection(
+		reorderableSection(
 			'Порядок групп',
-			(model_.groupsOrder || []).map((group) => ({ name: commandGroupCaption(group), hint: group, value: '' }))
+			editedGroupsOrder || model_.groupsOrder || [],
+			commandGroupCaption,
+			function (next) {
+				editedGroupsOrder = next;
+			}
 		);
+
+		/** Список строк со стрелками: порядок правится, содержимое не меняется. */
+		function reorderableSection(title, values, captionOf, apply) {
+			if (values.length === 0) {
+				return;
+			}
+			const heading = document.createElement('div');
+			heading.className = 'section-title section-title-spaced';
+			heading.textContent = title;
+			contentRoot.appendChild(heading);
+			const list = document.createElement('div');
+			list.className = 'struct-list';
+			contentRoot.appendChild(list);
+			values.forEach(function (value, index) {
+				const item = document.createElement('div');
+				item.className = 'struct-item';
+				const name = document.createElement('span');
+				name.className = 'struct-item-name';
+				name.title = value;
+				name.textContent = captionOf(value);
+				item.appendChild(name);
+				if (!readonly) {
+					item.appendChild(
+						moveButtons(index, values.length, function (from, to) {
+							const next = values.slice();
+							const swap = next[from];
+							next[from] = next[to];
+							next[to] = swap;
+							apply(next);
+							renderCommandInterfaceTab();
+							renderSaveBar();
+						})
+					);
+				}
+				list.appendChild(item);
+			});
+		}
 	}
 
 	/** Подписи прав: полное имя права остаётся в подсказке. */
@@ -2338,6 +2411,18 @@
 							}))
 						: [],
 				commandOrder: commandOrderDirty() ? editedCommandOrder : [],
+				subsystemsOrder: orderListDirty(
+					editedSubsystemsOrder,
+					model.commandInterface && model.commandInterface.subsystemsOrder
+				)
+					? editedSubsystemsOrder
+					: [],
+				groupsOrder: orderListDirty(
+					editedGroupsOrder,
+					model.commandInterface && model.commandInterface.groupsOrder
+				)
+					? editedGroupsOrder
+					: [],
 			});
 		});
 		resetBtn.addEventListener('click', function () {
@@ -2352,6 +2437,8 @@
 			editedCommandVisibility.clear();
 			editedCommandPlacement.clear();
 			editedCommandOrder = null;
+			editedSubsystemsOrder = null;
+			editedGroupsOrder = null;
 			editedRoleRights.clear();
 			editedRoleFlags.clear();
 			saveError = '';
@@ -2384,6 +2471,8 @@
 				editedCommandVisibility.clear();
 				editedCommandPlacement.clear();
 				editedCommandOrder = null;
+				editedSubsystemsOrder = null;
+				editedGroupsOrder = null;
 				editedRoleRights.clear();
 				editedRoleFlags.clear();
 				editedStructure = model.structureLists ? structureEditsFromLists(model.structureLists) : null;

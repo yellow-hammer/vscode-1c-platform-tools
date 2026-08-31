@@ -2278,6 +2278,15 @@ function parseCommandOrder(raw: unknown): Array<{ command: string; value: string
 	return out.length > 0 ? out : null;
 }
 
+/** Список ссылок из сообщения webview; null, когда правок не было. */
+function parseRefOrder(raw: unknown): string[] | null {
+	if (!Array.isArray(raw) || raw.length === 0) {
+		return null;
+	}
+	const out = raw.filter((item): item is string => typeof item === 'string' && item.length > 0);
+	return out.length > 0 ? out : null;
+}
+
 /** Разбирает правки прав роли из сообщения webview: объект, право, выдано или снято. */
 function parseRoleRightsEdits(raw: unknown): Array<{ object: string; right: string; value: boolean }> {
 	if (!Array.isArray(raw)) {
@@ -2657,6 +2666,10 @@ interface MetadataPanelSaveMessage {
 	commandPlacement?: unknown;
 	/** Полный порядок команд после перестановок. */
 	commandOrder?: unknown;
+	/** Полный порядок подсистем после перестановок. */
+	subsystemsOrder?: unknown;
+	/** Полный порядок групп после перестановок. */
+	groupsOrder?: unknown;
 	/** Изменённые права роли. */
 	roleRights?: unknown;
 	/** Изменённые флаги прав по умолчанию роли. */
@@ -3239,6 +3252,25 @@ function registerEditableSaveHandler(
 			});
 			if (error) {
 				void panel.webview.postMessage({ type: 'saved', ok: false, error: `Порядок команд: ${error}` });
+				return;
+			}
+		}
+		for (const section of [
+			{ raw: msg.subsystemsOrder, op: 'cf-md-subsystem-subsystems-order-set' as const, title: 'Порядок подсистем' },
+			{ raw: msg.groupsOrder, op: 'cf-md-subsystem-groups-order-set' as const, title: 'Порядок групп' },
+		]) {
+			const refs = parseRefOrder(section.raw);
+			if (!refs) {
+				continue;
+			}
+			const error = await runOneMutation({
+				op: section.op,
+				objectXml: params.objectXmlFsPath,
+				schemaVersion: schema,
+				payloadJson: JSON.stringify(refs),
+			});
+			if (error) {
+				void panel.webview.postMessage({ type: 'saved', ok: false, error: `${section.title}: ${error}` });
 				return;
 			}
 		}

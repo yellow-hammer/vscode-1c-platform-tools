@@ -51,6 +51,8 @@ interface SourcePanelMessage {
 	type?: string;
 	payload?: SourcePropertiesDto;
 	module?: 'externalConnection' | 'application' | 'session';
+	/** Уже выбранные основные роли при подборе новой. */
+	taken?: unknown;
 }
 
 function escapeHtml(value: string): string {
@@ -124,6 +126,24 @@ export async function openMetadataSourcePropertiesPanel(
 			}
 			if (msg.type === 'openModule' && msg.module) {
 				await onOpenModule(msg.module);
+				return;
+			}
+			if (msg.type === 'pickRole') {
+				const taken = new Set(Array.isArray(msg.taken) ? msg.taken.map(String) : []);
+				const candidates = (input.dictionaries?.roleNames ?? [])
+					.map((name) => `Role.${name}`)
+					.filter((ref) => !taken.has(ref));
+				if (candidates.length === 0) {
+					void vscode.window.showInformationMessage('Все роли конфигурации уже выбраны.');
+					return;
+				}
+				const picked = await vscode.window.showQuickPick(
+					candidates.map((ref) => ({ label: ref.replace(/^Role\./, ''), ref })),
+					{ placeHolder: 'Какую роль добавить в основные' }
+				);
+				if (picked) {
+					void panel.webview.postMessage({ type: 'rolePicked', role: picked.ref });
+				}
 				return;
 			}
 			if (msg.type !== 'save' || !msg.payload) {

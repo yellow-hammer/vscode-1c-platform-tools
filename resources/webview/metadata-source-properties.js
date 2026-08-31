@@ -73,6 +73,43 @@
 		}
 	}
 
+	/** Основные роли: плашки с удалением, добавление через подбор в редакторе. */
+	let selectedRoles = [];
+
+	function renderRoleChips() {
+		const el = document.getElementById('defaultRoles');
+		el.textContent = '';
+		for (const role of selectedRoles) {
+			const chip = document.createElement('span');
+			chip.className = 'edit-chip edit-chip-action';
+			const name = document.createElement('span');
+			name.textContent = String(role).replace(/^Role\./, '');
+			name.title = role;
+			chip.appendChild(name);
+			const remove = document.createElement('button');
+			remove.type = 'button';
+			remove.className = 'edit-chip-remove';
+			remove.title = 'Убрать роль';
+			remove.textContent = '✕';
+			remove.addEventListener('click', (function (target) {
+				return function () {
+					selectedRoles = selectedRoles.filter(function (candidate) { return candidate !== target; });
+					renderRoleChips();
+				};
+			})(role));
+			chip.appendChild(remove);
+			el.appendChild(chip);
+		}
+		const add = document.createElement('button');
+		add.type = 'button';
+		add.className = 'struct-add-btn';
+		add.textContent = '+ Роль…';
+		add.addEventListener('click', function () {
+			vscode.postMessage({ type: 'pickRole', taken: selectedRoles.slice() });
+		});
+		el.appendChild(add);
+	}
+
 	function collectCheckList(id) {
 		const out = [];
 		for (const box of document.getElementById(id).querySelectorAll('input[type="checkbox"]')) {
@@ -91,7 +128,7 @@
 			defaultRunMode: document.getElementById('defaultRunMode').value,
 			usePurposes: collectCheckList('usePurposes'),
 			scriptVariant: document.getElementById('scriptVariant').value,
-			defaultRoles: collectCheckList('defaultRoles'),
+			defaultRoles: selectedRoles.slice(),
 			managedApplicationModule: initial.managedApplicationModule || '',
 			sessionModule: initial.sessionModule || '',
 			externalConnectionModule: initial.externalConnectionModule || '',
@@ -117,13 +154,8 @@
 		setValue('synonymRu', dto.synonymRu);
 		setValue('comment', dto.comment);
 		initCheckList('usePurposes', dto.usePurposeOptions || [], dto.usePurposes || [], (v) => valueLabel('usePurposes', v));
-		// Роли конфигурации: кандидаты из словаря, значения хранятся ссылками Role.Имя
-		initCheckList(
-			'defaultRoles',
-			(dictionaries.roleNames || []).map((name) => 'Role.' + name),
-			dto.defaultRoles || [],
-			(v) => String(v).replace(/^Role\./, '')
-		);
+		selectedRoles = (dto.defaultRoles || []).slice();
+		renderRoleChips();
 		setValue('briefInformationRu', dto.briefInformationRu);
 		setValue('detailedInformationRu', dto.detailedInformationRu);
 		setValue('copyrightRu', dto.copyrightRu);
@@ -173,6 +205,14 @@
 	});
 
 	window.addEventListener('message', (event) => {
+		const picked = event.data;
+		if (picked && typeof picked === 'object' && picked.type === 'rolePicked' && typeof picked.role === 'string') {
+			if (!selectedRoles.includes(picked.role)) {
+				selectedRoles.push(picked.role);
+				renderRoleChips();
+			}
+			return;
+		}
 		const msg = event.data;
 		if (!msg || typeof msg !== 'object' || msg.type !== 'saved') {
 			return;

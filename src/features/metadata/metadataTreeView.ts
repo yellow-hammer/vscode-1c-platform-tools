@@ -230,6 +230,9 @@ export class MetadataSourceTreeItem extends vscode.TreeItem {
 		} else if (sourceKind === 'externalErf' || sourceKind === 'externalEpf') {
 			this.contextValue = 'metadataSourceExternalArtifact';
 		}
+		if (support === 'locked' || support === 'editable') {
+			this.contextValue = `${this.contextValue} mdSupportRules`;
+		}
 		if (support === 'locked') {
 			this.contextValue = `${this.contextValue} mdSupportLocked`;
 		}
