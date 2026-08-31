@@ -11,6 +11,7 @@ import {
 	isMetadataCommonForm,
 	objectModuleFilePath,
 	objectModuleKindsForType,
+	objectAcceptsChildNodes,
 	metadataObjectOwnsFile,
 	objectChildFromFilePath,
 } from '../../features/metadata/metadataTreeView';
@@ -391,7 +392,15 @@ suite('metadataTreeView object modules', () => {
 		);
 	});
 
-	test('типы без модулей не получают токенов', () => {
+	test('токен состава только у типов с реквизитами или табличными частями', () => {
+		assert.strictEqual(objectAcceptsChildNodes('Catalog'), true);
+		assert.strictEqual(objectAcceptsChildNodes('InformationRegister'), true);
+		assert.strictEqual(objectAcceptsChildNodes('Role'), false);
+		assert.strictEqual(objectAcceptsChildNodes('CommonForm'), false);
+		assert.strictEqual(objectAcceptsChildNodes('CommonPicture'), false);
+	});
+
+	test('типы без модулей не получают токенов модулей', () => {
 		assert.strictEqual(
 			leaf('Role', 'Администратор', 'src/cf/Roles/Администратор.xml').contextValue,
 			'metadataObjectProperties'
@@ -423,13 +432,14 @@ suite('metadataTreeView object modules', () => {
 		assert.strictEqual(commonModule.command?.command, '1c-platform-tools.metadata.openModule');
 		assert.strictEqual(metadataLeafReadsObjectProperties(commonModule), true);
 
+		// У объекта без формы и модуля щелчок ничего не открывает: свойства показывает палитра
 		const catalog = leaf('Catalog', 'Контрагенты', 'src/cf/Catalogs/Контрагенты.xml');
-		assert.strictEqual(defaultMetadataLeafOpenCommand(catalog), '1c-platform-tools.metadata.openObjectProperties');
-		assert.strictEqual(catalog.command?.command, '1c-platform-tools.metadata.openObjectProperties');
+		assert.strictEqual(defaultMetadataLeafOpenCommand(catalog), '1c-platform-tools.metadata.openProperties');
+		assert.strictEqual(catalog.command?.command, '1c-platform-tools.metadata.openProperties');
 		assert.strictEqual(metadataLeafReadsObjectProperties(catalog), true);
 
 		const register = leaf('InformationRegister', 'Курсы', 'src/cf/InformationRegisters/Курсы.xml');
-		assert.strictEqual(register.command?.command, '1c-platform-tools.metadata.openObjectProperties');
+		assert.strictEqual(register.command?.command, '1c-platform-tools.metadata.openProperties');
 		assert.strictEqual(metadataLeafReadsObjectProperties(register), true);
 
 		const httpService = leaf('HTTPService', 'Обмен', 'src/cf/HTTPServices/Обмен.xml');
@@ -439,8 +449,8 @@ suite('metadataTreeView object modules', () => {
 
 		const language = leaf('Language', 'Русский', 'src/cf/Languages/Русский.xml');
 		assert.strictEqual(language.contextValue, 'metadataObjectProperties');
-		assert.strictEqual(defaultMetadataLeafOpenCommand(language), '1c-platform-tools.metadata.openObjectProperties');
-		assert.strictEqual(language.command?.command, '1c-platform-tools.metadata.openObjectProperties');
+		assert.strictEqual(defaultMetadataLeafOpenCommand(language), '1c-platform-tools.metadata.openProperties');
+		assert.strictEqual(language.command?.command, '1c-platform-tools.metadata.openProperties');
 		assert.strictEqual(metadataLeafReadsObjectProperties(language), true);
 	});
 
@@ -476,7 +486,7 @@ suite('metadataTreeView object modules', () => {
 			'C:/ws/src/cf',
 			{ action: 'properties' }
 		);
-		assert.strictEqual(catalog.command?.command, '1c-platform-tools.metadata.openObjectProperties');
+		assert.strictEqual(catalog.command?.command, '1c-platform-tools.metadata.openProperties');
 	});
 });
 

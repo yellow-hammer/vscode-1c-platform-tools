@@ -170,8 +170,8 @@ async function prepareMdSparrowRuntime(context: vscode.ExtensionContext): Promis
 	const cfg = vscode.workspace.getConfiguration('1c-platform-tools');
 	const download = cfg.get<boolean>('components.metadataJarAutoload', true);
 	const downloadJre = cfg.get<boolean>('components.jreAutoload', true);
-	const jarPathSetting = cfg.get<string>('components.metadataJarFile', '').trim();
-	const javaPathSetting = cfg.get<string>('components.javaExecutable', '').trim();
+	const jarPathSetting = cfg.get<string>('components.path.metadataJar', '').trim();
+	const javaPathSetting = cfg.get<string>('components.path.java', '').trim();
 	if (javaPathSetting.includes('${')) {
 		throw new Error('components.javaExecutable: укажите полный путь к java или оставьте поле пустым.');
 	}
@@ -197,7 +197,7 @@ export function checkMdSparrowUpdateInBackground(
 		return;
 	}
 	const cfg = vscode.workspace.getConfiguration('1c-platform-tools');
-	if (cfg.get<string>('components.metadataJarFile', '').trim()) {
+	if (cfg.get<string>('components.path.metadataJar', '').trim()) {
 		return;
 	}
 	if (!cfg.get<boolean>('components.metadataJarAutoload', true)) {

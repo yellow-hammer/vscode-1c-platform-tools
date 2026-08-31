@@ -20,17 +20,17 @@
       "supported": "limited",
       "description": "Команды 1С, установка OneScript и компонентов, Docker и автономный сервер запускают код из открытой папки, поэтому в режиме ограниченной функциональности они не выполняются. Панели и просмотр метаданных работают.",
       "restrictedConfigurations": [
-        "1c-platform-tools.vrunner.path",
+        "1c-platform-tools.vrunner.path.executable",
         "1c-platform-tools.oscript.path",
         "1c-platform-tools.allure.path",
-        "1c-platform-tools.components.adapterFile",
-        "1c-platform-tools.components.metadataJarFile",
-        "1c-platform-tools.components.javaExecutable",
-        "1c-platform-tools.components.ovmFile",
-        "1c-platform-tools.test.onescriptRunnerPath",
-        "1c-platform-tools.test.onebddPath",
-        "1c-platform-tools.server.platformPath",
-        "1c-platform-tools.clusters.platformPath",
+        "1c-platform-tools.components.path.adapter",
+        "1c-platform-tools.components.path.metadataJar",
+        "1c-platform-tools.components.path.java",
+        "1c-platform-tools.components.path.ovm",
+        "1c-platform-tools.test.path.onescriptRunner",
+        "1c-platform-tools.test.path.onebdd",
+        "1c-platform-tools.server.path.platform",
+        "1c-platform-tools.clusters.path.platform",
         "1c-platform-tools.docker.enabled",
         "1c-platform-tools.docker.image"
       ]
@@ -789,11 +789,6 @@
         "category": "1С: Метаданные"
       },
       {
-        "command": "1c-platform-tools.metadata.openObjectProperties",
-        "title": "Свойства объекта",
-        "category": "1С: Метаданные"
-      },
-      {
         "command": "1c-platform-tools.metadata.openExternalConnectionModule",
         "title": "Открыть модуль внешнего соединения",
         "category": "1С: Метаданные"
@@ -864,13 +859,18 @@
         "category": "1С: Свойства"
       },
       {
-        "command": "1c-platform-tools.metadata.openSourceProperties",
+        "command": "1c-platform-tools.metadata.openProperties",
         "title": "Свойства",
         "category": "1С: Метаданные"
       },
       {
         "command": "1c-platform-tools.metadata.openSourceXml",
         "title": "Открыть XML",
+        "category": "1С: Метаданные"
+      },
+      {
+        "command": "1c-platform-tools.metadata.openFormContentXml",
+        "title": "Открыть XML содержимого",
         "category": "1С: Метаданные"
       },
       {
@@ -2073,10 +2073,6 @@
           "when": "false"
         },
         {
-          "command": "1c-platform-tools.metadata.openObjectProperties",
-          "when": "false"
-        },
-        {
           "command": "1c-platform-tools.metadata.openExternalConnectionModule",
           "when": "false"
         },
@@ -2121,11 +2117,15 @@
           "when": "false"
         },
         {
-          "command": "1c-platform-tools.metadata.openSourceProperties",
+          "command": "1c-platform-tools.metadata.openProperties",
           "when": "false"
         },
         {
           "command": "1c-platform-tools.metadata.openSourceXml",
+          "when": "false"
+        },
+        {
+          "command": "1c-platform-tools.metadata.openFormContentXml",
           "when": "false"
         },
         {
@@ -2737,7 +2737,7 @@
         {
           "command": "1c-platform-tools.metadata.validateDump",
           "when": "view == 1c-platform-tools-metadata-tree && viewItem == metadataSourceConfigLike",
-          "group": "1_check@0"
+          "group": "9_check@1"
         },
         {
           "command": "1c-platform-tools.projects.openInNewWindow",
@@ -3010,134 +3010,139 @@
           "group": "inline"
         },
         {
-          "command": "1c-platform-tools.metadata.openObjectProperties",
-          "when": "view == 1c-platform-tools-metadata-tree && ((viewItem =~ /metadataObjectProperties/ && viewItem !~ /mdFormModule/) || viewItem == metadataLeafFile)",
-          "group": "1_md_open"
-        },
-        {
           "command": "1c-platform-tools.metadata.openForm",
-          "when": "view == 1c-platform-tools-metadata-tree && (viewItem == metadataObjectForm || viewItem =~ /(^| )mdFormModule( |$)/)",
-          "group": "1_md_open"
+          "when": "view == 1c-platform-tools-metadata-tree && viewItem =~ /(^| )mdFormModule( |$)/",
+          "group": "1_open@1"
         },
         {
           "command": "1c-platform-tools.metadata.er.openForObject",
-          "when": "view == 1c-platform-tools-metadata-tree && (viewItem =~ /metadataObjectProperties/ || viewItem == metadataLeafFile)",
-          "group": "1_md_open"
+          "when": "view == 1c-platform-tools-metadata-tree && viewItem =~ /(^| )(metadataObjectProperties(Subsystem)?|metadataLeafFile)( |$)/",
+          "group": "3_reveal@3"
         },
         {
           "command": "1c-platform-tools.metadata.openExternalConnectionModule",
           "when": "view == 1c-platform-tools-metadata-tree && viewItem == metadataSourceConfigLike",
-          "group": "1_modules@1"
+          "group": "1_open@2"
         },
         {
           "command": "1c-platform-tools.metadata.openApplicationModule",
           "when": "view == 1c-platform-tools-metadata-tree && viewItem == metadataSourceConfigLike",
-          "group": "1_modules@2"
+          "group": "1_open@3"
         },
         {
           "command": "1c-platform-tools.metadata.openSessionModule",
           "when": "view == 1c-platform-tools-metadata-tree && viewItem == metadataSourceConfigLike",
-          "group": "1_modules@3"
+          "group": "1_open@4"
         },
         {
           "command": "1c-platform-tools.metadata.openObjectModule",
           "when": "view == 1c-platform-tools-metadata-tree && viewItem =~ /(^| )mdObjModule( |$)/",
-          "group": "1_modules@1"
+          "group": "1_open@2"
         },
         {
           "command": "1c-platform-tools.metadata.openRecordSetModule",
           "when": "view == 1c-platform-tools-metadata-tree && viewItem =~ /(^| )mdRecModule( |$)/",
-          "group": "1_modules@1"
+          "group": "1_open@2"
         },
         {
           "command": "1c-platform-tools.metadata.openValueManagerModule",
           "when": "view == 1c-platform-tools-metadata-tree && viewItem =~ /(^| )mdValModule( |$)/",
-          "group": "1_modules@1"
+          "group": "1_open@2"
         },
         {
           "command": "1c-platform-tools.metadata.openModule",
           "when": "view == 1c-platform-tools-metadata-tree && viewItem =~ /(^| )mdModule( |$)/",
-          "group": "1_modules@1"
+          "group": "1_open@2"
         },
         {
           "command": "1c-platform-tools.metadata.openManagerModule",
           "when": "view == 1c-platform-tools-metadata-tree && viewItem =~ /(^| )mdMgrModule( |$)/",
-          "group": "1_modules@2"
+          "group": "1_open@3"
         },
         {
           "command": "1c-platform-tools.metadata.openFormModule",
           "when": "view == 1c-platform-tools-metadata-tree && viewItem =~ /(^| )mdFormModule( |$)/",
-          "group": "1_modules@3"
+          "group": "1_open@4"
         },
         {
-          "command": "1c-platform-tools.metadata.openSourceProperties",
-          "when": "view == 1c-platform-tools-metadata-tree && (viewItem == metadataSourceConfigLike || viewItem == metadataLeafFile)",
+          "command": "1c-platform-tools.metadata.openProperties",
+          "when": "view == 1c-platform-tools-metadata-tree && (viewItem == metadataSourceConfigLike || viewItem == metadataSourceExternalArtifact || viewItem =~ /(^| )metadataLeafFile( |$)/ || viewItem =~ /(^| )metadataObjectProperties(Subsystem)?( |$)/ || viewItem =~ /(^| )metadataObjectForm( |$)/ || viewItem == metadataAttribute || viewItem == metadataTabularSection || viewItem == metadataTabularAttribute || viewItem == metadataObjectChildReadonly)",
           "group": "2_properties@1"
         },
         {
           "command": "1c-platform-tools.metadata.openSourceXml",
-          "when": "view == 1c-platform-tools-metadata-tree && (viewItem == metadataSourceConfigLike || viewItem == metadataLeafFile)",
-          "group": "3_xml@1"
+          "when": "view == 1c-platform-tools-metadata-tree && (viewItem == metadataSourceConfigLike || viewItem =~ /(^| )(metadataObjectProperties(Subsystem)?|metadataLeafFile|metadataObjectForm)( |$)/)",
+          "group": "3_reveal@1"
+        },
+        {
+          "command": "1c-platform-tools.metadata.openFormContentXml",
+          "when": "view == 1c-platform-tools-metadata-tree && (viewItem =~ /(^| )metadataObjectForm( |$)/ || viewItem =~ /(^| )mdFormModule( |$)/)",
+          "group": "3_reveal@2"
         },
         {
           "command": "1c-platform-tools.metadata.addObject",
           "when": "view == 1c-platform-tools-metadata-tree && (viewItem == metadataGroup_catalogs || viewItem == metadataGroupExt_catalogs || viewItem == metadataGroup_constants || viewItem == metadataGroupExt_constants || viewItem == metadataGroup_enums || viewItem == metadataGroupExt_enums || viewItem == metadataGroup_documents || viewItem == metadataGroupExt_documents || viewItem == metadataGroup_reports || viewItem == metadataGroupExt_reports || viewItem == metadataGroup_externalReports || viewItem == metadataGroupExt_externalReports || viewItem == metadataGroup_dataProcessors || viewItem == metadataGroupExt_dataProcessors || viewItem == metadataGroup_externalDataProcessors || viewItem == metadataGroupExt_externalDataProcessors || viewItem == metadataGroup_tasks || viewItem == metadataGroupExt_tasks || viewItem == metadataGroup_chartOfCharacteristicTypes || viewItem == metadataGroupExt_chartOfCharacteristicTypes || viewItem == metadataGroup_chartOfAccounts || viewItem == metadataGroupExt_chartOfAccounts || viewItem == metadataGroup_chartOfCalculationTypes || viewItem == metadataGroupExt_chartOfCalculationTypes || viewItem == metadataGroup_externalDataSources || viewItem == metadataGroupExt_externalDataSources || viewItem == metadataSubgroup_common_common_subsystem || viewItem == metadataSubgroupExt_common_common_subsystem || viewItem == metadataSubgroup_common_common_commonmodule || viewItem == metadataSubgroupExt_common_common_commonmodule || viewItem == metadataSubgroup_common_common_sessionparam || viewItem == metadataSubgroupExt_common_common_sessionparam || viewItem == metadataSubgroup_common_common_role || viewItem == metadataSubgroupExt_common_common_role || viewItem == metadataSubgroup_common_common_commonattribute || viewItem == metadataSubgroupExt_common_common_commonattribute || viewItem == metadataSubgroup_common_common_exchangeplan || viewItem == metadataSubgroupExt_common_common_exchangeplan || viewItem == metadataSubgroup_common_common_commonpicture || viewItem == metadataSubgroupExt_common_common_commonpicture || viewItem == metadataSubgroup_documents_documentNumerators || viewItem == metadataSubgroupExt_documents_documentNumerators || viewItem == metadataSourceExternalArtifact)",
-          "group": "2_md_create"
+          "group": "4_create@1"
         },
         {
           "command": "1c-platform-tools.metadata.addChildNode",
-          "when": "view == 1c-platform-tools-metadata-tree && (viewItem =~ /^metadataObjectProperties($| )/ || viewItem == metadataAttributesSection || viewItem == metadataTabularSectionsSection || viewItem == metadataTabularSection)",
-          "group": "3_md_mutate"
+          "when": "view == 1c-platform-tools-metadata-tree && (viewItem == metadataAttributesSection || viewItem == metadataTabularSectionsSection || viewItem == metadataTabularSection)",
+          "group": "inline"
+        },
+        {
+          "command": "1c-platform-tools.metadata.addChildNode",
+          "when": "view == 1c-platform-tools-metadata-tree && (viewItem == metadataAttributesSection || viewItem == metadataTabularSectionsSection || viewItem == metadataTabularSection)",
+          "group": "4_create@2"
         },
         {
           "command": "1c-platform-tools.metadata.renameChildNode",
           "when": "view == 1c-platform-tools-metadata-tree && (viewItem == metadataAttribute || viewItem == metadataTabularSection || viewItem == metadataTabularAttribute)",
-          "group": "3_md_mutate"
+          "group": "5_edit@1"
         },
         {
           "command": "1c-platform-tools.metadata.duplicateChildNode",
           "when": "view == 1c-platform-tools-metadata-tree && (viewItem == metadataAttribute || viewItem == metadataTabularSection || viewItem == metadataTabularAttribute)",
-          "group": "3_md_mutate"
+          "group": "5_edit@2"
         },
         {
           "command": "1c-platform-tools.metadata.deleteChildNode",
           "when": "view == 1c-platform-tools-metadata-tree && (viewItem == metadataAttribute || viewItem == metadataTabularSection || viewItem == metadataTabularAttribute)",
-          "group": "3_md_mutate"
+          "group": "6_delete@1"
         },
         {
           "command": "1c-platform-tools.metadata.renameObject",
-          "when": "view == 1c-platform-tools-metadata-tree && (viewItem =~ /metadataObjectProperties/ || viewItem == metadataLeafFile)",
-          "group": "3_md_mutate"
+          "when": "view == 1c-platform-tools-metadata-tree && viewItem =~ /(^| )(metadataObjectProperties(Subsystem)?|metadataLeafFile)( |$)/",
+          "group": "5_edit@1"
         },
         {
           "command": "1c-platform-tools.metadata.duplicateObject",
-          "when": "view == 1c-platform-tools-metadata-tree && (viewItem =~ /metadataObjectProperties/ || viewItem == metadataLeafFile)",
-          "group": "3_md_mutate"
+          "when": "view == 1c-platform-tools-metadata-tree && viewItem =~ /(^| )(metadataObjectProperties(Subsystem)?|metadataLeafFile)( |$)/",
+          "group": "5_edit@2"
         },
         {
           "command": "1c-platform-tools.metadata.deleteObject",
-          "when": "view == 1c-platform-tools-metadata-tree && (viewItem =~ /metadataObjectProperties/ || viewItem == metadataLeafFile)",
-          "group": "3_md_mutate"
+          "when": "view == 1c-platform-tools-metadata-tree && viewItem =~ /(^| )(metadataObjectProperties(Subsystem)?|metadataLeafFile)( |$)/",
+          "group": "6_delete@1"
         },
         {
           "command": "1c-platform-tools.metadata.filterBySubsystem",
-          "when": "view == 1c-platform-tools-metadata-tree && viewItem == metadataObjectPropertiesSubsystem",
-          "group": "4_md_filter"
+          "when": "view == 1c-platform-tools-metadata-tree && viewItem =~ /(^| )metadataObjectPropertiesSubsystem( |$)/",
+          "group": "7_filter@1"
         },
         {
           "command": "1c-platform-tools.metadata.clearSubsystemFilter",
           "when": "view == 1c-platform-tools-metadata-tree && 1c-platform-tools.metadata.subsystemFilterActive",
-          "group": "4_md_filter"
+          "group": "7_filter@2"
         },
         {
           "command": "1c-platform-tools.metadata.copyObjectName",
-          "when": "view == 1c-platform-tools-metadata-tree && (viewItem =~ /metadataObjectProperties/ || viewItem == metadataLeafFile)",
-          "group": "5_md_copy"
+          "when": "view == 1c-platform-tools-metadata-tree && viewItem =~ /(^| )(metadataObjectProperties(Subsystem)?|metadataLeafFile)( |$)/",
+          "group": "8_copy@1"
         },
         {
           "command": "1c-platform-tools.metadata.copyObjectPath",
-          "when": "view == 1c-platform-tools-metadata-tree && (viewItem =~ /metadataObjectProperties/ || viewItem == metadataLeafFile)",
-          "group": "5_md_copy"
+          "when": "view == 1c-platform-tools-metadata-tree && viewItem =~ /(^| )(metadataObjectProperties(Subsystem)?|metadataLeafFile)( |$)/",
+          "group": "8_copy@2"
         },
         {
           "command": "1c-platform-tools.pipelines.run",
@@ -3474,7 +3479,7 @@
         "id": "1c-platform-tools.tools",
         "order": 0,
         "properties": {
-          "1c-platform-tools.vrunner.path": {
+          "1c-platform-tools.vrunner.path.executable": {
             "type": "string",
             "default": "vrunner",
             "description": "Путь к vrunner (vanessa-runner)"
@@ -3509,32 +3514,32 @@
             "default": true,
             "description": "Звук по завершении команды: успех и ошибка звучат по-разному. На Windows берутся звуки системной схемы, на macOS и Linux - системные звуки рабочего окружения."
           },
-          "1c-platform-tools.vrunner.initSettingsPath": {
+          "1c-platform-tools.vrunner.path.initSettings": {
             "type": "string",
             "default": "tools/vrunner.init.json",
             "description": "Путь к файлу настроек инициализации vrunner (vrunner.init.json)"
           },
-          "1c-platform-tools.defaultEnvProfile": {
+          "1c-platform-tools.env.defaultProfile": {
             "type": "string",
             "default": "",
             "description": "Идентификатор env-профиля по умолчанию (имя X из env.X.json; пусто: базовый env.json). Активный профиль выбирается локально и не коммитится, переопределяя это значение. Подставляется во все команды vrunner через --settings."
           },
-          "1c-platform-tools.paths.out": {
+          "1c-platform-tools.path.out": {
             "type": "string",
             "default": "build/out",
             "description": "Путь к результатам сборки"
           },
-          "1c-platform-tools.paths.dist": {
+          "1c-platform-tools.path.dist": {
             "type": "string",
             "default": "build/dist",
             "description": "Каталог хранения шаблонов (cf, cfu, файлы настроек объединения). Используется в группе «Поддержка» при выборе файлов."
           },
-          "1c-platform-tools.paths.cf": {
+          "1c-platform-tools.path.cf": {
             "type": "string",
             "default": "src/cf",
             "description": "Путь к исходному коду конфигурации"
           },
-          "1c-platform-tools.paths.cfe": {
+          "1c-platform-tools.path.cfe": {
             "type": "string",
             "default": "src/cfe",
             "description": "Путь к исходному коду расширений"
@@ -3562,17 +3567,17 @@
             "default": "ask",
             "description": "Обновлять ли конфигурацию БД (UpdateDBCfg) сразу после загрузки конфигурации из исходников, из 1Cv8.cf или по objlist.txt. Заданное значение убирает вопрос."
           },
-          "1c-platform-tools.paths.epf": {
+          "1c-platform-tools.path.epf": {
             "type": "string",
             "default": "src/epf",
             "description": "Путь к исходному коду внешних обработок"
           },
-          "1c-platform-tools.paths.erf": {
+          "1c-platform-tools.path.erf": {
             "type": "string",
             "default": "src/erf",
-            "description": "Путь к исходному коду внешних отчетов"
+            "description": "Путь к исходному коду внешних отчётов"
           },
-          "1c-platform-tools.paths.tests": {
+          "1c-platform-tools.path.tests": {
             "type": "string",
             "default": "tests",
             "markdownDescription": "Корневой каталог тестов. Раскладка внутри фиксированная: `*.os` в корне, исходники тестовых расширений в `cfe`, исходники тестовых обработок в `epf`. Бинарники тестов здесь не хранятся: дымовые наборы Vanessa-ADD поставляются в пакете add (oscript_modules), собранное уходит в `build/out/tests`."
@@ -3665,7 +3670,7 @@
         "id": "1c-platform-tools.projects",
         "order": 3,
         "properties": {
-          "1c-platform-tools.projects.baseFolders": {
+          "1c-platform-tools.projects.path.baseFolders": {
             "type": "array",
             "items": {
               "type": "string"
@@ -3698,7 +3703,7 @@
             "default": 0,
             "description": "Максимальная глубина вложенности при сканировании baseFolders (0 снимает ограничение, положительное число ограничивает глубину)."
           },
-          "1c-platform-tools.projects.projectsLocation": {
+          "1c-platform-tools.projects.path.storage": {
             "type": "string",
             "default": "",
             "description": "Папка для хранения projects.json. Заданная папка хранит файл (для синхронизации между устройствами). Поддерживает ~ и $home."
@@ -3754,7 +3759,7 @@
             "default": "never",
             "description": "Подтверждение при переключении проекта в активном окне."
           },
-          "1c-platform-tools.projects.tags": {
+          "1c-platform-tools.projects.tagList": {
             "type": "array",
             "items": {
               "type": "string"
@@ -3765,7 +3770,7 @@
             ],
             "description": "Список тегов для организации проектов."
           },
-          "1c-platform-tools.projects.tags.collapseItems": {
+          "1c-platform-tools.projects.collapseTags": {
             "type": "string",
             "enum": [
               "alwaysExpanded",
@@ -3783,7 +3788,7 @@
         "id": "1c-platform-tools.metadata",
         "order": 4,
         "properties": {
-          "1c-platform-tools.metadata.er.exportDir": {
+          "1c-platform-tools.metadata.er.path.export": {
             "type": "string",
             "default": "docs/schemas",
             "description": "Каталог проекта для сохранения экспорта ER-диаграмм (mermaid/svg/png)."
@@ -3835,7 +3840,7 @@
             "default": true,
             "description": "Загружать отладчик с GitHub Releases и обновлять его автоматически. Выключите, если используете локальную сборку из «Отладчик: путь к файлу»."
           },
-          "1c-platform-tools.components.adapterFile": {
+          "1c-platform-tools.components.path.adapter": {
             "type": "string",
             "default": "",
             "description": "Отладчик: полный путь к локальной сборке адаптера, исполняемый файл OnecDebugAdapter или OnecDebugAdapter.dll (запускается через dotnet). Пусто: используется загруженный с GitHub."
@@ -3845,7 +3850,7 @@
             "default": true,
             "description": "Загружать компонент дерева метаданных (md-sparrow) с GitHub Releases и обновлять его автоматически. Выключите, если используете локальную сборку из «Дерево метаданных: путь к файлу»."
           },
-          "1c-platform-tools.components.metadataJarFile": {
+          "1c-platform-tools.components.path.metadataJar": {
             "type": "string",
             "default": "",
             "description": "Дерево метаданных: полный путь к локальной сборке md-sparrow-*-all.jar. Пусто: используется загруженный с GitHub."
@@ -3855,7 +3860,7 @@
             "default": true,
             "description": "Скачивать portable JRE 21 для дерева метаданных. Выключите, если Java установлена и указана в «Java: путь к исполняемому файлу» или доступна в PATH."
           },
-          "1c-platform-tools.components.javaExecutable": {
+          "1c-platform-tools.components.path.java": {
             "type": "string",
             "default": "",
             "description": "Java: полный путь к java или javaw для дерева метаданных. Пусто: portable JRE из кэша либо java из PATH."
@@ -3870,7 +3875,7 @@
             "default": true,
             "description": "Загружать OVM с GitHub Releases и обновлять его автоматически. Выключите, если используете локальный ovm.exe из «OVM: путь к файлу»."
           },
-          "1c-platform-tools.components.ovmFile": {
+          "1c-platform-tools.components.path.ovm": {
             "type": "string",
             "default": "",
             "description": "OVM: полный путь к локальному ovm.exe. Пусто: используется загруженный с GitHub."
@@ -3882,21 +3887,21 @@
         "id": "1c-platform-tools.testing",
         "order": 7,
         "properties": {
-          "1c-platform-tools.test.enabled": {
+          "1c-platform-tools.test.panelEnabled": {
             "type": "boolean",
             "default": true,
             "description": "Интеграция тестов 1С с панелью тестирования VS Code (Test Explorer): дерево тестов, кнопки запуска в редакторе, статусы и переход к месту падения."
           },
-          "1c-platform-tools.test.featuresPath": {
+          "1c-platform-tools.test.path.features": {
             "type": "string",
             "default": "features",
             "description": "Каталог feature-файлов Vanessa Automation (относительно корня проекта)."
           },
-          "1c-platform-tools.test.onescriptTestsPath": {
+          "1c-platform-tools.test.path.onescriptTests": {
             "type": "string",
             "default": "tests",
             "markdownDescription": "Каталог тестов OneScript (1testrunner/OneUnit), относительно корня проекта.",
-            "markdownDeprecationMessage": "Каталог тестов задаётся в `#1c-platform-tools.paths.tests#`. Заданное здесь значение пока используется, о чём пишется в журнал."
+            "markdownDeprecationMessage": "Каталог тестов задаётся в `#1c-platform-tools.path.tests#`. Заданное здесь значение пока используется, о чём пишется в журнал."
           },
           "1c-platform-tools.test.selectedExtensions": {
             "type": "array",
@@ -3917,12 +3922,12 @@
             ],
             "description": "Сегменты пути, исключаемые при поиске тестов в панели тестирования (например: oscript_modules, build, vendor). build исключён, чтобы не находить собранные обработки и отчёты прогонов."
           },
-          "1c-platform-tools.test.reportsPath": {
+          "1c-platform-tools.test.path.reports": {
             "type": "string",
             "default": "build/out/testapi",
             "description": "Каталог временных файлов прогонов из панели тестирования (относительно корня проекта; должен быть внутри workspace для работы в Docker). Используется, только если пути отчётов не настроены в env.json/tools проекта."
           },
-          "1c-platform-tools.test.yaxunitConfigPath": {
+          "1c-platform-tools.test.path.yaxunitConfig": {
             "type": "string",
             "default": "tools/yaxunit.json",
             "description": "Базовый конфиг YAxUnit (RunUnitTests). Панель тестирования накладывает на него фильтр по выбранному модулю/тесту и берёт из него reportPath."
@@ -3962,12 +3967,12 @@
             "default": "auto",
             "description": "Раннер тестов OneScript. auto выбирает OneUnit при наличии в oscript_modules/bin, иначе 1testrunner. Оба пишут jUnit-отчёт: 1testrunner через xddReportPath, OneUnit через --junit."
           },
-          "1c-platform-tools.test.onescriptRunnerPath": {
+          "1c-platform-tools.test.path.onescriptRunner": {
             "type": "string",
             "default": "",
             "description": "Путь к раннеру тестов OneScript (1testrunner/oneunit). Поддерживаются относительные пути от корня проекта (например ./oscript_modules/bin/oneunit.bat). Пусто: локальная установка oscript_modules/bin, затем PATH."
           },
-          "1c-platform-tools.test.onebddPath": {
+          "1c-platform-tools.test.path.onebdd": {
             "type": "string",
             "default": "",
             "description": "Путь к раннеру 1bdd. Поддерживаются относительные пути от корня проекта. Пусто: локальная установка oscript_modules/bin, затем PATH."
@@ -3975,10 +3980,10 @@
         }
       },
       {
-        "title": "Автономный сервер и отладка",
+        "title": "Автономный сервер",
         "order": 8,
         "properties": {
-          "1c-platform-tools.server.platformPath": {
+          "1c-platform-tools.server.path.platform": {
             "type": "string",
             "default": "",
             "description": "Каталог установки платформы 1С для поиска ibsrv (автономный сервер). Пусто: определяется автоматически (%PROGRAMFILES%\\1cv8 в Windows, /opt/1cv8/x86_64 и /opt/1C/v8.3/x86_64 в Linux). Бинарь ищется в bin/, напрямую в каталоге версии и в самой базе."
@@ -4017,7 +4022,7 @@
             "patternErrorMessage": "Укажите диапазон в формате нижний:верхний, например 1660:1691.",
             "description": "Диапазон портов прямого соединения (--direct-range) в формате нижний:верхний. Пусто: умолчание платформы 1560:1591."
           },
-          "1c-platform-tools.server.dataPath": {
+          "1c-platform-tools.server.path.data": {
             "type": "string",
             "default": "",
             "description": "Каталог данных автономного сервера (сеансовые данные, журнал, конфиг публикации publication.yaml). Относительный путь считается от корня проекта. Пусто: build/ibsrv в корне проекта."
@@ -4059,7 +4064,7 @@
         "id": "1c-platform-tools.clusters",
         "order": 9,
         "properties": {
-          "1c-platform-tools.clusters.platformPath": {
+          "1c-platform-tools.clusters.path.platform": {
             "type": "string",
             "default": "",
             "description": "Каталог установки платформы 1С для поиска rac и 1cestart. Пусто: определяется автоматически (%PROGRAMFILES%\\1cv8 в Windows, /opt/1cv8/<архитектура> и /opt/1C/v8.3/<архитектура> в Linux и macOS). Версия rac задаётся у каждого подключения отдельно."

@@ -6,26 +6,26 @@ import { DEFAULT_PATHS } from '../../shared/pathDefaults';
 suite('onescriptTestsPath', () => {
 	teardown(async () => {
 		const config = vscode.workspace.getConfiguration('1c-platform-tools');
-		await config.update('test.onescriptTestsPath', undefined, vscode.ConfigurationTarget.Workspace);
-		await config.update('paths.tests', undefined, vscode.ConfigurationTarget.Workspace);
+		await config.update('test.path.onescriptTests', undefined, vscode.ConfigurationTarget.Workspace);
+		await config.update('path.tests', undefined, vscode.ConfigurationTarget.Workspace);
 	});
 
-	test('без устаревшей настройки каталог берётся из paths.tests', async () => {
+	test('без устаревшей настройки каталог берётся из path.tests', async () => {
 		const config = vscode.workspace.getConfiguration('1c-platform-tools');
-		await config.update('paths.tests', 'проверка/тесты', vscode.ConfigurationTarget.Workspace);
+		await config.update('path.tests', 'проверка/тесты', vscode.ConfigurationTarget.Workspace);
 
 		assert.strictEqual(resolveOnescriptTestsPath(), 'проверка/тесты');
 	});
 
 	test('заданная устаревшая настройка выигрывает: проект с ней не должен сломаться', async () => {
 		const config = vscode.workspace.getConfiguration('1c-platform-tools');
-		await config.update('paths.tests', 'проверка/тесты', vscode.ConfigurationTarget.Workspace);
-		await config.update('test.onescriptTestsPath', 'старый/каталог', vscode.ConfigurationTarget.Workspace);
+		await config.update('path.tests', 'проверка/тесты', vscode.ConfigurationTarget.Workspace);
+		await config.update('test.path.onescriptTests', 'старый/каталог', vscode.ConfigurationTarget.Workspace);
 
 		assert.strictEqual(resolveOnescriptTestsPath(), 'старый/каталог');
 	});
 
-	test('без настроек — дефолт paths.tests', () => {
+	test('без настроек — дефолт path.tests', () => {
 		assert.strictEqual(resolveOnescriptTestsPath(), DEFAULT_PATHS.tests);
 	});
 });

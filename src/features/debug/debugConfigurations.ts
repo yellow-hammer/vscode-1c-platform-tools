@@ -45,7 +45,7 @@ export class OnecDebugConfigurationProvoider implements vscode.DebugConfiguratio
 		const cfPathSetting = vscode
 			.workspace
 			.getConfiguration('1c-platform-tools')
-			.get<string>('paths.cf', DEFAULT_PATHS.cf);
+			.get<string>('path.cf', DEFAULT_PATHS.cf);
 
 		// Каталоги расширений решения и тестовых: тесты YAxUnit живут отдельно
 		// от поставки, но отлаживать их нужно так же
@@ -81,14 +81,14 @@ export class OnecDebugConfigurationProvoider implements vscode.DebugConfiguratio
 		const normalize = (p: string) => p.replace(/\\/g, '/').replace(/^\.?\//, '');
 
 		const externalSources = [
-			templatePath(cfg.get<string>('paths.epf', DEFAULT_PATHS.epf)),
-			templatePath(cfg.get<string>('paths.erf', DEFAULT_PATHS.erf)),
+			templatePath(cfg.get<string>('path.epf', DEFAULT_PATHS.epf)),
+			templatePath(cfg.get<string>('path.erf', DEFAULT_PATHS.erf)),
 			...(layout?.externals ?? []).map((dir) => asWorkspacePath(workspaceRoot, dir)),
 		];
 		(baseConfig as Record<string, unknown>).externalFilesSrc = [...new Set(externalSources)];
 
 		// Собранные .epf/.erf — сервер отладки адресует внешние модули по URL файла.
-		const outPath = normalize(cfg.get<string>('paths.out', DEFAULT_PATHS.out));
+		const outPath = normalize(cfg.get<string>('path.out', DEFAULT_PATHS.out));
 		(baseConfig as Record<string, unknown>).externalFilesBuilds = [
 			`\${workspaceFolder}/${outPath}/epf`,
 			`\${workspaceFolder}/${outPath}/erf`,

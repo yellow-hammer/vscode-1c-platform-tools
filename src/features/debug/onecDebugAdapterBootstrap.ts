@@ -207,7 +207,7 @@ export function runtimeFromFile(file: string): OnecDebugAdapterRuntime {
  */
 export async function ensureOnecDebugAdapter(context: vscode.ExtensionContext): Promise<OnecDebugAdapterRuntime> {
 	const cfg = vscode.workspace.getConfiguration('1c-platform-tools');
-	const override = cfg.get<string>('components.adapterFile', '').trim();
+	const override = cfg.get<string>('components.path.adapter', '').trim();
 	if (override) {
 		if (override.includes('${')) {
 			throw new Error(
@@ -248,7 +248,7 @@ export function describeRuntime(runtime: OnecDebugAdapterRuntime): string {
 /** Фоновая проверка нового релиза адаптера (чистит кэш, чтобы следующий запуск скачал свежий). */
 export function checkOnecDebugAdapterUpdateInBackground(context: vscode.ExtensionContext): void {
 	const cfg = vscode.workspace.getConfiguration('1c-platform-tools');
-	if (cfg.get<string>('components.adapterFile', '').trim()) {
+	if (cfg.get<string>('components.path.adapter', '').trim()) {
 		return;
 	}
 	if (!cfg.get<boolean>('components.adapterAutoload', true)) {

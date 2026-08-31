@@ -47,7 +47,7 @@ export class OneScriptAdapter implements TestFrameworkAdapter {
 
 	public isEnabled(): boolean {
 		// Конфликта с xUnit нет: .os-файлы — всегда OneScript,
-		// тесты xUnit для 1С — внешние обработки (исходники в <paths.tests>/epf)
+		// тесты xUnit для 1С — внешние обработки (исходники в <path.tests>/epf)
 		const config = vscode.workspace.getConfiguration('1c-platform-tools');
 		return config.get<boolean>('test.frameworks.onescript', true);
 	}
@@ -227,7 +227,7 @@ export class OneScriptAdapter implements TestFrameworkAdapter {
 		const config = vscode.workspace.getConfiguration('1c-platform-tools');
 		const workspaceRoot = this.vrunner.getWorkspaceRoot();
 		const runnerSetting = config.get<string>('test.onescriptRunner', 'auto');
-		const customPath = config.get<string>('test.onescriptRunnerPath', '').trim();
+		const customPath = config.get<string>('test.path.onescriptRunner', '').trim();
 
 		// Явно заданный путь к раннеру: вид раннера — по имени файла
 		if (customPath.length > 0) {

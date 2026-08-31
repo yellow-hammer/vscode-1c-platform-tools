@@ -14,7 +14,7 @@
 
 ```json
 {
-  "1c-platform-tools.projects.baseFolders": [
+  "1c-platform-tools.projects.path.baseFolders": [
     "~/projects",
     "D:/work/1c"
   ]

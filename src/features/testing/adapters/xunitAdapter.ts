@@ -31,7 +31,7 @@ export interface EpfTestSourceInfo {
  * Адаптер модульных тестов xUnitFor1C / Vanessa-ADD
  *
  * Тесты для 1С — это внешние обработки: discovery идёт по разобранным
- * исходникам (<paths.tests>/epf, ObjectModule.bsl в формате decompileepf).
+ * исходникам (<path.tests>/epf, ObjectModule.bsl в формате decompileepf).
  * Перед прогоном обработка собирается в .epf в каталог сборки тестовых
  * обработок (vrunner кэширует сборку), затем запускается бинарник.
  *
@@ -143,7 +143,7 @@ export class XUnitAdapter implements TestFrameworkAdapter {
 	 */
 	public async buildBatchRunPlan(units: RunUnit[], reportDir: string): Promise<AdapterRunPlan | undefined> {
 		const binariesPath = path.join(this.vrunner.getOutPath(), BUILD_SUBDIRS.testsEpf);
-		// Настройка paths.out задаётся относительно проекта, и vrunner понимает её
+		// Настройка path.out задаётся относительно проекта, и vrunner понимает её
 		// как есть. Для работы с файлами нужен абсолютный путь: рабочий каталог у
 		// процесса расширения свой.
 		const workspaceRoot = this.vrunner.getWorkspaceRoot();

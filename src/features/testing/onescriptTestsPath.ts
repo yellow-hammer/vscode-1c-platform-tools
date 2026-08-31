@@ -5,7 +5,7 @@ import { logger } from '../../shared/logger';
 const log = logger.scope('testing');
 
 /** Устаревшая настройка каталога тестов OneScript. */
-const LEGACY_SETTING = 'test.onescriptTestsPath';
+const LEGACY_SETTING = 'test.path.onescriptTests';
 
 /** Сообщали ли про устаревшую настройку в этом сеансе. */
 let warned = false;
@@ -13,7 +13,7 @@ let warned = false;
 /**
  * Каталог скриптовых тестов OneScript.
  *
- * Каталог тестов один - `paths.tests`: в его корне лежат `*.os`, а рядом
+ * Каталог тестов один - `path.tests`: в его корне лежат `*.os`, а рядом
  * подкаталоги с исходниками тестовых расширений и обработок. Отдельная
  * настройка `test.onescriptTestsPath` описывала то же самое и осталась ради
  * проектов, где её уже задали: заданное значение выигрывает, но об этом
@@ -30,10 +30,10 @@ export function resolveOnescriptTestsPath(): string {
 			warned = true;
 			log.warn(
 				`Настройка 1c-platform-tools.${LEGACY_SETTING} устарела: каталог тестов задаётся ` +
-				'в 1c-platform-tools.paths.tests. Пока используется заданное значение: ' + explicit
+				'в 1c-platform-tools.path.tests. Пока используется заданное значение: ' + explicit
 			);
 		}
 		return explicit;
 	}
-	return config.get<string>('paths.tests', DEFAULT_PATHS.tests);
+	return config.get<string>('path.tests', DEFAULT_PATHS.tests);
 }

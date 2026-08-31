@@ -59,7 +59,7 @@ export class SupportCommands extends BaseCommand {
 
 	/**
 	 * Обновление конфигурации, находящейся на поддержке (UpdateCfg).
-	 * Предлагает выбрать cf/cfu и файл настроек из каталога шаблонов (paths.dist),
+	 * Предлагает выбрать cf/cfu и файл настроек из каталога шаблонов (path.dist),
 	 * затем окно выбора опций объединения.
 	 */
 	async updateCfg(): Promise<void> {
@@ -157,7 +157,7 @@ export class SupportCommands extends BaseCommand {
 
 	/**
 	 * Создать файл списка шаблонов конфигураций (/CreateTemplateListFile).
-	 * Предлагает сохранить файл (по умолчанию в paths.dist) и опционально указать каталог поиска шаблонов.
+	 * Предлагает сохранить файл (по умолчанию в path.dist) и опционально указать каталог поиска шаблонов.
 	 */
 	async createTemplateListFile(): Promise<void> {
 		const workspaceRoot = this.ensureWorkspace();

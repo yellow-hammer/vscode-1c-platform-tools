@@ -564,7 +564,7 @@ export function registerLaunchFeature(
 		vrunner.watchVRunnerInstallation(),
 		vscode.workspace.onDidChangeWorkspaceFolders(() => refresh()),
 		vscode.workspace.onDidChangeConfiguration((event) => {
-			if (event.affectsConfiguration('1c-platform-tools.defaultEnvProfile')) {
+			if (event.affectsConfiguration('1c-platform-tools.env.defaultProfile')) {
 				refresh();
 			}
 		}),

@@ -19,7 +19,7 @@ export async function pickTags(
 	options?: PickTagOptions
 ): Promise<string[] | undefined> {
 	const config = vscode.workspace.getConfiguration('1c-platform-tools');
-	const defaultTags = config.get<string[]>('projects.tags', ['Личное', 'Работа']) ?? [];
+	const defaultTags = config.get<string[]>('projects.tagList', ['Личное', 'Работа']) ?? [];
 	let currentPreselected = preselected ?? [];
 
 	const quickPick = vscode.window.createQuickPick();
@@ -110,7 +110,7 @@ export async function pickTags(
 			}
 
 			const merged = [...new Set([...defaultTags, ...newTags])];
-			await config.update('projects.tags', merged, vscode.ConfigurationTarget.Global);
+			await config.update('projects.tagList', merged, vscode.ConfigurationTarget.Global);
 
 			currentPreselected = [...new Set([...quickPick.selectedItems.map((i) => i.label), ...newTags])];
 			refreshItems();

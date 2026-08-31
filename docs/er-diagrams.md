@@ -23,4 +23,4 @@
 
 Диаграмма экспортируется в **Mermaid**, **Draw.io**, **SVG** и **PNG**. По умолчанию результат сохраняется в `docs/schemas` проекта.
 
-Настройки: `1c-platform-tools.metadata.er.exportDir` — каталог экспорта, `1c-platform-tools.metadata.er.defaultExportFormat` — формат по умолчанию.
+Настройки: `1c-platform-tools.metadata.er.path.export` — каталог экспорта, `1c-platform-tools.metadata.er.defaultExportFormat` — формат по умолчанию.

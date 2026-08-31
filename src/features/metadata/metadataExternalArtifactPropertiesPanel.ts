@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import * as vscode from 'vscode';
 import { registerFormPanel } from '../editors/formPanels';
+import { revealOpenPanel, trackOpenPanel } from '../editors/openPanels';
 
 export interface ExternalArtifactPropertiesDto {
 	name: string;
@@ -17,9 +18,14 @@ interface PanelMessage {
 export async function openExternalArtifactPropertiesPanel(
 	context: vscode.ExtensionContext,
 	label: string,
+	/** XML внешнего файла: по нему вкладка находит себя при повторном открытии. */
+	objectXmlFsPath: string,
 	dto: ExternalArtifactPropertiesDto,
 	onSave: (nextDto: ExternalArtifactPropertiesDto) => Promise<boolean>
 ): Promise<void> {
+	if (revealOpenPanel('externalArtifact', objectXmlFsPath)) {
+		return;
+	}
 	const webviewRoot = vscode.Uri.joinPath(context.extensionUri, 'resources', 'webview');
 	const panel = vscode.window.createWebviewPanel(
 		'1cExternalArtifactProperties',
@@ -32,6 +38,7 @@ export async function openExternalArtifactPropertiesPanel(
 		}
 	);
 	registerFormPanel(panel);
+	trackOpenPanel('externalArtifact', objectXmlFsPath, panel);
 	const nonce = randomUUID();
 	panel.webview.html = await loadHtml(panel.webview, context.extensionUri, nonce, dto);
 	panel.webview.onDidReceiveMessage(

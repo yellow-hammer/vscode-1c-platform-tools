@@ -8,7 +8,7 @@
 
 **Подключение к ИБ.** Адрес ИБ, учётные данные и версия платформы берутся из активного **профиля запуска** (`env.json` для vrunner 2, `autumn-properties.json` для vrunner 3). В строке подключения `--ibconnection` укажите формат **/F** (файловая ИБ) или **/S** (серверная), например `/F./build/ib` или `/Sсервер\база`.
 
-**Запуск отладки.** В панели **Run and Debug** выберите конфигурацию типа **1Cpt:Enterprise** (launch). При создании конфигурации поля `rootProject` и `extensions` заполняются по настройкам `1c-platform-tools.paths.cf` и `1c-platform-tools.paths.cfe`; при необходимости отредактируйте `platformPath`, `autoAttachTypes` и другие параметры в **launch.json**.
+**Запуск отладки.** В панели **Run and Debug** выберите конфигурацию типа **1Cpt:Enterprise** (launch). При создании конфигурации поля `rootProject` и `extensions` заполняются по настройкам `1c-platform-tools.path.cf` и `1c-platform-tools.path.cfe`; при необходимости отредактируйте `platformPath`, `autoAttachTypes` и другие параметры в **launch.json**.
 
 **Debug targets.** В панели отладки доступен список целей с возможностью ручного подключения (Connect).
 

@@ -7,6 +7,7 @@
 import * as path from 'node:path';
 import * as vscode from 'vscode';
 import { registerFormPanel } from '../editors/formPanels';
+import { revealOpenPanel, trackOpenPanel } from '../editors/openPanels';
 import { ensureMdSparrowRuntime } from './mdSparrowBootstrap';
 import { logger } from '../../shared/logger';
 import { mdSparrowSchemaFlagFromConfigurationXml } from './mdSparrowSchemaVersion';
@@ -1523,6 +1524,9 @@ export async function openMetadataObjectPropertiesEditor(
 	context: vscode.ExtensionContext,
 	params: OpenMetadataObjectPropertiesParams
 ): Promise<void> {
+	if (revealOpenPanel('objectProperties', params.objectXmlFsPath)) {
+		return;
+	}
 	let schema: string;
 	try {
 		schema = await resolveSchemaFlag(params);
@@ -1570,6 +1574,7 @@ export async function openMetadataObjectPropertiesEditor(
 		localResourceRoots: [webviewRoot],
 	});
 	registerFormPanel(panel);
+	trackOpenPanel('objectProperties', params.objectXmlFsPath, panel);
 
 	if (viewModel.editable) {
 		registerEditableSaveHandler(context, panel, params, runtime, schema, viewModel.editable, candidates, enums);

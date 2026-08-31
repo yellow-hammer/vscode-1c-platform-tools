@@ -38,7 +38,7 @@ export function registerTestingFeature(params: {
 	const configureCommand = registerConfigureTestingCommand(vrunner);
 
 	const config = vscode.workspace.getConfiguration('1c-platform-tools');
-	if (!config.get<boolean>('test.enabled', true)) {
+	if (!config.get<boolean>('test.panelEnabled', true)) {
 		return { disposables: [configureCommand], rebuild: () => undefined };
 	}
 	const adapters: TestFrameworkAdapter[] = [
@@ -62,8 +62,8 @@ export function registerTestingFeature(params: {
 	void controller.cleanupAllReports().then(() => controller.scheduleRebuild());
 
 	const onConfigChange = vscode.workspace.onDidChangeConfiguration((event) => {
-		// paths.* тоже меняет состав дерева: корни поиска тестов берутся из
-		// paths.tests (и подкаталогов в нём) и paths.cfe
+		// path.* тоже меняет состав дерева: корни поиска тестов берутся из
+		// path.tests (и подкаталогов в нём) и path.cfe
 		if (
 			event.affectsConfiguration('1c-platform-tools.testing') ||
 			event.affectsConfiguration('1c-platform-tools.paths')

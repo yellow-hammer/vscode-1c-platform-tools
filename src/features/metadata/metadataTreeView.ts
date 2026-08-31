@@ -154,8 +154,10 @@ export function objectModuleKindsForType(objectType: string): ObjectModuleKind[]
 }
 
 /**
- * Команда клика по объекту — та же, что основной пункт его меню:
- * общая форма, модуль, иначе свойства.
+ * Команда щелчка по объекту - главное содержимое: форма, модуль, иначе свойства.
+ *
+ * Повторный щелчок ничего не дублирует: вкладка ищется по объекту в реестре
+ * открытых вкладок, поэтому двойной щелчок показывает ту же вкладку, а не вторую.
  */
 export function defaultMetadataLeafOpenCommand(item: MetadataLeafTreeItem): string | undefined {
 	if (!item.resourceUri) {
@@ -168,7 +170,7 @@ export function defaultMetadataLeafOpenCommand(item: MetadataLeafTreeItem): stri
 	if (objectModuleKindsForType(type).includes('module')) {
 		return '1c-platform-tools.metadata.openModule';
 	}
-	return '1c-platform-tools.metadata.openObjectProperties';
+	return '1c-platform-tools.metadata.openProperties';
 }
 
 function assignMetadataLeafOpenCommand(item: MetadataLeafTreeItem): void {
@@ -181,6 +183,12 @@ function assignMetadataLeafOpenCommand(item: MetadataLeafTreeItem): void {
 		title: 'Открыть',
 		arguments: [item],
 	};
+}
+
+/** У объекта бывают реквизиты или табличные части. */
+export function objectAcceptsChildNodes(objectType: string): boolean {
+	const sources = METADATA_OBJECT_SECTION_SOURCES_BY_TYPE[normalizeMetadataObjectType(objectType)];
+	return !!sources && (sources.includes('attributes') || sources.includes('tabularSections'));
 }
 
 /** Абсолютный путь к файлу модуля объекта рядом с его XML (`<Объект>/Ext/<Модуль>.bsl`). */
@@ -364,12 +372,15 @@ export class MetadataLeafTreeItem extends vscode.TreeItem {
 			this.contextValue = 'metadataLeafNoFile';
 			this.tooltip = name;
 		}
-		// Стабильные токены доступных модулей объекта — по типу, не по наличию файла.
-		// Пункты меню «Открыть модуль …» всегда присутствуют для подходящих типов.
+		// Стабильные токены по виду объекта, а не по наличию файла: набор пунктов меню
+		// у объекта одного вида всегда одинаковый.
 		if (abs) {
+			const tokens: string[] = [];
 			const moduleKinds = OBJECT_MODULE_KINDS_BY_TYPE[normalizedObjectType];
-			if (moduleKinds && moduleKinds.length > 0) {
-				const tokens = moduleKinds.map((kind) => OBJECT_MODULE_DESCRIPTORS[kind].contextToken);
+			if (moduleKinds) {
+				tokens.push(...moduleKinds.map((kind) => OBJECT_MODULE_DESCRIPTORS[kind].contextToken));
+			}
+			if (tokens.length > 0) {
 				this.contextValue = [this.contextValue, ...tokens].join(' ');
 			}
 		}

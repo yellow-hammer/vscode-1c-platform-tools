@@ -129,7 +129,7 @@ export async function loadProjectMetadataTree(
 	return parsed;
 }
 
-/** Параметры project-metadata-tree с каталогами исходников из настроек paths.*. */
+/** Параметры project-metadata-tree с каталогами исходников из настроек path.*. */
 export function projectMetadataTreeParams(projectRootAbs: string): MdSparrowParams {
 	const dirs = configuredSourceDirs();
 	return {

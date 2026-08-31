@@ -82,7 +82,7 @@ export class TestCommands extends BaseCommand {
 	 *
 	 * vanessa: файл VAParams (--vanessasettings) → КаталогОтчетаJUnit;
 	 * xunit: --reportsxunit → путь генератора jUnit;
-	 * yaxunit: конфиг testing.yaxunitConfigPath → reportPath.
+	 * yaxunit: конфиг test.path.yaxunitConfig → reportPath.
 	 *
 	 * @returns Абсолютный путь к файлу/каталогу отчёта или undefined
 	 */
@@ -97,7 +97,7 @@ export class TestCommands extends BaseCommand {
 		try {
 			if (framework === 'yaxunit') {
 				const config = vscode.workspace.getConfiguration('1c-platform-tools');
-				const configPath = config.get<string>('test.yaxunitConfigPath', DEFAULT_TESTING.yaxunitConfigPath);
+				const configPath = config.get<string>('test.path.yaxunitConfig', DEFAULT_TESTING.yaxunitConfigPath);
 				const raw = await fs.readFile(path.join(workspaceRoot, configPath), 'utf8');
 				const parsed = JSON.parse(stripBom(raw)) as Record<string, unknown>;
 				const reportPath = parsed['reportPath'];
@@ -318,7 +318,7 @@ export class TestCommands extends BaseCommand {
 
 		const cfRel = vscode.workspace
 			.getConfiguration('1c-platform-tools')
-			.get<string>('paths.cf', DEFAULT_PATHS.cf);
+			.get<string>('path.cf', DEFAULT_PATHS.cf);
 
 		return toSyntaxCheckErrors(findings, cfRel);
 	}
@@ -389,7 +389,7 @@ export class TestCommands extends BaseCommand {
 	 * Запускает тесты YAxUnit
 	 *
 	 * Выполняет vrunner run --command RunUnitTests=<конфиг>. Конфиг прогона —
-	 * testing.yaxunitConfigPath (по умолчанию tools/yaxunit.json), отчёт
+	 * test.path.yaxunitConfig (по умолчанию tools/yaxunit.json), отчёт
 	 * и фильтры берутся из него.
 	 *
 	 * Предварительно в ИБ должны быть загружены расширение-движок YAXUNIT
@@ -408,7 +408,7 @@ export class TestCommands extends BaseCommand {
 		}
 
 		const config = vscode.workspace.getConfiguration('1c-platform-tools');
-		const configPath = config.get<string>('test.yaxunitConfigPath', DEFAULT_TESTING.yaxunitConfigPath);
+		const configPath = config.get<string>('test.path.yaxunitConfig', DEFAULT_TESTING.yaxunitConfigPath);
 		// --settings активного профиля подставляет planIntent; здесь — только явный
 		// адрес ИБ из вызова MCP (перекрывает ИБ профиля), иначе пусто.
 		const connectionArgs = await this.vrunner.getIbConnectionParam(opts?.ibConnection);
@@ -426,7 +426,7 @@ export class TestCommands extends BaseCommand {
 	/**
 	 * Собирает тестовые обработки из исходников в бинарники
 	 *
-	 * Выполняет vrunner compileepf <paths.tests>/epf <paths.out>/tests/epf:
+	 * Выполняет vrunner compileepf <path.tests>/epf <path.out>/tests/epf:
 	 * разобранные исходники тестовых обработок (tests/epf) собираются в .epf
 	 * в каталог результатов сборки (build/out/tests/epf) — собранные артефакты
 	 * не попадают в git. vrunner кэширует сборку и пересобирает только
@@ -453,7 +453,7 @@ export class TestCommands extends BaseCommand {
 	/**
 	 * Разбирает бинарники тестовых обработок в исходники
 	 *
-	 * Выполняет vrunner decompileepf <paths.tests> <paths.tests>/epf:
+	 * Выполняет vrunner decompileepf <path.tests> <path.tests>/epf:
 	 * .epf из каталога тестов раскладываются в исходники (tests/epf) —
 	 * удобно для первичного переноса существующих бинарных тестов под контроль версий.
 	 *

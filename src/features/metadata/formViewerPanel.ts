@@ -23,6 +23,7 @@ import type {
 	PropertyRow,
 } from '../properties/propertyPaletteView';
 import { PROPERTY_GROUP_ORDER, enumValueLabel, propertyGroupName, propertyLabel } from './formItemPropertySpec';
+import { revealOpenPanel, trackOpenPanel } from '../editors/openPanels';
 
 /** Обработчик события формы или элемента. */
 export interface FormEventDto {
@@ -212,6 +213,20 @@ export function objectFormXmlPath(objectXmlFsPath: string, objectName: string, f
 	return path.join(path.dirname(objectXmlFsPath), objectName, 'Forms', formName, 'Ext', 'Form.xml');
 }
 
+/**
+ * Путь к XML самой формы как объекта метаданных: `<Объект>/Forms/<Форма>.xml`.
+ *
+ * У формы два файла: этот - свойства формы (имя, синоним, тип), и `Ext/Form.xml`
+ * рядом - её содержимое с элементами и реквизитами формы.
+ */
+export function objectFormDescriptorXmlPath(
+	objectXmlFsPath: string,
+	objectName: string,
+	formName: string
+): string {
+	return path.join(path.dirname(objectXmlFsPath), objectName, 'Forms', `${formName}.xml`);
+}
+
 /** Путь к `Ext/Form.xml` общей формы: у неё содержимое лежит прямо в каталоге объекта. */
 export function commonFormXmlPath(objectXmlFsPath: string, objectName: string): string {
 	return path.join(path.dirname(objectXmlFsPath), objectName, 'Ext', 'Form.xml');
@@ -232,6 +247,9 @@ export async function openFormViewer(
 	context: vscode.ExtensionContext,
 	params: OpenFormViewerParams
 ): Promise<void> {
+	if (revealOpenPanel('form', params.formXmlFsPath)) {
+		return;
+	}
 	let schema: string;
 	try {
 		schema = params.cfgPath
@@ -269,6 +287,7 @@ export async function openFormViewer(
 		retainContextWhenHidden: true,
 		localResourceRoots: [webviewRoot],
 	});
+	trackOpenPanel('form', params.formXmlFsPath, panel);
 
 	const paletteOwner = params.formXmlFsPath;
 

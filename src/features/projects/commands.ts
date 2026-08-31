@@ -42,7 +42,7 @@ export function registerProjectsCommands(
 	stack: ProjectsStack
 ): vscode.Disposable[] {
 	const config = vscode.workspace.getConfiguration('1c-platform-tools');
-	const projectsLocation = config.get<string>('projects.projectsLocation', '');
+	const projectsLocation = config.get<string>('projects.path.storage', '');
 	const projectFilePath = getProjectsFilePath(projectsLocation, context);
 
 	const disposables: vscode.Disposable[] = [];

@@ -32,7 +32,7 @@ export interface RacLookup {
  * Если настройка пуста, перебираются каталоги установки по умолчанию для
  * текущей ОС и архитектуры.
  *
- * @param platformPath - Настройка `clusters.platformPath` (каталог установки платформы)
+ * @param platformPath - Настройка `clusters.path.platform` (каталог установки платформы)
  * @param requestedVersion - Версия платформы или её префикс (пусто — наибольшая)
  * @returns Найденный путь и перебранные каталоги
  */
@@ -57,7 +57,7 @@ export function findRac(platformPath: string, requestedVersion?: string): RacLoo
  * установленных, а не вспоминает номер. Каталоги те же, что и при поиске
  * утилиты, поэтому предложенная версия точно запустится.
  *
- * @param platformPath - Настройка `clusters.platformPath` (пусто — каталоги по умолчанию)
+ * @param platformPath - Настройка `clusters.path.platform` (пусто — каталоги по умолчанию)
  * @returns Версии от новых к старым, без повторов
  */
 export function listRacVersions(platformPath: string): string[] {

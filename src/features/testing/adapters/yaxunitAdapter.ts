@@ -17,12 +17,12 @@ const log = logger.scope('testing');
  * Адаптер YAxUnit (модульные тесты в расширении конфигурации)
  *
  * Discovery: общие модули тестового расширения с регистрацией тестов через
- * ДобавитьТест("..."). Смотрим оба корня расширений: и решения (paths.cfe), и
- * тестовых (<paths.tests>/cfe) - расширение с тестами держат отдельно от поставки,
+ * ДобавитьТест("..."). Смотрим оба корня расширений: и решения (path.cfe), и
+ * тестовых (<path.tests>/cfe) - расширение с тестами держат отдельно от поставки,
  * но и внутри решения оно встречается.
  *
  * Запуск: vrunner run --command RunUnitTests=<конфиг>. За основу берётся
- * конфиг проекта (testing.yaxunitConfigPath, по умолчанию tools/yaxunit.json) —
+ * конфиг проекта (test.path.yaxunitConfig, по умолчанию tools/yaxunit.json) —
  * из него же берётся reportPath; поверх накладывается filter по выбранному
  * модулю или конкретным тестам (единственный фреймворк с точечным запуском).
  */
@@ -222,7 +222,7 @@ export class YaxunitAdapter implements TestFrameworkAdapter {
 		}
 
 		const config = vscode.workspace.getConfiguration('1c-platform-tools');
-		const configured = config.get<string>('test.yaxunitConfigPath', DEFAULT_TESTING.yaxunitConfigPath);
+		const configured = config.get<string>('test.path.yaxunitConfig', DEFAULT_TESTING.yaxunitConfigPath);
 		const configPath = resolveConfigPath(configured, workspaceRoot);
 
 		try {

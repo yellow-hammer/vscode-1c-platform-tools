@@ -51,7 +51,7 @@ export const COMPONENTS: ComponentSpec[] = [
 	{
 		id: 'adapter',
 		title: 'Отладчик 1С (onec-debug-adapter)',
-		pathSetting: 'components.adapterFile',
+		pathSetting: 'components.path.adapter',
 		autoloadSetting: 'components.adapterAutoload',
 		version: cachedOnecDebugAdapterTag,
 		clear: clearOnecDebugAdapterCache,
@@ -60,7 +60,7 @@ export const COMPONENTS: ComponentSpec[] = [
 	{
 		id: 'jre',
 		title: 'Portable JRE 21 (нужна дереву метаданных)',
-		pathSetting: 'components.javaExecutable',
+		pathSetting: 'components.path.java',
 		autoloadSetting: 'components.jreAutoload',
 		version: async (context) => portableJreVersion(context),
 		clear: clearPortableJreCache,
@@ -69,7 +69,7 @@ export const COMPONENTS: ComponentSpec[] = [
 	{
 		id: 'metadataTree',
 		title: 'Дерево метаданных (md-sparrow)',
-		pathSetting: 'components.metadataJarFile',
+		pathSetting: 'components.path.metadataJar',
 		autoloadSetting: 'components.metadataJarAutoload',
 		version: cachedMdSparrowTag,
 		clear: clearMdSparrowJarCache,
@@ -78,7 +78,7 @@ export const COMPONENTS: ComponentSpec[] = [
 	{
 		id: 'ovm',
 		title: 'OVM (менеджер версий OneScript)',
-		pathSetting: 'components.ovmFile',
+		pathSetting: 'components.path.ovm',
 		autoloadSetting: 'components.ovmAutoload',
 		version: cachedOvmTag,
 		clear: clearOvmCache,

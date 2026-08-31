@@ -287,7 +287,10 @@
 	}
 
 	function normalizeForCompare(value) {
-		if (Array.isArray(value)) {
+		// Составное значение сравнивается по содержимому: editedProps - копия
+		// editable.props, у копии другие ссылки, и сравнение по ссылке считало бы
+		// поле изменённым сразу после открытия. Так вело себя поле «Тип».
+		if (value !== null && typeof value === 'object') {
 			return JSON.stringify(value);
 		}
 		return value === undefined || value === '' ? null : value;
@@ -1010,13 +1013,13 @@
 		resetBtn.disabled = saving || !dirty;
 		status.classList.toggle('save-status-error', Boolean(saveError) || Boolean(structError));
 		if (saving) {
-			status.textContent = 'Сохранение...';
+			status.textContent = 'Сохранение…';
 		} else if (dirty && structError) {
 			status.textContent = structError;
 		} else if (saveError) {
 			status.textContent = saveError;
 		} else if (dirty) {
-			status.textContent = 'Есть несохраненные изменения';
+			status.textContent = 'Есть несохранённые изменения';
 		} else if (savedFlash) {
 			status.textContent = 'Сохранено';
 		} else {
