@@ -190,7 +190,7 @@ export function resolveAdapterRuntime(root: string): OnecDebugAdapterRuntime | u
 }
 
 /**
- * Команда запуска для пути из настройки components.adapterFile: управляемая сборка идёт через `dotnet`,
+ * Команда запуска для пути из настройки components.path.adapter: управляемая сборка идёт через `dotnet`,
  * остальное считается нативным хостом.
  */
 export function runtimeFromFile(file: string): OnecDebugAdapterRuntime {
@@ -204,7 +204,7 @@ export function runtimeFromFile(file: string): OnecDebugAdapterRuntime {
 /**
  * Гарантирует наличие onec-debug-adapter согласно настройкам расширения.
  *
- * @throws Error если автозагрузка выключена и не задан components.adapterFile, либо адаптер не найден.
+ * @throws Error если автозагрузка выключена и не задан components.path.adapter, либо адаптер не найден.
  */
 export async function ensureOnecDebugAdapter(context: vscode.ExtensionContext): Promise<OnecDebugAdapterRuntime> {
 	const cfg = vscode.workspace.getConfiguration('1c-platform-tools');
@@ -212,21 +212,27 @@ export async function ensureOnecDebugAdapter(context: vscode.ExtensionContext): 
 	if (override) {
 		if (override.includes('${')) {
 			throw new Error(
-				`components.adapterFile: укажите полный путь к ${adapterHostName()} или ${ONEC_DEBUG_ADAPTER_DLL}.`
+				`components.path.adapter: укажите полный путь к ${adapterHostName()} или ${ONEC_DEBUG_ADAPTER_DLL}.`
 			);
 		}
 		if (!fssync.existsSync(override)) {
-			throw new Error(`components.adapterFile не найден: ${override}.`);
+			throw new Error(`components.path.adapter не найден: ${override}.`);
 		}
 		const runtime = runtimeFromFile(override);
 		log.info(`адаптер готов: ${describeRuntime(runtime)} (локальный файл)`);
 		return runtime;
 	}
+	const spec = onecDebugAdapterSpec();
 	if (!cfg.get<boolean>('components.adapterAutoload', true)) {
-		throw new Error('Укажите components.adapterFile или включите components.adapterAutoload.');
+		const cached = await cachedReleaseComponent(installBaseDir(context), spec);
+		const cachedRuntime = cached ? resolveAdapterRuntime(cached.assetPath) : undefined;
+		if (cachedRuntime) {
+			log.info(`адаптер готов: ${describeRuntime(cachedRuntime)} (${cached?.tag}, автозагрузка выключена)`);
+			return { ...cachedRuntime, releaseTag: cached?.tag };
+		}
+		throw new Error('Укажите components.path.adapter или включите components.adapterAutoload.');
 	}
 
-	const spec = onecDebugAdapterSpec();
 	const ensured = await ensureReleaseComponent(installBaseDir(context), spec, resolveGithubToken());
 	const runtime = resolveAdapterRuntime(ensured.assetPath);
 	if (!runtime) {
@@ -261,7 +267,7 @@ export function checkOnecDebugAdapterUpdateInBackground(context: vscode.Extensio
 }
 
 /**
- * Загружает адаптер отладки, не глядя на `components.adapterFile` и автозагрузку.
+ * Загружает адаптер отладки, не глядя на `components.path.adapter` и автозагрузку.
  *
  * @param context - Контекст расширения
  * @returns Путь к загруженному каталогу релиза

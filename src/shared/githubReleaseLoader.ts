@@ -23,6 +23,13 @@ const execFileAsync = promisify(execFile);
 const NO_INDENTATION = 0;
 /** Не опрашивать GitHub чаще, чем раз в это время (8 минут). */
 const UPDATE_CHECK_THROTTLE_MS = 8 * 60 * 1000;
+/** Подкаталог кэша, куда идёт скачивание до установки в кэш. */
+const DOWNLOAD_DIR = '_dl';
+/** Сколько ждать ответа GitHub API: дольше ждать нечего, дальше работаем на кэше. */
+const API_TIMEOUT_MS = 15 * 1000;
+/** Подсказка на машине, которой GitHub недоступен. */
+export const OFFLINE_HINT =
+	'Компонент не загружен, а GitHub недоступен. Скачайте его на машине с интернетом и укажите путь настройкой в разделе «Внешние компоненты».';
 
 export interface GithubAsset {
 	name: string;
@@ -175,7 +182,9 @@ function rethrowNetworkError(url: string, err: unknown): never {
 export async function fetchJson(url: string, headers: Record<string, string>): Promise<unknown> {
 	let res: Response;
 	try {
-		res = await fetch(url, { headers });
+		// За закрытым наружу шлюзом запрос не отвергается, а молчит: без срока ожидания
+		// проверка обновления держала бы команду, которой хватило бы кэша
+		res = await fetch(url, { headers, signal: AbortSignal.timeout(API_TIMEOUT_MS) });
 	} catch (e) {
 		rethrowNetworkError(url, e);
 	}
@@ -286,6 +295,73 @@ async function writeStamp(baseDir: string, spec: ReleaseComponentSpec, info: Sta
 	await fs.writeFile(stampPath, JSON.stringify(info, undefined, NO_INDENTATION), 'utf8');
 }
 
+/** Каталог кэша под один тег компонента. */
+function tagDirOf(baseDir: string, spec: ReleaseComponentSpec, tag: string): string {
+	return path.join(baseDir, spec.cacheSubdir, tag.replace(/[^\w.-]+/g, '_'));
+}
+
+/**
+ * Убирает каталоги прежних версий компонента, оставляя текущую.
+ *
+ * @param baseDir каталог globalStorage расширения
+ * @param spec описание компонента
+ * @param keepDir каталог версии, которая осталась в работе
+ */
+async function dropOtherVersions(baseDir: string, spec: ReleaseComponentSpec, keepDir: string): Promise<void> {
+	const root = path.join(baseDir, spec.cacheSubdir);
+	let entries: string[];
+	try {
+		entries = await fs.readdir(root);
+	} catch {
+		return;
+	}
+	for (const entry of entries) {
+		const full = path.join(root, entry);
+		if (full === keepDir || entry === spec.stampName || entry === DOWNLOAD_DIR) {
+			continue;
+		}
+		await fs.rm(full, { recursive: true, force: true }).catch(() => undefined);
+	}
+}
+
+/**
+ * Кладёт скачанный артефакт в кэш компонента: распаковывает или копирует и пишет штамп.
+ *
+ * Отделена от загрузки, чтобы прежняя версия оставалась рабочей, пока новая не получена целиком.
+ *
+ * @param baseDir каталог globalStorage расширения
+ * @param spec описание компонента
+ * @param install тег релиза, имя артефакта и путь к скачанному файлу
+ * @returns тег и путь артефакта в кэше
+ */
+export async function installReleaseAsset(
+	baseDir: string,
+	spec: ReleaseComponentSpec,
+	install: { tag: string; assetName: string; sourceFile: string }
+): Promise<EnsuredComponent> {
+	const destDir = tagDirOf(baseDir, spec, install.tag);
+	await fs.rm(destDir, { recursive: true, force: true }).catch(() => undefined);
+	await fs.mkdir(destDir, { recursive: true });
+
+	let assetPath: string;
+	if (spec.extract) {
+		await extractArchive(install.sourceFile, destDir);
+		assetPath = destDir;
+	} else {
+		assetPath = path.join(destDir, install.assetName);
+		await fs.copyFile(install.sourceFile, assetPath);
+	}
+
+	await writeStamp(baseDir, spec, {
+		tag: install.tag,
+		assetPath,
+		assetName: install.assetName,
+		lastCheckMs: Date.now(),
+	});
+	await dropOtherVersions(baseDir, spec, destDir);
+	return { tag: install.tag, assetPath };
+}
+
 /**
  * Гарантирует наличие компонента из GitHub Releases: отдаёт кэш, иначе качает последний стабильный релиз.
  *
@@ -335,7 +411,7 @@ export async function ensureReleaseComponent(
 			rel = await fetchLatestStableRelease(owner, repo, headers);
 		} catch (e) {
 			if (!inCache) {
-				throw e;
+				throw new Error(`${spec.label}: ${e instanceof Error ? e.message : String(e)} ${OFFLINE_HINT}`);
 			}
 			// Без сети работаем на том, что уже загружено.
 			log.warn(`${spec.label}: не удалось проверить обновление: ${e instanceof Error ? e.message : String(e)}`);
@@ -355,36 +431,25 @@ export async function ensureReleaseComponent(
 		status.dispose();
 		status = showStatus(`${spec.label}: загрузка…`);
 		const asset = pickAsset(rel, spec);
-		const destDir = path.join(baseDir, spec.cacheSubdir, rel.tag_name.replace(/[^\w.-]+/g, '_'));
-		await fs.rm(destDir, { recursive: true, force: true }).catch(() => undefined);
-		await fs.mkdir(destDir, { recursive: true });
-
-		let assetPath: string;
-		if (spec.extract) {
-			const archivePath = path.join(destDir, asset.name);
-			await streamDownload(asset.browser_download_url, archivePath, {
+		// Качаем рядом с кэшем: прежняя версия остаётся рабочей, пока новая не легла целиком
+		const downloadDir = path.join(baseDir, spec.cacheSubdir, DOWNLOAD_DIR);
+		const downloaded = path.join(downloadDir, asset.name);
+		await fs.mkdir(downloadDir, { recursive: true });
+		try {
+			await streamDownload(asset.browser_download_url, downloaded, {
 				...headers,
 				Accept: 'application/octet-stream',
 			});
-			await extractArchive(archivePath, destDir);
-			await fs.rm(archivePath, { force: true }).catch(() => undefined);
-			assetPath = destDir;
-		} else {
-			assetPath = path.join(destDir, asset.name);
-			await streamDownload(asset.browser_download_url, assetPath, {
-				...headers,
-				Accept: 'application/octet-stream',
+			const installed = await installReleaseAsset(baseDir, spec, {
+				tag: rel.tag_name,
+				assetName: asset.name,
+				sourceFile: downloaded,
 			});
+			log.info(`${spec.label}: ${installed.assetPath} (${installed.tag})`);
+			return installed;
+		} finally {
+			await fs.rm(downloadDir, { recursive: true, force: true }).catch(() => undefined);
 		}
-
-		await writeStamp(baseDir, spec, {
-			tag: rel.tag_name,
-			assetPath,
-			assetName: asset.name,
-			lastCheckMs: Date.now(),
-		});
-		log.info(`${spec.label}: ${assetPath} (${rel.tag_name})`);
-		return { tag: rel.tag_name, assetPath };
 	} finally {
 		status.dispose();
 	}
@@ -417,7 +482,10 @@ export async function cachedReleaseComponent(
 /**
  * Фоновая проверка нового релиза (стабильного — endpoint `releases/latest`, без выбора prerelease).
  * Опрос троттлится ({@link UPDATE_CHECK_THROTTLE_MS}); обновление применяется только если тег СТРОГО новее
- * ({@link isNewerTag}) — чистит кэш и зовёт onUpdate. Молча завершается при недоступности сети/кэша.
+ * ({@link isNewerTag}) — снимает отметку о проверке и зовёт onUpdate, а загрузку делает следующий
+ * {@link ensureReleaseComponent}. Загруженная версия остаётся в кэше до тех пор, пока новая не встанет
+ * целиком: иначе пропавшая посреди обновления сеть оставляла бы расширение без компонента.
+ * Молча завершается при недоступности сети/кэша.
  */
 export function checkReleaseUpdateInBackground(
 	baseDir: string,
@@ -446,7 +514,7 @@ export function checkReleaseUpdateInBackground(
 				return;
 			}
 			log.info(`${spec.label}: доступна новая версия ${latest.tag_name} (было ${cached.tag}), обновляем кэш.`);
-			await clearReleaseCache(baseDir, spec);
+			await writeStamp(baseDir, spec, { ...cached, lastCheckMs: undefined });
 			onUpdate();
 		} catch {
 			/* фоновая проверка — ошибки не показываем */

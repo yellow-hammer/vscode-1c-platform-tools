@@ -88,8 +88,9 @@ export async function ensureAllure(context: vscode.ExtensionContext): Promise<st
 	}
 
 	if (!config.get<boolean>('components.allureAutoload', true)) {
-		// автозагрузка выключена намеренно: пробуем PATH, как было раньше
-		return 'allure';
+		// автозагрузка выключена намеренно: берём загруженный ранее или из комплекта, иначе PATH
+		const cached = await cachedReleaseComponent(installBaseDir(context), ALLURE_SPEC);
+		return (cached ? findAllureBinary(cached.assetPath) : undefined) ?? 'allure';
 	}
 
 	const ensured = await ensureReleaseComponent(installBaseDir(context), ALLURE_SPEC, resolveGithubToken());
