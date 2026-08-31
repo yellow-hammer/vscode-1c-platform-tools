@@ -10,7 +10,7 @@
     "1с предприятие",
     "bsl"
   ],
-  "version": "0.8.9",
+  "version": "0.8.11",
   "publisher": "yellow-hammer",
   "extensionKind": [
     "workspace"
@@ -77,6 +77,7 @@
     "onCommand:1c-platform-tools.projects.listOpen",
     "onCommand:1c-platform-tools.projects.openSettings",
     "onCommand:1c-platform-tools.clusters.addConnection",
+    "onCommand:1c-platform-tools.clusters.editCredentials",
     "onCommand:1c-platform-tools.infobaseList.open"
   ],
   "main": "./out/extension.js",
@@ -586,6 +587,23 @@
         "icon": "$(add)"
       },
       {
+        "command": "1c-platform-tools.clusters.editCredentials",
+        "title": "Учётные данные",
+        "category": "1С: Кластеры",
+        "icon": "$(key)"
+      },
+      {
+        "command": "1c-platform-tools.clusters.bindInfobaseCredentials",
+        "title": "Назначить учётные данные",
+        "category": "1С: Кластеры",
+        "icon": "$(key)"
+      },
+      {
+        "command": "1c-platform-tools.clusters.unbindInfobaseCredentials",
+        "title": "Снять учётные данные",
+        "category": "1С: Кластеры"
+      },
+      {
         "command": "1c-platform-tools.clusters.removeConnection",
         "title": "Удалить",
         "category": "1С: Кластеры",
@@ -617,7 +635,7 @@
       },
       {
         "command": "1c-platform-tools.clusters.showActivity",
-        "title": "Сеансы и соединения таблицей",
+        "title": "Списки таблицей",
         "category": "1С: Кластеры",
         "icon": "$(pulse)"
       },
@@ -662,6 +680,12 @@
         "title": "Завершить все сеансы",
         "category": "1С: Кластеры",
         "icon": "$(debug-stop)"
+      },
+      {
+        "command": "1c-platform-tools.clusters.dropInfobase",
+        "title": "Удалить",
+        "category": "1С: Кластеры",
+        "icon": "$(trash)"
       },
       {
         "command": "1c-platform-tools.clusters.disconnectConnection",
@@ -1767,6 +1791,12 @@
         "icon": "$(book)"
       },
       {
+        "command": "1c-platform-tools.help.copyEnvironmentSummary",
+        "title": "Скопировать сводку окружения",
+        "category": "1С: Помощь и поддержка",
+        "icon": "$(copy)"
+      },
+      {
         "command": "1c-platform-tools.help.openCreateIssue",
         "title": "Сообщить о проблемах",
         "category": "1С: Помощь и поддержка",
@@ -1975,6 +2005,14 @@
           "when": "false"
         },
         {
+          "command": "1c-platform-tools.clusters.bindInfobaseCredentials",
+          "when": "false"
+        },
+        {
+          "command": "1c-platform-tools.clusters.unbindInfobaseCredentials",
+          "when": "false"
+        },
+        {
           "command": "1c-platform-tools.clusters.addAdmin",
           "when": "false"
         },
@@ -2016,6 +2054,10 @@
         },
         {
           "command": "1c-platform-tools.clusters.terminateInfobaseSessions",
+          "when": "false"
+        },
+        {
+          "command": "1c-platform-tools.clusters.dropInfobase",
           "when": "false"
         },
         {
@@ -2651,12 +2693,12 @@
         },
         {
           "command": "1c-platform-tools.clusters.properties",
-          "when": "view == 1c-platform-tools-admin-clusters && viewItem =~ /^(clusterConnection|clusterNode|clusterServer|clusterProcess|clusterManager|clusterInfobase|clusterSession|clusterConnectionItem|clusterAdmin|clusterAgentAdmin)$/",
-          "group": "1_details@1"
+          "when": "view == 1c-platform-tools-admin-clusters && viewItem =~ /^(clusterConnection|clusterNode|clusterServer|clusterProcess|clusterManager|clusterInfobase|clusterInfobaseBound|clusterSession|clusterConnectionItem|clusterAdmin|clusterAgentAdmin)$/",
+          "group": "1_details@0"
         },
         {
           "command": "1c-platform-tools.clusters.properties",
-          "when": "view == 1c-platform-tools-admin-clusters && viewItem =~ /^(clusterConnection|clusterNode|clusterServer|clusterProcess|clusterManager|clusterInfobase|clusterSession|clusterConnectionItem|clusterAdmin|clusterAgentAdmin)$/",
+          "when": "view == 1c-platform-tools-admin-clusters && viewItem =~ /^(clusterConnection|clusterNode|clusterServer|clusterProcess|clusterManager|clusterInfobase|clusterInfobaseBound|clusterSession|clusterConnectionItem|clusterAdmin|clusterAgentAdmin)$/",
           "group": "inline@20"
         },
         {
@@ -2681,38 +2723,53 @@
         },
         {
           "command": "1c-platform-tools.clusters.showActivity",
-          "when": "view == 1c-platform-tools-admin-clusters && viewItem =~ /^(clusterNode|clusterInfobase)$/",
+          "when": "view == 1c-platform-tools-admin-clusters && viewItem =~ /^(clusterNode|clusterInfobase|clusterInfobaseBound)$/",
           "group": "1_details@0"
         },
         {
           "command": "1c-platform-tools.clusters.showActivity",
-          "when": "view == 1c-platform-tools-admin-clusters && viewItem =~ /^(clusterNode|clusterInfobase)$/",
+          "when": "view == 1c-platform-tools-admin-clusters && (viewItem =~ /^(clusterNode|clusterInfobase|clusterInfobaseBound)$/ || viewItem =~ /(^| )clusterGroupTable( |$)/)",
           "group": "inline@30"
         },
         {
-          "command": "1c-platform-tools.clusters.lockSessions",
+          "command": "1c-platform-tools.clusters.bindInfobaseCredentials",
           "when": "view == 1c-platform-tools-admin-clusters && viewItem == clusterInfobase",
+          "group": "2_infobase@0"
+        },
+        {
+          "command": "1c-platform-tools.clusters.unbindInfobaseCredentials",
+          "when": "view == 1c-platform-tools-admin-clusters && viewItem == clusterInfobaseBound",
+          "group": "2_infobase@0"
+        },
+        {
+          "command": "1c-platform-tools.clusters.lockSessions",
+          "when": "view == 1c-platform-tools-admin-clusters && viewItem =~ /^clusterInfobase/",
           "group": "2_infobase@1"
         },
         {
           "command": "1c-platform-tools.clusters.unlockSessions",
-          "when": "view == 1c-platform-tools-admin-clusters && viewItem == clusterInfobase",
+          "when": "view == 1c-platform-tools-admin-clusters && viewItem =~ /^clusterInfobase/",
           "group": "2_infobase@2"
         },
         {
           "command": "1c-platform-tools.clusters.lockScheduledJobs",
-          "when": "view == 1c-platform-tools-admin-clusters && viewItem == clusterInfobase",
+          "when": "view == 1c-platform-tools-admin-clusters && viewItem =~ /^clusterInfobase/",
           "group": "2_infobase@3"
         },
         {
           "command": "1c-platform-tools.clusters.unlockScheduledJobs",
-          "when": "view == 1c-platform-tools-admin-clusters && viewItem == clusterInfobase",
+          "when": "view == 1c-platform-tools-admin-clusters && viewItem =~ /^clusterInfobase/",
           "group": "2_infobase@4"
         },
         {
           "command": "1c-platform-tools.clusters.terminateInfobaseSessions",
-          "when": "view == 1c-platform-tools-admin-clusters && viewItem == clusterInfobase",
+          "when": "view == 1c-platform-tools-admin-clusters && viewItem =~ /^clusterInfobase/",
           "group": "3_danger@1"
+        },
+        {
+          "command": "1c-platform-tools.clusters.dropInfobase",
+          "when": "view == 1c-platform-tools-admin-clusters && viewItem =~ /^clusterInfobase/",
+          "group": "3_danger@2"
         },
         {
           "command": "1c-platform-tools.clusters.interruptSessionCall",
@@ -4148,7 +4205,7 @@
     "cytoscape": "^3.34.1",
     "cytoscape-elk": "^2.3.0",
     "elkjs": "^0.12.0",
-    "fast-xml-parser": "^5.10.1",
+    "fast-xml-parser": "^5.11.0",
     "glob": "^13.0.6",
     "jsonc-parser": "^3.3.1",
     "minimatch": "^10.2.6",
@@ -4158,14 +4215,14 @@
     "@types/cytoscape": "^3.31.0",
     "@types/minimatch": "^6.0.0",
     "@types/node": "26.x",
-    "@types/vscode": "^1.125.0",
+    "@types/vscode": "^1.134.0",
     "@types/yauzl": "^3.4.0",
     "@types/yazl": "^3.3.1",
     "@vscode/test-cli": "^0.0.15",
     "@vscode/test-electron": "^3.1.0",
     "@vscode/vsce": "^3.9.2",
     "esbuild": "^0.28.2",
-    "eslint": "^10.8.1",
+    "eslint": "^10.9.0",
     "typescript": "^5.9.3",
     "typescript-eslint": "^8.67.0",
     "yazl": "^3.3.1"

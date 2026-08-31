@@ -28,6 +28,7 @@ suite('mcpCommandPolicy', () => {
 	test('интерактивные мастера и навигация скрыты', () => {
 		for (const id of [
 			'1c-platform-tools.help.openCreateIssue',
+			'1c-platform-tools.help.copyEnvironmentSummary',
 			'1c-platform-tools.help.openGetStarted',
 			'1c-platform-tools.tools.openSettings',
 			'1c-platform-tools.tools.refresh',

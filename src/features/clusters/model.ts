@@ -20,16 +20,6 @@ export interface ClusterConnection {
 	host: string;
 	/** Порт сервера администрирования. */
 	port: number;
-	/** Имя администратора кластера; пароль хранится в защищённом хранилище. */
-	clusterUser?: string;
-	/**
-	 * Имя администратора центрального сервера.
-	 *
-	 * Нужен правке свойств самого кластера: кластер — объект уровня агента, и
-	 * администратор кластера менять его параметры не вправе. Для чтения дерева и
-	 * действий внутри кластера не требуется.
-	 */
-	agentUser?: string;
 	/** Версия платформы для выбора rac; пусто — наибольшая доступная. */
 	platformVersion?: string;
 }
@@ -77,6 +67,25 @@ export interface InfobaseInfo {
 	name: string;
 	descr: string;
 	record: RacRecord;
+}
+
+/**
+ * Режим работы информационной базы.
+ *
+ * Краткий список баз этих признаков не отдаёт: они приходят только в полных
+ * сведениях о базе. Дерево и таблица показывают их отдельно от {@link
+ * InfobaseInfo}, потому что состояние известно не всегда — базу с
+ * администратором платформа без пароля не раскрывает.
+ */
+export interface InfobaseState {
+	/** Начало сеансов запрещено. */
+	sessionsDeny: boolean;
+	/** Регламентные задания запрещены. */
+	scheduledJobsDeny: boolean;
+	/** Начало блокировки сеансов, как отдал rac; пусто, если не задано. */
+	deniedFrom: string;
+	/** Конец блокировки сеансов, как отдал rac; пусто, если не задано. */
+	deniedTo: string;
 }
 
 /** Сеанс информационной базы. */
@@ -256,6 +265,16 @@ export function toInfobaseInfo(record: RacRecord): InfobaseInfo {
 		name: field(record, 'name'),
 		descr: field(record, 'descr'),
 		record,
+	};
+}
+
+/** Разбирает режим работы информационной базы. */
+export function toInfobaseState(record: RacRecord): InfobaseState {
+	return {
+		sessionsDeny: isRacFlagOn(field(record, 'sessions-deny')),
+		scheduledJobsDeny: isRacFlagOn(field(record, 'scheduled-jobs-deny')),
+		deniedFrom: field(record, 'denied-from'),
+		deniedTo: field(record, 'denied-to'),
 	};
 }
 

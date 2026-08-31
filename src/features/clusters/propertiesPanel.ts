@@ -246,6 +246,12 @@ ${chromeStyles()}
 	.field label { font-size: 0.9em; color: var(--vscode-foreground); text-align: right;
 		overflow-wrap: anywhere; }
 	.field input, .field select { padding: 3px 6px; }
+	/* Каркас оформляет только текст, число и пароль: дате нужны те же цвета */
+	.field input[type=datetime-local] { background: var(--vscode-input-background);
+		color: var(--vscode-input-foreground); border: 1px solid var(--vscode-input-border, transparent);
+		border-radius: 4px; font-family: inherit; font-size: inherit; }
+	/* Календарь и стрелки рисует браузер: без подсказки о теме они остаются светлыми */
+	body.vscode-dark input[type=datetime-local] { color-scheme: dark; }
 	.field.flag { grid-template-columns: 210px minmax(0, 1fr); }
 	.field.flag label { order: 1; text-align: right; }
 	.field.flag input { order: 2; width: auto; justify-self: start; }
@@ -301,9 +307,33 @@ function selectField(item, value) {
 		element.selected = value === option[0];
 		select.appendChild(element);
 	}
-	select.addEventListener('change', () => { draft[item.key] = select.value; renderAll(); });
+	// Перерисовки нет: от значения зависит только панель сохранения, а пересборка
+	// полей по change крала бы фокус и ломала обход карточки по Tab
+	select.addEventListener('change', () => { draft[item.key] = select.value; renderSaveBar(); });
 	wrap.appendChild(label);
 	wrap.appendChild(select);
+	return wrap;
+}
+
+/** Дата и время: платформа ждёт местное время вида 2026-08-18T22:00:00 */
+function dateField(item, value) {
+	const wrap = document.createElement('div');
+	wrap.className = 'field';
+	const label = document.createElement('label');
+	label.textContent = item.title;
+	if (item.hint) { wrap.title = item.hint; }
+	const input = document.createElement('input');
+	input.type = 'datetime-local';
+	// Секунды платформа хранит, поэтому поле показывает их и не округляет молча
+	input.step = '1';
+	input.value = value;
+	input.addEventListener('change', () => {
+		const next = input.value;
+		draft[item.key] = next === '' || next.length > 16 ? next : next + ':00';
+		renderSaveBar();
+	});
+	wrap.appendChild(label);
+	wrap.appendChild(input);
 	return wrap;
 }
 
@@ -312,6 +342,7 @@ function renderField(item) {
 	const value = draft[item.key] === undefined ? '' : draft[item.key];
 	if (item.kind === 'readonly') { return readonlyField(item, value); }
 	if (item.kind === 'select') { return selectField(item, value); }
+	if (item.kind === 'date') { return dateField(item, value); }
 	if (item.kind === 'password') {
 		const wrap = document.createElement('div');
 		wrap.className = 'field';
@@ -341,7 +372,7 @@ function renderField(item) {
 		input.checked = value === 'on';
 		input.addEventListener('change', () => {
 			draft[item.key] = input.checked ? 'on' : 'off';
-			renderAll();
+			renderSaveBar();
 		});
 		if (item.hint) { wrap.title = item.hint; }
 		wrap.appendChild(label);
@@ -351,7 +382,7 @@ function renderField(item) {
 	const element = field(
 		item.title,
 		value,
-		(next) => { draft[item.key] = next; renderAll(); },
+		(next) => { draft[item.key] = next; renderSaveBar(); },
 		item.kind === 'number' ? 'number' : 'text'
 	);
 	// Подпись каркаса стоит над полем, а карточке нужна слева: переносим её сами

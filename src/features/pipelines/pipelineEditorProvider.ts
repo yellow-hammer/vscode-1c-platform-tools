@@ -508,6 +508,21 @@ function renderAll() {
 	renderSaveBar();
 }
 
+/**
+ * Правка поля инспектора: перерисовывается всё, кроме самого инспектора.
+ * Пересборка полей крала бы фокус — Tab не доходил до следующего поля. Значения
+ * приходят по вводу, поэтому список и полотно обновляются по ходу набора.
+ */
+function fieldEdited() {
+	saveStatus = '';
+	saveStatusKind = '';
+	const pipeline = current();
+	document.getElementById('title').textContent = pipeline ? pipeline.name : 'Пайплайны';
+	renderPipelineList();
+	renderStage();
+	renderSaveBar();
+}
+
 function renderPipelineList() {
 	const host = document.getElementById('list');
 	host.textContent = '';
@@ -1123,27 +1138,27 @@ function renderInspector() {
 			box.textContent = 'Цепочка не запустится: ' + problems.join('; ');
 			host.appendChild(box);
 		}
-		host.appendChild(field('Название', pipeline.name, (value) => {
+		host.appendChild(liveField('Название', pipeline.name, (value) => {
 			pipeline.name = value.trim() || pipeline.id;
-			commit();
+			fieldEdited();
 		}));
-		host.appendChild(field('Идентификатор для запуска', pipeline.id, (value) => {
+		host.appendChild(liveField('Идентификатор для запуска', pipeline.id, (value) => {
 			const next = value.trim();
 			if (next && !draft.some((item) => item !== pipeline && item.id === next)) {
 				pipeline.id = next;
 				selectedPipelineId = next;
 			}
-			commit();
+			fieldEdited();
 		}));
-		host.appendChild(field('Описание', pipeline.description, (value) => {
+		host.appendChild(liveField('Описание', pipeline.description, (value) => {
 			const next = value.trim();
 			if (next) { pipeline.description = next; } else { delete pipeline.description; }
-			commit();
+			fieldEdited();
 		}, 'textarea'));
-		host.appendChild(field('Параметры (имя=значение, по одному в строке)', paramsToText(pipeline.params), (value) => {
+		host.appendChild(liveField('Параметры (имя=значение, по одному в строке)', paramsToText(pipeline.params), (value) => {
 			const parsed = textToParams(value);
 			if (Object.keys(parsed).length > 0) { pipeline.params = parsed; } else { delete pipeline.params; }
-			commit();
+			fieldEdited();
 		}, 'textarea'));
 		host.appendChild(hint('Параметр подставляется в командную строку, вопрос паузы и параметры вызова записью {{имя}}.'));
 
@@ -1157,34 +1172,34 @@ function renderInspector() {
 	}
 
 	title(host, 'Блок: ' + kindOf(node).label);
-	host.appendChild(field('Подпись', node.name, (value) => {
+	host.appendChild(liveField('Подпись', node.name, (value) => {
 		const next = value.trim();
 		if (next) { node.name = next; } else { delete node.name; }
-		commit();
+		fieldEdited();
 	}));
 
 	if (node.type === 'shell') {
-		host.appendChild(field('Команда оболочки', node.script, (value) => {
+		host.appendChild(liveField('Команда оболочки', node.script, (value) => {
 			node.script = value;
-			commit();
+			fieldEdited();
 		}, 'textarea'));
 
 	} else if (node.type === 'confirm') {
-		host.appendChild(field('Вопрос', node.message, (value) => {
+		host.appendChild(liveField('Вопрос', node.message, (value) => {
 			node.message = value.trim() || 'Продолжить выполнение пайплайна?';
-			commit();
+			fieldEdited();
 		}, 'textarea'));
 		host.appendChild(hint('В запуске от агента такой блок завершается ошибкой: подтвердить некому.'));
 	} else {
 		host.appendChild(commandField(node));
-		host.appendChild(field('Параметры вызова (JSON)', node.options ? JSON.stringify(node.options) : '', (value) => {
+		host.appendChild(liveField('Параметры вызова (JSON)', node.options ? JSON.stringify(node.options) : '', (value) => {
 			const text = value.trim();
-			if (text === '') { delete node.options; commit(); return; }
+			if (text === '') { delete node.options; fieldEdited(); return; }
 			try {
 				const parsed = JSON.parse(text);
 				if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) { node.options = parsed; }
 			} catch (error) { /* оставляем прежние параметры: файл не должен ломаться из-за опечатки */ }
-			commit();
+			fieldEdited();
 		}, 'textarea'));
 		const entry = catalog.find((item) => item.id === node.command);
 		if (entry && !entry.supportsWait) {
@@ -1192,24 +1207,25 @@ function renderInspector() {
 		}
 	}
 
-	host.appendChild(field('Ограничение времени, с', node.timeout === undefined ? '' : String(node.timeout), (value) => {
+	host.appendChild(liveField('Ограничение времени, с', node.timeout === undefined ? '' : String(node.timeout), (value) => {
 		const parsed = Number(value);
 		if (Number.isFinite(parsed) && parsed > 0) { node.timeout = parsed; } else { delete node.timeout; }
-		commit();
+		fieldEdited();
 	}, 'number'));
-	host.appendChild(field('Повтор при ошибке, раз', node.retry === undefined ? '' : String(node.retry), (value) => {
+	host.appendChild(liveField('Повтор при ошибке, раз', node.retry === undefined ? '' : String(node.retry), (value) => {
 		const parsed = Number(value);
 		if (Number.isFinite(parsed) && parsed > 0) { node.retry = Math.floor(parsed); } else { delete node.retry; }
-		commit();
+		fieldEdited();
 	}, 'number'));
 
+	// Флажок уже нарисован кликом: инспектор не пересобирается, фокус остаётся
 	host.appendChild(checkbox('Блок включён', node.enabled !== false, (checked) => {
 		if (checked) { delete node.enabled; } else { node.enabled = false; }
-		commit();
+		fieldEdited();
 	}));
 	host.appendChild(checkbox('Ждать все входящие ветки', node.join === 'all', (checked) => {
 		if (checked) { node.join = 'all'; } else { delete node.join; }
-		commit();
+		fieldEdited();
 	}));
 
 	const incoming = pipeline.edges.filter((edge) => edge.to === node.id);
@@ -1259,7 +1275,7 @@ function edgeRow(edge) {
 	}
 	select.addEventListener('change', () => {
 		if (select.value === 'success') { delete edge.on; } else { edge.on = select.value; }
-		commit();
+		fieldEdited();
 	});
 	row.appendChild(label);
 	row.appendChild(select);

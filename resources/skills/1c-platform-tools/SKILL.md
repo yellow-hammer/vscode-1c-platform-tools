@@ -133,6 +133,12 @@ description: Операции с платформой 1С в этом проек
 | Открыть ER-диаграмму                   | `1c-platform-tools.metadata.er.openCanvas`               |
 | Открыть ER-диаграмму объекта           | `1c-platform-tools.metadata.er.openForObject`            |
 
+## Помощь и поддержка
+
+| Задача                          | Command ID                                          |
+|---------------------------------|-----------------------------------------------------|
+| Скопировать сводку окружения    | `1c-platform-tools.help.copyEnvironmentSummary`     |
+
 ## MCP
 
 Если у тебя есть инструменты MCP **mcp-1c-platform-tools**, используй их для тех же операций: загрузка конфигурации — `cf_load`, выгрузка — `cf_dump`, расширения — `cfe_load` / `cfe_dump`, сборка/разбор обработок и отчётов — `epf_compileProc`, `epf_compileReport`, `epf_decompileProc`, `epf_decompileReport` и т.д. **Для зависимостей** — в первую очередь вызывай **deps_install** и **deps_installOscript**; не переходи в терминал с `opm install add`, пока не убедился, что MCP недоступен. В каждый вызов передавай `projectPath` — корень проекта 1С (каталог с `packagedef`). Имена формируются из command ID: убирается префикс, точки → `_`, длинные слова сокращаются (`dependencies` → `deps`, `Processors` → `Procs`). Полный список возвращается сервером при подключении.

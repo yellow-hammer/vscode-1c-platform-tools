@@ -1,7 +1,10 @@
 import * as assert from 'node:assert';
 import {
 	CONNECTION_COLUMNS,
+	INFOBASE_COLUMNS,
+	LOCK_COLUMNS,
 	SESSION_COLUMNS,
+	activityColumns,
 	activityCsv,
 	buildActivityRows,
 	buildCell,
@@ -129,6 +132,69 @@ suite('таблица активности: строки', () => {
 		assert.strictEqual(filterActivityRows(rows, 'бухгалтерия').length, 1);
 		assert.strictEqual(filterActivityRows(rows, '').length, 2);
 		assert.strictEqual(filterActivityRows(rows, 'нет такого').length, 0);
+	});
+});
+
+suite('таблица активности: базы и блокировки', () => {
+	test('строка базы собирается из краткого списка и полных сведений', () => {
+		const [row] = buildActivityRows(
+			[
+				{
+					infobase: 'ib-uuid',
+					name: 'Бухгалтерия',
+					'sessions-deny': 'on',
+					'scheduled-jobs-deny': 'off',
+					dbms: 'PostgreSQL',
+				},
+			],
+			'infobases'
+		);
+
+		assert.strictEqual(row.id, 'ib-uuid');
+		assert.strictEqual(row.label, 'база «Бухгалтерия»');
+		assert.strictEqual(row.cells.length, INFOBASE_COLUMNS.length);
+	});
+
+	test('запрет виден словом, а разрешение не пишется вовсе', () => {
+		const columns = INFOBASE_COLUMNS.filter((item) => item.kind === 'deny');
+		const denied = buildCell(columns[0], { 'sessions-deny': 'on' });
+		const allowed = buildCell(columns[0], { 'sessions-deny': 'off' });
+
+		assert.strictEqual(denied.text, 'запрещено');
+		assert.strictEqual(allowed.text, '');
+		assert.ok((denied.sort as number) > (allowed.sort as number));
+	});
+
+	test('база без прочитанных сведений остаётся с пустыми столбцами состояния', () => {
+		const [row] = buildActivityRows([{ infobase: 'ib-uuid', name: 'Закрытая' }], 'infobases');
+		const denyIndex = INFOBASE_COLUMNS.findIndex((item) => item.key === 'sessions-deny');
+
+		assert.strictEqual(row.cells[denyIndex].text, '');
+	});
+
+	test('у блокировки идентификатор складывается из соединения, сеанса и объекта', () => {
+		const [row] = buildActivityRows(
+			[
+				{
+					connection: 'conn-uuid',
+					session: 'session-uuid',
+					object: 'Справочник.Контрагенты',
+					descr: 'Ожидание блокировки',
+					locked: '2026-08-17T22:38:27',
+				},
+			],
+			'locks'
+		);
+
+		assert.strictEqual(row.id, 'conn-uuid:session-uuid:Справочник.Контрагенты');
+		assert.strictEqual(row.cells.length, LOCK_COLUMNS.length);
+	});
+
+	test('у каждого списка свои столбцы', () => {
+		assert.strictEqual(activityColumns('sessions'), SESSION_COLUMNS);
+		assert.strictEqual(activityColumns('connections'), CONNECTION_COLUMNS);
+		assert.strictEqual(activityColumns('infobases'), INFOBASE_COLUMNS);
+		assert.strictEqual(activityColumns('locks'), LOCK_COLUMNS);
 	});
 });
 

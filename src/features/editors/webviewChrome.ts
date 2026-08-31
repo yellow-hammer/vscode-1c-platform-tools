@@ -210,6 +210,30 @@ function field(labelText, value, onChange, kind) {
 	return wrap;
 }
 
+/**
+ * Поле с «живым» вводом: значение уходит в модель на каждый ввод, без blur.
+ *
+ * Перерисовка формы по change — то есть по потере фокуса — пересоздаёт DOM:
+ * Tab не доходит до следующего поля, а клик из отредактированного поля
+ * приходит по уничтоженному элементу и теряется. Поэтому onChange зовётся на
+ * каждый ввод, а перерисовывать в ответ можно только части формы без фокуса.
+ */
+function liveField(labelText, value, onChange, kind) {
+	const wrap = document.createElement('div');
+	wrap.className = 'field';
+	const label = document.createElement('label');
+	label.textContent = labelText;
+	const input = document.createElement(kind === 'textarea' ? 'textarea' : 'input');
+	if (kind !== 'textarea') {
+		input.type = kind === 'number' ? 'number' : (kind === 'password' ? 'password' : 'text');
+	}
+	input.value = value === undefined || value === null ? '' : value;
+	input.addEventListener('input', () => onChange(input.value));
+	wrap.appendChild(label);
+	wrap.appendChild(input);
+	return wrap;
+}
+
 function checkbox(labelText, checked, onChange) {
 	const label = document.createElement('label');
 	label.className = 'check';

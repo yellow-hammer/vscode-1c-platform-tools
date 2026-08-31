@@ -10,12 +10,13 @@
  * ClustersProvider).
  */
 
-import { MarkdownString, ThemeColor, ThemeIcon, TreeItem, TreeItemCollapsibleState } from 'vscode';
+import { MarkdownString, ThemeColor, ThemeIcon, TreeItem, TreeItemCollapsibleState, Uri } from 'vscode';
 import type {
 	AdminInfo,
 	ClusterConnection,
 	ConnectionInfo,
 	InfobaseInfo,
+	InfobaseState,
 	LockInfo,
 	ProcessInfo,
 	ServerInfo,
@@ -36,6 +37,7 @@ import {
 	type NodePresentation,
 } from './presentation';
 import type { ClusterInfo } from './model';
+import type { ActivityKind } from './activityTable';
 
 /** Вид группы: определяет, что загружается внутри и какая иконка у узла. */
 export type GroupKind =
@@ -125,11 +127,46 @@ const GROUP_LABELS: Record<GroupKind, string> = {
 };
 
 /**
+ * Группы, которые открываются таблицей.
+ *
+ * У остальных групп — серверов, процессов, менеджеров, администраторов —
+ * значений для сравнения нет: их читают по одному узлу, а не списком.
+ */
+const TABLE_KINDS: GroupKind[] = ['infobases', 'sessions', 'connections', 'locks'];
+
+/**
+ * Признак группы, которую открывает кнопка списков.
+ *
+ * Вид группы условие меню не различает: группа «Соединения» под рабочим
+ * процессом таблицей не открывается — таблица отбирает по кластеру и базе, но не
+ * по процессу. Поэтому пригодность выражена отдельным признаком узла.
+ */
+export const GROUP_TABLE_CONTEXT = 'clusterGroupTable';
+
+/**
+ * Сообщает, открывается ли группа таблицей.
+ *
+ * Вид такой группы совпадает с видом списка, поэтому проверка заодно сужает тип:
+ * второго перечисления в панели списков не нужно.
+ *
+ * @param kind - Вид группы
+ * @param scope - Область группы
+ * @returns true, если у группы есть список
+ */
+export function groupOpensTable(
+	kind: GroupKind,
+	scope: { serverId?: string; processId?: string }
+): kind is GroupKind & ActivityKind {
+	return TABLE_KINDS.includes(kind) && !scope.serverId && !scope.processId;
+}
+
+/**
  * Группа однотипных объектов внутри кластера.
  *
  * Область (`serverId`, `infobaseId`, `processId`) сужает запрос: та же группа
  * «Соединения» под процессом показывает соединения процесса, а под базой —
- * соединения базы.
+ * соединения базы. Имена кластера и базы в области нужны заголовку панели
+ * списков: группа открывается таблицей той же области, что и её родитель.
  */
 export class GroupNode extends ClusterTreeNode {
 	readonly cacheKey: string;
@@ -142,6 +179,7 @@ export class GroupNode extends ClusterTreeNode {
 			serverId?: string;
 			infobaseId?: string;
 			infobaseName?: string;
+			clusterName?: string;
 			processId?: string;
 		} = {},
 		parentKey?: string,
@@ -150,7 +188,11 @@ export class GroupNode extends ClusterTreeNode {
 		super(GROUP_LABELS[kind], TreeItemCollapsibleState.Collapsed);
 		const base = parentKey ?? `conn:${connection.id}/cluster:${clusterId}`;
 		this.cacheKey = `${base}/group:${kind}`;
-		this.contextValue = `clusterGroup.${kind}`;
+		// Клик по узлу ничего не открывает — как у остальных узлов дерева; списки
+		// открывает кнопка, и её видимость задаёт признак в contextValue.
+		this.contextValue = groupOpensTable(kind, scope)
+			? `clusterGroup.${kind} ${GROUP_TABLE_CONTEXT}`
+			: `clusterGroup.${kind}`;
 		this.iconPath = new ThemeIcon(GROUP_ICONS[kind]);
 		if (count !== undefined) {
 			this.description = String(count);
@@ -194,20 +236,81 @@ export class ProcessNode extends ClusterTreeNode {
 	}
 }
 
+/** Каталог расширения: нужен для значков-файлов. */
+let iconRoot: Uri | undefined;
+
+/**
+ * Сообщает узлам, где лежат значки расширения.
+ *
+ * @param extensionUri - Корень расширения
+ */
+export function initClusterIcons(extensionUri: Uri): void {
+	iconRoot = extensionUri;
+}
+
+/**
+ * Значок информационной базы по её режиму работы.
+ *
+ * Значок тот же, меняется только цвет: красный — начало сеансов запрещено,
+ * жёлтый — запрещены только регламентные задания. Цвета — значения
+ * `list.errorForeground` и `list.warningForeground` из тем по умолчанию: метка
+ * заметна, но не кричит.
+ *
+ * Цвет лежит в самой картинке, а не в codicon с `ThemeColor`: выделенную строку
+ * VS Code перекрашивает целиком, и цвет пропадал бы как раз при щелчке по базе.
+ *
+ * @param state - Режим работы базы; пусто, пока он не прочитан
+ * @returns Значок узла
+ */
+function infobaseIcon(state: InfobaseState | undefined): ThemeIcon | { light: Uri; dark: Uri } {
+	let file: string | undefined;
+	if (state?.sessionsDeny) {
+		file = 'infobase-sessions-denied.svg';
+	} else if (state?.scheduledJobsDeny) {
+		file = 'infobase-jobs-denied.svg';
+	}
+	if (!file || !iconRoot) {
+		return new ThemeIcon('database');
+	}
+	return {
+		light: Uri.joinPath(iconRoot, 'resources', 'cluster-icons', file),
+		dark: Uri.joinPath(iconRoot, 'resources', 'cluster-icons', 'dark', file),
+	};
+}
+
 /** Информационная база. */
 export class InfobaseNode extends ClusterTreeNode {
 	readonly cacheKey: string;
 
+	/** Режим работы базы; пусто, пока состояние не прочитано. */
+	state: InfobaseState | undefined;
+
+	/** Название привязанного набора учётных данных; пусто — не привязан. */
+	credentialSetName: string | undefined;
+
 	constructor(
 		readonly connection: ClusterConnection,
 		readonly clusterId: string,
-		readonly infobase: InfobaseInfo
+		readonly infobase: InfobaseInfo,
+		credentialSetName?: string
 	) {
 		super(infobase.name, TreeItemCollapsibleState.Collapsed);
 		this.cacheKey = `conn:${connection.id}/cluster:${clusterId}/infobase:${infobase.id}`;
-		this.contextValue = 'clusterInfobase';
-		this.iconPath = new ThemeIcon('database');
-		this.applyPresentation(infobasePresentation(infobase));
+		this.credentialSetName = credentialSetName;
+		this.contextValue = credentialSetName ? 'clusterInfobaseBound' : 'clusterInfobase';
+		this.iconPath = infobaseIcon(undefined);
+		this.applyPresentation(infobasePresentation(infobase, undefined, credentialSetName));
+	}
+
+	/**
+	 * Показывает режим работы базы значком и подписью.
+	 *
+	 * @param state - Прочитанный режим работы
+	 */
+	applyState(state: InfobaseState): void {
+		this.state = state;
+		this.iconPath = infobaseIcon(state);
+		this.applyPresentation(infobasePresentation(this.infobase, state, this.credentialSetName));
 	}
 }
 

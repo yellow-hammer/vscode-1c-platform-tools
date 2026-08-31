@@ -59,7 +59,7 @@ export const INFOBASE_SECTIONS: PropertySection[] = [
 				key: 'denied-from',
 				title: 'Блокировка с',
 				kind: 'date',
-				hint: 'Пустое значение включает блокировку сразу. Формат: 2026-08-18T22:00:00.',
+				hint: 'Пустое значение включает блокировку сразу.',
 			},
 			{ key: 'denied-to', title: 'Блокировка по', kind: 'date' },
 		],
@@ -180,11 +180,10 @@ export function validateInfobaseForm(values: InfobaseFormValues): string[] {
 	for (const key of ['denied-from', 'denied-to']) {
 		const value = (values[key] ?? '').trim();
 		if (value !== '' && !dateFormat.test(value)) {
-			problems.push(`«${key === 'denied-from' ? 'Блокировка с' : 'Блокировка по'}»: ожидается 2026-08-18T22:00:00`);
+			problems.push(
+				`«${key === 'denied-from' ? 'Блокировка с' : 'Блокировка по'}»: укажите дату и время`
+			);
 		}
-	}
-	if (values['sessions-deny'] === 'on' && (values['denied-message'] ?? '').trim() === '') {
-		problems.push('При запрете сеансов стоит указать сообщение: иначе пользователь не поймёт, что происходит');
 	}
 	return problems;
 }

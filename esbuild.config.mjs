@@ -18,6 +18,16 @@ const testEntryPoints = fs.existsSync(srcTestDir)
 		.map((f) => path.join(srcTestDir, f))
 	: [];
 
+/**
+ * Убирает прошлую сборку тестов.
+ *
+ * esbuild перезаписывает файлы, но не удаляет: тест, у которого исходника уже
+ * нет, продолжал бы запускаться из out и падать на устаревших проверках.
+ */
+function cleanTestBuild() {
+	fs.rmSync(path.join(__dirname, 'out', 'test'), { recursive: true, force: true });
+}
+
 const extensionOptions = {
 	entryPoints: [path.join(__dirname, 'src', 'extension.ts')],
 	bundle: true,
@@ -67,6 +77,7 @@ if (watch) {
 	const erCtx = await esbuild.context(erCanvasOptions);
 	await erCtx.watch();
 	if (testEntryPoints.length > 0) {
+		cleanTestBuild();
 		const testCtx = await esbuild.context(testOptions);
 		await testCtx.watch();
 	}
@@ -75,6 +86,7 @@ if (watch) {
 	await esbuild.build(extensionOptions);
 	await esbuild.build(erCanvasOptions);
 	if (testEntryPoints.length > 0) {
+		cleanTestBuild();
 		await esbuild.build(testOptions);
 	}
 }

@@ -7,10 +7,9 @@
  * только к этому слою и не знают ни об аргументах rac, ни о процессах.
  *
  * Пароль администратора информационной базы утилита требует только у части
- * операций и только если в базе есть администраторы. Заранее спрашивать его у
- * каждой базы было бы навязчиво, поэтому операция выполняется без пароля, а при
- * отказе по аутентификации пароль запрашивается и вызов повторяется — см.
- * {@link ClusterService.withInfobaseAuth}.
+ * операций и только если в базе есть администраторы. Подходящий набор
+ * подставляется сам; если набора нет или его не приняли — уведомление в углу,
+ * без диалога. См. {@link ClusterService.withInfobaseAuth}.
  */
 
 import {
@@ -27,6 +26,7 @@ import {
 	buildConnectionDisconnectArgs,
 	buildConnectionInfoArgs,
 	buildConnectionListArgs,
+	buildInfobaseDropArgs,
 	buildInfobaseInfoArgs,
 	buildInfobaseListArgs,
 	buildInfobaseUpdateArgs,
@@ -47,11 +47,13 @@ import {
 	type ClusterScope,
 	type AdminRegistration,
 	type ClusterUpdate,
+	type InfobaseDropMode,
 	type InfobaseUpdate,
 	type RacCredentials,
 	type RacScope,
 } from './racArgs';
 import type { ClusterCredentialStore } from './credentials';
+import type { MissingCredentialsEvent } from './credentialsNotify';
 import type { RacClient, RacResult } from './racClient';
 import {
 	toAdminInfo,
@@ -87,43 +89,48 @@ export interface ConnectionCheck {
 /** Итог доменной операции. */
 export type ServiceResult<T> = { ok: true; value: T } | { ok: false; failure: RacFailure };
 
-/**
- * Запрос учётных данных администратора информационной базы.
- *
- * Возвращает undefined, если пользователь отказался вводить пароль.
- */
-export type InfobaseAuthPrompt = (infobaseName: string) => Promise<RacCredentials | undefined>;
+/** Сколько информационных баз читается одновременно. */
+const INFOBASE_BATCH = 4;
 
 /** Операции администрирования кластера. */
 export class ClusterService {
 	constructor(
 		private readonly client: RacClient,
 		private readonly credentials: ClusterCredentialStore,
-		private readonly promptInfobaseAuth: InfobaseAuthPrompt
+		private readonly notifyMissing: (event: MissingCredentialsEvent) => void = () => undefined
 	) {}
 
 	/**
-	 * Собирает общую часть вызова: адрес и администратора кластера.
+	 * Собирает общую часть вызова: адрес и администраторов из наборов.
 	 *
 	 * @param connection - Подключение к серверу администрирования
-	 * @returns Адрес и учётные данные администратора кластера
+	 * @returns Адрес и учётные данные администраторов кластера и агента
 	 */
 	private async scope(connection: ClusterConnection): Promise<RacScope> {
-		const password = connection.clusterUser
-			? await this.credentials.clusterPassword(connection.id)
-			: undefined;
-		const agentPassword = connection.agentUser
-			? await this.credentials.agentPassword(connection.id)
-			: undefined;
 		return {
 			address: racAddress(connection.host, connection.port),
-			cluster: connection.clusterUser
-				? { user: connection.clusterUser, password: password ?? '' }
-				: undefined,
-			agent: connection.agentUser
-				? { user: connection.agentUser, password: agentPassword ?? '' }
-				: undefined,
+			cluster: await this.credentials.resolveRole('cluster', connection.id),
+			agent: await this.credentials.resolveRole('agent', connection.id),
 		};
+	}
+
+	/**
+	 * Сообщает, что набор кластера или агента не подошёл.
+	 *
+	 * @param failure - Разобранная неудача
+	 * @param role - Какой набор искали
+	 * @param connectionId - Подключение: привязанный к нему набор тоже считается
+	 */
+	private noteRoleAuth(failure: RacFailure, role: 'cluster' | 'agent', connectionId: string): void {
+		if (failure.kind !== 'auth') {
+			return;
+		}
+		const hasSet = this.credentials.hasRoleFor(role, connectionId);
+		if (role === 'agent') {
+			this.notifyMissing({ kind: hasSet ? 'agentRejected' : 'agentMissing' });
+			return;
+		}
+		this.notifyMissing({ kind: hasSet ? 'clusterRejected' : 'clusterMissing' });
 	}
 
 	/**
@@ -137,7 +144,13 @@ export class ClusterService {
 		connection: ClusterConnection,
 		clusterId: string
 	): Promise<ClusterScope> {
-		return { ...(await this.scope(connection)), clusterId };
+		return {
+			address: racAddress(connection.host, connection.port),
+			// Внутри кластера набор ищется точнее: сначала привязка к кластеру
+			cluster: await this.credentials.resolveClusterAdmin(connection.id, clusterId),
+			agent: await this.credentials.resolveRole('agent', connection.id),
+			clusterId,
+		};
 	}
 
 	/**
@@ -154,9 +167,11 @@ export class ClusterService {
 		map: (record: RacRecord) => T
 	): Promise<ServiceResult<T[]>> {
 		const result = await this.client.run(args, { platformVersion: connection.platformVersion });
-		return result.ok
-			? { ok: true, value: result.records.map(map) }
-			: { ok: false, failure: result.failure };
+		if (!result.ok) {
+			this.noteRoleAuth(result.failure, 'cluster', connection.id);
+			return { ok: false, failure: result.failure };
+		}
+		return { ok: true, value: result.records.map(map) };
 	}
 
 	/**
@@ -172,6 +187,7 @@ export class ClusterService {
 	): Promise<ServiceResult<RacRecord>> {
 		const result = await this.client.run(args, { platformVersion: connection.platformVersion });
 		if (!result.ok) {
+			this.noteRoleAuth(result.failure, 'cluster', connection.id);
 			return { ok: false, failure: result.failure };
 		}
 		const record = result.records[0];
@@ -185,17 +201,15 @@ export class ClusterService {
 	}
 
 	/**
-	 * Выполняет операцию над информационной базой, добирая пароль администратора
-	 * базы при отказе по аутентификации.
+	 * Выполняет операцию над информационной базой с подходящим набором.
 	 *
-	 * Первая попытка идёт с тем, что уже известно: обычно ничего, и большинству
-	 * баз без администраторов этого достаточно. Пароль, введённый после отказа,
-	 * запоминается на время работы окна, чтобы не спрашивать его при каждом
-	 * действии с той же базой.
+	 * Первая попытка идёт с привязкой или набором «администратор информационных
+	 * баз». Большинству баз без администраторов этого достаточно. Если rac
+	 * отказал по аутентификации — уведомление в углу, без повторного ввода.
 	 *
 	 * @param connection - Подключение
 	 * @param infobaseId - Идентификатор информационной базы
-	 * @param infobaseName - Имя базы для окна ввода
+	 * @param infobaseName - Имя базы для уведомления
 	 * @param call - Вызов rac, принимающий учётные данные базы
 	 * @returns Итог вызова
 	 */
@@ -205,21 +219,16 @@ export class ClusterService {
 		infobaseName: string,
 		call: (infobase?: RacCredentials) => Promise<RacResult>
 	): Promise<RacResult> {
-		const known = this.credentials.infobase(connection.id, infobaseId);
+		const known = await this.credentials.resolveInfobase(connection.id, infobaseId);
 		const first = await call(known);
 		if (first.ok || first.failure.kind !== 'auth') {
 			return first;
 		}
-
-		const entered = await this.promptInfobaseAuth(infobaseName);
-		if (!entered) {
-			return first;
-		}
-		const second = await call(entered);
-		if (second.ok) {
-			this.credentials.rememberInfobase(connection.id, infobaseId, entered);
-		}
-		return second;
+		this.notifyMissing({
+			kind: known ? 'infobaseRejected' : 'infobaseMissing',
+			infobaseName,
+		});
+		return first;
 	}
 
 	/** Список кластеров сервера администрирования. */
@@ -238,40 +247,35 @@ export class ClusterService {
 	 * Если администратор задан, проверка дополнительно запрашивает базы первого
 	 * кластера — этот вызов уже требует прав.
 	 *
-	 * Проверку запускают из формы подключения, где пароль ещё не сохранён,
-	 * поэтому его можно передать явно. Если пароль не передан, берётся
-	 * сохранённый: в форме поле оставляют пустым, когда менять его не собирались.
+	 * Проверку запускают из формы подключения или набора. Администратора кластера
+	 * можно передать явно — в форме набора пароль ещё не сохранён. Иначе берётся
+	 * набор, привязанный к подключению.
 	 *
 	 * @param connection - Проверяемое подключение (возможно, ещё не сохранённое)
-	 * @param password - Введённый пароль администратора кластера
+	 * @param clusterAuth - Явные учётные данные администратора кластера
 	 * @returns Найденные кластеры и признак проверки администратора
 	 */
 	async checkConnection(
 		connection: ClusterConnection,
-		password?: string
+		clusterAuth?: RacCredentials
 	): Promise<ServiceResult<ConnectionCheck>> {
-		const scope =
-			password === undefined
-				? await this.scope(connection)
-				: {
-						address: racAddress(connection.host, connection.port),
-						cluster: connection.clusterUser
-							? { user: connection.clusterUser, password }
-							: undefined,
-					};
+		const resolved = clusterAuth ?? (await this.credentials.resolveRole('cluster', connection.id));
+		const scope: RacScope = {
+			address: racAddress(connection.host, connection.port),
+			cluster: resolved,
+		};
 
-		const clusters = await this.collect(
-			connection,
-			buildClusterListArgs(scope),
-			toClusterInfo
-		);
-		if (!clusters.ok) {
-			return { ok: false, failure: clusters.failure };
+		const listed = await this.client.run(buildClusterListArgs(scope), {
+			platformVersion: connection.platformVersion,
+		});
+		if (!listed.ok) {
+			return { ok: false, failure: listed.failure };
 		}
+		const clusters = listed.records.map(toClusterInfo);
 
-		const first = clusters.value[0];
-		if (!connection.clusterUser || !first) {
-			return { ok: true, value: { clusters: clusters.value, adminChecked: false } };
+		const first = clusters[0];
+		if (!resolved?.user || !first) {
+			return { ok: true, value: { clusters, adminChecked: false } };
 		}
 
 		const probe = await this.client.run(
@@ -281,7 +285,85 @@ export class ClusterService {
 		if (!probe.ok) {
 			return { ok: false, failure: probe.failure };
 		}
-		return { ok: true, value: { clusters: clusters.value, adminChecked: true } };
+		return { ok: true, value: { clusters, adminChecked: true } };
+	}
+
+	/**
+	 * Проверяет учётные данные администратора конкретного кластера.
+	 *
+	 * Список баз кластера закрыт его администратором, поэтому годится как проба.
+	 *
+	 * @param connection - Подключение
+	 * @param clusterId - Идентификатор кластера
+	 * @param clusterAuth - Проверяемые учётные данные
+	 * @returns Итог проверки
+	 */
+	async checkClusterAdmin(
+		connection: ClusterConnection,
+		clusterId: string,
+		clusterAuth: RacCredentials
+	): Promise<ServiceResult<void>> {
+		const result = await this.client.run(
+			buildInfobaseListArgs({
+				address: racAddress(connection.host, connection.port),
+				cluster: clusterAuth,
+				clusterId,
+			}),
+			{ platformVersion: connection.platformVersion }
+		);
+		return result.ok ? { ok: true, value: undefined } : { ok: false, failure: result.failure };
+	}
+
+	/**
+	 * Проверяет учётные данные администратора центрального сервера.
+	 *
+	 * Список администраторов агента закрыт этой ролью, поэтому годится как
+	 * проба: на сервере без администраторов вызов проходит с любыми данными —
+	 * тогда и доступ открыт любым.
+	 *
+	 * @param connection - Подключение
+	 * @param agentAuth - Проверяемые учётные данные
+	 * @returns Итог проверки
+	 */
+	async checkAgentAdmin(
+		connection: ClusterConnection,
+		agentAuth: RacCredentials
+	): Promise<ServiceResult<void>> {
+		const scope: RacScope = {
+			address: racAddress(connection.host, connection.port),
+			agent: agentAuth,
+		};
+		const result = await this.client.run(buildAgentAdminListArgs(scope), {
+			platformVersion: connection.platformVersion,
+		});
+		return result.ok ? { ok: true, value: undefined } : { ok: false, failure: result.failure };
+	}
+
+	/**
+	 * Проверяет учётные данные администратора информационной базы.
+	 *
+	 * Полные сведения базы закрыты её администратором, поэтому чтение — честная
+	 * проба. Администратор кластера для области вызова берётся из наборов: без
+	 * него платформа не пустит и к базе.
+	 *
+	 * @param connection - Подключение
+	 * @param clusterId - Кластер привязанной базы
+	 * @param infobaseId - Идентификатор базы
+	 * @param infobaseAuth - Проверяемые учётные данные
+	 * @returns Итог проверки
+	 */
+	async checkInfobaseAdmin(
+		connection: ClusterConnection,
+		clusterId: string,
+		infobaseId: string,
+		infobaseAuth: RacCredentials
+	): Promise<ServiceResult<void>> {
+		const scope = await this.clusterScope(connection, clusterId);
+		const result = await this.client.run(
+			buildInfobaseInfoArgs({ ...scope, infobaseId, infobase: infobaseAuth }),
+			{ platformVersion: connection.platformVersion }
+		);
+		return result.ok ? { ok: true, value: undefined } : { ok: false, failure: result.failure };
 	}
 
 	/**
@@ -305,7 +387,11 @@ export class ClusterService {
 			buildClusterUpdateArgs({ ...scope, clusterId, update }),
 			{ platformVersion: connection.platformVersion }
 		);
-		return result.ok ? { ok: true, value: undefined } : { ok: false, failure: result.failure };
+		if (!result.ok) {
+			this.noteRoleAuth(result.failure, 'agent', connection.id);
+			return { ok: false, failure: result.failure };
+		}
+		return { ok: true, value: undefined };
 	}
 
 	/**
@@ -496,6 +582,51 @@ export class ClusterService {
 	): Promise<ServiceResult<InfobaseInfo[]>> {
 		const scope = await this.clusterScope(connection, clusterId);
 		return this.collect(connection, buildInfobaseListArgs(scope), toInfobaseInfo);
+	}
+
+	/**
+	 * Читает полные сведения о нескольких информационных базах.
+	 *
+	 * Режим работы и размещение краткий список не отдаёт, а полные сведения
+	 * читаются по одной базе. Пароль администратора базы не спрашивается — ради
+	 * значка в дереве окно ввода было бы навязчиво, — поэтому закрытая база
+	 * остаётся без сведений; уже известный пароль используется.
+	 *
+	 * @param connection - Подключение
+	 * @param clusterId - Идентификатор кластера
+	 * @param infobaseIds - Идентификаторы баз
+	 * @returns Промис, который разрешается сведениями тех баз, которые ответили
+	 */
+	async infobaseRecords(
+		connection: ClusterConnection,
+		clusterId: string,
+		infobaseIds: string[]
+	): Promise<Map<string, RacRecord>> {
+		const scope = await this.clusterScope(connection, clusterId);
+		const records = new Map<string, RacRecord>();
+		const queue = [...infobaseIds];
+		const read = async (): Promise<void> => {
+			for (let id = queue.shift(); id !== undefined; id = queue.shift()) {
+				const result = await this.client.run(
+					buildInfobaseInfoArgs({
+						...scope,
+						infobaseId: id,
+						infobase: await this.credentials.resolveInfobase(connection.id, id),
+					}),
+					{ platformVersion: connection.platformVersion }
+				);
+				const record = result.ok ? result.records[0] : undefined;
+				if (record) {
+					records.set(id, record);
+				}
+			}
+		};
+		// Порциями: каждый вызов — отдельный процесс rac. Все разом нагрузили бы
+		// машину, строго по одному — дерево ждало бы сведения слишком долго.
+		await Promise.all(
+			Array.from({ length: Math.min(INFOBASE_BATCH, queue.length) }, () => read())
+		);
+		return records;
 	}
 
 	/** Список сеансов кластера или одной информационной базы. */
@@ -719,6 +850,40 @@ export class ClusterService {
 						infobaseId: infobase.id,
 						infobase: infobaseCredentials,
 						update,
+					}),
+					{ platformVersion: connection.platformVersion }
+				)
+		);
+		return result.ok ? { ok: true, value: undefined } : { ok: false, failure: result.failure };
+	}
+
+	/**
+	 * Удаляет информационную базу из кластера.
+	 *
+	 * @param connection - Подключение
+	 * @param clusterId - Идентификатор кластера
+	 * @param infobase - Идентификатор и имя базы
+	 * @param mode - Что делать с базой данных на сервере СУБД
+	 * @returns Промис, который разрешается итогом операции
+	 */
+	async dropInfobase(
+		connection: ClusterConnection,
+		clusterId: string,
+		infobase: { id: string; name: string },
+		mode: InfobaseDropMode
+	): Promise<ServiceResult<void>> {
+		const scope = await this.clusterScope(connection, clusterId);
+		const result = await this.withInfobaseAuth(
+			connection,
+			infobase.id,
+			infobase.name,
+			(infobaseCredentials) =>
+				this.client.run(
+					buildInfobaseDropArgs({
+						...scope,
+						infobaseId: infobase.id,
+						infobase: infobaseCredentials,
+						mode,
 					}),
 					{ platformVersion: connection.platformVersion }
 				)

@@ -1,5 +1,8 @@
 import * as assert from 'node:assert';
 import {
+	isBlankConnectionDraft,
+	isBlankSetDraft,
+	resolveEditorSelection,
 	toConnectionDraft,
 	validateConnectionDraft,
 	type ConnectionDraft,
@@ -12,11 +15,9 @@ function draft(overrides: Partial<ConnectionDraft> = {}): ConnectionDraft {
 		name: 'Тестовый сервер',
 		host: 'srv-1c',
 		port: 1545,
-		clusterUser: '',
-		agentUser: '',
 		platformVersion: '',
-		hasPassword: false,
-		hasAgentPassword: false,
+		clusterSetId: '',
+		agentSetId: '',
 		...overrides,
 	};
 }
@@ -57,37 +58,85 @@ suite('форма подключений к кластерам', () => {
 	});
 
 	test('сохранённое подключение разворачивается в поля формы', () => {
-		const record = toConnectionDraft(
-			{
-				id: 'connection-2',
-				name: 'Прод',
-				host: 'srv-prod',
-				port: 1745,
-				clusterUser: 'admin',
-				platformVersion: '8.3.27',
-			},
-			true
-		);
+		const record = toConnectionDraft({
+			id: 'connection-2',
+			name: 'Прод',
+			host: 'srv-prod',
+			port: 1745,
+			platformVersion: '8.3.27',
+		});
 		assert.deepStrictEqual(record, {
 			id: 'connection-2',
 			name: 'Прод',
 			host: 'srv-prod',
 			port: 1745,
-			clusterUser: 'admin',
-			agentUser: '',
 			platformVersion: '8.3.27',
-			hasPassword: true,
-			hasAgentPassword: false,
+			clusterSetId: '',
+			agentSetId: '',
 		});
 	});
 
-	test('незаданные администратор и версия становятся пустыми полями, а не undefined', () => {
-		const record = toConnectionDraft(
-			{ id: 'connection-3', name: 'Тест', host: 'srv', port: 1545 },
-			false
-		);
-		assert.strictEqual(record.clusterUser, '');
+	test('незаданная версия становится пустым полем, а не undefined', () => {
+		const record = toConnectionDraft({ id: 'connection-3', name: 'Тест', host: 'srv', port: 1545 });
 		assert.strictEqual(record.platformVersion, '');
-		assert.strictEqual(record.hasPassword, false);
+	});
+});
+
+suite('форма подключений: пустые заготовки', () => {
+	test('нетронутая заготовка не считается ошибкой ввода', () => {
+		assert.ok(isBlankConnectionDraft(draft({ name: '', host: '' })));
+		assert.ok(!isBlankConnectionDraft(draft({ name: 'Прод', host: '' })));
+		assert.ok(!isBlankConnectionDraft(draft({ name: '', host: 'srv' })));
+	});
+
+	test('набор пуст, пока не тронули ни поля, ни пароль', () => {
+		const set = {
+			id: 'new-1',
+			name: '',
+			user: '',
+			kind: 'cluster' as const,
+			hasPassword: false,
+		};
+		assert.ok(isBlankSetDraft(set));
+		assert.ok(!isBlankSetDraft({ ...set, user: 'Админ' }));
+		assert.ok(!isBlankSetDraft({ ...set, password: '123' }));
+	});
+});
+
+suite('форма подключений: выбор при открытии', () => {
+	test('без цели выбирается первое подключение', () => {
+		assert.deepStrictEqual(resolveEditorSelection(undefined, ['c1', 'c2'], ['s1']), {
+			kind: 'connection',
+			id: 'c1',
+		});
+	});
+
+	test('просьба о новом наборе доходит до формы как есть', () => {
+		assert.deepStrictEqual(resolveEditorSelection({ kind: 'set', id: 'new' }, ['c1'], ['s1']), {
+			kind: 'set',
+			id: 'new',
+		});
+	});
+
+	test('существующая запись выбирается, пропавшая заменяется первой того же вида', () => {
+		assert.deepStrictEqual(resolveEditorSelection({ kind: 'set', id: 's2' }, ['c1'], ['s1', 's2']), {
+			kind: 'set',
+			id: 's2',
+		});
+		assert.deepStrictEqual(resolveEditorSelection({ kind: 'set', id: 'нет' }, ['c1'], ['s1']), {
+			kind: 'set',
+			id: 's1',
+		});
+	});
+
+	test('пустая секция открывается заготовкой новой записи, а не пустым экраном', () => {
+		assert.deepStrictEqual(resolveEditorSelection({ kind: 'set' }, ['c1'], []), {
+			kind: 'set',
+			id: 'new',
+		});
+		assert.deepStrictEqual(resolveEditorSelection(undefined, [], []), {
+			kind: 'connection',
+			id: 'new',
+		});
 	});
 });

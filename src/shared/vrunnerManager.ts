@@ -1294,6 +1294,15 @@ export class VRunnerManager {
 	}
 
 	/**
+	 * Путь oscript после {@link checkOscriptAvailable}.
+	 *
+	 * @returns Абсолютный путь, имя из PATH или undefined, если oscript не найден
+	 */
+	public getResolvedOscriptPath(): string | undefined {
+		return this.resolvedOscriptPath;
+	}
+
+	/**
 	 * Каталог bin выбранной установки OneScript, если она найдена по абсолютному пути.
 	 *
 	 * @returns Путь к каталогу bin или undefined, когда используется PATH

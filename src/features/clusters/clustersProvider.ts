@@ -11,6 +11,7 @@
 import * as vscode from 'vscode';
 import type { ClusterService, ServiceResult } from './clusterService';
 import type { ConnectionStore } from './connectionStore';
+import type { ClusterCredentialStore } from './credentials';
 import {
 	sortConnections,
 	sortAdmins,
@@ -19,6 +20,7 @@ import {
 	sortProcesses,
 	sortServers,
 	sortSessions,
+	toInfobaseState,
 } from './model';
 import {
 	ClusterNode,
@@ -49,7 +51,8 @@ export class ClustersProvider implements vscode.TreeDataProvider<ClusterTreeNode
 
 	constructor(
 		private readonly store: ConnectionStore,
-		private readonly service: ClusterService
+		private readonly service: ClusterService,
+		private readonly credentials: ClusterCredentialStore
 	) {}
 
 	getTreeItem(element: ClusterTreeNode): vscode.TreeItem {
@@ -222,7 +225,12 @@ export class ClustersProvider implements vscode.TreeDataProvider<ClusterTreeNode
 			'connections',
 			'locks',
 		];
-		return kinds.map((kind) => new GroupNode(node.connection, node.cluster.id, kind, {}, node.cacheKey));
+		// Имя кластера в области: панель списков, открытая от группы, называется
+		// так же, как открытая от самого кластера.
+		const scope = { clusterName: node.cluster.name || node.cluster.host };
+		return kinds.map(
+			(kind) => new GroupNode(node.connection, node.cluster.id, kind, scope, node.cacheKey)
+		);
 	}
 
 	/**
@@ -236,9 +244,19 @@ export class ClustersProvider implements vscode.TreeDataProvider<ClusterTreeNode
 		switch (group.kind) {
 			case 'infobases': {
 				const result = await this.service.listInfobases(connection, clusterId);
-				return this.materialize(group.cacheKey, result, 'Информационных баз нет', (items) =>
-					sortInfobases(items).map((item) => new InfobaseNode(connection, clusterId, item))
+				const nodes = this.materialize(group.cacheKey, result, 'Информационных баз нет', (items) =>
+					sortInfobases(items).map(
+						(item) =>
+							new InfobaseNode(
+								connection,
+								clusterId,
+								item,
+								this.credentials.boundSetName(connection.id, item.id)
+							)
+					)
 				);
+				void this.decorateInfobases(nodes);
+				return nodes;
 			}
 			case 'servers': {
 				const result = await this.service.listServers(connection, clusterId);
@@ -290,6 +308,36 @@ export class ClustersProvider implements vscode.TreeDataProvider<ClusterTreeNode
 				return this.materialize(group.cacheKey, result, 'Блокировок нет', (items) =>
 					items.map((item) => new LockNode(connection, clusterId, item))
 				);
+			}
+		}
+	}
+
+	/**
+	 * Дочитывает режим работы баз и перерисовывает их узлы.
+	 *
+	 * Состояние стоит по вызову rac на базу, поэтому список показывается сразу, а
+	 * блокировки появляются на значках следом. База, которая не ответила,
+	 * остаётся с обычным значком: сообщать об этом нечего.
+	 *
+	 * @param nodes - Узлы группы информационных баз
+	 * @returns Промис, который разрешается после перерисовки узлов
+	 */
+	private async decorateInfobases(nodes: ClusterTreeNode[]): Promise<void> {
+		const infobases = nodes.filter((node): node is InfobaseNode => node instanceof InfobaseNode);
+		const first = infobases[0];
+		if (!first) {
+			return;
+		}
+		const records = await this.service.infobaseRecords(
+			first.connection,
+			first.clusterId,
+			infobases.map((node) => node.infobase.id)
+		);
+		for (const node of infobases) {
+			const record = records.get(node.infobase.id);
+			if (record) {
+				node.applyState(toInfobaseState(record));
+				this.emitter.fire(node);
 			}
 		}
 	}

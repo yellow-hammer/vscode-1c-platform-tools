@@ -10,6 +10,7 @@
 import * as fssync from 'node:fs';
 import * as vscode from 'vscode';
 import {
+	cachedReleaseComponent,
 	cachedReleaseTag,
 	clearReleaseCache,
 	ensureReleaseComponent,
@@ -69,6 +70,11 @@ export async function downloadOvm(context: vscode.ExtensionContext): Promise<str
 /** Тег загруженного OVM или undefined, если он ещё не загружался. */
 export async function cachedOvmTag(context: vscode.ExtensionContext): Promise<string | undefined> {
 	return cachedReleaseTag(installBaseDir(context), OVM_SPEC);
+}
+
+/** Путь ovm.exe в кэше; undefined — не загружен. */
+export async function cachedOvmPath(context: vscode.ExtensionContext): Promise<string | undefined> {
+	return (await cachedReleaseComponent(installBaseDir(context), OVM_SPEC))?.assetPath;
 }
 
 /** Забывает загруженный OVM: следующее использование скачает его заново. */

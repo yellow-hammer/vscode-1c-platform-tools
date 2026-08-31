@@ -210,7 +210,7 @@ const FAILURE_SIGNS: Array<{ sign: string; kind: RacFailureKind }> = [
  */
 const FAILURE_MESSAGES: Record<RacFailureKind, string | undefined> = {
 	connection: 'Сервер администрирования не отвечает: проверьте адрес, порт и что ras запущен',
-	auth: 'Администратор кластера не принят: проверьте имя и пароль',
+	auth: 'Администратор не принят: откройте учётные данные',
 	notFound: 'Объект не найден: обновите дерево',
 	version: 'Версия rac не совпадает с версией сервера: укажите версию платформы в подключении',
 	unknown: undefined,

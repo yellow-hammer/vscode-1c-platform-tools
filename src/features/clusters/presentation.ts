@@ -11,6 +11,7 @@ import type {
 	ClusterInfo,
 	ConnectionInfo,
 	InfobaseInfo,
+	InfobaseState,
 	AdminInfo,
 	LockInfo,
 	ManagerInfo,
@@ -80,6 +81,19 @@ export function formatRacDateTime(value: string): string {
 }
 
 /**
+ * Дата rac без секунд.
+ *
+ * В подписи узла важен момент, а не секунда: секунды удлиняют строку и мешают
+ * читать список.
+ *
+ * @param value - Значение поля даты
+ * @returns Дата вида `01.05.2024 10:15`
+ */
+export function formatRacDateTimeShort(value: string): string {
+	return formatRacDateTime(value).replace(/(\d{2}:\d{2}):\d{2}$/, '$1');
+}
+
+/**
  * Переводит объём в байтах в читаемый вид.
  *
  * @param value - Значение поля в байтах
@@ -106,11 +120,6 @@ export function formatBytes(value: string): string {
 export function connectionPresentation(connection: ClusterConnection): NodePresentation {
 	const address = `${connection.host}:${connection.port}`;
 	const tooltip = [connection.name, `Сервер администрирования: ${address}`];
-	tooltip.push(
-		connection.clusterUser
-			? `Администратор кластера: ${connection.clusterUser}`
-			: 'Администратор кластера не задан'
-	);
 	if (connection.platformVersion) {
 		tooltip.push(`Версия платформы: ${connection.platformVersion}`);
 	}
@@ -164,14 +173,60 @@ export function processPresentation(process: ProcessInfo): NodePresentation {
 	};
 }
 
-/** Подпись информационной базы. */
-export function infobasePresentation(infobase: InfobaseInfo): NodePresentation {
+/**
+ * Срок блокировки сеансов словами.
+ *
+ * @param state - Режим работы базы
+ * @returns Строка вида `с 01.05.2024 10:15 по 02.05.2024 08:00` или пусто
+ */
+function deniedPeriod(state: InfobaseState): string {
+	const from = formatRacDateTimeShort(state.deniedFrom);
+	const to = formatRacDateTimeShort(state.deniedTo);
+	if (from && to) {
+		return `с ${from} по ${to}`;
+	}
+	if (from) {
+		return `с ${from}`;
+	}
+	return to ? `по ${to}` : '';
+}
+
+/**
+ * Подпись информационной базы.
+ *
+ * Справа от имени — только срок блокировки: сам запрет виден значком, а даты
+ * значком не покажешь. Словами состояние названо в подсказке, вместе с
+ * остальными подробностями.
+ *
+ * @param infobase - Информационная база
+ * @param state - Режим работы базы, если он прочитан
+ * @param credentialSetName - Название явно привязанного набора
+ * @returns Подпись, описание и подсказка узла
+ */
+export function infobasePresentation(
+	infobase: InfobaseInfo,
+	state?: InfobaseState,
+	credentialSetName?: string
+): NodePresentation {
+	const marks: string[] = [];
+	if (state?.sessionsDeny) {
+		marks.push('начало сеансов запрещено');
+	}
+	if (state?.scheduledJobsDeny) {
+		marks.push('регламентные задания запрещены');
+	}
+	// Срок относится к запрету сеансов: без запрета старые даты в полях базы
+	// ничего не значат.
+	const period = state?.sessionsDeny ? deniedPeriod(state) : '';
 	return {
 		label: infobase.name || 'Информационная база',
-		description: infobase.descr || undefined,
+		description: [infobase.descr, period].filter(Boolean).join(' · ') || undefined,
 		tooltip: [
 			infobase.name || 'Информационная база',
 			...(infobase.descr ? [infobase.descr] : []),
+			...marks.map((mark) => `Состояние: ${mark}`),
+			...(period ? [`Блокировка ${period}`] : []),
+			...(credentialSetName ? [`Учётные данные: ${credentialSetName}`] : []),
 			`Идентификатор: ${infobase.id}`,
 		],
 	};

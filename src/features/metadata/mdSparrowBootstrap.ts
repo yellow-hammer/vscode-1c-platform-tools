@@ -12,6 +12,7 @@ import { globSync } from 'glob';
 import { logger } from '../../shared/logger';
 import {
 	type ReleaseComponentSpec,
+	cachedReleaseComponent,
 	cachedReleaseTag,
 	checkReleaseUpdateInBackground,
 	clearReleaseCache,
@@ -234,6 +235,11 @@ export async function cachedMdSparrowTag(context: vscode.ExtensionContext): Prom
 	return cachedReleaseTag(installBaseDir(context), MD_SPARROW_SPEC);
 }
 
+/** Путь JAR md-sparrow в кэше; undefined — не загружен. */
+export async function cachedMdSparrowPath(context: vscode.ExtensionContext): Promise<string | undefined> {
+	return (await cachedReleaseComponent(installBaseDir(context), MD_SPARROW_SPEC))?.assetPath;
+}
+
 /** Сброс кэша JAR — следующий вызов ensure скачает заново. */
 export async function clearMdSparrowJarCache(context: vscode.ExtensionContext): Promise<void> {
 	await clearReleaseCache(installBaseDir(context), MD_SPARROW_SPEC);
@@ -258,6 +264,22 @@ export function portableJreVersion(context: vscode.ExtensionContext): string | u
 	try {
 		const entry = fssync.readdirSync(unpackDir).find((name) => name.startsWith('jdk-'));
 		return entry?.replace(/^jdk-/, '').replace(/-jre$/, '');
+	} catch {
+		return undefined;
+	}
+}
+
+/**
+ * Путь к java загруженной portable JRE.
+ *
+ * @param context - Контекст расширения
+ * @returns Путь или undefined, если JRE не загружена
+ */
+export function portableJreJavaPath(context: vscode.ExtensionContext): string | undefined {
+	const stamp = path.join(installBaseDir(context), 'jre-temurin-21', '.java-path');
+	try {
+		const previous = fssync.readFileSync(stamp, 'utf8').trim();
+		return previous !== '' && fssync.existsSync(previous) ? previous : undefined;
 	} catch {
 		return undefined;
 	}

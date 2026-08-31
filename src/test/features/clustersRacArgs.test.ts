@@ -4,6 +4,7 @@ import {
 	buildClusterListArgs,
 	buildConnectionDisconnectArgs,
 	buildConnectionListArgs,
+	buildInfobaseDropArgs,
 	buildInfobaseInfoArgs,
 	buildInfobaseListArgs,
 	buildInfobaseUpdateArgs,
@@ -159,6 +160,57 @@ suite('аргументы rac: информационные базы', () => {
 
 		assert.ok(args.includes('--scheduled-jobs-deny=on'));
 		assert.ok(!args.some((arg) => arg.startsWith('--sessions-deny')));
+	});
+
+	test('удаление базы без указания судьбы базы данных её не трогает', () => {
+		const args = buildInfobaseDropArgs({
+			address: ADDRESS,
+			clusterId: CLUSTER,
+			infobaseId: 'ib-id',
+			mode: 'keep',
+		});
+
+		assert.deepStrictEqual(args, [
+			ADDRESS,
+			'infobase',
+			'drop',
+			`--cluster=${CLUSTER}`,
+			'--infobase=ib-id',
+		]);
+	});
+
+	test('судьба базы данных задаётся флагом без значения', () => {
+		const dropped = buildInfobaseDropArgs({
+			address: ADDRESS,
+			clusterId: CLUSTER,
+			infobaseId: 'ib-id',
+			mode: 'drop',
+		});
+		const cleared = buildInfobaseDropArgs({
+			address: ADDRESS,
+			clusterId: CLUSTER,
+			infobaseId: 'ib-id',
+			mode: 'clear',
+		});
+
+		assert.ok(dropped.includes('--drop-database'));
+		assert.ok(!dropped.includes('--clear-database'));
+		assert.ok(cleared.includes('--clear-database'));
+		assert.ok(!cleared.includes('--drop-database'));
+	});
+
+	test('удаление базы принимает администратора базы', () => {
+		const args = buildInfobaseDropArgs({
+			address: ADDRESS,
+			clusterId: CLUSTER,
+			cluster: ADMIN,
+			infobaseId: 'ib-id',
+			infobase: { user: 'ibadmin', password: 'ibpwd' },
+			mode: 'drop',
+		});
+
+		assert.ok(args.includes('--infobase-user=ibadmin'));
+		assert.ok(args.includes('--cluster-user=Администратор'));
 	});
 
 	test('пустое сообщение блокировки передаётся, если задано явно', () => {
