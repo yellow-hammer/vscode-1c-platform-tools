@@ -982,3 +982,47 @@ select.edit-input {
 	max-height: 220px;
 	overflow-y: auto;
 }
+
+.subsys-mode {
+	margin-left: auto;
+	max-width: 170px;
+}
+
+/* Формы объекта: чип открывает форму, крестик удаляет */
+.edit-chip-action {
+	display: inline-flex;
+	align-items: center;
+	gap: 4px;
+	padding-right: 4px;
+}
+.edit-chip-open {
+	background: none;
+	border: none;
+	color: inherit;
+	font: inherit;
+	padding: 0;
+	cursor: pointer;
+}
+.edit-chip-open:hover {
+	text-decoration: underline;
+}
+.edit-chip-remove {
+	background: none;
+	border: none;
+	color: var(--vscode-descriptionForeground);
+	cursor: pointer;
+	padding: 0 2px;
+	line-height: 1;
+}
+.edit-chip-remove:hover {
+	color: var(--vscode-errorForeground, #f66);
+}
+.ref-selected .struct-item {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+}
+.ref-selected-mode {
+	margin-left: auto;
+	flex: none;
+}

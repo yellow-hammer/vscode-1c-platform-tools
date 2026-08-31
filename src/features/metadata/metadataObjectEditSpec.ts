@@ -73,6 +73,8 @@ export interface MetadataEditField {
 	readonly enabledWhen?: readonly MetadataEditCondition[];
 	/** Элементы staticList, когда они берутся не из DTO (формы, команды из структуры). */
 	readonly items?: readonly string[];
+	/** Элементы списка открываются и удаляются: формы объекта. */
+	readonly itemsKind?: 'objectForms';
 }
 
 export interface MetadataEditGroup {
@@ -674,7 +676,7 @@ export function buildCatalogEditTabs(input: CatalogEditSpecInput): MetadataEditT
 				},
 				{
 					title: 'Формы',
-					fields: [{ path: '', label: 'Формы объекта', control: 'staticList', items: input.formNames }],
+					fields: [{ path: '', label: 'Формы объекта', control: 'staticList', items: input.formNames, itemsKind: 'objectForms' }],
 				},
 			],
 		},
@@ -1016,7 +1018,7 @@ export function buildDocumentEditTabs(input: DocumentEditSpecInput): MetadataEdi
 				},
 				{
 					title: 'Формы',
-					fields: [{ path: '', label: 'Формы объекта', control: 'staticList', items: input.formNames }],
+					fields: [{ path: '', label: 'Формы объекта', control: 'staticList', items: input.formNames, itemsKind: 'objectForms' }],
 				},
 			],
 		},
@@ -1154,7 +1156,7 @@ export function buildEnumEditTabs(input: SimpleObjectEditSpecInput): MetadataEdi
 				},
 				{
 					title: 'Формы',
-					fields: [{ path: '', label: 'Формы объекта', control: 'staticList', items: input.formNames }],
+					fields: [{ path: '', label: 'Формы объекта', control: 'staticList', items: input.formNames, itemsKind: 'objectForms' }],
 				},
 			],
 		},
@@ -1301,7 +1303,7 @@ export function buildConstantEditTabs(input: SimpleObjectEditSpecInput): Metadat
 				},
 				{
 					title: 'Формы',
-					fields: [{ path: '', label: 'Формы объекта', control: 'staticList', items: input.formNames }],
+					fields: [{ path: '', label: 'Формы объекта', control: 'staticList', items: input.formNames, itemsKind: 'objectForms' }],
 				},
 			],
 		},
@@ -1458,7 +1460,7 @@ export function buildReportEditTabs(input: ReportEditSpecInput): MetadataEditTab
 				{ title: 'Основные формы', fields: formFields },
 				{
 					title: 'Формы',
-					fields: [{ path: '', label: 'Формы объекта', control: 'staticList', items: input.formNames }],
+					fields: [{ path: '', label: 'Формы объекта', control: 'staticList', items: input.formNames, itemsKind: 'objectForms' }],
 				},
 			],
 		},
@@ -1720,7 +1722,7 @@ export function buildChartOfCalculationTypesEditTabs(
 				},
 				{
 					title: 'Формы',
-					fields: [{ path: '', label: 'Формы объекта', control: 'staticList', items: input.formNames }],
+					fields: [{ path: '', label: 'Формы объекта', control: 'staticList', items: input.formNames, itemsKind: 'objectForms' }],
 				},
 			],
 		},
@@ -1993,7 +1995,7 @@ export function buildChartOfAccountsEditTabs(input: ChartOfAccountsEditSpecInput
 				},
 				{
 					title: 'Формы',
-					fields: [{ path: '', label: 'Формы объекта', control: 'staticList', items: input.formNames }],
+					fields: [{ path: '', label: 'Формы объекта', control: 'staticList', items: input.formNames, itemsKind: 'objectForms' }],
 				},
 			],
 		},
@@ -2258,7 +2260,7 @@ export function buildTaskEditTabs(input: TaskEditSpecInput): MetadataEditTabSpec
 				},
 				{
 					title: 'Формы',
-					fields: [{ path: '', label: 'Формы объекта', control: 'staticList', items: input.formNames }],
+					fields: [{ path: '', label: 'Формы объекта', control: 'staticList', items: input.formNames, itemsKind: 'objectForms' }],
 				},
 			],
 		},
@@ -2492,7 +2494,7 @@ export function buildBusinessProcessEditTabs(input: BusinessProcessEditSpecInput
 				},
 				{
 					title: 'Формы',
-					fields: [{ path: '', label: 'Формы объекта', control: 'staticList', items: input.formNames }],
+					fields: [{ path: '', label: 'Формы объекта', control: 'staticList', items: input.formNames, itemsKind: 'objectForms' }],
 				},
 			],
 		},
@@ -2813,7 +2815,7 @@ export function buildChartOfCharacteristicTypesEditTabs(
 				},
 				{
 					title: 'Формы',
-					fields: [{ path: '', label: 'Формы объекта', control: 'staticList', items: input.formNames }],
+					fields: [{ path: '', label: 'Формы объекта', control: 'staticList', items: input.formNames, itemsKind: 'objectForms' }],
 				},
 			],
 		},
@@ -3080,7 +3082,7 @@ export function buildExchangePlanEditTabs(input: ExchangePlanEditSpecInput): Met
 				},
 				{
 					title: 'Формы',
-					fields: [{ path: '', label: 'Формы объекта', control: 'staticList', items: input.formNames }],
+					fields: [{ path: '', label: 'Формы объекта', control: 'staticList', items: input.formNames, itemsKind: 'objectForms' }],
 				},
 			],
 		},
@@ -3203,7 +3205,7 @@ export function buildDocumentJournalEditTabs(input: DocumentJournalEditSpecInput
 				},
 				{
 					title: 'Формы',
-					fields: [{ path: '', label: 'Формы объекта', control: 'staticList', items: input.formNames }],
+					fields: [{ path: '', label: 'Формы объекта', control: 'staticList', items: input.formNames, itemsKind: 'objectForms' }],
 				},
 			],
 		},
@@ -3512,19 +3514,19 @@ export function buildCommonAttributeEditTabs(): MetadataEditTabSpec[] {
 							path: 'commonAttribute.usersSeparation',
 							label: 'Разделение пользователей',
 							control: 'select',
-							options: opts(['SEPARATE', 'Разделять'], ['DONT_SEPARATE', 'Не разделять']),
+							options: opts(['SEPARATE', 'Разделять'], ['DONT_USE', 'Не использовать']),
 						},
 						{
 							path: 'commonAttribute.authenticationSeparation',
 							label: 'Разделение аутентификации',
 							control: 'select',
-							options: opts(['SEPARATE', 'Разделять'], ['DONT_SEPARATE', 'Не разделять']),
+							options: opts(['SEPARATE', 'Разделять'], ['DONT_USE', 'Не использовать']),
 						},
 						{
 							path: 'commonAttribute.configurationExtensionsSeparation',
 							label: 'Разделение расширений конфигурации',
 							control: 'select',
-							options: opts(['SEPARATE', 'Разделять'], ['DONT_SEPARATE', 'Не разделять']),
+							options: opts(['SEPARATE', 'Разделять'], ['DONT_USE', 'Не использовать']),
 						},
 						{
 							path: 'commonAttribute.indexing',
@@ -3890,7 +3892,7 @@ export function buildRegisterEditTabs(input: RegisterEditSpecInput): MetadataEdi
 				},
 				{
 					title: 'Формы',
-					fields: [{ path: '', label: 'Формы объекта', control: 'staticList', items: input.formNames }],
+					fields: [{ path: '', label: 'Формы объекта', control: 'staticList', items: input.formNames, itemsKind: 'objectForms' }],
 				},
 			],
 		},
@@ -4501,7 +4503,9 @@ export function buildGenericEditTabs(
 	if (known.includes('forms')) {
 		groups.push({
 			title: 'Формы',
-			fields: [{ path: '', label: 'Формы объекта', control: 'staticList', items: sections.forms ?? [] }],
+			fields: [
+				{ path: '', label: 'Формы объекта', control: 'staticList', items: sections.forms ?? [], itemsKind: 'objectForms' },
+			],
 		});
 	}
 	return [{ id: 'edit_main', title: 'Основные', groups }];
@@ -4534,7 +4538,8 @@ export function withTemplatesTab(
  */
 export function ensureCurrentSelectValues(
 	tabs: readonly MetadataEditTabSpec[],
-	props: Record<string, unknown>
+	props: Record<string, unknown>,
+	labels: EnumValueLabels = {}
 ): MetadataEditTabSpec[] {
 	return tabs.map((tab) => ({
 		...tab,
@@ -4551,7 +4556,11 @@ export function ensureCurrentSelectValues(
 				if (field.options.some((option) => option.value === current)) {
 					return field;
 				}
-				const short = current.slice(current.lastIndexOf('.') + 1);
+				// Подпись досыпанного значения: словарь знает константы модели,
+				// у ссылок остаётся хвост после точки
+				const property = field.path.slice(field.path.lastIndexOf('.') + 1);
+				const known = labelOf(labels, property, current);
+				const short = known !== current ? known : current.slice(current.lastIndexOf('.') + 1);
 				return { ...field, options: [...field.options, { value: current, label: short, hint: 'из файла' }] };
 			}),
 		})),

@@ -13,6 +13,8 @@ import type { MdSparrowOp } from './mdSparrowParams';
 
 /** Вид узла состава, у которого есть операции. */
 export type MutatableChildKind =
+	| 'accountingFlag'
+	| 'extDimensionAccountingFlag'
 	| 'attribute'
 	| 'tabularSection'
 	| 'tabularAttribute'
@@ -44,6 +46,8 @@ const SPEC_BY_KIND: Readonly<Record<MutatableChildKind, ChildMutationSpec>> = {
 	resource: { op: 'cf-md-resource', duplicate: true },
 	value: { op: 'cf-md-enum-value', duplicate: true },
 	command: { op: 'cf-md-command', duplicate: false },
+	accountingFlag: { op: 'cf-md-accounting-flag', duplicate: false },
+	extDimensionAccountingFlag: { op: 'cf-md-ext-dimension-accounting-flag', duplicate: false },
 };
 
 /** Раздел объекта, в который добавляют узел: вид раздела -> вид его узлов. */
@@ -54,6 +58,8 @@ const CHILD_KIND_BY_SECTION: Readonly<Record<string, MutatableChildKind>> = {
 	resources: 'resource',
 	values: 'value',
 	commands: 'command',
+	accountingFlags: 'accountingFlag',
+	extDimensionAccountingFlags: 'extDimensionAccountingFlag',
 };
 
 /** Узел этого вида умеет переименовываться и удаляться. */
@@ -81,6 +87,8 @@ export function childKindTitle(kind: MutatableChildKind): string {
 		resource: 'Новый ресурс',
 		value: 'Новое значение перечисления',
 		command: 'Новая команда',
+		accountingFlag: 'Новый признак учёта',
+		extDimensionAccountingFlag: 'Новый признак учёта субконто',
 	};
 	return titles[kind];
 }
@@ -95,6 +103,8 @@ export function childKindAddedMessage(kind: MutatableChildKind, name: string): s
 		resource: `Ресурс «${name}» добавлен.`,
 		value: `Значение «${name}» добавлено.`,
 		command: `Команда «${name}» добавлена.`,
+		accountingFlag: `Признак учёта «${name}» добавлен`,
+		extDimensionAccountingFlag: `Признак учёта субконто «${name}» добавлен`,
 	};
 	return messages[kind];
 }

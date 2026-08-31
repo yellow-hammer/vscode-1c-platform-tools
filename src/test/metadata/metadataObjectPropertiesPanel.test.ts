@@ -1,6 +1,7 @@
 import * as assert from 'node:assert';
 import {
 	buildMetadataObjectPropertiesEditableForTest,
+	buildRefContentSectionsForTest,
 	buildMetadataObjectPropertiesTabsForTest,
 	buildStructureListsForTest,
 } from '../../features/metadata/metadataObjectPropertiesPanel';
@@ -285,12 +286,15 @@ suite('metadataObjectPropertiesPanel: скалярные свойства вид
 		assert.ok(!fields.some((field) => field.path === 'scalars.ObjectBelonging'));
 	});
 
-	test('заимствованный объект расширения остаётся просмотром', () => {
+	test('заимствованный объект расширения показывает ту же форму без правки', () => {
 		const adopted = {
 			...language,
 			scalars: { ...language.scalars, ObjectBelonging: 'ADOPTED' },
 		};
-		assert.strictEqual(buildMetadataObjectPropertiesEditableForTest('Language', adopted, null), undefined);
+		const model = buildMetadataObjectPropertiesEditableForTest('Language', adopted, null);
+		assert.strictEqual(model?.readonly, true);
+		const fields = (model?.tabs ?? []).flatMap((tab) => tab.groups).flatMap((group) => group.fields);
+		assert.ok(fields.every((field) => field.readonly === true));
 	});
 
 	test('флажок и перечисление получают свои контролы', () => {
@@ -381,5 +385,81 @@ suite('metadataObjectPropertiesPanel: ссылочные скаляры канд
 		assert.ok(
 			(field?.options ?? []).some((option) => option.value === 'FilterCriterion.СвязанныеДокументы.Form.ФормаСписка')
 		);
+	});
+});
+
+suite('metadataObjectPropertiesPanel: секции дерева состава', () => {
+	const allObjects = {
+		Subsystem: ['Продажи'],
+		Catalog: ['Номенклатура'],
+		Document: ['Заказ', 'Реализация'],
+		AccumulationRegister: ['Остатки'],
+		InformationRegister: ['Цены'],
+	};
+
+	test('у подсистемы один раздел состава и без подсистем в кандидатах', () => {
+		const sections = buildRefContentSectionsForTest(
+			'subsystem',
+			{ contentRefs: ['Catalog.Номенклатура'] },
+			allObjects
+		);
+		assert.strictEqual(sections?.length, 1);
+		assert.ok(!sections?.[0].groups.some((group) => group.tag === 'Subsystem'));
+	});
+
+	test('у функциональной опции подсистемы отмечаются', () => {
+		const sections = buildRefContentSectionsForTest('functionalOption', { contentRefs: [] }, allObjects);
+		assert.ok(sections?.[0].groups.some((group) => group.tag === 'Subsystem'));
+	});
+
+	test('у последовательности два раздела: документы и регистры своих видов', () => {
+		const sections = buildRefContentSectionsForTest(
+			'sequence',
+			{ documents: ['Document.Заказ'], registerRecords: [] },
+			allObjects
+		);
+		assert.deepStrictEqual(
+			sections?.map((section) => [section.key, section.groups.map((group) => group.tag)]),
+			[
+				['documents', ['Document']],
+				['registerRecords', ['AccumulationRegister', 'InformationRegister']],
+			]
+		);
+	});
+
+	test('вид без дерева состава не получает секций', () => {
+		assert.strictEqual(buildRefContentSectionsForTest('catalog', {}, allObjects), undefined);
+	});
+});
+
+suite('metadataObjectPropertiesPanel: состав общего реквизита', () => {
+	test('секция несёт режимы использования по ссылкам', () => {
+		const sections = buildRefContentSectionsForTest(
+			'commonAttribute',
+			{ contentMembers: [{ ref: 'Catalog.Номенклатура', mode: 'DONT_USE' }] },
+			{ Catalog: ['Номенклатура'], Document: ['Заказ'] }
+		);
+		assert.strictEqual(sections?.[0].key, 'contentMembers');
+		assert.deepStrictEqual(sections?.[0].refs, ['Catalog.Номенклатура']);
+		assert.strictEqual(sections?.[0].modes?.byRef['Catalog.Номенклатура'], 'DONT_USE');
+		assert.strictEqual(sections?.[0].modes?.defaultValue, 'USE');
+	});
+});
+
+suite('metadataObjectPropertiesPanel: состав плана обмена', () => {
+	test('секция несёт авторегистрацию и только участвующие виды', () => {
+		const sections = buildRefContentSectionsForTest(
+			'exchangePlan',
+			{ exchangeContent: [{ ref: 'Document.Заказ', mode: 'Deny' }] },
+			{ Document: ['Заказ'], Catalog: ['Номенклатура'], CommonModule: ['Общий'], Language: ['Русский'] }
+		);
+		assert.strictEqual(sections?.[0].key, 'exchangeContent');
+		assert.deepStrictEqual(
+			sections?.[0].groups.map((group) => group.tag).sort(),
+			['Catalog', 'Document'],
+			'общие модули и языки в план обмена не входят'
+		);
+		assert.strictEqual(sections?.[0].modes?.byRef['Document.Заказ'], 'Deny');
+		assert.strictEqual(sections?.[0].modes?.defaultValue, 'Deny');
 	});
 });

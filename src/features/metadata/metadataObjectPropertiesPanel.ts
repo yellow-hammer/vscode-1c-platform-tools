@@ -8,6 +8,7 @@ import * as path from 'node:path';
 import * as vscode from 'vscode';
 import { registerFormPanel } from '../editors/formPanels';
 import { beginOpenPanel, endOpenPanel, revealOpenPanel, trackOpenPanel } from '../editors/openPanels';
+import { formModulePath, objectFormXmlPath, openFormViewer } from './formViewerPanel';
 import { ensureMdSparrowRuntime } from './mdSparrowBootstrap';
 import { logger } from '../../shared/logger';
 import { mdSparrowSchemaFlagFromConfigurationXml } from './mdSparrowSchemaVersion';
@@ -127,6 +128,8 @@ interface MetadataPanelTab {
 interface MetadataPanelEditableModel {
 	props: MdObjectPropertiesDto;
 	tabs: MetadataEditTabSpec[];
+	/** Заимствованный объект расширения: форма та же, но только просмотр. */
+	readonly?: boolean;
 }
 
 /** Списки структуры для вкладки «Данные» (реквизиты и табличные части с операциями). */
@@ -193,14 +196,31 @@ interface MetadataPanelRefContentGroup {
 	names: string[];
 }
 
-/** Состав функциональной опции деревом с флажками: как в конфигураторе. */
-interface MetadataPanelRefContentModel {
+/** Режимы участника состава: у общего реквизита это использование. */
+interface MetadataPanelRefContentModes {
+	options: Array<{ value: string; label: string }>;
+	defaultValue: string;
+	/** Режим каждой отмеченной ссылки. */
+	byRef: Record<string, string>;
+}
+
+/** Секция дерева состава: свой список ссылок в DTO и свои виды объектов. */
+interface MetadataPanelRefContentSection {
+	/** Поле DTO со ссылками: contentRefs, documents, registerRecords, contentMembers. */
+	key: string;
 	title: string;
 	/** Отмеченные ссылки: объекты и отдельные реквизиты. */
 	refs: string[];
 	groups: MetadataPanelRefContentGroup[];
 	/** Ссылки не на объект целиком: реквизиты, табличные части. Снять можно, добавить пока нельзя. */
 	extras: string[];
+	modes?: MetadataPanelRefContentModes;
+}
+
+/** Состав объекта деревом с флажками: как в конфигураторе. */
+interface MetadataPanelRefContentModel {
+	title: string;
+	sections: MetadataPanelRefContentSection[];
 }
 
 interface MetadataPanelViewModel {
@@ -370,6 +390,8 @@ const PROPERTY_LABEL_BY_KEY: Record<string, string> = {
 	sessionMaxAge: 'Время жизни сеанса, сек',
 	templateType: 'Тип макета',
 	type: 'Тип',
+	includeInCommandInterface: 'Включать в командный интерфейс',
+	useOneCommand: 'Использовать одну команду',
 };
 
 const XML_FRAGMENT_KEYS = new Set<string>(['standardAttributesXml', 'characteristicsXml']);
@@ -1104,6 +1126,7 @@ const TAB_IDS_REPLACED_BY_EDIT = new Set<string>([
 	'overview',
 	'attributes',
 	'tabularSections',
+	'nestedSubsystems',
 	...Object.keys(METADATA_SECTION_TITLE_BY_SOURCE).map((source) => `section_${source}`),
 ]);
 
@@ -1216,9 +1239,38 @@ function buildEditableModel(
 	const withTemplates = sections.includes('templates')
 		? withTemplatesTab(model.tabs, rawNameList(structure?.templates))
 		: model.tabs;
-	const withEnums = applyEnumDictionary(normalizeTabLayout(withTemplates), enums);
-	const withCurrent = ensureCurrentSelectValues(withEnums, props as unknown as Record<string, unknown>);
-	return { ...model, tabs: withTabsForStructure(withCurrent, buildStructureLists(props, structure)) };
+	const withEnums = applyEnumDictionary(normalizeTabLayout(withTemplates), enums, valueLabels);
+	const withCurrent = ensureCurrentSelectValues(withEnums, props as unknown as Record<string, unknown>, valueLabels);
+	const tabs = withTabsForStructure(withCurrent, buildStructureLists(props, structure));
+	if (propsIsAdopted(props)) {
+		// Свои правила состава XML у заимствованных: показываем ту же форму без правки
+		return { ...model, readonly: true, tabs: tabsAsReadonly(tabs) };
+	}
+	return { ...model, tabs };
+}
+
+/** Принадлежность объекта: заимствованные приходят с ObjectBelonging = Adopted. */
+function propsIsAdopted(props: MdObjectPropertiesDto | null): boolean {
+	if (!props) {
+		return false;
+	}
+	const raw = props as unknown as Record<string, unknown>;
+	const holders = [raw.catalog, raw.document, simpleKindProps(props), isRecord(raw.scalars) ? raw.scalars : undefined];
+	return holders.some(
+		(holder) =>
+			isRecord(holder) && isAdopted((holder as Record<string, unknown>).objectBelonging ?? holder.ObjectBelonging)
+	);
+}
+
+/** Та же форма с полями без правки. */
+function tabsAsReadonly(tabs: readonly MetadataEditTabSpec[]): MetadataEditTabSpec[] {
+	return tabs.map((tab) => ({
+		...tab,
+		groups: tab.groups.map((group) => ({
+			...group,
+			fields: group.fields.map((field) => ({ ...field, readonly: true })),
+		})),
+	}));
 }
 
 /**
@@ -1264,10 +1316,6 @@ function buildEditableModelBySpec(
 	}
 	if (props.kind === 'catalog' && isRecord(props.catalog)) {
 		const catalog = props.catalog as Record<string, unknown>;
-		if (isAdopted(catalog.objectBelonging)) {
-			// Заимствованные объекты расширений: свои правила состава XML, редактирование пока не включаем.
-			return undefined;
-		}
 		return {
 			props,
 			tabs: buildCatalogEditTabs({
@@ -1286,10 +1334,6 @@ function buildEditableModelBySpec(
 		};
 	}
 	if (props.kind === 'document' && isRecord(props.document)) {
-		const document = props.document as Record<string, unknown>;
-		if (isAdopted(document.objectBelonging)) {
-			return undefined;
-		}
 		return {
 			props,
 			tabs: buildDocumentEditTabs({
@@ -1325,10 +1369,6 @@ function buildSimpleEditableTabs(
 		// Вид без выделенной спеки: общая форма из «Основных», скалярных свойств
 		// вида и вкладок разделов состава
 		const scalars = isRecord(props.scalars) ? props.scalars : undefined;
-		if (scalars && isAdopted(scalars.ObjectBelonging)) {
-			// Заимствованные объекты расширений: свои правила состава XML, редактирование пока не включаем.
-			return undefined;
-		}
 		const sections = genericSectionLists(props, structure);
 		const scalarGroups = scalars
 			? buildScalarGroups(
@@ -1346,10 +1386,7 @@ function buildSimpleEditableTabs(
 		// Спека у вида есть, а его свойства не прочитаны: остаётся просмотр
 		return undefined;
 	}
-	if (isAdopted(kindProps.objectBelonging)) {
-		// Заимствованные объекты расширений: свои правила состава XML, редактирование пока не включаем.
-		return undefined;
-	}
+
 	const input = {
 		internalName,
 		formNames: rawNameList(structure?.forms),
@@ -1637,7 +1674,7 @@ function buildViewModel(
 	const objectKind = props?.kind || structure?.kind || declaredObjectType || 'object';
 	const objectType = declaredObjectType || normalizeObjectType(objectTypeFromKind(objectKind));
 	const technicalPayload = {
-		properties: props,
+		properties: props ? { ...props, scalarMeta: undefined } : props,
 		structure,
 	};
 	const editable = buildEditableModel(props, structure, internalName, candidates, enums);
@@ -1692,6 +1729,18 @@ function buildStructureLists(
 	const raw = props as unknown as Record<string, unknown> | null;
 	const structureRecord = structure as unknown as Record<string, unknown> | null;
 	const lists: MetadataPanelStructureList[] = [];
+	if (props?.kind === 'subsystem') {
+		// Вложенные подсистемы создаются в дереве: панель их показывает тем же
+		// видом, что остальные разделы состава
+		lists.push({
+			key: 'nestedSubsystems',
+			tab: 'edit_data',
+			title: 'Вложенные подсистемы',
+			addLabel: '',
+			editable: false,
+			rows: asNamedRows(props.nestedSubsystems),
+		});
+	}
 	for (const source of sections) {
 		const meta = STRUCT_LIST_BY_SOURCE[source];
 		if (!meta) {
@@ -1711,6 +1760,21 @@ function buildStructureLists(
 		});
 	}
 	const supportsTabularSections = sections.includes('tabularSections');
+	if (propsIsAdopted(props)) {
+		// Состав заимствованного смотрят, но не правят: табличные части списком
+		const roLists = lists.map((list) => ({ ...list, addLabel: '', editable: false }));
+		if (supportsTabularSections) {
+			roLists.push({
+				key: 'tabularSections',
+				tab: 'edit_data',
+				title: 'Табличные части',
+				addLabel: '',
+				editable: false,
+				rows: asNamedRows(props?.tabularSections ?? structure?.tabularSections),
+			});
+		}
+		return { lists: roLists, tabularSections: [], supportsTabularSections: false };
+	}
 	return {
 		lists,
 		tabularSections: supportsTabularSections
@@ -1737,8 +1801,8 @@ const STRUCT_LIST_BY_SOURCE: Partial<
 	values: { tab: 'edit_data', addLabel: '+ Значение…' },
 	commands: { tab: 'edit_commands', addLabel: '+ Команда…' },
 	columns: { tab: 'edit_data' },
-	accountingFlags: { tab: 'edit_data' },
-	extDimensionAccountingFlags: { tab: 'edit_data' },
+	accountingFlags: { tab: 'edit_data', addLabel: '+ Признак…' },
+	extDimensionAccountingFlags: { tab: 'edit_data', addLabel: '+ Признак субконто…' },
 	recalculations: { tab: 'edit_data' },
 	operations: { tab: 'edit_data' },
 	urlTemplates: { tab: 'edit_data' },
@@ -1788,15 +1852,102 @@ async function withScheduleFieldOptions(
 	};
 }
 
+/** Секция состава вида: где ссылки лежат в DTO и какие виды объектов предлагать. */
+interface RefContentSectionSpec {
+	readonly key: string;
+	readonly title: string;
+	/** Виды объектов секции; null - весь состав конфигурации. */
+	readonly tags: readonly string[] | null;
+	/** Предлагать ли подсистемы: в составе опции они отмечаются, в составе подсистемы - нет. */
+	readonly subsystems?: boolean;
+	readonly modes?: Omit<MetadataPanelRefContentModes, 'byRef'>;
+}
+
 /** Виды, состав которых правится деревом с флажками. */
-const REF_CONTENT_KINDS: Readonly<Record<string, string>> = {
-	functionalOption: 'Состав',
-	functionalOptionsParameter: 'Использование',
+const REF_CONTENT_BY_KIND: Readonly<Record<string, { title: string; sections: readonly RefContentSectionSpec[] }>> = {
+	functionalOption: {
+		title: 'Состав',
+		sections: [{ key: 'contentRefs', title: 'Состав', tags: null, subsystems: true }],
+	},
+	functionalOptionsParameter: {
+		title: 'Использование',
+		sections: [{ key: 'contentRefs', title: 'Использование', tags: null, subsystems: true }],
+	},
+	subsystem: {
+		title: 'Состав',
+		sections: [{ key: 'contentRefs', title: 'Состав', tags: null }],
+	},
+	// Состав критерия - ссылки на реквизиты: дерево кандидатов не строим,
+	// существующие ссылки показываются списком и снимаются
+	filterCriterion: {
+		title: 'Состав',
+		sections: [{ key: 'contentRefs', title: 'Состав', tags: [] }],
+	},
+	exchangePlan: {
+		title: 'Состав',
+		sections: [
+			{
+				key: 'exchangeContent',
+				title: 'Состав',
+				tags: [
+					'Constant',
+					'Catalog',
+					'Document',
+					'ChartOfCharacteristicTypes',
+					'ChartOfAccounts',
+					'ChartOfCalculationTypes',
+					'InformationRegister',
+					'AccumulationRegister',
+					'AccountingRegister',
+					'CalculationRegister',
+					'BusinessProcess',
+					'Task',
+					'Sequence',
+				],
+				modes: {
+					options: [
+						{ value: 'Allow', label: 'Разрешить' },
+						{ value: 'Deny', label: 'Запретить' },
+					],
+					defaultValue: 'Deny',
+				},
+			},
+		],
+	},
+	commonAttribute: {
+		title: 'Состав',
+		sections: [
+			{
+				key: 'contentMembers',
+				title: 'Состав',
+				tags: null,
+				modes: {
+					options: [
+						{ value: 'AUTO', label: 'Авто' },
+						{ value: 'USE', label: 'Использовать' },
+						{ value: 'DONT_USE', label: 'Не использовать' },
+					],
+					defaultValue: 'USE',
+				},
+			},
+		],
+	},
+	sequence: {
+		title: 'Состав',
+		sections: [
+			{ key: 'documents', title: 'Входящие документы', tags: ['Document'] },
+			{
+				key: 'registerRecords',
+				title: 'Движения регистров',
+				tags: ['AccumulationRegister', 'AccountingRegister', 'CalculationRegister', 'InformationRegister'],
+			},
+		],
+	},
 };
 
 /**
- * Дерево состава функциональной опции: весь состав конфигурации одним чтением,
- * отмечено то, что уже в опции. Ссылки на реквизиты показываются отдельно.
+ * Дерево состава объекта: весь состав конфигурации одним чтением, отмечено то,
+ * что уже входит. Ссылки на реквизиты показываются отдельно.
  */
 async function loadRefContentModel(
 	runtime: Awaited<ReturnType<typeof ensureMdSparrowRuntime>>,
@@ -1804,8 +1955,8 @@ async function loadRefContentModel(
 	schema: string,
 	props: MdObjectPropertiesDto | null
 ): Promise<MetadataPanelRefContentModel | undefined> {
-	const title = props?.kind ? REF_CONTENT_KINDS[props.kind] : undefined;
-	if (!title || !params.cfgPath) {
+	const spec = props?.kind ? REF_CONTENT_BY_KIND[props.kind] : undefined;
+	if (!spec || !params.cfgPath) {
 		return undefined;
 	}
 	const res = await runMdSparrowJson<Record<string, string[]>>(
@@ -1817,22 +1968,85 @@ async function loadRefContentModel(
 		log.warn(`состав конфигурации: ${res.error.slice(0, ERR_PREVIEW)}`);
 		return undefined;
 	}
-	const refs = Array.isArray(props?.contentRefs) ? props.contentRefs.map(String) : [];
+	const raw = props as unknown as Record<string, unknown>;
+	const sections: MetadataPanelRefContentSection[] = [];
+	for (const section of spec.sections) {
+		let rawRefs: unknown = raw[section.key];
+		if (section.key === 'exchangeContent') {
+			// Состав плана обмена лежит отдельным файлом и читается своей операцией
+			const membersRes = await runMdSparrowJson<Array<{ ref: string; mode: string }>>(
+				runtime,
+				{ op: 'cf-md-exchange-plan-content-get', objectXml: params.objectXmlFsPath, schemaVersion: schema },
+				params.cwd
+			);
+			if (!membersRes.ok) {
+				log.warn(`состав плана обмена: ${membersRes.error.slice(0, ERR_PREVIEW)}`);
+				continue;
+			}
+			rawRefs = membersRes.value;
+		}
+		sections.push(buildRefContentSection(section, res.value, rawRefs));
+	}
+	if (sections.length === 0) {
+		return undefined;
+	}
+	return { title: spec.title, sections };
+}
+
+function buildRefContentSection(
+	spec: RefContentSectionSpec,
+	allObjects: Record<string, string[]>,
+	rawRefs: unknown
+): MetadataPanelRefContentSection {
+	// Состав с режимами приходит объектами {ref, mode}: ссылки и режимы врозь
+	const members = Array.isArray(rawRefs)
+		? rawRefs.filter(isRecord).filter((item) => typeof item.ref === 'string')
+		: [];
+	const modeByRef: Record<string, string> = {};
+	for (const member of members) {
+		modeByRef[String(member.ref)] = typeof member.mode === 'string' ? member.mode : '';
+	}
+	const refs = Array.isArray(rawRefs)
+		? rawRefs.map((item) => (isRecord(item) ? String(item.ref ?? '') : String(item))).filter(Boolean)
+		: [];
 	const groups: MetadataPanelRefContentGroup[] = [];
-	for (const [tag, names] of Object.entries(res.value)) {
+	for (const [tag, names] of Object.entries(allObjects)) {
 		if (!Array.isArray(names) || names.length === 0 || tag === 'Subsystem') {
+			continue;
+		}
+		if (spec.tags && !spec.tags.includes(tag)) {
 			continue;
 		}
 		groups.push({ tag, label: kindLabel('', tag), names: names.map(String) });
 	}
 	// Подсистемы в составе опции тоже отмечаются: конфигуратор кладёт их в раздел «Общие»
-	const subsystems = res.value.Subsystem;
-	if (Array.isArray(subsystems) && subsystems.length > 0) {
+	const subsystems = allObjects.Subsystem;
+	if (spec.subsystems && Array.isArray(subsystems) && subsystems.length > 0) {
 		groups.unshift({ tag: 'Subsystem', label: 'Подсистема', names: subsystems.map(String) });
 	}
 	const known = new Set(groups.flatMap((group) => group.names.map((name) => `${group.tag}.${name}`)));
-	const extras = refs.filter((ref) => !known.has(ref));
-	return { title, refs, groups, extras };
+	return {
+		key: spec.key,
+		title: spec.title,
+		refs,
+		groups,
+		extras: refs.filter((ref) => !known.has(ref)),
+		modes: spec.modes ? { ...spec.modes, byRef: modeByRef } : undefined,
+	};
+}
+
+/** Тестовый хелпер секции состава: без чтения конфигурации. */
+export function buildRefContentSectionsForTest(
+	kind: string,
+	props: unknown,
+	allObjects: Record<string, string[]>
+): MetadataPanelRefContentSection[] | undefined {
+	const spec = REF_CONTENT_BY_KIND[kind];
+	if (!spec) {
+		return undefined;
+	}
+	const raw = isRecord(props) ? props : {};
+	return spec.sections.map((section) => buildRefContentSection(section, allObjects, raw[section.key]));
 }
 
 /** Узел ответа cf-md-subsystem-tree. */
@@ -1889,15 +2103,27 @@ function buildSubsystemsModel(
 	return { objectRef, nodes: nodes.map(convert) };
 }
 
-/** Разбирает изменения состава опции из сообщения webview. */
-function parseContentEdits(raw: unknown): Array<{ ref: string; member: boolean }> {
+/** Разбирает изменения состава из сообщения webview: секция, ссылка, членство. */
+function parseContentEdits(raw: unknown): Array<{ key: string; ref: string; member: boolean; mode?: string }> {
 	if (!Array.isArray(raw)) {
 		return [];
 	}
-	const out: Array<{ ref: string; member: boolean }> = [];
+	const allowed = new Set(['contentRefs', 'documents', 'registerRecords', 'contentMembers', 'exchangeContent']);
+	const out: Array<{ key: string; ref: string; member: boolean; mode?: string }> = [];
 	for (const item of raw) {
-		if (isRecord(item) && typeof item.ref === 'string' && typeof item.member === 'boolean') {
-			out.push({ ref: item.ref, member: item.member });
+		if (
+			isRecord(item) &&
+			typeof item.key === 'string' &&
+			allowed.has(item.key) &&
+			typeof item.ref === 'string' &&
+			typeof item.member === 'boolean'
+		) {
+			out.push({
+				key: item.key,
+				ref: item.ref,
+				member: item.member,
+				mode: typeof item.mode === 'string' ? item.mode : undefined,
+			});
 		}
 	}
 	return out;
@@ -2207,6 +2433,8 @@ interface MetadataPanelSaveMessage {
 	payload?: unknown;
 	structure?: unknown;
 	module?: string;
+	/** Имя формы для открытия или удаления с вкладки «Формы». */
+	name?: string;
 	/** Изменённое участие в подсистемах: путь XML подсистемы и членство. */
 	subsystems?: unknown;
 	/** Изменённый состав опции: ссылка и членство. */
@@ -2228,7 +2456,14 @@ interface MetadataTabularSectionEdit extends MetadataStructRowEdit {
 }
 
 /** Вид списка состава: поле DTO, в которое пишутся синонимы, и набор операций. */
-export type MetadataStructListKind = 'attributes' | 'enumValues' | 'dimensions' | 'resources' | 'commands';
+export type MetadataStructListKind =
+	| 'attributes'
+	| 'enumValues'
+	| 'dimensions'
+	| 'resources'
+	| 'commands'
+	| 'accountingFlags'
+	| 'extDimensionAccountingFlags';
 
 interface MetadataStructListEdit {
 	kind: MetadataStructListKind;
@@ -2242,7 +2477,7 @@ interface MetadataStructureEdits {
 
 const STRUCT_OPS: Record<
 	MetadataStructListKind,
-	{ add: MdSparrowOp; rename: MdSparrowOp; del: MdSparrowOp; reorder: MdSparrowOp }
+	{ add: MdSparrowOp; rename: MdSparrowOp; del: MdSparrowOp; reorder?: MdSparrowOp }
 > = {
 	attributes: {
 		add: 'cf-md-attribute-add',
@@ -2274,6 +2509,17 @@ const STRUCT_OPS: Record<
 		del: 'cf-md-command-delete',
 		reorder: 'cf-md-command-reorder',
 	},
+	// Перестановки признаков md-sparrow пока не умеет: панель их не предлагает
+	accountingFlags: {
+		add: 'cf-md-accounting-flag-add',
+		rename: 'cf-md-accounting-flag-rename',
+		del: 'cf-md-accounting-flag-delete',
+	},
+	extDimensionAccountingFlags: {
+		add: 'cf-md-ext-dimension-accounting-flag-add',
+		rename: 'cf-md-ext-dimension-accounting-flag-rename',
+		del: 'cf-md-ext-dimension-accounting-flag-delete',
+	},
 };
 
 const STRUCT_LIST_KINDS: readonly MetadataStructListKind[] = [
@@ -2282,6 +2528,8 @@ const STRUCT_LIST_KINDS: readonly MetadataStructListKind[] = [
 	'dimensions',
 	'resources',
 	'commands',
+	'accountingFlags',
+	'extDimensionAccountingFlags',
 ];
 
 function asStructListKind(value: unknown): MetadataStructListKind | undefined {
@@ -2469,7 +2717,10 @@ export function structOpsFromEdits(edits: MetadataStructureEdits, objectXml: str
 	for (const list of edits.lists) {
 		const order = list.rows.filter((row) => !row.deleted).map((row) => row.name);
 		if (order.length > 1) {
-			ops.push({ op: STRUCT_OPS[list.kind].reorder, ...base, payloadJson: JSON.stringify(order) });
+			const reorder = STRUCT_OPS[list.kind].reorder;
+			if (reorder) {
+				ops.push({ op: reorder, ...base, payloadJson: JSON.stringify(order) });
+			}
 		}
 	}
 	const tsOrder = edits.tabularSections.filter((ts) => !ts.deleted).map((ts) => ts.name);
@@ -2534,6 +2785,29 @@ const MODULE_FILE_BY_KIND: Record<string, string> = {
 	valueManager: 'ValueManagerModule.bsl',
 	recordSet: 'RecordSetModule.bsl',
 };
+
+/** Открывает модуль команды объекта, создавая пустой файл при отсутствии. */
+async function openCommandModuleFromPanel(objectXmlFsPath: string, commandName: string): Promise<void> {
+	const stem = path.basename(objectXmlFsPath, '.xml');
+	const modulePath = path.join(
+		path.dirname(objectXmlFsPath),
+		stem,
+		'Commands',
+		commandName,
+		'Ext',
+		'CommandModule.bsl'
+	);
+	const uri = vscode.Uri.file(modulePath);
+	try {
+		await vscode.workspace.fs.stat(uri);
+	} catch {
+		await vscode.workspace.fs.createDirectory(vscode.Uri.file(path.dirname(modulePath)));
+		await vscode.workspace.fs.writeFile(uri, new Uint8Array());
+		notifyQuiet('Создан пустой модуль команды');
+	}
+	const doc = await vscode.workspace.openTextDocument(uri);
+	await vscode.window.showTextDocument(doc, { preview: false });
+}
 
 async function openObjectModuleFromPanel(objectXmlFsPath: string, internalName: string, moduleKind: string): Promise<void> {
 	const fileName = MODULE_FILE_BY_KIND[moduleKind];
@@ -2658,6 +2932,34 @@ function registerEditableSaveHandler(
 		});
 	}
 
+	/** Пишет состав плана обмена: текущий файл, правки поверх, своя операция записи. */
+	async function applyExchangeContentEdits(
+		edits: Array<{ ref: string; member: boolean; mode?: string }>
+	): Promise<string | null> {
+		const read = await runMdSparrowJson<Array<{ ref: string; mode: string }>>(
+			runtime,
+			{ op: 'cf-md-exchange-plan-content-get', objectXml: params.objectXmlFsPath, schemaVersion: schema },
+			params.cwd
+		);
+		if (!read.ok) {
+			return read.error.slice(0, ERR_PREVIEW);
+		}
+		const members = new Map(read.value.map((member) => [member.ref, member.mode]));
+		for (const edit of edits) {
+			if (edit.member) {
+				members.set(edit.ref, edit.mode || members.get(edit.ref) || 'Deny');
+			} else {
+				members.delete(edit.ref);
+			}
+		}
+		return runOneMutation({
+			op: 'cf-md-exchange-plan-content-set',
+			objectXml: params.objectXmlFsPath,
+			schemaVersion: schema,
+			payloadJson: JSON.stringify([...members.entries()].map(([ref, mode]) => ({ ref, mode }))),
+		});
+	}
+
 	async function handleSave(msg: MetadataPanelSaveMessage): Promise<void> {
 		const subsystemEdits = parseSubsystemEdits(msg.subsystems);
 		for (const edit of subsystemEdits) {
@@ -2706,16 +3008,41 @@ function registerEditableSaveHandler(
 			applySynonymEdits(dto, structureEdits);
 		}
 		const contentEdits = parseContentEdits(msg.content);
-		if (contentEdits.length > 0) {
-			const refs = new Set(Array.isArray(dto.contentRefs) ? (dto.contentRefs as unknown[]).map(String) : []);
-			for (const edit of contentEdits) {
-				if (edit.member) {
-					refs.add(edit.ref);
-				} else {
-					refs.delete(edit.ref);
-				}
+		const exchangeEdits = contentEdits.filter((edit) => edit.key === 'exchangeContent');
+		if (exchangeEdits.length > 0) {
+			const error = await applyExchangeContentEdits(exchangeEdits);
+			if (error) {
+				void panel.webview.postMessage({ type: 'saved', ok: false, error: `Состав: ${error}` });
+				return;
 			}
-			dto.contentRefs = [...refs];
+		}
+		for (const edit of contentEdits) {
+			if (edit.key === 'exchangeContent') {
+				continue;
+			}
+			if (edit.key === 'contentMembers') {
+				// Состав с режимами: у существующего участника меняется режим,
+				// новый добавляется с выбранным, снятый уходит
+				const members = (Array.isArray(dto.contentMembers) ? dto.contentMembers : []).filter(isRecord);
+				const rest = members.filter((member) => String(member.ref) !== edit.ref);
+				if (edit.member) {
+					const current = members.find((member) => String(member.ref) === edit.ref);
+					rest.push({
+						...(current ?? { conditionalSeparation: '' }),
+						ref: edit.ref,
+						mode: edit.mode ?? (current ? current.mode : 'USE'),
+					});
+				}
+				dto.contentMembers = rest;
+				continue;
+			}
+			const refs = new Set(Array.isArray(dto[edit.key]) ? (dto[edit.key] as unknown[]).map(String) : []);
+			if (edit.member) {
+				refs.add(edit.ref);
+			} else {
+				refs.delete(edit.ref);
+			}
+			dto[edit.key] = [...refs];
 		}
 		const error = await runOneMutation({
 			op: 'cf-md-object-set',
@@ -2739,6 +3066,46 @@ function registerEditableSaveHandler(
 	panel.webview.onDidReceiveMessage(
 		async (msg: MetadataPanelSaveMessage) => {
 			if (!msg) {
+				return;
+			}
+			if (msg.type === 'openObjectForm' && typeof msg.name === 'string') {
+				const formXml = objectFormXmlPath(params.objectXmlFsPath, msg.name);
+				await openFormViewer(context, {
+					formXmlFsPath: formXml,
+					moduleFsPath: formModulePath(formXml),
+					title: `${editable.props.internalName}.${msg.name}`,
+					cwd: params.cwd,
+					cfgPath: params.cfgPath,
+					schemaFlag: params.cfgPath ? undefined : schema,
+				});
+				return;
+			}
+			if (msg.type === 'deleteObjectForm' && typeof msg.name === 'string') {
+				const answer = await vscode.window.showWarningMessage(
+					`Удалить форму «${msg.name}» вместе с файлами?`,
+					{ modal: true },
+					'Удалить'
+				);
+				if (answer !== 'Удалить') {
+					return;
+				}
+				const error = await runOneMutation({
+					op: 'cf-md-form-delete',
+					objectXml: params.objectXmlFsPath,
+					schemaVersion: schema,
+					name: msg.name,
+				});
+				if (error) {
+					void vscode.window.showErrorMessage(`Не удалось удалить форму. ${error}`.slice(0, ERR_PREVIEW));
+					return;
+				}
+				notifyQuiet(`Форма «${msg.name}» удалена`);
+				await rereadAndPushModel();
+				void vscode.commands.executeCommand('1c-platform-tools.metadata.refresh');
+				return;
+			}
+			if (msg.type === 'openObjectCommand' && typeof msg.name === 'string') {
+				await openCommandModuleFromPanel(params.objectXmlFsPath, msg.name);
 				return;
 			}
 			if (msg.type === 'openModule' && typeof msg.module === 'string') {
