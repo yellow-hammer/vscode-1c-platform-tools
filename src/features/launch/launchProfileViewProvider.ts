@@ -95,7 +95,7 @@ export class LaunchProfileViewProvider implements vscode.TreeDataProvider<vscode
 				`vanessa-runner: ${versionLabel ?? 'не определён'}`,
 				versionLabel ? 'verified' : 'question',
 				`Синтаксис ${schema === 'v3' ? '3.x' : '2.x'}. Нажмите, чтобы определить заново.`,
-				{ command: '1c-platform-tools.env.refreshVersion', title: 'Определить версию заново' }
+				{ command: '1c-platform-tools.env.refreshVersion', title: 'Определить версию' }
 			),
 			item(
 				`Файл настроек: ${settingsFile}`,

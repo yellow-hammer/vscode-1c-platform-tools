@@ -86,21 +86,3 @@ export const SOURCE_PROPERTIES_TABS: readonly MetadataEditTabSpec[] = [
 	},
 ];
 
-/** Свойства внешнего отчёта и внешней обработки: вид объекта задаётся при создании и не правится. */
-export const EXTERNAL_ARTIFACT_TABS: readonly MetadataEditTabSpec[] = [
-	{
-		id: 'external_main',
-		title: 'Свойства',
-		groups: [
-			{
-				title: 'Основные',
-				fields: [
-					{ path: 'name', label: 'Имя', control: 'text' },
-					{ path: 'synonymRu', label: 'Синоним', control: 'text' },
-					{ path: 'comment', label: 'Комментарий', control: 'text' },
-					{ path: 'kind', label: 'Вид', control: 'text', readonly: true },
-				],
-			},
-		],
-	},
-];

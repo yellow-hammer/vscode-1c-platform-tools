@@ -395,7 +395,7 @@ async function selectProfile(vrunner: VRunnerManager, refresh: () => void): Prom
 		}
 		items.push(
 			{ label: '$(add) Создать профиль…', action: 'create' },
-			{ label: '$(refresh) Определить версию заново', description: versionLabel, action: 'redetect' }
+			{ label: '$(refresh) Определить версию', description: versionLabel, action: 'redetect' }
 		);
 
 		const picked = await vscode.window.showQuickPick(items, {

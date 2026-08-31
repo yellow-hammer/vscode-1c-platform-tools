@@ -257,7 +257,7 @@
       "1c-platform-tools-properties": [
         {
           "id": "1c-platform-tools-properties-palette",
-          "name": "Палитра свойств",
+          "name": "Палитра",
           "type": "webview",
           "icon": "resources/property-palette.svg",
           "when": "1c-platform-tools.is1CProject == true"
@@ -725,7 +725,7 @@
       },
       {
         "command": "1c-platform-tools.env.openProfileEditor",
-        "title": "Открыть редактор профиля запуска",
+        "title": "Открыть редактор профиля",
         "category": "1С: Конфигурации запуска",
         "icon": "$(server-environment)"
       },
@@ -743,7 +743,7 @@
       },
       {
         "command": "1c-platform-tools.metadata.revealInTree",
-        "title": "Показать в дереве метаданных",
+        "title": "Показать в дереве",
         "category": "1С: Метаданные",
         "icon": "$(list-tree)"
       },
@@ -1010,7 +1010,7 @@
       },
       {
         "command": "1c-platform-tools.debug.connectTarget",
-        "title": "Подключиться к цели отладки",
+        "title": "Подключиться к цели",
         "shortTitle": "Подключиться",
         "icon": "$(plug)",
         "category": "1С: Отладка"
@@ -1202,13 +1202,13 @@
       },
       {
         "command": "1c-platform-tools.session.lock",
-        "title": "Запретить начало сеансов",
+        "title": "Запретить начало",
         "icon": "$(lock)",
         "category": "1С: Сеансы"
       },
       {
         "command": "1c-platform-tools.session.unlock",
-        "title": "Разрешить начало сеансов",
+        "title": "Разрешить начало",
         "icon": "$(unlock)",
         "category": "1С: Сеансы"
       },
@@ -1226,19 +1226,19 @@
       },
       {
         "command": "1c-platform-tools.session.kill",
-        "title": "Завершить сеансы",
+        "title": "Завершить",
         "icon": "$(trash)",
         "category": "1С: Сеансы"
       },
       {
         "command": "1c-platform-tools.session.list",
-        "title": "Показать сеансы",
+        "title": "Показать",
         "icon": "$(list-unordered)",
         "category": "1С: Сеансы"
       },
       {
         "command": "1c-platform-tools.session.checkClosed",
-        "title": "Проверить отсутствие сеансов",
+        "title": "Проверить отсутствие",
         "icon": "$(search)",
         "category": "1С: Сеансы"
       },
@@ -1339,22 +1339,22 @@
       },
       {
         "command": "1c-platform-tools.epf.compileProcessor",
-        "title": "Собрать внешнюю обработку",
+        "title": "Собрать обработку",
         "category": "1С: Внешние файлы"
       },
       {
         "command": "1c-platform-tools.epf.decompileProcessor",
-        "title": "Разобрать внешнюю обработку",
+        "title": "Разобрать обработку",
         "category": "1С: Внешние файлы"
       },
       {
         "command": "1c-platform-tools.epf.compileReport",
-        "title": "Собрать внешний отчёт",
+        "title": "Собрать отчёт",
         "category": "1С: Внешние файлы"
       },
       {
         "command": "1c-platform-tools.epf.decompileReport",
-        "title": "Разобрать внешний отчёт",
+        "title": "Разобрать отчёт",
         "category": "1С: Внешние файлы"
       },
       {
@@ -1374,7 +1374,7 @@
       },
       {
         "command": "1c-platform-tools.support.createDeliveryDescriptionFile",
-        "title": "Создать файл описания шаблона поставки",
+        "title": "Создать файл описания шаблона",
         "category": "1С: Поставка"
       },
       {
@@ -1456,23 +1456,23 @@
       },
       {
         "command": "1c-platform-tools.env.selectProfile",
-        "title": "Выбрать env-профиль запуска",
+        "title": "Выбрать env-профиль",
         "category": "1С: Конфигурации запуска",
         "icon": "$(server-environment)"
       },
       {
         "command": "1c-platform-tools.env.createProfile",
-        "title": "Создать env-профиль запуска",
+        "title": "Создать env-профиль",
         "category": "1С: Конфигурации запуска"
       },
       {
         "command": "1c-platform-tools.env.setOverrides",
-        "title": "Задать временные параметры запуска",
+        "title": "Задать временные параметры",
         "category": "1С: Конфигурации запуска"
       },
       {
         "command": "1c-platform-tools.env.clearOverrides",
-        "title": "Сбросить временные параметры запуска",
+        "title": "Сбросить временные параметры",
         "category": "1С: Конфигурации запуска"
       },
       {
@@ -1525,13 +1525,13 @@
       },
       {
         "command": "1c-platform-tools.server.openConfig",
-        "title": "Открыть конфиг публикации",
+        "title": "Открыть publication.yaml",
         "category": "1С: Автономный сервер",
         "icon": "$(settings-gear)"
       },
       {
         "command": "1c-platform-tools.serviceFiles.create",
-        "title": "Создать служебные файлы…",
+        "title": "Создать…",
         "category": "1С: Служебные файлы",
         "icon": "$(new-file)"
       },
@@ -1552,7 +1552,7 @@
       },
       {
         "command": "1c-platform-tools.serviceFiles.createRecommendedSet",
-        "title": "Создать базовый набор служебных файлов",
+        "title": "Создать базовый набор",
         "category": "1С: Служебные файлы"
       },
       {
@@ -1651,32 +1651,32 @@
       },
       {
         "command": "1c-platform-tools.tasks.view",
-        "title": "Просмотр задач (workspace)",
+        "title": "Просмотр (workspace)",
         "category": "1С: Задачи"
       },
       {
         "command": "1c-platform-tools.tasks.run",
-        "title": "Запустить задачу",
+        "title": "Запустить",
         "category": "1С: Задачи"
       },
       {
         "command": "1c-platform-tools.tasks.runOscript",
-        "title": "Запустить задачу oscript (opm run)",
+        "title": "Запустить oscript (opm run)",
         "category": "1С: Задачи"
       },
       {
         "command": "1c-platform-tools.tasks.addOscript",
-        "title": "Добавить задачу oscript",
+        "title": "Добавить oscript",
         "category": "1С: Задачи"
       },
       {
         "command": "1c-platform-tools.tasks.edit",
-        "title": "Редактировать задачи",
+        "title": "Редактировать",
         "category": "1С: Задачи"
       },
       {
         "command": "1c-platform-tools.launch.editConfigurations",
-        "title": "Редактировать конфигурации запуска",
+        "title": "Редактировать launch.json",
         "category": "1С: Конфигурации запуска"
       },
       {
@@ -1910,25 +1910,25 @@
       },
       {
         "command": "1c-platform-tools.pipelines.run",
-        "title": "Запустить пайплайн",
+        "title": "Запустить",
         "category": "1С: Пайплайны",
         "icon": "$(play)"
       },
       {
         "command": "1c-platform-tools.pipelines.addTemplates",
-        "title": "Добавить типовые пайплайны",
+        "title": "Добавить типовые",
         "category": "1С: Пайплайны",
         "icon": "$(add)"
       },
       {
         "command": "1c-platform-tools.pipelines.openEditor",
-        "title": "Открыть редактор пайплайнов",
+        "title": "Открыть редактор",
         "category": "1С: Пайплайны",
         "icon": "$(circuit-board)"
       },
       {
         "command": "1c-platform-tools.hooks.openEditor",
-        "title": "Открыть редактор хуков",
+        "title": "Открыть редактор",
         "category": "1С: Хуки",
         "icon": "$(zap)"
       },
@@ -3066,7 +3066,7 @@
         },
         {
           "command": "1c-platform-tools.metadata.openProperties",
-          "when": "view == 1c-platform-tools-metadata-tree && (viewItem == metadataSourceConfigLike || viewItem == metadataSourceExternalArtifact || viewItem =~ /(^| )metadataLeafFile( |$)/ || viewItem =~ /(^| )metadataObjectProperties(Subsystem)?( |$)/ || viewItem =~ /(^| )metadataObjectForm( |$)/ || viewItem == metadataAttribute || viewItem == metadataTabularSection || viewItem == metadataTabularAttribute || viewItem == metadataObjectChildReadonly)",
+          "when": "view == 1c-platform-tools-metadata-tree && (viewItem == metadataSourceConfigLike || viewItem == metadataSourceExternalArtifact || viewItem =~ /(^| )(metadataObjectProperties(Subsystem)?|metadataLeafFile)( |$)/ || viewItem =~ /(^| )metadataChild_/)",
           "group": "2_properties@1"
         },
         {
@@ -3086,27 +3086,27 @@
         },
         {
           "command": "1c-platform-tools.metadata.addChildNode",
-          "when": "view == 1c-platform-tools-metadata-tree && (viewItem == metadataAttributesSection || viewItem == metadataTabularSectionsSection || viewItem == metadataTabularSection)",
+          "when": "view == 1c-platform-tools-metadata-tree && viewItem =~ /(^| )(mdSectionAdd|mdChildAdd)( |$)/",
           "group": "inline"
         },
         {
           "command": "1c-platform-tools.metadata.addChildNode",
-          "when": "view == 1c-platform-tools-metadata-tree && (viewItem == metadataAttributesSection || viewItem == metadataTabularSectionsSection || viewItem == metadataTabularSection)",
+          "when": "view == 1c-platform-tools-metadata-tree && viewItem =~ /(^| )(mdSectionAdd|mdChildAdd)( |$)/",
           "group": "4_create@2"
         },
         {
           "command": "1c-platform-tools.metadata.renameChildNode",
-          "when": "view == 1c-platform-tools-metadata-tree && (viewItem == metadataAttribute || viewItem == metadataTabularSection || viewItem == metadataTabularAttribute)",
+          "when": "view == 1c-platform-tools-metadata-tree && viewItem =~ /(^| )mdChildEdit( |$)/",
           "group": "5_edit@1"
         },
         {
           "command": "1c-platform-tools.metadata.duplicateChildNode",
-          "when": "view == 1c-platform-tools-metadata-tree && (viewItem == metadataAttribute || viewItem == metadataTabularSection || viewItem == metadataTabularAttribute)",
+          "when": "view == 1c-platform-tools-metadata-tree && viewItem =~ /(^| )mdChildDuplicate( |$)/",
           "group": "5_edit@2"
         },
         {
           "command": "1c-platform-tools.metadata.deleteChildNode",
-          "when": "view == 1c-platform-tools-metadata-tree && (viewItem == metadataAttribute || viewItem == metadataTabularSection || viewItem == metadataTabularAttribute)",
+          "when": "view == 1c-platform-tools-metadata-tree && viewItem =~ /(^| )mdChildEdit( |$)/",
           "group": "6_delete@1"
         },
         {
@@ -3299,7 +3299,7 @@
         "command": "1c-platform-tools.editors.save",
         "key": "ctrl+s",
         "mac": "cmd+s",
-        "when": "activeCustomEditorId == '1c-platform-tools.pipelineEditor' || activeCustomEditorId == '1c-platform-tools.hooksEditor' || activeWebviewPanelId == '1cMetadataObjectProperties' || activeWebviewPanelId == '1cMetadataSourceProperties' || activeWebviewPanelId == '1cExternalArtifactProperties'"
+        "when": "activeCustomEditorId == '1c-platform-tools.pipelineEditor' || activeCustomEditorId == '1c-platform-tools.hooksEditor' || activeWebviewPanelId == '1cMetadataObjectProperties' || activeWebviewPanelId == '1cMetadataSourceProperties'"
       },
       {
         "command": "1c-platform-tools.metadata.revealInTree",

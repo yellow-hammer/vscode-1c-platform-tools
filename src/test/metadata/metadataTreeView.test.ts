@@ -306,9 +306,15 @@ suite('metadataTreeView nested nodes', () => {
 			owner,
 			'Товары'
 		);
-		assert.strictEqual(attr.contextValue, 'metadataAttribute');
-		assert.strictEqual(ts.contextValue, 'metadataTabularSection');
-		assert.strictEqual(tsAttr.contextValue, 'metadataTabularAttribute');
+		assert.strictEqual(attr.contextValue, 'metadataChild_attribute mdChildEdit mdChildDuplicate');
+		assert.strictEqual(
+			ts.contextValue,
+			'metadataChild_tabularSection mdChildEdit mdChildDuplicate mdChildAdd'
+		);
+		assert.strictEqual(
+			tsAttr.contextValue,
+			'metadataChild_tabularAttribute mdChildEdit mdChildDuplicate'
+		);
 	});
 
 	test('форма открывается кликом по узлу', () => {
@@ -346,10 +352,10 @@ suite('metadataTreeView nested nodes', () => {
 		);
 
 		assert.strictEqual(form.command?.command, '1c-platform-tools.metadata.openForm');
-		assert.strictEqual(form.contextValue, 'metadataObjectForm mdFormModule');
+		assert.strictEqual(form.contextValue, 'metadataChild_form metadataObjectForm mdFormModule');
 		assert.deepStrictEqual(form.command?.arguments, [form]);
 		assert.strictEqual(template.command, undefined, 'клик открывает только форму');
-		assert.strictEqual(template.contextValue, 'metadataObjectChildReadonly');
+		assert.strictEqual(template.contextValue, 'metadataChild_template');
 	});
 });
 
@@ -425,7 +431,8 @@ suite('metadataTreeView object modules', () => {
 		assert.strictEqual(commonForm.contextValue, 'metadataObjectProperties mdFormModule');
 		assert.strictEqual(defaultMetadataLeafOpenCommand(commonForm), '1c-platform-tools.metadata.openForm');
 		assert.strictEqual(commonForm.command?.command, '1c-platform-tools.metadata.openForm');
-		assert.strictEqual(metadataLeafReadsObjectProperties(commonForm), false);
+		// Свойства общей формы лежат в её собственном XML: палитра их читает
+		assert.strictEqual(metadataLeafReadsObjectProperties(commonForm), true);
 
 		const commonModule = leaf('CommonModule', 'Общий', 'src/cf/CommonModules/Общий.xml');
 		assert.strictEqual(defaultMetadataLeafOpenCommand(commonModule), '1c-platform-tools.metadata.openModule');

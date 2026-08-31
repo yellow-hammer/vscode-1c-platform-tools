@@ -102,7 +102,7 @@ export interface TreeGroup {
  */
 export const TREE_GROUPS: TreeGroup[] = [
 	{
-		groupLabel: 'Информационные базы',
+		groupLabel: 'Информационная база',
 		sectionType: 'infobase',
 		defaultCollapsibleState: 'collapsed',
 		commands: [

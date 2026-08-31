@@ -21,6 +21,11 @@ import { mdSparrowSchemaFlagFromConfigurationXml } from './mdSparrowSchemaVersio
 import { offerGithubTokenOnRateLimit } from '../../shared/githubToken';
 import { ADOPTED_HINT, adoptedIcon, initAdoptedIcons, isAdopted } from './objectBelonging';
 import {
+	childKindIsMutatable,
+	childKindOfSection,
+	childKindSupportsDuplicate,
+} from './metadataChildMutations';
+import {
 	METADATA_OBJECT_NON_EXPANDABLE_TYPES,
 	METADATA_OBJECT_SECTION_SOURCES_BY_TYPE,
 	type MetadataObjectSectionSource,
@@ -615,15 +620,36 @@ export class MetadataObjectSectionTreeItem extends vscode.TreeItem {
 		public readonly owner: MetadataLeafTreeItem
 	) {
 		super(label, hasChildren ? vscode.TreeItemCollapsibleState.Collapsed : vscode.TreeItemCollapsibleState.None);
-		if (sectionKind === 'attributes') {
-			this.contextValue = 'metadataAttributesSection';
-		} else if (sectionKind === 'tabularSections') {
-			this.contextValue = 'metadataTabularSectionsSection';
-		} else {
-			this.contextValue = 'metadataObjectSection';
-		}
+		// Токен вместо перечисления видов в условиях меню: новый вид раздела
+		// получает пункт «Добавить» сам, как только md-sparrow научится его создавать
+		this.contextValue = childKindOfSection(sectionKind)
+			? 'metadataObjectSection mdSectionAdd'
+			: 'metadataObjectSection';
 		this.iconPath = metadataSectionIcon(sectionKind, extensionUri);
 	}
+}
+
+/**
+ * contextValue узла состава: вид узла плюс токены возможностей.
+ *
+ * Меню отбирает по токенам, поэтому подключение нового вида к md-sparrow не
+ * требует правки условий в манифесте.
+ */
+export function childNodeContextValue(nodeKind: MetadataNodeKind): string {
+	const parts = [`metadataChild_${nodeKind}`];
+	if (nodeKind === 'form') {
+		parts.push('metadataObjectForm', 'mdFormModule');
+	}
+	if (childKindIsMutatable(nodeKind)) {
+		parts.push('mdChildEdit');
+	}
+	if (childKindSupportsDuplicate(nodeKind)) {
+		parts.push('mdChildDuplicate');
+	}
+	if (nodeKind === 'tabularSection') {
+		parts.push('mdChildAdd');
+	}
+	return parts.join(' ');
 }
 
 export class MetadataObjectNodeTreeItem extends vscode.TreeItem {
@@ -638,22 +664,15 @@ export class MetadataObjectNodeTreeItem extends vscode.TreeItem {
 		public readonly tabularSectionName?: string
 	) {
 		super(label, hasChildren ? vscode.TreeItemCollapsibleState.Collapsed : vscode.TreeItemCollapsibleState.None);
-		if (nodeKind === 'attribute') {
-			this.contextValue = 'metadataAttribute';
+		this.contextValue = childNodeContextValue(nodeKind);
+		if (nodeKind === 'attribute' || nodeKind === 'tabularAttribute') {
 			this.iconPath = metadataSvgIcon(extensionUri, 'attribute.svg');
 			return;
 		}
 		if (nodeKind === 'tabularSection') {
-			this.contextValue = 'metadataTabularSection';
 			this.iconPath = metadataSvgIcon(extensionUri, 'tabularSection.svg');
 			return;
 		}
-		if (nodeKind === 'tabularAttribute') {
-			this.contextValue = 'metadataTabularAttribute';
-			this.iconPath = metadataSvgIcon(extensionUri, 'attribute.svg');
-			return;
-		}
-		this.contextValue = nodeKind === 'form' ? 'metadataObjectForm mdFormModule' : 'metadataObjectChildReadonly';
 		this.iconPath = metadataNodeKindIcon(nodeKind, extensionUri);
 		if (nodeKind === 'form') {
 			this.command = {

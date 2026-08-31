@@ -82,6 +82,78 @@ suite('заголовки команд', () => {
 	});
 });
 
+/**
+ * Слово категории в нижнем регистре: палитра показывает «категория: заголовок»,
+ * и объект, названный категорией, в заголовке не повторяется.
+ *
+ * Список закрытый: категории, где слово в заголовке законно (у «1С: Конфигурация»
+ * это «Загрузить конфигурацию из src/cf» - имя того же действия в журнале), сюда
+ * не заводятся.
+ */
+const CATEGORY_STEMS = new Map<string, string>([
+	['1С: Метаданные', 'метаданн'],
+	['1С: Кластеры', 'кластер'],
+	['1С: Администрирование', 'администрирован'],
+	['1С: Список дел', 'список дел'],
+	['1С: Артефакты', 'артефакт'],
+	['1С: Инструменты', 'инструмент'],
+	['1С: Задачи', 'задач'],
+	['1С: Сеансы', 'сеанс'],
+	['1С: Конфигурации запуска', 'конфигурации запуска'],
+	['1С: Служебные файлы', 'служебн'],
+	['1С: Внешние файлы', 'внешн'],
+	['1С: Автономный сервер', 'автономн'],
+	['1С: Пайплайны', 'пайплайн'],
+	['1С: Хуки', 'хук'],
+	['1С: Отладка', 'отладк'],
+	['1С: Свойства', 'свойств'],
+]);
+
+/** Заголовки, которым повтор нужен, с причиной. */
+const CATEGORY_IN_TITLE_ALLOWED = new Map<string, string>([
+	// Кнопка стоит в заголовке панели инструментов: там подпись без объекта не читается
+	['1c-platform-tools.todo.showPanel', 'кнопка в чужой панели'],
+]);
+
+suite('заголовок и категория', () => {
+	test('заголовок не повторяет категорию', () => {
+		const stuttering: string[] = [];
+		for (const command of paletteCommands()) {
+			const stem = command.category ? CATEGORY_STEMS.get(command.category) : undefined;
+			if (!stem || CATEGORY_IN_TITLE_ALLOWED.has(command.command)) {
+				continue;
+			}
+			if (command.title.toLowerCase().includes(stem)) {
+				stuttering.push(`${command.command}: «${command.category}: ${command.title}»`);
+			}
+		}
+		assert.deepStrictEqual(
+			stuttering,
+			[],
+			`палитра показывает «категория: заголовок», объект назван дважды: ${stuttering.join('; ')}`
+		);
+	});
+
+	test('словарь категорий не разъехался с манифестом', () => {
+		const declared = new Set(contributes().commands.map((command) => command.category).filter(Boolean));
+		const stale = [...CATEGORY_STEMS.keys()].filter((category) => !declared.has(category));
+		assert.deepStrictEqual(stale, [], `категорий нет в манифесте: ${stale.join(', ')}`);
+	});
+
+	test('список разрешённых повторов не протух', () => {
+		const byId = new Map(contributes().commands.map((command) => [command.command, command]));
+		const stale: string[] = [];
+		for (const id of CATEGORY_IN_TITLE_ALLOWED.keys()) {
+			const command = byId.get(id);
+			const stem = command?.category ? CATEGORY_STEMS.get(command.category) : undefined;
+			if (!command || !stem || !command.title.toLowerCase().includes(stem)) {
+				stale.push(id);
+			}
+		}
+		assert.deepStrictEqual(stale, [], `повтор уже убран: ${stale.join(', ')}`);
+	});
+});
+
 suite('идентификаторы команд', () => {
 	test('действие называется в домене объекта, без параллельных групп', () => {
 		// build.configuration и configuration.build раньше вызывали один

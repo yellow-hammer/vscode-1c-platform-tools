@@ -7,9 +7,15 @@ import {
 } from './mdSparrowBootstrap';
 import { parseMdBoilerplateKindFromCommandArgs } from './metadataBoilerplateNames';
 import {
-	openExternalArtifactPropertiesPanel,
-	type ExternalArtifactPropertiesDto,
-} from './metadataExternalArtifactPropertiesPanel';
+	childKindAddedMessage,
+	childKindIsMutatable,
+	childKindNeedsTabularSection,
+	childKindOfSection,
+	childKindTitle,
+	childMutationOp,
+	type ChildMutationMode,
+	type MutatableChildKind,
+} from './metadataChildMutations';
 import { createMdSparrowMutationRunner } from './mdSparrowMutationQueue';
 import type { MetadataFilterViewProvider } from './metadataFilterView';
 import { MetadataSearchViewProvider } from './metadataSearchView';
@@ -516,112 +522,27 @@ export function registerMetadataFeature(
 		}
 	}
 
-	async function loadExternalArtifactPropertiesDto(
-		objectXmlPath: string,
-		cwd: string
-	): Promise<{ schema: string; dto: ExternalArtifactPropertiesDto }> {
-		const schema = await mdSparrowSchemaFlagFromConfigurationXml(objectXmlPath);
-		const runtime = await ensureMdSparrowRuntime(context);
-		const getRes = await runMdSparrowParamsRead(
-			runtime,
-			{ op: 'external-artifact-properties-get', objectXml: objectXmlPath, schemaVersion: schema },
-			{ cwd }
-		);
-		if (getRes.exitCode !== 0) {
-			const errText = (getRes.stderr.trim() || getRes.stdout.trim() || `код ${getRes.exitCode}`).slice(
-				0,
-				MD_SPARROW_CLI_ERR_PREVIEW
-			);
-			throw new Error(errText);
-		}
-		type ExternalDto = { name?: string; synonymRu?: string; comment?: string; kind?: 'REPORT' | 'DATA_PROCESSOR' };
-		let externalDto: ExternalDto;
-		try {
-			externalDto = JSON.parse(getRes.stdout.trim()) as ExternalDto;
-		} catch {
-			throw new Error('Не удалось разобрать свойства внешнего объекта.');
-		}
-		const dto: ExternalArtifactPropertiesDto = {
-			kind: externalDto.kind === 'DATA_PROCESSOR' ? 'DATA_PROCESSOR' : 'REPORT',
-			name: String(externalDto.name ?? ''),
-			synonymRu: String(externalDto.synonymRu ?? ''),
-			comment: String(externalDto.comment ?? ''),
-		};
-		return { schema, dto };
-	}
-
-	async function saveExternalArtifactPropertiesDto(
-		objectXmlPath: string,
-		cwd: string,
-		schema: string,
-		dto: ExternalArtifactPropertiesDto
-	): Promise<boolean> {
-		try {
-			const payload = {
-				name: dto.name,
-				synonymRu: dto.synonymRu,
-				comment: dto.comment,
-			};
-			const runtime = await ensureMdSparrowRuntime(context);
-			const setRes = await runMdSparrowParamsMutation(
-				runtime,
-				{
-					op: 'external-artifact-properties-set',
-					objectXml: objectXmlPath,
-					schemaVersion: schema,
-					payloadJson: JSON.stringify(payload),
-				},
-				{ cwd }
-			);
-			if (setRes.exitCode !== 0) {
-				const errText = (setRes.stderr.trim() || setRes.stdout.trim() || `код ${setRes.exitCode}`).slice(
-					0,
-					MD_SPARROW_CLI_ERR_PREVIEW
-				);
-				void vscode.window.showErrorMessage(errText);
-				return false;
-			}
-			return true;
-		} catch (e) {
-			const msg = e instanceof Error ? e.message : String(e);
-			void vscode.window.showErrorMessage(msg.slice(0, MD_SPARROW_CLI_ERR_PREVIEW));
-			return false;
-		}
-	}
-
+	/**
+	 * Свойства внешнего отчёта или обработки: та же вкладка, что у объекта
+	 * конфигурации. Отдельная форма показывала только имя, синоним и комментарий
+	 * и выглядела совсем иначе.
+	 */
 	async function openExternalArtifactPropertiesEditor(
 		objectXmlPath: string,
-		label: string,
 		objectType: 'ExternalReport' | 'ExternalDataProcessor'
 	): Promise<void> {
 		const cwd = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath ?? path.dirname(objectXmlPath);
-		await runMdSparrowMutation(async () => {
-			try {
-				const { schema, dto } = await loadExternalArtifactPropertiesDto(objectXmlPath, cwd);
-				await openExternalArtifactPropertiesPanel(
-					context,
-					label,
-					objectXmlPath,
-					dto,
-					async (nextDto) => {
-						const saved = await saveExternalArtifactPropertiesDto(
-							objectXmlPath,
-							cwd,
-							schema,
-							nextDto
-						);
-						if (!saved) {
-							return false;
-						}
-						notifyQuiet('Свойства сохранены.');
-						await metadataTreeProvider.refresh();
-						return true;
-					}
-				);
-			} catch (e) {
-				const msg = e instanceof Error ? e.message : String(e);
-				void vscode.window.showErrorMessage(msg.slice(0, MD_SPARROW_CLI_ERR_PREVIEW));
-			}
+		const schemaFlag = await mainSchemaFlag();
+		if (!schemaFlag) {
+			void vscode.window.showWarningMessage('Не удалось определить схему для чтения свойств.');
+			return;
+		}
+		await openMetadataObjectPropertiesEditor(context, {
+			objectXmlFsPath: objectXmlPath,
+			schemaFlag,
+			cwd,
+			objectType,
+			enqueueMutation: runMdSparrowMutation,
 		});
 	}
 
@@ -715,27 +636,17 @@ export function registerMetadataFeature(
 		return undefined;
 	}
 
-	type MutatableChildNodeKind = 'attribute' | 'tabularSection' | 'tabularAttribute';
 	type MutatableChildNode = MetadataObjectNodeTreeItem & {
-		nodeKind: MutatableChildNodeKind;
-		owner: MetadataLeafTreeItem & {
-			resourceUri: vscode.Uri;
-			configurationXmlAbs: string;
-			metadataRootAbs: string;
-		};
+		nodeKind: MutatableChildKind;
+		owner: MetadataLeafTreeItem & { resourceUri: vscode.Uri };
 	};
-	type ChildNodeMutationMode = 'rename' | 'delete' | 'duplicate';
-
-	function isMutatableChildNodeKind(kind: MetadataObjectNodeTreeItem['nodeKind']): kind is MutatableChildNodeKind {
-		return kind === 'attribute' || kind === 'tabularSection' || kind === 'tabularAttribute';
-	}
 
 	/**
-	 * Возвращает выбранный дочерний узел МД для операций rename/delete/duplicate.
+	 * Возвращает выбранный узел состава для операций rename/delete/duplicate.
 	 *
 	 * @param item Узел из контекстного меню.
-	 * @param unsupportedMessage Текст для неподдерживаемых узлов.
-	 * @returns Узел с поддерживаемым типом или `undefined`, если операция невозможна.
+	 * @param unsupportedMessage Текст для видов узлов, которых md-sparrow не правит.
+	 * @returns Узел с поддерживаемым видом или {@code undefined}.
 	 */
 	function resolveChildNodeForMutation(
 		item: MetadataObjectNodeTreeItem | undefined,
@@ -746,11 +657,11 @@ export function registerMetadataFeature(
 			void vscode.window.showInformationMessage('Выберите узел метаданных.');
 			return undefined;
 		}
-		if (!node.owner.resourceUri || !node.owner.configurationXmlAbs || !node.owner.metadataRootAbs) {
-			void vscode.window.showInformationMessage('Недостаточно данных для операции.');
+		if (!node.owner.resourceUri) {
+			void vscode.window.showInformationMessage('У объекта нет файла в выгрузке.');
 			return undefined;
 		}
-		if (!isMutatableChildNodeKind(node.nodeKind)) {
+		if (!childKindIsMutatable(node.nodeKind)) {
 			void vscode.window.showInformationMessage(unsupportedMessage);
 			return undefined;
 		}
@@ -767,48 +678,21 @@ export function registerMetadataFeature(
 	 */
 	function buildChildNodeMutationParams(
 		node: MutatableChildNode,
-		mode: ChildNodeMutationMode,
+		mode: Exclude<ChildMutationMode, 'add'>,
 		name: string
 	): MdSparrowParams {
-		const objectXmlPath = node.owner.resourceUri.fsPath;
-		if (node.nodeKind === 'attribute') {
-			if (mode === 'rename') {
-				return { op: 'cf-md-attribute-rename', objectXml: objectXmlPath, oldName: node.name, newName: name };
-			}
-			if (mode === 'delete') {
-				return { op: 'cf-md-attribute-delete', objectXml: objectXmlPath, name };
-			}
-			return { op: 'cf-md-attribute-duplicate', objectXml: objectXmlPath, sourceName: node.name, newName: name };
-		}
-		if (node.nodeKind === 'tabularSection') {
-			if (mode === 'rename') {
-				return { op: 'cf-md-tabular-section-rename', objectXml: objectXmlPath, oldName: node.name, newName: name };
-			}
-			if (mode === 'delete') {
-				return { op: 'cf-md-tabular-section-delete', objectXml: objectXmlPath, name };
-			}
-			return { op: 'cf-md-tabular-section-duplicate', objectXml: objectXmlPath, sourceName: node.name, newName: name };
-		}
-		const tabularSectionName = node.tabularSectionName ?? '';
+		const objectXml = node.owner.resourceUri.fsPath;
+		const op = childMutationOp(node.nodeKind, mode);
+		const inside = childKindNeedsTabularSection(node.nodeKind)
+			? { tabularSection: node.tabularSectionName ?? '' }
+			: {};
 		if (mode === 'rename') {
-			return {
-				op: 'cf-md-tabular-attribute-rename',
-				objectXml: objectXmlPath,
-				tabularSection: tabularSectionName,
-				oldName: node.name,
-				newName: name,
-			};
+			return { op, objectXml, ...inside, oldName: node.name, newName: name };
 		}
 		if (mode === 'delete') {
-			return { op: 'cf-md-tabular-attribute-delete', objectXml: objectXmlPath, tabularSection: tabularSectionName, name };
+			return { op, objectXml, ...inside, name };
 		}
-		return {
-			op: 'cf-md-tabular-attribute-duplicate',
-			objectXml: objectXmlPath,
-			tabularSection: tabularSectionName,
-			sourceName: node.name,
-			newName: name,
-		};
+		return { op, objectXml, ...inside, sourceName: node.name, newName: name };
 	}
 
 	/**
@@ -824,12 +708,19 @@ export function registerMetadataFeature(
 		params: MdSparrowParams,
 		successMessage: string
 	): Promise<void> {
-		const schema = await mdSparrowSchemaFlagFromConfigurationXml(node.owner.configurationXmlAbs);
+		// У внешних отчётов и обработок Configuration.xml нет: версия берётся у основной
+		const schema = node.owner.configurationXmlAbs
+			? await mdSparrowSchemaFlagFromConfigurationXml(node.owner.configurationXmlAbs)
+			: await mainSchemaFlag();
+		if (!schema) {
+			void vscode.window.showWarningMessage('Не удалось определить схему для правки состава.');
+			return;
+		}
 		const runtime = await ensureMdSparrowRuntime(context);
 		const res = await runMdSparrowParamsMutation(
 			runtime,
 			{ ...params, schemaVersion: schema },
-			{ cwd: node.owner.metadataRootAbs }
+			{ cwd: node.owner.metadataRootAbs ?? path.dirname(node.owner.resourceUri.fsPath) }
 		);
 		if (res.exitCode !== 0) {
 			const errText = (res.stderr.trim() || res.stdout.trim() || `код ${res.exitCode}`).slice(
@@ -1309,100 +1200,41 @@ export function registerMetadataFeature(
 		),
 		vscode.commands.registerCommand(
 			'1c-platform-tools.metadata.addChildNode',
-			async (item?: MetadataObjectNodeTreeItem | MetadataObjectSectionTreeItem | MetadataLeafTreeItem) => {
+			async (item?: MetadataObjectNodeTreeItem | MetadataObjectSectionTreeItem) => {
 				await runMdSparrowMutation(async () => {
 					const selected = item ?? metadataTreeView.selection[0];
+					// Добавляют внутрь раздела; табличная часть - тоже раздел, для своих реквизитов
 					let leaf: MetadataLeafTreeItem | undefined;
-					let params: MdSparrowParams | undefined;
-					let okText: string | undefined;
+					let kind: MutatableChildKind | undefined;
+					let tabularSection: string | undefined;
 					if (selected instanceof MetadataObjectNodeTreeItem && selected.nodeKind === 'tabularSection') {
 						leaf = selected.owner;
-						const name = await vscode.window.showInputBox({
-							title: 'Новый реквизит табличной части',
-							placeHolder: 'Имя реквизита',
-							validateInput: (value) => (!value.trim() ? 'Введите имя.' : null),
-						});
-						if (!name) {
-							return;
-						}
-						params = {
-							op: 'cf-md-tabular-attribute-add',
-							objectXml: leaf.resourceUri?.fsPath ?? '',
-							tabularSection: selected.name,
-							name: name.trim(),
-						};
-						okText = `Реквизит добавлен в табличную часть «${selected.name}».`;
+						kind = 'tabularAttribute';
+						tabularSection = selected.name;
 					} else if (selected instanceof MetadataObjectSectionTreeItem) {
 						leaf = selected.owner;
-						if (selected.sectionKind !== 'attributes' && selected.sectionKind !== 'tabularSections') {
-							void vscode.window.showWarningMessage('В этом разделе добавление не поддерживается.');
-							return;
-						}
-						const title =
-							selected.sectionKind === 'attributes' ? 'Новый реквизит' : 'Новая табличная часть';
-						const name = await vscode.window.showInputBox({
-							title,
-							placeHolder: 'Имя',
-							validateInput: (value) => (!value.trim() ? 'Введите имя.' : null),
-						});
-						if (!name) {
-							return;
-						}
-						params =
-							selected.sectionKind === 'attributes'
-								? { op: 'cf-md-attribute-add', objectXml: leaf.resourceUri?.fsPath ?? '', name: name.trim() }
-								: {
-										op: 'cf-md-tabular-section-add',
-										objectXml: leaf.resourceUri?.fsPath ?? '',
-										name: name.trim(),
-									};
-						okText =
-							selected.sectionKind === 'attributes'
-								? `Реквизит «${name.trim()}» добавлен.`
-								: `Табличная часть «${name.trim()}» добавлена.`;
-					} else if (selected instanceof MetadataLeafTreeItem) {
-						leaf = selected;
-						const kind = await vscode.window.showQuickPick(
-							[
-								{ label: 'Реквизит', value: 'attribute' as const },
-								{ label: 'Табличная часть', value: 'tabularSection' as const },
-							],
-							{ title: 'Что добавить?' }
-						);
+						kind = childKindOfSection(selected.sectionKind);
 						if (!kind) {
+							void vscode.window.showWarningMessage('В этот раздел добавление не поддерживается.');
 							return;
 						}
-						const name = await vscode.window.showInputBox({
-							title: kind.value === 'attribute' ? 'Новый реквизит' : 'Новая табличная часть',
-							placeHolder: 'Имя',
-							validateInput: (value) => (!value.trim() ? 'Введите имя.' : null),
-						});
-						if (!name) {
-							return;
-						}
-						params =
-							kind.value === 'attribute'
-								? { op: 'cf-md-attribute-add', objectXml: leaf.resourceUri?.fsPath ?? '', name: name.trim() }
-								: {
-										op: 'cf-md-tabular-section-add',
-										objectXml: leaf.resourceUri?.fsPath ?? '',
-										name: name.trim(),
-									};
-						okText =
-							kind.value === 'attribute'
-								? `Реквизит «${name.trim()}» добавлен.`
-								: `Табличная часть «${name.trim()}» добавлена.`;
 					} else {
-						void vscode.window.showInformationMessage('Выберите объект или табличную часть.');
+						void vscode.window.showInformationMessage('Выберите раздел объекта или табличную часть.');
 						return;
 					}
-
 					if (!leaf.resourceUri) {
 						void vscode.window.showInformationMessage('У объекта нет файла в выгрузке.');
 						return;
 					}
-					// Состав правится по XML самого объекта, Configuration.xml не нужен:
-					// у внешних отчётов и обработок его нет, а реквизиты у них бывают
+					const name = await vscode.window.showInputBox({
+						title: childKindTitle(kind),
+						placeHolder: 'Имя',
+						validateInput: (value) => (!value.trim() ? 'Введите имя.' : null),
+					});
+					if (!name) {
+						return;
+					}
+					// Состав правится по XML объекта: Configuration.xml нужен только для версии формата
 					const schema = leaf.configurationXmlAbs
 						? await mdSparrowSchemaFlagFromConfigurationXml(leaf.configurationXmlAbs)
 						: await mainSchemaFlag();
@@ -1411,9 +1243,17 @@ export function registerMetadataFeature(
 						return;
 					}
 					const runtime = await ensureMdSparrowRuntime(context);
-					const res = await runMdSparrowParamsMutation(runtime, { ...params, schemaVersion: schema }, {
-						cwd: leaf.metadataRootAbs ?? path.dirname(leaf.resourceUri.fsPath),
-					});
+					const res = await runMdSparrowParamsMutation(
+						runtime,
+						{
+							op: childMutationOp(kind, 'add'),
+							objectXml: leaf.resourceUri.fsPath,
+							...(tabularSection ? { tabularSection } : {}),
+							name: name.trim(),
+							schemaVersion: schema,
+						},
+						{ cwd: leaf.metadataRootAbs ?? path.dirname(leaf.resourceUri.fsPath) }
+					);
 					if (res.exitCode !== 0) {
 						const errText = (res.stderr.trim() || res.stdout.trim() || `код ${res.exitCode}`).slice(
 							0,
@@ -1423,7 +1263,7 @@ export function registerMetadataFeature(
 						return;
 					}
 					await metadataTreeProvider.refresh();
-					void vscode.window.showInformationMessage(okText);
+					notifyQuiet(childKindAddedMessage(kind, name.trim()));
 				});
 			}
 		),
@@ -1730,11 +1570,7 @@ export function registerMetadataFeature(
 						return;
 					}
 					if (items.length === 1) {
-						await openExternalArtifactPropertiesEditor(
-							items[0].xmlPath,
-							items[0].name,
-							items[0].objectType
-						);
+						await openExternalArtifactPropertiesEditor(items[0].xmlPath, items[0].objectType);
 						return;
 					}
 					const picked = await vscode.window.showQuickPick(
@@ -1744,11 +1580,7 @@ export function registerMetadataFeature(
 					if (!picked) {
 						return;
 					}
-					await openExternalArtifactPropertiesEditor(
-						picked.item.xmlPath,
-						picked.item.name,
-						picked.item.objectType
-					);
+					await openExternalArtifactPropertiesEditor(picked.item.xmlPath, picked.item.objectType);
 					return;
 				}
 				const node = resolveSelectedMetadataLeaf(
@@ -1761,14 +1593,8 @@ export function registerMetadataFeature(
 				if (node.objectType === 'ExternalReport' || node.objectType === 'ExternalDataProcessor') {
 					await openExternalArtifactPropertiesEditor(
 						node.resourceUri.fsPath,
-						node.name,
 						node.objectType as 'ExternalReport' | 'ExternalDataProcessor'
 					);
-					return;
-				}
-				// У общей формы свойства лежат в самой форме
-				if (isMetadataCommonForm(node.objectType)) {
-					await openCommonFormFromLeaf(node);
 					return;
 				}
 				await openObjectPropertiesTab(node);

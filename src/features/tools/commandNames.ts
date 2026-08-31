@@ -684,7 +684,7 @@ export function getCreateDeliveryDescriptionFileCommandName(): CommandNameAndTit
 	return {
 		id: '1c-platform-tools.support.createDeliveryDescriptionFile',
 		name: 'Создать файл описания шаблона поставки',
-		title: 'Создать файл описания шаблона поставки'
+		title: 'Создать файл описания шаблона'
 	};
 }
 
@@ -842,7 +842,7 @@ export function getOpenPipelineEditorCommandName(): CommandNameAndTitle {
 	return {
 		id: '1c-platform-tools.pipelines.openEditor',
 		name: 'Открыть редактор пайплайнов',
-		title: 'Открыть редактор пайплайнов'
+		title: 'Открыть редактор'
 	};
 }
 
@@ -853,7 +853,7 @@ export function getOpenHooksEditorCommandName(): CommandNameAndTitle {
 	return {
 		id: '1c-platform-tools.hooks.openEditor',
 		name: 'Открыть редактор хуков',
-		title: 'Открыть редактор хуков'
+		title: 'Открыть редактор'
 	};
 }
 

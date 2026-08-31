@@ -297,7 +297,7 @@ async function showServerMenu(manager: PlatformServerManager): Promise<void> {
 		{ label: '$(debug-alt) Отладка через сервер', action: 'debug' },
 		{ label: '', kind: vscode.QuickPickItemKind.Separator, action: 'logs' },
 		{ label: '$(output) Показать журнал', action: 'logs' },
-		{ label: '$(settings-gear) Открыть конфиг публикации', action: 'config' }
+		{ label: '$(settings-gear) Открыть publication.yaml', action: 'config' }
 	);
 
 	const picked = await vscode.window.showQuickPick(items, {

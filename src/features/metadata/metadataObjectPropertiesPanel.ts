@@ -1325,8 +1325,31 @@ function buildSimpleEditableTabs(
 		case 'accumulationRegister':
 			return buildRegisterEditTabs({ ...input, information: false });
 		default:
-			return undefined;
+			// У вида без своей спеки правятся хотя бы синоним и комментарий:
+			// их пишет общий путь cf-md-object-set. Иначе вкладка открывалась
+			// пустой у формы, макета и всех прочих видов без описания.
+			return buildBasicEditTabs();
 	}
+}
+
+/** Вкладка «Основные» для вида без своей спеки: имя, синоним, комментарий. */
+function buildBasicEditTabs(): MetadataEditTabSpec[] {
+	return [
+		{
+			id: 'basic_main',
+			title: 'Основные',
+			groups: [
+				{
+					title: 'Основные',
+					fields: [
+						{ path: 'internalName', label: 'Имя', control: 'text', readonly: true },
+						{ path: 'synonymRu', label: 'Синоним', control: 'text' },
+						{ path: 'comment', label: 'Комментарий', control: 'text' },
+					],
+				},
+			],
+		},
+	];
 }
 
 function simpleKindProps(props: MdObjectPropertiesDto): Record<string, unknown> | undefined {

@@ -66,12 +66,15 @@ const NODES = {
 	role: 'metadataObjectProperties',
 	externalArtifact: 'metadataLeafFile',
 	leafNoFile: 'metadataLeafNoFile',
-	attributesSection: 'metadataAttributesSection',
+	attributesSection: 'metadataObjectSection mdSectionAdd',
 	otherSection: 'metadataObjectSection',
-	attribute: 'metadataAttribute',
-	tabularSection: 'metadataTabularSection',
-	objectForm: 'metadataObjectForm mdFormModule',
-	readonlyChild: 'metadataObjectChildReadonly',
+	dimensionsSection: 'metadataObjectSection mdSectionAdd',
+	attribute: 'metadataChild_attribute mdChildEdit mdChildDuplicate',
+	tabularSection: 'metadataChild_tabularSection mdChildEdit mdChildDuplicate mdChildAdd',
+	objectForm: 'metadataChild_form metadataObjectForm mdFormModule',
+	readonlyChild: 'metadataChild_template',
+	dimension: 'metadataChild_dimension mdChildEdit mdChildDuplicate',
+	command: 'metadataChild_command mdChildEdit',
 };
 
 suite('контекстное меню дерева метаданных', () => {
@@ -129,6 +132,27 @@ suite('контекстное меню дерева метаданных', () =>
 		]) {
 			assert.ok(menuFor(viewItem).includes('Открыть ER-диаграмму объекта'), `нет ER у ${viewItem}`);
 		}
+	});
+
+	test('измерение, ресурс, значение и команда правятся наравне с реквизитом', () => {
+		// md-sparrow умеет их все; раньше в меню были подключены только три вида
+		for (const viewItem of [NODES.attribute, NODES.dimension, NODES.command]) {
+			const menu = menuFor(viewItem);
+			assert.ok(menu.includes('Переименовать'), `нет «Переименовать» у ${viewItem}`);
+			assert.ok(menu.includes('Удалить'), `нет «Удалить» у ${viewItem}`);
+		}
+		// Дублирования команды объекта md-sparrow не умеет: пункта нет
+		assert.ok(menuFor(NODES.dimension).includes('Дублировать'));
+		assert.ok(!menuFor(NODES.command).includes('Дублировать'));
+		// Макет не правится вовсе: только свойства
+		assert.deepStrictEqual(menuFor(NODES.readonlyChild), ['Свойства']);
+	});
+
+	test('«Добавить» есть у каждого раздела, куда md-sparrow умеет добавлять', () => {
+		for (const viewItem of [NODES.attributesSection, NODES.dimensionsSection, NODES.tabularSection]) {
+			assert.ok(menuFor(viewItem).includes('Добавить'), `нет «Добавить» у ${viewItem}`);
+		}
+		assert.ok(!menuFor(NODES.otherSection).includes('Добавить'));
 	});
 
 	test('у формы два XML: описание и содержимое', () => {

@@ -18,13 +18,31 @@ export interface ChildNodeDto extends Record<string, unknown> {
 	typeText?: string;
 }
 
-/** Поле DTO объекта, в котором лежит узел этого вида; пусто - вид правке не поддаётся. */
+/**
+ * Поле DTO объекта, в котором лежит узел этого вида.
+ *
+ * Список полный: md-sparrow читает свойства у всех видов состава. Реквизит
+ * табличной части лежит внутри своей части, поэтому у него своего поля нет -
+ * его ищет {@link findChildNode} по имени части.
+ */
 const DTO_LIST_BY_NODE_KIND: Readonly<Record<string, string>> = {
 	attribute: 'attributes',
 	tabularSection: 'tabularSections',
 	value: 'enumValues',
 	dimension: 'dimensions',
 	resource: 'resources',
+	command: 'commands',
+	column: 'columns',
+	accountingFlag: 'accountingFlags',
+	extDimensionAccountingFlag: 'extDimensionAccountingFlags',
+	addressingAttribute: 'addressingAttributes',
+	recalculation: 'recalculations',
+	operation: 'operations',
+	urlTemplate: 'urlTemplates',
+	channel: 'channels',
+	table: 'tables',
+	cube: 'cubes',
+	function: 'functions',
 };
 
 /** Название вида узла для подзаголовка палитры. */
@@ -66,18 +84,43 @@ export function childNodeDtoList(nodeKind: string): string | undefined {
  * @param editable Узел лежит в списке, который умеет писать `cf-md-object-set`.
  */
 export function childNodeTabs(editable: boolean): readonly MetadataEditTabSpec[] {
+	// У вида узла, которого нет в свойствах объекта, читается только имя: пустые
+	// «Синоним» и «Тип» выглядели бы как потерянные значения
+	const fields = editable
+		? [
+				{ path: 'name', label: 'Имя', control: 'text' as const, readonly: true },
+				{ path: 'synonymRu', label: 'Синоним', control: 'text' as const },
+				{ path: 'comment', label: 'Комментарий', control: 'text' as const },
+				{ path: 'typeText', label: 'Тип', control: 'text' as const, readonly: true },
+			]
+		: [{ path: 'name', label: 'Имя', control: 'text' as const, readonly: true }];
 	return [
 		{
 			id: 'child_main',
+			title: 'Основные',
+			groups: [{ title: 'Основные', fields }],
+		},
+	];
+}
+
+/**
+ * Спека формы и макета: у них свой файл описания, а свойств в нём немного.
+ *
+ * Имя правится переименованием узла, синоним и комментарий пишет
+ * {@code cf-md-object-set}.
+ */
+export function descriptorTabs(): readonly MetadataEditTabSpec[] {
+	return [
+		{
+			id: 'descriptor_main',
 			title: 'Основные',
 			groups: [
 				{
 					title: 'Основные',
 					fields: [
-						{ path: 'name', label: 'Имя', control: 'text', readonly: true },
-						{ path: 'synonymRu', label: 'Синоним', control: 'text', readonly: !editable },
-						{ path: 'comment', label: 'Комментарий', control: 'text', readonly: !editable },
-						{ path: 'typeText', label: 'Тип', control: 'text', readonly: true },
+						{ path: 'internalName', label: 'Имя', control: 'text', readonly: true },
+						{ path: 'synonymRu', label: 'Синоним', control: 'text' },
+						{ path: 'comment', label: 'Комментарий', control: 'text' },
 					],
 				},
 			],
@@ -85,9 +128,38 @@ export function childNodeTabs(editable: boolean): readonly MetadataEditTabSpec[]
 	];
 }
 
-/** Узел из DTO объекта по имени: списки состава плоские, вложенности в них нет. */
-export function findChildNode(objectDto: Record<string, unknown>, listName: string, name: string): ChildNodeDto | undefined {
-	const list = objectDto[listName];
+/** Узел из DTO объекта по имени. */
+export function findChildNode(
+	objectDto: Record<string, unknown>,
+	listName: string,
+	name: string
+): ChildNodeDto | undefined {
+	return nodeFrom(objectDto[listName], name);
+}
+
+/**
+ * Реквизит табличной части: он лежит внутри своей части, а не отдельным списком.
+ *
+ * @param objectDto Свойства объекта
+ * @param tabularSection Имя табличной части
+ * @param name Имя реквизита
+ */
+export function findTabularAttribute(
+	objectDto: Record<string, unknown>,
+	tabularSection: string,
+	name: string
+): ChildNodeDto | undefined {
+	const sections = objectDto.tabularSections;
+	if (!Array.isArray(sections)) {
+		return undefined;
+	}
+	const section = sections.find((item) => (item as { name?: string }).name === tabularSection) as
+		| Record<string, unknown>
+		| undefined;
+	return section ? nodeFrom(section.attributes, name) : undefined;
+}
+
+function nodeFrom(list: unknown, name: string): ChildNodeDto | undefined {
 	if (!Array.isArray(list)) {
 		return undefined;
 	}

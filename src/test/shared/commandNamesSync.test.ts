@@ -20,6 +20,12 @@ const INTENDED_DIFFERENCES = new Map<string, string>([
 	['1c-platform-tools.cf.decompile', 'в журнале без путей: «Разобрать конфигурацию»'],
 	['1c-platform-tools.cfe.compile', 'в журнале без путей: «Собрать расширения»'],
 	['1c-platform-tools.cfe.decompile', 'в журнале без путей: «Разобрать расширения»'],
+	// В палитре объект называет категория «1С: Сеансы», в задаче и журнале - нет
+	['1c-platform-tools.session.lock', 'в журнале с объектом: «Запретить начало сеансов»'],
+	['1c-platform-tools.session.unlock', 'в журнале с объектом: «Разрешить начало сеансов»'],
+	['1c-platform-tools.session.kill', 'в журнале с объектом: «Завершить сеансы»'],
+	['1c-platform-tools.session.list', 'в журнале с объектом: «Показать сеансы»'],
+	['1c-platform-tools.session.checkClosed', 'в журнале с объектом: «Проверить отсутствие сеансов»'],
 ]);
 
 /**

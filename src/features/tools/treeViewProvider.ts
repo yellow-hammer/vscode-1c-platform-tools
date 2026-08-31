@@ -302,7 +302,7 @@ export class PlatformTreeDataProvider implements vscode.TreeDataProvider<Platfor
 		// env.json / autumn-properties.json, CI-файлы) зависит от версии vrunner,
 		// которая могла определиться уже после первого построения дерева.
 		if (element.groupId === 'serviceFiles') {
-			return Promise.resolve(this.buildServiceFilesChildren());
+			return this.buildServiceFilesChildren();
 		}
 
 		return Promise.resolve(element.children || []);
@@ -391,7 +391,7 @@ export class PlatformTreeDataProvider implements vscode.TreeDataProvider<Platfor
 	 * наличие в проекте и действие создать (если нет) или открыть (если есть).
 	 * @returns Массив элементов дерева
 	 */
-	private buildServiceFilesChildren(): PlatformTreeItem[] {
+	private async buildServiceFilesChildren(): Promise<PlatformTreeItem[]> {
 		const workspaceRoot = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
 		const items: PlatformTreeItem[] = [
 			this.createTreeItem(
@@ -432,9 +432,41 @@ export class PlatformTreeDataProvider implements vscode.TreeDataProvider<Platfor
 			);
 			item.tooltip = exists ? `Открыть ${spec.relPath}` : `Создать ${spec.relPath}`;
 			items.push(item);
+			// Типовые цепочки наполняют .1cpt/pipelines.json, поэтому стоят сразу за ним
+			if (spec.id === 'pipelines') {
+				items.push(await this.createPipelineTemplatesItem(workspaceRoot));
+			}
 		}
 
 		return items;
+	}
+
+	/**
+	 * Строка «Типовые пайплайны» рядом с файлом цепочек.
+	 *
+	 * Значок как у служебного файла: плюс, пока типовых цепочек в проекте нет,
+	 * и галка, когда они уже стоят.
+	 *
+	 * @param workspaceRoot Корень проекта; без него цепочки не читаются
+	 * @returns Элемент дерева
+	 */
+	private async createPipelineTemplatesItem(workspaceRoot: string | undefined): Promise<PlatformTreeItem> {
+		const pipelines = workspaceRoot ? await readPipelines(workspaceRoot) : [];
+		const installed = pipelines.some((pipeline) => pipeline.id.startsWith(PIPELINE_TEMPLATE_ID_PREFIX));
+		const item = this.createTreeItem(
+			'Типовые пайплайны',
+			TreeItemType.Task,
+			vscode.TreeItemCollapsibleState.None,
+			{ command: '1c-platform-tools.pipelines.addTemplates', title: 'Типовые пайплайны' },
+			undefined,
+			undefined,
+			undefined,
+			installed ? 'check' : 'add'
+		);
+		item.tooltip = installed
+			? 'Обновить типовые цепочки до поставляемых с расширением'
+			: 'Добавить в проект типовые цепочки шагов';
+		return item;
 	}
 
 	/**
@@ -470,11 +502,6 @@ export class PlatformTreeDataProvider implements vscode.TreeDataProvider<Platfor
 					cmd.icon
 				)
 			);
-
-			if (group.sectionType === 'serviceFiles') {
-				children.length = 0;
-				children.push(...this.buildServiceFilesChildren());
-			}
 
 			if (group.sectionType === 'setVersion') {
 				children.push(
@@ -655,25 +682,6 @@ export class PlatformTreeDataProvider implements vscode.TreeDataProvider<Platfor
 		}
 
 		const pipelines = await readPipelines(workspaceRoot);
-		// Как у служебных файлов: пока цепочек шаблона нет - плюс, когда стоят - галка.
-		const installed = pipelines.some((pipeline) => pipeline.id.startsWith(PIPELINE_TEMPLATE_ID_PREFIX));
-		const templates = this.createTreeItem(
-			'Типовые пайплайны',
-			TreeItemType.Task,
-			vscode.TreeItemCollapsibleState.None,
-			{
-				command: '1c-platform-tools.pipelines.addTemplates',
-				title: 'Типовые пайплайны',
-			},
-			undefined,
-			undefined,
-			undefined,
-			installed ? 'check' : 'add'
-		);
-		templates.tooltip = installed
-			? 'Обновить типовые цепочки до поставляемых с расширением'
-			: 'Добавить в проект типовые цепочки шагов';
-		items.push(templates);
 
 		// Клик по цепочке открывает её в редакторе: запуск - кнопкой в строке,
 		// иначе один промах мышью запускает команды по базе
