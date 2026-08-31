@@ -31,10 +31,10 @@ export function isAdopted(objectBelonging: unknown): boolean {
 const BADGE_GEOMETRY = {
 	centerX: 0.771,
 	centerY: 0.229,
-	radius: 0.177,
-	stroke: 0.042,
-	fontSize: 0.313,
-	baseline: 0.338,
+	radius: 0.24,
+	stroke: 0.063,
+	letterHeight: 0.23,
+	letterWidth: 0.19,
 } as const;
 
 /** Левый нижний угол: там стоит признак поддержки, чтобы не спорить с замком. */
@@ -45,6 +45,15 @@ const SUPPORT_GEOMETRY = {
 	radius: 0.042,
 } as const;
 
+/** Правый нижний угол: запрет изменения конфигурации целиком. */
+const EDITING_OFF_GEOMETRY = {
+	centerX: 0.792,
+	centerY: 0.792,
+	radius: 0.208,
+	bar: 0.229,
+	stroke: 0.063,
+} as const;
+
 /**
  * Виды значков.
  *
@@ -53,9 +62,11 @@ const SUPPORT_GEOMETRY = {
  * а не по форме дужки.
  */
 const BADGE_KINDS = {
-	adopted: { color: '#E1B74D', letter: '&#1040;' },
-	locked: { color: '#E8952D', letter: '' },
-	support: { color: '#D8C68A', letter: '' },
+	adopted: { color: '#E1B74D' },
+	locked: { color: '#E8952D' },
+	support: { color: '#D8C68A' },
+	// Запрет читается сразу, поэтому цвет свой на каждую тему
+	editingOff: { color: '#C0392B', darkColor: '#E05B4D' },
 } as const;
 
 type BadgeKind = keyof typeof BADGE_KINDS;
@@ -127,6 +138,7 @@ function badgeSvg(
 	theme: IconTheme
 ): string {
 	const paint = BADGE_KINDS[kind];
+	const color = theme === 'dark' && 'darkColor' in paint ? paint.darkColor : paint.color;
 	if (kind === 'support') {
 		const side = box.width * SUPPORT_GEOMETRY.side;
 		const x = box.x + box.width * SUPPORT_GEOMETRY.centerX - side / 2;
@@ -134,6 +146,23 @@ function badgeSvg(
 		return (
 			`\t<rect x="${round(x)}" y="${round(y)}" width="${round(side)}" height="${round(side)}"` +
 			` rx="${round(box.width * SUPPORT_GEOMETRY.radius)}" fill="${paint.color}"/>\n`
+		);
+	}
+	if (kind === 'editingOff') {
+		const centerX = box.x + box.width * EDITING_OFF_GEOMETRY.centerX;
+		const centerY = box.y + box.height * EDITING_OFF_GEOMETRY.centerY;
+		const radius = box.width * EDITING_OFF_GEOMETRY.radius;
+		const bar = box.width * EDITING_OFF_GEOMETRY.bar / 2;
+		return (
+			`	<circle cx="${round(centerX)}" cy="${round(centerY)}" r="${round(radius)}"` +
+			` fill="${color}" stroke="${BADGE_BACKING[theme]}"` +
+			` stroke-width="${round(box.width * EDITING_OFF_GEOMETRY.stroke)}"/>
+` +
+			`	<path d="M ${round(centerX - bar)} ${round(centerY + bar)}` +
+			` L ${round(centerX + bar)} ${round(centerY - bar)}"` +
+			` stroke="${BADGE_BACKING[theme]}" stroke-width="${round(box.width * EDITING_OFF_GEOMETRY.stroke)}"` +
+			` stroke-linecap="round" fill="none"/>
+`
 		);
 	}
 	const cx = box.x + box.width * BADGE_GEOMETRY.centerX;
@@ -145,12 +174,19 @@ function badgeSvg(
 			lockBadgeSvg(box, cx, cy, paint.color)
 		);
 	}
+	// Заимствование: залитый кружок с буквой, вырезанной цветом панели. Тонкий
+	// контур с текстом в размере дерева не читался
+	const half = (box.width * BADGE_GEOMETRY.letterHeight) / 2;
+	const side = (box.width * BADGE_GEOMETRY.letterWidth) / 2;
 	return (
 		`\t<circle cx="${round(cx)}" cy="${round(cy)}" r="${round(box.width * BADGE_GEOMETRY.radius)}"` +
-		` fill="none" stroke="${paint.color}" stroke-width="${round(box.width * BADGE_GEOMETRY.stroke)}"/>\n` +
-		`\t<text x="${round(cx)}" y="${round(box.y + box.height * BADGE_GEOMETRY.baseline)}" text-anchor="middle"` +
-		` font-size="${round(box.width * BADGE_GEOMETRY.fontSize)}" font-family="Segoe UI, Arial, sans-serif"` +
-		` fill="${paint.color}">${paint.letter}</text>\n`
+		` fill="${paint.color}" stroke="${BADGE_BACKING[theme]}"` +
+		` stroke-width="${round(box.width * BADGE_GEOMETRY.stroke)}"/>\n` +
+		`\t<path d="M ${round(cx - side)} ${round(cy + half)} L ${round(cx)} ${round(cy - half)}` +
+		` L ${round(cx + side)} ${round(cy + half)} M ${round(cx - side * 0.62)} ${round(cy + half * 0.3)}` +
+		` L ${round(cx + side * 0.62)} ${round(cy + half * 0.3)}"` +
+		` fill="none" stroke="${BADGE_BACKING[theme]}" stroke-width="${round(box.width * 0.055)}"` +
+		` stroke-linecap="round" stroke-linejoin="round"/>\n`
 	);
 }
 
@@ -240,11 +276,18 @@ export function adoptedIcon(base: ThemedIcon): ThemedIcon {
  *
  * @param support Действующее правило узла: {@code locked} либо {@code editable}
  */
-export function supportIcon(base: ThemedIcon, support: string): ThemedIcon {
-	if (support === 'locked') {
-		return badgedIcon(base, ['support', 'locked']);
+export function supportIcon(base: ThemedIcon, support: string, editingOff = false): ThemedIcon {
+	const kinds: BadgeKind[] = [];
+	if (support === 'locked' || support === 'editable' || editingOff) {
+		kinds.push('support');
 	}
-	return support === 'editable' ? badgedIcon(base, ['support']) : base;
+	if (support === 'locked') {
+		kinds.push('locked');
+	}
+	if (editingOff) {
+		kinds.push('editingOff');
+	}
+	return kinds.length > 0 ? badgedIcon(base, kinds) : base;
 }
 
 function badgedIcon(base: ThemedIcon, kinds: readonly BadgeKind[]): ThemedIcon {

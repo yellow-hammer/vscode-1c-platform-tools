@@ -25,7 +25,9 @@ suite('Принадлежность объекта расширения', () => 
 	test('значок встаёт в правый верхний угол холста', () => {
 		const marked = composeAdoptedSvg(icon('0 0 48 48'));
 
-		assert.ok(marked.includes('>&#1040;<'), 'значка нет в разметке');
+		// Кружок с буквой, вырезанной цветом панели: контур с текстом в размере дерева не читался
+		assert.ok(marked.includes('fill="#E1B74D"'), 'значка нет в разметке');
+		assert.ok(marked.includes('stroke="#F3F3F3"'), 'у значка нет подложки');
 		assert.ok(attr(marked, 'cx') > 24 && attr(marked, 'cx') < 48, 'значок ушёл из правой половины');
 		assert.ok(attr(marked, 'cy') > 0 && attr(marked, 'cy') < 24, 'значок ушёл из верхней половины');
 		assert.ok(marked.indexOf('<circle') > marked.indexOf('<path'), 'значок должен лежать поверх пиктограммы');
@@ -90,6 +92,21 @@ suite('Значки поддержки на пиктограмме', () => {
 		assert.ok(dark.includes('#252526'), 'в тёмной теме нет подложки');
 		assert.ok(light.includes('#F3F3F3'), 'в светлой теме нет подложки');
 		assert.ok(dark.indexOf('<circle') < dark.indexOf('<path d="M '), 'подложка должна лежать под замком');
+	});
+
+	test('третий значок: изменение конфигурации не включено', () => {
+		// Пока конфигуратор не включил изменение, правки закрыты целиком
+		const marked = composeBadgeSvg(icon('0 0 48 48'), ['support', 'editingOff'], 'dark');
+		const light = composeBadgeSvg(icon('0 0 48 48'), ['editingOff'], 'light');
+
+		assert.ok(marked.includes('#E05B4D'), 'значка запрета нет');
+		assert.ok(light.includes('#C0392B'), 'на светлой теме свой оттенок');
+		// Круг с косой чертой в правой нижней четверти
+		const at = marked.indexOf('#E05B4D');
+		const badge = marked.slice(marked.lastIndexOf('<circle', at));
+		assert.ok(shapeAttr(badge, 'circle', 'cx') > 24, 'значок ушёл из правой половины');
+		assert.ok(shapeAttr(badge, 'circle', 'cy') > 24, 'значок ушёл из нижней половины');
+		assert.ok(marked.includes('stroke-linecap="round"'), 'косой черты нет');
 	});
 
 	test('значки считаются по холсту, а не по одному размеру', () => {
