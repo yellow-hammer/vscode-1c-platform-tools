@@ -109,6 +109,10 @@ suite('Палитра свойств по спецификации', () => {
 			true,
 			'группы сверху доступны только у иерархического справочника'
 		);
+		// Погашенный флажок остаётся флажком: палитра покажет «Нет», а не false
+		assert.strictEqual(rows.get('catalog.foldersOnTop')?.kind, 'boolean');
+		const select = [...rows.values()].find((row) => row.kind === 'select');
+		assert.ok(select?.options?.length, 'у выбора сохраняется словарь значений');
 	});
 
 	test('правки ложатся в DTO с типом поля', () => {

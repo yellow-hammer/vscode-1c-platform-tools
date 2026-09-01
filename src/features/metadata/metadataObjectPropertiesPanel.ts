@@ -263,7 +263,7 @@ interface MetadataPanelOriginModel {
 	version?: string;
 	/** Почему панель открыта только на просмотр. */
 	readonlyReason?: string;
-	/** Исходники в формате 1С:EDT: их пока только читают. */
+	/** Исходники в формате 1С:EDT. */
 	edt?: boolean;
 }
 
@@ -1331,7 +1331,7 @@ function buildEditableModel(
 	const tabs = withTabsForStructure(withCurrent, buildStructureLists(props, structure));
 	// Заимствованный объект и объект на поддержке без изменения показываются
 	// той же формой, но только на просмотр: запись всё равно отклонит md-sparrow
-	if (propsIsAdopted(props) || origin?.support === 'locked' || origin?.edt) {
+	if (propsIsAdopted(props) || origin?.support === 'locked') {
 		return { ...model, readonly: true, tabs: tabsAsReadonly(tabs) };
 	}
 	return { ...model, tabs };
@@ -2212,12 +2212,15 @@ async function loadOriginModel(
 	props: MdObjectPropertiesDto | null
 ): Promise<MetadataPanelOriginModel | undefined> {
 	const adopted = propsIsAdopted(props);
-	// Свойства объекта EDT читаются, а правка исходников этого формата ещё впереди
+	// Правила поставки живут в выгрузке конфигуратора; в проекте EDT их место
+	// занимают признаки самого объекта
 	if (isEdtObjectFile(params.objectXmlFsPath)) {
 		return {
 			adopted,
 			edt: true,
-			readonlyReason: 'Правка исходников в формате 1С:EDT пока не поддержана.',
+			readonlyReason: adopted
+				? 'Заимствованный объект расширения правится в расширяемой конфигурации.'
+				: undefined,
 		};
 	}
 	if (!supportEnabled()) {
