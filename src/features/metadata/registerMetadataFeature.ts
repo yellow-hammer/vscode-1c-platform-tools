@@ -123,6 +123,18 @@ async function askSupportRule(
 /**
  * Регистрирует команды и runtime-обработчики фичи «1С: Метаданные».
  */
+/** Файл объекта в формате EDT: у выгрузки конфигуратора объект лежит в .xml. */
+function isEdtObjectFile(objectPath: string): boolean {
+	return objectPath.endsWith('.mdo');
+}
+
+/** Содержимое макета: у EDT оно лежит своим файлом рядом с описанием. */
+function templateContentPath(objectDir: string, name: string, edt: boolean): string {
+	return edt
+		? path.join(objectDir, 'Templates', name, 'Template.dcs')
+		: path.join(objectDir, 'Templates', name, 'Ext', 'Template.xml');
+}
+
 export function registerMetadataFeature(
 	params: RegisterMetadataFeatureParams
 ): vscode.Disposable[] {
@@ -2305,16 +2317,24 @@ export function registerMetadataFeature(
 				let cwd: string | undefined;
 				let configurationXmlAbs: string | undefined;
 				if (item instanceof MetadataObjectNodeTreeItem && item.nodeKind === 'template' && item.owner.resourceUri) {
-					const objectDir = item.owner.resourceUri.fsPath.replace(/\.xml$/i, '');
-					descriptorXml = path.join(objectDir, 'Templates', `${item.name}.xml`);
-					templateXml = path.join(objectDir, 'Templates', item.name, 'Ext', 'Template.xml');
+					const objectFile = item.owner.resourceUri.fsPath;
+					const objectDir = isEdtObjectFile(objectFile)
+						? path.dirname(objectFile)
+						: objectFile.replace(/\.xml$/i, '');
+					descriptorXml = isEdtObjectFile(objectFile)
+						? path.join(objectDir, 'Templates', item.name, `${item.name}.mdo`)
+						: path.join(objectDir, 'Templates', `${item.name}.xml`);
+					templateXml = templateContentPath(objectDir, item.name, isEdtObjectFile(objectFile));
 					title = `${item.owner.name}.${item.name}`;
 					cwd = item.owner.metadataRootAbs ?? path.dirname(item.owner.resourceUri.fsPath);
 					configurationXmlAbs = item.owner.configurationXmlAbs;
 				} else if (item instanceof MetadataLeafTreeItem && item.resourceUri) {
-					const stem = item.resourceUri.fsPath.replace(/\.xml$/i, '');
-					descriptorXml = item.resourceUri.fsPath;
-					templateXml = path.join(stem, 'Ext', 'Template.xml');
+					const file = item.resourceUri.fsPath;
+					const stem = isEdtObjectFile(file) ? path.dirname(file) : file.replace(/\.xml$/i, '');
+					descriptorXml = file;
+					templateXml = isEdtObjectFile(file)
+						? path.join(stem, 'Template.dcs')
+						: path.join(stem, 'Ext', 'Template.xml');
 					title = item.name;
 					cwd = item.metadataRootAbs ?? path.dirname(item.resourceUri.fsPath);
 					configurationXmlAbs = item.configurationXmlAbs;
