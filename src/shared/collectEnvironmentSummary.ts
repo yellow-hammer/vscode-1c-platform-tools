@@ -15,6 +15,7 @@ import {
 } from './environmentSummary';
 import { decodeProcessOutput } from './processOutput';
 import { VRunnerManager } from './vrunnerManager';
+import { findEdtInstallations, pickEdtInstallation } from './edtLocator';
 
 const execFileAsync = promisify(execFile);
 const HOST_EXTENSION_ID = 'yellow-hammer.1c-platform-tools';
@@ -39,6 +40,8 @@ export async function collectEnvironmentSummary(
 	const platformPath = readClustersSettings().platformPath;
 	const platformVersions = listRacVersions(platformPath);
 	const rac = findRac(platformPath);
+	const edt = findEdtInstallations(config.get<string>('edt.path', ''));
+	const edtSelected = pickEdtInstallation(edt.installations, config.get<string>('edt.version', ''));
 
 	return {
 		os: `${os.type()} ${os.release()}`,
@@ -55,6 +58,8 @@ export async function collectEnvironmentSummary(
 		components,
 		platformVersions,
 		racPath: rac.binary,
+		edtVersions: edt.installations.map((installation) => installation.version),
+		edtCliPath: edtSelected?.cli,
 		ipcEnabled: config.get<boolean>('ipc.enabled', false),
 		ipcPort: readIpcPort(config),
 		ipcTokenSet: (config.get<string>('ipc.token') ?? '').trim() !== '',

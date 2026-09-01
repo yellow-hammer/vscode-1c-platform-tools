@@ -4252,6 +4252,42 @@
         }
       },
       {
+        "title": "1С:EDT",
+        "id": "1c-platform-tools.edt",
+        "order": 10,
+        "properties": {
+          "1c-platform-tools.edt.path": {
+            "type": "string",
+            "default": "",
+            "description": "Каталог установки 1С:EDT или каталог со списком установленных версий. Пусто: определяется автоматически (в Windows это installations внутри 1cedtstart, в Linux /opt/1C/1CE/components). EDT ставится своим установщиком с releases.1c.ru, расширение её не загружает."
+          },
+          "1c-platform-tools.edt.version": {
+            "type": "string",
+            "default": "",
+            "description": "Версия 1С:EDT, когда установлено несколько: 2026.1 или начало номера. Пусто: старшая из найденных. Проект, созданный старшей версией, младшая не откроет."
+          },
+          "1c-platform-tools.edt.workspace": {
+            "type": "string",
+            "default": "",
+            "description": "Каталог рабочей области 1С:EDT для команд расширения. Пусто: каталог сборки проекта. Рабочую область 1cedtcli занимает монопольно, поэтому общий временный каталог не подходит."
+          },
+          "1c-platform-tools.edt.timeoutSeconds": {
+            "type": "number",
+            "default": 3600,
+            "minimum": 60,
+            "description": "Сколько ждать команду 1cedtcli. Импорт большой конфигурации занимает десятки минут."
+          },
+          "1c-platform-tools.edt.vmargs": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "default": [],
+            "description": "Дополнительные аргументы JVM для 1cedtcli, например -Xmx8g. Большим конфигурациям памяти по умолчанию не хватает."
+          }
+        }
+      },
+      {
         "title": "Кластеры",
         "id": "1c-platform-tools.clusters",
         "order": 9,
