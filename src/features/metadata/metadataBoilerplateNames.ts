@@ -125,10 +125,17 @@ export async function readObjectNamesFromCfSubdir(cfRoot: string, subdir: string
 	}
 	const names: string[] = [];
 	for (const name of entries) {
-		if (!name.endsWith('.xml')) {
+		if (name.endsWith('.xml')) {
+			names.push(name.slice(0, -'.xml'.length));
 			continue;
 		}
-		names.push(name.slice(0, -'.xml'.length));
+		// У EDT объект лежит каталогом с описанием того же имени
+		try {
+			await fs.access(path.join(dir, name, `${name}.mdo`));
+			names.push(name);
+		} catch {
+			/* не объект */
+		}
 	}
 	return names;
 }

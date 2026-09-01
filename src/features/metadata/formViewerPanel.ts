@@ -24,6 +24,7 @@ import type {
 } from '../properties/propertyPaletteView';
 import { PROPERTY_GROUP_ORDER, enumValueLabel, propertyGroupName, propertyLabel } from './formItemPropertySpec';
 import { beginOpenPanel, endOpenPanel, revealOpenPanel, trackOpenPanel } from '../editors/openPanels';
+import { formOwnerFileOf, formatOfFile, helpDirectoryOf } from '../../shared/objectPaths';
 
 /** Обработчик события формы или элемента. */
 export interface FormEventDto {
@@ -103,9 +104,9 @@ export interface FormContentDto {
 
 /** Параметры открытия просмотра формы. */
 export interface OpenFormViewerParams {
-	/** Файл `Ext/Form.xml`. */
+	/** Файл содержимого формы: элементы, реквизиты, команды. */
 	formXmlFsPath: string;
-	/** Модуль формы `Ext/Form/Module.bsl` рядом с содержимым. */
+	/** Модуль формы рядом с содержимым. */
 	moduleFsPath: string;
 	/** Заголовок вкладки: имя формы с владельцем. */
 	title: string;
@@ -209,38 +210,6 @@ async function loadStandardCommands(
 const ERR_PREVIEW = 400;
 
 /**
- * Путь к `Ext/Form.xml` формы объекта: `<Объект>/Forms/<Форма>/Ext/Form.xml`.
- *
- * Каталог состава назван по файлу объекта: у внешнего файла каталог артефакта
- * носит имя erf, а объект внутри - своё, поэтому имя узла дерева не годится.
- */
-export function objectFormXmlPath(objectXmlFsPath: string, formName: string): string {
-	const stem = path.basename(objectXmlFsPath, '.xml');
-	return path.join(path.dirname(objectXmlFsPath), stem, 'Forms', formName, 'Ext', 'Form.xml');
-}
-
-/**
- * Путь к XML самой формы как объекта метаданных: `<Объект>/Forms/<Форма>.xml`.
- *
- * У формы два файла: этот - свойства формы (имя, синоним, тип), и `Ext/Form.xml`
- * рядом - её содержимое с элементами и реквизитами формы.
- */
-export function objectFormDescriptorXmlPath(objectXmlFsPath: string, formName: string): string {
-	const stem = path.basename(objectXmlFsPath, '.xml');
-	return path.join(path.dirname(objectXmlFsPath), stem, 'Forms', `${formName}.xml`);
-}
-
-/** Путь к `Ext/Form.xml` общей формы: у неё содержимое лежит прямо в каталоге объекта. */
-export function commonFormXmlPath(objectXmlFsPath: string, objectName: string): string {
-	return path.join(path.dirname(objectXmlFsPath), objectName, 'Ext', 'Form.xml');
-}
-
-/** Модуль формы рядом с её содержимым. */
-export function formModulePath(formXmlFsPath: string): string {
-	return path.join(path.dirname(formXmlFsPath), 'Form', 'Module.bsl');
-}
-
-/**
  * Открывает вкладку просмотра формы.
  *
  * @param context Контекст расширения (нужен для ресурсов webview и среды md-sparrow).
@@ -259,12 +228,7 @@ export async function openFormViewer(
 	}
 	let schema: string;
 	try {
-		schema = params.cfgPath
-			? await mdSparrowSchemaFlagFromConfigurationXml(params.cfgPath)
-			: (params.schemaFlag ?? '');
-		if (!schema) {
-			throw new Error('Не удалось определить схему XSD для чтения формы.');
-		}
+		schema = await formSchemaFlag(params);
 	} catch (e) {
 		void vscode.window.showErrorMessage((e instanceof Error ? e.message : String(e)).slice(0, ERR_PREVIEW));
 		endOpenPanel('form', params.formXmlFsPath);
@@ -316,6 +280,10 @@ export async function openFormViewer(
 		} catch {
 			readonlyReason = undefined;
 		}
+	}
+	// Разметку формы EDT md-sparrow читает, а точечно не правит
+	if (formatOfFile(params.formXmlFsPath) === 'edt') {
+		readonlyReason = 'Свойства элементов формы проекта 1С:EDT панель показывает без правки.';
 	}
 
 	const paletteOwner = params.formXmlFsPath;
@@ -491,16 +459,33 @@ export function autoCommandBarButtons(
 }
 
 /**
+ * Версия схемы описывает выгрузку конфигуратора; у проекта EDT её место занимает
+ * метамодель, и md-sparrow берёт её из своей сборки.
+ */
+async function formSchemaFlag(params: OpenFormViewerParams): Promise<string> {
+	if (formatOfFile(params.formXmlFsPath) === 'edt') {
+		return '';
+	}
+	const schema = params.cfgPath
+		? await mdSparrowSchemaFlagFromConfigurationXml(params.cfgPath)
+		: (params.schemaFlag ?? '');
+	if (!schema) {
+		throw new Error('Не удалось определить схему XSD для чтения формы.');
+	}
+	return schema;
+}
+
+/**
  * Записана ли у объекта-владельца справочная информация.
  *
- * Кнопку справки платформа ставит в командную панель только объекту со справкой; в выгрузке та
- * лежит каталогом `Ext/Help` рядом с объектом. У формы без объекта-владельца ответа нет.
+ * Кнопку справки платформа ставит в командную панель только объекту со справкой; в исходниках
+ * та лежит каталогом рядом с объектом. У формы без объекта-владельца ответа нет.
  */
 async function ownerHasHelp(objectXml: string | undefined): Promise<boolean | undefined> {
 	if (!objectXml) {
 		return undefined;
 	}
-	const help = path.join(objectXml.slice(0, -path.extname(objectXml).length), 'Ext', 'Help');
+	const help = helpDirectoryOf(objectXml);
 	try {
 		return (await fs.stat(help)).isDirectory();
 	} catch {
@@ -589,7 +574,7 @@ async function loadTitles(
 	tableKinds: Record<string, string>;
 	autoCommandBarKnown: boolean;
 }> {
-	const objectXml = ownerObjectXmlPath(params.formXmlFsPath);
+	const objectXml = formOwnerFileOf(params.formXmlFsPath);
 	const main = content.attributes?.find((attribute) => attribute.main)?.name ?? '';
 	const formAttributes = content.attributes ?? [];
 	const formCommands = content.commands ?? [];
@@ -855,16 +840,6 @@ interface OwnerStructureDto {
 	}[];
 	standardAttributeSynonyms?: Record<string, string>;
 	commandSynonyms?: Record<string, string>;
-}
-
-/** XML объекта, которому принадлежит форма: `<Объект>/Forms/<Имя>/Ext/Form.xml`. */
-export function ownerObjectXmlPath(formXmlFsPath: string): string | undefined {
-	const parts = formXmlFsPath.split(/[\\/]/);
-	const forms = parts.lastIndexOf('Forms');
-	if (forms < 1) {
-		return undefined;
-	}
-	return path.join(...parts.slice(0, forms)) + '.xml';
 }
 
 /**

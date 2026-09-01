@@ -42,6 +42,7 @@ import {
 	findChildNode,
 } from './childNodePropertiesSpec';
 import type { PropertyPaletteState, PropertyPaletteViewProvider } from './propertyPaletteView';
+import { formDescriptorFileOf, templateDescriptorFileOf } from '../../shared/objectPaths';
 
 const log = logger.scope('metadata');
 
@@ -92,8 +93,7 @@ export function metadataLeafReadsObjectProperties(item: MetadataLeafTreeItem): b
 }
 
 /**
- * Файл описания узла, у которого он свой: `<Объект>/Forms/<Имя>.xml` у формы и
- * `<Объект>/Templates/<Имя>.xml` у макета.
+ * Файл описания узла, у которого он свой: у формы и макета в выгрузке конфигуратора.
  *
  * @returns Путь либо {@code undefined}, если свойства узла лежат в объекте
  */
@@ -102,14 +102,13 @@ function childOwnXmlPath(item: MetadataObjectNodeTreeItem): string | undefined {
 	if (!owner.resourceUri) {
 		return undefined;
 	}
-	const subdir = item.nodeKind === 'form' ? 'Forms' : item.nodeKind === 'template' ? 'Templates' : undefined;
-	if (!subdir) {
-		return undefined;
+	if (item.nodeKind === 'form') {
+		return formDescriptorFileOf(owner.resourceUri.fsPath, item.name);
 	}
-	// Каталог состава назван по файлу объекта, а не по узлу дерева: у внешнего
-	// файла каталог артефакта носит имя erf, а объект внутри - своё
-	const stem = path.basename(owner.resourceUri.fsPath, '.xml');
-	return path.join(path.dirname(owner.resourceUri.fsPath), stem, subdir, `${item.name}.xml`);
+	if (item.nodeKind === 'template') {
+		return templateDescriptorFileOf(owner.resourceUri.fsPath, item.name);
+	}
+	return undefined;
 }
 
 /**

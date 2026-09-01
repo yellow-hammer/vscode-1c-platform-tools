@@ -2756,7 +2756,7 @@
         },
         {
           "command": "1c-platform-tools.metadata.validateDump",
-          "when": "view == 1c-platform-tools-metadata-tree",
+          "when": "view == 1c-platform-tools-metadata-tree && 1c-platform-tools.metadata.mainFormat != edt",
           "group": "navigation@1"
         },
         {
@@ -2918,7 +2918,7 @@
         },
         {
           "command": "1c-platform-tools.metadata.validateDump",
-          "when": "view == 1c-platform-tools-metadata-tree && viewItem =~ /(^| )metadataSourceConfigLike( |$)/",
+          "when": "view == 1c-platform-tools-metadata-tree && viewItem =~ /(^| )metadataSourceConfigLike( |$)/ && viewItem =~ /(^| )mdDesigner( |$)/",
           "group": "9_check@1"
         },
         {
@@ -3288,7 +3288,7 @@
         },
         {
           "command": "1c-platform-tools.metadata.setChildNodeType",
-          "when": "view == 1c-platform-tools-metadata-tree && viewItem =~ /(^| )mdChildEdit( |$)/",
+          "when": "view == 1c-platform-tools-metadata-tree && viewItem =~ /(^| )mdChildTyped( |$)/",
           "group": "5_edit@2"
         },
         {
@@ -3313,7 +3313,7 @@
         },
         {
           "command": "1c-platform-tools.cfe.borrowObject",
-          "when": "view == 1c-platform-tools-metadata-tree && viewItem =~ /(^| )metadataObjectProperties( |$)/",
+          "when": "view == 1c-platform-tools-metadata-tree && viewItem =~ /(^| )metadataObjectProperties( |$)/ && viewItem =~ /(^| )mdDesigner( |$)/",
           "group": "3_create@9"
         },
         {

@@ -4,7 +4,12 @@
  */
 
 /** Первые байты файла достаточно для тега MetaDataObject с version. */
+import { formatOfFile } from '../../shared/objectPaths';
+
 const CONFIG_XML_HEAD_BYTES = 65536;
+
+/** Флаг схемы для проекта EDT: пустой, md-sparrow версию выгрузки у него не спрашивает. */
+export const EDT_SCHEMA_FLAG = '';
 
 /** Без префикса или с префиксом (например после сторонней сериализации). */
 const META_DATA_OBJECT_VERSION_RE = /<(?:[\w.-]+:)?MetaDataObject\b[^>]*\bversion\s*=\s*"([^"]+)"/;
@@ -51,6 +56,11 @@ export async function readConfigurationXmlMetaDataVersion(configurationXmlPath: 
 export async function mdSparrowSchemaFlagFromConfigurationXml(
 	configurationXmlPath: string
 ): Promise<string> {
+	// Версия схемы описывает выгрузку конфигуратора; у проекта EDT её место
+	// занимает метамодель, которую md-sparrow берёт из своей сборки
+	if (formatOfFile(configurationXmlPath) === 'edt') {
+		return EDT_SCHEMA_FLAG;
+	}
 	const ver = await readConfigurationXmlMetaDataVersion(configurationXmlPath);
 	return designerXmlVersionToMdSparrowFlag(ver);
 }

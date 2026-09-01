@@ -15,6 +15,8 @@ import {
 import { readConfigurationVersion, readConfigurationDeliveryProperties } from '../utils/configVersionUtils';
 import { logger } from '../shared/logger';
 import { notifyQuiet } from '../shared/notify';
+import { configurationScope } from '../shared/activeConfiguration';
+import { configurationDescriptorFile } from '../shared/objectPaths';
 
 const log = logger.scope('commands');
 
@@ -217,6 +219,27 @@ export class SupportCommands extends BaseCommand {
 	 * Создать файл описания комплекта поставки (edf) по шаблону, заполняя его из Configuration.xml.
 	 * Версия и каталог: build/dist/&lt;версия&gt;/; имя файла по умолчанию: Комплект.edf.
 	 */
+	/**
+	 * Описание активной конфигурации: `Configuration.xml` выгрузки либо `Configuration.mdo` проекта EDT.
+	 *
+	 * Версия и поставщик читаются из него, какой бы формат ни был у исходников.
+	 */
+	private async configurationDescriptor(workspaceRoot: string): Promise<string> {
+		const cfPath = this.vrunner.getCfPath();
+		try {
+			const scope = await configurationScope(workspaceRoot, {
+				configuration: cfPath,
+				extensions: [this.vrunner.getCfePath(), this.vrunner.getTestsCfePath()],
+			});
+			if (scope.configuration) {
+				return configurationDescriptorFile(scope.configuration);
+			}
+		} catch {
+			/* раскладка не разобрана: остаётся каталог выгрузки */
+		}
+		return path.join(workspaceRoot, cfPath, 'Configuration.xml');
+	}
+
 	async createDeliveryDescriptionFile(): Promise<void> {
 		const workspaceRoot = this.ensureWorkspace();
 		if (!workspaceRoot) {
@@ -229,17 +252,18 @@ export class SupportCommands extends BaseCommand {
 			return;
 		}
 
-		const cfPath = this.vrunner.getCfPath();
-		const configurationXmlPath = path.join(workspaceRoot, cfPath, 'Configuration.xml');
+		const configurationXmlPath = await this.configurationDescriptor(workspaceRoot);
 		const props = await readConfigurationDeliveryProperties(configurationXmlPath);
 		if (!props) {
-			void vscode.window.showErrorMessage(`Не удалось прочитать свойства из ${path.join(cfPath, 'Configuration.xml')}.`);
+			void vscode.window.showErrorMessage(
+				`Не удалось прочитать свойства из ${path.relative(workspaceRoot, configurationXmlPath)}.`
+			);
 			return;
 		}
 
 		const suggestedVersion = props.version?.trim() || '1.0.0';
 		const version = await vscode.window.showInputBox({
-			prompt: 'Версия (каталог build/dist/<версия>, из Configuration.xml или введите вручную)',
+			prompt: 'Версия (каталог build/dist/<версия>, из описания конфигурации или введите вручную)',
 			value: suggestedVersion,
 			placeHolder: '1.0.0.1'
 		});
@@ -317,8 +341,7 @@ export class SupportCommands extends BaseCommand {
 			return;
 		}
 
-		const cfPath = this.vrunner.getCfPath();
-		const configurationXmlPath = path.join(workspaceRoot, cfPath, 'Configuration.xml');
+		const configurationXmlPath = await this.configurationDescriptor(workspaceRoot);
 		const versionFromSource = await readConfigurationVersion(configurationXmlPath);
 		const suggestedVersion = (versionFromSource?.trim() && versionFromSource) || '1.0.0';
 
@@ -387,8 +410,7 @@ export class SupportCommands extends BaseCommand {
 			return;
 		}
 
-		const cfPath = this.vrunner.getCfPath();
-		const configurationXmlPath = path.join(workspaceRoot, cfPath, 'Configuration.xml');
+		const configurationXmlPath = await this.configurationDescriptor(workspaceRoot);
 		let versionFromSource: string | undefined;
 		try {
 			versionFromSource = await readConfigurationVersion(configurationXmlPath);
@@ -398,7 +420,7 @@ export class SupportCommands extends BaseCommand {
 		const suggestedVersion = (versionFromSource?.trim() && versionFromSource) || '1.0.0';
 
 		const version = await vscode.window.showInputBox({
-			prompt: 'Версия поставки (из Configuration.xml или введите вручную)',
+			prompt: 'Версия поставки (из описания конфигурации или введите вручную)',
 			value: suggestedVersion,
 			placeHolder: '1.0.0.1'
 		});
