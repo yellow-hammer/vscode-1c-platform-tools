@@ -1637,6 +1637,41 @@
         "category": "1С: Тестирование"
       },
       {
+        "command": "1c-platform-tools.edt.import",
+        "title": "Импортировать в проект EDT",
+        "category": "1С: EDT"
+      },
+      {
+        "command": "1c-platform-tools.edt.export",
+        "title": "Выгрузить проект EDT в XML",
+        "category": "1С: EDT"
+      },
+      {
+        "command": "1c-platform-tools.edt.validate",
+        "title": "Проверить проект EDT",
+        "category": "1С: EDT"
+      },
+      {
+        "command": "1c-platform-tools.edt.formatModules",
+        "title": "Форматировать модули",
+        "category": "1С: EDT"
+      },
+      {
+        "command": "1c-platform-tools.edt.sortProject",
+        "title": "Сортировать объекты",
+        "category": "1С: EDT"
+      },
+      {
+        "command": "1c-platform-tools.edt.projectInfo",
+        "title": "Сведения о проекте EDT",
+        "category": "1С: EDT"
+      },
+      {
+        "command": "1c-platform-tools.edt.open",
+        "title": "Открыть проект в EDT",
+        "category": "1С: EDT"
+      },
+      {
         "command": "1c-platform-tools.test.validateEdt",
         "title": "Проверить проект EDT",
         "category": "1С: Тестирование"
