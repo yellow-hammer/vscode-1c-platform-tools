@@ -3,7 +3,8 @@
  *
  * Проверка пишет отчёт таблицей, и без разбора он остаётся файлом, который
  * нужно читать глазами. Здесь замечания раскладываются по файлам проекта, как
- * это делает синтаксический контроль.
+ * это делает синтаксический контроль: объект метаданных назван по-русски, и
+ * путь к модулю считается тем же резолвером.
  *
  * @module edtDiagnostics
  */
@@ -13,6 +14,8 @@ import * as path from 'node:path';
 import * as vscode from 'vscode';
 import { logger } from '../../shared/logger';
 import { notifyQuiet } from '../../shared/notify';
+import { resolveBslPathFromMetadata } from '../diagnostics/metadataPathResolver';
+import { objectFile, typeDirectory } from '../../shared/objectPaths';
 import { parseEdtValidationReport, type EdtValidationFinding } from './edtValidateReport';
 
 const log = logger.scope('edt');
@@ -35,28 +38,42 @@ export function disposeEdtDiagnostics(): void {
 
 /** Уровень замечания в терминах VS Code. */
 function severityOf(finding: EdtValidationFinding): vscode.DiagnosticSeverity {
-	return finding.severity === 'warning' ? vscode.DiagnosticSeverity.Warning : vscode.DiagnosticSeverity.Error;
+	switch (finding.severity) {
+		case 'error':
+			return vscode.DiagnosticSeverity.Error;
+		case 'info':
+			return vscode.DiagnosticSeverity.Information;
+		default:
+			return vscode.DiagnosticSeverity.Warning;
+	}
 }
 
 /**
- * Файл замечания: путь в отчёте бывает и от проекта, и от его родителя.
+ * Файл замечания: модуль объекта, а если его нет - описание самого объекта.
  *
  * @param finding - Замечание
- * @param projectPath - Каталог проекта
+ * @param sourceRoot - Каталог исходников проекта
  * @returns Существующий файл или undefined
  */
-async function findingFile(finding: EdtValidationFinding, projectPath: string): Promise<string | undefined> {
-	if (!finding.file) {
+async function findingFile(finding: EdtValidationFinding, sourceRoot: string): Promise<string | undefined> {
+	if (!finding.metadataPath) {
 		return undefined;
 	}
-	if (path.isAbsolute(finding.file)) {
-		return finding.file;
+
+	const candidates: string[] = [];
+	const module = resolveBslPathFromMetadata(finding.metadataPath, 'edt');
+	if (module) {
+		candidates.push(path.join(sourceRoot, module));
+	}
+	// Замечание к самому объекту показывается на его описании
+	const segments = finding.metadataPath.split('.');
+	if (segments.length >= 2 && typeDirectory(segments[0])) {
+		const description = objectFile('edt', segments[0], segments[1]);
+		if (description) {
+			candidates.push(path.join(sourceRoot, description));
+		}
 	}
 
-	const candidates = [
-		path.join(projectPath, finding.file),
-		path.join(path.dirname(projectPath), finding.file),
-	];
 	for (const candidate of candidates) {
 		try {
 			await fs.access(candidate);
@@ -66,6 +83,12 @@ async function findingFile(finding: EdtValidationFinding, projectPath: string): 
 		}
 	}
 	return undefined;
+}
+
+/** Текст замечания: положение внутри объекта видно только из отчёта. */
+function messageOf(finding: EdtValidationFinding): string {
+	const where = finding.position ? `${finding.position}: ` : '';
+	return `${where}${finding.message}`;
 }
 
 /**
@@ -92,11 +115,12 @@ export async function showValidationFindings(reportPath: string, projectPath: st
 		return;
 	}
 
+	const sourceRoot = path.join(projectPath, 'src');
 	const byFile = new Map<string, vscode.Diagnostic[]>();
 	const withoutFile: EdtValidationFinding[] = [];
 
 	for (const finding of findings) {
-		const file = await findingFile(finding, projectPath);
+		const file = await findingFile(finding, sourceRoot);
 		if (!file) {
 			withoutFile.push(finding);
 			continue;
@@ -105,10 +129,11 @@ export async function showValidationFindings(reportPath: string, projectPath: st
 		const line = Math.max((finding.line ?? 1) - 1, 0);
 		const diagnostic = new vscode.Diagnostic(
 			new vscode.Range(line, 0, line, Number.MAX_SAFE_INTEGER),
-			finding.message,
+			messageOf(finding),
 			severityOf(finding)
 		);
 		diagnostic.source = '1С:EDT';
+		diagnostic.code = finding.check;
 		byFile.set(file, [...(byFile.get(file) ?? []), diagnostic]);
 	}
 
@@ -116,21 +141,27 @@ export async function showValidationFindings(reportPath: string, projectPath: st
 		collected.set(vscode.Uri.file(file), items);
 	}
 
-	// Замечания без файла показываем на самом проекте: иначе они пропадут
+	// Замечания без своего файла показываем на самом проекте: иначе они пропадут
 	if (withoutFile.length > 0) {
 		collected.set(
 			vscode.Uri.file(projectPath),
 			withoutFile.map((finding) => {
 				const diagnostic = new vscode.Diagnostic(
 					new vscode.Range(0, 0, 0, 0),
-					finding.message,
+					finding.metadataPath ? `${finding.metadataPath}: ${messageOf(finding)}` : messageOf(finding),
 					severityOf(finding)
 				);
 				diagnostic.source = '1С:EDT';
+				diagnostic.code = finding.check;
 				return diagnostic;
 			})
 		);
 	}
 
-	notifyQuiet(`Проверка EDT: замечаний ${findings.length}`);
+	const errors = findings.filter((finding) => finding.severity === 'error').length;
+	notifyQuiet(
+		errors > 0
+			? `Проверка EDT: замечаний ${findings.length}, из них ошибок ${errors}`
+			: `Проверка EDT: замечаний ${findings.length}`
+	);
 }

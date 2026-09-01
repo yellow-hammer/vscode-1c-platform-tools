@@ -1,58 +1,102 @@
 import * as assert from 'node:assert';
 import { parseEdtValidationReport } from '../../features/edt/edtValidateReport';
 
+/**
+ * Строки взяты из отчёта 1С:EDT 2026.1 на демонстрационном расширении:
+ * восемь колонок через табуляцию, без заголовка.
+ */
+const REPORT = [
+	[
+		'2026-09-01T19:45:53+0300',
+		'Незначительная',
+		'Стандарты кодирования',
+		'ssl31._ДемоРасширение',
+		'com.e1c.v8codestyle.bsl:extension-method-prefix',
+		'ОбщийМодуль.ВариантыОтчетовПереопределяемый.Модуль',
+		'строка 22',
+		'Имя метода "ЗаведомоСломанная" должно содержать префикс "_Демо"',
+	].join('\t'),
+	[
+		'2026-09-01T19:45:54+0300',
+		'Ошибка конфигурации',
+		'',
+		'ssl31._ДемоРасширение',
+		'',
+		'ОбщийМодуль.ВариантыОтчетовПереопределяемый.Модуль',
+		'строка 23',
+		'Ожидается выражение',
+	].join('\t'),
+	[
+		'2026-09-01T19:45:54+0300',
+		'Незначительная',
+		'Стандарты кодирования',
+		'ssl31._ДемоРасширение',
+		'com.e1c.v8codestyle.md:extension-md-object-prefix',
+		'HTTPСервис.GetProductPrice',
+		'Имя',
+		'Имя объекта должно содержать префикс',
+	].join('\t'),
+	[
+		'2026-09-01T19:45:54+0300',
+		'Значительная',
+		'Предупреждение',
+		'ssl31._ДемоРасширение',
+		'com._1c.g5.v8.dt.md.extension:md-ext-legacy-check',
+		'Перечисление.ТипыКонтактнойИнформации',
+		'',
+		'Заимствованный объект отсутствует в расширяемой конфигурации',
+	].join('\t'),
+].join('\r\n');
+
 suite('отчёт проверки EDT', () => {
-	test('таблица с заголовком разбирается по именам колонок', () => {
-		const report = [
-			'Project\tResource\tLine\tSeverity\tDescription',
-			'ssl31\tsrc/CommonModules/Тест/Module.bsl\t12\tError\tПеременная не определена',
-			'ssl31\tsrc/Catalogs/Валюты/Валюты.mdo\t\tWarning\tНе заполнен синоним',
-		].join('\n');
+	test('колонки читаются по местам: заголовка в отчёте нет', () => {
+		const findings = parseEdtValidationReport(REPORT);
 
-		const findings = parseEdtValidationReport(report);
-
-		assert.strictEqual(findings.length, 2);
-		assert.deepStrictEqual(findings[0], {
-			project: 'ssl31',
-			file: 'src/CommonModules/Тест/Module.bsl',
-			line: 12,
-			severity: 'error',
-			message: 'Переменная не определена',
-		});
-		assert.strictEqual(findings[1].severity, 'warning');
-		assert.strictEqual(findings[1].line, undefined);
+		assert.strictEqual(findings.length, 4);
+		assert.strictEqual(findings[0].project, 'ssl31._ДемоРасширение');
+		assert.strictEqual(findings[0].category, 'Стандарты кодирования');
+		assert.strictEqual(findings[0].check, 'com.e1c.v8codestyle.bsl:extension-method-prefix');
+		assert.strictEqual(findings[0].metadataPath, 'ОбщийМодуль.ВариантыОтчетовПереопределяемый.Модуль');
+		assert.strictEqual(findings[0].message, 'Имя метода "ЗаведомоСломанная" должно содержать префикс "_Демо"');
 	});
 
-	test('русские заголовки понимаются так же', () => {
-		const report = [
-			'Проект\tРесурс\tСтрока\tУровень\tОписание',
-			'ssl31\tsrc/Module.bsl\t3\tПредупреждение\tНеиспользуемая переменная',
-		].join('\n');
+	test('строка модуля берётся из положения', () => {
+		const findings = parseEdtValidationReport(REPORT);
 
-		const findings = parseEdtValidationReport(report);
-
-		assert.strictEqual(findings[0].severity, 'warning');
-		assert.strictEqual(findings[0].message, 'Неиспользуемая переменная');
+		assert.strictEqual(findings[0].line, 22);
+		assert.strictEqual(findings[0].position, undefined);
 	});
 
-	test('таблица без заголовка читается по порядку колонок', () => {
-		const report = 'ssl31\tsrc/Module.bsl\t7\tError\tОшибка синтаксиса';
+	test('положение внутри объекта сохраняется, когда это не строка', () => {
+		const findings = parseEdtValidationReport(REPORT);
 
-		const findings = parseEdtValidationReport(report);
-
-		assert.strictEqual(findings.length, 1);
-		assert.strictEqual(findings[0].line, 7);
-		assert.strictEqual(findings[0].message, 'Ошибка синтаксиса');
+		assert.strictEqual(findings[2].position, 'Имя');
+		assert.strictEqual(findings[2].line, undefined);
 	});
 
-	test('строки без текста замечания пропускаются', () => {
-		const report = ['Project\tResource\tLine\tSeverity\tDescription', 'ssl31\tsrc/Module.bsl\t1\tError\t', ''].join('\n');
+	test('важность переводится в уровень', () => {
+		const findings = parseEdtValidationReport(REPORT);
 
-		assert.deepStrictEqual(parseEdtValidationReport(report), []);
+		assert.strictEqual(findings[0].severity, 'info');
+		assert.strictEqual(findings[1].severity, 'error');
+		assert.strictEqual(findings[3].severity, 'warning');
+	});
+
+	test('пустые колонки не мешают', () => {
+		const findings = parseEdtValidationReport(REPORT);
+
+		assert.strictEqual(findings[1].check, undefined);
+		assert.strictEqual(findings[3].position, undefined);
 	});
 
 	test('пустой отчёт даёт пустой список', () => {
 		assert.deepStrictEqual(parseEdtValidationReport(''), []);
-		assert.deepStrictEqual(parseEdtValidationReport('\n\n'), []);
+		assert.deepStrictEqual(parseEdtValidationReport('\r\n\r\n'), []);
+	});
+
+	test('строки не из восьми колонок пропускаются', () => {
+		const findings = parseEdtValidationReport('мусор\tиз\tдвух');
+
+		assert.deepStrictEqual(findings, []);
 	});
 });
