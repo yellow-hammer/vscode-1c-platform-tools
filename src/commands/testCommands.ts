@@ -17,7 +17,6 @@ import {
 import { collectAllureResultDirs } from '../utils/allureResults';
 import type { CommandExecutionOptions, StructuredCommandResult, SyntaxCheckError } from '../shared/commandExecutionTypes';
 import { DEFAULT_TESTING, DEFAULT_PATHS, BUILD_SUBDIRS } from '../shared/pathDefaults';
-import { legacyTestsSrcHint } from '../features/testing/legacyTestsSrc';
 import * as fs from 'node:fs/promises';
 import { settingValue, resolveConfigPath, reportsXunitFromEnv, extractJUnitPathFromReportsXunit, extractAllurePathFromReportsXunit, vanessaReportTarget, vanessaSettingsPathFromEnv, syntaxCheckJUnitPathFromEnv, syntaxCheckAllurePathsFromEnv } from '../features/testing/projectTestConfig';
 import { parseSyntaxCheckFindings, toSyntaxCheckErrors, SyntaxCheckFinding } from '../features/diagnostics/syntaxCheckJUnit';
@@ -436,10 +435,6 @@ export class TestCommands extends BaseCommand {
 	 * @returns void в UI-режиме, StructuredCommandResult при wait: true
 	 */
 	async buildTestEpf(opts?: CommandExecutionOptions): Promise<StructuredCommandResult | void> {
-		const legacy = this.legacyTestsSrcMessage(opts);
-		if (legacy) {
-			return legacy === 'blocked' ? undefined : legacy;
-		}
 		const sourcesPath = this.vrunner.getTestsSrcPath();
 		const binariesPath = path.join(this.vrunner.getOutPath(), BUILD_SUBDIRS.testsEpf);
 		const ibConnectionParam = await this.vrunner.getIbConnectionParam();
@@ -460,39 +455,7 @@ export class TestCommands extends BaseCommand {
 	 * @param opts — опции выполнения; при wait: true — синхронный режим
 	 * @returns void в UI-режиме, StructuredCommandResult при wait: true
 	 */
-	/**
-	 * Сообщение о старой раскладке тестовых обработок (src/tests вместо tests/epf).
-	 *
-	 * Команда с несуществующим каталогом исходников упала бы ошибкой vrunner,
-	 * из которой причина не видна: отвечаем прямо, что переехало и что сделать.
-	 *
-	 * @param opts - Опции выполнения
-	 * @returns Результат-ошибку в режиме wait, 'blocked' после показа сообщения
-	 *          в UI, либо undefined, если раскладка в порядке
-	 */
-	private legacyTestsSrcMessage(
-		opts?: CommandExecutionOptions
-	): StructuredCommandResult | 'blocked' | undefined {
-		const cwd = this.getExecutionCwd(opts);
-		if (!cwd) {
-			return undefined;
-		}
-		const hint = legacyTestsSrcHint(cwd);
-		if (!hint) {
-			return undefined;
-		}
-		if (opts?.wait === true) {
-			return this.executionError(hint);
-		}
-		void vscode.window.showWarningMessage(hint);
-		return 'blocked';
-	}
-
 	async decompileTestEpf(opts?: CommandExecutionOptions): Promise<StructuredCommandResult | void> {
-		const legacy = this.legacyTestsSrcMessage(opts);
-		if (legacy) {
-			return legacy === 'blocked' ? undefined : legacy;
-		}
 		const sourcesPath = this.vrunner.getTestsSrcPath();
 		const binariesPath = this.vrunner.getTestsPath();
 		const ibConnectionParam = await this.vrunner.getIbConnectionParam();
