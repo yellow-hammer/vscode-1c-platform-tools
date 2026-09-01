@@ -45,7 +45,7 @@ jobs:
         run: npm run docs:build
 
       - name: Загрузить артефакт сайта
-        uses: actions/upload-pages-artifact@v4
+        uses: actions/upload-pages-artifact@v5
         with:
           path: docs/.vitepress/dist
 
