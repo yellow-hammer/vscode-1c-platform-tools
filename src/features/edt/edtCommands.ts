@@ -9,6 +9,7 @@
  */
 
 import * as fs from 'node:fs/promises';
+import * as os from 'node:os';
 import * as path from 'node:path';
 import * as vscode from 'vscode';
 import { configurationScope } from '../../shared/activeConfiguration';
@@ -25,8 +26,14 @@ import {
 import { showValidationFindings } from './edtDiagnostics';
 import { buildCommand, detectShellType } from '../../utils/commandUtils';
 import { createVRunnerTask } from '../tasks/vrunnerTask';
+import { ensureMdSparrowRuntime } from '../metadata/mdSparrowBootstrap';
+import { runMdSparrowParamsMutation } from '../metadata/mdSparrowParams';
+import { notifyQuiet } from '../../shared/notify';
 
 const log = logger.scope('edt');
+
+/** Версия формата выгрузки-заготовки: свежая, чтобы проект получил новую платформу. */
+const EMPTY_DUMP_SCHEMA = 'V2_21';
 
 /** Проект EDT, над которым идёт работа. */
 interface EdtTarget {
@@ -132,6 +139,80 @@ export async function importToEdt(): Promise<void> {
 			workspaceDir: target.workspaceDir,
 			cwd: target.workspaceRoot,
 		});
+	}
+}
+
+/**
+ * Создаёт пустую конфигурацию в формате 1С:EDT.
+ *
+ * Своей команды создания у 1С:EDT нет: заготовкой служит пустая выгрузка
+ * конфигуратора, а 1cedtcli превращает её в проект рядом с остальными.
+ *
+ * @param context - Контекст расширения: нужен для запуска md-sparrow
+ * @returns Каталог созданного проекта либо undefined, если создание не состоялось
+ */
+export async function createEdtProject(context: vscode.ExtensionContext): Promise<string | undefined> {
+	const vrunner = VRunnerManager.getInstance();
+	const workspaceRoot = vrunner.getWorkspaceRoot();
+	if (!workspaceRoot) {
+		void vscode.window.showErrorMessage('Откройте рабочую область для работы с проектом');
+		return undefined;
+	}
+
+	const projectName = await vscode.window.showInputBox({
+		title: 'Новая конфигурация в формате 1С:EDT',
+		prompt: 'Имя конфигурации: так же назовётся каталог проекта',
+		validateInput: (value) => (value.trim().length > 0 ? undefined : 'Введите имя конфигурации'),
+	});
+	if (!projectName) {
+		return undefined;
+	}
+
+	const projectDir = path.join(workspaceRoot, projectName);
+	if (await exists(projectDir)) {
+		void vscode.window.showErrorMessage(`Каталог уже есть: ${projectName}`);
+		return undefined;
+	}
+
+	const emptyDump = path.join(os.tmpdir(), `edt-empty-${Date.now()}`);
+	try {
+		await fs.mkdir(emptyDump, { recursive: true });
+		const runtime = await ensureMdSparrowRuntime(context);
+		const created = await runMdSparrowParamsMutation(
+			runtime,
+			// Версию формата задаёт выгрузка-заготовка: 1С:EDT берёт из неё версию платформы
+			{ op: 'init-empty-cf', targetCfRoot: emptyDump, schemaVersion: EMPTY_DUMP_SCHEMA, name: projectName },
+			{ cwd: workspaceRoot }
+		);
+		if (created.exitCode !== 0) {
+			void vscode.window.showErrorMessage(created.stderr.trim() || created.stdout.trim());
+			return undefined;
+		}
+
+		const code = await runEdtCommand({
+			command: 'import',
+			args: ['--configuration-files', emptyDump, '--project', projectDir],
+			title: `EDT: новая конфигурация ${projectName}`,
+			workspaceDir: edtWorkspaceDir(workspaceRoot, vrunner.getOutPath()),
+			cwd: workspaceRoot,
+		});
+		if (code !== 0) {
+			return undefined;
+		}
+		notifyQuiet(`Пустая конфигурация создана в формате 1С:EDT: ${projectName}`);
+		return projectDir;
+	} finally {
+		await fs.rm(emptyDump, { recursive: true, force: true });
+	}
+}
+
+/** Есть ли такой каталог или файл. */
+async function exists(target: string): Promise<boolean> {
+	try {
+		await fs.access(target);
+		return true;
+	} catch {
+		return false;
 	}
 }
 

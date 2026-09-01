@@ -1,4 +1,5 @@
 import * as fs from 'node:fs';
+import { createEdtProject } from '../edt/edtCommands';
 import * as path from 'node:path';
 import * as vscode from 'vscode';
 import { BSP_REGISTRATION_MARKER, buildBspRegistration } from './bspRegistration';
@@ -2665,6 +2666,25 @@ export function registerMetadataFeature(
 			}
 		),
 		vscode.commands.registerCommand('1c-platform-tools.metadata.initEmptyCf', async () => {
+			// Формат спрашивается первым: у проекта EDT свой путь создания и свой каталог
+			const format = await vscode.window.showQuickPick(
+				[
+					{ label: 'Выгрузка конфигуратора', description: 'XML в каталоге исходников', format: 'designer' as const },
+					{ label: 'Проект 1С:EDT', description: 'каталог проекта рядом с остальными', format: 'edt' as const },
+				],
+				{ title: 'Формат новой конфигурации' }
+			);
+			if (!format) {
+				return;
+			}
+			if (format.format === 'edt') {
+				await runMdSparrowMutation(async () => {
+					if (await createEdtProject(context)) {
+						await metadataTreeProvider.refresh();
+					}
+				});
+				return;
+			}
 			await runMdSparrowMutation(async () => {
 				const cfRoot = metadataTreeProvider.resolveCfRoot();
 				if (!cfRoot) {
