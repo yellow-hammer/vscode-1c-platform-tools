@@ -8,6 +8,7 @@ import { logger } from '../shared/logger';
 import { runWithHooks, runHooksAroundTerminalTask } from '../shared/commandHooks';
 import { anyNeedsExclusiveInfobase, infobaseHolder, keepsInfobaseAfterRun } from '../shared/exclusiveInfobase';
 import { configurationScope } from '../shared/activeConfiguration';
+import { edtToolingRefusal, intentSourcePath, samePath, sourceFormatOfDirectory } from '../features/edt/edtToolingGate';
 import { notifyQuiet } from '../shared/notify';
 import type { CommandExecutionOptions, StructuredCommandResult } from '../shared/commandExecutionTypes';
 
@@ -323,6 +324,10 @@ export abstract class BaseCommand {
 		if (gate) {
 			return gate === 'blocked' ? undefined : gate;
 		}
+		const edt = await this.edtGate(intent, opts);
+		if (edt) {
+			return edt === 'blocked' ? undefined : edt;
+		}
 		const window = await this.openInfobaseWindow([intent], opts);
 		if (window === 'blocked') {
 			return opts?.wait === true ? this.executionError(INFOBASE_BUSY) : undefined;
@@ -406,6 +411,62 @@ export abstract class BaseCommand {
 	 *
 	 * @returns Путь относительно рабочей области
 	 */
+	/**
+	 * Отказ, если инструменты не берут исходники активной конфигурации.
+	 *
+	 * @param intent - Что собирались запустить
+	 * @param opts - Опции выполнения
+	 * @returns Результат-ошибку в режиме wait, 'blocked' после показа сообщения,
+	 *          либо undefined, если препятствий нет
+	 */
+	private async edtGate(
+		intent: VRunnerIntent,
+		opts?: CommandExecutionOptions
+	): Promise<StructuredCommandResult | 'blocked' | undefined> {
+		const refusal = edtToolingRefusal(intent, await this.activeSource(intent), await this.vrunner.getVRunnerVersion());
+		if (!refusal) {
+			return undefined;
+		}
+		const reported = await this.reportUnavailable(refusal, opts);
+		return reported ?? 'blocked';
+	}
+
+	/**
+	 * Формат и каталог исходников, с которыми идёт команда.
+	 *
+	 * Формат берётся у тех исходников, чей путь стоит в самой команде: у
+	 * конфигурации и её расширений он бывает разным. Когда пути в команде нет,
+	 * отвечает активная конфигурация.
+	 */
+	private async activeSource(intent: VRunnerIntent): Promise<{ format?: SourceFormat; dir?: string } | undefined> {
+		const workspaceRoot = this.vrunner.getWorkspaceRoot();
+		if (!workspaceRoot) {
+			return undefined;
+		}
+		const scope = await configurationScope(workspaceRoot, {
+			configuration: this.vrunner.getCfPath(),
+			extensions: [this.vrunner.getCfePath(), this.vrunner.getTestsCfePath()],
+		});
+
+		const relative = (dir: string) => path.relative(workspaceRoot, dir).split(path.sep).join('/');
+		const wanted = intentSourcePath(intent);
+		const roots = [scope.configuration, ...scope.extensions];
+		for (const root of roots) {
+			if (root && wanted && samePath(relative(root.dir), wanted)) {
+				return { format: root.format, dir: relative(root.dir) || undefined };
+			}
+		}
+		// Путь есть, но это не конфигурация и не расширение: формат смотрим по
+		// самому каталогу, а не у конфигурации
+		if (wanted) {
+			const format = sourceFormatOfDirectory(path.resolve(workspaceRoot, wanted));
+			return format ? { format, dir: wanted } : undefined;
+		}
+		return scope.configuration
+			? { format: scope.configuration.format, dir: relative(scope.configuration.dir) || undefined }
+			: undefined;
+	}
+
 	protected async activeCfPath(): Promise<string> {
 		const workspaceRoot = this.vrunner.getWorkspaceRoot();
 		if (!workspaceRoot) {
@@ -524,6 +585,11 @@ export abstract class BaseCommand {
 	): Promise<void> {
 		if (argsList.length === 0) {
 			return;
+		}
+		for (const intent of intents) {
+			if (await this.edtGate(intent)) {
+				return;
+			}
 		}
 		const window = await this.openInfobaseWindow(intents, undefined);
 		if (window === 'blocked') {
