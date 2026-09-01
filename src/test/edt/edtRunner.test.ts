@@ -58,10 +58,13 @@ suite('запуск команд EDT', () => {
 	});
 
 	test('настроенная рабочая область может быть относительной и абсолютной', () => {
+		// Абсолютный путь берётся от корня текущей системы: на Linux «D:/ws» не абсолютен
+		const absolute = path.join(path.parse(process.cwd()).root, 'едт-рабочая-область');
+
 		assert.strictEqual(
 			edtWorkspaceDir('C:/проект', 'build', settings({ workspace: 'едт' })),
 			path.join('C:/проект', 'едт')
 		);
-		assert.strictEqual(edtWorkspaceDir('C:/проект', 'build', settings({ workspace: 'D:/ws' })), 'D:/ws');
+		assert.strictEqual(edtWorkspaceDir('C:/проект', 'build', settings({ workspace: absolute })), absolute);
 	});
 });
