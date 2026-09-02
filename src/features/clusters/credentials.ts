@@ -246,9 +246,11 @@ export class ClusterCredentialStore {
 			.filter((item): item is ClusterBinding => item !== undefined);
 	}
 
-	/** Наборы в порядке добавления. */
-	list(): CredentialSet[] {
-		return this.sets.map((set) => ({ ...set }));
+	/** Наборы в порядке добавления; с ролью — только её наборы. */
+	list(kind?: CredentialRole): CredentialSet[] {
+		return this.sets
+			.filter((set) => kind === undefined || set.kind === kind)
+			.map((set) => ({ ...set }));
 	}
 
 	/** Набор по идентификатору. */

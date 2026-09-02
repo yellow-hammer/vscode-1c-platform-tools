@@ -324,3 +324,14 @@ suite('наборы учётных данных: хранилище', () => {
 		assert.strictEqual(store.listClusterBindings().length, 0);
 	});
 });
+
+suite('наборы учётных данных: отбор по роли', () => {
+	test('список с ролью отдаёт только её наборы', async () => {
+		const store = storeOn();
+		await store.add({ name: 'Кластер', user: 'Админ', kind: 'cluster' }, '1');
+		await store.add({ name: 'База', user: 'Админ', kind: 'infobase' }, '2');
+
+		assert.deepStrictEqual(store.list('infobase').map((set) => set.name), ['База']);
+		assert.strictEqual(store.list().length, 2);
+	});
+});

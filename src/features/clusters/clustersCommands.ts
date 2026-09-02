@@ -210,12 +210,6 @@ export function registerClustersCommands(deps: ClustersCommandsDeps): vscode.Dis
 				if (Object.keys(change).length === 0) {
 					return { ok: true as const, changed: false };
 				}
-				if (!credentials.hasRoleFor('agent', connection.id)) {
-					return {
-						ok: false as const,
-						message: 'Правка кластера требует администратора центрального сервера: откройте учётные данные',
-					};
-				}
 				const result = await service.updateCluster(connection, cluster.id, change);
 				if (!result.ok) {
 					return { ok: false as const, message: result.failure.message };
@@ -342,10 +336,10 @@ export function registerClustersCommands(deps: ClustersCommandsDeps): vscode.Dis
 			if (!requireNode(node) || !(node instanceof InfobaseNode)) {
 				return;
 			}
-			const sets = credentials.list();
+			const sets = credentials.list('infobase');
 			if (sets.length === 0) {
 				const choice = await vscode.window.showInformationMessage(
-					'Сначала создайте набор учётных данных',
+					'Сначала создайте набор в группе «Администраторы ИБ»',
 					'Открыть'
 				);
 				if (choice === 'Открыть') {
