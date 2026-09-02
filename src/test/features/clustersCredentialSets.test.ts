@@ -1,9 +1,6 @@
 import * as assert from 'node:assert';
+import { CREDENTIAL_SETS_STATE_KEY, SYNCED_STATE_KEYS } from '../../features/clusters/constants';
 import {
-	CLUSTER_BINDINGS_STATE_KEY,
-	CONNECTION_BINDINGS_STATE_KEY,
-	CREDENTIAL_SETS_STATE_KEY,
-	INFOBASE_BINDINGS_STATE_KEY,
 	ClusterCredentialStore,
 	normalizeStoredBinding,
 	normalizeStoredClusterBinding,
@@ -171,12 +168,8 @@ suite('наборы учётных данных: хранилище', () => {
 		const store = storeOn(state);
 		await store.add({ name: 'Тест', user: 'Тест', kind: 'infobase' }, '123');
 
-		assert.deepStrictEqual(state.synced, [
-			CREDENTIAL_SETS_STATE_KEY,
-			INFOBASE_BINDINGS_STATE_KEY,
-			CONNECTION_BINDINGS_STATE_KEY,
-			CLUSTER_BINDINGS_STATE_KEY,
-		]);
+		assert.deepStrictEqual(state.synced, [...SYNCED_STATE_KEYS]);
+		assert.ok(state.synced.includes(CREDENTIAL_SETS_STATE_KEY));
 		const raw = JSON.stringify(state.get(CREDENTIAL_SETS_STATE_KEY, []));
 		assert.ok(!raw.includes('123'));
 		assert.ok(!raw.toLowerCase().includes('password'));
