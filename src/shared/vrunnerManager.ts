@@ -721,6 +721,10 @@ export class VRunnerManager {
 		this.vrunnerVersionCacheByRoot.set(cacheKey, version ?? null);
 		if (previous !== undefined && (previous?.raw ?? null) !== (version?.raw ?? null)) {
 			log.info(`Версия vrunner изменилась: ${previous?.raw ?? 'не определена'} -> ${version?.raw ?? 'не определена'}`);
+		}
+		// Первое определение тоже событие: до него схема настроек считается 2.x,
+		// и построенные раньше панели не видят autumn-properties.json
+		if (previous === undefined || (previous?.raw ?? null) !== (version?.raw ?? null)) {
 			this._onDidChangeVRunnerVersion.fire(version);
 		}
 		return version;
