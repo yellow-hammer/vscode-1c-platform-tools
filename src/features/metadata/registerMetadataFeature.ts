@@ -1,5 +1,6 @@
 import * as fs from 'node:fs';
 import { createEdtProject } from '../edt/edtCommands';
+import { edtProjectName } from '../edt/edtRunner';
 import * as path from 'node:path';
 import * as vscode from 'vscode';
 import { BSP_REGISTRATION_MARKER, buildBspRegistration } from './bspRegistration';
@@ -30,13 +31,18 @@ import {
 } from './metadataObjectPropertiesPanel';
 import { PRIMITIVE_TYPES, refTypeName } from './metadataObjectEditSpec';
 import { childNodeDtoList } from '../properties/childNodePropertiesSpec';
+import { openFormViewer } from './formViewerPanel';
 import {
-	commonFormXmlPath,
-	formModulePath,
-	objectFormDescriptorXmlPath,
-	objectFormXmlPath,
-	openFormViewer,
-} from './formViewerPanel';
+	configurationModuleFile,
+	formContentFileOf,
+	formDescriptorFileOf,
+	formModuleFileOf,
+	formModuleNextTo,
+	formatOfFile,
+	moduleFileOf,
+	templateContentFileOf,
+	templateDescriptorFileOf,
+} from '../../shared/objectPaths';
 import { ensureBslModuleFile } from './bslModuleFile';
 import type { PropertyPaletteViewProvider } from '../properties/propertyPaletteView';
 import { registerMetadataPaletteSource } from '../properties/metadataPaletteSource';
@@ -122,20 +128,20 @@ async function askSupportRule(
 }
 
 /**
+ * Каталог нового проекта расширения: рядом с проектом конфигурации, под именем
+ * «<Базовый проект>.<Расширение>», как называет расширения сама 1С:EDT.
+ *
+ * @param configurationMdo - Описание расширяемой конфигурации
+ * @param name - Имя расширения
+ */
+export function extensionProjectDir(configurationMdo: string, name: string): string {
+	const projectDir = path.dirname(path.dirname(path.dirname(configurationMdo)));
+	return path.join(path.dirname(projectDir), `${edtProjectName(projectDir)}.${name}`);
+}
+
+/**
  * Регистрирует команды и runtime-обработчики фичи «1С: Метаданные».
  */
-/** Файл объекта в формате EDT: у выгрузки конфигуратора объект лежит в .xml. */
-function isEdtObjectFile(objectPath: string): boolean {
-	return objectPath.endsWith('.mdo');
-}
-
-/** Содержимое макета: у EDT оно лежит своим файлом рядом с описанием. */
-function templateContentPath(objectDir: string, name: string, edt: boolean): string {
-	return edt
-		? path.join(objectDir, 'Templates', name, 'Template.dcs')
-		: path.join(objectDir, 'Templates', name, 'Ext', 'Template.xml');
-}
-
 export function registerMetadataFeature(
 	params: RegisterMetadataFeatureParams
 ): vscode.Disposable[] {
@@ -299,7 +305,7 @@ export function registerMetadataFeature(
 	 */
 	async function mainSchemaFlag(): Promise<string | undefined> {
 		const cached = metadataTreeProvider.getCachedTree()?.mainSchemaVersionFlag;
-		if (cached) {
+		if (cached !== undefined) {
 			return cached;
 		}
 		const workspaceRoot = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
@@ -326,18 +332,18 @@ export function registerMetadataFeature(
 		});
 	}
 
-	/** Общая форма: тот же просмотрщик, что у формы справочника. Путь — Ext/Form.xml рядом с объектом. */
+	/** Общая форма: тот же просмотрщик, что у формы справочника. */
 	async function openCommonFormFromLeaf(node: MetadataLeafTreeItem): Promise<void> {
 		if (!node.resourceUri) {
 			void vscode.window.showErrorMessage('Не удалось открыть форму.');
 			return;
 		}
-		const formXml = commonFormXmlPath(node.resourceUri.fsPath, node.name);
+		const formXml = formContentFileOf(node.resourceUri.fsPath);
 		if (!fs.existsSync(formXml)) {
 			void vscode.window.showErrorMessage(`Не найден файл формы: ${formXml}`);
 			return;
 		}
-		await openFormViewerForXml(formXml, formModulePath(formXml), node.name, {
+		await openFormViewerForXml(formXml, formModuleNextTo(formXml), node.name, {
 			metadataRootAbs: node.metadataRootAbs,
 			configurationXmlAbs: node.configurationXmlAbs,
 			resourceUri: node.resourceUri,
@@ -371,7 +377,7 @@ export function registerMetadataFeature(
 		const schema = owner.configurationXmlAbs
 			? await mdSparrowSchemaFlagFromConfigurationXml(owner.configurationXmlAbs)
 			: await mainSchemaFlag();
-		if (!schema) {
+		if (schema === undefined) {
 			return;
 		}
 		const runtime = await ensureMdSparrowRuntime(context);
@@ -410,7 +416,7 @@ export function registerMetadataFeature(
 		const schema = leaf.configurationXmlAbs
 			? await mdSparrowSchemaFlagFromConfigurationXml(leaf.configurationXmlAbs)
 			: await mainSchemaFlag();
-		if (!schema) {
+		if (schema === undefined) {
 			void vscode.window.showWarningMessage('Не удалось определить схему для правки состава.');
 			return;
 		}
@@ -436,7 +442,7 @@ export function registerMetadataFeature(
 			return;
 		}
 		const schemaFlagFallback = node.configurationXmlAbs ? undefined : await mainSchemaFlag();
-		if (!node.configurationXmlAbs && !schemaFlagFallback) {
+		if (!node.configurationXmlAbs && schemaFlagFallback === undefined) {
 			void vscode.window.showWarningMessage('Не удалось определить схему для чтения свойств.');
 			return;
 		}
@@ -483,7 +489,7 @@ export function registerMetadataFeature(
 			void vscode.window.showInformationMessage(`У объекта «${node.name}» нет такого модуля.`);
 			return;
 		}
-		await openOrCreateModuleFile(objectModuleFilePath(node.resourceUri.fsPath, node.name, kind));
+		await openOrCreateModuleFile(objectModuleFilePath(node.resourceUri.fsPath, kind));
 	}
 
 	async function openOrCreateModuleFile(modulePath: string): Promise<void> {
@@ -507,7 +513,7 @@ export function registerMetadataFeature(
 				void vscode.window.showInformationMessage('У формы нет объекта-владельца.');
 				return;
 			}
-			await openOrCreateModuleFile(formModulePath(objectFormXmlPath(owner.resourceUri.fsPath, node.name)));
+			await openOrCreateModuleFile(formModuleFileOf(owner.resourceUri.fsPath, node.name));
 			return;
 		}
 		if (node instanceof MetadataLeafTreeItem && isMetadataCommonForm(node.objectType)) {
@@ -551,7 +557,8 @@ export function registerMetadataFeature(
 		if (!source.metadataRootAbs) {
 			return undefined;
 		}
-		const exact = path.join(source.metadataRootAbs, 'Ext', moduleFileName);
+		const format = source.configurationXmlAbs ? formatOfFile(source.configurationXmlAbs) : 'designer';
+		const exact = configurationModuleFile(source.metadataRootAbs, format, moduleFileName);
 		try {
 			await fs.promises.access(exact);
 			return exact;
@@ -754,7 +761,7 @@ export function registerMetadataFeature(
 	): Promise<void> {
 		const cwd = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath ?? path.dirname(objectXmlPath);
 		const schemaFlag = await mainSchemaFlag();
-		if (!schemaFlag) {
+		if (schemaFlag === undefined) {
 			void vscode.window.showWarningMessage('Не удалось определить схему для чтения свойств.');
 			return;
 		}
@@ -796,10 +803,10 @@ export function registerMetadataFeature(
 		for (;;) {
 			const candidate = `${prefix}${nextIndex}`;
 			if (!existingNames.includes(candidate)) {
-				const schema = await pickSchemaFlagInitEmptyCf(
-					metadataTreeProvider.configurationXml ?? path.join(workspaceRoot, 'src', 'cf', 'Configuration.xml')
-				);
-				if (!schema) {
+				const configurationXml =
+					metadataTreeProvider.configurationXml ?? path.join(workspaceRoot, 'src', 'cf', 'Configuration.xml');
+				const schema = await pickSchemaFlagInitEmptyCf(configurationXml);
+				if (schema === undefined) {
 					return;
 				}
 				const runtime = await ensureMdSparrowRuntime(context);
@@ -811,6 +818,8 @@ export function registerMetadataFeature(
 						name: candidate,
 						kind: isReport ? 'REPORT' : 'DATA_PROCESSOR',
 						schemaVersion: schema,
+						// Внешний объект проекта EDT относится к конфигурации через базовый проект
+						...(formatOfFile(configurationXml) === 'edt' ? { mainConfigurationXml: configurationXml } : {}),
 					},
 					{ cwd: workspaceRoot }
 				);
@@ -870,17 +879,19 @@ export function registerMetadataFeature(
 	 * @returns Узел с поддерживаемым видом или {@code undefined}.
 	 */
 	/** Файл описания формы или макета: у них свои свойства и своё правило поддержки. */
+	/** Свой файл описания формы или макета; у EDT их свойства записаны в описании владельца. */
 	function childDescriptorXmlPath(node: MetadataObjectNodeTreeItem): string | undefined {
 		const owner = node.owner;
 		if (!owner.resourceUri) {
 			return undefined;
 		}
-		const subdir = node.nodeKind === 'form' ? 'Forms' : node.nodeKind === 'template' ? 'Templates' : undefined;
-		if (!subdir) {
-			return undefined;
+		if (node.nodeKind === 'form') {
+			return formDescriptorFileOf(owner.resourceUri.fsPath, node.name);
 		}
-		const stem = path.basename(owner.resourceUri.fsPath, '.xml');
-		return path.join(path.dirname(owner.resourceUri.fsPath), stem, subdir, `${node.name}.xml`);
+		if (node.nodeKind === 'template') {
+			return templateDescriptorFileOf(owner.resourceUri.fsPath, node.name);
+		}
+		return undefined;
 	}
 
 	/**
@@ -1025,7 +1036,7 @@ export function registerMetadataFeature(
 		const schema = node.owner.configurationXmlAbs
 			? await mdSparrowSchemaFlagFromConfigurationXml(node.owner.configurationXmlAbs)
 			: await mainSchemaFlag();
-		if (!schema) {
+		if (schema === undefined) {
 			void vscode.window.showWarningMessage('Не удалось определить схему для правки типа.');
 			return;
 		}
@@ -1178,7 +1189,7 @@ export function registerMetadataFeature(
 		const schema = node.owner.configurationXmlAbs
 			? await mdSparrowSchemaFlagFromConfigurationXml(node.owner.configurationXmlAbs)
 			: await mainSchemaFlag();
-		if (!schema) {
+		if (schema === undefined) {
 			void vscode.window.showWarningMessage('Не удалось определить схему для правки состава.');
 			return;
 		}
@@ -1732,7 +1743,7 @@ export function registerMetadataFeature(
 					const schema = leaf.configurationXmlAbs
 						? await mdSparrowSchemaFlagFromConfigurationXml(leaf.configurationXmlAbs)
 						: await mainSchemaFlag();
-					if (!schema) {
+					if (schema === undefined) {
 						void vscode.window.showWarningMessage('Не удалось определить схему для правки состава.');
 						return;
 					}
@@ -1994,8 +2005,8 @@ export function registerMetadataFeature(
 					void vscode.window.showInformationMessage('У формы нет объекта-владельца.');
 					return;
 				}
-				const formXml = objectFormXmlPath(owner.resourceUri.fsPath, node.name);
-				await openFormViewerForXml(formXml, formModulePath(formXml), `${owner.name}.${node.name}`, {
+				const formXml = formContentFileOf(owner.resourceUri.fsPath, node.name);
+				await openFormViewerForXml(formXml, formModuleNextTo(formXml), `${owner.name}.${node.name}`, {
 					metadataRootAbs: owner.metadataRootAbs,
 					configurationXmlAbs: owner.configurationXmlAbs,
 					resourceUri: owner.resourceUri,
@@ -2137,7 +2148,7 @@ export function registerMetadataFeature(
 						void vscode.window.showInformationMessage('У формы нет файла в выгрузке.');
 						return;
 					}
-					await openTextFile(commonFormXmlPath(selected.resourceUri.fsPath, selected.name));
+					await openTextFile(formContentFileOf(selected.resourceUri.fsPath));
 					return;
 				}
 				if (!(selected instanceof MetadataObjectNodeTreeItem) || selected.nodeKind !== 'form') {
@@ -2149,7 +2160,7 @@ export function registerMetadataFeature(
 					void vscode.window.showInformationMessage('У формы нет объекта-владельца.');
 					return;
 				}
-				await openTextFile(objectFormXmlPath(owner.resourceUri.fsPath, selected.name));
+				await openTextFile(formContentFileOf(owner.resourceUri.fsPath, selected.name));
 			}
 		),
 		vscode.commands.registerCommand(
@@ -2176,9 +2187,8 @@ export function registerMetadataFeature(
 						void vscode.window.showInformationMessage('У формы нет объекта-владельца.');
 						return;
 					}
-					await openTextFile(
-						objectFormDescriptorXmlPath(owner.resourceUri.fsPath, selected.name)
-					);
+					const descriptor = formDescriptorFileOf(owner.resourceUri.fsPath, selected.name);
+					await openTextFile(descriptor ?? owner.resourceUri.fsPath);
 					return;
 				}
 				const node = resolveSelectedMetadataLeaf(
@@ -2200,8 +2210,7 @@ export function registerMetadataFeature(
 					return;
 				}
 				const report = node.objectType === 'ExternalReport';
-				const stem = path.basename(node.resourceUri.fsPath, '.xml');
-				const modulePath = path.join(path.dirname(node.resourceUri.fsPath), stem, 'Ext', 'ObjectModule.bsl');
+				const modulePath = moduleFileOf(node.resourceUri.fsPath, 'object');
 				let existing = '';
 				try {
 					existing = new TextDecoder('utf-8').decode(
@@ -2273,7 +2282,7 @@ export function registerMetadataFeature(
 					const schema = node.configurationXmlAbs
 						? await mdSparrowSchemaFlagFromConfigurationXml(node.configurationXmlAbs)
 						: await mainSchemaFlag();
-					if (!schema) {
+					if (schema === undefined) {
 						return;
 					}
 					const runtime = await ensureMdSparrowRuntime(context);
@@ -2319,23 +2328,16 @@ export function registerMetadataFeature(
 				let configurationXmlAbs: string | undefined;
 				if (item instanceof MetadataObjectNodeTreeItem && item.nodeKind === 'template' && item.owner.resourceUri) {
 					const objectFile = item.owner.resourceUri.fsPath;
-					const objectDir = isEdtObjectFile(objectFile)
-						? path.dirname(objectFile)
-						: objectFile.replace(/\.xml$/i, '');
-					descriptorXml = isEdtObjectFile(objectFile)
-						? path.join(objectDir, 'Templates', item.name, `${item.name}.mdo`)
-						: path.join(objectDir, 'Templates', `${item.name}.xml`);
-					templateXml = templateContentPath(objectDir, item.name, isEdtObjectFile(objectFile));
+					// У макета EDT своего описания нет: вид макета записан в описании владельца
+					descriptorXml = templateDescriptorFileOf(objectFile, item.name) ?? objectFile;
+					templateXml = templateContentFileOf(objectFile, item.name);
 					title = `${item.owner.name}.${item.name}`;
 					cwd = item.owner.metadataRootAbs ?? path.dirname(item.owner.resourceUri.fsPath);
 					configurationXmlAbs = item.owner.configurationXmlAbs;
 				} else if (item instanceof MetadataLeafTreeItem && item.resourceUri) {
 					const file = item.resourceUri.fsPath;
-					const stem = isEdtObjectFile(file) ? path.dirname(file) : file.replace(/\.xml$/i, '');
 					descriptorXml = file;
-					templateXml = isEdtObjectFile(file)
-						? path.join(stem, 'Template.dcs')
-						: path.join(stem, 'Ext', 'Template.xml');
+					templateXml = templateContentFileOf(file);
 					title = item.name;
 					cwd = item.metadataRootAbs ?? path.dirname(item.resourceUri.fsPath);
 					configurationXmlAbs = item.configurationXmlAbs;
@@ -2357,7 +2359,7 @@ export function registerMetadataFeature(
 				const schema = configurationXmlAbs
 					? await mdSparrowSchemaFlagFromConfigurationXml(configurationXmlAbs)
 					: await mainSchemaFlag();
-				if (!schema) {
+				if (schema === undefined) {
 					return;
 				}
 				await openDcsEditorPanel(context, {
@@ -2522,22 +2524,18 @@ export function registerMetadataFeature(
 					return;
 				}
 
-				const cfeRoot = path.join(
-					root,
-					VRunnerManager.getInstance(context).getCfePath(),
-					name.trim()
-				);
+				// Расширение проекта EDT живёт соседним проектом, названным по базовому
+				const edt = formatOfFile(configurationXml) === 'edt';
+				const cfeRoot = edt
+					? extensionProjectDir(configurationXml, name.trim())
+					: path.join(root, VRunnerManager.getInstance(context).getCfePath(), name.trim());
 				if (fs.existsSync(cfeRoot)) {
 					void vscode.window.showErrorMessage(`Каталог расширения уже есть: ${cfeRoot}`);
 					return;
 				}
-
 				try {
 					const runtime = await ensureMdSparrowRuntime(context);
 					const version = await mdSparrowSchemaFlagFromConfigurationXml(configurationXml);
-					if (!version) {
-						return;
-					}
 					const res = await runMdSparrowParamsMutation(
 						runtime,
 						{
@@ -2614,6 +2612,12 @@ export function registerMetadataFeature(
 			'1c-platform-tools.metadata.validateDump',
 			async (item?: MetadataSourceTreeItem) => {
 				const source = resolveSelectedMetadataSource(item);
+				// Проект EDT проверяет сама среда: у выгрузки конфигуратора схемы, у проекта модель
+				const descriptor = source?.configurationXmlAbs ?? metadataTreeProvider.configurationXml;
+				if (descriptor && formatOfFile(descriptor) === 'edt') {
+					await vscode.commands.executeCommand('1c-platform-tools.edt.validate');
+					return;
+				}
 				const roots: string[] = [];
 				if (source?.metadataRootAbs) {
 					roots.push(source.metadataRootAbs);

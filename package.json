@@ -3288,7 +3288,7 @@
         },
         {
           "command": "1c-platform-tools.metadata.setChildNodeType",
-          "when": "view == 1c-platform-tools-metadata-tree && viewItem =~ /(^| )mdChildEdit( |$)/",
+          "when": "view == 1c-platform-tools-metadata-tree && viewItem =~ /(^| )mdChildTyped( |$)/",
           "group": "5_edit@2"
         },
         {

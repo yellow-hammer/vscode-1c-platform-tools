@@ -8,7 +8,17 @@ import { logger } from '../shared/logger';
 import { runWithHooks, runHooksAroundTerminalTask } from '../shared/commandHooks';
 import { anyNeedsExclusiveInfobase, infobaseHolder, keepsInfobaseAfterRun } from '../shared/exclusiveInfobase';
 import { configurationScope } from '../shared/activeConfiguration';
-import { edtToolingRefusal, intentSourcePath, samePath, sourceFormatOfDirectory } from '../features/edt/edtToolingGate';
+import {
+	edtExternalProjectsOf,
+	edtToolingRefusal,
+	intentSourcePath,
+	planEdtBridge,
+	samePath,
+	sourceFormatOfDirectory,
+	type EdtExportStep,
+	type EdtImportStep,
+} from '../features/edt/edtSourceBridge';
+import { runEdtExports, runEdtImports } from '../features/edt/edtBridgeRunner';
 import { notifyQuiet } from '../shared/notify';
 import type { CommandExecutionOptions, StructuredCommandResult } from '../shared/commandExecutionTypes';
 
@@ -16,6 +26,23 @@ const log = logger.scope('commands');
 
 /** Команда не начинается, пока базу держит чужой процесс. */
 export const INFOBASE_BUSY = 'Информационная база занята: команда не запущена.';
+
+/**
+ * Сводит завершения в одно: сначала база возвращается держателю, затем результат
+ * уходит в проект EDT.
+ */
+function composeCompletion(
+	restore: (() => Promise<void>) | undefined,
+	after: (() => Promise<void>) | undefined
+): (() => Promise<void>) | undefined {
+	if (!restore && !after) {
+		return undefined;
+	}
+	return async () => {
+		await restore?.();
+		await after?.();
+	};
+}
 
 /**
  * Базовый класс для всех команд
@@ -324,24 +351,29 @@ export abstract class BaseCommand {
 		if (gate) {
 			return gate === 'blocked' ? undefined : gate;
 		}
-		const edt = await this.edtGate(intent, opts);
-		if (edt) {
-			return edt === 'blocked' ? undefined : edt;
+		const bridged = await this.bridgeEdt([intent], opts);
+		if (bridged === 'blocked') {
+			return undefined;
 		}
-		const window = await this.openInfobaseWindow([intent], opts);
+		if (!('intents' in bridged)) {
+			return bridged;
+		}
+		const effective = bridged.intents[0];
+		const window = await this.openInfobaseWindow([effective], opts);
 		if (window === 'blocked') {
 			return opts?.wait === true ? this.executionError(INFOBASE_BUSY) : undefined;
 		}
-		const steps = await this.vrunner.planIntent(intent, opts?.settingsFile, opts?.ibConnection);
+		const onComplete = composeCompletion(window.restore, bridged.after);
+		const steps = await this.vrunner.planIntent(effective, opts?.settingsFile, opts?.ibConnection);
 		const notices = this.vrunner.consumePlanNotices();
 		if (steps.length === 1) {
 			return this.appendNotices(
-				await this.runVRunner(steps[0], opts, terminalName, artifact, commandId, true, window.restore),
+				await this.runVRunner(steps[0], opts, terminalName, artifact, commandId, true, onComplete),
 				notices
 			);
 		}
 		return this.appendNotices(
-			await this.runVRunnerSequential(steps, opts, terminalName, commandId, true, window.restore),
+			await this.runVRunnerSequential(steps, opts, terminalName, commandId, true, onComplete),
 			notices
 		);
 	}
@@ -412,23 +444,76 @@ export abstract class BaseCommand {
 	 * @returns Путь относительно рабочей области
 	 */
 	/**
-	 * Отказ, если инструменты не берут исходники активной конфигурации.
+	 * Проводит намерения через проект 1С:EDT.
 	 *
-	 * @param intent - Что собирались запустить
+	 * Исходники проекта EDT раннер не читает: перед командой проект выгружается
+	 * самой EDT в каталог сборки, а намерение получает путь этой выгрузки. Команда,
+	 * пишущая исходники, пишет туда же, и после неё выгрузка импортируется в проект.
+	 *
+	 * @param intents - Что собирались запустить
 	 * @param opts - Опции выполнения
-	 * @returns Результат-ошибку в режиме wait, 'blocked' после показа сообщения,
-	 *          либо undefined, если препятствий нет
+	 * @returns Намерения над выгрузкой и импорт после команды; результат-ошибку в
+	 *          режиме wait либо 'blocked' после показа сообщения
 	 */
-	private async edtGate(
-		intent: VRunnerIntent,
+	private async bridgeEdt(
+		intents: readonly VRunnerIntent[],
 		opts?: CommandExecutionOptions
-	): Promise<StructuredCommandResult | 'blocked' | undefined> {
-		const refusal = edtToolingRefusal(intent, await this.activeSource(intent), await this.vrunner.getVRunnerVersion());
-		if (!refusal) {
+	): Promise<{ intents: VRunnerIntent[]; after?: () => Promise<void> } | StructuredCommandResult | 'blocked'> {
+		const workspaceRoot = this.vrunner.getWorkspaceRoot();
+		const buildDir = this.vrunner.getOutPath();
+		const rewritten: VRunnerIntent[] = [];
+		const exports: EdtExportStep[] = [];
+		const imports: EdtImportStep[] = [];
+		for (const intent of intents) {
+			const source = await this.activeSource(intent);
+			const refusal = edtToolingRefusal(intent, source, await this.vrunner.getVRunnerVersion());
+			if (refusal) {
+				const reported = await this.reportUnavailable(refusal, opts);
+				return reported ?? 'blocked';
+			}
+			const plan =
+				workspaceRoot === undefined
+					? undefined
+					: planEdtBridge(intent, source, {
+							buildDir,
+							externalProjects:
+								intent.kind === 'epf.build' && source?.dir
+									? edtExternalProjectsOf(workspaceRoot, source.dir)
+									: undefined,
+						});
+			if (!plan) {
+				rewritten.push(intent);
+				continue;
+			}
+			rewritten.push(plan.intent);
+			exports.push(...plan.exports);
+			imports.push(...plan.imports);
+		}
+		if (workspaceRoot === undefined || (exports.length === 0 && imports.length === 0)) {
+			return { intents: rewritten };
+		}
+		const context = { workspaceRoot, buildDir, baseProjectDir: await this.activeEdtProjectDir() };
+		if (!(await runEdtExports(exports, context))) {
+			const reported = await this.reportUnavailable('Выгрузка проекта 1С:EDT не удалась, команда не запущена.', opts);
+			return reported ?? 'blocked';
+		}
+		return {
+			intents: rewritten,
+			after: imports.length > 0 ? () => runEdtImports(imports, context) : undefined,
+		};
+	}
+
+	/** Каталог проекта активной конфигурации, если она в формате EDT. */
+	private async activeEdtProjectDir(): Promise<string | undefined> {
+		const workspaceRoot = this.vrunner.getWorkspaceRoot();
+		if (!workspaceRoot) {
 			return undefined;
 		}
-		const reported = await this.reportUnavailable(refusal, opts);
-		return reported ?? 'blocked';
+		const scope = await configurationScope(workspaceRoot, {
+			configuration: this.vrunner.getCfPath(),
+			extensions: [this.vrunner.getCfePath(), this.vrunner.getTestsCfePath()],
+		});
+		return scope.configuration?.format === 'edt' ? scope.configuration.dir : undefined;
 	}
 
 	/**
@@ -579,30 +664,29 @@ export abstract class BaseCommand {
 	 * @param options - Каталог запуска и имя терминала
 	 */
 	protected async runPlanned(
-		argsList: string[][],
 		intents: readonly VRunnerIntent[],
-		options: { cwd: string; name: string; appendOverrides?: boolean }
+		options: { cwd: string; name: string; appendOverrides?: boolean; settingsFile?: string }
 	): Promise<void> {
+		const bridged = await this.bridgeEdt(intents);
+		if (bridged === 'blocked' || !('intents' in bridged)) {
+			return;
+		}
+		const argsList = await this.vrunner.planIntents(bridged.intents, options.settingsFile);
 		if (argsList.length === 0) {
 			return;
 		}
-		for (const intent of intents) {
-			if (await this.edtGate(intent)) {
-				return;
-			}
-		}
-		const window = await this.openInfobaseWindow(intents, undefined);
+		const window = await this.openInfobaseWindow(bridged.intents, undefined);
 		if (window === 'blocked') {
 			return;
 		}
-		const restore = window.restore;
-		if (!restore) {
+		const onComplete = composeCompletion(window.restore, bridged.after);
+		if (!onComplete) {
 			await this.vrunner.executeVRunnerCommandsInSequence(argsList, options);
 			return;
 		}
 		void this.vrunner.executeVRunnerTaskSequenceAndWait(argsList, options)
 			.catch((error) => log.error(`Ошибка запуска команды: ${(error as Error).message}`))
-			.finally(() => void restore());
+			.finally(() => void onComplete());
 	}
 
 	/**
@@ -618,14 +702,22 @@ export abstract class BaseCommand {
 		if (gate) {
 			return gate === 'blocked' ? undefined : gate;
 		}
-		const window = await this.openInfobaseWindow(intents, opts);
+		const bridged = await this.bridgeEdt(intents, opts);
+		if (bridged === 'blocked') {
+			return undefined;
+		}
+		if (!('intents' in bridged)) {
+			return bridged;
+		}
+		const window = await this.openInfobaseWindow(bridged.intents, opts);
 		if (window === 'blocked') {
 			return opts?.wait === true ? this.executionError(INFOBASE_BUSY) : undefined;
 		}
-		const steps = await this.vrunner.planIntents(intents, opts?.settingsFile, opts?.ibConnection);
+		const onComplete = composeCompletion(window.restore, bridged.after);
+		const steps = await this.vrunner.planIntents(bridged.intents, opts?.settingsFile, opts?.ibConnection);
 		const notices = this.vrunner.consumePlanNotices();
 		return this.appendNotices(
-			await this.runVRunnerSequential(steps, opts, terminalName, commandId, true, window.restore),
+			await this.runVRunnerSequential(steps, opts, terminalName, commandId, true, onComplete),
 			notices
 		);
 	}

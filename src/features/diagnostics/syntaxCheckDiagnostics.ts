@@ -10,7 +10,8 @@ import {
 	syntaxCheckGroupByMetadataFromEnv,
 } from '../testing/projectTestConfig';
 import { parseSyntaxCheckFindings, SyntaxCheckFinding, SyntaxCheckSeverity } from './syntaxCheckJUnit';
-import { resolveBslPathFromMetadata } from './metadataPathResolver';
+import { resolveProjectLayout, type SourceRoot } from '../../shared/projectLayout';
+import { resolveMetadataInRoots } from '../tools/terminalLinks';
 import { extractQuotedIdentifier, findIdentifierOffsets, LineMap } from './bslLocator';
 
 const log = logger.scope('syntax-check');
@@ -167,6 +168,7 @@ export class SyntaxCheckDiagnostics implements vscode.Disposable {
 			.get<string>('path.cf', DEFAULT_PATHS.cf);
 		const cfRoot = path.join(root, cfRel);
 		const fallbackUri = await resolveFallbackUri(cfRoot, root);
+		const roots = await sourceRoots(root, cfRel, this.vrunner);
 
 		// Группируем находки по целевому файлу (кэш «метаданные → файл»: у модуля много находок)
 		const targetCache = new Map<string, ResolvedTarget>();
@@ -175,7 +177,7 @@ export class SyntaxCheckDiagnostics implements vscode.Disposable {
 		for (const finding of findings) {
 			let target = targetCache.get(finding.metadataPath);
 			if (!target) {
-				target = await resolveTarget(finding.metadataPath, cfRoot, fallbackUri);
+				target = await resolveTarget(finding.metadataPath, roots, fallbackUri);
 				targetCache.set(finding.metadataPath, target);
 			}
 			const key = target.uri.toString();
@@ -312,21 +314,33 @@ interface ResolvedTarget {
  */
 async function resolveTarget(
 	metadataPath: string,
-	cfRoot: string,
+	roots: readonly SourceRoot[],
 	fallbackUri: vscode.Uri
 ): Promise<ResolvedTarget> {
-	const relCandidate = resolveBslPathFromMetadata(metadataPath);
-	if (relCandidate) {
-		const abs = path.join(cfRoot, relCandidate.split('/').join(path.sep));
-		if (await fileExists(abs)) {
-			return { uri: vscode.Uri.file(abs), resolved: true };
-		}
-	}
-	return { uri: fallbackUri, resolved: false };
+	const abs = await resolveMetadataInRoots(metadataPath, roots);
+	return abs ? { uri: vscode.Uri.file(abs), resolved: true } : { uri: fallbackUri, resolved: false };
 }
 
 /**
- * Выбирает fallback-файл для находок без сопоставления: Configuration.xml, иначе env.json
+ * Корни исходников рабочей области: конфигурация и расширения в обеих раскладках.
+ *
+ * Путь модуля зависит от формата корня, поэтому находка ищется по каждому корню
+ * его же правилами.
+ */
+async function sourceRoots(root: string, cfRel: string, vrunner: VRunnerManager): Promise<SourceRoot[]> {
+	try {
+		const layout = await resolveProjectLayout(root, {
+			configuration: cfRel,
+			extensions: [vrunner.getCfePath(), vrunner.getTestsCfePath()],
+		});
+		return [...(layout.configuration ? [layout.configuration] : []), ...layout.extensions, ...layout.others];
+	} catch {
+		return [];
+	}
+}
+
+/**
+ * Файл для находок без сопоставления: описание конфигурации, иначе env.json
  */
 async function resolveFallbackUri(cfRoot: string, root: string): Promise<vscode.Uri> {
 	const configurationXml = path.join(cfRoot, 'Configuration.xml');

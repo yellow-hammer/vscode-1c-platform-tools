@@ -99,8 +99,7 @@ export class ArtifactCommands extends BaseCommand {
 		}
 		const srcRel = getRelativePath(artifactUri);
 		const intent: VRunnerIntent = { kind: 'cf.build', src: srcRel, out: outFile };
-		const [args] = await this.vrunner.planIntent(intent);
-		await this.runPlanned([args], [intent], {
+		await this.runPlanned([intent], {
 			cwd: workspaceRoot,
 			name: `Собрать конфигурацию: ${path.basename(artifactUri.fsPath)}`,
 			appendOverrides: false,
@@ -123,8 +122,7 @@ export class ArtifactCommands extends BaseCommand {
 		}
 		const inRel = getRelativePath(artifactUri);
 		const intent: VRunnerIntent = { kind: 'cf.decompileFile', file: inRel, out: outDir };
-		const [args] = await this.vrunner.planIntent(intent);
-		await this.runPlanned([args], [intent], {
+		await this.runPlanned([intent], {
 			cwd: workspaceRoot,
 			name: `Разобрать конфигурацию: ${path.basename(artifactUri.fsPath)}`,
 			appendOverrides: false,
@@ -153,8 +151,7 @@ export class ArtifactCommands extends BaseCommand {
 		const outFile = path.join(outPath, `${name}.cfe`);
 		const extensionName = await resolveExtensionNameFromSrc(artifactUri.fsPath);
 		const intent: VRunnerIntent = { kind: 'cfe.buildCfe', src: srcRel, out: outFile, extensionName };
-		const [args] = await this.vrunner.planIntent(intent);
-		await this.runPlanned([args], [intent], {
+		await this.runPlanned([intent], {
 			cwd: workspaceRoot,
 			name: `Собрать расширение: ${name}`,
 			appendOverrides: false,
@@ -204,8 +201,7 @@ export class ArtifactCommands extends BaseCommand {
 			out: targetDir,
 			common: ibConnectionParam,
 		};
-		const steps = await this.vrunner.planIntent(intent);
-		await this.runPlanned(steps, [intent], {
+		await this.runPlanned([intent], {
 			cwd: workspaceRoot,
 			name: `Разобрать расширение: ${cfeName}`,
 			appendOverrides: false,
@@ -256,8 +252,7 @@ export class ArtifactCommands extends BaseCommand {
 		const srcRel = getRelativePath(artifactUri);
 		const ibConnectionParam = await this.vrunner.getIbConnectionParam();
 		const intent: VRunnerIntent = { kind: 'epf.build', src: srcRel, out: outDir, common: ibConnectionParam };
-		const [args] = await this.vrunner.planIntent(intent);
-		await this.runPlanned([args], [intent], {
+		await this.runPlanned([intent], {
 			cwd: workspaceRoot,
 			name: `Собрать обработку: ${path.basename(artifactUri.fsPath)}`,
 			appendOverrides: false,
@@ -285,8 +280,7 @@ export class ArtifactCommands extends BaseCommand {
 		const inRel = getRelativePath(artifactUri);
 		const ibConnectionParam = await this.vrunner.getIbConnectionParam();
 		const intent: VRunnerIntent = { kind: 'epf.decompile', input: inRel, out: epfPath, common: ibConnectionParam };
-		const [args] = await this.vrunner.planIntent(intent);
-		await this.runPlanned([args], [intent], {
+		await this.runPlanned([intent], {
 			cwd: workspaceRoot,
 			name: `Разобрать обработку: ${path.basename(artifactUri.fsPath)}`,
 			appendOverrides: false,
@@ -314,8 +308,7 @@ export class ArtifactCommands extends BaseCommand {
 		const srcRel = getRelativePath(artifactUri);
 		const ibConnectionParam = await this.vrunner.getIbConnectionParam();
 		const intent: VRunnerIntent = { kind: 'epf.build', src: srcRel, out: outDir, common: ibConnectionParam };
-		const [args] = await this.vrunner.planIntent(intent);
-		await this.runPlanned([args], [intent], {
+		await this.runPlanned([intent], {
 			cwd: workspaceRoot,
 			name: `Собрать отчёт: ${path.basename(artifactUri.fsPath)}`,
 			appendOverrides: false,
@@ -343,8 +336,7 @@ export class ArtifactCommands extends BaseCommand {
 		const inRel = getRelativePath(artifactUri);
 		const ibConnectionParam = await this.vrunner.getIbConnectionParam();
 		const intent: VRunnerIntent = { kind: 'epf.decompile', input: inRel, out: erfPath, common: ibConnectionParam };
-		const [args] = await this.vrunner.planIntent(intent);
-		await this.runPlanned([args], [intent], {
+		await this.runPlanned([intent], {
 			cwd: workspaceRoot,
 			name: `Разобрать отчёт: ${path.basename(artifactUri.fsPath)}`,
 			appendOverrides: false,

@@ -306,14 +306,15 @@ suite('metadataTreeView nested nodes', () => {
 			owner,
 			'Товары'
 		);
-		assert.strictEqual(attr.contextValue, 'metadataChild_attribute mdChildEdit mdChildDuplicate');
+		assert.strictEqual(attr.contextValue, 'metadataChild_attribute mdChildEdit mdChildTyped mdChildDuplicate mdDesigner');
+		// У табличной части типа нет: пункт «Изменить тип» ей не положен
 		assert.strictEqual(
 			ts.contextValue,
-			'metadataChild_tabularSection mdChildEdit mdChildDuplicate mdChildAdd'
+			'metadataChild_tabularSection mdChildEdit mdChildDuplicate mdChildAdd mdDesigner'
 		);
 		assert.strictEqual(
 			tsAttr.contextValue,
-			'metadataChild_tabularAttribute mdChildEdit mdChildDuplicate'
+			'metadataChild_tabularAttribute mdChildEdit mdChildTyped mdChildDuplicate mdDesigner'
 		);
 	});
 
@@ -352,10 +353,10 @@ suite('metadataTreeView nested nodes', () => {
 		);
 
 		assert.strictEqual(form.command?.command, '1c-platform-tools.metadata.openForm');
-		assert.strictEqual(form.contextValue, 'metadataChild_form metadataObjectForm mdFormModule mdChildDelete');
+		assert.strictEqual(form.contextValue, 'metadataChild_form metadataObjectForm mdFormModule mdChildDelete mdDesigner');
 		assert.deepStrictEqual(form.command?.arguments, [form]);
 		assert.strictEqual(template.command, undefined, 'клик открывает только форму');
-		assert.strictEqual(template.contextValue, 'metadataChild_template');
+		assert.strictEqual(template.contextValue, 'metadataChild_template mdDesigner');
 	});
 });
 
@@ -381,20 +382,20 @@ suite('metadataTreeView object modules', () => {
 	test('contextValue получает токены модулей по типу', () => {
 		assert.strictEqual(
 			leaf('Catalog', 'Контрагенты', 'src/cf/Catalogs/Контрагенты.xml').contextValue,
-			'metadataObjectProperties mdObjModule mdMgrModule'
+			'metadataObjectProperties mdObjModule mdMgrModule mdDesigner'
 		);
 		assert.strictEqual(
 			leaf('InformationRegister', 'Курсы', 'src/cf/InformationRegisters/Курсы.xml').contextValue,
-			'metadataObjectProperties mdRecModule mdMgrModule'
+			'metadataObjectProperties mdRecModule mdMgrModule mdDesigner'
 		);
 		// Константа: модуль менеджера значения + модуль менеджера (как в конфигураторе).
 		assert.strictEqual(
 			leaf('Constant', 'Версия', 'src/cf/Constants/Версия.xml').contextValue,
-			'metadataObjectProperties mdValModule mdMgrModule'
+			'metadataObjectProperties mdValModule mdMgrModule mdDesigner'
 		);
 		assert.strictEqual(
 			leaf('CommonModule', 'Общий', 'src/cf/CommonModules/Общий.xml').contextValue,
-			'metadataObjectProperties mdModule'
+			'metadataObjectProperties mdModule mdDesigner'
 		);
 	});
 
@@ -409,26 +410,34 @@ suite('metadataTreeView object modules', () => {
 	test('типы без модулей не получают токенов модулей', () => {
 		assert.strictEqual(
 			leaf('Role', 'Администратор', 'src/cf/Roles/Администратор.xml').contextValue,
-			'metadataObjectProperties'
+			'metadataObjectProperties mdDesigner'
 		);
 		assert.strictEqual(objectModuleKindsForType('Role').length, 0);
 	});
 
-	test('objectModuleFilePath строит путь рядом с объектом', () => {
+	test('objectModuleFilePath строит путь по раскладке формата', () => {
 		assert.strictEqual(
-			objectModuleFilePath('C:/ws/src/cf/Catalogs/Контрагенты.xml', 'Контрагенты', 'object'),
+			objectModuleFilePath('C:/ws/src/cf/Catalogs/Контрагенты.xml', 'object'),
 			path.join('C:/ws/src/cf/Catalogs', 'Контрагенты', 'Ext', 'ObjectModule.bsl')
 		);
 		assert.strictEqual(
-			objectModuleFilePath('C:/ws/src/cf/CommonForms/Форма.xml', 'Форма', 'form'),
+			objectModuleFilePath('C:/ws/src/cf/CommonForms/Форма.xml', 'form'),
 			path.join('C:/ws/src/cf/CommonForms', 'Форма', 'Ext', 'Form', 'Module.bsl')
+		);
+		assert.strictEqual(
+			objectModuleFilePath('C:/ws/ssl31/src/Catalogs/Контрагенты/Контрагенты.mdo', 'recordset'),
+			path.join('C:/ws/ssl31/src/Catalogs/Контрагенты', 'RecordSetModule.bsl')
+		);
+		assert.strictEqual(
+			objectModuleFilePath('C:/ws/ssl31/src/CommonForms/Форма/Форма.mdo', 'form'),
+			path.join('C:/ws/ssl31/src/CommonForms/Форма', 'Module.bsl')
 		);
 	});
 
 	test('клик по объекту вызывает ту же команду, что основной пункт меню', () => {
 		const commonForm = leaf('CommonForm', 'Настройки', 'src/cf/CommonForms/Настройки.xml');
 		assert.ok(isMetadataCommonForm(commonForm.objectType));
-		assert.strictEqual(commonForm.contextValue, 'metadataObjectProperties mdFormModule');
+		assert.strictEqual(commonForm.contextValue, 'metadataObjectProperties mdFormModule mdDesigner');
 		assert.strictEqual(defaultMetadataLeafOpenCommand(commonForm), '1c-platform-tools.metadata.openForm');
 		assert.strictEqual(commonForm.command?.command, '1c-platform-tools.metadata.openForm');
 		// Свойства общей формы лежат в её собственном XML: палитра их читает
@@ -450,12 +459,12 @@ suite('metadataTreeView object modules', () => {
 		assert.strictEqual(metadataLeafReadsObjectProperties(register), true);
 
 		const httpService = leaf('HTTPService', 'Обмен', 'src/cf/HTTPServices/Обмен.xml');
-		assert.strictEqual(httpService.contextValue, 'metadataObjectProperties mdModule');
+		assert.strictEqual(httpService.contextValue, 'metadataObjectProperties mdModule mdDesigner');
 		assert.strictEqual(httpService.command?.command, '1c-platform-tools.metadata.openModule');
 		assert.strictEqual(metadataLeafReadsObjectProperties(httpService), true);
 
 		const language = leaf('Language', 'Русский', 'src/cf/Languages/Русский.xml');
-		assert.strictEqual(language.contextValue, 'metadataObjectProperties');
+		assert.strictEqual(language.contextValue, 'metadataObjectProperties mdDesigner');
 		assert.strictEqual(defaultMetadataLeafOpenCommand(language), '1c-platform-tools.metadata.openProperties');
 		assert.strictEqual(language.command?.command, '1c-platform-tools.metadata.openProperties');
 		assert.strictEqual(metadataLeafReadsObjectProperties(language), true);
@@ -499,6 +508,21 @@ suite('metadataTreeView object modules', () => {
 
 suite('Объект метаданных по открытому файлу', () => {
 	const objectXml = path.join('C:', 'проект', 'src', 'cf', 'Catalogs', 'Валюты.xml');
+
+	test('у проекта EDT файлы объекта лежат вокруг описания', () => {
+		const mdo = path.join('C:', 'проект', 'ssl31', 'src', 'Catalogs', 'Валюты', 'Валюты.mdo');
+		const dir = path.dirname(mdo);
+		assert.strictEqual(metadataObjectOwnsFile(mdo, path.join(dir, 'ObjectModule.bsl')), true);
+		assert.strictEqual(metadataObjectOwnsFile(mdo, path.join(dir, 'Forms', 'ФормаСписка', 'Form.form')), true);
+		assert.strictEqual(
+			metadataObjectOwnsFile(mdo, path.join('C:', 'проект', 'ssl31', 'src', 'Catalogs', 'ВалютыДопы', 'ВалютыДопы.mdo')),
+			false
+		);
+		assert.deepStrictEqual(objectChildFromFilePath(mdo, path.join(dir, 'Forms', 'ФормаСписка', 'Form.form')), {
+			sectionKind: 'forms',
+			name: 'ФормаСписка',
+		});
+	});
 
 	test('сам XML объекта', () => {
 		assert.strictEqual(metadataObjectOwnsFile(objectXml, objectXml), true);

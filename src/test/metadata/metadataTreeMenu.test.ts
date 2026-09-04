@@ -55,11 +55,11 @@ function menuFor(viewItem: string): string[] {
 
 /** contextValue узлов дерева: собирается в metadataTreeView по виду объекта. */
 const NODES = {
-	source: 'metadataSourceConfigLike',
+	source: 'metadataSourceConfigLike mdDesigner',
 	externalRoot: 'metadataSourceExternalArtifact',
 	group: 'metadataGroup_catalogs',
 	groupWithoutCreate: 'metadataGroup_informationRegisters',
-	catalog: 'metadataObjectProperties mdObjModule mdMgrModule',
+	catalog: 'metadataObjectProperties mdObjModule mdMgrModule mdDesigner',
 	commonModule: 'metadataObjectProperties mdModule',
 	commonForm: 'metadataObjectProperties mdFormModule',
 	subsystem: 'metadataObjectPropertiesSubsystem',
@@ -69,12 +69,16 @@ const NODES = {
 	attributesSection: 'metadataObjectSection mdSectionAdd',
 	otherSection: 'metadataObjectSection',
 	dimensionsSection: 'metadataObjectSection mdSectionAdd',
-	attribute: 'metadataChild_attribute mdChildEdit mdChildDuplicate',
+	attribute: 'metadataChild_attribute mdChildEdit mdChildTyped mdChildDuplicate',
 	tabularSection: 'metadataChild_tabularSection mdChildEdit mdChildDuplicate mdChildAdd',
 	objectForm: 'metadataChild_form metadataObjectForm mdFormModule',
 	readonlyChild: 'metadataChild_template',
-	dimension: 'metadataChild_dimension mdChildEdit mdChildDuplicate',
+	dimension: 'metadataChild_dimension mdChildEdit mdChildTyped mdChildDuplicate',
 	command: 'metadataChild_command mdChildEdit',
+	enumValue: 'metadataChild_value mdChildEdit mdChildDuplicate',
+	edtSource: 'metadataSourceConfigLike mdEdt',
+	edtCatalog: 'metadataObjectProperties mdObjModule mdMgrModule mdEdt',
+	edtAttribute: 'metadataChild_attribute mdChildEdit mdChildTyped mdChildDuplicate mdEdt',
 };
 
 suite('контекстное меню дерева метаданных', () => {
@@ -251,7 +255,7 @@ suite('контекстное меню дерева метаданных', () =>
 
 	test('на полной поддержке правило менять нечем: только снятие', () => {
 		// Возможность изменения включает конфигуратор: он же кладёт рядом файл поставки
-		const locked = menuFor('metadataSourceConfigLike mdSupportRules');
+		const locked = menuFor('metadataSourceConfigLike mdSupportRules mdDesigner');
 		const order = ['Собрать', 'Снять с поддержки', 'Проверить выгрузку', 'Свойства'];
 		const positions = order.map((title) => locked.indexOf(title));
 		assert.ok(positions.every((value) => value >= 0), locked.join(' → '));
@@ -267,6 +271,26 @@ suite('контекстное меню дерева метаданных', () =>
 		assert.ok(positions.every((value) => value >= 0), open.join(' → '));
 		assert.deepStrictEqual(positions, [...positions].sort((a, b) => a - b), open.join(' → '));
 		assert.ok(!open.includes('Включить возможность изменения'), 'правила уже действуют');
+	});
+
+	test('«Изменить тип» только у узлов, у которых есть тип', () => {
+		for (const viewItem of [NODES.attribute, NODES.dimension, NODES.edtAttribute]) {
+			assert.ok(menuFor(viewItem).includes('Изменить тип'), `нет «Изменить тип» у ${viewItem}`);
+		}
+		for (const viewItem of [NODES.tabularSection, NODES.command, NODES.enumValue, NODES.objectForm, NODES.catalog]) {
+			assert.ok(!menuFor(viewItem).includes('Изменить тип'), `лишнее «Изменить тип» у ${viewItem}`);
+		}
+	});
+
+	test('у проекта EDT есть проверка и заимствование в расширение', () => {
+		const source = menuFor(NODES.edtSource);
+		assert.ok(source.includes('Проверить выгрузку'), source.join(' → '));
+		assert.ok(source.includes('Открыть модуль сеанса') && source.includes('Свойства'), source.join(' → '));
+		const catalog = menuFor(NODES.edtCatalog);
+		assert.ok(catalog.includes('Добавить объект в расширение'), catalog.join(' → '));
+		assert.ok(catalog.includes('Открыть модуль объекта') && catalog.includes('Переименовать'), catalog.join(' → '));
+		assert.ok(menuFor(NODES.source).includes('Проверить выгрузку'));
+		assert.ok(menuFor(NODES.catalog).includes('Добавить объект в расширение'));
 	});
 
 	test('у группы и узла без файла меню пустое', () => {
