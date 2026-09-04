@@ -4101,7 +4101,7 @@
           "1c-platform-tools.test.path.yaxunitConfig": {
             "type": "string",
             "default": "tools/yaxunit.json",
-            "description": "Базовый конфиг YAxUnit (RunUnitTests). Панель тестирования накладывает на него фильтр по выбранному модулю/тесту и берёт из него reportPath."
+            "description": "Базовый конфиг YAxUnit (RunUnitTests), если секция yaxunit активного профиля не задаёт свой. Панель тестирования накладывает на него фильтр по выбранному модулю или тесту и берёт из него reportPath."
           },
           "1c-platform-tools.test.frameworks.vanessa": {
             "type": "boolean",

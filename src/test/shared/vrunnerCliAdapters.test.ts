@@ -275,6 +275,51 @@ suite('vrunnerCli: адаптеры v2/v3', () => {
 		);
 	});
 
+	test('test.yaxunit с готовым конфигом и опциями секции профиля', () => {
+		check(
+			{
+				kind: 'test.yaxunit',
+				configPath: 'build/out/testapi/yaxunit-config.json',
+				ordinaryApp: '-1',
+				exitCodePath: './build/out/yaxunit/result.txt',
+				additional: '/L ru',
+				noWait: true,
+				common: conn,
+			},
+			[[
+				'run', '--command', 'RunUnitTests=build/out/testapi/yaxunit-config.json',
+				'--ordinaryapp', '-1', '--exitCodePath', './build/out/yaxunit/result.txt',
+				'--additional', '/L ru', '--no-wait', ...conn,
+			]],
+			[[
+				'test', 'yaxunit', '--yaxunit-config', 'build/out/testapi/yaxunit-config.json',
+				'--ordinaryapp', '-1', '--exitcode', './build/out/yaxunit/result.txt',
+				'--additional', '/L ru', '--no-wait', ...conn,
+			]]
+		);
+	});
+
+	test('test.yaxunit без готового конфига: 3.x передаёт фильтр и отчёт опциями, 2.x отказывает', () => {
+		const intent: VRunnerIntent = {
+			kind: 'test.yaxunit',
+			filter: { extensions: ['Тесты'], modules: ['ОМ_Тест'] },
+			report: 'build/out/testapi/yaxunit/report.xml',
+			common: conn,
+		};
+		assert.deepStrictEqual(v3.plan(intent), [[
+			'test', 'yaxunit', '--ext', 'Тесты', '--modules', 'ОМ_Тест',
+			'--report', 'build/out/testapi/yaxunit/report.xml', '--report-format', 'jUnit', ...conn,
+		]]);
+		assert.throws(() => v2.plan(intent), /готовым конфигом/);
+	});
+
+	test('test.yaxunit: выбранные тесты уходят в --tests', () => {
+		assert.deepStrictEqual(
+			v3.plan({ kind: 'test.yaxunit', filter: { extensions: ['Тесты'], tests: ['ОМ_Тест.Первый', 'ОМ_Тест.Второй'] } }),
+			[['test', 'yaxunit', '--ext', 'Тесты', '--tests', 'ОМ_Тест.Первый,ОМ_Тест.Второй']]
+		);
+	});
+
 	test('run.designer с --additional', () => {
 		check(
 			{ kind: 'run.designer', additional: '/DumpConfigToFiles src/cf', common: conn },

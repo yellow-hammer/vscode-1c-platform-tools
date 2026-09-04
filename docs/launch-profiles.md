@@ -94,6 +94,7 @@ vanessa-runner 3 — это отдельный инструмент со сво�
 
 - **vanessa** — сценарные тесты Vanessa Automation (BDD/feature);
 - **xunit** — дымовые тесты xUnit;
+- **yaxunit** — модульные тесты YAxUnit;
 - **syntax-check** — синтаксический контроль конфигурации.
 
 Секции добавляют в файл готовые блоки настроек в формате установленного vrunner (плоские секции в `env.json`, каскад `vrunner.test.*` / `vrunner.validate.*` в `autumn-properties.json`), которые ссылаются на файлы из каталога `tools/`.

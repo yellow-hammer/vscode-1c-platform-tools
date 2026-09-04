@@ -175,6 +175,30 @@ export class V2CliAdapter implements VRunnerCliAdapter {
 				}
 				return [[...args, ...common(intent)]];
 			}
+			case 'test.yaxunit': {
+				// В 2.x YAxUnit запускается предприятием с готовым конфигом:
+				// фильтр и отчёт задаются в нём
+				if (intent.configPath === undefined || intent.filter !== undefined || intent.report !== undefined) {
+					throw new Error(
+						'vanessa-runner 2.x запускает YAxUnit только с готовым конфигом: ' +
+						'фильтр и путь отчёта задаются в нём.'
+					);
+				}
+				const args = ['run', '--command', `RunUnitTests=${intent.configPath}`];
+				if (intent.ordinaryApp !== undefined) {
+					args.push('--ordinaryapp', intent.ordinaryApp);
+				}
+				if (intent.exitCodePath !== undefined) {
+					args.push('--exitCodePath', intent.exitCodePath);
+				}
+				if (intent.additional !== undefined) {
+					args.push('--additional', intent.additional);
+				}
+				if (intent.noWait) {
+					args.push('--no-wait');
+				}
+				return [[...args, ...common(intent)]];
+			}
 			case 'validate.syntaxCheck':
 				return [['syntax-check', ...common(intent)]];
 

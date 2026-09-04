@@ -14,7 +14,7 @@
 |-------------------------|-----------------------------------------------------------|------------------------------------------------------------|
 | **Vanessa Automation**  | `.feature` → сценарии                                     | настройки VA проекта; отчёт jUnit или Cucumber JSON        |
 | **xUnit / Vanessa-ADD** | исходники тестовых обработок → методы (обработка собирается перед прогоном) | активный профиль запуска, секция `xunit`                   |
-| **YAxUnit**             | модули тестового расширения → тесты                       | `tools/yaxunit.json`                                        |
+| **YAxUnit**             | модули тестового расширения → тесты                       | активный профиль запуска, секция `yaxunit`; `tools/yaxunit.json` |
 | **OneScript (1testrunner)** | `.os`-тесты с `ИсполняемыеСценарии` или аннотациями `&Тест` | отчёт в `build/out/onescript`                              |
 | **OneScript (OneUnit)** | `.os`-тесты, в том числе `&ПараметризованныйТест`         | отчёт в `build/out/onescript`                              |
 | **1bdd**                | `.feature` в OneScript-проектах                           | отчёт в `build/out/1bdd`                                    |
@@ -70,7 +70,7 @@ project/
 
 Расширение использует служебные файлы проекта и не генерирует свои. Все прогоны идут под [активным профилем запуска](launch-profiles.md): его `--settings` подставляется централизованно, а пути отчётов и параметров читаются из файла профиля с учётом схемы (плоские секции в `env.json`, каскад `vrunner.test.*` в `autumn-properties.json`).
 
-- профиль — секции `vanessa` (`vanessasettings`) и `xunit` (`reportsxunit` — отсюда берётся путь jUnit-отчёта);
+- профиль — секции `vanessa` (`vanessasettings`), `xunit` (`reportsxunit` — отсюда берётся путь jUnit-отчёта) и `yaxunit` (см. [ниже](#yaxunit-и-профиль-запуска));
 - `tools/VAParams.json` — какие отчёты пишет Vanessa Automation (jUnit или Cucumber JSON) и куда;
 - `tools/yaxunit.json` — базовый конфиг RunUnitTests; панель накладывает на него фильтр по выбранному модулю/тесту.
 
@@ -88,7 +88,7 @@ project/
 | `test.exclude`                                   | `["oscript_modules", "build"]` | Сегменты пути, исключаемые при поиске тестов      |
 | `test.onescriptRunner`                           | `auto`                         | Раннер OneScript: auto / 1testrunner / oneunit    |
 | `test.onescriptRunnerPath`, `test.onebddPath` | —                              | Пути к раннерам (поддерживают относительные)      |
-| `test.yaxunitConfigPath`                         | `tools/yaxunit.json`           | Базовый конфиг YAxUnit                            |
+| `test.path.yaxunitConfig`                        | `tools/yaxunit.json`           | Базовый конфиг YAxUnit, если профиль не задаёт свой |
 | `test.reportsPath`                               | `build/out/testapi`            | Временные файлы прогонов                          |
 
 ## Тестовые расширения
@@ -135,6 +135,12 @@ project/
 Панель тестирования ищет тесты YAxUnit в обоих корнях - и в `path.cfe`, и в `tests/cfe`:
 расширение с тестами встречается и внутри решения, и рядом с тестами. Отладчику каталоги
 тестовых расширений тоже передаются, иначе в тест нельзя было бы зайти точкой останова.
+
+## YAxUnit и профиль запуска
+
+Секция `yaxunit` профиля задаёт запуск тестов YAxUnit из панели и командой «YAxUnit тесты»: конфиг в `--command` (`RunUnitTests=<конфиг>`) вместо настройки `test.path.yaxunitConfig`, режим клиента `--ordinaryapp`, файл кода возврата `--exitCodePath`, а также `--additional` и `--no-wait`. Так разные профили запускают разные конфиги, например дымовой и полный. Секция добавляется в редакторе профиля и при создании файла настроек.
+
+В `autumn-properties.json` это секция `vrunner.test.yaxunit` с опциями команды `vrunner test yaxunit`: готовый конфиг `yaxunit-config`, отчёт `report`, файл кода возврата `exitcode`, фильтры `ext`, `modules`, `tests`, `tags` и `suites`. Готовый конфиг используется как есть, поэтому отчёт, код возврата и фильтры из секции действуют, когда конфиг не задан.
 
 ## Особенности
 
