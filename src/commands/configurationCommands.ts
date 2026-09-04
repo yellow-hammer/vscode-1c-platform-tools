@@ -16,6 +16,8 @@ import {
 	getConvertSourcesCommandName
 } from '../features/tools/commandNames';
 import { configurationScope } from '../shared/activeConfiguration';
+import { convertSourcesWithEdt } from '../features/edt/edtConvert';
+import { resolveEdt } from '../features/edt/edtRunner';
 import { VRUNNER_FEATURES, isAtLeast } from '../shared/vrunnerVersion';
 import {
 	checkVersionFileExists,
@@ -259,10 +261,13 @@ export class ConfigurationCommands extends BaseCommand {
 	 * @param opts - Опции выполнения
 	 */
 	async convertSources(opts?: CommandExecutionOptions): Promise<StructuredCommandResult | void> {
+		// Раннер 3 конвертирует сам, а до него это делает установленная EDT:
+		// внутри раннер всё равно вызывает 1cedtcli
 		const version = await this.vrunner.getVRunnerVersion();
-		if (version !== undefined && !isAtLeast(version, VRUNNER_FEATURES.edtSources)) {
+		const runnerConverts = version === undefined || isAtLeast(version, VRUNNER_FEATURES.edtSources);
+		if (!runnerConverts && !resolveEdt()) {
 			return this.reportUnavailable(
-				'Конвертация исходников между форматами появилась в vanessa-runner 3.0.0-rc8.',
+				'Конвертация исходников требует vanessa-runner 3.0.0-rc8 или установленной 1С:EDT.',
 				opts
 			);
 		}
@@ -292,6 +297,11 @@ export class ConfigurationCommands extends BaseCommand {
 		}
 
 		const commandName = getConvertSourcesCommandName();
+		if (!runnerConverts) {
+			await convertSourcesWithEdt(workspaceRoot, source, path.resolve(workspaceRoot, outputPath));
+			return;
+		}
+
 		return this.runIntent(
 			{ kind: 'cf.convert', src: relativeSource || undefined, out: outputPath },
 			opts, commandName.title, outputPath, commandName.id

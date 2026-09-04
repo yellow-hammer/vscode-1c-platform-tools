@@ -31,6 +31,8 @@ function sampleSummary(overrides: Partial<EnvironmentSummary> = {}): Environment
 		],
 		platformVersions: ['8.3.27.1936', '8.3.24.1548'],
 		racPath: 'C:/Program Files/1cv8/8.3.27.1936/bin/rac.exe',
+		edtVersions: ['2026.1'],
+		edtCliPath: 'C:/1C/1cedtstart/installations/1C_EDT 2026.1/1cedt/1cedtcli.exe',
 		ipcEnabled: true,
 		ipcPort: 40241,
 		ipcTokenSet: true,
