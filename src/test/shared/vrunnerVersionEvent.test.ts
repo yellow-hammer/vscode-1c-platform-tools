@@ -3,6 +3,7 @@ import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { VRunnerManager } from '../../shared/vrunnerManager';
+import { writeLocalRunner } from '../fixtures/helpers/vrunnerStub';
 
 /**
  * Схема файла настроек зависит от версии раннера, а версия известна только после
@@ -13,19 +14,6 @@ suite('версия vanessa-runner: событие первого определ
 	const vrunner = VRunnerManager.getInstance();
 	let root: string;
 
-	/** Локальный vanessa-runner проекта, отвечающий на запрос версии сразу. */
-	function writeLocalRunner(version: string): void {
-		const bin = path.join(root, 'oscript_modules', 'bin');
-		fs.mkdirSync(bin, { recursive: true });
-		if (process.platform === 'win32') {
-			fs.writeFileSync(path.join(bin, 'vrunner.bat'), `@echo ${version}\r\n`, 'utf8');
-			return;
-		}
-		const runner = path.join(bin, 'vrunner');
-		fs.writeFileSync(runner, `#!/bin/sh\necho ${version}\n`, 'utf8');
-		fs.chmodSync(runner, 0o755);
-	}
-
 	setup(() => {
 		root = fs.mkdtempSync(path.join(os.tmpdir(), 'vrunner-version-'));
 	});
@@ -35,7 +23,7 @@ suite('версия vanessa-runner: событие первого определ
 	});
 
 	test('первое определение оповещает подписчиков и меняет схему настроек', async () => {
-		writeLocalRunner('3.0.0');
+		writeLocalRunner(root, '3.0.0');
 		let fired = 0;
 		const subscription = vrunner.onDidChangeVRunnerVersion(() => {
 			fired++;
