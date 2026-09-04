@@ -156,10 +156,15 @@ export function isRacUsageOutput(output: string): boolean {
 /** Категория неудачи вызова rac: определяет подсказку и поведение UI. */
 export type RacFailureKind = 'connection' | 'auth' | 'notFound' | 'version' | 'unknown';
 
+/** Чьи учётные данные отверг сервер: кластера, центрального сервера или информационной базы. */
+export type RacAuthRole = 'cluster' | 'agent' | 'infobase';
+
 /** Разобранная неудача вызова rac. */
 export interface RacFailure {
 	/** Категория неудачи. */
 	kind: RacFailureKind;
+	/** Чей отказ, если платформа назвала роль; только у отказа по аутентификации. */
+	role?: RacAuthRole;
 	/** Короткое сообщение пользователю: что случилось и что с этим делать. */
 	message: string;
 	/** Полный вывод утилиты — для журнала. */
@@ -186,6 +191,8 @@ const FAILURE_SIGNS: Array<{ sign: string; kind: RacFailureKind }> = [
 	{ sign: 'идентификация пользователя не выполнена', kind: 'auth' },
 	{ sign: 'administrator name or password', kind: 'auth' },
 	{ sign: 'authentication', kind: 'auth' },
+	{ sign: 'недостаточно прав пользователя', kind: 'auth' },
+	{ sign: 'insufficient user rights', kind: 'auth' },
 	{ sign: 'несовпадение версий', kind: 'version' },
 	{ sign: 'version mismatch', kind: 'version' },
 	{ sign: 'не обнаружен', kind: 'notFound' },
@@ -198,6 +205,25 @@ const FAILURE_SIGNS: Array<{ sign: string; kind: RacFailureKind }> = [
 	{ sign: 'сервер администрирования', kind: 'connection' },
 	{ sign: 'timed out', kind: 'connection' },
 	{ sign: 'операция превысила', kind: 'connection' },
+];
+
+/**
+ * Чья роль названа в отказе: подстрока вывода → роль.
+ *
+ * Признаки центрального сервера идут первыми: «администрирование агента
+ * кластера не разрешено» содержит и слово «кластера».
+ */
+const ROLE_SIGNS: Array<{ sign: string; role: RacAuthRole }> = [
+	{ sign: 'центрального сервера', role: 'agent' },
+	{ sign: 'агента кластера', role: 'agent' },
+	{ sign: 'central server administrator', role: 'agent' },
+	{ sign: 'cluster agent', role: 'agent' },
+	{ sign: 'администратор кластера', role: 'cluster' },
+	{ sign: 'администрирование кластера', role: 'cluster' },
+	{ sign: 'cluster administrator', role: 'cluster' },
+	{ sign: 'информационн', role: 'infobase' },
+	{ sign: 'infobase', role: 'infobase' },
+	{ sign: 'пользовател', role: 'infobase' },
 ];
 
 /**
@@ -215,6 +241,31 @@ const FAILURE_MESSAGES: Record<RacFailureKind, string | undefined> = {
 	version: 'Версия rac не совпадает с версией сервера: укажите версию платформы в подключении',
 	unknown: undefined,
 };
+
+/** Что показать при отказе по аутентификации, когда известно, чей набор не принят. */
+const AUTH_MESSAGES: Record<RacAuthRole, string> = {
+	cluster: 'Администратор кластера не принят: откройте учётные данные',
+	agent: 'Администратор центрального сервера не принят: откройте учётные данные',
+	infobase: 'Администратор информационной базы не принят: откройте учётные данные',
+};
+
+/**
+ * Приписывает отказ по аутентификации роли, чьи учётные данные передавал вызов.
+ *
+ * Платформа называет роль в отказе не всегда: неверный пароль администратора
+ * центрального сервера она может объяснить словами про администратора кластера.
+ * Вызывающий знает, чей набор уходил в опциях, и это знание точнее текста.
+ *
+ * @param failure - Разобранная неудача
+ * @param role - Чьи учётные данные передавал вызов
+ * @returns Неудача с ролью и сообщением про неё; не отказ по аутентификации возвращается как есть
+ */
+export function attributeAuthFailure(failure: RacFailure, role: RacAuthRole): RacFailure {
+	if (failure.kind !== 'auth') {
+		return failure;
+	}
+	return { ...failure, role, message: AUTH_MESSAGES[role] };
+}
 
 /**
  * Распознаёт неудачу вызова rac по его выводу.
@@ -236,14 +287,17 @@ export function describeRacFailure(exitCode: number, stdout: string, stderr: str
 		.filter(Boolean);
 	const output = lines.join('\n');
 
-	const kind =
-		FAILURE_SIGNS.find((item) => output.toLowerCase().includes(item.sign))?.kind ?? 'unknown';
+	const lower = output.toLowerCase();
+	const kind = FAILURE_SIGNS.find((item) => lower.includes(item.sign))?.kind ?? 'unknown';
+	const role = kind === 'auth' ? ROLE_SIGNS.find((item) => lower.includes(item.sign))?.role : undefined;
 	// Нераспознанному отказу берём первую строку вывода: дальше утилита обычно
 	// уходит в подробности, до которых читателю строки состояния дела нет.
 	const message =
-		FAILURE_MESSAGES[kind] ?? lines[0] ?? `Утилита rac завершилась с кодом ${exitCode}`;
+		(role ? AUTH_MESSAGES[role] : FAILURE_MESSAGES[kind]) ??
+		lines[0] ??
+		`Утилита rac завершилась с кодом ${exitCode}`;
 
-	return { kind, message, output: output || undefined };
+	return { kind, ...(role ? { role } : {}), message, output: output || undefined };
 }
 
 /**

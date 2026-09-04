@@ -10,7 +10,7 @@
     "1с предприятие",
     "bsl"
   ],
-  "version": "0.8.12",
+  "version": "0.8.13",
   "publisher": "yellow-hammer",
   "extensionKind": [
     "workspace"
@@ -3218,7 +3218,7 @@
         },
         {
           "command": "1c-platform-tools.metadata.openSourceXml",
-          "when": "view == 1c-platform-tools-metadata-tree && (viewItem =~ /(^| )metadataSourceConfigLike( |$)/ || viewItem =~ /(^| )(metadataObjectProperties(Subsystem)?|metadataLeafFile|metadataObjectForm)( |$)/)",
+          "when": "view == 1c-platform-tools-metadata-tree && (viewItem =~ /(^| )metadataSourceConfigLike( |$)/ || viewItem == metadataSourceUnsupported || viewItem =~ /(^| )(metadataObjectProperties(Subsystem)?|metadataLeafFile|metadataObjectForm)( |$)/)",
           "group": "2_reveal@1"
         },
         {
@@ -3228,7 +3228,7 @@
         },
         {
           "command": "1c-platform-tools.metadata.compile",
-          "when": "view == 1c-platform-tools-metadata-tree && (viewItem =~ /(^| )metadataSourceConfigLike( |$)/ || viewItem == metadataSourceExternalArtifact || viewItem =~ /(^| )metadataLeafFile( |$)/)",
+          "when": "view == 1c-platform-tools-metadata-tree && (viewItem =~ /(^| )metadataSourceConfigLike( |$)/ || viewItem == metadataSourceUnsupported || viewItem == metadataSourceExternalArtifact || viewItem =~ /(^| )metadataLeafFile( |$)/)",
           "group": "4_build@1"
         },
         {
@@ -4122,7 +4122,7 @@
           "1c-platform-tools.test.path.yaxunitConfig": {
             "type": "string",
             "default": "tools/yaxunit.json",
-            "description": "Базовый конфиг YAxUnit (RunUnitTests). Панель тестирования накладывает на него фильтр по выбранному модулю/тесту и берёт из него reportPath."
+            "description": "Базовый конфиг YAxUnit (RunUnitTests), если секция yaxunit активного профиля не задаёт свой. Панель тестирования накладывает на него фильтр по выбранному модулю или тесту и берёт из него reportPath."
           },
           "1c-platform-tools.test.frameworks.vanessa": {
             "type": "boolean",

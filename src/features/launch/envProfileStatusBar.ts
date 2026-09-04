@@ -6,8 +6,6 @@
  */
 
 import * as vscode from 'vscode';
-import * as path from 'node:path';
-import * as fsSync from 'node:fs';
 import { VRunnerManager } from '../../shared/vrunnerManager';
 import { activeProfileLabel, LOCAL_OVERRIDES_FILE } from '../../shared/envProfiles';
 
@@ -48,26 +46,24 @@ export function refreshEnvProfileStatusBar(visible: boolean): void {
 
 	const label = activeProfileLabel(vrunner.getActiveEnvProfileId(), vrunner.discoverEnvProfiles());
 	const versionLabel = vrunner.getCachedVRunnerVersionLabel();
-	const settingsFile = vrunner.getActiveEnvFile();
-	const workspaceRoot = vrunner.getWorkspaceRoot();
-	const settingsExists = workspaceRoot
-		? fsSync.existsSync(path.isAbsolute(settingsFile) ? settingsFile : path.join(workspaceRoot, settingsFile))
-		: false;
+	const settings = vrunner.describeSettingsState();
 
 	const overrides = vrunner.getActiveEnvOverrides();
 	const hasLocalOverrides = vrunner.hasLocalEnvOverrides();
 	item.text = `$(rocket) ${label}${overrides || hasLocalOverrides ? ' *' : ''}`;
-	// Предупреждаем, когда команды заблокированы отсутствием файла настроек
-	item.backgroundColor = settingsExists
+	// Предупреждаем, когда команды заблокированы непригодным файлом настроек
+	item.backgroundColor = settings.ready
 		? undefined
 		: new vscode.ThemeColor('statusBarItem.warningBackground');
 	item.tooltip = new vscode.MarkdownString(
 		[
 			`**Профиль запуска 1С:** ${label}`,
 			`vanessa-runner: ${versionLabel ?? 'версия не определена'}`,
-			settingsExists
-				? `Файл настроек: ${settingsFile}`
-				: '⚠ Профиль запуска не создан, команды заблокированы',
+			settings.ready
+				? `Файл настроек: ${settings.fileName}`
+				: settings.exists
+					? `⚠ Команды заблокированы. ${vrunner.settingsProblemMessage(settings)}`
+					: '⚠ Профиль запуска не создан, команды заблокированы',
 			overrides ? 'Заданы временные параметры' : '',
 			hasLocalOverrides ? `Действуют локальные перекрытия (${LOCAL_OVERRIDES_FILE})` : '',
 		].filter(Boolean).join('\n\n')

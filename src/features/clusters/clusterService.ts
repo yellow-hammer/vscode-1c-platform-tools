@@ -52,8 +52,8 @@ import {
 	type RacCredentials,
 	type RacScope,
 } from './racArgs';
-import type { ClusterCredentialStore } from './credentials';
-import type { MissingCredentialsEvent } from './credentialsNotify';
+import type { ClusterCredentialStore, ConnectionRole } from './credentials';
+import type { MissingCredentialsEvent, MissingCredentialsKind } from './credentialsNotify';
 import type { RacClient, RacResult } from './racClient';
 import {
 	toAdminInfo,
@@ -76,7 +76,7 @@ import {
 	type ServerInfo,
 	type SessionInfo,
 } from './model';
-import type { RacFailure, RacRecord } from './racOutput';
+import { attributeAuthFailure, type RacAuthRole, type RacFailure, type RacRecord } from './racOutput';
 
 /** Итог проверки подключения. */
 export interface ConnectionCheck {
@@ -91,6 +91,19 @@ export type ServiceResult<T> = { ok: true; value: T } | { ok: false; failure: Ra
 
 /** Сколько информационных баз читается одновременно. */
 const INFOBASE_BATCH = 4;
+
+/**
+ * Превращает итог вызова в список типизированных объектов.
+ *
+ * @param result - Итог вызова rac
+ * @param map - Преобразование объекта вывода
+ * @returns Список объектов или причина неудачи
+ */
+function toList<T>(result: RacResult, map: (record: RacRecord) => T): ServiceResult<T[]> {
+	return result.ok
+		? { ok: true, value: result.records.map(map) }
+		: { ok: false, failure: result.failure };
+}
 
 /** Операции администрирования кластера. */
 export class ClusterService {
@@ -114,23 +127,34 @@ export class ClusterService {
 		};
 	}
 
+	/** Запускает rac с версией платформы подключения. */
+	private run(connection: ClusterConnection, args: string[]): Promise<RacResult> {
+		return this.client.run(args, { platformVersion: connection.platformVersion });
+	}
+
 	/**
-	 * Сообщает, что набор кластера или агента не подошёл.
+	 * Приписывает отказ роли и сообщает, что её набора нет или его не приняли.
+	 *
+	 * Прочие неудачи возвращаются как есть.
 	 *
 	 * @param failure - Разобранная неудача
-	 * @param role - Какой набор искали
-	 * @param connectionId - Подключение: привязанный к нему набор тоже считается
+	 * @param role - Чьи учётные данные передавал вызов
+	 * @param hadSet - Уходил ли набор этой роли в вызов
+	 * @param infobaseName - Имя базы для уведомления об администраторе базы
+	 * @returns Неудача с ролью и сообщением про неё
 	 */
-	private noteRoleAuth(failure: RacFailure, role: 'cluster' | 'agent', connectionId: string): void {
+	private rejected(
+		failure: RacFailure,
+		role: RacAuthRole,
+		hadSet: boolean,
+		infobaseName?: string
+	): RacFailure {
 		if (failure.kind !== 'auth') {
-			return;
+			return failure;
 		}
-		const hasSet = this.credentials.hasRoleFor(role, connectionId);
-		if (role === 'agent') {
-			this.notifyMissing({ kind: hasSet ? 'agentRejected' : 'agentMissing' });
-			return;
-		}
-		this.notifyMissing({ kind: hasSet ? 'clusterRejected' : 'clusterMissing' });
+		const kind: MissingCredentialsKind = `${role}${hadSet ? 'Rejected' : 'Missing'}`;
+		this.notifyMissing(role === 'infobase' ? { kind, infobaseName } : { kind });
+		return attributeAuthFailure(failure, role);
 	}
 
 	/**
@@ -157,19 +181,22 @@ export class ClusterService {
 	 * Выполняет вызов и превращает объекты вывода в типизированные.
 	 *
 	 * @param connection - Подключение (задаёт версию платформы)
+	 * @param scope - Область вызова: по ней видно, уходил ли набор роли
 	 * @param args - Аргументы вызова
 	 * @param map - Преобразование объекта вывода
+	 * @param role - Чьи учётные данные защищают вызов
 	 * @returns Список объектов или причина неудачи
 	 */
 	private async collect<T>(
 		connection: ClusterConnection,
+		scope: RacScope,
 		args: string[],
-		map: (record: RacRecord) => T
+		map: (record: RacRecord) => T,
+		role: ConnectionRole = 'cluster'
 	): Promise<ServiceResult<T[]>> {
-		const result = await this.client.run(args, { platformVersion: connection.platformVersion });
+		const result = await this.run(connection, args);
 		if (!result.ok) {
-			this.noteRoleAuth(result.failure, 'cluster', connection.id);
-			return { ok: false, failure: result.failure };
+			return { ok: false, failure: this.rejected(result.failure, role, scope[role] !== undefined) };
 		}
 		return { ok: true, value: result.records.map(map) };
 	}
@@ -178,17 +205,21 @@ export class ClusterService {
 	 * Выполняет вызов, ожидая один объект.
 	 *
 	 * @param connection - Подключение
+	 * @param scope - Область вызова
 	 * @param args - Аргументы вызова
 	 * @returns Поля объекта или причина неудачи
 	 */
 	private async single(
 		connection: ClusterConnection,
+		scope: RacScope,
 		args: string[]
 	): Promise<ServiceResult<RacRecord>> {
-		const result = await this.client.run(args, { platformVersion: connection.platformVersion });
+		const result = await this.run(connection, args);
 		if (!result.ok) {
-			this.noteRoleAuth(result.failure, 'cluster', connection.id);
-			return { ok: false, failure: result.failure };
+			return {
+				ok: false,
+				failure: this.rejected(result.failure, 'cluster', scope.cluster !== undefined),
+			};
 		}
 		const record = result.records[0];
 		if (!record) {
@@ -203,11 +234,13 @@ export class ClusterService {
 	/**
 	 * Выполняет операцию над информационной базой с подходящим набором.
 	 *
-	 * Первая попытка идёт с привязкой или набором «администратор информационных
-	 * баз». Большинству баз без администраторов этого достаточно. Если rac
-	 * отказал по аутентификации — уведомление в углу, без повторного ввода.
+	 * Вызов идёт с привязанным набором администратора базы; базе без
+	 * пользователей он не нужен. Отказ по аутентификации приписывается той
+	 * роли, которую назвала платформа: закрытый кластер отвечает про своего
+	 * администратора и при верном наборе базы.
 	 *
 	 * @param connection - Подключение
+	 * @param scope - Область вызова с кластером
 	 * @param infobaseId - Идентификатор информационной базы
 	 * @param infobaseName - Имя базы для уведомления
 	 * @param call - Вызов rac, принимающий учётные данные базы
@@ -215,6 +248,7 @@ export class ClusterService {
 	 */
 	private async withInfobaseAuth(
 		connection: ClusterConnection,
+		scope: ClusterScope,
 		infobaseId: string,
 		infobaseName: string,
 		call: (infobase?: RacCredentials) => Promise<RacResult>
@@ -224,17 +258,20 @@ export class ClusterService {
 		if (first.ok || first.failure.kind !== 'auth') {
 			return first;
 		}
-		this.notifyMissing({
-			kind: known ? 'infobaseRejected' : 'infobaseMissing',
-			infobaseName,
-		});
-		return first;
+		const { role } = first.failure;
+		if (role === 'cluster' || role === 'agent') {
+			return { ok: false, failure: this.rejected(first.failure, role, scope[role] !== undefined) };
+		}
+		return {
+			ok: false,
+			failure: this.rejected(first.failure, 'infobase', known !== undefined, infobaseName),
+		};
 	}
 
 	/** Список кластеров сервера администрирования. */
 	async listClusters(connection: ClusterConnection): Promise<ServiceResult<ClusterInfo[]>> {
 		const scope = await this.scope(connection);
-		return this.collect(connection, buildClusterListArgs(scope), toClusterInfo);
+		return this.collect(connection, scope, buildClusterListArgs(scope), toClusterInfo);
 	}
 
 	/**
@@ -383,13 +420,12 @@ export class ClusterService {
 		update: ClusterUpdate
 	): Promise<ServiceResult<void>> {
 		const scope = await this.scope(connection);
-		const result = await this.client.run(
-			buildClusterUpdateArgs({ ...scope, clusterId, update }),
-			{ platformVersion: connection.platformVersion }
-		);
+		const result = await this.run(connection, buildClusterUpdateArgs({ ...scope, clusterId, update }));
 		if (!result.ok) {
-			this.noteRoleAuth(result.failure, 'agent', connection.id);
-			return { ok: false, failure: result.failure };
+			return {
+				ok: false,
+				failure: this.rejected(result.failure, 'agent', scope.agent !== undefined),
+			};
 		}
 		return { ok: true, value: undefined };
 	}
@@ -442,7 +478,7 @@ export class ClusterService {
 		connectionId: string
 	): Promise<ServiceResult<RacRecord>> {
 		const scope = await this.clusterScope(connection, clusterId);
-		return this.single(connection, buildConnectionInfoArgs({ ...scope, connectionId }));
+		return this.single(connection, scope, buildConnectionInfoArgs({ ...scope, connectionId }));
 	}
 
 	/** Сведения о менеджере кластера. */
@@ -452,7 +488,7 @@ export class ClusterService {
 		managerId: string
 	): Promise<ServiceResult<RacRecord>> {
 		const scope = await this.clusterScope(connection, clusterId);
-		return this.single(connection, buildManagerInfoArgs({ ...scope, managerId }));
+		return this.single(connection, scope, buildManagerInfoArgs({ ...scope, managerId }));
 	}
 
 	/** Список администраторов кластера. */
@@ -461,13 +497,13 @@ export class ClusterService {
 		clusterId: string
 	): Promise<ServiceResult<AdminInfo[]>> {
 		const scope = await this.clusterScope(connection, clusterId);
-		return this.collect(connection, buildClusterAdminListArgs(scope), toAdminInfo);
+		return this.collect(connection, scope, buildClusterAdminListArgs(scope), toAdminInfo);
 	}
 
 	/** Список администраторов центрального сервера. */
 	async listAgentAdmins(connection: ClusterConnection): Promise<ServiceResult<AdminInfo[]>> {
 		const scope = await this.scope(connection);
-		return this.collect(connection, buildAgentAdminListArgs(scope), toAdminInfo);
+		return this.collect(connection, scope, buildAgentAdminListArgs(scope), toAdminInfo, 'agent');
 	}
 
 	/**
@@ -553,7 +589,7 @@ export class ClusterService {
 		clusterId: string
 	): Promise<ServiceResult<ManagerInfo[]>> {
 		const scope = await this.clusterScope(connection, clusterId);
-		return this.collect(connection, buildManagerListArgs(scope), toManagerInfo);
+		return this.collect(connection, scope, buildManagerListArgs(scope), toManagerInfo);
 	}
 
 	/** Список рабочих серверов кластера. */
@@ -562,7 +598,7 @@ export class ClusterService {
 		clusterId: string
 	): Promise<ServiceResult<ServerInfo[]>> {
 		const scope = await this.clusterScope(connection, clusterId);
-		return this.collect(connection, buildServerListArgs(scope), toServerInfo);
+		return this.collect(connection, scope, buildServerListArgs(scope), toServerInfo);
 	}
 
 	/** Список рабочих процессов кластера или одного сервера. */
@@ -572,7 +608,7 @@ export class ClusterService {
 		serverId?: string
 	): Promise<ServiceResult<ProcessInfo[]>> {
 		const scope = await this.clusterScope(connection, clusterId);
-		return this.collect(connection, buildProcessListArgs({ ...scope, serverId }), toProcessInfo);
+		return this.collect(connection, scope, buildProcessListArgs({ ...scope, serverId }), toProcessInfo);
 	}
 
 	/** Список информационных баз кластера. */
@@ -581,7 +617,7 @@ export class ClusterService {
 		clusterId: string
 	): Promise<ServiceResult<InfobaseInfo[]>> {
 		const scope = await this.clusterScope(connection, clusterId);
-		return this.collect(connection, buildInfobaseListArgs(scope), toInfobaseInfo);
+		return this.collect(connection, scope, buildInfobaseListArgs(scope), toInfobaseInfo);
 	}
 
 	/**
@@ -636,14 +672,19 @@ export class ClusterService {
 		infobaseId?: string
 	): Promise<ServiceResult<SessionInfo[]>> {
 		const scope = await this.clusterScope(connection, clusterId);
-		return this.collect(connection, buildSessionListArgs({ ...scope, infobaseId }), toSessionInfo);
+		return this.collect(connection, scope, buildSessionListArgs({ ...scope, infobaseId }), toSessionInfo);
 	}
 
-	/** Список соединений кластера, процесса или информационной базы. */
+	/**
+	 * Список соединений кластера, процесса или информационной базы.
+	 *
+	 * Соединения одной базы платформа отдаёт её администратору, если в базе
+	 * есть пользователи, поэтому отбор по базе идёт с её набором.
+	 */
 	async listConnections(
 		connection: ClusterConnection,
 		clusterId: string,
-		filter: { processId?: string; infobaseId?: string } = {}
+		filter: { processId?: string; infobaseId?: string; infobaseName?: string } = {}
 	): Promise<ServiceResult<ConnectionInfo[]>> {
 		const scope = await this.clusterScope(connection, clusterId);
 		// Платформа принимает --process только вместе с --infobase и без второй
@@ -651,15 +692,26 @@ export class ClusterService {
 		// процессу без базы делается на нашей стороне: список соединений кластера
 		// и так содержит идентификатор рабочего процесса.
 		const platformFilters = filter.processId !== undefined && filter.infobaseId !== undefined;
-		const result = await this.collect(
-			connection,
+		const args = (infobase?: RacCredentials) =>
 			buildConnectionListArgs({
 				...scope,
 				infobaseId: filter.infobaseId,
 				processId: platformFilters ? filter.processId : undefined,
-			}),
-			toConnectionInfo
-		);
+				infobase,
+			});
+		const result =
+			filter.infobaseId === undefined
+				? await this.collect(connection, scope, args(), toConnectionInfo)
+				: toList(
+						await this.withInfobaseAuth(
+							connection,
+							scope,
+							filter.infobaseId,
+							filter.infobaseName ?? 'информационная база',
+							(infobase) => this.run(connection, args(infobase))
+						),
+						toConnectionInfo
+					);
 		if (!result.ok || platformFilters || filter.processId === undefined) {
 			return result;
 		}
@@ -673,7 +725,7 @@ export class ClusterService {
 		infobaseId?: string
 	): Promise<ServiceResult<LockInfo[]>> {
 		const scope = await this.clusterScope(connection, clusterId);
-		return this.collect(connection, buildLockListArgs({ ...scope, infobaseId }), toLockInfo);
+		return this.collect(connection, scope, buildLockListArgs({ ...scope, infobaseId }), toLockInfo);
 	}
 
 	/** Подробности кластера. */
@@ -682,7 +734,7 @@ export class ClusterService {
 		clusterId: string
 	): Promise<ServiceResult<RacRecord>> {
 		const scope = await this.clusterScope(connection, clusterId);
-		return this.single(connection, buildClusterInfoArgs(scope));
+		return this.single(connection, scope, buildClusterInfoArgs(scope));
 	}
 
 	/** Подробности рабочего сервера. */
@@ -692,7 +744,7 @@ export class ClusterService {
 		serverId: string
 	): Promise<ServiceResult<RacRecord>> {
 		const scope = await this.clusterScope(connection, clusterId);
-		return this.single(connection, buildServerInfoArgs({ ...scope, serverId }));
+		return this.single(connection, scope, buildServerInfoArgs({ ...scope, serverId }));
 	}
 
 	/** Подробности рабочего процесса. */
@@ -702,7 +754,7 @@ export class ClusterService {
 		processId: string
 	): Promise<ServiceResult<RacRecord>> {
 		const scope = await this.clusterScope(connection, clusterId);
-		return this.single(connection, buildProcessInfoArgs({ ...scope, processId }));
+		return this.single(connection, scope, buildProcessInfoArgs({ ...scope, processId }));
 	}
 
 	/** Подробности сеанса. */
@@ -712,7 +764,7 @@ export class ClusterService {
 		sessionId: string
 	): Promise<ServiceResult<RacRecord>> {
 		const scope = await this.clusterScope(connection, clusterId);
-		return this.single(connection, buildSessionInfoArgs({ ...scope, sessionId }));
+		return this.single(connection, scope, buildSessionInfoArgs({ ...scope, sessionId }));
 	}
 
 	/**
@@ -728,7 +780,7 @@ export class ClusterService {
 		infobaseName: string
 	): Promise<ServiceResult<RacRecord>> {
 		const scope = await this.clusterScope(connection, clusterId);
-		const result = await this.withInfobaseAuth(connection, infobaseId, infobaseName, (infobase) =>
+		const result = await this.withInfobaseAuth(connection, scope, infobaseId, infobaseName, (infobase) =>
 			this.client.run(buildInfobaseInfoArgs({ ...scope, infobaseId, infobase }), {
 				platformVersion: connection.platformVersion,
 			})
@@ -823,6 +875,7 @@ export class ClusterService {
 		const result = target.infobaseId
 			? await this.withInfobaseAuth(
 					connection,
+					scope,
 					target.infobaseId,
 					target.infobaseName ?? 'информационная база',
 					call
@@ -841,6 +894,7 @@ export class ClusterService {
 		const scope = await this.clusterScope(connection, clusterId);
 		const result = await this.withInfobaseAuth(
 			connection,
+			scope,
 			infobase.id,
 			infobase.name,
 			(infobaseCredentials) =>
@@ -875,6 +929,7 @@ export class ClusterService {
 		const scope = await this.clusterScope(connection, clusterId);
 		const result = await this.withInfobaseAuth(
 			connection,
+			scope,
 			infobase.id,
 			infobase.name,
 			(infobaseCredentials) =>

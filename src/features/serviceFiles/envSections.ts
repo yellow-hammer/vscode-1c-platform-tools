@@ -1,5 +1,5 @@
 /**
- * Опциональные секции env.json (vanessa / xunit / синтаксический контроль).
+ * Опциональные секции env.json (vanessa / xunit / yaxunit / синтаксический контроль).
  *
  * При создании env.json пользователь отмечает нужные секции; базовая секция
  * `default` присутствует всегда. Слияние (mergeEnvSections) — чистая функция.
@@ -58,6 +58,16 @@ export const ENV_OPTIONAL_SECTIONS: EnvSectionOption[] = [
 				'-ExternalConnection',
 				'-ThickClientOrdinaryApplication',
 			],
+		},
+	},
+	{
+		id: 'yaxunit',
+		label: 'yaxunit',
+		description: 'Модульные тесты YAxUnit',
+		section: {
+			'--command': 'RunUnitTests=tools/yaxunit.json',
+			'--ordinaryapp': '-1',
+			'--exitCodePath': './build/out/yaxunit/result.txt',
 		},
 	},
 ];
@@ -137,6 +147,14 @@ export const AUTUMN_OPTIONAL_SECTIONS: AutumnSectionOption[] = [
 				'ExternalConnection',
 				'ThickClientOrdinaryApplication',
 			],
+		},
+	},
+	{
+		id: 'yaxunit',
+		description: 'Модульные тесты YAxUnit',
+		path: ['test', 'yaxunit'],
+		section: {
+			'yaxunit-config': 'tools/yaxunit.json',
 		},
 	},
 ];

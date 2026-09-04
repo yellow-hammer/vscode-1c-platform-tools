@@ -16,6 +16,8 @@ updates:
       # (peer typescript <6.1.0) — мажор ломает npm ci. Снять, когда появится поддержка.
       - dependency-name: "typescript"
         update-types: ["version-update:semver-major"]
+      # Типы VS Code не новее engines.vscode: иначе vsce не собирает VSIX
+      - dependency-name: "@types/vscode"
     commit-message:
       prefix: "chore(deps)"
       prefix-development: "chore(deps-dev)"

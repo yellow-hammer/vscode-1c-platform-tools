@@ -56,6 +56,8 @@ export interface EditorSection {
 	isMain: boolean;
 	/** Секцию стоит предлагать к добавлению (не экзотика) */
 	advertised: boolean;
+	/** Пояснение к секции при добавлении */
+	hint?: string;
 	/** Опции, применимые в секции */
 	options: CatalogOption[];
 }
@@ -76,13 +78,15 @@ interface Overrides {
 	options: Record<string, Partial<CatalogOption>>;
 	/** Секции 2.x, предлагаемые к добавлению в редакторе */
 	v2Sections?: string[];
+	/** Секции 2.x вне схемы vanessa-runner: их читает расширение */
+	v2CustomSections?: { id: string; label: string; hint?: string; keys: string[] }[];
 }
 
 /** Группа «всё остальное» (сворачивается в форме). */
 export const OTHER_GROUP: OptionGroup = { id: 'other', label: 'Прочее' };
 
 /** Приоритетные секции 2.x (показываются первыми, в этом порядке). */
-const V2_SECTION_ORDER = ['default', 'vanessa', 'xunit', 'syntax-check', 'run', 'designer', 'updatedb', 'init-dev', 'update-dev'];
+const V2_SECTION_ORDER = ['default', 'vanessa', 'xunit', 'yaxunit', 'syntax-check', 'run', 'designer', 'updatedb', 'init-dev', 'update-dev'];
 
 function readJson<T>(extensionPath: string, fileName: string): T {
 	const fullPath = path.join(extensionPath, 'resources', 'schemas', fileName);
@@ -132,8 +136,15 @@ function byImportance(a: CatalogOption, b: CatalogOption): number {
 	return a.order - b.order || a.key.localeCompare(b.key);
 }
 
-function buildV2Sections(catalog: V2Catalog, ctx: CatalogContext, advertisedSections: Set<string>): EditorSection[] {
-	const ordered = [...catalog.sections].sort((a, b) => {
+function buildV2Sections(
+	catalog: V2Catalog,
+	ctx: CatalogContext,
+	advertisedSections: Set<string>,
+	customSections: NonNullable<Overrides['v2CustomSections']>
+): EditorSection[] {
+	const labelById = new Map(customSections.map((section) => [section.id, section.label]));
+	const hintById = new Map(customSections.map((section) => [section.id, section.hint]));
+	const ordered = [...catalog.sections, ...customSections].sort((a, b) => {
 		const ai = V2_SECTION_ORDER.indexOf(a.id);
 		const bi = V2_SECTION_ORDER.indexOf(b.id);
 		if (ai !== -1 || bi !== -1) {
@@ -143,10 +154,11 @@ function buildV2Sections(catalog: V2Catalog, ctx: CatalogContext, advertisedSect
 	});
 	return ordered.map((section) => ({
 		id: section.id,
-		label: section.id === 'default' ? 'Общие параметры' : `Команда: ${section.id}`,
+		label: section.id === 'default' ? 'Общие параметры' : labelById.get(section.id) ?? `Команда: ${section.id}`,
 		jsonPath: [section.id],
 		isMain: section.id === 'default',
 		advertised: advertisedSections.has(section.id),
+		hint: hintById.get(section.id),
 		options: section.keys
 			.map((key) => ctx.finalize(key, catalog.options[key] ?? {}))
 			.sort(byImportance),
@@ -223,7 +235,8 @@ export function loadEditorSections(
 			: buildV2Sections(
 				readJson<V2Catalog>(extensionPath, 'vrunner-options.v2.json'),
 				ctx,
-				new Set(overrides.v2Sections ?? [])
+				new Set(overrides.v2Sections ?? []),
+				overrides.v2CustomSections ?? []
 			);
 	return { sections, groups: [...ctx.groups, OTHER_GROUP] };
 }

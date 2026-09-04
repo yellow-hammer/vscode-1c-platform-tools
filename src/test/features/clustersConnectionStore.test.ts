@@ -1,11 +1,11 @@
 import * as assert from 'node:assert';
 import {
-	CONNECTIONS_STATE_KEY,
 	ConnectionStore,
 	normalizeStoredConnection,
 	parseRasAddress,
 	parseRasPort,
 } from '../../features/clusters/connectionStore';
+import { CONNECTIONS_STATE_KEY, SYNCED_STATE_KEYS } from '../../features/clusters/constants';
 
 suite('подключения к кластерам: разбор ввода', () => {
 	test('адрес без порта получает порт платформы', () => {
@@ -98,11 +98,12 @@ suite('подключения к кластерам: хранилище', () => 
 		assert.strictEqual(storeOn(new FakeMemento()).isEmpty(), true);
 	});
 
-	test('список помечен для синхронизации между машинами', () => {
+	test('список помечен для синхронизации вместе с наборами: VS Code берёт ключи одним списком', () => {
 		const state = new FakeMemento();
 		storeOn(state);
 
-		assert.deepStrictEqual(state.synced, [CONNECTIONS_STATE_KEY]);
+		assert.deepStrictEqual(state.synced, [...SYNCED_STATE_KEYS]);
+		assert.ok(state.synced.includes(CONNECTIONS_STATE_KEY));
 	});
 
 	test('добавленное подключение читается новым хранилищем', async () => {

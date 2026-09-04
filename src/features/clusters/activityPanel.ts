@@ -182,7 +182,10 @@ export class ClusterActivityPanel {
 		const result =
 			kind === 'sessions'
 				? await this.service.listSessions(connection, clusterId, infobaseId)
-				: await this.service.listConnections(connection, clusterId, { infobaseId });
+				: await this.service.listConnections(connection, clusterId, {
+						infobaseId,
+						infobaseName: infobaseId ? infobaseNames[infobaseId] : undefined,
+					});
 		return result.ok
 			? {
 					ok: true,
