@@ -343,9 +343,12 @@ async function sourceRoots(root: string, cfRel: string, vrunner: VRunnerManager)
  * Файл для находок без сопоставления: описание конфигурации, иначе env.json
  */
 async function resolveFallbackUri(cfRoot: string, root: string): Promise<vscode.Uri> {
-	const configurationXml = path.join(cfRoot, 'Configuration.xml');
-	if (await fileExists(configurationXml)) {
-		return vscode.Uri.file(configurationXml);
+	// Описание конфигурации: у выгрузки в корне, у проекта EDT в каталоге Configuration
+	for (const descriptor of ['Configuration.xml', path.join('Configuration', 'Configuration.mdo')]) {
+		const candidate = path.join(cfRoot, descriptor);
+		if (await fileExists(candidate)) {
+			return vscode.Uri.file(candidate);
+		}
 	}
 	return vscode.Uri.file(path.join(root, 'env.json'));
 }

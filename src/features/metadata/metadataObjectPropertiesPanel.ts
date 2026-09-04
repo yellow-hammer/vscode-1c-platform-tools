@@ -263,8 +263,6 @@ interface MetadataPanelOriginModel {
 	version?: string;
 	/** Почему панель открыта только на просмотр. */
 	readonlyReason?: string;
-	/** Исходники в формате 1С:EDT. */
-	edt?: boolean;
 }
 
 /** Права роли: кросс-таблица объектов и прав. Файл хранит только выданные права. */
@@ -2212,17 +2210,6 @@ async function loadOriginModel(
 	props: MdObjectPropertiesDto | null
 ): Promise<MetadataPanelOriginModel | undefined> {
 	const adopted = propsIsAdopted(props);
-	// Правила поставки живут в выгрузке конфигуратора; в проекте EDT их место
-	// занимают признаки самого объекта
-	if (isEdtObjectFile(params.objectXmlFsPath)) {
-		return {
-			adopted,
-			edt: true,
-			readonlyReason: adopted
-				? 'Заимствованный объект расширения правится в расширяемой конфигурации.'
-				: undefined,
-		};
-	}
 	if (!supportEnabled()) {
 		return adopted ? { adopted: true } : undefined;
 	}

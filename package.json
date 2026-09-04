@@ -2756,7 +2756,7 @@
         },
         {
           "command": "1c-platform-tools.metadata.validateDump",
-          "when": "view == 1c-platform-tools-metadata-tree && 1c-platform-tools.metadata.mainFormat != edt",
+          "when": "view == 1c-platform-tools-metadata-tree",
           "group": "navigation@1"
         },
         {
@@ -2918,7 +2918,7 @@
         },
         {
           "command": "1c-platform-tools.metadata.validateDump",
-          "when": "view == 1c-platform-tools-metadata-tree && viewItem =~ /(^| )metadataSourceConfigLike( |$)/ && viewItem =~ /(^| )mdDesigner( |$)/",
+          "when": "view == 1c-platform-tools-metadata-tree && viewItem =~ /(^| )metadataSourceConfigLike( |$)/",
           "group": "9_check@1"
         },
         {
@@ -3313,7 +3313,7 @@
         },
         {
           "command": "1c-platform-tools.cfe.borrowObject",
-          "when": "view == 1c-platform-tools-metadata-tree && viewItem =~ /(^| )metadataObjectProperties( |$)/ && viewItem =~ /(^| )mdDesigner( |$)/",
+          "when": "view == 1c-platform-tools-metadata-tree && viewItem =~ /(^| )metadataObjectProperties( |$)/",
           "group": "3_create@9"
         },
         {

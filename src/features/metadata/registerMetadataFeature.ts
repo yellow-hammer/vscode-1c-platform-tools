@@ -1,5 +1,6 @@
 import * as fs from 'node:fs';
 import { createEdtProject } from '../edt/edtCommands';
+import { edtProjectName } from '../edt/edtRunner';
 import * as path from 'node:path';
 import * as vscode from 'vscode';
 import { BSP_REGISTRATION_MARKER, buildBspRegistration } from './bspRegistration';
@@ -124,6 +125,18 @@ async function askSupportRule(
 		return undefined;
 	}
 	return { mode: picked.mode, label: picked.label, children: scope.children };
+}
+
+/**
+ * Каталог нового проекта расширения: рядом с проектом конфигурации, под именем
+ * «<Базовый проект>.<Расширение>», как называет расширения сама 1С:EDT.
+ *
+ * @param configurationMdo - Описание расширяемой конфигурации
+ * @param name - Имя расширения
+ */
+export function extensionProjectDir(configurationMdo: string, name: string): string {
+	const projectDir = path.dirname(path.dirname(path.dirname(configurationMdo)));
+	return path.join(path.dirname(projectDir), `${edtProjectName(projectDir)}.${name}`);
 }
 
 /**
@@ -790,10 +803,10 @@ export function registerMetadataFeature(
 		for (;;) {
 			const candidate = `${prefix}${nextIndex}`;
 			if (!existingNames.includes(candidate)) {
-				const schema = await pickSchemaFlagInitEmptyCf(
-					metadataTreeProvider.configurationXml ?? path.join(workspaceRoot, 'src', 'cf', 'Configuration.xml')
-				);
-				if (!schema) {
+				const configurationXml =
+					metadataTreeProvider.configurationXml ?? path.join(workspaceRoot, 'src', 'cf', 'Configuration.xml');
+				const schema = await pickSchemaFlagInitEmptyCf(configurationXml);
+				if (schema === undefined) {
 					return;
 				}
 				const runtime = await ensureMdSparrowRuntime(context);
@@ -805,6 +818,8 @@ export function registerMetadataFeature(
 						name: candidate,
 						kind: isReport ? 'REPORT' : 'DATA_PROCESSOR',
 						schemaVersion: schema,
+						// Внешний объект проекта EDT относится к конфигурации через базовый проект
+						...(formatOfFile(configurationXml) === 'edt' ? { mainConfigurationXml: configurationXml } : {}),
 					},
 					{ cwd: workspaceRoot }
 				);
@@ -880,6 +895,27 @@ export function registerMetadataFeature(
 	}
 
 	/**
+	 * Субъект правила поддержки у формы и макета: у выгрузки их описание, у
+	 * проекта EDT их каталог, по которому md-sparrow находит запись в описании владельца.
+	 */
+	function childSupportSubjectPath(node: MetadataObjectNodeTreeItem): string | undefined {
+		const owner = node.owner;
+		if (!owner.resourceUri) {
+			return undefined;
+		}
+		if (formatOfFile(owner.resourceUri.fsPath) !== 'edt') {
+			return childDescriptorXmlPath(node);
+		}
+		if (node.nodeKind === 'form') {
+			return path.dirname(formContentFileOf(owner.resourceUri.fsPath, node.name));
+		}
+		if (node.nodeKind === 'template') {
+			return path.dirname(templateContentFileOf(owner.resourceUri.fsPath, node.name));
+		}
+		return undefined;
+	}
+
+	/**
 	 * Правка объекта поставщика без возможности изменения: команда остаётся в
 	 * меню, но объясняет отказ, а не выполняется молча.
 	 *
@@ -899,7 +935,7 @@ export function registerMetadataFeature(
 		if (source.supportEditingEnabled !== true) {
 			void vscode.window.showInformationMessage(
 				'Возможность изменения конфигурации не включена: включите её в конфигураторе'
-					+ ' или снимите конфигурацию с поддержки.'
+					+ ' или 1С:EDT, либо снимите конфигурацию с поддержки.'
 			);
 			return;
 		}
@@ -2414,7 +2450,7 @@ export function registerMetadataFeature(
 						return;
 					}
 					// Своё правило поддержки есть у формы и макета: режим ставится их файлу
-					const childDescriptor = childNode ? childDescriptorXmlPath(childNode) : undefined;
+					const childDescriptor = childNode ? childSupportSubjectPath(childNode) : undefined;
 					// У элемента объекта правило тоже своё, но файла у него нет: он адресуется ключом
 					const elementKey =
 						childNode && !childDescriptor
@@ -2431,7 +2467,7 @@ export function registerMetadataFeature(
 					if (!node.supportRulesOpen) {
 						void vscode.window.showInformationMessage(
 							'Возможность изменения конфигурации не включена: включите её в конфигураторе'
-								+ ' или снимите конфигурацию с поддержки.'
+								+ ' или 1С:EDT, либо снимите конфигурацию с поддержки.'
 						);
 						return;
 					}
@@ -2509,20 +2545,13 @@ export function registerMetadataFeature(
 					return;
 				}
 
-				const cfeRoot = path.join(
-					root,
-					VRunnerManager.getInstance(context).getCfePath(),
-					name.trim()
-				);
+				// Расширение проекта EDT живёт соседним проектом, названным по базовому
+				const edt = formatOfFile(configurationXml) === 'edt';
+				const cfeRoot = edt
+					? extensionProjectDir(configurationXml, name.trim())
+					: path.join(root, VRunnerManager.getInstance(context).getCfePath(), name.trim());
 				if (fs.existsSync(cfeRoot)) {
 					void vscode.window.showErrorMessage(`Каталог расширения уже есть: ${cfeRoot}`);
-					return;
-				}
-
-				// Заготовка расширения собирается выгрузкой конфигуратора: у проекта EDT
-				// расширение заводят в самой среде
-				if (formatOfFile(configurationXml) === 'edt') {
-					void vscode.window.showInformationMessage('Расширение к проекту 1С:EDT создаётся в самой среде.');
 					return;
 				}
 				try {
@@ -2604,6 +2633,12 @@ export function registerMetadataFeature(
 			'1c-platform-tools.metadata.validateDump',
 			async (item?: MetadataSourceTreeItem) => {
 				const source = resolveSelectedMetadataSource(item);
+				// Проект EDT проверяет сама среда: у выгрузки конфигуратора схемы, у проекта модель
+				const descriptor = source?.configurationXmlAbs ?? metadataTreeProvider.configurationXml;
+				if (descriptor && formatOfFile(descriptor) === 'edt') {
+					await vscode.commands.executeCommand('1c-platform-tools.edt.validate');
+					return;
+				}
 				const roots: string[] = [];
 				if (source?.metadataRootAbs) {
 					roots.push(source.metadataRootAbs);

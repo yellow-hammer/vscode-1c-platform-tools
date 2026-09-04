@@ -1379,7 +1379,17 @@ export class MetadataTreeDataProvider implements vscode.TreeDataProvider<vscode.
 		return vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
 	}
 
+	/**
+	 * Каталог исходников активной конфигурации.
+	 *
+	 * Пока дерево прочитано, каталог берётся из него: у проекта EDT это
+	 * подкаталог src проекта, а не настроенный путь выгрузки.
+	 */
 	resolveCfRoot(): string | undefined {
+		const main = this.mainSource();
+		if (main?.metadataRootAbs) {
+			return main.metadataRootAbs;
+		}
 		const root = this.workspaceRoot();
 		if (!root) {
 			return undefined;
@@ -1389,12 +1399,21 @@ export class MetadataTreeDataProvider implements vscode.TreeDataProvider<vscode.
 		return path.normalize(path.join(root, rel));
 	}
 
+	/** Описание активной конфигурации: Configuration.xml выгрузки либо Configuration.mdo проекта EDT. */
 	get configurationXml(): string | undefined {
+		const main = this.mainSource();
+		if (main?.configurationXmlAbs) {
+			return main.configurationXmlAbs;
+		}
 		const cf = this.resolveCfRoot();
 		if (!cf) {
 			return undefined;
 		}
 		return path.join(cf, 'Configuration.xml');
+	}
+
+	private mainSource(): MetadataSourceTreeItem | undefined {
+		return this._sourceItems.find((item) => item.sourceKind === 'main');
 	}
 
 	async refresh(): Promise<void> {
@@ -2008,8 +2027,10 @@ export class MetadataTreeDataProvider implements vscode.TreeDataProvider<vscode.
 				if (!leaf.resourceUri) {
 					return undefined;
 				}
-				const stem = path.basename(leaf.resourceUri.fsPath, '.xml');
-				return childStates.get(`${stem}/${subdir}/${name}.xml`);
+				// У выгрузки форма и макет описаны своим файлом, у проекта EDT лежат своим каталогом
+				const edt = formatOfFile(leaf.resourceUri.fsPath) === 'edt';
+				const stem = path.basename(leaf.resourceUri.fsPath, edt ? '.mdo' : '.xml');
+				return childStates.get(edt ? `${stem}/${subdir}/${name}` : `${stem}/${subdir}/${name}.xml`);
 			}
 			const elementKey = childSupportElementKey(nodeKind, name, tabularSection);
 			return elementKey ? childStates.get(elementKey) : undefined;
