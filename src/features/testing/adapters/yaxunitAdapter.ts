@@ -6,12 +6,19 @@ import { logger } from '../../../shared/logger';
 import { TestFrameworkAdapter, AdapterRunPlan, RunUnit } from '../frameworkAdapter';
 import { DiscoveredFile } from '../parsers/parserTypes';
 import { parseBslTestModule } from '../parsers/bslTestParser';
-import { resolveConfigPath } from '../projectTestConfig';
+import { resolveConfigPath, yaxunitSectionFromEnv, type YaxunitProfileSection } from '../projectTestConfig';
 import { normalizeGlobBase } from './adapterUtils';
 import { DEFAULT_TESTING } from '../../../shared/pathDefaults';
 import { resolveExtensionNameFromSrc } from '../../extensions/extensionNames';
+import type { SettingsSchema } from '../../../shared/envProfiles';
+import type { YaxunitFilter } from '../../../shared/vrunnerCli';
 
 const log = logger.scope('testing');
+
+const NO_REPORT_HINT =
+	'Для YAxUnit в информационной базе должны быть загружены: расширение-движок YAXUNIT ' +
+	'(yaxunit.cfe с https://github.com/bia-technologies/yaxunit/releases) и тестовое расширение ' +
+	'с вашими тестами. У обоих отключите «Безопасный режим» и «Защиту от опасных действий».';
 
 /**
  * Адаптер YAxUnit (модульные тесты в расширении конфигурации)
@@ -21,10 +28,12 @@ const log = logger.scope('testing');
  * тестовых (<path.tests>/cfe) - расширение с тестами держат отдельно от поставки,
  * но и внутри решения оно встречается.
  *
- * Запуск: vrunner run --command RunUnitTests=<конфиг>. За основу берётся
- * конфиг проекта (test.path.yaxunitConfig, по умолчанию tools/yaxunit.json) —
- * из него же берётся reportPath; поверх накладывается filter по выбранному
- * модулю или конкретным тестам (единственный фреймворк с точечным запуском).
+ * Запуск: готовый конфиг из секции yaxunit активного профиля, иначе из
+ * настройки test.path.yaxunitConfig; из него же reportPath, поверх ложится
+ * filter по выбранному модулю или тестам (единственный фреймворк с точечным
+ * запуском). На vanessa-runner 2 это run --command RunUnitTests=<копия> с
+ * опциями секции, на 3 - test yaxunit; без конфига фильтр и отчёт уходят
+ * опциями команды, остальное раннер берёт из профиля.
  */
 export class YaxunitAdapter implements TestFrameworkAdapter {
 	public readonly id = 'yaxunit' as const;
@@ -91,101 +100,100 @@ export class YaxunitAdapter implements TestFrameworkAdapter {
 	 * @returns План батч-прогона
 	 */
 	public async buildBatchRunPlan(units: RunUnit[], reportDir: string): Promise<AdapterRunPlan | undefined> {
-		const workspaceRoot = this.vrunner.getWorkspaceRoot();
-		const baseConfig = await this.readProjectConfig(workspaceRoot);
-		const baseFilter =
-			baseConfig['filter'] && typeof baseConfig['filter'] === 'object'
-				? (baseConfig['filter'] as Record<string, unknown>)
-				: {};
 		const modules = [...new Set(units.map((unit) => extractModuleName(unit.fileUri.fsPath)))];
 		const extensions = await this.extensionNames(units);
-
-		const reportPathRaw =
-			typeof baseConfig['reportPath'] === 'string' && baseConfig['reportPath'].length > 0
-				? baseConfig['reportPath']
-				: path.join(reportDir, 'report.xml');
-		const reportPathAbsolute = workspaceRoot
-			? resolveConfigPath(reportPathRaw, workspaceRoot)
-			: reportPathRaw;
-
-		const runConfig: Record<string, unknown> = {
-			...baseConfig,
-			filter: { ...baseFilter, extensions, modules, tests: null },
-			reportPath: reportPathRaw,
-			reportFormat: baseConfig['reportFormat'] ?? 'jUnit',
-			closeAfterTests: baseConfig['closeAfterTests'] ?? true
-		};
-
-		const configPath = path.join(reportDir, 'yaxunit-config.json');
-		await fs.writeFile(configPath, JSON.stringify(runConfig, null, 2), 'utf8');
-
 		const connectionArgs = await this.vrunner.getIbConnectionParam();
-		const [args] = await this.vrunner.planIntent({
-			kind: 'run.enterprise',
-			command: `RunUnitTests=${configPath}`,
-			common: connectionArgs
-		});
-
-		return {
-			tool: 'vrunner',
-			args,
-			reportTarget: { format: 'junit', path: reportPathAbsolute }
-		};
+		return this.plan({ extensions, modules }, reportDir, connectionArgs);
 	}
 
 	public async buildRunPlan(unit: RunUnit, reportDir: string): Promise<AdapterRunPlan> {
-		const workspaceRoot = this.vrunner.getWorkspaceRoot();
 		const moduleName = extractModuleName(unit.fileUri.fsPath);
-		const baseConfig = await this.readProjectConfig(workspaceRoot);
+		const extensions = await this.extensionNames([unit]);
+		// Модуль целиком либо выбранные тесты
+		const filter: YaxunitFilter =
+			unit.caseNames && unit.caseNames.length > 0
+				? { extensions, tests: unit.caseNames.map((name) => `${moduleName}.${name}`) }
+				: { extensions, modules: [moduleName] };
+		// --settings активного профиля подставляет planIntent централизованно.
+		return this.plan(filter, reportDir);
+	}
 
-		// Фильтр поверх конфига проекта: модуль целиком либо выбранные тесты
+	/**
+	 * План прогона по фильтру.
+	 *
+	 * С готовым конфигом фильтр накладывается на его копию в каталоге прогона:
+	 * раннер использует готовый конфиг как есть. Без конфига, что бывает только
+	 * на vanessa-runner 3, фильтр и путь отчёта уходят опциями test yaxunit, а
+	 * остальное раннер берёт из секции vrunner.test.yaxunit профиля.
+	 *
+	 * @param filter - Отбор тестов прогона
+	 * @param reportDir - Каталог отчёта прогона
+	 * @param common - Сквозные опции команды
+	 * @returns План прогона
+	 */
+	private async plan(filter: YaxunitFilter, reportDir: string, common?: string[]): Promise<AdapterRunPlan> {
+		const workspaceRoot = this.vrunner.getWorkspaceRoot();
+		const { settings, schema } = await this.vrunner.readActiveSettings();
+		const profile = yaxunitSectionFromEnv(settings, schema);
+		const baseConfig = await this.readBaseConfig(profile, schema, workspaceRoot);
+		const runOptions = {
+			ordinaryApp: profile.ordinaryApp,
+			exitCodePath: profile.exitCodePath,
+			additional: profile.additional,
+			noWait: profile.noWait,
+		};
+		const ownReport = path.join(reportDir, 'report.xml');
+
+		if (baseConfig === undefined) {
+			const sectionReport =
+				profile.report && workspaceRoot ? resolveConfigPath(profile.report, workspaceRoot) : undefined;
+			const [args] = await this.vrunner.planIntent({
+				kind: 'test.yaxunit',
+				filter,
+				report: sectionReport ? undefined : ownReport,
+				...runOptions,
+				common,
+			});
+			return {
+				tool: 'vrunner',
+				args,
+				reportTarget: { format: 'junit', path: sectionReport ?? ownReport },
+				noReportHint: NO_REPORT_HINT,
+			};
+		}
+
 		const baseFilter =
 			baseConfig['filter'] && typeof baseConfig['filter'] === 'object'
 				? (baseConfig['filter'] as Record<string, unknown>)
 				: {};
-		const extensions = await this.extensionNames([unit]);
-		const filter = unit.caseNames && unit.caseNames.length > 0
-			? {
-				...baseFilter,
-				extensions,
-				modules: null,
-				tests: unit.caseNames.map((name) => `${moduleName}.${name}`)
-			}
-			: { ...baseFilter, extensions, modules: [moduleName], tests: null };
-
 		const reportPathRaw =
 			typeof baseConfig['reportPath'] === 'string' && baseConfig['reportPath'].length > 0
 				? baseConfig['reportPath']
-				: path.join(reportDir, 'report.xml');
-		const reportPathAbsolute = workspaceRoot
-			? resolveConfigPath(reportPathRaw, workspaceRoot)
-			: reportPathRaw;
-
+				: ownReport;
 		const runConfig: Record<string, unknown> = {
 			...baseConfig,
-			filter,
+			filter: {
+				...baseFilter,
+				extensions: filter.extensions ?? null,
+				modules: filter.modules ?? null,
+				tests: filter.tests ?? null,
+			},
 			reportPath: reportPathRaw,
 			reportFormat: baseConfig['reportFormat'] ?? 'jUnit',
-			closeAfterTests: baseConfig['closeAfterTests'] ?? true
+			closeAfterTests: baseConfig['closeAfterTests'] ?? true,
 		};
-
 		const configPath = path.join(reportDir, 'yaxunit-config.json');
 		await fs.writeFile(configPath, JSON.stringify(runConfig, null, 2), 'utf8');
 
-		const noReportHint =
-			'Для YAxUnit в информационной базе должны быть загружены: расширение-движок YAXUNIT ' +
-			'(yaxunit.cfe с https://github.com/bia-technologies/yaxunit/releases) и тестовое расширение ' +
-			'с вашими тестами. У обоих отключите «Безопасный режим» и «Защиту от опасных действий».';
-
-		// --settings активного профиля подставляет planIntent централизованно.
-		const [args] = await this.vrunner.planIntent(
-			{ kind: 'run.enterprise', command: `RunUnitTests=${configPath}` }
-		);
+		const [args] = await this.vrunner.planIntent({ kind: 'test.yaxunit', configPath, ...runOptions, common });
 		return {
 			tool: 'vrunner',
 			args,
-			reportTarget: { format: 'junit', path: reportPathAbsolute },
-			noReportHint
+			reportTarget: {
+				format: 'junit',
+				path: workspaceRoot ? resolveConfigPath(reportPathRaw, workspaceRoot) : reportPathRaw,
+			},
+			noReportHint: NO_REPORT_HINT,
 		};
 	}
 
@@ -212,24 +220,34 @@ export class YaxunitAdapter implements TestFrameworkAdapter {
 	}
 
 	/**
-	 * Читает базовый конфиг YAxUnit проекта (tools/yaxunit.json)
+	 * Готовый конфиг прогона: из секции профиля, иначе из настройки test.path.yaxunitConfig.
 	 *
-	 * @returns Содержимое конфига или пустой объект, если файла нет
+	 * На vanessa-runner 2 конфиг есть всегда: без файла база пустая, фильтр и
+	 * отчёт панель задаёт сама. На 3 файла из настройки может не быть, тогда
+	 * конфиг собирает раннер из секции профиля. Конфиг из профиля обязан читаться.
+	 *
+	 * @returns Содержимое конфига или undefined, когда готового конфига нет
 	 */
-	private async readProjectConfig(workspaceRoot: string | undefined): Promise<Record<string, unknown>> {
+	private async readBaseConfig(
+		profile: YaxunitProfileSection,
+		schema: SettingsSchema,
+		workspaceRoot: string | undefined
+	): Promise<Record<string, unknown> | undefined> {
 		if (!workspaceRoot) {
-			return {};
+			return schema === 'v3' ? undefined : {};
 		}
-
-		const config = vscode.workspace.getConfiguration('1c-platform-tools');
-		const configured = config.get<string>('test.path.yaxunitConfig', DEFAULT_TESTING.yaxunitConfigPath);
-		const configPath = resolveConfigPath(configured, workspaceRoot);
-
+		const configured = vscode.workspace
+			.getConfiguration('1c-platform-tools')
+			.get<string>('test.path.yaxunitConfig', DEFAULT_TESTING.yaxunitConfigPath);
+		const configPath = resolveConfigPath(profile.configPath ?? configured, workspaceRoot);
 		try {
 			return JSON.parse(await fs.readFile(configPath, 'utf8')) as Record<string, unknown>;
 		} catch (error) {
+			if (profile.configPath) {
+				throw new Error(`Конфиг YAxUnit из профиля не прочитан: ${configPath}. ${(error as Error).message}`);
+			}
 			log.debug(`Конфиг YAxUnit ${configPath} не прочитан: ${(error as Error).message}`);
-			return {};
+			return schema === 'v3' ? undefined : {};
 		}
 	}
 }

@@ -9,7 +9,9 @@ import {
 	vanessaSettingsPathFromEnv,
 	reportsXunitFromEnv,
 	syntaxCheckJUnitPathFromEnv,
-	syntaxCheckGroupByMetadataFromEnv
+	syntaxCheckGroupByMetadataFromEnv,
+	yaxunitSectionFromEnv,
+	yaxunitConfigPathFromCommand,
 } from '../../features/testing/projectTestConfig';
 
 // Абсолютный корень на любой ОС: path.join('C:','proj') не абсолютен под Linux,
@@ -158,6 +160,58 @@ suite('projectTestConfig', () => {
 		assert.strictEqual(syntaxCheckGroupByMetadataFromEnv(autumn, 'v3'), false);
 		// v2-читатель не находит значения в autumn-структуре
 		assert.strictEqual(reportsXunitFromEnv(autumn, 'v2'), undefined);
+	});
+
+	test('yaxunitSectionFromEnv: секция yaxunit env.json (2.x)', () => {
+		const envJson = {
+			yaxunit: {
+				'--command': 'RunUnitTests=tools/yaxunit.smoke.json',
+				'--ordinaryapp': -1,
+				'--exitCodePath': './build/out/yaxunit/result.txt',
+				'--no-wait': true
+			}
+		};
+		assert.deepStrictEqual(yaxunitSectionFromEnv(envJson), {
+			configPath: 'tools/yaxunit.smoke.json',
+			ordinaryApp: '-1',
+			exitCodePath: './build/out/yaxunit/result.txt',
+			additional: undefined,
+			noWait: true
+		});
+		assert.deepStrictEqual(yaxunitSectionFromEnv({}), {
+			configPath: undefined,
+			ordinaryApp: undefined,
+			exitCodePath: undefined,
+			additional: undefined,
+			noWait: undefined
+		});
+	});
+
+	test('yaxunitConfigPathFromCommand: путь до точки с запятой, другая команда даёт undefined', () => {
+		assert.strictEqual(yaxunitConfigPathFromCommand('RunUnitTests=tools/yaxunit.json'), 'tools/yaxunit.json');
+		assert.strictEqual(
+			yaxunitConfigPathFromCommand(' runUnitTests = ./tools/yaxunit.json ;ЗавершитьРаботуСистемы'),
+			'./tools/yaxunit.json'
+		);
+		assert.strictEqual(yaxunitConfigPathFromCommand('RunUnitTests='), undefined);
+		assert.strictEqual(yaxunitConfigPathFromCommand('Путь=МойКаталог'), undefined);
+	});
+
+	test('yaxunitSectionFromEnv: секция vrunner.test.yaxunit autumn-properties (3.x)', () => {
+		const autumn = {
+			vrunner: {
+				test: { yaxunit: { 'yaxunit-config': 'tools/yaxunit.json', report: 'build/out/yaxunit/junit.xml', ordinaryapp: '-1' } }
+			}
+		};
+		assert.deepStrictEqual(yaxunitSectionFromEnv(autumn, 'v3'), {
+			configPath: 'tools/yaxunit.json',
+			report: 'build/out/yaxunit/junit.xml'
+		});
+		// отчёт другого формата панель не прочитает: путь остаётся раннеру
+		const allure = { vrunner: { test: { yaxunit: { report: 'build/out/yaxunit/allure', 'report-format': 'allure' } } } };
+		assert.deepStrictEqual(yaxunitSectionFromEnv(allure, 'v3'), { configPath: undefined, report: undefined });
+		// v2-читатель не находит значения в autumn-структуре
+		assert.strictEqual(yaxunitSectionFromEnv(autumn, 'v2').configPath, undefined);
 	});
 
 	test('syntaxCheckJUnitPathFromEnv читает --junitpath секции syntax-check', () => {
