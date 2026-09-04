@@ -281,11 +281,6 @@ export async function openFormViewer(
 			readonlyReason = undefined;
 		}
 	}
-	// Разметку формы EDT md-sparrow читает, а точечно не правит
-	if (formatOfFile(params.formXmlFsPath) === 'edt') {
-		readonlyReason = 'Свойства элементов формы проекта 1С:EDT панель показывает без правки.';
-	}
-
 	const paletteOwner = params.formXmlFsPath;
 
 	const showProperties = (item: FormItemDto): void => {

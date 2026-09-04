@@ -282,14 +282,13 @@ suite('контекстное меню дерева метаданных', () =>
 		}
 	});
 
-	test('у проекта EDT нет проверки выгрузки и заимствования в расширение', () => {
+	test('у проекта EDT есть проверка и заимствование в расширение', () => {
 		const source = menuFor(NODES.edtSource);
-		assert.ok(!source.includes('Проверить выгрузку'), source.join(' → '));
+		assert.ok(source.includes('Проверить выгрузку'), source.join(' → '));
 		assert.ok(source.includes('Открыть модуль сеанса') && source.includes('Свойства'), source.join(' → '));
 		const catalog = menuFor(NODES.edtCatalog);
-		assert.ok(!catalog.includes('Добавить объект в расширение'), catalog.join(' → '));
+		assert.ok(catalog.includes('Добавить объект в расширение'), catalog.join(' → '));
 		assert.ok(catalog.includes('Открыть модуль объекта') && catalog.includes('Переименовать'), catalog.join(' → '));
-		// У выгрузки конфигуратора обе команды остаются
 		assert.ok(menuFor(NODES.source).includes('Проверить выгрузку'));
 		assert.ok(menuFor(NODES.catalog).includes('Добавить объект в расширение'));
 	});

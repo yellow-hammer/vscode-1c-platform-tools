@@ -2008,8 +2008,10 @@ export class MetadataTreeDataProvider implements vscode.TreeDataProvider<vscode.
 				if (!leaf.resourceUri) {
 					return undefined;
 				}
-				const stem = path.basename(leaf.resourceUri.fsPath, '.xml');
-				return childStates.get(`${stem}/${subdir}/${name}.xml`);
+				// У выгрузки форма и макет описаны своим файлом, у проекта EDT лежат своим каталогом
+				const edt = formatOfFile(leaf.resourceUri.fsPath) === 'edt';
+				const stem = path.basename(leaf.resourceUri.fsPath, edt ? '.mdo' : '.xml');
+				return childStates.get(edt ? `${stem}/${subdir}/${name}` : `${stem}/${subdir}/${name}.xml`);
 			}
 			const elementKey = childSupportElementKey(nodeKind, name, tabularSection);
 			return elementKey ? childStates.get(elementKey) : undefined;
