@@ -197,11 +197,9 @@ export async function runEdtCommand(request: EdtCommand): Promise<number> {
 		return 1;
 	}
 
-	if (running) {
-		// Свой код возврата у отказа: с кодом выполняющейся команды вызывающий
-		// решил бы, что его работа сделана
-		void vscode.window.showInformationMessage('Команда 1С:EDT уже выполняется: рабочая область занята.');
-		return 1;
+	// Рабочую область 1cedtcli не делит: следующая команда ждёт, пока закончится текущая
+	while (running) {
+		await running.catch(() => undefined);
 	}
 
 	const args = buildEdtArgs(request, settings);

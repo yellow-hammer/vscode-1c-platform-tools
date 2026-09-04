@@ -10,6 +10,12 @@ import {
 } from '../features/tools/commandNames';
 import { pickExtensions } from '../features/extensions/extensionPicker';
 import { logger } from '../shared/logger';
+import { configurationScope } from '../shared/activeConfiguration';
+import { configurationDescriptorFile } from '../shared/objectPaths';
+import { ensureMdSparrowRuntime } from '../features/metadata/mdSparrowBootstrap';
+import { runMdSparrowParamsMutation } from '../features/metadata/mdSparrowParams';
+import { edtExternalProjectsOf, EDT_STAGING_DIR } from '../features/edt/edtSourceBridge';
+import { runEdtExports, runEdtImports } from '../features/edt/edtBridgeRunner';
 
 const log = logger.scope('commands');
 
@@ -19,6 +25,105 @@ const log = logger.scope('commands');
  * Использует vrunner set-version для обновления версии в метаданных.
  */
 export class SetVersionCommands extends BaseCommand {
+	constructor(private readonly context: vscode.ExtensionContext) {
+		super();
+	}
+
+	/**
+	 * Пишет версию в описание проекта EDT.
+	 *
+	 * Раннер ставит версию в Configuration.xml выгрузки, а у проекта EDT
+	 * версия лежит в Configuration.mdo: её правит md-sparrow точечно.
+	 *
+	 * @param configurationMdo - Описание конфигурации или расширения
+	 * @param version - Новая версия
+	 * @param workspaceRoot - Корень рабочей области
+	 * @returns Удалась ли запись
+	 */
+	private async stampEdtProject(configurationMdo: string, version: string, workspaceRoot: string): Promise<boolean> {
+		const runtime = await ensureMdSparrowRuntime(this.context);
+		const res = await runMdSparrowParamsMutation(
+			runtime,
+			{
+				op: 'cf-configuration-properties-set',
+				configurationXml: configurationMdo,
+				payloadJson: JSON.stringify({ version }),
+			},
+			{ cwd: workspaceRoot }
+		);
+		if (res.exitCode !== 0) {
+			void vscode.window.showErrorMessage((res.stderr.trim() || res.stdout.trim()).slice(0, 400));
+			return false;
+		}
+		return true;
+	}
+
+	/**
+	 * Ставит версию внешним объектам проектов EDT.
+	 *
+	 * Проект выгружается самой EDT, версию в выгрузку ставит раннер, результат
+	 * возвращается в проект импортом: так же идут сборка и разборка.
+	 *
+	 * @param artifactsRoot - Каталог внешних объектов относительно рабочей области
+	 * @param names - Имена объектов
+	 * @param version - Новая версия
+	 * @param workspaceRoot - Корень рабочей области
+	 * @param title - Название задачи в терминале
+	 */
+	private async stampEdtExternal(
+		artifactsRoot: string,
+		names: readonly string[],
+		version: string,
+		workspaceRoot: string,
+		title: string
+	): Promise<void> {
+		const projects = edtExternalProjectsOf(workspaceRoot, artifactsRoot).filter((project) =>
+			names.includes(project.name)
+		);
+		if (projects.length === 0) {
+			vscode.window.showInformationMessage('В каталоге нет проектов внешних объектов EDT.');
+			return;
+		}
+		const buildDir = this.vrunner.getOutPath();
+		const staging = `${buildDir}/${EDT_STAGING_DIR}/${path.basename(artifactsRoot)}`;
+		const context = { workspaceRoot, buildDir, baseProjectDir: await this.activeEdtProjectDirForVersion() };
+		const exported = await runEdtExports(
+			projects.map((project) => ({
+				projectDir: project.projectDir,
+				target: `${staging}/${project.name}`,
+				externalName: project.name,
+			})),
+			context
+		);
+		if (!exported) {
+			void vscode.window.showErrorMessage('Выгрузка проекта 1С:EDT не удалась, версия не изменена.');
+			return;
+		}
+		const argsList = projects.map((project) => [
+			'set-version',
+			'--src',
+			`${staging}/${project.name}`,
+			'--check-module',
+			'--new-version',
+			version,
+		]);
+		await this.vrunner.executeVRunnerTaskSequenceAndWait(argsList, { cwd: workspaceRoot, name: title });
+		await runEdtImports([{ source: staging, projectDir: artifactsRoot, needsBase: true, external: true }], context);
+	}
+
+	/** Каталог проекта активной конфигурации EDT: базовый проект внешних объектов. */
+	private async activeEdtProjectDirForVersion(): Promise<string | undefined> {
+		const workspaceRoot = this.vrunner.getWorkspaceRoot();
+		if (!workspaceRoot) {
+			return undefined;
+		}
+		const scope = await configurationScope(workspaceRoot, {
+			configuration: this.vrunner.getCfPath(),
+			extensions: [this.vrunner.getCfePath(), this.vrunner.getTestsCfePath()],
+		});
+		return scope.configuration?.format === 'edt' ? scope.configuration.dir : undefined;
+	}
+
 
 	/**
 	 * Запрашивает у пользователя новую версию
@@ -58,6 +163,16 @@ export class SetVersionCommands extends BaseCommand {
 			return;
 		}
 
+		const scope = await configurationScope(workspaceRoot, {
+			configuration: this.vrunner.getCfPath(),
+			extensions: [this.vrunner.getCfePath(), this.vrunner.getTestsCfePath()],
+		});
+		if (scope.configuration?.format === 'edt') {
+			if (await this.stampEdtProject(configurationDescriptorFile(scope.configuration), version, workspaceRoot)) {
+				vscode.window.showInformationMessage(`Версия конфигурации: ${version}`);
+			}
+			return;
+		}
 		const cfPath = this.vrunner.getCfPath();
 		const args = ['set-version', '--src', cfPath, '--new-version', version];
 		const commandName = getSetVersionConfigurationCommandName();
@@ -87,7 +202,10 @@ export class SetVersionCommands extends BaseCommand {
 			return;
 		}
 
-		const extensions = await this.getExtensionFoldersForTree();
+		// Расширения активной конфигурации: у проекта EDT они лежат соседними проектами, а не в src/cfe
+		const active = await this.activeExtensions();
+		const extensions =
+			active.length > 0 ? active.map((extension) => extension.name) : await this.getExtensionFoldersForTree();
 		if (extensions.length === 0) {
 			log.info('В папке src/cfe не найдено расширений');
 			vscode.window.showInformationMessage('В папке src/cfe не найдено расширений');
@@ -110,9 +228,22 @@ export class SetVersionCommands extends BaseCommand {
 		}
 
 		const cfePath = this.vrunner.getCfePath();
-		const argsList = selected.map((name) =>
-			['set-version', '--src', path.join(cfePath, name), '--new-version', version]
-		);
+		const argsList: string[][] = [];
+		for (const name of selected) {
+			const extension = active.find((item) => item.name === name);
+			if (extension?.format === 'edt') {
+				const descriptor = path.join(workspaceRoot, extension.dir, 'src', 'Configuration', 'Configuration.mdo');
+				if (!(await this.stampEdtProject(descriptor, version, workspaceRoot))) {
+					return;
+				}
+				continue;
+			}
+			argsList.push(['set-version', '--src', extension ? extension.dir : path.join(cfePath, name), '--new-version', version]);
+		}
+		if (argsList.length === 0) {
+			vscode.window.showInformationMessage(`Версия расширений: ${version}`);
+			return;
+		}
 		const commandName = getSetVersionExtensionCommandName();
 
 		await this.vrunner.executeVRunnerCommandsInSequence(argsList, {
@@ -162,8 +293,12 @@ export class SetVersionCommands extends BaseCommand {
 
 		const erfPath = this.vrunner.getErfPath();
 		const srcPath = path.join(erfPath, selected);
-		const args = ['set-version', '--src', srcPath, '--check-module', '--new-version', version];
 		const commandName = getSetVersionReportCommandName(selected);
+		if (edtExternalProjectsOf(workspaceRoot, srcPath).length > 0) {
+			await this.stampEdtExternal(erfPath, [selected], version, workspaceRoot, commandName.title);
+			return;
+		}
+		const args = ['set-version', '--src', srcPath, '--check-module', '--new-version', version];
 
 		await this.vrunner.executeVRunnerInTerminal(args, {
 			cwd: workspaceRoot,
@@ -212,8 +347,12 @@ export class SetVersionCommands extends BaseCommand {
 
 		const epfPath = this.vrunner.getEpfPath();
 		const srcPath = path.join(epfPath, selected);
-		const args = ['set-version', '--src', srcPath, '--check-module', '--new-version', version];
 		const commandName = getSetVersionProcessorCommandName(selected);
+		if (edtExternalProjectsOf(workspaceRoot, srcPath).length > 0) {
+			await this.stampEdtExternal(epfPath, [selected], version, workspaceRoot, commandName.title);
+			return;
+		}
+		const args = ['set-version', '--src', srcPath, '--check-module', '--new-version', version];
 
 		await this.vrunner.executeVRunnerInTerminal(args, {
 			cwd: workspaceRoot,

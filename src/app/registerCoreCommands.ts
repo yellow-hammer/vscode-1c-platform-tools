@@ -49,7 +49,7 @@ export function registerCoreCommands(
 		session: new SessionCommands(),
 		pipelines: new PipelineCommands(),
 		hooks: new HooksCommands(),
-		setVersion: new SetVersionCommands(),
+		setVersion: new SetVersionCommands(context),
 		oscriptTasks: new OscriptTasksCommands(),
 		workspaceTasks: new WorkspaceTasksCommands(),
 		skills: new SkillsCommands(),

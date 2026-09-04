@@ -655,11 +655,11 @@ export class ExtensionsCommands extends BaseCommand {
 			intents.push({ kind: 'infobase.updateExtension', extensionName, common: ibConnectionParam });
 		}
 
-		const steps = await this.vrunner.planIntents(intents, opts?.settingsFile);
-		await this.runPlanned(steps, intents, {
+		await this.runPlanned(intents, {
 			cwd: workspaceRoot,
 			name: commandName.title,
 			appendOverrides: false,
+			settingsFile: opts?.settingsFile,
 		});
 	}
 

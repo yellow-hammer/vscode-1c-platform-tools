@@ -12,6 +12,8 @@ import * as path from 'node:path';
 import * as fsSync from 'node:fs';
 import { VRunnerManager } from '../../shared/vrunnerManager';
 import { activeProfileLabel, LOCAL_OVERRIDES_FILE } from '../../shared/envProfiles';
+import { configurationScope, onDidChangeActiveConfiguration } from '../../shared/activeConfiguration';
+import { edtProjectName, readEdtSettings, resolveEdt } from '../edt/edtRunner';
 
 /** Элемент плашки профиля. */
 function item(
@@ -31,14 +33,18 @@ export class LaunchProfileViewProvider implements vscode.TreeDataProvider<vscode
 	private readonly _onDidChangeTreeData = new vscode.EventEmitter<void>();
 	public readonly onDidChangeTreeData = this._onDidChangeTreeData.event;
 	private readonly disposables: vscode.Disposable[] = [];
+	/** Проект активной конфигурации, если она в формате 1С:EDT. */
+	private edtProject: string | undefined;
 
 	constructor(private readonly vrunner: VRunnerManager) {
 		// Плашка живая: обновляется при смене профиля и при изменении файлов
 		// настроек в корне проекта (создание, правка, удаление).
 		this.disposables.push(
 			this.vrunner.onDidChangeActiveEnvProfile(() => this.refresh()),
-			this.vrunner.onDidChangeVRunnerVersion(() => this.refresh())
+			this.vrunner.onDidChangeVRunnerVersion(() => this.refresh()),
+			onDidChangeActiveConfiguration(() => void this.refreshEdtProject())
 		);
+		void this.refreshEdtProject();
 		const workspaceRoot = this.vrunner.getWorkspaceRoot();
 		if (workspaceRoot) {
 			// .git/HEAD — чтобы строка ИБ с ${gitBranch} обновлялась при смене ветки
@@ -56,6 +62,23 @@ export class LaunchProfileViewProvider implements vscode.TreeDataProvider<vscode
 		void this.vrunner.getVRunnerVersion().then(() => this.refresh());
 	}
 
+	/** Формат активной конфигурации: у проекта EDT команды идут через 1cedtcli. */
+	private async refreshEdtProject(): Promise<void> {
+		const workspaceRoot = this.vrunner.getWorkspaceRoot();
+		let project: string | undefined;
+		if (workspaceRoot) {
+			const scope = await configurationScope(workspaceRoot, {
+				configuration: this.vrunner.getCfPath(),
+				extensions: [this.vrunner.getCfePath(), this.vrunner.getTestsCfePath()],
+			});
+			project = scope.configuration?.format === 'edt' ? edtProjectName(scope.configuration.dir) : undefined;
+		}
+		if (project !== this.edtProject) {
+			this.edtProject = project;
+			this.refresh();
+		}
+	}
+
 	public refresh(): void {
 		this._onDidChangeTreeData.fire();
 	}
@@ -64,6 +87,19 @@ export class LaunchProfileViewProvider implements vscode.TreeDataProvider<vscode
 		for (const disposable of this.disposables) {
 			disposable.dispose();
 		}
+	}
+
+	/** Проект EDT: его исходники раннер получает через 1cedtcli. */
+	private edtItem(project: string): vscode.TreeItem {
+		const installation = resolveEdt(readEdtSettings());
+		return item(
+			`1С:EDT: ${installation?.version ?? 'не найдена'}`,
+			installation ? 'verified' : 'warning',
+			installation
+				? `Проект ${project} идёт через 1cedtcli: выгрузка перед загрузкой, сборкой и тестами, импорт после выгрузки из базы.`
+				: `Проект ${project} в формате 1С:EDT, а 1cedtcli не найдена: команды над исходниками не выполнятся.`,
+			{ command: '1c-platform-tools.edt.projectInfo', title: 'Сведения о проекте' }
+		);
 	}
 
 	getTreeItem(element: vscode.TreeItem): vscode.TreeItem {
@@ -102,6 +138,7 @@ export class LaunchProfileViewProvider implements vscode.TreeDataProvider<vscode
 				`Синтаксис ${schema === 'v3' ? '3.x' : '2.x'}. Нажмите, чтобы определить заново.`,
 				{ command: '1c-platform-tools.env.refreshVersion', title: 'Определить версию' }
 			),
+			...(this.edtProject ? [this.edtItem(this.edtProject)] : []),
 			item(
 				`Файл настроек: ${settingsFile}`,
 				settingsExists ? 'check' : 'warning',
