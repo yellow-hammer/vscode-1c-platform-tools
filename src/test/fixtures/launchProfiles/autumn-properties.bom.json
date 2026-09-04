@@ -1,0 +1,7 @@
+﻿{
+	// профиль после переноса в формат vanessa-runner 3
+	"vrunner": {
+		"ibconnection": "/F./build/ib-bom",
+		"v8version": "8.3"
+	}
+}

@@ -54,6 +54,7 @@ import {
 } from './vrunnerVersion';
 import { VRunnerIntent } from './vrunnerCli';
 import { planIntents, SettingsFileFormat } from './vrunnerCli/planner';
+import { parseSettingsJson, readSettingsJson, readSettingsJsonSync } from './settingsJson';
 import { translateArgsToV3 } from './vrunnerCommandMap';
 import { createVRunnerTask } from '../features/tasks/vrunnerTask';
 import { decodeProcessOutput } from './processOutput';
@@ -83,6 +84,25 @@ export interface VRunnerExecutionResult {
 	/** Код возврата команды (0 - успех, иначе - ошибка) */
 	exitCode: number;
 }
+
+/** Состояние файла настроек активного профиля. */
+export interface SettingsFileState {
+	schema: SettingsSchema;
+	/** Имя файла активного профиля относительно корня проекта */
+	fileName: string;
+	/** Имя базового файла схемы установленного vanessa-runner */
+	expectedFileName: string;
+	exists: boolean;
+	/** Файл другой схемы: env.json при vanessa-runner 3 или наоборот */
+	formatMismatch: boolean;
+	/** Причина, по которой файл не разобран */
+	readError?: string;
+	/** Файл найден, разобран и нужного формата: команды выполняются */
+	ready: boolean;
+}
+
+/** Разобранный файл настроек: секции произвольной вложенности. */
+type SettingsDocument = any;
 
 /**
  * Менеджер для работы с vrunner (vanessa-runner)
@@ -290,7 +310,7 @@ export class VRunnerManager {
 		}
 		const initFile = path.join(root, this.getVRunnerInitSettingsPath());
 		try {
-			const parsed = JSON.parse(fsSync.readFileSync(initFile, 'utf8'));
+			const parsed = readSettingsJsonSync(initFile) as SettingsDocument;
 			const value = parsed?.vanessa?.['--vanessasettings']
 				?? parsed?.vrunner?.test?.vanessa?.vanessasettings;
 			if (typeof value === 'string' && value.trim()) {
@@ -867,7 +887,7 @@ export class VRunnerManager {
 			? settingsFile
 			: path.join(root, settingsFile);
 		try {
-			const parsed = JSON.parse(fsSync.readFileSync(absolutePath, 'utf8'));
+			const parsed = readSettingsJsonSync(absolutePath) as SettingsDocument;
 			const value = this.activeSettingsSchema() === 'v3'
 				? parsed?.vrunner?.[option]
 				: parsed?.default?.[`--${option}`];
@@ -938,7 +958,7 @@ export class VRunnerManager {
 			? settingsFile
 			: path.join(root, settingsFile);
 		try {
-			return detectSettingsFormat(JSON.parse(fsSync.readFileSync(absolutePath, 'utf8')));
+			return detectSettingsFormat(readSettingsJsonSync(absolutePath));
 		} catch {
 			return 'unknown';
 		}
@@ -994,52 +1014,48 @@ export class VRunnerManager {
 	}
 
 	/**
-	 * Проверяет, что файл настроек активного профиля существует и соответствует
-	 * формату установленного vanessa-runner; иначе команда блокируется.
+	 * Состояние файла настроек активного профиля: одно на панель, статус-бар и команды.
 	 *
-	 * Настройки — единственный источник параметров подключения и опций команд
-	 * (расширение их в CLI не дублирует), поэтому без файла настроек команды не
-	 * выполняются: в интерактивном режиме показывается предложение создать файл
-	 * через «Служебные файлы».
-	 *
-	 * @param interactive - Показывать ли предложение создать файл
-	 * @returns true, если файл настроек пригоден и команду можно выполнять
+	 * @returns Схема, имя файла и почему он не годится: не найден, не читается,
+	 *   другого формата; ready - файл пригоден для команд
 	 */
-	public describeSettingsState(): {
-		schema: SettingsSchema;
-		fileName: string;
-		expectedFileName: string;
-		exists: boolean;
-		formatMismatch: boolean;
-	} {
+	public describeSettingsState(): SettingsFileState {
 		const schema = this.activeSettingsSchema();
 		const fileName = this.getActiveEnvFile();
 		const expectedFileName = baseSettingsFileName(schema);
-		const root = this.getEffectiveRoot();
-		const absolutePath = root && !path.isAbsolute(fileName) ? path.join(root, fileName) : fileName;
-
-		let exists = false;
+		const absolutePath = this.settingsAbsolutePath(fileName);
+		const exists = fsSync.existsSync(absolutePath);
 		let formatMismatch = false;
-		try {
-			const parsed = JSON.parse(fsSync.readFileSync(absolutePath, 'utf8'));
-			exists = true;
-			const isObject = typeof parsed === 'object' && parsed !== null && !Array.isArray(parsed);
-			formatMismatch = !isObject || (schema === 'v3' ? !('vrunner' in parsed) : 'vrunner' in parsed);
-		} catch {
-			exists = false;
+		let readError: string | undefined;
+		if (exists) {
+			try {
+				formatMismatch = detectSettingsFormat(readSettingsJsonSync(absolutePath)) !== schema;
+			} catch (error) {
+				readError = error instanceof Error ? error.message : String(error);
+			}
 		}
-
-		return { schema, fileName, expectedFileName, exists, formatMismatch };
+		return {
+			schema,
+			fileName,
+			expectedFileName,
+			exists,
+			formatMismatch,
+			readError,
+			ready: exists && !formatMismatch && readError === undefined,
+		};
 	}
 
 	/**
 	 * Сообщение о непригодном файле настроек: что нашли и что ожидалось.
 	 *
-	 * @returns Текст с именем файла, схемой и версией vanessa-runner
+	 * @param state - Состояние файла; по умолчанию текущее
+	 * @returns Текст с именем файла, причиной и версией vanessa-runner
 	 */
-	public settingsProblemMessage(): string {
-		const state = this.describeSettingsState();
+	public settingsProblemMessage(state: SettingsFileState = this.describeSettingsState()): string {
 		const version = this.getCachedVRunnerVersionLabel() ?? 'версия не определена';
+		if (state.readError) {
+			return `Файл настроек ${state.fileName} не прочитан: ${state.readError}. Исправьте файл и повторите команду.`;
+		}
 		if (state.formatMismatch) {
 			const actual = state.schema === 'v3' ? '2.x' : '3.x';
 			return (
@@ -1055,45 +1071,63 @@ export class VRunnerManager {
 		);
 	}
 
+	/**
+	 * Проверяет, что файл настроек активного профиля читается и соответствует
+	 * формату установленного vanessa-runner; иначе команда блокируется.
+	 *
+	 * Настройки — единственный источник параметров подключения и опций команд
+	 * (расширение их в CLI не дублирует), поэтому без файла настроек команды не
+	 * выполняются: в интерактивном режиме показывается предложение создать или
+	 * открыть файл.
+	 *
+	 * @param interactive - Показывать ли предложение поправить файл
+	 * @returns true, если файл настроек пригоден и команду можно выполнять
+	 */
 	public async ensureProfileSettingsFile(interactive: boolean): Promise<boolean> {
 		await this.getVRunnerVersion();
-		const root = this.getEffectiveRoot();
-		if (!root) {
+		if (!this.getEffectiveRoot()) {
 			return true;
 		}
-		const schema = this.activeSettingsSchema();
-		const fileName = this.getActiveEnvFile();
-		const absolutePath = path.isAbsolute(fileName)
-			? fileName
-			: path.join(root, fileName);
-
-		let suitable = false;
-		try {
-			const parsed = JSON.parse(fsSync.readFileSync(absolutePath, 'utf8'));
-			const isObject = typeof parsed === 'object' && parsed !== null && !Array.isArray(parsed);
-			suitable = isObject && (schema === 'v3' ? 'vrunner' in parsed : !('vrunner' in parsed));
-		} catch {
-			suitable = false;
-		}
-		if (suitable) {
+		const state = this.describeSettingsState();
+		if (state.ready) {
 			return true;
 		}
-
-		log.warn(`Нет подходящего файла настроек: ${fileName}`);
+		log.warn(
+			`Файл настроек ${state.fileName} не годится: ` +
+			(state.readError ?? (state.formatMismatch ? 'формат другой версии vanessa-runner' : 'не найден'))
+		);
 		if (interactive) {
-			const createAction = 'Создать профиль запуска';
-			void vscode.window
-				.showWarningMessage(
-					'Профиль запуска не создан. Создайте его и повторите команду.',
-					createAction
-				)
-				.then((action) => {
-					if (action === createAction) {
-						void vscode.commands.executeCommand('1c-platform-tools.serviceFiles.ensure', this.settingsServiceFileId(schema));
-					}
-				});
+			this.offerSettingsFix(state);
 		}
 		return false;
+	}
+
+	/** Предлагает открыть нечитаемый файл настроек либо создать файл нужного формата. */
+	private offerSettingsFix(state: SettingsFileState): void {
+		if (state.readError) {
+			const openAction = 'Открыть файл';
+			void vscode.window.showWarningMessage(this.settingsProblemMessage(state), openAction).then((action) => {
+				if (action === openAction) {
+					void vscode.window.showTextDocument(vscode.Uri.file(this.settingsAbsolutePath(state.fileName)));
+				}
+			});
+			return;
+		}
+		const createAction = 'Создать профиль запуска';
+		const message = state.exists
+			? this.settingsProblemMessage(state)
+			: 'Профиль запуска не создан. Создайте его и повторите команду.';
+		void vscode.window.showWarningMessage(message, createAction).then((action) => {
+			if (action === createAction) {
+				void vscode.commands.executeCommand('1c-platform-tools.serviceFiles.ensure', this.settingsServiceFileId(state.schema));
+			}
+		});
+	}
+
+	/** Абсолютный путь файла настроек: относительный берётся от корня активного контекста. */
+	private settingsAbsolutePath(fileName: string): string {
+		const root = this.getEffectiveRoot();
+		return root && !path.isAbsolute(fileName) ? path.join(root, fileName) : fileName;
 	}
 
 	/**
@@ -2159,8 +2193,7 @@ export class VRunnerManager {
 
 		const envPath = path.join(root, fileName);
 		try {
-			const content = await fs.readFile(envPath, 'utf8');
-			return JSON.parse(content);
+			return await readSettingsJson(envPath);
 		} catch {
 			return {};
 		}
@@ -2370,7 +2403,7 @@ export class VRunnerManager {
 		}
 		let parsed: unknown;
 		try {
-			parsed = JSON.parse(content);
+			parsed = parseSettingsJson(content);
 		} catch {
 			const warnKey = `${localPath}::parse`;
 			if (!this.warnedLocalOverrideKeys.has(warnKey)) {
@@ -2420,7 +2453,7 @@ export class VRunnerManager {
 		const settingsFile = this.getActiveEnvFile();
 		const absolutePath = path.isAbsolute(settingsFile) ? settingsFile : path.join(root, settingsFile);
 		try {
-			const parsed: unknown = JSON.parse(fsSync.readFileSync(absolutePath, 'utf8'));
+			const parsed = readSettingsJsonSync(absolutePath);
 			// секции default (2.x) / vrunner (3.x) разбирает parseLocalOverrides
 			const { overrides } = parseLocalOverrides(parsed);
 			const withVariables: EnvOverrides = {};
@@ -2573,8 +2606,7 @@ export class VRunnerManager {
 			? settingsFile
 			: path.join(root, settingsFile);
 		try {
-			const content = await fs.readFile(absolutePath, 'utf8');
-			const parsed = JSON.parse(content);
+			const parsed = (await readSettingsJson(absolutePath)) as SettingsDocument;
 			const value = this.activeSettingsSchema() === 'v3'
 				? parsed?.vrunner?.[option]
 				: parsed?.default?.[`--${option}`];

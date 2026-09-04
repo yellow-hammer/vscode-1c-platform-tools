@@ -1,0 +1,5 @@
+{
+	"default": {
+		"--ibconnection": "/F./build/ib"
+	}
+}
