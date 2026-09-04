@@ -1,9 +1,14 @@
 {
 	"schema": "v3",
 	"source": "vanessa-runner SNAPSHOT (src/cli + docs/product/команды + схема 2.x)",
-	"generatedAt": "2026-08-21",
+	"generatedAt": "2026-08-31",
 	"sets": {
 		"НаборОпцийEDT": [
+			{
+				"key": "edt-path",
+				"type": "string",
+				"description": "Путь к 1cedtcli (исполняемый файл или каталог установки EDT). Если задан - используется как есть, поиск установленной EDT и PATH не выполняется"
+			},
 			{
 				"key": "edt-version",
 				"type": "string",
@@ -182,6 +187,18 @@
 				"key": "filter-except",
 				"type": "boolean",
 				"description": "Инвертировать отбор: действие применяется ко всем сеансам, КРОМЕ подходящих под --filter-app/--filter-name (аналог --mode EXCEPT из 2.x)"
+			}
+		],
+		"НаборОпцийОтчетов": [
+			{
+				"key": "report-format",
+				"type": "array",
+				"description": "Формат отчёта; можно указать несколько раз. Список форматов зависит от команды"
+			},
+			{
+				"key": "report-path",
+				"type": "string",
+				"description": "Куда выгрузить отчёт: файл - если формат один, каталог - если форматов несколько"
 			}
 		],
 		"НаборОпцийПлатформы": [
@@ -1506,6 +1523,7 @@
 				"НаборОпцийПлатформы",
 				"НаборОпцийЗапуска",
 				"НаборОпцийПокрытия",
+				"НаборОпцийОтчетов",
 				"НаборОпцийНастроек"
 			]
 		},
@@ -1527,13 +1545,13 @@
 				{
 					"key": "reportsxunit",
 					"type": "string",
-					"description": "Формат{Путь};Формат{Путь}: junit, allure, json, mxl, genericexecution или имя генератора Vanessa-ADD",
+					"description": "Формат{Путь};Формат{Путь} (устарела: --report-format <формат> --report-path <путь>)",
 					"default": ""
 				},
 				{
 					"key": "reportxunit",
 					"type": "string",
-					"description": "Путь к каталогу с отчетом jUnit (устарел, используйте --reportsxunit)",
+					"description": "Путь к каталогу с отчетом jUnit (устарел, используйте --report-path)",
 					"default": ""
 				},
 				{
@@ -1596,6 +1614,7 @@
 				"НаборОпцийПлатформы",
 				"НаборОпцийЗапуска",
 				"НаборОпцийПокрытия",
+				"НаборОпцийОтчетов",
 				"НаборОпцийНастроек"
 			]
 		},
@@ -1635,12 +1654,7 @@
 				{
 					"key": "report",
 					"type": "string",
-					"description": "Путь к файлу/каталогу отчёта (reportPath)"
-				},
-				{
-					"key": "report-format",
-					"type": "string",
-					"description": "Формат отчёта: jUnit (по умолчанию), JSON, allure"
+					"description": "Путь к файлу/каталогу отчёта, reportPath (устарела: --report-path <путь>)"
 				},
 				{
 					"key": "exitcode",
@@ -1680,6 +1694,7 @@
 				"НаборОпцийПлатформы",
 				"НаборОпцийЗапуска",
 				"НаборОпцийПокрытия",
+				"НаборОпцийОтчетов",
 				"НаборОпцийНастроек"
 			]
 		},
@@ -1697,9 +1712,20 @@
 					"description": "Минимальный уровень замечаний, при котором команда завершается с ошибкой"
 				},
 				{
+					"key": "report",
+					"type": "string",
+					"description": "Файл результатов в исходном формате 1С:EDT (устарела: --report-format edt --report-path <файл>)"
+				},
+				{
 					"key": "junitpath",
 					"type": "string",
-					"description": "Путь к файлу отчёта в формате JUnit XML",
+					"description": "Путь к файлу отчёта JUnit XML (устарела: --report-format junit --report-path <путь>)",
+					"default": ""
+				},
+				{
+					"key": "allure-results",
+					"type": "string",
+					"description": "Каталог результатов Allure 2 (устарела: --report-format allure --report-path <каталог>)",
 					"default": ""
 				},
 				{
@@ -1710,6 +1736,7 @@
 				}
 			],
 			"sets": [
+				"НаборОпцийОтчетов",
 				"НаборОпцийИсходников",
 				"НаборОпцийНастроек"
 			]
@@ -1724,9 +1751,20 @@
 					"default": ""
 				},
 				{
+					"key": "target",
+					"type": "array",
+					"description": "Что проверять: main - основная конфигурация,\r\n|AllExtensions - все расширения, <имя> - конкретное расширение в базе, пусто - всё.\r\n|Можно указать несколько раз; каждая цель - отдельный запуск конфигуратора,\r\n|потому что область проверки у платформы взаимоисключающая.\r\n|AllExtensions поглощает перечисленные поимённо расширения."
+				},
+				{
 					"key": "junitpath",
 					"type": "string",
-					"description": "Путь к файлу отчёта в формате JUnit XML",
+					"description": "Путь к файлу отчёта JUnit XML (устарела: --report-format junit --report-path <путь>)",
+					"default": ""
+				},
+				{
+					"key": "allure-results",
+					"type": "string",
+					"description": "Каталог результатов Allure 2 (устарела: --report-format allure --report-path <каталог>)",
 					"default": ""
 				},
 				{
@@ -1753,6 +1791,7 @@
 				"НаборОпцийПлатформы",
 				"НаборОпцийСУБД",
 				"НаборОпцийХранилища",
+				"НаборОпцийОтчетов",
 				"НаборОпцийНастроек"
 			]
 		}

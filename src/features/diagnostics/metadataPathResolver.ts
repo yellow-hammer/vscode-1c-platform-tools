@@ -1,5 +1,5 @@
 /**
- * Маппинг пути по метаданным 1С → путь к файлу модуля в выгрузке конфигуратора
+ * Путь по метаданным 1С → путь к файлу модуля в исходниках
  *
  * vrunner syntax-check при --groupbymetadata: true пишет в атрибут testcase name
  * путь по метаданным с русскими именами объектов, например:
@@ -7,85 +7,58 @@
  *   - `Справочник.Файлы.Форма.ФормаЭлемента.Форма`
  *   - `Обработка.Сканирование.МодульОбъекта`
  *
- * В выгрузке конфигуратора (формат src/cf) русские имена объектов = имена папок,
- * а тип метаданных раскладывается в английский подкаталог (ОбщийМодуль →
- * CommonModules). Здесь только построение пути-кандидата (чистая функция);
- * проверку существования файла делает вызывающий код — для тех типов и форм,
- * что не разложились в .bsl, путь не возвращается, и диагностика уходит на
- * fallback-файл.
+ * Здесь только разбор такого пути; раскладку файлов по формату исходников знает
+ * `shared/objectPaths`. Проверку существования файла делает вызывающий код: для
+ * тех типов и форм, что не разложились в .bsl, путь не возвращается, и
+ * диагностика уходит на fallback-файл.
  *
  * Связано с [[ssl31-reference-test-config]]: формат проверен на ssl_3_1.
- * Расширяет частичный маппинг из metadataBoilerplateNames (только создаваемые
- * объекты) типами HTTPСервис/ОбщаяФорма/модулей менеджера-объекта-формы.
  */
 
-/**
- * Формат исходников: выгрузка конфигуратора или проект EDT.
- * Совпадает с `SourceFormat` из projectLayout, продублирован, чтобы модуль
- * оставался чистым и тестировался без остального кода.
- */
-export type MetadataSourceFormat = 'designer' | 'edt';
-
-/** Русский тип метаданных → английский подкаталог выгрузки */
-const TYPE_TO_SUBDIR: Record<string, string> = {
-	ОбщийМодуль: 'CommonModules',
-	HTTPСервис: 'HTTPServices',
-	WebСервис: 'WebServices',
-	ОбщаяФорма: 'CommonForms',
-	ОбщаяКоманда: 'CommonCommands',
-	Справочник: 'Catalogs',
-	Документ: 'Documents',
-	Обработка: 'DataProcessors',
-	Отчет: 'Reports',
-	РегистрСведений: 'InformationRegisters',
-	РегистрНакопления: 'AccumulationRegisters',
-	РегистрБухгалтерии: 'AccountingRegisters',
-	РегистрРасчета: 'CalculationRegisters',
-	ПланВидовХарактеристик: 'ChartsOfCharacteristicTypes',
-	ПланСчетов: 'ChartsOfAccounts',
-	ПланВидовРасчета: 'ChartsOfCalculationTypes',
-	ПланОбмена: 'ExchangePlans',
-	БизнесПроцесс: 'BusinessProcesses',
-	Задача: 'Tasks',
-	Перечисление: 'Enums',
-	Константа: 'Constants',
-	ЖурналДокументов: 'DocumentJournals',
-};
+import type { SourceFormat } from '../../shared/projectLayout';
+import {
+	formModuleFile,
+	METADATA_TYPES,
+	moduleFile,
+	typeDirectory,
+	type ModuleKind,
+} from '../../shared/objectPaths';
 
 /** Русские типы метаданных, известные маппингу (для разбора текста вывода). */
-export const METADATA_TYPE_NAMES: readonly string[] = Object.keys(TYPE_TO_SUBDIR);
+export const METADATA_TYPE_NAMES: readonly string[] = METADATA_TYPES;
+
+/** Суффикс пути по метаданным → вид модуля объекта. */
+const SUFFIX_MODULES: Record<string, ModuleKind> = {
+	МодульМенеджера: 'manager',
+	МодульОбъекта: 'object',
+	МодульНабораЗаписей: 'recordSet',
+	МодульЗначения: 'valueManager',
+};
 
 /**
- * Типы с единственным модулем: тип → имя файла.
+ * Типы с единственным модулем.
  *
  * У общей команды файл называется CommandModule.bsl, а не Module.bsl.
  * Сверено с живыми проектами в обеих раскладках.
  */
-const SINGLE_MODULE_FILE: Record<string, string> = {
-	ОбщийМодуль: 'Module.bsl',
-	HTTPСервис: 'Module.bsl',
-	WebСервис: 'Module.bsl',
-	ОбщаяКоманда: 'CommandModule.bsl',
-};;
-
-/** Суффикс пути модуля объекта → имя файла .bsl в каталоге Ext */
-const MODULE_SUFFIX_TO_FILE: Record<string, string> = {
-	МодульМенеджера: 'ManagerModule.bsl',
-	МодульОбъекта: 'ObjectModule.bsl',
-	МодульНабораЗаписей: 'RecordSetModule.bsl',
-	МодульЗначения: 'ValueManagerModule.bsl',
+const SINGLE_MODULES: Record<string, ModuleKind> = {
+	ОбщийМодуль: 'module',
+	HTTPСервис: 'module',
+	WebСервис: 'module',
+	ОбщаяКоманда: 'command',
 };
 
 /**
- * Строит путь к файлу модуля относительно корня src/cf по пути из метаданных
+ * Строит путь к файлу модуля относительно каталога исходников
  *
  * @param metadataPath - Значение атрибута testcase name (например `ОбщийМодуль.Имя.Модуль`)
+ * @param format - Формат исходников
  * @returns Относительный путь с разделителем «/» (например `CommonModules/Имя/Ext/Module.bsl`)
  *          или undefined, если тип/форма не раскладываются в .bsl
  */
 export function resolveBslPathFromMetadata(
 	metadataPath: string,
-	format: MetadataSourceFormat = 'designer'
+	format: SourceFormat = 'designer'
 ): string | undefined {
 	const segments = metadataPath.split('.');
 	if (segments.length < 3) {
@@ -93,44 +66,39 @@ export function resolveBslPathFromMetadata(
 	}
 
 	const type = segments[0];
-	const subdir = TYPE_TO_SUBDIR[type];
-	if (!subdir) {
+	if (!typeDirectory(type)) {
 		return undefined;
 	}
 
 	const objectName = segments[1];
 	const suffix = segments[segments.length - 1];
-	// В EDT каталога Ext нет, модули лежат прямо в каталоге объекта
-	const ext = format === 'edt' ? '' : 'Ext/';
 
 	// Общая форма: объект сам является формой (ОбщаяФорма.Имя.Форма)
 	if (type === 'ОбщаяФорма') {
-		if (segments.length === 3 && suffix === 'Форма') {
-			return format === 'edt'
-				? `${subdir}/${objectName}/Module.bsl`
-				: `${subdir}/${objectName}/Ext/Form/Module.bsl`;
-		}
-		return undefined;
+		return segments.length === 3 && suffix === 'Форма'
+			? formModuleFile(format, type, objectName)
+			: undefined;
 	}
 
 	// Подчинённая форма: Тип.Объект.Форма.ИмяФормы.Форма
 	if (segments.length === 5 && segments[2] === 'Форма' && suffix === 'Форма') {
-		const formName = segments[3];
-		return format === 'edt'
-			? `${subdir}/${objectName}/Forms/${formName}/Module.bsl`
-			: `${subdir}/${objectName}/Forms/${formName}/Ext/Form/Module.bsl`;
+		return formModuleFile(format, type, objectName, segments[3]);
 	}
 
-	// Модуль менеджера/объекта/набора записей
-	const moduleFile = MODULE_SUFFIX_TO_FILE[suffix];
-	if (segments.length === 3 && moduleFile) {
-		return `${subdir}/${objectName}/${ext}${moduleFile}`;
+	if (segments.length !== 3) {
+		return undefined;
+	}
+
+	// Модуль менеджера, объекта, набора записей
+	const kind = SUFFIX_MODULES[suffix];
+	if (kind) {
+		return moduleFile(format, type, objectName, kind);
 	}
 
 	// Единственный модуль объекта; у общей команды суффикс бывает «МодульКоманды»
-	const singleFile = SINGLE_MODULE_FILE[type];
-	if (segments.length === 3 && singleFile && (suffix === 'Модуль' || suffix === 'МодульКоманды')) {
-		return `${subdir}/${objectName}/${ext}${singleFile}`;
+	const single = SINGLE_MODULES[type];
+	if (single && (suffix === 'Модуль' || suffix === 'МодульКоманды')) {
+		return moduleFile(format, type, objectName, single);
 	}
 
 	return undefined;

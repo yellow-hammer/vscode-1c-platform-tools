@@ -52,6 +52,9 @@ import {
 	getRunDesignerCommandName,
 	getXUnitTestsCommandName,
 	getSyntaxCheckCommandName,
+	getValidateEdtCommandName,
+	getConvertSourcesCommandName,
+	getConvertExtensionSourcesCommandName,
 	getVanessaTestsCommandName,
 	getAllureReportCommandName,
 	getYAxUnitTestsCommandName,
@@ -129,6 +132,7 @@ export const TREE_GROUPS: TreeGroup[] = [
 			{ command: '1c-platform-tools.cf.unload', title: getDumpConfigurationToCfCommandName().title, treeLabel: '📤 Выгрузить в 1Cv8.cf' },
 			{ command: '1c-platform-tools.cf.compile', title: getBuildConfigurationCommandName().title, treeLabel: '🔨 Собрать 1Cv8.cf из src/cf' },
 			{ command: '1c-platform-tools.cf.decompile', title: getDecompileConfigurationCommandName().title, treeLabel: '🔓 Разобрать 1Cv8.cf в src/cf' },
+			{ command: '1c-platform-tools.cf.convert', title: getConvertSourcesCommandName().title, treeLabel: '🔀 Конвертировать исходники (EDT ↔ конфигуратор)' },
 		],
 	},
 	{
@@ -144,6 +148,7 @@ export const TREE_GROUPS: TreeGroup[] = [
 			{ command: '1c-platform-tools.cfe.unload', title: getDumpExtensionToCfeCommandName().title, treeLabel: '📤 Выгрузить в *.cfe' },
 			{ command: '1c-platform-tools.cfe.compile', title: getBuildExtensionCommandName().title, treeLabel: '🔨 Собрать *.cfe из src/cfe' },
 			{ command: '1c-platform-tools.cfe.decompile', title: getDecompileExtensionCommandName().title, treeLabel: '🔓 Разобрать *.cfe в src/cfe' },
+			{ command: '1c-platform-tools.cfe.convert', title: getConvertExtensionSourcesCommandName().title, treeLabel: '🔀 Конвертировать исходники (EDT ↔ конфигуратор)' },
 		],
 	},
 	{
@@ -239,6 +244,7 @@ export const TREE_GROUPS: TreeGroup[] = [
 		commands: [
 			{ command: '1c-platform-tools.test.xunit', title: getXUnitTestsCommandName().title, treeLabel: '🧪 XUnit тесты' },
 			{ command: '1c-platform-tools.syntaxCheck.run', title: getSyntaxCheckCommandName().title, treeLabel: '🧪 Синтаксический контроль' },
+			{ command: '1c-platform-tools.test.validateEdt', title: getValidateEdtCommandName().title, treeLabel: '🧪 Проверить проект EDT' },
 			{ command: '1c-platform-tools.test.vanessa', title: getVanessaTestsCommandName('normal').title, treeLabel: '🧪 Vanessa тесты' },
 			{ command: '1c-platform-tools.test.yaxunit', title: getYAxUnitTestsCommandName().title, treeLabel: '🧪 YAxUnit тесты' },
 			{ command: '1c-platform-tools.test.allure', title: getAllureReportCommandName().title, treeLabel: '📊 Отчёт Allure' },

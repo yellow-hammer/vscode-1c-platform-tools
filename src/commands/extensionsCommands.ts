@@ -5,6 +5,7 @@ import { BaseCommand, INFOBASE_BUSY } from './baseCommand';
 import type { VRunnerExecutionResult } from '../shared/vrunnerManager';
 import {
 	getLoadExtensionFromSrcCommandName,
+	getConvertExtensionSourcesCommandName,
 	getLoadExtensionFromCfeCommandName,
 	getLoadExtensionFromFilesByListCommandName,
 	getDumpExtensionToSrcCommandName,
@@ -60,7 +61,7 @@ export class ExtensionsCommands extends BaseCommand {
 	 * @returns Промис, который разрешается после запуска всех команд
 	 */
 	protected async executeForAllExtensions(
-		buildIntent: (extensionFolder: string, extensionName: string) => VRunnerIntent,
+		buildIntent: (extensionSource: string, extensionName: string, extensionFolder: string) => VRunnerIntent,
 		commandName: string,
 		opts?: CommandExecutionOptions,
 		commandId?: string,
@@ -90,14 +91,14 @@ export class ExtensionsCommands extends BaseCommand {
 			}
 		}
 
-		const root = sourcesRoot ?? this.vrunner.getCfePath();
-		const extensionFolders = await this.getExtensionFoldersFromSrc(workspaceRoot, root);
-		if (!extensionFolders) {
+		const sources = await this.resolveExtensionSources(workspaceRoot, sourcesRoot);
+		if (!sources) {
 			if (opts?.wait === true) {
 				return this.executionError('В каталоге расширений не найдено подкаталогов');
 			}
 			return;
 		}
+		const { root, folders: extensionFolders } = sources;
 
 		const selectedFolders = await this.selectExtensions(extensionFolders, opts, scope);
 		if (selectedFolders === undefined) {
@@ -116,9 +117,11 @@ export class ExtensionsCommands extends BaseCommand {
 		// от имени каталога (например, каталог yaxunit-test с расширением «Тесты»).
 		// Корень тот же, из которого взяли каталоги: у тестовых расширений он свой
 		const cfeRoot = path.join(workspaceRoot, root);
-		const intents = await Promise.all(selectedFolders.map(async (folder) =>
-			buildIntent(folder, await resolveExtensionNameFromSrc(path.join(cfeRoot, folder)))
-		));
+		const intents = await Promise.all(selectedFolders.map(async (folder) => {
+			// В формате EDT базой служит корень рабочей области, а каталогом - сам проект
+			const source = root === '.' ? folder : `${root}/${folder}`;
+			return buildIntent(source, await resolveExtensionNameFromSrc(path.join(cfeRoot, folder)), folder);
+		}));
 		// Через общий путь, а не своим планированием: он же освобождает базу
 		// на время команд конфигуратора и возвращает её после
 		return this.runIntentsSequential(intents, opts, commandName, commandId);
@@ -148,6 +151,34 @@ export class ExtensionsCommands extends BaseCommand {
 		}
 
 		return extensionFolders;
+	}
+
+	/**
+	 * Каталог расширений и их подкаталоги для команд над исходниками.
+	 *
+	 * В формате конфигуратора расширения лежат подкаталогами настроенного пути,
+	 * в формате EDT - отдельными проектами рабочей области. Во втором случае
+	 * базой становится корень рабочей области, а «подкаталогом» - каталог
+	 * проекта, поэтому остальной код команд не меняется.
+	 *
+	 * @param workspaceRoot - Корень рабочей области
+	 * @param sourcesRoot - Каталог расширений, если задан явно
+	 * @returns База и список каталогов расширений или undefined, если их нет
+	 */
+	private async resolveExtensionSources(
+		workspaceRoot: string,
+		sourcesRoot?: string
+	): Promise<{ root: string; folders: string[] } | undefined> {
+		if (sourcesRoot === undefined) {
+			const edtProjects = (await this.activeExtensions()).filter((item) => item.format === 'edt');
+			if (edtProjects.length > 0) {
+				return { root: '.', folders: edtProjects.map((item) => item.dir) };
+			}
+		}
+
+		const root = sourcesRoot ?? this.vrunner.getCfePath();
+		const folders = await this.getExtensionFoldersFromSrc(workspaceRoot, root);
+		return folders ? { root, folders } : undefined;
 	}
 
 	/**
@@ -633,6 +664,53 @@ export class ExtensionsCommands extends BaseCommand {
 	}
 
 	/**
+	 * Конвертирует исходники расширения между форматами EDT и конфигуратора.
+	 *
+	 * Расширение выбирается среди тех, что относятся к активной конфигурации;
+	 * формат источника определяет сам vanessa-runner.
+	 *
+	 * @param opts - Опции выполнения
+	 */
+	async convertExtensionSources(opts?: CommandExecutionOptions): Promise<StructuredCommandResult | void> {
+		const version = await this.vrunner.getVRunnerVersion();
+		if (version !== undefined && !isAtLeast(version, VRUNNER_FEATURES.edtSources)) {
+			return this.reportUnavailable(
+				'Конвертация исходников между форматами появилась в vanessa-runner 3.0.0-rc8.',
+				opts
+			);
+		}
+
+		const extensions = await this.activeExtensions();
+		if (extensions.length === 0) {
+			return this.reportUnavailable('В рабочей области нет исходников расширений.', opts);
+		}
+
+		const selected = extensions.length === 1
+			? extensions[0]
+			: (await vscode.window.showQuickPick(
+				extensions.map((extension) => ({ label: extension.name, description: extension.dir, extension })),
+				{ title: 'Расширение для конвертации', placeHolder: 'Исходники какого расширения конвертировать' }
+			))?.extension;
+		if (!selected) {
+			return;
+		}
+
+		const defaultOut = path.join(this.vrunner.getOutPath(), 'cfe-converted', selected.name);
+		const outputPath = opts?.wait === true
+			? defaultOut
+			: await this.pickOutputPath(defaultOut, 'Каталог для конвертированных исходников');
+		if (!outputPath) {
+			return;
+		}
+
+		const commandName = getConvertExtensionSourcesCommandName();
+		return this.runIntent(
+			{ kind: 'cfe.convert', src: selected.dir, out: outputPath, extensionName: selected.name },
+			opts, commandName.title, outputPath, commandName.id
+		);
+	}
+
+	/**
 	 * Загружает расширения из исходников в информационную базу
 	 * 
 	 * Находит все подпапки в папке расширений и для каждой выполняет команду `compileext`.
@@ -643,7 +721,6 @@ export class ExtensionsCommands extends BaseCommand {
 	async loadFromSrc(opts?: CommandExecutionOptions): Promise<StructuredCommandResult | void> {
 		const ibConnectionParam = await this.vrunner.getIbConnectionParam();
 		const commandName = getLoadExtensionFromSrcCommandName();
-		const cfePath = this.vrunner.getCfePath();
 
 		const updateDb = await decideUpdateDb(opts);
 		if (updateDb === undefined) {
@@ -651,9 +728,9 @@ export class ExtensionsCommands extends BaseCommand {
 		}
 
 		return this.executeForAllExtensions(
-			(extensionFolder, extensionName) => ({
+			(extensionSource, extensionName, extensionFolder) => ({
 				kind: 'cfe.loadFromSrc',
-				src: path.join(cfePath, extensionFolder),
+				src: extensionSource,
 				extensionName,
 				updateDb,
 				common: ibConnectionParam,
@@ -931,13 +1008,12 @@ export class ExtensionsCommands extends BaseCommand {
 		}
 
 		const commandName = getBuildExtensionCommandName();
-		const cfePath = this.vrunner.getCfePath();
 
 		return this.executeForAllExtensions(
-			(extensionFolder, extensionName) => ({
+			(extensionSource, extensionName, extensionFolder) => ({
 				kind: 'cfe.buildCfe',
-				src: path.join(cfePath, extensionFolder),
-				out: path.join(buildPath, BUILD_SUBDIRS.cfe, `${extensionFolder}.cfe`),
+				src: extensionSource,
+				out: path.join(buildPath, BUILD_SUBDIRS.cfe, `${path.basename(extensionFolder)}.cfe`),
 				extensionName,
 			}),
 			commandName.title,
@@ -963,9 +1039,9 @@ export class ExtensionsCommands extends BaseCommand {
 		const testsCfePath = this.vrunner.getTestsCfePath();
 
 		return this.executeForAllExtensions(
-			(extensionFolder, extensionName) => ({
+			(extensionSource, extensionName, extensionFolder) => ({
 				kind: 'cfe.loadFromSrc',
-				src: path.join(testsCfePath, extensionFolder),
+				src: extensionSource,
 				extensionName,
 				updateDb: true,
 				common: ibConnectionParam,
@@ -993,10 +1069,10 @@ export class ExtensionsCommands extends BaseCommand {
 		const buildPath = this.vrunner.getOutPath();
 
 		return this.executeForAllExtensions(
-			(extensionFolder, extensionName) => ({
+			(extensionSource, extensionName, extensionFolder) => ({
 				kind: 'cfe.buildCfe',
-				src: path.join(testsCfePath, extensionFolder),
-				out: path.join(buildPath, BUILD_SUBDIRS.testsCfe, `${extensionFolder}.cfe`),
+				src: extensionSource,
+				out: path.join(buildPath, BUILD_SUBDIRS.testsCfe, `${path.basename(extensionFolder)}.cfe`),
 				extensionName,
 			}),
 			commandName.title,
@@ -1022,7 +1098,7 @@ export class ExtensionsCommands extends BaseCommand {
 		const testsCfePath = this.vrunner.getTestsCfePath();
 
 		return this.executeForAllExtensions(
-			(extensionFolder, extensionName) => ({
+			(extensionSource, extensionName, extensionFolder) => ({
 				kind: 'cfe.dumpIbToSrc',
 				extensionName,
 				out: path.join(testsCfePath, extensionFolder),

@@ -40,41 +40,6 @@ export class ArtifactCommands extends BaseCommand {
 		return roots.some((root) => rel === root || rel.startsWith(`${root}/`));
 	}
 
-	private async pickOutputPath(
-		defaultPath: string,
-		title: string
-	): Promise<string | undefined> {
-		const workspaceRoot = this.ensureWorkspace();
-		if (!workspaceRoot) {
-			return undefined;
-		}
-
-		const DEFAULT_LABEL = '$(folder-opened) По умолчанию';
-		const picked = await vscode.window.showQuickPick(
-			[
-				{ label: DEFAULT_LABEL, description: defaultPath },
-				{ label: '$(file-directory) Выбрать каталог...', description: '' },
-			],
-			{ title, placeHolder: 'Каталог для выходных файлов' }
-		);
-		if (!picked) {
-			return undefined;
-		}
-		if (picked.label === DEFAULT_LABEL) {
-			return defaultPath;
-		}
-
-		const uris = await vscode.window.showOpenDialog({
-			canSelectFolders: true,
-			canSelectMany: false,
-			defaultUri: vscode.Uri.file(workspaceRoot),
-			title,
-		});
-		return uris?.length
-			? vscode.workspace.asRelativePath(uris[0], false).replaceAll('\\', '/')
-			: undefined;
-	}
-
 	private async pickOutputFile(
 		defaultDir: string,
 		defaultName: string,
@@ -247,8 +212,35 @@ export class ArtifactCommands extends BaseCommand {
 		});
 	}
 
+	/**
+	 * Исходники внешнего файла в формате EDT: описание объекта лежит в `.mdo`.
+	 *
+	 * Такие исходники vanessa-runner не собирает и не разбирает - команды
+	 * обработок и отчётов формат EDT отклоняют.
+	 */
+	private async isEdtExternalSource(artifactUri: vscode.Uri): Promise<boolean> {
+		const files = await this.getFilesByExtension(artifactUri.fsPath, '.mdo');
+		return files.length > 0;
+	}
+
+	/** Сообщает, что формат EDT этой команде недоступен. */
+	private async refuseEdtExternal(artifactUri: vscode.Uri): Promise<boolean> {
+		if (!(await this.isEdtExternalSource(artifactUri))) {
+			return false;
+		}
+		void vscode.window.showErrorMessage(
+			'Внешние обработки и отчёты в формате EDT vanessa-runner не собирает и не разбирает: ' +
+			'соберите их средствами EDT.'
+		);
+		return true;
+	}
+
 	/** Собрать внешнюю обработку из исходников. */
 	async buildProcessor(artifactUri: vscode.Uri): Promise<void> {
+		if (await this.refuseEdtExternal(artifactUri)) {
+			return;
+		}
+
 		const workspaceRoot = this.ensureWorkspace();
 		if (!workspaceRoot || !(await this.ensureOscriptAvailable())) {
 			return;
@@ -274,6 +266,10 @@ export class ArtifactCommands extends BaseCommand {
 
 	/** Разобрать .epf в исходники. */
 	async decompileProcessor(artifactUri: vscode.Uri): Promise<void> {
+		if (await this.refuseEdtExternal(artifactUri)) {
+			return;
+		}
+
 		const workspaceRoot = this.ensureWorkspace();
 		if (!workspaceRoot || !(await this.ensureOscriptAvailable())) {
 			return;
@@ -299,6 +295,10 @@ export class ArtifactCommands extends BaseCommand {
 
 	/** Собрать внешний отчёт из исходников. */
 	async buildReport(artifactUri: vscode.Uri): Promise<void> {
+		if (await this.refuseEdtExternal(artifactUri)) {
+			return;
+		}
+
 		const workspaceRoot = this.ensureWorkspace();
 		if (!workspaceRoot || !(await this.ensureOscriptAvailable())) {
 			return;
@@ -324,6 +324,10 @@ export class ArtifactCommands extends BaseCommand {
 
 	/** Разобрать .erf в исходники. */
 	async decompileReport(artifactUri: vscode.Uri): Promise<void> {
+		if (await this.refuseEdtExternal(artifactUri)) {
+			return;
+		}
+
 		const workspaceRoot = this.ensureWorkspace();
 		if (!workspaceRoot || !(await this.ensureOscriptAvailable())) {
 			return;
