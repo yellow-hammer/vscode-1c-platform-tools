@@ -33,20 +33,19 @@ suite('xunitAdapter', () => {
 		assert.ok(info.processorDir.endsWith('Тест_Один'));
 	});
 
-	test('поиск обработок идёт по корню тестов, а не по старому src/tests', () => {
+	test('поиск обработок идёт по корню тестов', () => {
 		const adapter = new XUnitAdapter(VRunnerManager.getInstance());
 
 		const globs = adapter.getIncludeGlobs();
 
-		// исходники тестовых обработок переехали в tests/epf: панель ищет их там же,
-		// куда смотрят команды сборки, иначе ветка xUnit опустеет
+		// Панель ищет исходники там же, куда смотрят команды сборки, иначе ветка
+		// xUnit опустеет
 		const expected = testsSubPath(DEFAULT_PATHS.tests, TESTS_SUBDIRS.epf);
 		assert.strictEqual(expected, 'tests/epf');
 		assert.deepStrictEqual(globs, [
 			`${expected}/**/Ext/ObjectModule.bsl`,
 			`${expected}/**/src/ExternalDataProcessors/*/ObjectModule.bsl`,
 		]);
-		assert.ok(!globs.some((glob) => glob.startsWith('src/tests')), globs.join(', '));
 	});
 
 	test('epfTestSourceInfo: не ObjectModule.bsl — undefined', () => {
