@@ -27,6 +27,10 @@ export interface MetadataSourceDto {
 	readonly label: string;
 	readonly configurationXmlRelativePath: string;
 	readonly metadataRootRelativePath: string;
+	/** Версия выгрузки источника (`MetaDataObject/@version`); у внешних файлов пусто. */
+	readonly schemaVersion?: string;
+	/** Формат выгрузки читается md-sparrow; `false` у расширения чужого формата: состав пуст. */
+	readonly schemaSupported?: boolean;
 	/** Правило поддержки самого корня конфигурации: locked либо editable. */
 	readonly support?: string;
 	/** Возможность изменения включена конфигуратором: без неё правила не правятся. */
