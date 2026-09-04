@@ -3197,7 +3197,7 @@
         },
         {
           "command": "1c-platform-tools.metadata.openSourceXml",
-          "when": "view == 1c-platform-tools-metadata-tree && (viewItem =~ /(^| )metadataSourceConfigLike( |$)/ || viewItem =~ /(^| )(metadataObjectProperties(Subsystem)?|metadataLeafFile|metadataObjectForm)( |$)/)",
+          "when": "view == 1c-platform-tools-metadata-tree && (viewItem =~ /(^| )metadataSourceConfigLike( |$)/ || viewItem == metadataSourceUnsupported || viewItem =~ /(^| )(metadataObjectProperties(Subsystem)?|metadataLeafFile|metadataObjectForm)( |$)/)",
           "group": "2_reveal@1"
         },
         {
@@ -3207,7 +3207,7 @@
         },
         {
           "command": "1c-platform-tools.metadata.compile",
-          "when": "view == 1c-platform-tools-metadata-tree && (viewItem =~ /(^| )metadataSourceConfigLike( |$)/ || viewItem == metadataSourceExternalArtifact || viewItem =~ /(^| )metadataLeafFile( |$)/)",
+          "when": "view == 1c-platform-tools-metadata-tree && (viewItem =~ /(^| )metadataSourceConfigLike( |$)/ || viewItem == metadataSourceUnsupported || viewItem == metadataSourceExternalArtifact || viewItem =~ /(^| )metadataLeafFile( |$)/)",
           "group": "4_build@1"
         },
         {

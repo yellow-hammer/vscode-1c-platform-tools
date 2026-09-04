@@ -2239,7 +2239,9 @@ export function registerMetadataFeature(
 						return;
 					}
 					const tree = await loadProjectMetadataTree(context, root);
-					const extensions = tree.sources.filter((source) => source.kind === 'extension');
+					const extensions = tree.sources.filter(
+						(source) => source.kind === 'extension' && source.schemaSupported !== false
+					);
 					if (extensions.length === 0) {
 						void vscode.window.showInformationMessage('В проекте нет расширений: создайте его командой «Создать новое расширение».');
 						return;

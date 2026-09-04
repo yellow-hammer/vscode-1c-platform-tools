@@ -54,7 +54,7 @@ export async function loadSubsystemTrees(
 	const runtime = await ensureMdSparrowRuntime(context);
 	const out: SubsystemNode[] = [];
 	for (const source of cached.sources) {
-		if (!source.configurationXmlRelativePath) {
+		if (!source.configurationXmlRelativePath || source.schemaSupported === false) {
 			continue;
 		}
 		const configurationXml = path.join(workspaceRoot, source.configurationXmlRelativePath);
