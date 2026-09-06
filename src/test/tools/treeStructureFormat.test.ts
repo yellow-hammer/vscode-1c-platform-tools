@@ -1,5 +1,5 @@
 import * as assert from 'node:assert';
-import { TREE_GROUPS, groupCommandsFor, treeLabelFor } from '../../features/tools/treeStructure';
+import { TREE_GROUPS, groupCommandsFor } from '../../features/tools/treeStructure';
 
 const group = (sectionType: string) => {
 	const found = TREE_GROUPS.find((item) => item.sectionType === sectionType);
@@ -34,12 +34,12 @@ suite('дерево команд под формат исходников', () =
 		assert.ok(!edt.includes('1c-platform-tools.edt.import'));
 		assert.ok(edt.includes('1c-platform-tools.edt.export') && edt.includes('1c-platform-tools.edt.projectInfo'));
 		// Запуск и проверка живут в своих группах рядом с Предприятием и тестами
-		assert.ok(!edt.includes('1c-platform-tools.edt.open') && !edt.includes('1c-platform-tools.edt.validate'));
+		assert.ok(!edt.includes('1c-platform-tools.run.edt') && !edt.includes('1c-platform-tools.edt.validate'));
 	});
 
 	test('запуск EDT стоит в группе запуска только у проекта EDT', () => {
-		assert.ok(commands('run', 'edt').includes('1c-platform-tools.edt.open'));
-		assert.ok(!commands('run', 'designer').includes('1c-platform-tools.edt.open'));
+		assert.ok(commands('run', 'edt').includes('1c-platform-tools.run.edt'));
+		assert.ok(!commands('run', 'designer').includes('1c-platform-tools.run.edt'));
 		assert.deepStrictEqual(commands('run', 'designer'), ['1c-platform-tools.run.enterprise', '1c-platform-tools.run.designer']);
 	});
 
@@ -49,16 +49,17 @@ suite('дерево команд под формат исходников', () =
 		assert.ok(!commands('test', undefined).includes('1c-platform-tools.test.validateEdt'));
 	});
 
-	test('подписи у проекта EDT говорят про проект, а не про src/cf', () => {
-		const load = group('configuration').commands.find((entry) => entry.command === '1c-platform-tools.cf.load');
-		assert.ok(load);
-		assert.ok(treeLabelFor(load, 'designer').includes('src/cf'));
-		assert.ok(treeLabelFor(load, 'edt').includes('проекта EDT'));
-		assert.strictEqual(treeLabelFor(load, undefined), load.treeLabel);
-		for (const entry of TREE_GROUPS.flatMap((item) => item.commands)) {
-			if (entry.edtLabel) {
-				assert.ok(!entry.edtLabel.includes('src/cf'), entry.command);
+	test('подписи команд одни на оба формата и не называют раскладку исходников', () => {
+		// Команда, которая есть только у одного формата, вправе его называть: проверяются общие
+		const entries = TREE_GROUPS.flatMap((item) => item.commands).filter((entry) => entry.formats === undefined);
+		for (const entry of entries) {
+			for (const layout of ['src/cf', 'src/cfe', 'tests/cfe', 'проект EDT', 'проекта EDT', 'проектов расширений']) {
+				assert.ok(!entry.treeLabel.includes(layout), `${entry.command}: ${entry.treeLabel}`);
 			}
 		}
+		assert.strictEqual(
+			group('configuration').commands.find((entry) => entry.command === '1c-platform-tools.cf.load')?.treeLabel,
+			'📥 Загрузить из исходного кода'
+		);
 	});
 });

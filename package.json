@@ -749,7 +749,7 @@
       },
       {
         "command": "1c-platform-tools.infobaseList.launchEdt",
-        "title": "Запустить 1С:EDT",
+        "title": "Запустить EDT",
         "category": "1С: Администрирование",
         "icon": "$(code)"
       },
@@ -1295,12 +1295,12 @@
       },
       {
         "command": "1c-platform-tools.cf.load",
-        "title": "Загрузить конфигурацию из src/cf",
+        "title": "Загрузить конфигурацию из исходного кода",
         "category": "1С: Конфигурация"
       },
       {
         "command": "1c-platform-tools.infobase.initFromSrc",
-        "title": "Инициализировать конфигурацию из src/cf",
+        "title": "Инициализировать конфигурацию из исходного кода",
         "category": "1С: Конфигурация"
       },
       {
@@ -1320,12 +1320,12 @@
       },
       {
         "command": "1c-platform-tools.cf.dump",
-        "title": "Выгрузить конфигурацию в src/cf",
+        "title": "Выгрузить конфигурацию в исходный код",
         "category": "1С: Конфигурация"
       },
       {
         "command": "1c-platform-tools.cf.dumpIncrement",
-        "title": "Выгрузить изменения в src/cf",
+        "title": "Выгрузить изменения в исходный код",
         "category": "1С: Конфигурация"
       },
       {
@@ -1340,17 +1340,17 @@
       },
       {
         "command": "1c-platform-tools.cf.compile",
-        "title": "Собрать 1Cv8.cf из src/cf",
+        "title": "Собрать 1Cv8.cf из исходного кода",
         "category": "1С: Конфигурация"
       },
       {
         "command": "1c-platform-tools.cf.decompile",
-        "title": "Разобрать 1Cv8.cf в src/cf",
+        "title": "Разобрать 1Cv8.cf в исходный код",
         "category": "1С: Конфигурация"
       },
       {
         "command": "1c-platform-tools.cfe.load",
-        "title": "Загрузить расширения из src/cfe",
+        "title": "Загрузить расширения из исходного кода",
         "category": "1С: Расширения"
       },
       {
@@ -1365,7 +1365,7 @@
       },
       {
         "command": "1c-platform-tools.cfe.dump",
-        "title": "Выгрузить расширения в src/cfe",
+        "title": "Выгрузить расширения в исходный код",
         "category": "1С: Расширения"
       },
       {
@@ -1390,12 +1390,12 @@
       },
       {
         "command": "1c-platform-tools.cfe.compile",
-        "title": "Собрать *.cfe из src/cfe",
+        "title": "Собрать *.cfe из исходного кода",
         "category": "1С: Расширения"
       },
       {
         "command": "1c-platform-tools.cfe.decompile",
-        "title": "Разобрать *.cfe в src/cfe",
+        "title": "Разобрать *.cfe в исходный код",
         "category": "1С: Расширения"
       },
       {
@@ -1673,8 +1673,8 @@
         "category": "1С: EDT"
       },
       {
-        "command": "1c-platform-tools.edt.open",
-        "title": "Запустить 1С:EDT",
+        "command": "1c-platform-tools.run.edt",
+        "title": "Запустить EDT",
         "category": "1С: Запуск",
         "icon": "$(code)"
       },
@@ -3798,7 +3798,7 @@
               "Только загружать; обновление конфигурации БД остаётся отдельной командой"
             ],
             "default": "ask",
-            "description": "Обновлять ли конфигурацию БД (UpdateDBCfg) сразу после загрузки конфигурации из исходников, из 1Cv8.cf или по objlist.txt. Заданное значение убирает вопрос."
+            "description": "Обновлять ли конфигурацию БД (UpdateDBCfg) сразу после загрузки конфигурации из исходного кода, из 1Cv8.cf или по objlist.txt. Заданное значение убирает вопрос."
           },
           "1c-platform-tools.path.epf": {
             "type": "string",

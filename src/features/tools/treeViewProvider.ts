@@ -19,7 +19,7 @@ import { commandTitle } from '../../shared/commandCatalog';
 import type { SetVersionCommands } from '../../commands/setVersionCommands';
 import { getFavorites, type FavoriteEntry } from './favorites';
 import { getHiddenToolGroups } from './toolsGroupVisibility';
-import { TREE_GROUPS, groupCommandsFor, treeCommandLabel, treeLabelFor, type TreeSourceFormat } from './treeStructure';
+import { TREE_GROUPS, groupCommandsFor, treeCommandLabel, type TreeSourceFormat } from './treeStructure';
 import { configurationScope, onDidChangeActiveConfiguration } from '../../shared/activeConfiguration';
 
 /** Ключ в globalState для сохранения состояния раскрытия групп дерева (кроме «Избранное») */
@@ -528,7 +528,7 @@ export class PlatformTreeDataProvider implements vscode.TreeDataProvider<Platfor
 
 			const children: PlatformTreeItem[] = groupCommandsFor(group, this.sourceFormat).map((cmd) =>
 				this.createTreeItem(
-					treeLabelFor(cmd, this.sourceFormat),
+					cmd.treeLabel,
 					TreeItemType.Task,
 					vscode.TreeItemCollapsibleState.None,
 					{ command: cmd.command, title: cmd.title },

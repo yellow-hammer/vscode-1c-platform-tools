@@ -27,7 +27,7 @@ const DESIGNER_BUTTON: vscode.QuickInputButton = {
 
 const EDT_BUTTON: vscode.QuickInputButton = {
 	iconPath: new vscode.ThemeIcon('code'),
-	tooltip: '1С:EDT',
+	tooltip: 'EDT',
 };
 
 /** Строка выбора базы в палитре. */
@@ -127,7 +127,7 @@ function pickItems(): IbasePickItem[] {
  * Показывает список баз в палитре и запускает выбранную.
  *
  * Enter и кнопка «Предприятие» открывают Предприятие, кнопка «Конфигуратор»
- * Конфигуратор, кнопка «1С:EDT» рабочую область базы в EDT.
+ * Конфигуратор, кнопка «EDT» рабочую область базы в EDT.
  *
  * @returns Промис, который разрешается, когда окно выбора закрыто
  */
