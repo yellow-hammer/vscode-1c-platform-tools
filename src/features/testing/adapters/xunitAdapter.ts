@@ -9,6 +9,7 @@ import { TestFrameworkAdapter, AdapterRunPlan, RunUnit, FileTreeLocation } from 
 import { DiscoveredFile } from '../parsers/parserTypes';
 import { parseBslTestModule } from '../parsers/bslTestParser';
 import { BUILD_SUBDIRS } from '../../../shared/pathDefaults';
+import { markerIn } from '../../../shared/projectLayout';
 import {
 	extractJUnitPathFromReportsXunit,
 	reportsXunitFromEnv,
@@ -284,7 +285,29 @@ export function hasConfigurationSources(vrunner: VRunnerManager): boolean {
 	if (!workspaceRoot) {
 		return false;
 	}
-	return fsSync.existsSync(path.join(workspaceRoot, vrunner.getCfPath()));
+	return configurationSourcesIn(workspaceRoot, vrunner.getCfPath());
+}
+
+/**
+ * Есть ли в рабочей области конфигурация: выгрузка конфигуратора по пути из
+ * настроек либо проект EDT в корне или на уровень ниже, где его кладёт импорт.
+ *
+ * @param workspaceRoot - Корень рабочей области
+ * @param cfPath - Путь выгрузки конфигурации относительно корня
+ */
+export function configurationSourcesIn(workspaceRoot: string, cfPath: string): boolean {
+	if (fsSync.existsSync(path.join(workspaceRoot, cfPath)) || markerIn(workspaceRoot)?.format === 'edt') {
+		return true;
+	}
+	let entries: fsSync.Dirent[];
+	try {
+		entries = fsSync.readdirSync(workspaceRoot, { withFileTypes: true });
+	} catch {
+		return false;
+	}
+	return entries.some(
+		(entry) => entry.isDirectory() && markerIn(path.join(workspaceRoot, entry.name))?.format === 'edt'
+	);
 }
 
 /**

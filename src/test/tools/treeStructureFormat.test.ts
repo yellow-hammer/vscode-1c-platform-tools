@@ -28,14 +28,24 @@ suite('дерево команд под формат исходников', () =
 		assert.deepStrictEqual(commands('configuration', undefined), group('configuration').commands.map((c) => c.command));
 	});
 
-	test('группа EDT показывает выгрузке только импорт, а проекту всё кроме него', () => {
+	test('группа EDT показывает выгрузке только импорт, а проекту работу с проектом', () => {
 		assert.deepStrictEqual(commands('edt', 'designer'), ['1c-platform-tools.edt.import']);
 		const edt = commands('edt', 'edt');
 		assert.ok(!edt.includes('1c-platform-tools.edt.import'));
-		assert.ok(edt.includes('1c-platform-tools.edt.validate') && edt.includes('1c-platform-tools.edt.open'));
+		assert.ok(edt.includes('1c-platform-tools.edt.export') && edt.includes('1c-platform-tools.edt.projectInfo'));
+		// Запуск и проверка живут в своих группах рядом с Предприятием и тестами
+		assert.ok(!edt.includes('1c-platform-tools.edt.open') && !edt.includes('1c-platform-tools.edt.validate'));
 	});
 
-	test('проверка проекта EDT не дублируется в тестировании', () => {
+	test('запуск EDT стоит в группе запуска только у проекта EDT', () => {
+		assert.ok(commands('run', 'edt').includes('1c-platform-tools.edt.open'));
+		assert.ok(!commands('run', 'designer').includes('1c-platform-tools.edt.open'));
+		assert.deepStrictEqual(commands('run', 'designer'), ['1c-platform-tools.run.enterprise', '1c-platform-tools.run.designer']);
+	});
+
+	test('проверка проекта EDT стоит среди тестов только у проекта EDT и не дублируется', () => {
+		assert.ok(commands('test', 'edt').includes('1c-platform-tools.edt.validate'));
+		assert.ok(!commands('test', 'designer').includes('1c-platform-tools.edt.validate'));
 		assert.ok(!commands('test', undefined).includes('1c-platform-tools.test.validateEdt'));
 	});
 

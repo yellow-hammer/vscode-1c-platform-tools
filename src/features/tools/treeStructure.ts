@@ -124,11 +124,9 @@ export const TREE_GROUPS: TreeGroup[] = [
 		commands: [
 			{ command: '1c-platform-tools.edt.import', title: getEdtImportCommandName().title, treeLabel: '📥 Импортировать в проект EDT' , formats: ['designer']},
 			{ command: '1c-platform-tools.edt.export', title: getEdtExportCommandName().title, treeLabel: '📤 Выгрузить проект EDT в XML' , formats: ['edt']},
-			{ command: '1c-platform-tools.edt.validate', title: getEdtValidateCommandName().title, treeLabel: '🧪 Проверить проект EDT' , formats: ['edt']},
 			{ command: '1c-platform-tools.edt.formatModules', title: getEdtFormatCommandName().title, treeLabel: '🧹 Форматировать модули' , formats: ['edt']},
 			{ command: '1c-platform-tools.edt.sortProject', title: getEdtSortCommandName().title, treeLabel: '🔤 Сортировать объекты' , formats: ['edt']},
 			{ command: '1c-platform-tools.edt.projectInfo', title: getEdtProjectInfoCommandName().title, treeLabel: 'ℹ️ Сведения о проекте' , formats: ['edt']},
-			{ command: '1c-platform-tools.edt.open', title: getEdtOpenCommandName().title, treeLabel: '🚀 Открыть проект в EDT' , formats: ['edt']},
 		],
 	},
 	{
@@ -249,6 +247,7 @@ export const TREE_GROUPS: TreeGroup[] = [
 		commands: [
 			{ command: '1c-platform-tools.run.enterprise', title: getRunEnterpriseCommandName().title, treeLabel: '▶️ Запустить Предприятие' },
 			{ command: '1c-platform-tools.run.designer', title: getRunDesignerCommandName().title, treeLabel: '▶️ Запустить Конфигуратор' },
+			{ command: '1c-platform-tools.edt.open', title: getEdtOpenCommandName().title, treeLabel: '▶️ Запустить 1С:EDT', formats: ['edt'] },
 		],
 	},
 	{
@@ -271,6 +270,7 @@ export const TREE_GROUPS: TreeGroup[] = [
 		commands: [
 			{ command: '1c-platform-tools.test.xunit', title: getXUnitTestsCommandName().title, treeLabel: '🧪 XUnit тесты' },
 			{ command: '1c-platform-tools.syntaxCheck.run', title: getSyntaxCheckCommandName().title, treeLabel: '🧪 Синтаксический контроль' },
+			{ command: '1c-platform-tools.edt.validate', title: getEdtValidateCommandName().title, treeLabel: '🧪 Проверка проекта EDT', formats: ['edt'] },
 			{ command: '1c-platform-tools.test.vanessa', title: getVanessaTestsCommandName('normal').title, treeLabel: '🧪 Vanessa тесты' },
 			{ command: '1c-platform-tools.test.yaxunit', title: getYAxUnitTestsCommandName().title, treeLabel: '🧪 YAxUnit тесты' },
 			{ command: '1c-platform-tools.test.allure', title: getAllureReportCommandName().title, treeLabel: '📊 Отчёт Allure' },

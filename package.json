@@ -748,6 +748,12 @@
         "icon": "$(tools)"
       },
       {
+        "command": "1c-platform-tools.infobaseList.launchEdt",
+        "title": "Запустить 1С:EDT",
+        "category": "1С: Администрирование",
+        "icon": "$(code)"
+      },
+      {
         "command": "1c-platform-tools.env.openProfileEditor",
         "title": "Открыть редактор профиля",
         "category": "1С: Конфигурации запуска",
@@ -1668,8 +1674,9 @@
       },
       {
         "command": "1c-platform-tools.edt.open",
-        "title": "Открыть проект в EDT",
-        "category": "1С: EDT"
+        "title": "Запустить 1С:EDT",
+        "category": "1С: Запуск",
+        "icon": "$(code)"
       },
       {
         "command": "1c-platform-tools.test.validateEdt",
@@ -2177,6 +2184,10 @@
         },
         {
           "command": "1c-platform-tools.infobaseList.launchDesigner",
+          "when": "false"
+        },
+        {
+          "command": "1c-platform-tools.infobaseList.launchEdt",
           "when": "false"
         },
         {
@@ -2805,6 +2816,11 @@
           "command": "1c-platform-tools.infobaseList.launchDesigner",
           "when": "view == 1c-platform-tools-admin-infobases && viewItem == ibase",
           "group": "inline@2"
+        },
+        {
+          "command": "1c-platform-tools.infobaseList.launchEdt",
+          "when": "view == 1c-platform-tools-admin-infobases && viewItem == ibase",
+          "group": "inline@3"
         },
         {
           "command": "1c-platform-tools.clusters.properties",

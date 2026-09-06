@@ -6,7 +6,7 @@
 
 import * as vscode from 'vscode';
 import { logger } from '../../shared/logger';
-import { infobaseConnectionString, readInfobases, type InfobaseEntry } from '../../shared/infobaseList';
+import { edtStartUrl, infobaseConnectionString, readInfobases, type InfobaseEntry } from '../../shared/infobaseList';
 import { readClustersSettings } from '../clusters/settings';
 import { launchInfobase, shouldPassIbName, type CestartMode } from './cestart';
 import type { IbasesProvider } from './ibasesProvider';
@@ -22,6 +22,11 @@ const ENTERPRISE_BUTTON: vscode.QuickInputButton = {
 const DESIGNER_BUTTON: vscode.QuickInputButton = {
 	iconPath: new vscode.ThemeIcon('tools'),
 	tooltip: 'Конфигуратор',
+};
+
+const EDT_BUTTON: vscode.QuickInputButton = {
+	iconPath: new vscode.ThemeIcon('code'),
+	tooltip: '1С:EDT',
 };
 
 /** Строка выбора базы в палитре. */
@@ -60,6 +65,31 @@ async function runInfobase(entry: InfobaseEntry, mode: CestartMode): Promise<voi
 }
 
 /**
+ * Открывает базу в 1С:EDT так же, как кнопка «1C:EDT» в окне запуска платформы:
+ * ссылку e1cedt принимает 1cedtstart, находит или заводит рабочую область под
+ * базу и запускает в ней EDT.
+ *
+ * @param entry - Запись списка платформы
+ */
+async function openInfobaseInEdt(entry: InfobaseEntry): Promise<void> {
+	const url = edtStartUrl(entry);
+	if (!url) {
+		void vscode.window.showErrorMessage(
+			`У базы «${entry.name}» нет идентификатора в списке платформы: 1С:EDT открывает базы только по нему.`
+		);
+		return;
+	}
+	const opened = await vscode.env.openExternal(vscode.Uri.parse(url, true));
+	if (!opened) {
+		void vscode.window.showErrorMessage(
+			'Ссылка e1cedt не открылась: установите 1С:EDT через 1cedtstart, он регистрирует её в системе.'
+		);
+		return;
+	}
+	log.info(`запуск 1С:EDT «${entry.name}»: ${url}`);
+}
+
+/**
  * Берёт запись базы из узла дерева.
  *
  * @param node - Аргумент команды
@@ -80,7 +110,7 @@ function pickItems(): IbasePickItem[] {
 			label: entry.name,
 			description: infobaseConnectionString(entry.connect),
 			detail: entry.folder === '/' ? undefined : entry.folder,
-			buttons: [ENTERPRISE_BUTTON, DESIGNER_BUTTON],
+			buttons: [ENTERPRISE_BUTTON, DESIGNER_BUTTON, EDT_BUTTON],
 			entry,
 		}))
 		.sort(
@@ -93,8 +123,8 @@ function pickItems(): IbasePickItem[] {
 /**
  * Показывает список баз в палитре и запускает выбранную.
  *
- * Enter и кнопка «Предприятие» открывают Предприятие, кнопка «Конфигуратор» —
- * Конфигуратор.
+ * Enter и кнопка «Предприятие» открывают Предприятие, кнопка «Конфигуратор»
+ * Конфигуратор, кнопка «1С:EDT» рабочую область базы в EDT.
  *
  * @returns Промис, который разрешается, когда окно выбора закрыто
  */
@@ -118,8 +148,12 @@ async function showInfobaseList(): Promise<void> {
 			resolve();
 		};
 		pick.onDidTriggerItemButton((event) => {
-			const mode: CestartMode = event.button.tooltip === DESIGNER_BUTTON.tooltip ? 'DESIGNER' : 'ENTERPRISE';
 			pick.hide();
+			if (event.button.tooltip === EDT_BUTTON.tooltip) {
+				void openInfobaseInEdt(event.item.entry);
+				return;
+			}
+			const mode: CestartMode = event.button.tooltip === DESIGNER_BUTTON.tooltip ? 'DESIGNER' : 'ENTERPRISE';
 			void runInfobase(event.item.entry, mode);
 		});
 		pick.onDidAccept(() => {
@@ -163,6 +197,13 @@ export function registerIbasesCommands(provider: IbasesProvider): vscode.Disposa
 				return;
 			}
 			await runInfobase(entry, 'DESIGNER');
+		}),
+		vscode.commands.registerCommand('1c-platform-tools.infobaseList.launchEdt', async (node: unknown) => {
+			const entry = ibaseEntryFrom(node);
+			if (!entry) {
+				return;
+			}
+			await openInfobaseInEdt(entry);
 		}),
 	];
 }

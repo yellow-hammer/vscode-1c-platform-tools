@@ -425,7 +425,7 @@ export function getEdtProjectInfoCommandName(): CommandNameAndTitle {
 }
 
 export function getEdtOpenCommandName(): CommandNameAndTitle {
-	return { id: '1c-platform-tools.edt.open', name: 'Открыть проект в EDT', title: 'Открыть проект в EDT' };
+	return { id: '1c-platform-tools.edt.open', name: '1С:EDT', title: 'Запустить 1С:EDT' };
 }
 
 /**
