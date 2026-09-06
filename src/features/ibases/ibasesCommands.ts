@@ -9,6 +9,7 @@ import { logger } from '../../shared/logger';
 import { edtStartUrl, infobaseConnectionString, readInfobases, type InfobaseEntry } from '../../shared/infobaseList';
 import { readClustersSettings } from '../clusters/settings';
 import { launchInfobase, shouldPassIbName, type CestartMode } from './cestart';
+import { launchEdtStart } from './edtStart';
 import type { IbasesProvider } from './ibasesProvider';
 import { IbaseItem } from './nodes';
 
@@ -79,14 +80,16 @@ async function openInfobaseInEdt(entry: InfobaseEntry): Promise<void> {
 		);
 		return;
 	}
-	const opened = await vscode.env.openExternal(vscode.Uri.parse(url, true));
-	if (!opened) {
-		void vscode.window.showErrorMessage(
-			'Ссылка e1cedt не открылась: установите 1С:EDT через 1cedtstart, он регистрирует её в системе.'
+	const result = launchEdtStart(url);
+	if (result.ok) {
+		log.info(`запуск 1С:EDT «${entry.name}»: ${result.binary} ${result.args.join(' ')}`);
+		void vscode.window.showInformationMessage(
+			`1C:EDT Start открыл проект «${entry.name}» под базу. Если EDT не запустилась сама, нажмите запуск проекта в его окне.`
 		);
 		return;
 	}
-	log.info(`запуск 1С:EDT «${entry.name}»: ${url}`);
+	log.warn(result.message);
+	void vscode.window.showErrorMessage(result.message);
 }
 
 /**
