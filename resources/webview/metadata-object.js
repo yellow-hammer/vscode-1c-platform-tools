@@ -2040,8 +2040,11 @@
 						const control = editControlHtml(field, fieldIndex);
 						fieldIndex += 1;
 						const changed = fieldChanged(field.path) ? ' edit-row-changed' : '';
+						const state = field.state
+							? `<span class="edit-state${field.state.changed ? ' edit-state-changed' : ''}" title="${escapeHtml(field.state.hint)}">${escapeHtml(field.state.label)}</span>`
+							: '';
 						return `<div class="edit-row${changed}">
-							<label class="edit-label" title="${escapeHtml(field.path)}">${escapeHtml(field.label)}</label>
+							<label class="edit-label" title="${escapeHtml(field.path)}">${escapeHtml(field.label)}${state}</label>
 							<div class="edit-control">${control}</div>
 						</div>`;
 					})

@@ -15,6 +15,12 @@ export interface ChildNodeDto extends Record<string, unknown> {
 	name: string;
 	synonymRu?: string;
 	comment?: string;
+	/** Принадлежность в расширении: заимствованный узел приходит как Adopted. */
+	objectBelonging?: string;
+	/** Состояния свойств заимствованного узла под именами свойств. */
+	propertyStates?: Readonly<Record<string, string>>;
+	/** Свойства, которые расширение вправе менять у заимствованного узла. */
+	extendable?: readonly string[];
 	/** Тип строкой представления: показывается, когда типов несколько. */
 	typeText?: string;
 	/** Единственный тип: правится списком прямо в палитре. */
@@ -226,6 +232,15 @@ export function findTabularAttribute(
 	return section ? nodeFrom(section.attributes, name, kindLabels) : undefined;
 }
 
+function isStateMap(value: unknown): value is Readonly<Record<string, string>> {
+	return (
+		typeof value === 'object' &&
+		value !== null &&
+		!Array.isArray(value) &&
+		Object.values(value as Record<string, unknown>).every((state) => typeof state === 'string')
+	);
+}
+
 function nodeFrom(
 	list: unknown,
 	name: string,
@@ -244,6 +259,15 @@ function nodeFrom(
 		synonymRu: typeof found.synonymRu === 'string' ? found.synonymRu : '',
 		comment: typeof found.comment === 'string' ? found.comment : '',
 	};
+	if (typeof found.objectBelonging === 'string') {
+		node.objectBelonging = found.objectBelonging;
+	}
+	if (isStateMap(found.propertyStates)) {
+		node.propertyStates = found.propertyStates;
+	}
+	if (Array.isArray(found.extendable)) {
+		node.extendable = found.extendable.filter((item): item is string => typeof item === 'string');
+	}
 	// Один тип правится списком, составной показывается строкой: список его не выражает
 	if (types.length === 1) {
 		node.typeSingle = types[0];

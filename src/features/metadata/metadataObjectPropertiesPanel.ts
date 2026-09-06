@@ -83,6 +83,7 @@ import {
 } from './metadataObjectPropertyProfiles';
 import { notifyQuiet } from '../../shared/notify';
 import { isAdopted } from './objectBelonging';
+import { extendableOf, propertyStatesOf, withPropertyStates } from './metadataObjectEditSpec';
 
 const log = logger.scope('metadata');
 
@@ -1326,10 +1327,14 @@ function buildEditableModel(
 	const withEnums = applyEnumDictionary(normalizeTabLayout(withTemplates), enums, valueLabels);
 	const withTypes = applyTypeOptions(withEnums, refTypes, mdObjectKindLabels());
 	const withCurrent = ensureCurrentSelectValues(withTypes, props as unknown as Record<string, unknown>, valueLabels);
-	const tabs = withTabsForStructure(withCurrent, buildStructureLists(props, structure));
-	// Заимствованный объект и объект на поддержке без изменения показываются
-	// той же формой, но только на просмотр: запись всё равно отклонит md-sparrow
-	if (propsIsAdopted(props) || origin?.support === 'locked') {
+	const tabs = withPropertyStates(
+		withTabsForStructure(withCurrent, buildStructureLists(props, structure)),
+		propertyStatesOf(props),
+		extendableOf(props)
+	);
+	// Объект на поддержке без изменения показывается той же формой, но только на
+	// просмотр: запись всё равно отклонит md-sparrow
+	if (origin?.support === 'locked') {
 		return { ...model, readonly: true, tabs: tabsAsReadonly(tabs) };
 	}
 	return { ...model, tabs };
@@ -2235,9 +2240,6 @@ async function loadOriginModel(
 	}
 	if (!adopted && !support) {
 		return undefined;
-	}
-	if (adopted && !readonlyReason) {
-		readonlyReason = 'Заимствованный объект расширения правится в расширяемой конфигурации.';
 	}
 	return { adopted, support, vendor, version, readonlyReason };
 }

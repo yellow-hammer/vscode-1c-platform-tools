@@ -73,18 +73,19 @@ function row(field: MetadataEditField, dto: unknown): PropertyRow | undefined {
 	const value = readPath(dto, field.path);
 	const kind = controlKind(field.control);
 	const options = field.options?.map((option) => ({ value: option.value, label: option.label }));
+	const state = field.state ? { state: field.state } : {};
 	if (kind === undefined) {
 		const text = readonlyText(value);
 		return text === undefined
 			? undefined
-			: { key: field.path, label: field.label, kind: 'text', value: text, readonly: true, hint: field.path };
+			: { key: field.path, label: field.label, kind: 'text', value: text, readonly: true, hint: field.path, ...state };
 	}
 	if (field.readonly === true || !enabled(field, dto)) {
 		// Погашенная строка остаётся своего вида: флажок и выбор показываются словами словаря
 		const text = readonlyText(value);
 		return text === undefined
 			? undefined
-			: { key: field.path, label: field.label, kind, value: text, readonly: true, hint: field.path, options };
+			: { key: field.path, label: field.label, kind, value: text, readonly: true, hint: field.path, options, ...state };
 	}
 	return {
 		key: field.path,
@@ -95,6 +96,7 @@ function row(field: MetadataEditField, dto: unknown): PropertyRow | undefined {
 		hint: field.path,
 		options,
 		...(field.rebuilds ? { rebuilds: true } : {}),
+		...state,
 	};
 }
 

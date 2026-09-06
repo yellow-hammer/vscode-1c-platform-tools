@@ -286,15 +286,31 @@ suite('metadataObjectPropertiesPanel: скалярные свойства вид
 		assert.ok(!fields.some((field) => field.path === 'scalars.ObjectBelonging'));
 	});
 
-	test('заимствованный объект расширения показывает ту же форму без правки', () => {
+	test('заимствованный объект расширения правится, а поля несут состояния свойств', () => {
 		const adopted = {
 			...language,
+			objectBelonging: 'Adopted',
+			propertyStates: { synonym: 'Extended', languageCode: 'Checked' },
+			extendable: ['synonym', 'languageCode'],
 			scalars: { ...language.scalars, ObjectBelonging: 'ADOPTED' },
 		};
 		const model = buildMetadataObjectPropertiesEditableForTest('Language', adopted, null);
-		assert.strictEqual(model?.readonly, true);
+		assert.notStrictEqual(model?.readonly, true);
 		const fields = (model?.tabs ?? []).flatMap((tab) => tab.groups).flatMap((group) => group.fields);
-		assert.ok(fields.every((field) => field.readonly === true));
+		const synonym = fields.find((field) => field.path === 'synonymRu');
+		assert.strictEqual(synonym?.state?.label, 'изменено');
+		assert.strictEqual(synonym?.state?.changed, true);
+		assert.notStrictEqual(synonym?.readonly, true);
+		const code = fields.find((field) => field.path === 'scalars.LanguageCode');
+		assert.strictEqual(code?.state?.label, 'контролируется');
+		assert.ok(fields.filter((field) => field.state).length === 2);
+		// Комментарий свой у заимствованного, остальные свойства вне списка расширение не меняет
+		assert.notStrictEqual(fields.find((field) => field.path === 'comment')?.readonly, true);
+		for (const field of fields) {
+			if (!['synonymRu', 'comment', 'scalars.LanguageCode'].includes(field.path)) {
+				assert.strictEqual(field.readonly, true, field.path);
+			}
+		}
 	});
 
 	test('флажок и перечисление получают свои контролы', () => {
