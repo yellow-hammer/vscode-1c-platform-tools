@@ -52,7 +52,6 @@ import {
 	getRunDesignerCommandName,
 	getXUnitTestsCommandName,
 	getSyntaxCheckCommandName,
-	getValidateEdtCommandName,
 	getEdtImportCommandName,
 	getEdtExportCommandName,
 	getEdtValidateCommandName,
@@ -84,12 +83,19 @@ import {
 	getAdd1cptSkillsCommandName
 } from './commandNames';
 
+/** Формат исходников активной конфигурации: выгрузка конфигуратора или проект 1С:EDT. */
+export type TreeSourceFormat = 'designer' | 'edt';
+
 /** Элемент команды в группе (одна строка в дереве и в списке избранного) */
 export interface TreeCommandEntry {
 	command: string;
 	title: string;
 	/** Подпись в дереве (с эмодзи) */
 	treeLabel: string;
+	/** Подпись у проекта EDT, когда исходники лежат не в src/cf */
+	edtLabel?: string;
+	/** Форматы исходников, у которых команда есть в дереве; без ограничения показывается всегда */
+	formats?: readonly TreeSourceFormat[];
 	/** Иконка для дерева (codicon, например 'comment-discussion') — опционально */
 	icon?: string;
 }
@@ -112,6 +118,20 @@ export interface TreeGroup {
  */
 export const TREE_GROUPS: TreeGroup[] = [
 	{
+		groupLabel: 'EDT',
+		sectionType: 'edt',
+		defaultCollapsibleState: 'collapsed',
+		commands: [
+			{ command: '1c-platform-tools.edt.import', title: getEdtImportCommandName().title, treeLabel: '📥 Импортировать в проект EDT' , formats: ['designer']},
+			{ command: '1c-platform-tools.edt.export', title: getEdtExportCommandName().title, treeLabel: '📤 Выгрузить проект EDT в XML' , formats: ['edt']},
+			{ command: '1c-platform-tools.edt.validate', title: getEdtValidateCommandName().title, treeLabel: '🧪 Проверить проект EDT' , formats: ['edt']},
+			{ command: '1c-platform-tools.edt.formatModules', title: getEdtFormatCommandName().title, treeLabel: '🧹 Форматировать модули' , formats: ['edt']},
+			{ command: '1c-platform-tools.edt.sortProject', title: getEdtSortCommandName().title, treeLabel: '🔤 Сортировать объекты' , formats: ['edt']},
+			{ command: '1c-platform-tools.edt.projectInfo', title: getEdtProjectInfoCommandName().title, treeLabel: 'ℹ️ Сведения о проекте' , formats: ['edt']},
+			{ command: '1c-platform-tools.edt.open', title: getEdtOpenCommandName().title, treeLabel: '🚀 Открыть проект в EDT' , formats: ['edt']},
+		],
+	},
+	{
 		groupLabel: 'Информационная база',
 		sectionType: 'infobase',
 		defaultCollapsibleState: 'collapsed',
@@ -129,16 +149,16 @@ export const TREE_GROUPS: TreeGroup[] = [
 		sectionType: 'configuration',
 		defaultCollapsibleState: 'expanded',
 		commands: [
-			{ command: '1c-platform-tools.cf.load', title: getLoadConfigurationFromSrcCommandName().title, treeLabel: '📥 Загрузить из src/cf' },
-			{ command: '1c-platform-tools.cf.loadIncrement', title: getLoadConfigurationIncrementFromSrcCommandName().title, treeLabel: '📥 Загрузить изменения (git diff)' },
-			{ command: '1c-platform-tools.cf.loadByList', title: getLoadConfigurationFromFilesByListCommandName().title, treeLabel: '📥 Загрузить из objlist.txt' },
+			{ command: '1c-platform-tools.cf.load', title: getLoadConfigurationFromSrcCommandName().title, treeLabel: '📥 Загрузить из src/cf' , edtLabel: '📥 Загрузить из проекта EDT'},
+			{ command: '1c-platform-tools.cf.loadIncrement', title: getLoadConfigurationIncrementFromSrcCommandName().title, treeLabel: '📥 Загрузить изменения (git diff)' , formats: ['designer']},
+			{ command: '1c-platform-tools.cf.loadByList', title: getLoadConfigurationFromFilesByListCommandName().title, treeLabel: '📥 Загрузить из objlist.txt' , formats: ['designer']},
 			{ command: '1c-platform-tools.cf.loadFile', title: getLoadConfigurationFromCfCommandName().title, treeLabel: '📥 Загрузить из 1Cv8.cf' },
 			{ command: '1c-platform-tools.infobase.updateDb', title: getUpdateConfigurationInInfobaseCommandName().title, treeLabel: '🔄 Обновить конфигурацию в ИБ' },
-			{ command: '1c-platform-tools.cf.dump', title: getDumpConfigurationToSrcCommandName().title, treeLabel: '📤 Выгрузить в src/cf' },
-			{ command: '1c-platform-tools.cf.dumpIncrement', title: getDumpConfigurationIncrementToSrcCommandName().title, treeLabel: '📤 Выгрузить изменения в src/cf' },
+			{ command: '1c-platform-tools.cf.dump', title: getDumpConfigurationToSrcCommandName().title, treeLabel: '📤 Выгрузить в src/cf' , edtLabel: '📤 Выгрузить в проект EDT'},
+			{ command: '1c-platform-tools.cf.dumpIncrement', title: getDumpConfigurationIncrementToSrcCommandName().title, treeLabel: '📤 Выгрузить изменения в src/cf' , formats: ['designer']},
 			{ command: '1c-platform-tools.cf.unload', title: getDumpConfigurationToCfCommandName().title, treeLabel: '📤 Выгрузить в 1Cv8.cf' },
-			{ command: '1c-platform-tools.cf.compile', title: getBuildConfigurationCommandName().title, treeLabel: '🔨 Собрать 1Cv8.cf из src/cf' },
-			{ command: '1c-platform-tools.cf.decompile', title: getDecompileConfigurationCommandName().title, treeLabel: '🔓 Разобрать 1Cv8.cf в src/cf' },
+			{ command: '1c-platform-tools.cf.compile', title: getBuildConfigurationCommandName().title, treeLabel: '🔨 Собрать 1Cv8.cf из src/cf' , edtLabel: '🔨 Собрать 1Cv8.cf из проекта EDT'},
+			{ command: '1c-platform-tools.cf.decompile', title: getDecompileConfigurationCommandName().title, treeLabel: '🔓 Разобрать 1Cv8.cf в src/cf' , edtLabel: '🔓 Разобрать 1Cv8.cf в проект EDT'},
 			{ command: '1c-platform-tools.cf.convert', title: getConvertSourcesCommandName().title, treeLabel: '🔀 Конвертировать исходники (EDT ↔ конфигуратор)' },
 		],
 	},
@@ -147,14 +167,14 @@ export const TREE_GROUPS: TreeGroup[] = [
 		sectionType: 'extension',
 		defaultCollapsibleState: 'expanded',
 		commands: [
-			{ command: '1c-platform-tools.cfe.load', title: getLoadExtensionFromSrcCommandName().title, treeLabel: '📥 Загрузить из src/cfe' },
-			{ command: '1c-platform-tools.cfe.loadByList', title: getLoadExtensionFromFilesByListCommandName().title, treeLabel: '📥 Загрузить из objlist.txt' },
+			{ command: '1c-platform-tools.cfe.load', title: getLoadExtensionFromSrcCommandName().title, treeLabel: '📥 Загрузить из src/cfe' , edtLabel: '📥 Загрузить из проектов расширений'},
+			{ command: '1c-platform-tools.cfe.loadByList', title: getLoadExtensionFromFilesByListCommandName().title, treeLabel: '📥 Загрузить из objlist.txt' , formats: ['designer']},
 			{ command: '1c-platform-tools.cfe.loadFile', title: getLoadExtensionFromCfeCommandName().title, treeLabel: '📥 Загрузить из *.cfe' },
 			{ command: '1c-platform-tools.cfe.updateDb', title: getUpdateExtensionsInInfobaseCommandName().title, treeLabel: '🔄 Обновить расширения в ИБ' },
-			{ command: '1c-platform-tools.cfe.dump', title: getDumpExtensionToSrcCommandName().title, treeLabel: '📤 Выгрузить в src/cfe' },
+			{ command: '1c-platform-tools.cfe.dump', title: getDumpExtensionToSrcCommandName().title, treeLabel: '📤 Выгрузить в src/cfe' , edtLabel: '📤 Выгрузить в проекты расширений'},
 			{ command: '1c-platform-tools.cfe.unload', title: getDumpExtensionToCfeCommandName().title, treeLabel: '📤 Выгрузить в *.cfe' },
-			{ command: '1c-platform-tools.cfe.compile', title: getBuildExtensionCommandName().title, treeLabel: '🔨 Собрать *.cfe из src/cfe' },
-			{ command: '1c-platform-tools.cfe.decompile', title: getDecompileExtensionCommandName().title, treeLabel: '🔓 Разобрать *.cfe в src/cfe' },
+			{ command: '1c-platform-tools.cfe.compile', title: getBuildExtensionCommandName().title, treeLabel: '🔨 Собрать *.cfe из src/cfe' , edtLabel: '🔨 Собрать *.cfe из проектов расширений'},
+			{ command: '1c-platform-tools.cfe.decompile', title: getDecompileExtensionCommandName().title, treeLabel: '🔓 Разобрать *.cfe в src/cfe' , edtLabel: '🔓 Разобрать *.cfe в проекты расширений'},
 			{ command: '1c-platform-tools.cfe.convert', title: getConvertExtensionSourcesCommandName().title, treeLabel: '🔀 Конвертировать исходники (EDT ↔ конфигуратор)' },
 		],
 	},
@@ -236,26 +256,12 @@ export const TREE_GROUPS: TreeGroup[] = [
 		sectionType: 'testEnvironment',
 		defaultCollapsibleState: 'collapsed',
 		commands: [
-			{ command: '1c-platform-tools.test.loadExtensions', title: getLoadTestExtensionsCommandName().title, treeLabel: '📥 Загрузить тестовые расширения из tests/cfe' },
-			{ command: '1c-platform-tools.test.dumpExtensions', title: getDumpTestExtensionsCommandName().title, treeLabel: '📤 Выгрузить тестовые расширения в tests/cfe' },
-			{ command: '1c-platform-tools.test.compileExtensions', title: getBuildTestExtensionsCommandName().title, treeLabel: '🔨 Собрать тестовые *.cfe из tests/cfe' },
+			{ command: '1c-platform-tools.test.loadExtensions', title: getLoadTestExtensionsCommandName().title, treeLabel: '📥 Загрузить тестовые расширения из tests/cfe' , edtLabel: '📥 Загрузить тестовые расширения из проектов'},
+			{ command: '1c-platform-tools.test.dumpExtensions', title: getDumpTestExtensionsCommandName().title, treeLabel: '📤 Выгрузить тестовые расширения в tests/cfe' , edtLabel: '📤 Выгрузить тестовые расширения в проекты'},
+			{ command: '1c-platform-tools.test.compileExtensions', title: getBuildTestExtensionsCommandName().title, treeLabel: '🔨 Собрать тестовые *.cfe из tests/cfe' , edtLabel: '🔨 Собрать тестовые *.cfe из проектов'},
 			{ command: '1c-platform-tools.test.compileEpf', title: getBuildTestEpfCommandName().title, treeLabel: '🔨 Собрать unit-тесты' },
-			{ command: '1c-platform-tools.test.decompileExtensions', title: getDecompileTestExtensionsCommandName().title, treeLabel: '🔓 Разобрать тестовые *.cfe в tests/cfe' },
+			{ command: '1c-platform-tools.test.decompileExtensions', title: getDecompileTestExtensionsCommandName().title, treeLabel: '🔓 Разобрать тестовые *.cfe в tests/cfe' , edtLabel: '🔓 Разобрать тестовые *.cfe в проекты'},
 			{ command: '1c-platform-tools.test.decompileEpf', title: getDecompileTestEpfCommandName().title, treeLabel: '🔓 Разобрать unit-тесты' },
-		],
-	},
-	{
-		groupLabel: '1С:EDT',
-		sectionType: 'edt',
-		defaultCollapsibleState: 'collapsed',
-		commands: [
-			{ command: '1c-platform-tools.edt.import', title: getEdtImportCommandName().title, treeLabel: '📥 Импортировать в проект EDT' },
-			{ command: '1c-platform-tools.edt.export', title: getEdtExportCommandName().title, treeLabel: '📤 Выгрузить проект EDT в XML' },
-			{ command: '1c-platform-tools.edt.validate', title: getEdtValidateCommandName().title, treeLabel: '🧪 Проверить проект EDT' },
-			{ command: '1c-platform-tools.edt.formatModules', title: getEdtFormatCommandName().title, treeLabel: '🧹 Форматировать модули' },
-			{ command: '1c-platform-tools.edt.sortProject', title: getEdtSortCommandName().title, treeLabel: '🔤 Сортировать объекты' },
-			{ command: '1c-platform-tools.edt.projectInfo', title: getEdtProjectInfoCommandName().title, treeLabel: 'ℹ️ Сведения о проекте' },
-			{ command: '1c-platform-tools.edt.open', title: getEdtOpenCommandName().title, treeLabel: '🚀 Открыть проект в EDT' },
 		],
 	},
 	{
@@ -265,7 +271,6 @@ export const TREE_GROUPS: TreeGroup[] = [
 		commands: [
 			{ command: '1c-platform-tools.test.xunit', title: getXUnitTestsCommandName().title, treeLabel: '🧪 XUnit тесты' },
 			{ command: '1c-platform-tools.syntaxCheck.run', title: getSyntaxCheckCommandName().title, treeLabel: '🧪 Синтаксический контроль' },
-			{ command: '1c-platform-tools.test.validateEdt', title: getValidateEdtCommandName().title, treeLabel: '🧪 Проверить проект EDT' },
 			{ command: '1c-platform-tools.test.vanessa', title: getVanessaTestsCommandName('normal').title, treeLabel: '🧪 Vanessa тесты' },
 			{ command: '1c-platform-tools.test.yaxunit', title: getYAxUnitTestsCommandName().title, treeLabel: '🧪 YAxUnit тесты' },
 			{ command: '1c-platform-tools.test.allure', title: getAllureReportCommandName().title, treeLabel: '📊 Отчёт Allure' },
@@ -332,6 +337,29 @@ function labelWithoutEmoji(treeLabel: string): string {
  * @param command Идентификатор команды расширения
  * @returns Подпись без эмодзи либо {@code undefined}, если команды нет в дереве
  */
+/**
+ * Команды группы, которые есть у исходников этого формата.
+ *
+ * @param group - Группа дерева
+ * @param format - Формат активной конфигурации; без него состав полный
+ */
+export function groupCommandsFor(group: TreeGroup, format: TreeSourceFormat | undefined): TreeCommandEntry[] {
+	if (!format) {
+		return group.commands;
+	}
+	return group.commands.filter((entry) => !entry.formats || entry.formats.includes(format));
+}
+
+/**
+ * Подпись команды в дереве под формат исходников.
+ *
+ * @param entry - Запись команды
+ * @param format - Формат активной конфигурации
+ */
+export function treeLabelFor(entry: TreeCommandEntry, format: TreeSourceFormat | undefined): string {
+	return format === 'edt' && entry.edtLabel ? entry.edtLabel : entry.treeLabel;
+}
+
 export function treeCommandLabel(command: string): string | undefined {
 	for (const group of TREE_GROUPS) {
 		const entry = group.commands.find((item) => item.command === command);

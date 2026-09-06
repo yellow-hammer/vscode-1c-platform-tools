@@ -19,7 +19,8 @@ import { commandTitle } from '../../shared/commandCatalog';
 import type { SetVersionCommands } from '../../commands/setVersionCommands';
 import { getFavorites, type FavoriteEntry } from './favorites';
 import { getHiddenToolGroups } from './toolsGroupVisibility';
-import { TREE_GROUPS, treeCommandLabel } from './treeStructure';
+import { TREE_GROUPS, groupCommandsFor, treeCommandLabel, treeLabelFor, type TreeSourceFormat } from './treeStructure';
+import { configurationScope, onDidChangeActiveConfiguration } from '../../shared/activeConfiguration';
 
 /** Ключ в globalState для сохранения состояния раскрытия групп дерева (кроме «Избранное») */
 export const TREE_GROUP_EXPANDED_STATE_KEY = '1c-platform-tools.treeGroupExpanded';
@@ -53,6 +54,7 @@ export enum TreeItemType {
 	FavoritesConfigure = 'favoritesConfigure',
 	Lightbulb = 'lightbulb',
 	Skills = 'skills',
+	Edt = 'edt',
 }
 
 /** Элемент дерева команд */
@@ -142,6 +144,8 @@ export class PlatformTreeItem extends vscode.TreeItem {
 				return new vscode.ThemeIcon('lightbulb');
 			case TreeItemType.Skills:
 				return new vscode.ThemeIcon('sparkle');
+			case TreeItemType.Edt:
+				return new vscode.ThemeIcon('code');
 			case TreeItemType.Pipelines:
 				return new vscode.ThemeIcon('run-all');
 			case TreeItemType.PipelineEntry:
@@ -173,6 +177,9 @@ export class PlatformTreeDataProvider implements vscode.TreeDataProvider<Platfor
 	private readonly setVersionCommands?: SetVersionCommands;
 	private readonly extensionUri: vscode.Uri | undefined;
 	private readonly extensionContext: vscode.ExtensionContext | undefined;
+	/** Формат активной конфигурации: от него зависят подписи и состав команд. */
+	private sourceFormat: TreeSourceFormat | undefined;
+	private readonly formatSubscription: vscode.Disposable;
 
 	constructor(
 		extensionUri?: vscode.Uri,
@@ -184,6 +191,8 @@ export class PlatformTreeDataProvider implements vscode.TreeDataProvider<Platfor
 		this.setVersionCommands = setVersionCommands;
 		this.extensionUri = extensionUri;
 		this.extensionContext = extensionContext;
+		this.formatSubscription = onDidChangeActiveConfiguration(() => void this.refreshSourceFormat());
+		void this.refreshSourceFormat();
 	}
 
 	/**
@@ -191,6 +200,32 @@ export class PlatformTreeDataProvider implements vscode.TreeDataProvider<Platfor
 	 */
 	refresh(): void {
 		this._onDidChangeTreeData.fire();
+	}
+
+	dispose(): void {
+		this.formatSubscription.dispose();
+	}
+
+	/** Формат активной конфигурации; дерево перестраивается, когда он меняется. */
+	private async refreshSourceFormat(): Promise<void> {
+		const vrunner = VRunnerManager.getInstance();
+		const workspaceRoot = vrunner.getWorkspaceRoot();
+		let format: TreeSourceFormat | undefined;
+		if (workspaceRoot) {
+			try {
+				const scope = await configurationScope(workspaceRoot, {
+					configuration: vrunner.getCfPath(),
+					extensions: [vrunner.getCfePath(), vrunner.getTestsCfePath()],
+				});
+				format = scope.configuration?.format;
+			} catch {
+				format = undefined;
+			}
+		}
+		if (format !== this.sourceFormat) {
+			this.sourceFormat = format;
+			this.refresh();
+		}
 	}
 
 	/**
@@ -264,6 +299,7 @@ export class PlatformTreeDataProvider implements vscode.TreeDataProvider<Platfor
 			oscriptTasks: TreeItemType.OscriptTasks,
 			pipelines: TreeItemType.Pipelines,
 			skills: TreeItemType.Skills,
+			edt: TreeItemType.Edt,
 		};
 		return map[sectionType];
 	}
@@ -490,9 +526,9 @@ export class PlatformTreeDataProvider implements vscode.TreeDataProvider<Platfor
 			const defaultExpanded = group.defaultCollapsibleState === 'expanded';
 			const collapsibleState = this.resolveGroupCollapsibleState(group.sectionType, defaultExpanded);
 
-			const children: PlatformTreeItem[] = group.commands.map((cmd) =>
+			const children: PlatformTreeItem[] = groupCommandsFor(group, this.sourceFormat).map((cmd) =>
 				this.createTreeItem(
-					cmd.treeLabel,
+					treeLabelFor(cmd, this.sourceFormat),
 					TreeItemType.Task,
 					vscode.TreeItemCollapsibleState.None,
 					{ command: cmd.command, title: cmd.title },
