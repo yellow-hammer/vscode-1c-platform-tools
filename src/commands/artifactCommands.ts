@@ -208,35 +208,8 @@ export class ArtifactCommands extends BaseCommand {
 		});
 	}
 
-	/**
-	 * Исходники внешнего файла в формате EDT: описание объекта лежит в `.mdo`.
-	 *
-	 * Такие исходники vanessa-runner не собирает и не разбирает - команды
-	 * обработок и отчётов формат EDT отклоняют.
-	 */
-	private async isEdtExternalSource(artifactUri: vscode.Uri): Promise<boolean> {
-		const files = await this.getFilesByExtension(artifactUri.fsPath, '.mdo');
-		return files.length > 0;
-	}
-
-	/** Сообщает, что формат EDT этой команде недоступен. */
-	private async refuseEdtExternal(artifactUri: vscode.Uri): Promise<boolean> {
-		if (!(await this.isEdtExternalSource(artifactUri))) {
-			return false;
-		}
-		void vscode.window.showErrorMessage(
-			'Внешние обработки и отчёты в формате EDT vanessa-runner не собирает и не разбирает: ' +
-			'соберите их средствами EDT.'
-		);
-		return true;
-	}
-
 	/** Собрать внешнюю обработку из исходников. */
 	async buildProcessor(artifactUri: vscode.Uri): Promise<void> {
-		if (await this.refuseEdtExternal(artifactUri)) {
-			return;
-		}
-
 		const workspaceRoot = this.ensureWorkspace();
 		if (!workspaceRoot || !(await this.ensureOscriptAvailable())) {
 			return;
@@ -261,10 +234,6 @@ export class ArtifactCommands extends BaseCommand {
 
 	/** Разобрать .epf в исходники. */
 	async decompileProcessor(artifactUri: vscode.Uri): Promise<void> {
-		if (await this.refuseEdtExternal(artifactUri)) {
-			return;
-		}
-
 		const workspaceRoot = this.ensureWorkspace();
 		if (!workspaceRoot || !(await this.ensureOscriptAvailable())) {
 			return;
@@ -289,10 +258,6 @@ export class ArtifactCommands extends BaseCommand {
 
 	/** Собрать внешний отчёт из исходников. */
 	async buildReport(artifactUri: vscode.Uri): Promise<void> {
-		if (await this.refuseEdtExternal(artifactUri)) {
-			return;
-		}
-
 		const workspaceRoot = this.ensureWorkspace();
 		if (!workspaceRoot || !(await this.ensureOscriptAvailable())) {
 			return;
@@ -317,10 +282,6 @@ export class ArtifactCommands extends BaseCommand {
 
 	/** Разобрать .erf в исходники. */
 	async decompileReport(artifactUri: vscode.Uri): Promise<void> {
-		if (await this.refuseEdtExternal(artifactUri)) {
-			return;
-		}
-
 		const workspaceRoot = this.ensureWorkspace();
 		if (!workspaceRoot || !(await this.ensureOscriptAvailable())) {
 			return;

@@ -7,6 +7,7 @@ import {
 	edtToolingRefusal,
 	planEdtBridge,
 	sourceFormatOfDirectory,
+	withBaseProject,
 } from '../../features/edt/edtSourceBridge';
 import { parseVRunnerVersion, type VRunnerVersion } from '../../shared/vrunnerVersion';
 
@@ -64,6 +65,19 @@ suite('мост между проектом EDT и раннером', () => {
 		]);
 	});
 
+	test('манифест внешнего объекта получает базовый проект первой строкой', () => {
+		assert.strictEqual(
+			withBaseProject('Runtime-Version: 8.3.10\nManifest-Version: 1.0\n', 'ssl31'),
+			'Base-Project: ssl31\nRuntime-Version: 8.3.10\nManifest-Version: 1.0\n'
+		);
+		assert.strictEqual(
+			withBaseProject('Runtime-Version: 8.3.10\r\nManifest-Version: 1.0\r\n', 'ssl31'),
+			'Base-Project: ssl31\r\nRuntime-Version: 8.3.10\r\nManifest-Version: 1.0\r\n'
+		);
+		const kept = 'Base-Project: другой\nRuntime-Version: 8.3.10\n';
+		assert.strictEqual(withBaseProject(kept, 'ssl31'), kept);
+	});
+
 	test('разборка cf в каталог проекта проходит через импорт', () => {
 		const plan = planEdtBridge({ kind: 'cf.decompileFile', file: 'build/out/1Cv8.cf', out: 'ssl31' }, edtSource, layout);
 
@@ -99,7 +113,7 @@ suite('мост между проектом EDT и раннером', () => {
 		);
 
 		assert.deepStrictEqual(plan?.imports, [
-			{ source: 'build/edt-export/epf', projectDir: 'src/epf', needsBase: true, external: true },
+			{ source: 'build/edt-export/epf', projectDir: 'src/epf', needsBase: false, external: true },
 		]);
 	});
 

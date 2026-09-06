@@ -542,9 +542,10 @@ export abstract class BaseCommand {
 			}
 		}
 		// Путь есть, но это не конфигурация и не расширение: формат смотрим по
-		// самому каталогу, а не у конфигурации
+		// самому каталогу. Пустой или ещё не созданный каталог, куда команда
+		// только разложит результат, наследует формат активной конфигурации
 		if (wanted) {
-			const format = sourceFormatOfDirectory(path.resolve(workspaceRoot, wanted));
+			const format = sourceFormatOfDirectory(path.resolve(workspaceRoot, wanted)) ?? scope.configuration?.format;
 			return format ? { format, dir: wanted } : undefined;
 		}
 		return scope.configuration

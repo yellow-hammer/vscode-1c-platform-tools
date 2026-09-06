@@ -69,10 +69,35 @@ export interface EdtImportStep {
 	source: string;
 	/** Каталог проекта относительно рабочей области. */
 	projectDir: string;
-	/** Расширению и внешнему объекту нужен базовый проект. */
+	/** Расширение импортируется с именем базового проекта. */
 	needsBase: boolean;
-	/** Каталог с выгрузками внешних объектов: каждая уходит в свой проект. */
+	/**
+	 * Каталог с выгрузками внешних объектов: каждая уходит в свой проект. Импорт
+	 * идёт без базового проекта: с ним EDT требует базовый проект, импортированный
+	 * в ту же рабочую область из выгрузки, а без него кладёт те же файлы. Базовый
+	 * проект вписывается в манифест после импорта.
+	 */
 	external: boolean;
+}
+
+/** Строка манифеста проекта EDT с именем базового проекта. */
+const BASE_PROJECT_LINE = 'Base-Project: ';
+
+/**
+ * Манифест проекта внешнего объекта с базовым проектом.
+ *
+ * EDT пишет базовый проект первой строкой; манифест без него получает её сверху,
+ * манифест с ним остаётся как есть.
+ *
+ * @param manifest - Содержимое `DT-INF/PROJECT.PMF`
+ * @param baseProject - Имя базового проекта
+ */
+export function withBaseProject(manifest: string, baseProject: string): string {
+	if (manifest.split(/\r?\n/).some((line) => line.startsWith(BASE_PROJECT_LINE))) {
+		return manifest;
+	}
+	const eol = manifest.includes('\r\n') ? '\r\n' : '\n';
+	return `${BASE_PROJECT_LINE}${baseProject}${eol}${manifest}`;
 }
 
 /** Команда над проектом EDT: что выгрузить, с чем запустить раннер и что импортировать. */
@@ -274,7 +299,7 @@ export function planEdtBridge(
 		return {
 			intent: { ...intent, out: target },
 			exports: [],
-			imports: [{ source: target, projectDir: runnerPath(sourceDir), needsBase: true, external: true }],
+			imports: [{ source: target, projectDir: runnerPath(sourceDir), needsBase: false, external: true }],
 		};
 	}
 	return undefined;

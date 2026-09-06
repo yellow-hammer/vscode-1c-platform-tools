@@ -12,8 +12,8 @@ import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 import * as vscode from 'vscode';
 import { logger } from '../../shared/logger';
-import { edtProjectName, edtWorkspaceDir, ensureProjectRegistered, runEdtCommand } from './edtRunner';
-import type { EdtExportStep, EdtImportStep } from './edtSourceBridge';
+import { detachProject, edtProjectName, edtWorkspaceDir, ensureProjectRegistered, runEdtCommand } from './edtRunner';
+import { withBaseProject, type EdtExportStep, type EdtImportStep } from './edtSourceBridge';
 
 const log = logger.scope('edt');
 
@@ -93,19 +93,30 @@ export async function runEdtImports(steps: readonly EdtImportStep[], context: Ed
 		const baseArgs = step.needsBase ? base : [];
 		if (step.external) {
 			for (const name of await externalDumps(source)) {
-				await runEdtCommand({
+				const target = path.join(projectDir, name);
+				if ((await detachProject(target, workspaceDir, context.workspaceRoot)) !== 0) {
+					continue;
+				}
+				const code = await runEdtCommand({
 					command: 'import',
-					args: ['--configuration-files', path.join(source, name), '--project', path.join(projectDir, name), ...baseArgs],
+					args: ['--configuration-files', path.join(source, name), '--project', target, ...baseArgs],
 					title: `EDT: импорт ${name}`,
 					workspaceDir,
 					cwd: context.workspaceRoot,
 				});
+				if (code === 0 && context.baseProjectDir !== undefined) {
+					await writeBaseProject(target, edtProjectName(context.baseProjectDir));
+				}
 			}
 			continue;
 		}
 		if (!(await exists(path.join(source, 'Configuration.xml')))) {
 			log.warn(`Выгрузка ${step.source} без Configuration.xml, импорт в проект пропущен`);
 			void vscode.window.showWarningMessage(`Выгрузки в ${step.source} нет, проект ${step.projectDir} не изменён.`);
+			continue;
+		}
+		// Подключённый проект EDT выгрузкой не обновляет: перед импортом он отключается от рабочей области
+		if ((await detachProject(projectDir, workspaceDir, context.workspaceRoot)) !== 0) {
 			continue;
 		}
 		await runEdtCommand({
@@ -115,6 +126,21 @@ export async function runEdtImports(steps: readonly EdtImportStep[], context: Ed
 			workspaceDir,
 			cwd: context.workspaceRoot,
 		});
+	}
+}
+
+/** Вписывает базовый проект в манифест проекта внешнего объекта. */
+async function writeBaseProject(projectDir: string, baseProject: string): Promise<void> {
+	const manifest = path.join(projectDir, 'DT-INF', 'PROJECT.PMF');
+	let text: string;
+	try {
+		text = await fs.readFile(manifest, 'utf8');
+	} catch {
+		return;
+	}
+	const patched = withBaseProject(text, baseProject);
+	if (patched !== text) {
+		await fs.writeFile(manifest, patched, 'utf8');
 	}
 }
 
