@@ -10,26 +10,14 @@
 
 import * as path from 'node:path';
 import * as vscode from 'vscode';
-import {
-	scanArtifacts,
-	type ArtifactsScanResult,
-	type ConfigurationArtifact,
-	type ExtensionArtifact,
-	type ProcessorArtifact,
-	type ReportArtifact,
-} from './artifactsScanner';
+import { scanArtifacts, type Artifact, type ArtifactsScanResult } from './artifactsScanner';
+import type { SourceFormat } from '../../shared/projectLayout';
 
 // Ключ сохранения режима вида дерева (список/каталоги). Историческое имя
 // 'featuresView' сохранено намеренно, чтобы не сбрасывать настройку пользователей.
 const VIEW_MODE_KEY = '1c-platform-tools.artifacts.featuresView';
 
 export type ArtifactsViewMode = 'list' | 'folder';
-
-type NonSectionArtifact =
-	| ConfigurationArtifact
-	| ExtensionArtifact
-	| ProcessorArtifact
-	| ReportArtifact;
 
 function collectDuplicateLabels(items: { name: string }[]): Set<string> {
 	const byLower = new Map<string, number>();
@@ -202,7 +190,7 @@ export class ProjectArtifactsTreeDataProvider
 	}
 
 	private buildArtifactItems(
-		items: NonSectionArtifact[],
+		items: Artifact[],
 		viewMode: ArtifactsViewMode
 	): ArtifactTreeItem[] {
 		const sorted = [...items].sort((a, b) =>
@@ -344,7 +332,7 @@ export class ProjectArtifactsTreeDataProvider
 	}
 
 	private artifactToItem(
-		a: NonSectionArtifact,
+		a: Artifact,
 		parentDirDescription?: string
 	): ArtifactTreeItem {
 		const label = a.name;
@@ -359,7 +347,8 @@ export class ProjectArtifactsTreeDataProvider
 			icon,
 			isBinary,
 			openTargetUri,
-			parentDirDescription
+			parentDirDescription,
+			a.format
 		);
 	}
 }
@@ -425,7 +414,8 @@ class ArtifactItem extends vscode.TreeItem {
 		icon: string,
 		_isBinary: boolean,
 		openTargetUri: vscode.Uri,
-		parentDirDescription?: string
+		parentDirDescription?: string,
+		format?: SourceFormat
 	) {
 		super(label, vscode.TreeItemCollapsibleState.None);
 		this.openTargetUri = openTargetUri;
@@ -436,8 +426,12 @@ class ArtifactItem extends vscode.TreeItem {
 		if (parentDirDescription) {
 			tooltipMd.appendMarkdown(`\n_Родитель: ${parentDirDescription}_`);
 		}
+		if (format === 'edt') {
+			tooltipMd.appendMarkdown('\n_Проект EDT_');
+		}
 		this.tooltip = tooltipMd;
-		this.description = parentDirDescription;
+		const marks = [parentDirDescription, format === 'edt' ? 'EDT' : undefined].filter((mark) => mark);
+		this.description = marks.length > 0 ? marks.join(' · ') : undefined;
 		this.contextValue = `artifacts${artifactType.charAt(0).toUpperCase()}${artifactType.slice(1)}${_isBinary ? 'Binary' : 'Source'}`;
 		this.command = {
 			command: 'vscode.open',

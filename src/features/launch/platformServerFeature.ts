@@ -11,7 +11,7 @@ import { openLocalUrl } from '../../shared/remoteEnv';
 import { VRunnerManager } from '../../shared/vrunnerManager';
 import { ServerUrls } from '../../shared/ibsrvPublication';
 import { DEBUG_TYPE } from '../debug/debugConstants';
-import { DEFAULT_PATHS } from '../../shared/pathDefaults';
+import { CONVENTIONAL_PATHS, projectPaths } from '../../shared/projectPaths';
 import { uiOnlyHandler } from '../../shared/agentGate';
 import { PlatformServerManager, ServerState, PublicationSelection } from './platformServerManager';
 import { notifyQuiet } from '../../shared/notify';
@@ -249,11 +249,8 @@ async function startServerDebug(manager: PlatformServerManager): Promise<void> {
 		return; // ошибка запуска уже показана менеджером
 	}
 
-	const cfPath = vscode.workspace
-		.getConfiguration('1c-platform-tools')
-		.get<string>('path.cf', DEFAULT_PATHS.cf)
-		.replace(/\\/g, '/')
-		.replace(/^\.?\//, '');
+	const configuration = (await projectPaths(workspaceFolder.uri.fsPath)).configuration?.dir;
+	const cfPath = configuration === '.' ? '' : configuration ?? CONVENTIONAL_PATHS.cf;
 
 	const started = await vscode.debug.startDebugging(workspaceFolder, {
 		type: DEBUG_TYPE,

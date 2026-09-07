@@ -1,3 +1,4 @@
+import { CONVENTIONAL_PATHS } from '../shared/projectPaths';
 import * as path from 'node:path';
 import * as fs from 'node:fs/promises';
 import * as vscode from 'vscode';
@@ -48,7 +49,10 @@ export class ConfigurationCommands extends BaseCommand {
 		mode: 'init' | 'load' = 'load',
 		opts?: CommandExecutionOptions
 	): Promise<StructuredCommandResult | void> {
-		const srcPath = await this.activeCfPath();
+		const srcPath = await this.requireCfPath(opts);
+		if (typeof srcPath !== 'string') {
+			return srcPath;
+		}
 		const ibConnectionParam = await this.vrunner.getIbConnectionParam();
 		const commandName = getLoadConfigurationFromSrcCommandName(mode);
 		if (mode === 'init') {
@@ -83,7 +87,7 @@ export class ConfigurationCommands extends BaseCommand {
 	}
 
 	async dumpToSrc(opts?: CommandExecutionOptions): Promise<StructuredCommandResult | void> {
-		const srcPath = await this.activeCfPath();
+		const srcPath = (await this.activeCfPath()) ?? CONVENTIONAL_PATHS.cf;
 		const ibConnectionParam = await this.vrunner.getIbConnectionParam();
 		const dumpToSrcCmd = getDumpConfigurationToSrcCommandName();
 		return this.runIntent(
@@ -110,7 +114,10 @@ export class ConfigurationCommands extends BaseCommand {
 			return;
 		}
 
-		const srcPath = await this.activeCfPath();
+		const srcPath = await this.requireCfPath(opts);
+		if (typeof srcPath !== 'string') {
+			return srcPath;
+		}
 		const srcFullPath = path.join(cwd, srcPath);
 		const configDumpInfoPath = path.join(srcFullPath, 'ConfigDumpInfo.xml');
 		const versionFileExists = await checkVersionFileExists(configDumpInfoPath);
@@ -230,7 +237,10 @@ export class ConfigurationCommands extends BaseCommand {
 			return;
 		}
 
-		const srcPath = await this.activeCfPath();
+		const srcPath = await this.requireCfPath(opts);
+		if (typeof srcPath !== 'string') {
+			return srcPath;
+		}
 		const buildPath = this.vrunner.getOutPath();
 		const buildFullPath = path.join(cwd, buildPath);
 		if (!(await this.ensureDirectoryForExecution(
@@ -277,10 +287,7 @@ export class ConfigurationCommands extends BaseCommand {
 			return;
 		}
 
-		const scope = await configurationScope(workspaceRoot, {
-			configuration: this.vrunner.getCfPath(),
-			extensions: [this.vrunner.getCfePath(), this.vrunner.getTestsCfePath()],
-		});
+		const scope = await configurationScope(workspaceRoot);
 		const source = scope.configuration;
 		if (!source) {
 			return this.reportUnavailable('В рабочей области нет исходников конфигурации.', opts);
@@ -311,7 +318,7 @@ export class ConfigurationCommands extends BaseCommand {
 	async decompile(opts?: CommandExecutionOptions): Promise<StructuredCommandResult | void> {
 		const buildPath = this.vrunner.getOutPath();
 		const inputPath = path.join(buildPath, '1Cv8.cf');
-		const srcPath = await this.activeCfPath();
+		const srcPath = (await this.activeCfPath()) ?? CONVENTIONAL_PATHS.cf;
 		const decompileCmd = getDecompileConfigurationCommandName();
 		return this.runIntent(
 			{ kind: 'cf.decompileFile', file: inputPath, out: srcPath },
@@ -334,7 +341,10 @@ export class ConfigurationCommands extends BaseCommand {
 			return;
 		}
 
-		const srcPath = await this.activeCfPath();
+		const srcPath = await this.requireCfPath(opts);
+		if (typeof srcPath !== 'string') {
+			return srcPath;
+		}
 		const lastUploadedCommitPath = path.join(workspaceRoot, srcPath, 'lastUploadedCommit.txt');
 
 		let currentSha = '';
@@ -412,7 +422,10 @@ export class ConfigurationCommands extends BaseCommand {
 			return;
 		}
 
-		const srcPath = await this.activeCfPath();
+		const srcPath = await this.requireCfPath(opts);
+		if (typeof srcPath !== 'string') {
+			return srcPath;
+		}
 		const configFullPath = path.resolve(workspaceRoot, srcPath);
 		const content = await fs.readFile(objlistPath, 'utf-8');
 		const lines = this.parseObjlistLines(content);

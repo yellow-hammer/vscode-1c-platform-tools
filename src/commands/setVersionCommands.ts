@@ -1,6 +1,7 @@
+import { projectPaths } from '../shared/projectPaths';
+import { NO_CONFIGURATION_SOURCES } from './baseCommand';
 import * as vscode from 'vscode';
 import * as path from 'node:path';
-import * as fs from 'node:fs/promises';
 import { BaseCommand } from './baseCommand';
 import {
 	getSetVersionConfigurationCommandName,
@@ -117,10 +118,7 @@ export class SetVersionCommands extends BaseCommand {
 		if (!workspaceRoot) {
 			return undefined;
 		}
-		const scope = await configurationScope(workspaceRoot, {
-			configuration: this.vrunner.getCfPath(),
-			extensions: [this.vrunner.getCfePath(), this.vrunner.getTestsCfePath()],
-		});
+		const scope = await configurationScope(workspaceRoot);
 		return scope.configuration?.format === 'edt' ? scope.configuration.dir : undefined;
 	}
 
@@ -163,17 +161,18 @@ export class SetVersionCommands extends BaseCommand {
 			return;
 		}
 
-		const scope = await configurationScope(workspaceRoot, {
-			configuration: this.vrunner.getCfPath(),
-			extensions: [this.vrunner.getCfePath(), this.vrunner.getTestsCfePath()],
-		});
+		const scope = await configurationScope(workspaceRoot);
 		if (scope.configuration?.format === 'edt') {
 			if (await this.stampEdtProject(configurationDescriptorFile(scope.configuration), version, workspaceRoot)) {
 				vscode.window.showInformationMessage(`Версия конфигурации: ${version}`);
 			}
 			return;
 		}
-		const cfPath = this.vrunner.getCfPath();
+		const cfPath = await this.activeCfPath();
+		if (cfPath === undefined) {
+			vscode.window.showErrorMessage(NO_CONFIGURATION_SOURCES);
+			return;
+		}
 		const args = ['set-version', '--src', cfPath, '--new-version', version];
 		const commandName = getSetVersionConfigurationCommandName();
 
@@ -207,8 +206,8 @@ export class SetVersionCommands extends BaseCommand {
 		const extensions =
 			active.length > 0 ? active.map((extension) => extension.name) : await this.getExtensionFoldersForTree();
 		if (extensions.length === 0) {
-			log.info('В папке src/cfe не найдено расширений');
-			vscode.window.showInformationMessage('В папке src/cfe не найдено расширений');
+			log.info('Расширений в рабочей области не найдено');
+			vscode.window.showInformationMessage('Расширений в рабочей области не найдено.');
 			return;
 		}
 
@@ -227,7 +226,7 @@ export class SetVersionCommands extends BaseCommand {
 			return;
 		}
 
-		const cfePath = this.vrunner.getCfePath();
+		const cfePath = await this.extensionsContainer();
 		const argsList: string[][] = [];
 		for (const name of selected) {
 			const extension = active.find((item) => item.name === name);
@@ -255,8 +254,8 @@ export class SetVersionCommands extends BaseCommand {
 	/**
 	 * Устанавливает версию внешнему отчёту.
 	 * При вызове из палитры команд без аргумента показывает список отчётов для выбора.
-	 * Выполняет: vrunner set-version --src src/erf/&lt;имя&gt; --check-module --new-version &lt;версия&gt;
-	 * @param reportName - Имя каталога отчёта в src/erf (если не указано — показывается выбор из списка)
+	 * Выполняет: vrunner set-version --src &lt;каталог отчёта&gt; --check-module --new-version &lt;версия&gt;
+	 * @param reportName - Имя отчёта (если не указано, показывается выбор из списка)
 	 * @returns Промис, который разрешается после запуска команды
 	 */
 	async setVersionReport(reportName?: string): Promise<void> {
@@ -272,8 +271,8 @@ export class SetVersionCommands extends BaseCommand {
 		if (selected === undefined) {
 			const reports = await this.getReportFoldersForTree();
 			if (reports.length === 0) {
-				log.info('В папке src/erf не найдено внешних отчётов');
-				vscode.window.showInformationMessage('В папке src/erf не найдено внешних отчётов');
+				log.info('Внешних отчётов в рабочей области нет');
+				vscode.window.showInformationMessage('Внешних отчётов в рабочей области нет');
 				return;
 			}
 			const picked = await vscode.window.showQuickPick(reports, {
@@ -291,8 +290,8 @@ export class SetVersionCommands extends BaseCommand {
 			return;
 		}
 
-		const erfPath = this.vrunner.getErfPath();
-		const srcPath = path.join(erfPath, selected);
+		const erfPath = await this.reportsContainer();
+		const srcPath = (await this.paths())?.reports.find((report) => report.name === selected)?.dir ?? path.join(erfPath, selected);
 		const commandName = getSetVersionReportCommandName(selected);
 		if (edtExternalProjectsOf(workspaceRoot, srcPath).length > 0) {
 			await this.stampEdtExternal(erfPath, [selected], version, workspaceRoot, commandName.title);
@@ -309,8 +308,8 @@ export class SetVersionCommands extends BaseCommand {
 	/**
 	 * Устанавливает версию внешней обработке.
 	 * При вызове из палитры команд без аргумента показывает список обработок для выбора.
-	 * Выполняет: vrunner set-version --src src/epf/&lt;имя&gt; --check-module --new-version &lt;версия&gt;
-	 * @param processorName - Имя каталога обработки в src/epf (если не указано — показывается выбор из списка)
+	 * Выполняет: vrunner set-version --src &lt;каталог обработки&gt; --check-module --new-version &lt;версия&gt;
+	 * @param processorName - Имя обработки (если не указано, показывается выбор из списка)
 	 * @returns Промис, который разрешается после запуска команды
 	 */
 	async setVersionProcessor(processorName?: string): Promise<void> {
@@ -326,8 +325,8 @@ export class SetVersionCommands extends BaseCommand {
 		if (selected === undefined) {
 			const processors = await this.getProcessorFoldersForTree();
 			if (processors.length === 0) {
-				log.info('В папке src/epf не найдено внешних обработок');
-				vscode.window.showInformationMessage('В папке src/epf не найдено внешних обработок');
+				log.info('Внешних обработок в рабочей области нет');
+				vscode.window.showInformationMessage('Внешних обработок в рабочей области нет');
 				return;
 			}
 			const picked = await vscode.window.showQuickPick(processors, {
@@ -345,8 +344,8 @@ export class SetVersionCommands extends BaseCommand {
 			return;
 		}
 
-		const epfPath = this.vrunner.getEpfPath();
-		const srcPath = path.join(epfPath, selected);
+		const epfPath = await this.processorsContainer();
+		const srcPath = (await this.paths())?.processors.find((processor) => processor.name === selected)?.dir ?? path.join(epfPath, selected);
 		const commandName = getSetVersionProcessorCommandName(selected);
 		if (edtExternalProjectsOf(workspaceRoot, srcPath).length > 0) {
 			await this.stampEdtExternal(epfPath, [selected], version, workspaceRoot, commandName.title);
@@ -370,19 +369,14 @@ export class SetVersionCommands extends BaseCommand {
 		if (!workspaceRoot) {
 			return [];
 		}
-		const cfePath = this.vrunner.getCfePath();
-		const fullPath = path.join(workspaceRoot, cfePath);
-		try {
-			const entries = await fs.readdir(fullPath, { withFileTypes: true });
-			return entries.filter((e) => e.isDirectory()).map((e) => e.name);
-		} catch {
-			return [];
-		}
+		const paths = await projectPaths(workspaceRoot);
+		return [...paths.extensions, ...paths.testExtensions].map((extension) =>
+			extension.format === 'edt' ? extension.name : path.basename(extension.dir)
+		);
 	}
 
 	/**
-	 * Возвращает список имён каталогов внешних отчётов в src/erf (для дерева команд).
-	 * При отсутствии каталога или ошибке чтения возвращает пустой массив без уведомления пользователя.
+	 * Имена внешних отчётов рабочей области (для дерева команд).
 	 * @returns Промис, который разрешается массивом имён каталогов
 	 */
 	async getReportFoldersForTree(): Promise<string[]> {
@@ -390,19 +384,11 @@ export class SetVersionCommands extends BaseCommand {
 		if (!workspaceRoot) {
 			return [];
 		}
-		const erfPath = this.vrunner.getErfPath();
-		const fullPath = path.join(workspaceRoot, erfPath);
-		try {
-			const entries = await fs.readdir(fullPath, { withFileTypes: true });
-			return entries.filter((e) => e.isDirectory()).map((e) => e.name);
-		} catch {
-			return [];
-		}
+		return (await projectPaths(workspaceRoot)).reports.map((report) => report.name);
 	}
 
 	/**
-	 * Возвращает список имён каталогов внешних обработок в src/epf (для дерева команд).
-	 * При отсутствии каталога или ошибке чтения возвращает пустой массив без уведомления пользователя.
+	 * Имена внешних обработок рабочей области (для дерева команд).
 	 * @returns Промис, который разрешается массивом имён каталогов
 	 */
 	async getProcessorFoldersForTree(): Promise<string[]> {
@@ -410,13 +396,6 @@ export class SetVersionCommands extends BaseCommand {
 		if (!workspaceRoot) {
 			return [];
 		}
-		const epfPath = this.vrunner.getEpfPath();
-		const fullPath = path.join(workspaceRoot, epfPath);
-		try {
-			const entries = await fs.readdir(fullPath, { withFileTypes: true });
-			return entries.filter((e) => e.isDirectory()).map((e) => e.name);
-		} catch {
-			return [];
-		}
+		return (await projectPaths(workspaceRoot)).processors.map((processor) => processor.name);
 	}
 }

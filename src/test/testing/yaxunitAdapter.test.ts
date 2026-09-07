@@ -4,7 +4,22 @@ import * as path from 'node:path';
 import * as fs from 'node:fs/promises';
 import * as vscode from 'vscode';
 import { VRunnerManager } from '../../shared/vrunnerManager';
-import { YaxunitAdapter, extractModuleName, extensionSourceDir } from '../../features/testing/adapters/yaxunitAdapter';
+import { YaxunitAdapter, extractModuleName } from '../../features/testing/adapters/yaxunitAdapter';
+
+import { invalidateProjectLayout } from '../../shared/projectLayout';
+
+/** Рабочие области с исходным кодом в обоих форматах. */
+const FIXTURES = path.resolve(__dirname, '../../../src/test/fixtures/projectLayout');
+const DESIGNER_WORKSPACE = path.join(FIXTURES, 'designer');
+const EDT_WORKSPACE = path.join(FIXTURES, 'edt-workspace');
+
+/** Раннер, знающий только корень рабочей области: остальное адаптер берёт из раскладки. */
+function vrunnerAt(workspaceRoot: string): VRunnerManager {
+	return {
+		getWorkspaceRoot: () => workspaceRoot,
+		planIntent: async () => [['run', 'enterprise']],
+	} as unknown as VRunnerManager;
+}
 
 suite('yaxunitAdapter', () => {
 	test('isTestFile: служебный модуль фреймворка (без зарегистрированных тестов) отсекается', async () => {
@@ -85,34 +100,19 @@ suite('yaxunitAdapter', () => {
 		}
 	});
 
-	test('extensionSourceDir даёт каталог расширения по пути модуля', () => {
-		assert.strictEqual(
-			extensionSourceDir('C:/proj/tests/cfe/yaxunit-test/CommonModules/ОМ_Тест/Ext/Module.bsl'),
-			path.join('C:', 'proj', 'tests', 'cfe', 'yaxunit-test')
-		);
-		assert.strictEqual(extensionSourceDir('C:/proj/tests/Тест.os'), undefined);
-	});
 
-	test('buildRunPlan: фильтр по расширению модуля, а не по списку из конфига проекта', async () => {
-		const adapter = new YaxunitAdapter(VRunnerManager.getInstance());
+	test('buildRunPlan: фильтр по имени расширения из раскладки, а не по списку из конфига проекта', async () => {
+		invalidateProjectLayout();
+		const adapter = new YaxunitAdapter(vrunnerAt(DESIGNER_WORKSPACE));
 		const reportDir = await fs.mkdtemp(path.join(os.tmpdir(), 'yaxunit-ext-'));
-		const extensionDir = path.join(reportDir, 'tests', 'cfe', 'yaxunit-test');
-		await fs.mkdir(path.join(extensionDir, 'CommonModules', 'ОМ_Тест', 'Ext'), { recursive: true });
 		// имя расширения в метаданных отличается от имени каталога
-		await fs.writeFile(
-			path.join(extensionDir, 'Configuration.xml'),
-			'<MetaDataObject><Configuration><Properties><Name>Тесты</Name></Properties></Configuration></MetaDataObject>',
-			'utf8'
-		);
 		const fileUri = vscode.Uri.file(
-			path.join(extensionDir, 'CommonModules', 'ОМ_Тест', 'Ext', 'Module.bsl')
+			path.join(DESIGNER_WORKSPACE, 'tests', 'cfe', 'Тесты', 'CommonModules', 'ОМ_Тест', 'Ext', 'Module.bsl')
 		);
 
 		try {
 			await adapter.buildRunPlan({ fileUri }, reportDir);
-			const config = JSON.parse(
-				await fs.readFile(path.join(reportDir, 'yaxunit-config.json'), 'utf8')
-			);
+			const config = JSON.parse(await fs.readFile(path.join(reportDir, 'yaxunit-config.json'), 'utf8'));
 			// без этого прогон модуля из другого расширения отфильтровался бы
 			// списком extensions из tools/yaxunit.json и дал пустой отчёт
 			assert.deepStrictEqual(config.filter.extensions, ['Тесты']);
@@ -122,37 +122,50 @@ suite('yaxunitAdapter', () => {
 		}
 	});
 
+	test('buildRunPlan: у проекта EDT имя расширения берётся из проекта, а не из каталога src', async () => {
+		invalidateProjectLayout();
+		const adapter = new YaxunitAdapter(vrunnerAt(EDT_WORKSPACE));
+		const reportDir = await fs.mkdtemp(path.join(os.tmpdir(), 'yaxunit-edt-'));
+		const fileUri = vscode.Uri.file(
+			path.join(EDT_WORKSPACE, 'tests', 'cfe', 'yaxunit-test', 'src', 'CommonModules', 'ОМ_Тест', 'Module.bsl')
+		);
+
+		try {
+			await adapter.buildRunPlan({ fileUri }, reportDir);
+			const config = JSON.parse(await fs.readFile(path.join(reportDir, 'yaxunit-config.json'), 'utf8'));
+			assert.deepStrictEqual(config.filter.extensions, ['Тесты']);
+		} finally {
+			await fs.rm(reportDir, { recursive: true, force: true });
+		}
+	});
+
 	test('поиск идёт и по расширениям решения, и по тестовым', async () => {
-		const adapter = new YaxunitAdapter(VRunnerManager.getInstance());
+		invalidateProjectLayout();
+		const adapter = new YaxunitAdapter(vrunnerAt(DESIGNER_WORKSPACE));
 
 		const globs = await adapter.getIncludeGlobs();
 
 		// расширение с тестами держат отдельно от поставки: без второго корня
 		// панель тестирования перестала бы видеть тесты после переноса
-		assert.ok(
-			globs.some((glob) => glob.startsWith('src/cfe/')),
-			`нет расширений решения: ${globs.join(', ')}`
-		);
-		assert.ok(
-			globs.some((glob) => glob.startsWith('tests/cfe/')),
-			`нет тестовых расширений: ${globs.join(', ')}`
-		);
+		assert.deepStrictEqual(globs, [
+			'src/cfe/МоёРасширение/CommonModules/*/Ext/Module.bsl',
+			'src/cfe/подмодуль/src/cfe/Вложенное/CommonModules/*/Ext/Module.bsl',
+			'tests/cfe/Тесты/CommonModules/*/Ext/Module.bsl',
+		]);
 	});
 });
 
 suite('yaxunitAdapter: раскладка EDT', () => {
-	test('модули тестового расширения ищутся в обеих раскладках', async () => {
-		const adapter = new YaxunitAdapter(VRunnerManager.getInstance());
+	test('модули ищутся в проекте конфигурации, в её расширениях и в тестовых проектах', async () => {
+		invalidateProjectLayout();
+		const adapter = new YaxunitAdapter(vrunnerAt(EDT_WORKSPACE));
 
 		const globs = await adapter.getIncludeGlobs();
 
-		assert.ok(
-			globs.some((glob) => glob.endsWith('/*/CommonModules/*/Ext/Module.bsl')),
-			`выгрузка конфигуратора: ${globs.join(', ')}`
-		);
-		assert.ok(
-			globs.some((glob) => glob.endsWith('/*/src/CommonModules/*/Module.bsl')),
-			`проект EDT: ${globs.join(', ')}`
-		);
+		assert.deepStrictEqual(globs, [
+			'ssl31/src/CommonModules/*/Module.bsl',
+			'ssl31._ДемоРасширение/src/CommonModules/*/Module.bsl',
+			'tests/cfe/yaxunit-test/src/CommonModules/*/Module.bsl',
+		]);
 	});
 });

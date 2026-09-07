@@ -1,12 +1,10 @@
-import * as path from 'node:path';
 import * as vscode from 'vscode';
 import { DEBUG_TYPE } from './debugConstants';
 import { resolveFileIbConnectionString } from '../../shared/ibConnectionPath';
-import { DEFAULT_PATHS } from '../../shared/pathDefaults';
 import { logger } from '../../shared/logger';
 import { VRunnerManager } from '../../shared/vrunnerManager';
 import { resolvePlatformVersion } from '../../shared/platformBinary';
-import { resolveProjectLayout } from '../../shared/projectLayout';
+import { CONVENTIONAL_PATHS, projectPaths } from '../../shared/projectPaths';
 
 const platformBasePath =
 	process.platform === 'win32' ? '${env:PROGRAMFILES}/1cv8' : '/opt/1C/v8.3/x86_64';
@@ -28,12 +26,6 @@ function templatePath(relative: string): string {
 }
 
 /** Абсолютный путь в записи конфигурации запуска. */
-function asWorkspacePath(workspaceRoot: string | undefined, directory: string): string {
-	if (workspaceRoot === undefined) {
-		return directory;
-	}
-	return templatePath(path.relative(workspaceRoot, directory));
-}
 
 export class OnecDebugConfigurationProvoider implements vscode.DebugConfigurationProvider {
 	constructor(private readonly vrunner: VRunnerManager) {}
@@ -42,53 +34,35 @@ export class OnecDebugConfigurationProvoider implements vscode.DebugConfiguratio
 		folder: vscode.WorkspaceFolder | undefined,
 		_token?: vscode.CancellationToken
 	): Promise<vscode.DebugConfiguration[]> {
-		const cfPathSetting = vscode
-			.workspace
-			.getConfiguration('1c-platform-tools')
-			.get<string>('path.cf', DEFAULT_PATHS.cf);
-
-		// Каталоги расширений решения и тестовых: тесты YAxUnit живут отдельно
-		// от поставки, но отлаживать их нужно так же
-		const extensionPaths = [this.vrunner.getCfePath(), this.vrunner.getTestsCfePath()];
-
-		const layout = folder
-			? await resolveProjectLayout(folder.uri.fsPath, {
-				configuration: cfPathSetting,
-				extensions: extensionPaths,
-			})
-			: undefined;
-
 		const workspaceRoot = folder?.uri.fsPath;
-		const rootProject = layout?.configuration
-			? asWorkspacePath(workspaceRoot, layout.configuration.dir)
-			: templatePath(cfPathSetting);
+		const paths = workspaceRoot ? await projectPaths(workspaceRoot) : undefined;
+		const asTemplate = (relative: string) => templatePath(relative === '.' ? '' : relative);
 
-		const extensions = layout && layout.extensions.length > 0
-			? layout.extensions.map((extension) => asWorkspacePath(workspaceRoot, extension.dir))
-			: undefined;
+		const rootProject = asTemplate(paths?.configuration?.dir ?? CONVENTIONAL_PATHS.cf);
+
+		// Расширения решения и тестовые: тесты YAxUnit живут отдельно от поставки,
+		// но отлаживать их нужно так же
+		const extensions = paths ? [...paths.extensions, ...paths.testExtensions].map((extension) => asTemplate(extension.dir)) : [];
 
 		const baseConfig: vscode.DebugConfiguration = { ...launchConfig, rootProject };
-
-		if (extensions && extensions.length > 0) {
+		if (extensions.length > 0) {
 			(baseConfig as vscode.DebugConfiguration & { extensions: string[] }).extensions = extensions;
 		}
 
-		// Внешние обработки/отчёты — всегда в шаблоне (из настроек путей): несуществующие
-		// каталоги адаптер пропускает, а параметры не теряются, если каталог появится позже.
-		// Проекты EDT с внешними обработками лежат отдельно от конфигурации, поэтому найденные
-		// в рабочей области добавляются к настройкам.
-		const cfg = vscode.workspace.getConfiguration('1c-platform-tools');
-		const normalize = (p: string) => p.replace(/\\/g, '/').replace(/^\.?\//, '');
-
+		// Внешние обработки и отчёты: каталоги выгрузки конфигуратора всегда в шаблоне,
+		// несуществующие адаптер пропускает; проекты EDT лежат отдельно, поэтому идут
+		// каждый своим каталогом
 		const externalSources = [
-			templatePath(cfg.get<string>('path.epf', DEFAULT_PATHS.epf)),
-			templatePath(cfg.get<string>('path.erf', DEFAULT_PATHS.erf)),
-			...(layout?.externals ?? []).map((dir) => asWorkspacePath(workspaceRoot, dir)),
+			asTemplate(paths?.processorsContainer ?? CONVENTIONAL_PATHS.epf),
+			asTemplate(paths?.reportsContainer ?? CONVENTIONAL_PATHS.erf),
+			...(paths ? [...paths.processors, ...paths.reports, ...paths.testProcessors] : [])
+				.filter((external) => external.format === 'edt')
+				.map((external) => asTemplate(external.dir)),
 		];
 		(baseConfig as Record<string, unknown>).externalFilesSrc = [...new Set(externalSources)];
 
-		// Собранные .epf/.erf — сервер отладки адресует внешние модули по URL файла.
-		const outPath = normalize(cfg.get<string>('path.out', DEFAULT_PATHS.out));
+		// Собранные .epf/.erf: сервер отладки адресует внешние модули по URL файла
+		const outPath = this.vrunner.getOutPath().replace(/\\/g, '/').replace(/^\.?\//, '');
 		(baseConfig as Record<string, unknown>).externalFilesBuilds = [
 			`\${workspaceFolder}/${outPath}/epf`,
 			`\${workspaceFolder}/${outPath}/erf`,

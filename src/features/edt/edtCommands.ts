@@ -62,10 +62,7 @@ async function edtTarget(requireEdt = true): Promise<EdtTarget | undefined> {
 		return undefined;
 	}
 
-	const scope = await configurationScope(workspaceRoot, {
-		configuration: vrunner.getCfPath(),
-		extensions: [vrunner.getCfePath(), vrunner.getTestsCfePath()],
-	});
+	const scope = await configurationScope(workspaceRoot);
 	const configuration = scope.configuration;
 	if (!configuration) {
 		void vscode.window.showErrorMessage('В рабочей области нет исходников конфигурации.');
@@ -101,8 +98,7 @@ export async function importToEdt(): Promise<void> {
 		return;
 	}
 
-	const vrunner = VRunnerManager.getInstance();
-	const sources = path.join(target.workspaceRoot, vrunner.getCfPath());
+	const sources = target.projectPath;
 	const projectName = await vscode.window.showInputBox({
 		title: 'Импорт в проект EDT',
 		prompt: 'Имя проекта EDT',
@@ -220,11 +216,7 @@ async function exists(target: string): Promise<boolean> {
  * Каталоги расширений активной конфигурации с их именами из метаданных.
  */
 async function extensionSources(workspaceRoot: string): Promise<{ name: string; dir: string }[]> {
-	const vrunner = VRunnerManager.getInstance();
-	const scope = await configurationScope(workspaceRoot, {
-		configuration: vrunner.getCfPath(),
-		extensions: [vrunner.getCfePath(), vrunner.getTestsCfePath()],
-	});
+	const scope = await configurationScope(workspaceRoot);
 	return scope.extensions.map((extension) => ({
 		name: extension.name || path.basename(extension.dir),
 		dir: extension.dir,

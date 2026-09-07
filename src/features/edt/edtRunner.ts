@@ -12,13 +12,16 @@
  * @module edtRunner
  */
 
+import { createHash } from 'node:crypto';
 import * as fs from 'node:fs';
+import * as os from 'node:os';
 import * as path from 'node:path';
 import * as vscode from 'vscode';
 import { buildCommand, detectShellType } from '../../utils/commandUtils';
 import { createVRunnerTask } from '../tasks/vrunnerTask';
 import { logger } from '../../shared/logger';
 import { findEdtInstallations, pickEdtInstallation, type EdtInstallation } from '../../shared/edtLocator';
+import { markerIn } from '../../shared/projectLayout';
 
 const log = logger.scope('edt');
 
@@ -70,6 +73,27 @@ export function resolveEdt(settings: EdtSettings = readEdtSettings()): EdtInstal
 }
 
 /**
+ * Своё место во временном каталоге для проекта EDT, открытого как рабочая область:
+ * каталог сборки лежит внутри проекта, а рабочую область и выгрузки внутри проекта
+ * EDT не принимает.
+ */
+function temporaryProjectDir(workspaceRoot: string): string {
+	const key = createHash('sha1').update(path.resolve(workspaceRoot)).digest('hex').slice(0, 8);
+	return path.join(os.tmpdir(), '1c-platform-tools', `${path.basename(workspaceRoot)}-${key}`);
+}
+
+/**
+ * Корень выгрузок моста: каталог сборки, а у проекта EDT, открытого как рабочая область,
+ * временный каталог.
+ *
+ * @param workspaceRoot - Корень рабочей области VS Code
+ * @param buildPath - Каталог сборки проекта
+ */
+export function edtStagingRoot(workspaceRoot: string, buildPath: string): string {
+	return markerIn(workspaceRoot)?.format === 'edt' ? temporaryProjectDir(workspaceRoot) : buildPath;
+}
+
+/**
  * Каталог рабочей области для команд EDT.
  *
  * @param workspaceRoot - Корень рабочей области VS Code
@@ -79,6 +103,9 @@ export function edtWorkspaceDir(workspaceRoot: string, buildPath: string, settin
 	const configured = settings.workspace.trim();
 	if (configured) {
 		return path.isAbsolute(configured) ? configured : path.join(workspaceRoot, configured);
+	}
+	if (markerIn(workspaceRoot)?.format === 'edt') {
+		return path.join(temporaryProjectDir(workspaceRoot), DEFAULT_WORKSPACE_DIR);
 	}
 	return path.join(workspaceRoot, buildPath, DEFAULT_WORKSPACE_DIR);
 }

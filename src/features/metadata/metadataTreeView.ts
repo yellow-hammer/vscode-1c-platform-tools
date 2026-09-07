@@ -3,10 +3,10 @@
  * @module metadataTreeView
  */
 
+import { CONVENTIONAL_PATHS } from '../../shared/projectPaths';
 import * as path from 'node:path';
 import * as fs from 'node:fs';
 import * as vscode from 'vscode';
-import { VRunnerManager } from '../../shared/vrunnerManager';
 import { logger } from '../../shared/logger';
 import {
 	loadProjectMetadataTree,
@@ -1394,9 +1394,7 @@ export class MetadataTreeDataProvider implements vscode.TreeDataProvider<vscode.
 		if (!root) {
 			return undefined;
 		}
-		const vm = VRunnerManager.getInstance(this._context);
-		const rel = vm.getCfPath();
-		return path.normalize(path.join(root, rel));
+		return path.normalize(path.join(root, CONVENTIONAL_PATHS.cf));
 	}
 
 	/** Описание активной конфигурации: Configuration.xml выгрузки либо Configuration.mdo проекта EDT. */

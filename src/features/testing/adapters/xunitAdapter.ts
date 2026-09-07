@@ -9,7 +9,9 @@ import { TestFrameworkAdapter, AdapterRunPlan, RunUnit, FileTreeLocation } from 
 import { DiscoveredFile } from '../parsers/parserTypes';
 import { parseBslTestModule } from '../parsers/bslTestParser';
 import { BUILD_SUBDIRS } from '../../../shared/pathDefaults';
-import { markerIn } from '../../../shared/projectLayout';
+import { resolveProjectLayout } from '../../../shared/projectLayout';
+import { CONVENTIONAL_PATHS, projectPaths } from '../../../shared/projectPaths';
+import { resolveOnescriptTestsPath } from '../onescriptTestsPath';
 import {
 	extractJUnitPathFromReportsXunit,
 	reportsXunitFromEnv,
@@ -33,7 +35,7 @@ export interface EpfTestSourceInfo {
  * Адаптер модульных тестов xUnitFor1C / Vanessa-ADD
  *
  * Тесты для 1С — это внешние обработки: discovery идёт по разобранным
- * исходникам (<path.tests>/epf, ObjectModule.bsl в формате decompileepf).
+ * исходникам (tests/epf, ObjectModule.bsl в формате decompileepf).
  * Перед прогоном обработка собирается в .epf в каталог сборки тестовых
  * обработок (vrunner кэширует сборку), затем запускается бинарник.
  *
@@ -54,7 +56,10 @@ export class XUnitAdapter implements TestFrameworkAdapter {
 
 	constructor(private readonly vrunner: VRunnerManager) {}
 
-	public isEnabled(): boolean {
+	/** Каталог тестовых обработок из раскладки; читается вместе с масками поиска. */
+	private testsBase: string = CONVENTIONAL_PATHS.testsEpf;
+
+	public async isEnabled(): Promise<boolean> {
 		const config = vscode.workspace.getConfiguration('1c-platform-tools');
 		if (!config.get<boolean>('test.frameworks.xunit', true)) {
 			return false;
@@ -63,7 +68,11 @@ export class XUnitAdapter implements TestFrameworkAdapter {
 	}
 
 	public async getIncludeGlobs(): Promise<string[]> {
-		const epfBase = normalizeGlobBase(this.vrunner.getTestsSrcPath());
+		const workspaceRoot = this.vrunner.getWorkspaceRoot();
+		this.testsBase =
+			(workspaceRoot ? (await projectPaths(workspaceRoot)).testProcessorsContainer : undefined) ??
+			CONVENTIONAL_PATHS.testsEpf;
+		const epfBase = normalizeGlobBase(this.testsBase);
 		const configured = [
 			// форматы конфигуратора и EDT под настроенным путём тестов
 			`${epfBase}/**/Ext/ObjectModule.bsl`,
@@ -86,7 +95,7 @@ export class XUnitAdapter implements TestFrameworkAdapter {
 		// Исходник тестовой обработки: узел называется именем обработки
 		const epfInfo = epfTestSourceInfo(fileUri.fsPath);
 		if (epfInfo) {
-			const epfBase = this.vrunner.getTestsSrcPath();
+			const epfBase = this.testsBase;
 			const wrapperDir = path.dirname(epfInfo.processorDir);
 			const segments = directorySegments(
 				path.join(wrapperDir, 'placeholder'),
@@ -96,7 +105,7 @@ export class XUnitAdapter implements TestFrameworkAdapter {
 			return { segments, label: epfInfo.processorName };
 		}
 
-		return { segments: directorySegments(fileUri.fsPath, this.vrunner.getTestsPath(), workspaceRoot) };
+		return { segments: directorySegments(fileUri.fsPath, resolveOnescriptTestsPath(), workspaceRoot) };
 	}
 
 	public async buildRunPlan(unit: RunUnit, reportDir: string): Promise<AdapterRunPlan> {
@@ -274,40 +283,17 @@ export function epfTestSourceInfo(fsPath: string): EpfTestSourceInfo | undefined
 }
 
 /**
- * Проверяет наличие исходников конфигурации 1С в проекте
+ * Есть ли в рабочей области конфигурация.
  *
- * Тесты xUnit/Vanessa-ADD выполняются внутри информационной базы — без
- * конфигурации (чистая OneScript-библиотека) фреймворк не имеет смысла,
- * и каталог тестов отдаётся адаптеру OneScript.
+ * Тесты xUnit и сценарии Vanessa выполняются в информационной базе: без
+ * конфигурации каталог тестов отдаётся адаптерам OneScript и 1bdd.
  */
-export function hasConfigurationSources(vrunner: VRunnerManager): boolean {
+export async function hasConfigurationSources(vrunner: VRunnerManager): Promise<boolean> {
 	const workspaceRoot = vrunner.getWorkspaceRoot();
 	if (!workspaceRoot) {
 		return false;
 	}
-	return configurationSourcesIn(workspaceRoot, vrunner.getCfPath());
-}
-
-/**
- * Есть ли в рабочей области конфигурация: выгрузка конфигуратора по пути из
- * настроек либо проект EDT в корне или на уровень ниже, где его кладёт импорт.
- *
- * @param workspaceRoot - Корень рабочей области
- * @param cfPath - Путь выгрузки конфигурации относительно корня
- */
-export function configurationSourcesIn(workspaceRoot: string, cfPath: string): boolean {
-	if (fsSync.existsSync(path.join(workspaceRoot, cfPath)) || markerIn(workspaceRoot)?.format === 'edt') {
-		return true;
-	}
-	let entries: fsSync.Dirent[];
-	try {
-		entries = fsSync.readdirSync(workspaceRoot, { withFileTypes: true });
-	} catch {
-		return false;
-	}
-	return entries.some(
-		(entry) => entry.isDirectory() && markerIn(path.join(workspaceRoot, entry.name))?.format === 'edt'
-	);
+	return (await resolveProjectLayout(workspaceRoot)).configuration !== undefined;
 }
 
 /**

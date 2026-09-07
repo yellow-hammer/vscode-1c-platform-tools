@@ -1,40 +1,46 @@
 /**
- * Каталоги исходников из настроек 1c-platform-tools.paths.* (единая точка чтения).
+ * Каталоги исходного кода для команд md-sparrow над проектом целиком.
  * @module sourcePaths
  */
 
-import * as path from 'node:path';
-import * as vscode from 'vscode';
-import { DEFAULT_PATHS } from './pathDefaults';
+import { CONVENTIONAL_PATHS, projectPaths } from './projectPaths';
 
+/** Каталоги исходного кода относительно рабочей области: общие каталоги и точные списки. */
 export interface SourceDirs {
-	/** path.cf */
 	cf: string;
-	/** path.cfe */
 	cfe: string;
-	/** path.epf */
 	epf: string;
-	/** path.erf */
 	erf: string;
+	/** Каталоги расширений активной конфигурации, тестовых тоже, в том числе вложенные. */
+	cfeDirs: string[];
+	/** Каталоги внешних обработок выгрузки конфигуратора, тестовых тоже, где бы они ни лежали. */
+	epfDirs: string[];
+	/** Каталоги внешних отчётов выгрузки конфигуратора. */
+	erfDirs: string[];
 }
 
-function readPath(cfg: vscode.WorkspaceConfiguration, key: string, def: string): string {
-	const value = cfg.get<string>(key, def).trim().replaceAll('\\', '/');
-	return value.replace(/^\.\//, '').replace(/\/+$/, '') || def;
-}
-
-/** Настроенные каталоги исходников (относительно корня проекта). */
-export function configuredSourceDirs(): SourceDirs {
-	const cfg = vscode.workspace.getConfiguration('1c-platform-tools');
+/**
+ * Каталоги для команд md-sparrow, которые обходят проект целиком.
+ *
+ * Берутся из раскладки: конфигурация и расширения точными каталогами в обоих
+ * форматах, внешние объекты выгрузки конфигуратора тоже; тестовые расширения и
+ * обработки идут наравне с остальными. Чего в рабочей области нет, то идёт
+ * привычным местом: пустой каталог md-sparrow пропускает.
+ *
+ * @param workspaceRoot - Корень рабочей области
+ */
+export async function detectedSourceDirs(workspaceRoot: string): Promise<SourceDirs> {
+	const paths = await projectPaths(workspaceRoot);
+	const externals = [...paths.processors, ...paths.reports, ...paths.testProcessors].filter(
+		(external) => external.format === 'designer'
+	);
 	return {
-		cf: readPath(cfg, 'path.cf', DEFAULT_PATHS.cf),
-		cfe: readPath(cfg, 'path.cfe', DEFAULT_PATHS.cfe),
-		epf: readPath(cfg, 'path.epf', DEFAULT_PATHS.epf),
-		erf: readPath(cfg, 'path.erf', DEFAULT_PATHS.erf),
+		cf: paths.configuration?.dir ?? CONVENTIONAL_PATHS.cf,
+		cfe: paths.extensionsContainer ?? CONVENTIONAL_PATHS.cfe,
+		epf: paths.processorsContainer ?? CONVENTIONAL_PATHS.epf,
+		erf: paths.reportsContainer ?? CONVENTIONAL_PATHS.erf,
+		cfeDirs: [...paths.extensions, ...paths.testExtensions].map((extension) => extension.dir),
+		epfDirs: externals.filter((external) => external.kind === 'processor').map((external) => external.dir),
+		erfDirs: externals.filter((external) => external.kind === 'report').map((external) => external.dir),
 	};
-}
-
-/** Абсолютный путь к корню исходников конфигурации (path.cf) от корня workspace. */
-export function configuredCfRootAbs(workspaceRoot: string): string {
-	return path.join(workspaceRoot, ...configuredSourceDirs().cf.split('/'));
 }

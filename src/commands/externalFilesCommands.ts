@@ -46,7 +46,7 @@ export class ExternalFilesCommands extends BaseCommand {
 			return;
 		}
 
-		const srcFolder = fileType === 'processor' ? this.vrunner.getEpfPath() : this.vrunner.getErfPath();
+		const srcFolder = fileType === 'processor' ? await this.processorsContainer() : await this.reportsContainer();
 		const srcPath = path.join(cwd, srcFolder);
 
 		if (opts?.wait === true) {
@@ -126,7 +126,7 @@ export class ExternalFilesCommands extends BaseCommand {
 			return;
 		}
 
-		const outputPath = fileType === 'processor' ? this.vrunner.getEpfPath() : this.vrunner.getErfPath();
+		const outputPath = fileType === 'processor' ? await this.processorsContainer() : await this.reportsContainer();
 		const ibConnectionParam = await this.vrunner.getIbConnectionParam();
 		const commandName = fileType === 'processor'
 			? getDecompileExternalProcessorCommandName()

@@ -8,7 +8,7 @@ import * as vscode from 'vscode';
 import { clearMdSparrowJarCache, ensureMdSparrowRuntime } from './mdSparrowBootstrap';
 import { isMdSparrowUnknownCommandError, MdSparrowOutdatedError } from './mdSparrowErrors';
 import { logger } from '../../shared/logger';
-import { configuredSourceDirs } from '../../shared/sourcePaths';
+import { detectedSourceDirs } from '../../shared/sourcePaths';
 import { runMdSparrowParamsRead, type MdSparrowParams } from './mdSparrowParams';
 
 const log = logger.scope('metadata');
@@ -137,9 +137,9 @@ export async function loadProjectMetadataTree(
 	return parsed;
 }
 
-/** Параметры project-metadata-tree с каталогами исходников из настроек path.*. */
-export function projectMetadataTreeParams(projectRootAbs: string): MdSparrowParams {
-	const dirs = configuredSourceDirs();
+/** Параметры project-metadata-tree с каталогами исходного кода из раскладки. */
+export async function projectMetadataTreeParams(projectRootAbs: string): Promise<MdSparrowParams> {
+	const dirs = await detectedSourceDirs(projectRootAbs);
 	return {
 		op: 'project-metadata-tree',
 		projectRoot: projectRootAbs,
@@ -147,20 +147,23 @@ export function projectMetadataTreeParams(projectRootAbs: string): MdSparrowPara
 		cfeDir: dirs.cfe,
 		epfDir: dirs.epf,
 		erfDir: dirs.erf,
+		cfeDirs: dirs.cfeDirs,
+		epfDirs: dirs.epfDirs,
+		erfDirs: dirs.erfDirs,
 	};
 }
 
 async function runProjectMetadataTreeWithRepair(context: vscode.ExtensionContext, abs: string) {
 	const initialRes = await runMdSparrowParamsRead(
 		await ensureMdSparrowRuntime(context),
-		projectMetadataTreeParams(abs),
+		await projectMetadataTreeParams(abs),
 		{ cwd: abs }
 	);
 	if (initialRes.exitCode !== 0 && shouldRepairJarAndRetry(initialRes.stderr, initialRes.stdout)) {
 		log.warn('ошибка загрузки классов md-sparrow: очищаем кэш JAR и повторяем запуск');
 		await clearMdSparrowJarCache(context);
 		const repairedRuntime = await ensureMdSparrowRuntime(context);
-		return runMdSparrowParamsRead(repairedRuntime, projectMetadataTreeParams(abs), {
+		return runMdSparrowParamsRead(repairedRuntime, await projectMetadataTreeParams(abs), {
 			cwd: abs,
 		});
 	}

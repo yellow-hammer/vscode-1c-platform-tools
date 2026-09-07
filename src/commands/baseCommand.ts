@@ -8,6 +8,7 @@ import { logger } from '../shared/logger';
 import { runWithHooks, runHooksAroundTerminalTask } from '../shared/commandHooks';
 import { anyNeedsExclusiveInfobase, infobaseHolder, keepsInfobaseAfterRun } from '../shared/exclusiveInfobase';
 import { configurationScope } from '../shared/activeConfiguration';
+import { CONVENTIONAL_PATHS, projectPaths, type ProjectPaths } from '../shared/projectPaths';
 import {
 	edtExternalProjectsOf,
 	edtToolingRefusal,
@@ -19,8 +20,13 @@ import {
 	type EdtImportStep,
 } from '../features/edt/edtSourceBridge';
 import { runEdtExports, runEdtImports } from '../features/edt/edtBridgeRunner';
+import { edtStagingRoot } from '../features/edt/edtRunner';
 import { notifyQuiet } from '../shared/notify';
 import type { CommandExecutionOptions, StructuredCommandResult } from '../shared/commandExecutionTypes';
+
+/** Ответ команд, которым нужен исходный код конфигурации, а его в рабочей области нет. */
+export const NO_CONFIGURATION_SOURCES =
+	'Исходный код конфигурации в рабочей области не найден: нужен Configuration.xml выгрузки конфигуратора или проект EDT.';
 
 const log = logger.scope('commands');
 
@@ -460,7 +466,7 @@ export abstract class BaseCommand {
 		opts?: CommandExecutionOptions
 	): Promise<{ intents: VRunnerIntent[]; after?: () => Promise<void> } | StructuredCommandResult | 'blocked'> {
 		const workspaceRoot = this.vrunner.getWorkspaceRoot();
-		const buildDir = this.vrunner.getOutPath();
+		const buildDir = workspaceRoot ? edtStagingRoot(workspaceRoot, this.vrunner.getOutPath()) : this.vrunner.getOutPath();
 		const rewritten: VRunnerIntent[] = [];
 		const exports: EdtExportStep[] = [];
 		const imports: EdtImportStep[] = [];
@@ -509,10 +515,7 @@ export abstract class BaseCommand {
 		if (!workspaceRoot) {
 			return undefined;
 		}
-		const scope = await configurationScope(workspaceRoot, {
-			configuration: this.vrunner.getCfPath(),
-			extensions: [this.vrunner.getCfePath(), this.vrunner.getTestsCfePath()],
-		});
+		const scope = await configurationScope(workspaceRoot);
 		return scope.configuration?.format === 'edt' ? scope.configuration.dir : undefined;
 	}
 
@@ -528,10 +531,7 @@ export abstract class BaseCommand {
 		if (!workspaceRoot) {
 			return undefined;
 		}
-		const scope = await configurationScope(workspaceRoot, {
-			configuration: this.vrunner.getCfPath(),
-			extensions: [this.vrunner.getCfePath(), this.vrunner.getTestsCfePath()],
-		});
+		const scope = await configurationScope(workspaceRoot);
 
 		const relative = (dir: string) => path.relative(workspaceRoot, dir).split(path.sep).join('/');
 		const wanted = intentSourcePath(intent);
@@ -553,22 +553,52 @@ export abstract class BaseCommand {
 			: undefined;
 	}
 
-	protected async activeCfPath(): Promise<string> {
+	protected async activeCfPath(): Promise<string | undefined> {
+		return (await this.paths())?.configuration?.dir;
+	}
+
+	/**
+	 * Исходный код активной конфигурации; без него команда отвечает сообщением.
+	 *
+	 * @returns Каталог относительно рабочей области, результат агенту либо undefined после сообщения в UI
+	 */
+	protected async requireCfPath(opts?: CommandExecutionOptions): Promise<string | StructuredCommandResult | undefined> {
+		const dir = await this.activeCfPath();
+		if (dir !== undefined) {
+			return dir;
+		}
+		return (await this.reportUnavailable(NO_CONFIGURATION_SOURCES, opts)) ?? undefined;
+	}
+
+	/** Пути раскладки рабочей области; undefined без рабочей области. */
+	protected async paths(): Promise<ProjectPaths | undefined> {
 		const workspaceRoot = this.vrunner.getWorkspaceRoot();
-		if (!workspaceRoot) {
-			return this.vrunner.getCfPath();
-		}
+		return workspaceRoot ? projectPaths(workspaceRoot) : undefined;
+	}
 
-		const scope = await configurationScope(workspaceRoot, {
-			configuration: this.vrunner.getCfPath(),
-			extensions: [this.vrunner.getCfePath(), this.vrunner.getTestsCfePath()],
-		});
-		if (!scope.configuration) {
-			return this.vrunner.getCfPath();
-		}
+	/** Каталог расширений выгрузки конфигуратора либо привычное место, когда их ещё нет. */
+	protected async extensionsContainer(): Promise<string> {
+		return (await this.paths())?.extensionsContainer ?? CONVENTIONAL_PATHS.cfe;
+	}
 
-		const relative = path.relative(workspaceRoot, scope.configuration.dir).split(path.sep).join('/');
-		return relative.length > 0 ? relative : this.vrunner.getCfPath();
+	/** Каталог тестовых расширений либо привычное место, когда их ещё нет. */
+	protected async testExtensionsContainer(): Promise<string> {
+		return (await this.paths())?.testExtensionsContainer ?? CONVENTIONAL_PATHS.testsCfe;
+	}
+
+	/** Каталог внешних обработок либо привычное место, когда их ещё нет. */
+	protected async processorsContainer(): Promise<string> {
+		return (await this.paths())?.processorsContainer ?? CONVENTIONAL_PATHS.epf;
+	}
+
+	/** Каталог внешних отчётов либо привычное место, когда их ещё нет. */
+	protected async reportsContainer(): Promise<string> {
+		return (await this.paths())?.reportsContainer ?? CONVENTIONAL_PATHS.erf;
+	}
+
+	/** Каталог тестовых обработок либо привычное место, когда их ещё нет. */
+	protected async testProcessorsContainer(): Promise<string> {
+		return (await this.paths())?.testProcessorsContainer ?? CONVENTIONAL_PATHS.testsEpf;
 	}
 
 	/**
@@ -582,10 +612,7 @@ export abstract class BaseCommand {
 			return [];
 		}
 
-		const scope = await configurationScope(workspaceRoot, {
-			configuration: this.vrunner.getCfPath(),
-			extensions: [this.vrunner.getCfePath(), this.vrunner.getTestsCfePath()],
-		});
+		const scope = await configurationScope(workspaceRoot);
 		return scope.extensions.map((extension) => ({
 			name: extension.name,
 			dir: path.relative(workspaceRoot, extension.dir).split(path.sep).join('/'),

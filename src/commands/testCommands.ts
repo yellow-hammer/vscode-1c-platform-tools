@@ -19,7 +19,8 @@ import { collectAllureResultDirs } from '../utils/allureResults';
 import { configurationScope } from '../shared/activeConfiguration';
 import { VRUNNER_FEATURES, isAtLeast } from '../shared/vrunnerVersion';
 import type { CommandExecutionOptions, StructuredCommandResult, SyntaxCheckError } from '../shared/commandExecutionTypes';
-import { DEFAULT_TESTING, DEFAULT_PATHS, BUILD_SUBDIRS } from '../shared/pathDefaults';
+import { DEFAULT_TESTING, BUILD_SUBDIRS } from '../shared/pathDefaults';
+import { CONVENTIONAL_PATHS } from '../shared/projectPaths';
 import { legacyTestsSrcHint } from '../features/testing/legacyTestsSrc';
 import * as fs from 'node:fs/promises';
 import { settingValue, resolveConfigPath, reportsXunitFromEnv, extractJUnitPathFromReportsXunit, extractAllurePathFromReportsXunit, vanessaReportTarget, vanessaSettingsPathFromEnv, syntaxCheckJUnitPathFromEnv, syntaxCheckAllurePathsFromEnv } from '../features/testing/projectTestConfig';
@@ -308,10 +309,7 @@ export class TestCommands extends BaseCommand {
 			return;
 		}
 
-		const scope = await configurationScope(workspaceRoot, {
-			configuration: this.vrunner.getCfPath(),
-			extensions: [this.vrunner.getCfePath(), this.vrunner.getTestsCfePath()],
-		});
+		const scope = await configurationScope(workspaceRoot);
 		const project = scope.configuration;
 		if (!project || project.format !== 'edt') {
 			return this.reportUnavailable(
@@ -362,9 +360,7 @@ export class TestCommands extends BaseCommand {
 			return [];
 		}
 
-		const cfRel = vscode.workspace
-			.getConfiguration('1c-platform-tools')
-			.get<string>('path.cf', DEFAULT_PATHS.cf);
+		const cfRel = (await this.activeCfPath()) ?? CONVENTIONAL_PATHS.cf;
 
 		return toSyntaxCheckErrors(findings, cfRel);
 	}
@@ -472,7 +468,7 @@ export class TestCommands extends BaseCommand {
 	/**
 	 * Собирает тестовые обработки из исходников в бинарники
 	 *
-	 * Выполняет vrunner compileepf <path.tests>/epf <path.out>/tests/epf:
+	 * Выполняет vrunner compileepf tests/epf build/out/tests/epf:
 	 * разобранные исходники тестовых обработок (tests/epf) собираются в .epf
 	 * в каталог результатов сборки (build/out/tests/epf) — собранные артефакты
 	 * не попадают в git. vrunner кэширует сборку и пересобирает только
@@ -486,7 +482,7 @@ export class TestCommands extends BaseCommand {
 		if (legacy) {
 			return legacy === 'blocked' ? undefined : legacy;
 		}
-		const sourcesPath = this.vrunner.getTestsSrcPath();
+		const sourcesPath = await this.testProcessorsContainer();
 		const binariesPath = path.join(this.vrunner.getOutPath(), BUILD_SUBDIRS.testsEpf);
 		const ibConnectionParam = await this.vrunner.getIbConnectionParam();
 		const buildEpfCmd = getBuildTestEpfCommandName();
@@ -499,7 +495,7 @@ export class TestCommands extends BaseCommand {
 	/**
 	 * Разбирает бинарники тестовых обработок в исходники
 	 *
-	 * Выполняет vrunner decompileepf <path.tests> <path.tests>/epf:
+	 * Выполняет vrunner decompileepf tests tests/epf:
 	 * .epf из каталога тестов раскладываются в исходники (tests/epf) —
 	 * удобно для первичного переноса существующих бинарных тестов под контроль версий.
 	 *
@@ -539,8 +535,8 @@ export class TestCommands extends BaseCommand {
 		if (legacy) {
 			return legacy === 'blocked' ? undefined : legacy;
 		}
-		const sourcesPath = this.vrunner.getTestsSrcPath();
-		const binariesPath = this.vrunner.getTestsPath();
+		const sourcesPath = await this.testProcessorsContainer();
+		const binariesPath = CONVENTIONAL_PATHS.tests;
 		const ibConnectionParam = await this.vrunner.getIbConnectionParam();
 		const decompileEpfCmd = getDecompileTestEpfCommandName();
 		return this.runIntent(

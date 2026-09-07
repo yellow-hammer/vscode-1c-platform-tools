@@ -1,6 +1,7 @@
 import * as assert from 'node:assert';
+import * as os from 'node:os';
 import * as path from 'node:path';
-import { buildEdtArgs, edtWorkspaceDir, type EdtSettings } from '../../features/edt/edtRunner';
+import { buildEdtArgs, edtStagingRoot, edtWorkspaceDir, type EdtSettings } from '../../features/edt/edtRunner';
 
 /** Настройки по умолчанию для сборки вызова. */
 function settings(overrides: Partial<EdtSettings> = {}): EdtSettings {
@@ -55,6 +56,19 @@ suite('запуск команд EDT', () => {
 		const dir = edtWorkspaceDir('C:/проект', 'build', settings());
 
 		assert.strictEqual(dir, path.join('C:/проект', 'build', 'edt-workspace'));
+	});
+
+	test('у проекта EDT, открытого как рабочая область, рабочая область во временном каталоге', () => {
+		const project = path.resolve(__dirname, '../../../src/test/fixtures/projectLayout/edt-workspace/ssl31');
+
+		const dir = edtWorkspaceDir(project, 'build', settings());
+
+		assert.ok(dir.startsWith(os.tmpdir()), dir);
+		assert.ok(!dir.startsWith(project), dir);
+		assert.strictEqual(path.basename(dir), 'edt-workspace');
+		assert.ok(path.basename(path.dirname(dir)).startsWith('ssl31-'), dir);
+		assert.strictEqual(edtStagingRoot(project, 'build'), path.dirname(dir));
+		assert.strictEqual(edtStagingRoot('C:/проект', 'build'), 'build');
 	});
 
 	test('настроенная рабочая область может быть относительной и абсолютной', () => {

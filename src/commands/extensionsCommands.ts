@@ -61,7 +61,7 @@ export class ExtensionsCommands extends BaseCommand {
 	 * @returns Промис, который разрешается после запуска всех команд
 	 */
 	protected async executeForAllExtensions(
-		buildIntent: (extensionSource: string, extensionName: string, extensionFolder: string) => VRunnerIntent,
+		buildIntent: (extensionSource: string, extensionName: string, extensionFolder: string, sourcesRoot: string) => VRunnerIntent,
 		commandName: string,
 		opts?: CommandExecutionOptions,
 		commandId?: string,
@@ -91,10 +91,10 @@ export class ExtensionsCommands extends BaseCommand {
 			}
 		}
 
-		const sources = await this.resolveExtensionSources(workspaceRoot, sourcesRoot);
+		const sources = await this.resolveExtensionSources(workspaceRoot, sourcesRoot, scope);
 		if (!sources) {
 			if (opts?.wait === true) {
-				return this.executionError('В каталоге расширений не найдено подкаталогов');
+				return this.executionError('Расширений в рабочей области нет');
 			}
 			return;
 		}
@@ -120,7 +120,7 @@ export class ExtensionsCommands extends BaseCommand {
 		const intents = await Promise.all(selectedFolders.map(async (folder) => {
 			// В формате EDT базой служит корень рабочей области, а каталогом - сам проект
 			const source = root === '.' ? folder : `${root}/${folder}`;
-			return buildIntent(source, await resolveExtensionNameFromSrc(path.join(cfeRoot, folder)), folder);
+			return buildIntent(source, await resolveExtensionNameFromSrc(path.join(cfeRoot, folder)), folder, root);
 		}));
 		// Через общий путь, а не своим планированием: он же освобождает базу
 		// на время команд конфигуратора и возвращает её после
@@ -154,31 +154,38 @@ export class ExtensionsCommands extends BaseCommand {
 	}
 
 	/**
-	 * Каталог расширений и их подкаталоги для команд над исходниками.
+	 * Каталоги расширений для команд над исходным кодом.
 	 *
-	 * В формате конфигуратора расширения лежат подкаталогами настроенного пути,
-	 * в формате EDT - отдельными проектами рабочей области. Во втором случае
-	 * базой становится корень рабочей области, а «подкаталогом» - каталог
-	 * проекта, поэтому остальной код команд не меняется.
+	 * Расширения берутся из раскладки: у выгрузки конфигуратора базой служит их
+	 * общий каталог, а «подкаталог» бывает и вложенным, когда расширение лежит в
+	 * репозитории внутри `src/cfe`; у проектов EDT базой служит рабочая область.
+	 * Явно заданный каталог обходится по подкаталогам.
 	 *
 	 * @param workspaceRoot - Корень рабочей области
 	 * @param sourcesRoot - Каталог расширений, если задан явно
+	 * @param scope - Расширения решения или тестовые
 	 * @returns База и список каталогов расширений или undefined, если их нет
 	 */
 	private async resolveExtensionSources(
 		workspaceRoot: string,
-		sourcesRoot?: string
+		sourcesRoot?: string,
+		scope: ExtensionScope = 'solution'
 	): Promise<{ root: string; folders: string[] } | undefined> {
-		if (sourcesRoot === undefined) {
-			const edtProjects = (await this.activeExtensions()).filter((item) => item.format === 'edt');
-			if (edtProjects.length > 0) {
-				return { root: '.', folders: edtProjects.map((item) => item.dir) };
-			}
+		if (sourcesRoot !== undefined) {
+			const folders = await this.getExtensionFoldersFromSrc(workspaceRoot, sourcesRoot);
+			return folders ? { root: sourcesRoot, folders } : undefined;
 		}
-
-		const root = sourcesRoot ?? this.vrunner.getCfePath();
-		const folders = await this.getExtensionFoldersFromSrc(workspaceRoot, root);
-		return folders ? { root, folders } : undefined;
+		const paths = await this.paths();
+		const extensions = (scope === 'tests' ? paths?.testExtensions : paths?.extensions) ?? [];
+		if (extensions.length === 0) {
+			const what = scope === 'tests' ? 'Тестовых расширений' : 'Расширений';
+			log.info(`${what} в рабочей области нет`);
+			vscode.window.showInformationMessage(`${what} в рабочей области нет`);
+			return undefined;
+		}
+		const root = (scope === 'tests' ? paths?.testExtensionsContainer : paths?.extensionsContainer) ?? '.';
+		const folders = extensions.map((extension) => (root === '.' ? extension.dir : path.posix.relative(root, extension.dir)));
+		return { root, folders };
 	}
 
 	/**
@@ -229,33 +236,19 @@ export class ExtensionsCommands extends BaseCommand {
 	}
 
 	/**
-	 * Каталоги расширений на диске: пустой список, если корня ещё нет.
-	 * Сообщение «не найдено» здесь не показывается — выгрузка из ИБ сама
-	 * заведёт папки по списку базы.
+	 * Расширения, уже лежащие под каталогом: из раскладки, каталог относительно
+	 * него бывает вложенным. Пустой список, когда там ничего нет: выгрузка из ИБ
+	 * сама заведёт папки по списку базы.
 	 */
-	private async listDiskExtensions(
-		workspaceRoot: string,
-		cfePath: string
-	): Promise<DiskExtension[]> {
-		const root = path.join(workspaceRoot, cfePath);
-		try {
-			const stats = await fs.stat(root);
-			if (!stats.isDirectory()) {
-				return [];
-			}
-		} catch {
-			return [];
-		}
-
-		const folders = await this.getDirectories(root);
-		const disk: DiskExtension[] = [];
-		for (const folder of folders) {
-			disk.push({
-				folder,
-				extensionName: await resolveExtensionNameFromSrc(path.join(root, folder))
-			});
-		}
-		return disk;
+	private async listDiskExtensions(cfePath: string): Promise<DiskExtension[]> {
+		const paths = await this.paths();
+		const under = (dir: string): boolean => cfePath === '.' || dir === cfePath || dir.startsWith(`${cfePath}/`);
+		return [...(paths?.extensions ?? []), ...(paths?.testExtensions ?? [])]
+			.filter((extension) => under(extension.dir))
+			.map((extension) => ({
+				folder: cfePath === '.' ? extension.dir : path.posix.relative(cfePath, extension.dir),
+				extensionName: extension.name || path.basename(extension.dir),
+			}));
 	}
 
 	/**
@@ -465,7 +458,7 @@ export class ExtensionsCommands extends BaseCommand {
 		opts: CommandExecutionOptions | undefined,
 		createFolders: boolean
 	): Promise<ExtensionDumpTarget[] | StructuredCommandResult | undefined> {
-		const disk = await this.listDiskExtensions(workspaceRoot, cfePath);
+		const disk = await this.listDiskExtensions(cfePath);
 		// Явные имена от агента задают цели сами: среди них могут быть расширения
 		// базы, каталога под которые ещё нет, и отбор по диску их бы потерял
 		const explicit = normalizeConfiguredExtensions(opts?.extensions);
@@ -489,7 +482,10 @@ export class ExtensionsCommands extends BaseCommand {
 		}
 
 		const targets = resolveDumpTargets(disk, selected);
-		const invalid = targets.find((target) => !isUsableExtensionFolderName(target.folder));
+		// Существующий каталог бывает вложенным, проверка имени только для новых
+		const invalid = targets.find(
+			(target) => !disk.some((item) => item.folder === target.folder) && !isUsableExtensionFolderName(target.folder)
+		);
 		if (invalid !== undefined) {
 			return this.reportExportPrepareFailure(
 				`Нельзя создать каталог «${invalid.folder}»`,
@@ -509,9 +505,10 @@ export class ExtensionsCommands extends BaseCommand {
 		return targets;
 	}
 
-	/** Группирует пути из objlist по расширениям (src/cfe/<имя>). Пути — полные или относительно workspace. */
+	/** Группирует пути из objlist по расширениям. Пути полные или относительно workspace. */
 	private async getPathsByExtensionFromObjlist(
 		workspaceRoot: string,
+		cfePath: string,
 		extensionFolders: string[]
 	): Promise<Map<string, string[]>> {
 		let content: string;
@@ -521,7 +518,6 @@ export class ExtensionsCommands extends BaseCommand {
 			return new Map();
 		}
 		const lines = this.parseObjlistLines(content);
-		const cfePath = this.vrunner.getCfePath();
 		const byExtension = new Map<string, string[]>();
 		for (const line of lines) {
 			const fullPath = this.resolveObjlistLine(workspaceRoot, line);
@@ -591,13 +587,11 @@ export class ExtensionsCommands extends BaseCommand {
 			return;
 		}
 
-		const extensionFolders = await this.getExtensionFoldersFromSrc(
-			workspaceRoot,
-			this.vrunner.getCfePath()
-		);
-		if (!extensionFolders) {
+		const sources = await this.resolveExtensionSources(workspaceRoot);
+		if (!sources) {
 			return;
 		}
+		const extensionFolders = sources.folders;
 
 		const selectedFolders = await this.selectExtensions(extensionFolders, opts);
 		if (selectedFolders === undefined) {
@@ -609,7 +603,7 @@ export class ExtensionsCommands extends BaseCommand {
 			return;
 		}
 
-		const pathsByExtension = await this.getPathsByExtensionFromObjlist(workspaceRoot, selectedFolders);
+		const pathsByExtension = await this.getPathsByExtensionFromObjlist(workspaceRoot, sources.root, selectedFolders);
 		if (pathsByExtension.size === 0) {
 			log.info('В objlist.txt нет путей в каталогах расширений (src/cfe/...)');
 			vscode.window.showInformationMessage(
@@ -622,7 +616,7 @@ export class ExtensionsCommands extends BaseCommand {
 			return;
 		}
 
-		const cfePath = this.vrunner.getCfePath();
+		const cfePath = sources.root;
 		const ibConnectionParam = await this.vrunner.getIbConnectionParam();
 		const commandName = getLoadExtensionFromFilesByListCommandName();
 		const listFilePrefix = this.pathForCmd(buildPath) + '/';
@@ -630,7 +624,7 @@ export class ExtensionsCommands extends BaseCommand {
 		const intents: VRunnerIntent[] = [];
 		const loadedExtensionNames: string[] = [];
 		for (const [extensionFolder, relativePaths] of pathsByExtension) {
-			const listFileName = `extension-partial-load-${extensionFolder}.txt`;
+			const listFileName = `extension-partial-load-${path.basename(extensionFolder)}.txt`;
 			const listFilePath = path.join(buildFullPath, listFileName);
 			if (!(await this.writeListFile(listFilePath, relativePaths, `Список расширения ${extensionFolder}`))) {
 				continue;
@@ -892,7 +886,7 @@ export class ExtensionsCommands extends BaseCommand {
 			return started;
 		}
 
-		const cfePath = this.vrunner.getCfePath();
+		const cfePath = await this.extensionsContainer();
 		const prepared = await this.prepareTargetsForIbExport(started, cfePath, opts, true);
 		if (prepared === undefined || !Array.isArray(prepared)) {
 			return prepared;
@@ -930,7 +924,7 @@ export class ExtensionsCommands extends BaseCommand {
 
 		const prepared = await this.prepareTargetsForIbExport(
 			started,
-			this.vrunner.getCfePath(),
+			await this.extensionsContainer(),
 			opts,
 			false
 		);
@@ -957,7 +951,7 @@ export class ExtensionsCommands extends BaseCommand {
 			prepared.map((target) => ({
 				kind: 'cfe.unloadIbToCfe' as const,
 				extensionName: target.extensionName,
-				out: path.join(buildPath, BUILD_SUBDIRS.cfe, `${target.folder}.cfe`),
+				out: path.join(buildPath, BUILD_SUBDIRS.cfe, `${path.basename(target.folder)}.cfe`),
 				common: ibConnectionParam
 			})),
 			opts,
@@ -983,14 +977,6 @@ export class ExtensionsCommands extends BaseCommand {
 				);
 			}
 			this.ensureWorkspace();
-			return;
-		}
-
-		const extensionFolders = await this.getExtensionFoldersFromSrc(cwd, this.vrunner.getCfePath());
-		if (!extensionFolders) {
-			if (opts?.wait === true) {
-				return this.executionError('В каталоге расширений не найдено подкаталогов');
-			}
 			return;
 		}
 
@@ -1025,7 +1011,7 @@ export class ExtensionsCommands extends BaseCommand {
 	/**
 	 * Загружает тестовые расширения в ИБ из исходников.
 	 *
-	 * Тестовые расширения живут отдельно от решения (`<path.tests>/cfe`,
+	 * Тестовые расширения живут отдельно от решения (`tests/cfe`,
 	 * по умолчанию `tests/cfe`): сам YAxUnit и расширение с тестами - обычные
 	 * подкаталоги там же. Показывается тот же выбор, что и у расширений
 	 * решения, поэтому можно подключить только тесты или только инструмент.
@@ -1036,7 +1022,6 @@ export class ExtensionsCommands extends BaseCommand {
 	async loadTestsFromSrc(opts?: CommandExecutionOptions): Promise<StructuredCommandResult | void> {
 		const ibConnectionParam = await this.vrunner.getIbConnectionParam();
 		const commandName = getLoadTestExtensionsCommandName();
-		const testsCfePath = this.vrunner.getTestsCfePath();
 
 		return this.executeForAllExtensions(
 			(extensionSource, extensionName, extensionFolder) => ({
@@ -1049,7 +1034,7 @@ export class ExtensionsCommands extends BaseCommand {
 			commandName.title,
 			opts,
 			commandName.id,
-			testsCfePath,
+			undefined,
 			'tests'
 		);
 	}
@@ -1065,7 +1050,6 @@ export class ExtensionsCommands extends BaseCommand {
 	 */
 	async buildTests(opts?: CommandExecutionOptions): Promise<StructuredCommandResult | void> {
 		const commandName = getBuildTestExtensionsCommandName();
-		const testsCfePath = this.vrunner.getTestsCfePath();
 		const buildPath = this.vrunner.getOutPath();
 
 		return this.executeForAllExtensions(
@@ -1078,7 +1062,7 @@ export class ExtensionsCommands extends BaseCommand {
 			commandName.title,
 			opts,
 			commandName.id,
-			testsCfePath,
+			undefined,
 			'tests'
 		);
 	}
@@ -1095,19 +1079,19 @@ export class ExtensionsCommands extends BaseCommand {
 	async dumpTestsToSrc(opts?: CommandExecutionOptions): Promise<StructuredCommandResult | void> {
 		const ibConnectionParam = await this.vrunner.getIbConnectionParam();
 		const commandName = getDumpTestExtensionsCommandName();
-		const testsCfePath = this.vrunner.getTestsCfePath();
 
 		return this.executeForAllExtensions(
-			(extensionSource, extensionName, extensionFolder) => ({
+			(extensionSource, extensionName, extensionFolder, sourcesRoot) => ({
 				kind: 'cfe.dumpIbToSrc',
 				extensionName,
-				out: path.join(testsCfePath, extensionFolder),
+				// Каталог тот же, из которого взяты расширения: у проектов EDT общего каталога нет
+				out: sourcesRoot === '.' ? extensionFolder : path.join(sourcesRoot, extensionFolder),
 				common: ibConnectionParam,
 			}),
 			commandName.title,
 			opts,
 			commandName.id,
-			testsCfePath,
+			undefined,
 			'tests'
 		);
 	}
@@ -1116,7 +1100,7 @@ export class ExtensionsCommands extends BaseCommand {
 	 * Разбирает собранные тестовые *.cfe в исходники.
 	 *
 	 * Берёт файлы из каталога сборки тестовых расширений и раскладывает каждый
-	 * в свой подкаталог корня тестов (`<path.tests>/cfe`). Разбирается сам файл, а не то, что
+	 * в свой подкаталог корня тестов (`tests/cfe`). Разбирается сам файл, а не то, что
 	 * установлено в ИБ: так подключают полученный со стороны YAxUnit.cfe.
 	 *
 	 * @param opts - Опции выполнения
@@ -1188,7 +1172,7 @@ export class ExtensionsCommands extends BaseCommand {
 
 		const ibConnectionParam = await this.vrunner.getIbConnectionParam();
 		const commandName = getDecompileTestExtensionsCommandName();
-		const testsCfePath = this.vrunner.getTestsCfePath();
+		const testsCfePath = await this.testExtensionsContainer();
 		const intents = await Promise.all(selectedCfeFiles.map(async (cfeFile) => {
 			const folderName = cfeFile.replace(/\.cfe$/i, '');
 			const extensionName = await resolveExtensionNameFromSrc(path.join(cwd, testsCfePath, folderName));
@@ -1277,7 +1261,7 @@ export class ExtensionsCommands extends BaseCommand {
 
 		const ibConnectionParam = await this.vrunner.getIbConnectionParam();
 		const commandName = getDecompileExtensionCommandName();
-		const cfePath = this.vrunner.getCfePath();
+		const cfePath = await this.extensionsContainer();
 		const intents = await Promise.all(selectedCfeFiles.map(async (cfeFile) => {
 			const folderName = cfeFile.replace(/\.cfe$/i, '');
 			const extensionName = await resolveExtensionNameFromSrc(path.join(cwd, cfePath, folderName));

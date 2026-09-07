@@ -145,6 +145,10 @@ export interface MdSparrowParams {
 	cfeDir?: string;
 	epfDir?: string;
 	erfDir?: string;
+	/** Точные каталоги расширений и внешних объектов: заменяют перечисление подкаталогов общих каталогов. */
+	cfeDirs?: string[];
+	epfDirs?: string[];
+	erfDirs?: string[];
 	tag?: string;
 	name?: string;
 	oldName?: string;

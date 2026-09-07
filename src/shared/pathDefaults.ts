@@ -8,17 +8,17 @@
  * Формат единый: относительный путь от корня проекта без ведущего `./`.
  */
 
-/** Дефолты группы 1c-platform-tools.paths.* */
+/** Привычные места исходного кода и дефолты настроек path.out и path.dist */
 export const DEFAULT_PATHS = {
-	/** Исходники конфигурации (path.cf) */
+	/** Привычное место исходного кода конфигурации */
 	cf: 'src/cf',
-	/** Исходники расширений (path.cfe) */
+	/** Привычное место расширений */
 	cfe: 'src/cfe',
-	/** Исходники внешних обработок (path.epf) */
+	/** Привычное место внешних обработок */
 	epf: 'src/epf',
-	/** Исходники внешних отчётов (path.erf) */
+	/** Привычное место внешних отчётов */
 	erf: 'src/erf',
-	/** Корень тестов: *.os и подкаталоги исходников (path.tests) */
+	/** Корень тестов: *.os и подкаталоги исходного кода */
 	tests: 'tests',
 	/** Результаты сборки (path.out) */
 	out: 'build/out',
@@ -27,23 +27,23 @@ export const DEFAULT_PATHS = {
 } as const;
 
 /**
- * Подкаталоги внутри корня тестов (path.tests).
+ * Подкаталоги внутри корня тестов.
  *
  * Раскладка фиксированная: настройки на каждый подкаталог не заводим, иначе
  * корень тестов повторялся бы в каждой из них, а переименование каталога
  * правилось бы в нескольких местах. Один корень - один переезд.
  */
 export const TESTS_SUBDIRS = {
-	/** Исходники тестовых расширений: <path.tests>/cfe */
+	/** Тестовые расширения: tests/cfe */
 	cfe: 'cfe',
-	/** Исходники тестовых обработок: <path.tests>/epf */
+	/** Тестовые обработки: tests/epf */
 	epf: 'epf'
 } as const;
 
 /**
  * Путь подкаталога тестов относительно корня проекта.
  *
- * @param testsRoot - Корень тестов (path.tests)
+ * @param testsRoot - Корень тестов
  * @param subdir - Подкаталог из TESTS_SUBDIRS
  * @returns Путь относительно корня проекта, через прямые слэши
  */
@@ -88,7 +88,7 @@ export const BUILD_SUBDIRS = {
 export const DEFAULT_TESTING = {
 	/** Каталог feature-файлов (test.path.features) */
 	featuresPath: 'features',
-	/** Каталог тестов OneScript: устарел, каталог задаётся в path.tests */
+	/** Каталог тестов OneScript */
 	onescriptTestsPath: 'tests',
 	/** Каталог временных файлов прогонов (test.path.reports) */
 	reportsPath: 'build/out/testapi',
@@ -116,11 +116,6 @@ export const DEFAULT_ENV = {
  * Связь описана здесь один раз, по ней же проверяется совпадение с манифестом.
  */
 export const SETTING_DEFAULTS: ReadonlyArray<{ readonly key: string; readonly value: string }> = [
-	{ key: '1c-platform-tools.path.cf', value: DEFAULT_PATHS.cf },
-	{ key: '1c-platform-tools.path.cfe', value: DEFAULT_PATHS.cfe },
-	{ key: '1c-platform-tools.path.epf', value: DEFAULT_PATHS.epf },
-	{ key: '1c-platform-tools.path.erf', value: DEFAULT_PATHS.erf },
-	{ key: '1c-platform-tools.path.tests', value: DEFAULT_PATHS.tests },
 	{ key: '1c-platform-tools.path.out', value: DEFAULT_PATHS.out },
 	{ key: '1c-platform-tools.path.dist', value: DEFAULT_PATHS.dist },
 	{ key: '1c-platform-tools.test.path.features', value: DEFAULT_TESTING.featuresPath },

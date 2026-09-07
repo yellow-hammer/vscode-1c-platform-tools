@@ -1,3 +1,5 @@
+import { configurationScope } from '../../../shared/activeConfiguration';
+import { runnerPath } from '../../../shared/projectPaths';
 import * as vscode from 'vscode';
 import * as path from 'node:path';
 import * as fs from 'node:fs/promises';
@@ -7,9 +9,7 @@ import { TestFrameworkAdapter, AdapterRunPlan, RunUnit } from '../frameworkAdapt
 import { DiscoveredFile } from '../parsers/parserTypes';
 import { parseBslTestModule } from '../parsers/bslTestParser';
 import { resolveConfigPath } from '../projectTestConfig';
-import { activeSourceGlobBases, normalizeGlobBase } from './adapterUtils';
 import { DEFAULT_TESTING } from '../../../shared/pathDefaults';
-import { resolveExtensionNameFromSrc } from '../../extensions/extensionNames';
 
 const log = logger.scope('testing');
 
@@ -18,7 +18,7 @@ const log = logger.scope('testing');
  *
  * Discovery: общие модули тестового расширения с регистрацией тестов через
  * ДобавитьТест("..."). Смотрим оба корня расширений: и решения (path.cfe), и
- * тестовых (<path.tests>/cfe) - расширение с тестами держат отдельно от поставки,
+ * тестовых (tests/cfe) - расширение с тестами держат отдельно от поставки,
  * но и внутри решения оно встречается.
  *
  * Запуск: vrunner run --command RunUnitTests=<конфиг>. За основу берётся
@@ -32,28 +32,32 @@ export class YaxunitAdapter implements TestFrameworkAdapter {
 
 	constructor(private readonly vrunner: VRunnerManager) {}
 
-	public isEnabled(): boolean {
+	public async isEnabled(): Promise<boolean> {
 		const config = vscode.workspace.getConfiguration('1c-platform-tools');
 		return config.get<boolean>('test.frameworks.yaxunit', true);
 	}
 
 	public async getIncludeGlobs(): Promise<string[]> {
-		const configured = [this.vrunner.getCfePath(), this.vrunner.getTestsCfePath()]
-			.map((root) => normalizeGlobBase(root))
-			.filter((base) => base.length > 0)
-			.flatMap((base) => [
-				// расширения лежат подкаталогами настроенного пути
-				`${base}/*/CommonModules/*/Ext/Module.bsl`,
-				`${base}/*/src/CommonModules/*/Module.bsl`,
-			]);
+		const workspaceRoot = this.vrunner.getWorkspaceRoot();
+		if (!workspaceRoot) {
+			return [];
+		}
+		const scope = await configurationScope(workspaceRoot);
+		const prefix = (dir: string) => {
+			const relative = runnerPath(workspaceRoot, dir);
+			return relative === '.' ? '' : `${relative}/`;
+		};
+		const extensions = [...scope.extensions, ...scope.testExtensions];
+		const designer = extensions
+			.filter((root) => root.format === 'designer')
+			.map((root) => `${prefix(root.dir)}CommonModules/*/Ext/Module.bsl`);
+		// В формате EDT тесты YAxUnit живут и в проекте самой конфигурации
+		const edt = [
+			...(scope.configuration?.format === 'edt' ? [scope.configuration] : []),
+			...extensions.filter((root) => root.format === 'edt'),
+		].map((root) => `${prefix(root.dir)}src/CommonModules/*/Module.bsl`);
 
-		// В формате EDT конфигурация и расширения - отдельные проекты рабочей
-		// области, настроенными путями их не описать.
-		const projects = (await activeSourceGlobBases(this.vrunner)).map(
-			(base) => `${base}/src/CommonModules/*/Module.bsl`
-		);
-
-		return [...configured, ...projects].filter((glob, index, all) => all.indexOf(glob) === index);
+		return [...designer, ...edt].filter((glob, index, all) => all.indexOf(glob) === index);
 	}
 
 	public parseFile(content: string): DiscoveredFile | undefined {
@@ -209,13 +213,18 @@ export class YaxunitAdapter implements TestFrameworkAdapter {
 	 * @returns Имена расширений без повторов
 	 */
 	private async extensionNames(units: RunUnit[]): Promise<string[]> {
-		const dirs = [...new Set(
-			units
-				.map((unit) => extensionSourceDir(unit.fileUri.fsPath))
-				.filter((dir): dir is string => dir !== undefined)
-		)];
-		const names = await Promise.all(dirs.map((dir) => resolveExtensionNameFromSrc(dir)));
-		return [...new Set(names)];
+		const workspaceRoot = this.vrunner.getWorkspaceRoot();
+		if (!workspaceRoot) {
+			return [];
+		}
+		const scope = await configurationScope(workspaceRoot);
+		const roots = [...scope.extensions, ...scope.testExtensions];
+		const names = units.map((unit) => {
+			const file = path.resolve(unit.fileUri.fsPath);
+			const root = roots.find((item) => file.startsWith(path.resolve(item.dir) + path.sep));
+			return root?.name;
+		});
+		return [...new Set(names.filter((name): name is string => name !== undefined && name.length > 0))];
 	}
 
 	/**
@@ -239,18 +248,6 @@ export class YaxunitAdapter implements TestFrameworkAdapter {
 			return {};
 		}
 	}
-}
-
-/**
- * Извлекает имя общего модуля из пути .../CommonModules/<Имя>/Module.bsl
- */
-export function extensionSourceDir(fsPath: string): string | undefined {
-	const segments = fsPath.split(/[\\/]/);
-	const index = segments.lastIndexOf('CommonModules');
-	if (index < 1) {
-		return undefined;
-	}
-	return segments.slice(0, index).join(path.sep);
 }
 
 export function extractModuleName(fsPath: string): string {

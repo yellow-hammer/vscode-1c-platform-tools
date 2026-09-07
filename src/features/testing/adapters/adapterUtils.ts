@@ -30,10 +30,7 @@ export async function activeSourceGlobBases(vrunner: VRunnerManager): Promise<st
 		return [];
 	}
 
-	const scope = await configurationScope(workspaceRoot, {
-		configuration: vrunner.getCfPath(),
-		extensions: [vrunner.getCfePath(), vrunner.getTestsCfePath()],
-	});
+	const scope = await configurationScope(workspaceRoot);
 
 	const roots = [...(scope.configuration ? [scope.configuration] : []), ...scope.extensions];
 	return roots
@@ -53,10 +50,7 @@ export async function activeExternalGlobBases(vrunner: VRunnerManager): Promise<
 		return [];
 	}
 
-	const layout = await resolveProjectLayout(workspaceRoot, {
-		configuration: vrunner.getCfPath(),
-		extensions: [vrunner.getCfePath(), vrunner.getTestsCfePath()],
-	});
+	const layout = await resolveProjectLayout(workspaceRoot);
 
 	return layout.externals.map((dir) =>
 		normalizeGlobBase(path.relative(workspaceRoot, dir).split(path.sep).join('/'))

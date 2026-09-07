@@ -5,6 +5,7 @@ import {
 	type ArtifactsViewMode,
 } from './projectArtifactsView';
 import { notifyQuiet } from '../../shared/notify';
+import { onDidChangeProjectLayout } from '../../shared/projectLayoutWatch';
 
 const log = logger.scope('artifacts');
 
@@ -43,14 +44,7 @@ export function registerArtifactsFeature(
 		}, 1000);
 	};
 
-	const artifactPatterns = [
-		'**/*.cf',
-		'**/*.cfe',
-		'**/*.epf',
-		'**/*.erf',
-		'**/Configuration.xml',
-		'**/Configuration.mdo',
-	];
+	const artifactPatterns = ['**/*.cf', '**/*.cfe', '**/*.epf', '**/*.erf'];
 	const artifactWatchers = artifactPatterns.flatMap((pattern) => {
 		const watcher = vscode.workspace.createFileSystemWatcher(pattern);
 		return [
@@ -59,6 +53,7 @@ export function registerArtifactsFeature(
 			watcher,
 		];
 	});
+	const layoutSubscription = onDidChangeProjectLayout(scheduleArtifactsRefresh);
 
 	const artifactsRefreshCommand = vscode.commands.registerCommand(
 		'1c-platform-tools.artifacts.refresh',
@@ -108,6 +103,7 @@ export function registerArtifactsFeature(
 	return {
 		disposables: [
 			...artifactWatchers,
+			layoutSubscription,
 			debounceDispose,
 			artifactsRefreshCommand,
 			artifactsViewAsListCommand,

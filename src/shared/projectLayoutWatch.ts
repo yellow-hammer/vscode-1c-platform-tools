@@ -8,40 +8,59 @@
  */
 
 import * as vscode from 'vscode';
-import { invalidateProjectLayout } from './projectLayout';
+import { DEFAULT_PATHS } from './pathDefaults';
+import { invalidateProjectLayout, setLayoutExclusions } from './projectLayout';
 
-/** Маркеры формата исходного кода: выгрузка конфигуратора и EDT. */
-const MARKERS = '**/Configuration.{xml,mdo}';
+/** Описания конфигураций, расширений и внешних объектов обоих форматов и проекты EDT. */
+const MARKERS = '**/{Configuration.xml,Configuration.mdo,*.xml,*.mdo,.project}';
 
-/** Раздел настроек с путями проекта. */
-const PATH_SECTION = '1c-platform-tools.path';
+/** Настройки, от которых зависит обход: каталог сборки и исключения артефактов. */
+const SETTINGS = ['1c-platform-tools.path.out', '1c-platform-tools.artifacts.exclude'];
+
+/** Разборка кладёт тысячи файлов подряд: сброс один на всю пачку. */
+const DEBOUNCE_MS = 300;
 
 const changed = new vscode.EventEmitter<void>();
 
-/** Срабатывает, когда раскладку проекта нужно перечитать. */
 export const onDidChangeProjectLayout = changed.event;
 
-/**
- * Подписывается на изменения, после которых раскладку нужно перечитать.
- *
- * @param context - Контекст расширения
- */
+/** Каталоги, которые обход раскладки пропускает: каталог сборки и исключения артефактов. */
+function exclusions(): string[] {
+	const config = vscode.workspace.getConfiguration('1c-platform-tools');
+	const out = config.get<string>('path.out', DEFAULT_PATHS.out).replace(/\\/g, '/').replace(/^\.?\//, '');
+	const build = out.split('/')[0];
+	const excluded = config.get<string[]>('artifacts.exclude', []).map((item) => item.replace(/\\/g, '/').replace(/^\.?\/|\/$/g, ''));
+	return [...new Set([build, ...excluded].filter((item) => item.length > 0 && !item.includes('/')))];
+}
+
 export function registerProjectLayoutWatch(context: vscode.ExtensionContext): void {
+	setLayoutExclusions(exclusions);
+	let timer: NodeJS.Timeout | undefined;
 	const forget = () => {
 		invalidateProjectLayout();
-		changed.fire();
+		if (timer) {
+			clearTimeout(timer);
+		}
+		timer = setTimeout(() => {
+			timer = undefined;
+			changed.fire();
+		}, DEBOUNCE_MS);
 	};
-	const watcher = vscode.workspace.createFileSystemWatcher(MARKERS);
+	const watcher = vscode.workspace.createFileSystemWatcher(MARKERS, false, true, false);
 
 	context.subscriptions.push(
 		watcher,
 		watcher.onDidCreate(forget),
 		watcher.onDidDelete(forget),
-		watcher.onDidChange(forget),
 		vscode.workspace.onDidChangeWorkspaceFolders(forget),
 		vscode.workspace.onDidChangeConfiguration((event) => {
-			if (event.affectsConfiguration(PATH_SECTION)) {
+			if (SETTINGS.some((setting) => event.affectsConfiguration(setting))) {
 				forget();
+			}
+		}),
+		new vscode.Disposable(() => {
+			if (timer) {
+				clearTimeout(timer);
 			}
 		})
 	);

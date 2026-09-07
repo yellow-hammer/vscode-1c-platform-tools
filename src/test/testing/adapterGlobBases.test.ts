@@ -12,9 +12,6 @@ const EDT_WORKSPACE = path.resolve(__dirname, '../../../src/test/fixtures/projec
 function vrunnerAt(workspaceRoot: string): VRunnerManager {
 	return {
 		getWorkspaceRoot: () => workspaceRoot,
-		getCfPath: () => 'src/cf',
-		getCfePath: () => 'src/cfe',
-		getTestsCfePath: () => 'tests/cfe',
 	} as unknown as VRunnerManager;
 }
 
@@ -56,7 +53,7 @@ suite('базы поиска тестов в раскладке EDT', () => {
 	test('проекты с внешними обработками отдаются отдельно', async () => {
 		const bases = await activeExternalGlobBases(vrunnerAt(EDT_WORKSPACE));
 
-		assert.deepStrictEqual(bases, ['dp']);
+		assert.deepStrictEqual(bases, ['dp', 'tests/epf/Тесты_Арифметика']);
 	});
 
 	test('в раскладке конфигуратора баз проектов нет', async () => {

@@ -38,7 +38,7 @@ export class VanessaAdapter implements TestFrameworkAdapter {
 
 	constructor(private readonly vrunner: VRunnerManager) {}
 
-	public isEnabled(): boolean {
+	public async isEnabled(): Promise<boolean> {
 		const config = vscode.workspace.getConfiguration('1c-platform-tools');
 		if (!config.get<boolean>('test.frameworks.vanessa', true)) {
 			return false;

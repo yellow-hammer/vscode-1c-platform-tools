@@ -213,10 +213,7 @@ export class PlatformTreeDataProvider implements vscode.TreeDataProvider<Platfor
 		let format: TreeSourceFormat | undefined;
 		if (workspaceRoot) {
 			try {
-				const scope = await configurationScope(workspaceRoot, {
-					configuration: vrunner.getCfPath(),
-					extensions: [vrunner.getCfePath(), vrunner.getTestsCfePath()],
-				});
+				const scope = await configurationScope(workspaceRoot);
 				format = scope.configuration?.format;
 			} catch {
 				format = undefined;
@@ -828,7 +825,7 @@ export class PlatformTreeDataProvider implements vscode.TreeDataProvider<Platfor
 	}
 
 	/**
-	 * Получает элементы дерева «Внешнего отчёта» (каталоги в src/erf)
+	 * Получает элементы дерева «Внешнего отчёта»
 	 * @returns Промис, который разрешается массивом элементов дерева
 	 */
 	private async getSetVersionReportItems(): Promise<PlatformTreeItem[]> {
@@ -840,7 +837,7 @@ export class PlatformTreeDataProvider implements vscode.TreeDataProvider<Platfor
 			if (names.length === 0) {
 				return [
 					this.createTreeItem(
-						'Нет отчётов в src/erf',
+						'Внешних отчётов нет',
 						TreeItemType.Info,
 						vscode.TreeItemCollapsibleState.None
 					)
@@ -871,7 +868,7 @@ export class PlatformTreeDataProvider implements vscode.TreeDataProvider<Platfor
 	}
 
 	/**
-	 * Получает элементы дерева «Внешней обработки» (каталоги в src/epf)
+	 * Получает элементы дерева «Внешней обработки»
 	 * @returns Промис, который разрешается массивом элементов дерева
 	 */
 	private async getSetVersionProcessorItems(): Promise<PlatformTreeItem[]> {
@@ -883,7 +880,7 @@ export class PlatformTreeDataProvider implements vscode.TreeDataProvider<Platfor
 			if (names.length === 0) {
 				return [
 					this.createTreeItem(
-						'Нет обработок в src/epf',
+						'Внешних обработок нет',
 						TreeItemType.Info,
 						vscode.TreeItemCollapsibleState.None
 					)

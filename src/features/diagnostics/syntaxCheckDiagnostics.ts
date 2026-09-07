@@ -3,7 +3,7 @@ import * as path from 'node:path';
 import * as fs from 'node:fs/promises';
 import { logger } from '../../shared/logger';
 import { VRunnerManager } from '../../shared/vrunnerManager';
-import { DEFAULT_PATHS } from '../../shared/pathDefaults';
+import { CONVENTIONAL_PATHS } from '../../shared/projectPaths';
 import {
 	resolveConfigPath,
 	syntaxCheckJUnitPathFromEnv,
@@ -163,12 +163,10 @@ export class SyntaxCheckDiagnostics implements vscode.Disposable {
 	 * Раскладывает находки по файлам и записывает в DiagnosticCollection
 	 */
 	private async publish(findings: SyntaxCheckFinding[], root: string): Promise<void> {
-		const cfRel = vscode.workspace
-			.getConfiguration('1c-platform-tools')
-			.get<string>('path.cf', DEFAULT_PATHS.cf);
-		const cfRoot = path.join(root, cfRel);
+		const roots = await sourceRoots(root);
+		const configuration = roots.find((source) => !source.isExtension);
+		const cfRoot = configuration?.dir ?? path.join(root, CONVENTIONAL_PATHS.cf);
 		const fallbackUri = await resolveFallbackUri(cfRoot, root);
-		const roots = await sourceRoots(root, cfRel, this.vrunner);
 
 		// Группируем находки по целевому файлу (кэш «метаданные → файл»: у модуля много находок)
 		const targetCache = new Map<string, ResolvedTarget>();
@@ -327,13 +325,15 @@ async function resolveTarget(
  * Путь модуля зависит от формата корня, поэтому находка ищется по каждому корню
  * его же правилами.
  */
-async function sourceRoots(root: string, cfRel: string, vrunner: VRunnerManager): Promise<SourceRoot[]> {
+async function sourceRoots(root: string): Promise<SourceRoot[]> {
 	try {
-		const layout = await resolveProjectLayout(root, {
-			configuration: cfRel,
-			extensions: [vrunner.getCfePath(), vrunner.getTestsCfePath()],
-		});
-		return [...(layout.configuration ? [layout.configuration] : []), ...layout.extensions, ...layout.others];
+		const layout = await resolveProjectLayout(root);
+		return [
+			...(layout.configuration ? [layout.configuration] : []),
+			...layout.extensions,
+			...layout.testExtensions,
+			...layout.others,
+		];
 	} catch {
 		return [];
 	}

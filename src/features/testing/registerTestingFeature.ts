@@ -1,3 +1,4 @@
+import { onDidChangeProjectLayout } from '../../shared/projectLayoutWatch';
 import * as vscode from 'vscode';
 import { VRunnerManager } from '../../shared/vrunnerManager';
 import { TestingController } from './testController';
@@ -62,15 +63,12 @@ export function registerTestingFeature(params: {
 	void controller.cleanupAllReports().then(() => controller.scheduleRebuild());
 
 	const onConfigChange = vscode.workspace.onDidChangeConfiguration((event) => {
-		// path.* тоже меняет состав дерева: корни поиска тестов берутся из
-		// path.tests (и подкаталогов в нём) и path.cfe
-		if (
-			event.affectsConfiguration('1c-platform-tools.testing') ||
-			event.affectsConfiguration('1c-platform-tools.paths')
-		) {
+		if (event.affectsConfiguration('1c-platform-tools.test')) {
 			controller.scheduleRebuild();
 		}
 	});
+	// Корни поиска тестов берутся из раскладки: новое расширение или обработка меняет состав дерева
+	const onLayoutChange = onDidChangeProjectLayout(() => controller.scheduleRebuild());
 
 	// FileSystemWatcher не шлёт события по файлам при переименовании/удалении
 	// КАТАЛОГА — пересобираем дерево, чтобы не оставались элементы со старыми URI
@@ -78,7 +76,7 @@ export function registerTestingFeature(params: {
 	const onDelete = vscode.workspace.onDidDeleteFiles(() => controller.scheduleRebuild());
 
 	return {
-		disposables: [controller, onConfigChange, onRename, onDelete, configureCommand],
+		disposables: [controller, onConfigChange, onLayoutChange, onRename, onDelete, configureCommand],
 		rebuild: () => controller.scheduleRebuild()
 	};
 }

@@ -14,7 +14,7 @@ import * as fssync from 'node:fs';
 import * as path from 'node:path';
 import * as vscode from 'vscode';
 import { logger } from '../../../shared/logger';
-import { configuredSourceDirs } from '../../../shared/sourcePaths';
+import { detectedSourceDirs } from '../../../shared/sourcePaths';
 import { resolveProjectLayout } from '../../../shared/projectLayout';
 import { sourceDirectory } from '../../../shared/objectPaths';
 import { ensureMdSparrowRuntime } from '../mdSparrowBootstrap';
@@ -52,11 +52,11 @@ function resolveCacheFile(context: vscode.ExtensionContext): string {
 
 /** Список «интересных» каталогов по настройкам path.*: cf, cfe/*, erf/*, epf/*. */
 async function collectGraphRoots(workspaceRoot: string): Promise<string[]> {
-	const dirs = configuredSourceDirs();
+	const dirs = await detectedSourceDirs(workspaceRoot);
 	const roots: string[] = [];
 	// Конфигурация и расширения обеих раскладок: у проекта EDT каталог выгрузки не существует
 	try {
-		const layout = await resolveProjectLayout(workspaceRoot, { configuration: dirs.cf, extensions: [dirs.cfe] });
+		const layout = await resolveProjectLayout(workspaceRoot);
 		for (const source of [...(layout.configuration ? [layout.configuration] : []), ...layout.extensions, ...layout.others]) {
 			roots.push(sourceDirectory(source));
 		}
@@ -236,7 +236,7 @@ export async function loadErGraph(
 		return { graph: cached, fromCache: true, fingerprint };
 	}
 	options.progress?.report({ message: 'ER: построение графа (md-sparrow cf-md-graph)' });
-	const graphDirs = configuredSourceDirs();
+	const graphDirs = await detectedSourceDirs(workspaceRoot);
 	const res = await runMdSparrowParamsRead(
 		runtime,
 		{
@@ -246,6 +246,9 @@ export async function loadErGraph(
 			cfeDir: graphDirs.cfe,
 			epfDir: graphDirs.epf,
 			erfDir: graphDirs.erf,
+			cfeDirs: graphDirs.cfeDirs,
+			epfDirs: graphDirs.epfDirs,
+			erfDirs: graphDirs.erfDirs,
 		},
 		{ cwd: workspaceRoot, token: options.token }
 	);

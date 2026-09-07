@@ -1,10 +1,11 @@
+import { CONVENTIONAL_PATHS, projectPaths } from '../../shared/projectPaths';
+import { resolveProjectLayout } from '../../shared/projectLayout';
 import * as fs from 'node:fs';
 import { createEdtProject } from '../edt/edtCommands';
 import { edtProjectName } from '../edt/edtRunner';
 import * as path from 'node:path';
 import * as vscode from 'vscode';
 import { BSP_REGISTRATION_MARKER, buildBspRegistration } from './bspRegistration';
-import { VRunnerManager } from '../../shared/vrunnerManager';
 import {
 	ensureMdSparrowRuntime,
 } from './mdSparrowBootstrap';
@@ -274,21 +275,16 @@ export function registerMetadataFeature(
 		return undefined;
 	}
 
-	/** Каталоги расширений проекта: у каждого свой Configuration.xml. */
-	function listExtensionRoots(): string[] {
+	/** Каталоги расширений выгрузки конфигуратора из раскладки. */
+	async function listExtensionRoots(): Promise<string[]> {
 		const root = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
 		if (!root) {
 			return [];
 		}
-		const cfeRoot = path.join(root, VRunnerManager.getInstance(context).getCfePath());
-		if (!fs.existsSync(cfeRoot)) {
-			return [];
-		}
-		return fs
-			.readdirSync(cfeRoot, { withFileTypes: true })
-			.filter((entry) => entry.isDirectory())
-			.map((entry) => path.join(cfeRoot, entry.name))
-			.filter((dir) => fs.existsSync(path.join(dir, 'Configuration.xml')));
+		const layout = await resolveProjectLayout(root);
+		return [...layout.extensions, ...layout.testExtensions]
+			.filter((extension) => extension.format === 'designer')
+			.map((extension) => extension.dir);
 	}
 
 	async function openTextFile(pathToOpen: string): Promise<void> {
@@ -781,8 +777,10 @@ export function registerMetadataFeature(
 			return;
 		}
 		const isReport = sourceKind === 'externalErf';
-		const vrunner = VRunnerManager.getInstance(context);
-		const rootRelative = isReport ? vrunner.getErfPath() : vrunner.getEpfPath();
+		const paths = await projectPaths(workspaceRoot);
+		const rootRelative = isReport
+			? paths.reportsContainer ?? CONVENTIONAL_PATHS.erf
+			: paths.processorsContainer ?? CONVENTIONAL_PATHS.epf;
 		const rootAbs = path.resolve(workspaceRoot, rootRelative);
 		try {
 			await fs.promises.mkdir(rootAbs, { recursive: true });
@@ -804,7 +802,7 @@ export function registerMetadataFeature(
 			const candidate = `${prefix}${nextIndex}`;
 			if (!existingNames.includes(candidate)) {
 				const configurationXml =
-					metadataTreeProvider.configurationXml ?? path.join(workspaceRoot, 'src', 'cf', 'Configuration.xml');
+					metadataTreeProvider.configurationXml ?? path.join(workspaceRoot, CONVENTIONAL_PATHS.cf, 'Configuration.xml');
 				const schema = await pickSchemaFlagInitEmptyCf(configurationXml);
 				if (schema === undefined) {
 					return;
@@ -2549,7 +2547,7 @@ export function registerMetadataFeature(
 				const edt = formatOfFile(configurationXml) === 'edt';
 				const cfeRoot = edt
 					? extensionProjectDir(configurationXml, name.trim())
-					: path.join(root, VRunnerManager.getInstance(context).getCfePath(), name.trim());
+					: path.join(root, (await projectPaths(root)).extensionsContainer ?? CONVENTIONAL_PATHS.cfe, name.trim());
 				if (fs.existsSync(cfeRoot)) {
 					void vscode.window.showErrorMessage(`Каталог расширения уже есть: ${cfeRoot}`);
 					return;
@@ -2647,7 +2645,7 @@ export function registerMetadataFeature(
 					if (cfRoot && fs.existsSync(path.join(cfRoot, 'Configuration.xml'))) {
 						roots.push(cfRoot);
 					}
-					roots.push(...listExtensionRoots());
+					roots.push(...(await listExtensionRoots()));
 				}
 				if (roots.length === 0) {
 					void vscode.window.showInformationMessage('Не найдена выгрузка для проверки.');
