@@ -378,24 +378,24 @@ export function getValidateEdtCommandName(): CommandNameAndTitle {
 }
 
 /**
- * Получить название и заголовок для команды конвертации исходников
+ * Получить название и заголовок для команды конвертации исходного кода
  */
 export function getConvertSourcesCommandName(): CommandNameAndTitle {
 	return {
 		id: '1c-platform-tools.cf.convert',
-		name: 'Конвертировать исходники',
-		title: 'Конвертировать исходники'
+		name: 'Конвертировать исходный код',
+		title: 'Конвертировать исходный код'
 	};
 }
 
 /**
- * Получить название и заголовок для команды конвертации исходников расширения
+ * Получить название и заголовок для команды конвертации исходного кода расширения
  */
 export function getConvertExtensionSourcesCommandName(): CommandNameAndTitle {
 	return {
 		id: '1c-platform-tools.cfe.convert',
-		name: 'Конвертировать исходники расширения',
-		title: 'Конвертировать исходники расширения'
+		name: 'Конвертировать исходный код расширения',
+		title: 'Конвертировать исходный код расширения'
 	};
 }
 

@@ -155,7 +155,7 @@ export const TREE_GROUPS: TreeGroup[] = [
 			{ command: '1c-platform-tools.cf.unload', title: getDumpConfigurationToCfCommandName().title, treeLabel: '📤 Выгрузить в 1Cv8.cf' },
 			{ command: '1c-platform-tools.cf.compile', title: getBuildConfigurationCommandName().title, treeLabel: '🔨 Собрать 1Cv8.cf из исходного кода'},
 			{ command: '1c-platform-tools.cf.decompile', title: getDecompileConfigurationCommandName().title, treeLabel: '🔓 Разобрать 1Cv8.cf в исходный код'},
-			{ command: '1c-platform-tools.cf.convert', title: getConvertSourcesCommandName().title, treeLabel: '🔀 Конвертировать исходники (EDT ↔ конфигуратор)' },
+			{ command: '1c-platform-tools.cf.convert', title: getConvertSourcesCommandName().title, treeLabel: '🔀 Конвертировать исходный код (EDT ↔ конфигуратор)' },
 		],
 	},
 	{
@@ -171,7 +171,7 @@ export const TREE_GROUPS: TreeGroup[] = [
 			{ command: '1c-platform-tools.cfe.unload', title: getDumpExtensionToCfeCommandName().title, treeLabel: '📤 Выгрузить в *.cfe' },
 			{ command: '1c-platform-tools.cfe.compile', title: getBuildExtensionCommandName().title, treeLabel: '🔨 Собрать *.cfe из исходного кода'},
 			{ command: '1c-platform-tools.cfe.decompile', title: getDecompileExtensionCommandName().title, treeLabel: '🔓 Разобрать *.cfe в исходный код'},
-			{ command: '1c-platform-tools.cfe.convert', title: getConvertExtensionSourcesCommandName().title, treeLabel: '🔀 Конвертировать исходники (EDT ↔ конфигуратор)' },
+			{ command: '1c-platform-tools.cfe.convert', title: getConvertExtensionSourcesCommandName().title, treeLabel: '🔀 Конвертировать исходный код (EDT ↔ конфигуратор)' },
 		],
 	},
 	{
