@@ -17,7 +17,7 @@ import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import * as vscode from 'vscode';
-import { buildCommand, detectShellType } from '../../utils/commandUtils';
+import { buildProcessCommand } from '../../utils/commandUtils';
 import { createVRunnerTask } from '../tasks/vrunnerTask';
 import { logger } from '../../shared/logger';
 import { findEdtInstallations, pickEdtInstallation, type EdtInstallation } from '../../shared/edtLocator';
@@ -256,7 +256,8 @@ export async function runEdtCommand(request: EdtCommand): Promise<number> {
 	}
 
 	const args = buildEdtArgs(request, settings);
-	const command = buildCommand(installation.cli, args, detectShellType());
+	// Задача исполняет команду процессом, а не терминалом пользователя: экранирование по оболочке процесса
+	const command = buildProcessCommand(installation.cli, args);
 	log.info(`EDT ${installation.version}: ${request.command}`);
 
 	running = new Promise<number>((resolve) => {

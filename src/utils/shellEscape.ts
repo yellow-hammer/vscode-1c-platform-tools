@@ -192,5 +192,10 @@ export function quoteExecutable(executablePath: string, shellType: ShellType): s
 	if (shellType === 'cmd') {
 		return CMD_SAFE.test(executablePath) ? executablePath : quoteForWindowsArgv(executablePath);
 	}
+	if (shellType === 'powershell') {
+		// Путь в кавычках PowerShell считает строкой, а не командой: запускает его только оператор вызова
+		const quoted = escapeArgForPowerShell(executablePath);
+		return quoted === executablePath ? quoted : `& ${quoted}`;
+	}
 	return escapeCommandArg(executablePath, shellType);
 }
