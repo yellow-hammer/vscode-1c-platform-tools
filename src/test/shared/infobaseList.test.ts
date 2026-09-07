@@ -2,7 +2,6 @@ import * as assert from 'node:assert';
 import * as path from 'node:path';
 import {
 	commonListPaths,
-	edtStartUrl,
 	infobaseConnectionString,
 	parseInfobaseList,
 	readInfobases,
@@ -32,16 +31,6 @@ suite('Список информационных баз', () => {
 		assert.strictEqual(byName.get('Песочница')?.version, undefined);
 	});
 
-	test('ссылка для 1С:EDT повторяет ссылку окна запуска платформы', () => {
-		assert.strictEqual(
-			edtStartUrl({ id: '00000000-0000-0000-0000-000000000003', name: 'Рабочая база', version: '8.3' }),
-			'e1cedt://start/open?projectId=00000000-0000-0000-0000-000000000003' +
-				'&projectName=%D0%A0%D0%B0%D0%B1%D0%BE%D1%87%D0%B0%D1%8F%20%D0%B1%D0%B0%D0%B7%D0%B0' +
-				'&infobaseId=00000000-0000-0000-0000-000000000003&platformVersion=8.3'
-		);
-		assert.ok(edtStartUrl({ id: 'x', name: 'Без версии' })?.endsWith('&platformVersion='));
-		assert.strictEqual(edtStartUrl({ name: 'Без идентификатора' }), undefined);
-	});
 
 	test('порядок дерева читается из записи, без поля — ноль', () => {
 		const entries = parseInfobaseList(readPlatformText(path.join(FIXTURES, 'ibases.v8i')) ?? '');

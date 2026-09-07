@@ -48,6 +48,7 @@ suite('Запуск 1cedtstart по ссылке базы', () => {
 		assert.deepStrictEqual(edtStartArgs(URL, 'C:\\Java\\bin\\javaw.exe', 'win32'), ['-vm', '"C:\\Java\\bin\\javaw.exe"', `"${URL}"`]);
 		assert.deepStrictEqual(edtStartArgs(URL, '/usr/lib/jvm/bin/java', 'linux'), ['-vm', '/usr/lib/jvm/bin/java', URL]);
 		assert.deepStrictEqual(edtStartArgs(URL, undefined, 'win32'), [`"${URL}"`]);
+		assert.deepStrictEqual(edtStartArgs(undefined, 'C:\\Java\\bin\\javaw.exe', 'win32'), ['-vm', '"C:\\Java\\bin\\javaw.exe"']);
 	});
 
 	test('запуск берёт стартер из реестра и его JVM из настроек', () => {
@@ -62,6 +63,20 @@ suite('Запуск 1cedtstart по ссылке базы', () => {
 		});
 		assert.ok(result.ok);
 		assert.deepStrictEqual(spawned, [{ command: exe, args: ['-vm', '"C:\\Java\\17\\bin\\javaw.exe"', `"${URL}"`] }]);
+	});
+
+	test('без ссылки стартер открывает своё окно', () => {
+		const spawned: { command: string; args: readonly string[] }[] = [];
+		const exe = 'C:\\1C\\1CE\\components\\1c-edt-start-0.8.0\\1cedtstart.exe';
+		const result = launchEdtStart(undefined, {
+			platform: 'win32',
+			registryQuery: () => `    (Default)    REG_SZ    "${exe}" "%1"`,
+			readFile: () => undefined,
+			exists: (file) => file === exe,
+			spawn: (command, args) => spawned.push({ command, args }),
+		});
+		assert.ok(result.ok);
+		assert.deepStrictEqual(spawned, [{ command: exe, args: [] }]);
 	});
 
 	test('без стартера запуск отвечает сообщением, а не падает', () => {

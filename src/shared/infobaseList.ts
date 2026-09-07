@@ -31,28 +31,6 @@ export interface InfobaseEntry {
 }
 
 /**
- * Ссылка, которой окно запуска платформы открывает базу в 1С:EDT.
- *
- * Схему `e1cedt` регистрирует 1cedtstart: он находит или заводит рабочую область
- * под базу и запускает в ней EDT. Без идентификатора записи ссылки нет.
- *
- * @param entry Запись списка платформы.
- * @returns Ссылка либо undefined, если у записи нет идентификатора.
- */
-export function edtStartUrl(entry: Pick<InfobaseEntry, 'id' | 'name' | 'version'>): string | undefined {
-	if (!entry.id) {
-		return undefined;
-	}
-	const query = [
-		`projectId=${encodeURIComponent(entry.id)}`,
-		`projectName=${encodeURIComponent(entry.name)}`,
-		`infobaseId=${encodeURIComponent(entry.id)}`,
-		`platformVersion=${encodeURIComponent(entry.version ?? '')}`,
-	];
-	return `e1cedt://start/open?${query.join('&')}`;
-}
-
-/**
  * Разбирает содержимое `ibases.v8i`.
  *
  * Секция без `Connect` - это папка списка, а не база: иерархию платформа задаёт полем `Folder`

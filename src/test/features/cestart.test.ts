@@ -6,12 +6,23 @@ import {
 	cestartFileName,
 	findCestart,
 	launchInfobase,
+	launchStartWindow,
 	missingFileInfobase,
 	shouldPassIbName,
 	windowsStartInvocation,
 } from '../../features/ibases/cestart';
 
 suite('1cestart', () => {
+	test('окно запуска платформы открывается стартером без параметров', () => {
+		const spawned: { command: string; args: readonly string[] }[] = [];
+		const result = launchStartWindow({
+			find: () => ({ binary: 'C:\\1C\\1cestart.exe', bases: [] }),
+			spawn: (command, args) => spawned.push({ command, args }),
+		});
+		assert.ok(result.ok);
+		assert.deepStrictEqual(spawned, [{ command: 'C:\\1C\\1cestart.exe', args: [] }]);
+	});
+
 	test('имя файла зависит от ОС', () => {
 		assert.strictEqual(cestartFileName('win32'), '1cestart.exe');
 		assert.strictEqual(cestartFileName('linux'), '1cestart');

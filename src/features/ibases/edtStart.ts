@@ -1,5 +1,5 @@
 /**
- * Запуск базы в 1С:EDT через 1cedtstart, как это делает окно запуска платформы.
+ * Запуск 1cedtstart: его проекты это рабочие области EDT, по одной под базу.
  *
  * Кнопка «1C:EDT» платформы открывает ссылку `e1cedt://start/open`, а обработчик
  * схемы, 1cedtstart, находит или заводит рабочую область под базу и запускает
@@ -147,18 +147,18 @@ export function fileUrlToPath(url: string, platform: NodeJS.Platform): string {
 }
 
 /**
- * Аргументы стартера: своя JVM и ссылка.
+ * Аргументы стартера: своя JVM и ссылка, если она есть.
  *
  * На Windows запуск идёт через `cmd /c start`, поэтому путь и ссылка берутся в
  * кавычки сами: амперсанды ссылки иначе разрезали бы команду.
  *
- * @param url - Ссылка `e1cedt://start/open?...`
+ * @param url - Ссылка `e1cedt://start/open?...`; без неё стартер открывает своё окно
  * @param jvm - Путь к Java стартера; без неё стартер ищет Java сам
  * @param platform - Операционная система
  */
-export function edtStartArgs(url: string, jvm: string | undefined, platform: NodeJS.Platform = process.platform): string[] {
+export function edtStartArgs(url: string | undefined, jvm: string | undefined, platform: NodeJS.Platform = process.platform): string[] {
 	const quote = (value: string): string => (platform === 'win32' ? `"${value}"` : value);
-	return [...(jvm ? ['-vm', quote(jvm)] : []), quote(url)];
+	return [...(jvm ? ['-vm', quote(jvm)] : []), ...(url ? [quote(url)] : [])];
 }
 
 /** Зависимости запуска: в тестах подменяются. */
@@ -215,20 +215,20 @@ export function findEdtStart(deps: LaunchEdtStartDeps = {}): string | undefined 
 }
 
 /**
- * Запускает 1cedtstart по ссылке базы.
+ * Запускает 1cedtstart: по ссылке базы или просто его окно с проектами.
  *
- * @param url - Ссылка `e1cedt://start/open?...`
+ * @param url - Ссылка `e1cedt://start/open?...`; без неё открывается окно стартера
  * @param deps - Поиск стартера и запуск процесса
  * @returns Успех с командой либо сообщение, почему не вышло
  */
-export function launchEdtStart(url: string, deps: LaunchEdtStartDeps = {}): LaunchEdtStartResult {
+export function launchEdtStart(url?: string, deps: LaunchEdtStartDeps = {}): LaunchEdtStartResult {
 	const platform = deps.platform ?? process.platform;
 	const exists = deps.exists ?? fs.existsSync;
 	const binary = findEdtStart(deps);
 	if (!binary) {
 		return {
 			ok: false,
-			message: '1cedtstart не найден: установите 1С:EDT через него, кнопка 1С:EDT открывает базы только им.',
+			message: '1cedtstart не найден: установите 1С:EDT через него.',
 		};
 	}
 	const preferences = (deps.readFile ?? readText)(

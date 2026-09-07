@@ -748,8 +748,14 @@
         "icon": "$(tools)"
       },
       {
-        "command": "1c-platform-tools.infobaseList.launchEdt",
-        "title": "Запустить EDT",
+        "command": "1c-platform-tools.infobaseList.openStartWindow",
+        "title": "Открыть окно запуска платформы",
+        "category": "1С: Администрирование",
+        "icon": "$(window)"
+      },
+      {
+        "command": "1c-platform-tools.infobaseList.openEdtStart",
+        "title": "Открыть 1C:EDT Start",
         "category": "1С: Администрирование",
         "icon": "$(code)"
       },
@@ -2187,10 +2193,6 @@
           "when": "false"
         },
         {
-          "command": "1c-platform-tools.infobaseList.launchEdt",
-          "when": "false"
-        },
-        {
           "command": "1c-platform-tools.debug.showVariableInWindow",
           "when": "false"
         },
@@ -2591,6 +2593,16 @@
       ],
       "view/title": [
         {
+          "command": "1c-platform-tools.infobaseList.openStartWindow",
+          "when": "view == 1c-platform-tools-admin-infobases",
+          "group": "navigation@10"
+        },
+        {
+          "command": "1c-platform-tools.infobaseList.openEdtStart",
+          "when": "view == 1c-platform-tools-admin-infobases",
+          "group": "navigation@20"
+        },
+        {
           "command": "1c-platform-tools.infobaseList.refresh",
           "when": "view == 1c-platform-tools-admin-infobases",
           "group": "navigation@30"
@@ -2816,11 +2828,6 @@
           "command": "1c-platform-tools.infobaseList.launchDesigner",
           "when": "view == 1c-platform-tools-admin-infobases && viewItem == ibase",
           "group": "inline@2"
-        },
-        {
-          "command": "1c-platform-tools.infobaseList.launchEdt",
-          "when": "view == 1c-platform-tools-admin-infobases && viewItem == ibase",
-          "group": "inline@3"
         },
         {
           "command": "1c-platform-tools.clusters.properties",
