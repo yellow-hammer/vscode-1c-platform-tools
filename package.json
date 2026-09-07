@@ -3714,6 +3714,14 @@
             "media": {
               "markdown": "walkthrough/step15-admin.md"
             }
+          },
+          {
+            "id": "step16-edt",
+            "title": "Проект 1С:EDT",
+            "description": "Проект 1С:EDT расширение находит само и работает с ним теми же панелями и командами; для команд над исходным кодом нужна установленная EDT.\n\n[Открыть панель «1С: Инструменты»](command:workbench.view.extension.1c-platform-tools-tools)\n[Выбрать конфигурацию проекта](command:1c-platform-tools.project.selectConfiguration)",
+            "media": {
+              "markdown": "walkthrough/step16-edt.md"
+            }
           }
         ]
       }

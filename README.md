@@ -37,6 +37,7 @@
 - **[Docker и ibcmd](docs/docker.md)** — выполнение команд в контейнере без локальной платформы 1С, включая GitHub Codespaces.
 - **[Внешние компоненты](docs/components.md)** — отладчик, дерево метаданных, JRE, OVM и Allure: загрузка, свои сборки и работа без доступа к GitHub.
 - **[Сочетания клавиш](docs/keyboard.md)** — панели по номеру, синтаксический контроль как в конфигураторе.
+- **[Формат EDT](docs/edt.md)** — проекты 1С:EDT наравне с выгрузкой конфигуратора: те же панели, команды и тесты.
 
 ## Установка
 
@@ -56,6 +57,7 @@
 
 - **Платформа 1С:Предприятие 8** — клиент, конфигуратор, `1cestart`, `rac`/`ras`, `ibsrv`, `ibcmd`.
 - **OneScript, OPM и vanessa-runner** — из раздела **Зависимости** в дереве **1С: Инструменты**.
+- **1С:EDT** — если исходный код ведётся в формате EDT, см. [Формат EDT](docs/edt.md).
 - **MCP** — расширение [mcp-1c-platform-tools](https://github.com/yellow-hammer/mcp-1c-platform-tools), если команды вызывает агент.
 
 <img src="resources/brand/bird.png" alt="" width="28" align="left"> Без локальной 1С команды можно выполнять в Docker — см. [Docker и ibcmd](docs/docker.md).
