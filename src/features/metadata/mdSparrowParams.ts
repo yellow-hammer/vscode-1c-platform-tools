@@ -19,6 +19,7 @@ import * as path from 'node:path';
 import * as fs from 'node:fs/promises';
 import * as vscode from 'vscode';
 import { runMdSparrow, type MdSparrowRunResult } from './mdSparrowRunner';
+import { cachedByFiles, forgetCachedReads } from './mdSparrowCache';
 import type { MdSparrowRuntime } from './mdSparrowBootstrap';
 
 /** Операция; значения совпадают с именами одиночных подкоманд md-sparrow. */
@@ -81,7 +82,7 @@ export type MdSparrowOp =
 	// чтение (read-json)
 	| 'cf-md-object-get'
 	| 'cf-enum-labels'
-	| 'cf-md-object-enums'
+	| 'cf-md-object-enums'
 	| 'cf-list-ref-types'
 	| 'cf-md-object-structure-get'
 	| 'cf-form-content-get'
@@ -219,6 +220,8 @@ export async function runMdSparrowParamsMutation(
 		token?: vscode.CancellationToken;
 	}
 ): Promise<MdSparrowRunResult> {
+	// Правка меняет файлы: прочитанное в этом сеансе больше не годится
+	forgetCachedReads();
 	return writeParamsAndRun(runtime, 'apply-mutation', params, options);
 }
 
@@ -237,5 +240,69 @@ export async function runMdSparrowParamsRead(
 		token?: vscode.CancellationToken;
 	}
 ): Promise<MdSparrowRunResult> {
-	return writeParamsAndRun(runtime, 'read-json', params, options);
+	const read = () => writeParamsAndRun(runtime, 'read-json', params, options);
+	if (!CACHED_READS.has(params.op)) {
+		return read();
+	}
+	return cachedByFiles(
+		`${params.op}|${params.objectXml ?? params.configurationXml ?? params.formXml ?? ''}`,
+		dependenciesOf(params),
+		[runtime.releaseTag ?? runtime.jarPath, `поддержка:${supportEnabled()}`, JSON.stringify(params)],
+		read,
+		(result) => result.exitCode === 0 && result.stdout.length <= CACHED_ANSWER_LIMIT,
+		directoriesOf(params)
+	);
+}
+
+/**
+ * Ответы, которые зависят только от названного файла и правил поддержки его корня.
+ *
+ * Панель свойств зовёт их на каждый объект, а каждый запуск это ещё и старт JVM.
+ */
+const CACHED_READS: ReadonlySet<string> = new Set([
+	'cf-md-object-get',
+	'cf-md-object-structure-get',
+	'cf-configuration-properties-get',
+	'cf-md-object-enums',
+	'cf-enum-labels',
+	'cf-list-child-objects',
+	'cf-md-subsystem-tree',
+]);
+
+/** Каталоги, описания в которых меняют ответ: состав подсистем лежит файлами рядом. */
+export function directoriesOf(params: MdSparrowParams): string[] {
+	if (params.op !== 'cf-md-subsystem-tree' || !params.configurationXml) {
+		return [];
+	}
+	// В проекте EDT описание конфигурации лежит в своём каталоге, а подсистемы уровнем выше
+	const objects = params.configurationXml.toLowerCase().endsWith('.mdo')
+		? path.dirname(path.dirname(params.configurationXml))
+		: path.dirname(params.configurationXml);
+	return [path.join(objects, 'Subsystems')];
+}
+
+/** Ответ крупнее этого в памяти не держим: панель читает его заново. */
+const CACHED_ANSWER_LIMIT = 4_000_000;
+
+/** Сколько уровней вверх искать правила поставки: описание объекта лежит в подкаталогах корня. */
+const SUPPORT_LEVELS = 5;
+
+/** Файлы, от которых зависит ответ: сам файл, его каталог и правила поставки корня. */
+function dependenciesOf(params: MdSparrowParams): string[] {
+	const file = params.objectXml ?? params.configurationXml ?? params.formXml;
+	if (!file) {
+		return [];
+	}
+	const files = [file, path.dirname(file)];
+	let directory = path.dirname(file);
+	for (let level = 0; level < SUPPORT_LEVELS; level += 1) {
+		files.push(path.join(directory, 'Ext', 'ParentConfigurations.bin'));
+		files.push(path.join(directory, 'Configuration', 'Configuration.distr'));
+		const parent = path.dirname(directory);
+		if (parent === directory) {
+			break;
+		}
+		directory = parent;
+	}
+	return files;
 }

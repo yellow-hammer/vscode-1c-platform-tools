@@ -1,37 +1,21 @@
 /**
  * Загрузка ER-графа метаданных проекта через md-sparrow CLI ({@code cf-md-graph}) и его кэширование.
  *
- * Кэш — JSON-файл в workspace storage VS Code (не в дереве проекта). Ключ — SHA-256 от содержимого
- * списка xml-файлов src/cf, src/cfe и внешних артефактов; при изменении хотя бы одного файла кэш
- * инвалидируется.
+ * Кэш по отпечатку исходного кода: см. {@link mdSparrowCache}.
  *
  * @module er/erGraphService
  */
 
-import { createHash } from 'node:crypto';
-import * as fs from 'node:fs/promises';
-import * as fssync from 'node:fs';
-import * as path from 'node:path';
 import * as vscode from 'vscode';
 import { logger } from '../../../shared/logger';
 import { detectedSourceDirs } from '../../../shared/sourcePaths';
-import { resolveProjectLayout } from '../../../shared/projectLayout';
-import { sourceDirectory } from '../../../shared/objectPaths';
 import { ensureMdSparrowRuntime } from '../mdSparrowBootstrap';
+import { cacheFilePath, readCachedEntry, runtimeSalt, sourceFingerprint, writeCached } from '../mdSparrowCache';
 import { isMdSparrowUnknownCommandError, MdSparrowOutdatedError } from '../mdSparrowErrors';
-import { runMdSparrowParamsRead } from '../mdSparrowParams';
+import { runMdSparrowParamsRead, supportEnabled } from '../mdSparrowParams';
 import type { ErGraph, ErNode, ErEdge } from './erTypes';
 
 const log = logger.scope('er');
-
-/** Cache format version. Increment when introducing incompatible contract changes. */
-const CACHE_FORMAT_VERSION = 1;
-
-interface CacheEntryDto {
-	readonly version: number;
-	readonly fingerprint: string;
-	readonly graph: ErGraph;
-}
 
 export interface ErGraphLoadOptions {
 	readonly progress?: vscode.Progress<{ message?: string; increment?: number }>;
@@ -44,126 +28,9 @@ export interface ErGraphLoadResult {
 	readonly fingerprint: string;
 }
 
-/** Возвращает путь к файлу кэша во workspace storage VS Code. */
-function resolveCacheFile(context: vscode.ExtensionContext): string {
-	const storageUri = context.storageUri ?? context.globalStorageUri;
-	return path.join(storageUri.fsPath, 'er-cache', 'er-graph.json');
-}
-
-/** Список «интересных» каталогов по настройкам path.*: cf, cfe/*, erf/*, epf/*. */
-async function collectGraphRoots(workspaceRoot: string): Promise<string[]> {
-	const dirs = await detectedSourceDirs(workspaceRoot);
-	const roots: string[] = [];
-	// Конфигурация и расширения обеих раскладок: у проекта EDT каталог выгрузки не существует
-	try {
-		const layout = await resolveProjectLayout(workspaceRoot);
-		for (const source of [...(layout.configuration ? [layout.configuration] : []), ...layout.extensions, ...layout.others]) {
-			roots.push(sourceDirectory(source));
-		}
-	} catch {
-		/* раскладка не разобрана: остаются каталоги выгрузки */
-	}
-	const cfRoot = path.join(workspaceRoot, ...dirs.cf.split('/'));
-	if (fssync.existsSync(cfRoot) && !roots.includes(cfRoot)) {
-		roots.push(cfRoot);
-	}
-	const subRoots = [dirs.cfe, dirs.erf, dirs.epf];
-	for (const seg of subRoots) {
-		const dir = path.join(workspaceRoot, ...seg.split('/'));
-		if (!fssync.existsSync(dir)) {
-			continue;
-		}
-		try {
-			const entries = await fs.readdir(dir, { withFileTypes: true });
-			for (const entry of entries) {
-				if (entry.isDirectory()) {
-					roots.push(path.join(dir, entry.name));
-				}
-			}
-		} catch {
-			/* skip */
-		}
-	}
-	return roots;
-}
-
-/** Хэширует список xml-файлов, время их модификации и путь к JAR. */
-async function computeFingerprint(workspaceRoot: string, jarIdentity: string): Promise<string> {
-	const roots = await collectGraphRoots(workspaceRoot);
-	const hash = createHash('sha256');
-	hash.update(`v${CACHE_FORMAT_VERSION}`);
-	hash.update(jarIdentity);
-	for (const root of roots) {
-		await walkXml(root, async (absPath) => {
-			try {
-				const stat = await fs.stat(absPath);
-				const rel = path.relative(workspaceRoot, absPath).replaceAll('\\', '/');
-				hash.update(rel);
-				hash.update(String(stat.size));
-				hash.update(stat.mtime.toISOString());
-			} catch {
-				/* skip */
-			}
-		});
-	}
-	return hash.digest('hex');
-}
-
-/** Файлы, по которым меняется граф: описания объектов и форм обеих раскладок. */
-const SOURCE_FILE_EXTENSIONS = new Set(['.xml', '.mdo', '.form', '.dcs']);
-
-async function walkXml(dir: string, onFile: (abs: string) => Promise<void>): Promise<void> {
-	let entries: fssync.Dirent[];
-	try {
-		entries = await fs.readdir(dir, { withFileTypes: true });
-	} catch {
-		return;
-	}
-	const sorted = entries.slice().sort((a, b) => a.name.localeCompare(b.name));
-	for (const entry of sorted) {
-		const abs = path.join(dir, entry.name);
-		if (entry.isDirectory()) {
-			await walkXml(abs, onFile);
-			continue;
-		}
-		if (entry.isFile() && SOURCE_FILE_EXTENSIONS.has(path.extname(entry.name).toLowerCase())) {
-			await onFile(abs);
-		}
-	}
-}
-
-async function readCache(file: string, fingerprint: string): Promise<ErGraph | undefined> {
-	try {
-		const raw = await fs.readFile(file, 'utf8');
-		const parsed = JSON.parse(raw) as CacheEntryDto;
-		if (
-			parsed &&
-			parsed.version === CACHE_FORMAT_VERSION &&
-			parsed.fingerprint === fingerprint &&
-			parsed.graph &&
-			Array.isArray(parsed.graph.nodes) &&
-			Array.isArray(parsed.graph.edges)
-		) {
-			return parsed.graph;
-		}
-		return undefined;
-	} catch {
-		return undefined;
-	}
-}
-
-async function writeCache(file: string, fingerprint: string, graph: ErGraph): Promise<void> {
-	try {
-		await fs.mkdir(path.dirname(file), { recursive: true });
-		const payload: CacheEntryDto = {
-			version: CACHE_FORMAT_VERSION,
-			fingerprint,
-			graph,
-		};
-		await fs.writeFile(file, JSON.stringify(payload), 'utf8');
-	} catch (e) {
-		log.warn(`кэш: не удалось записать ${file}: ${e instanceof Error ? e.message : String(e)}`);
-	}
+function isErGraph(value: unknown): value is ErGraph {
+	const graph = value as Partial<ErGraph> | null;
+	return graph !== null && typeof graph === 'object' && Array.isArray(graph.nodes) && Array.isArray(graph.edges);
 }
 
 function normalizeStringArray(value: unknown): string[] {
@@ -225,18 +92,20 @@ export async function loadErGraph(
 	workspaceRoot: string,
 	options: ErGraphLoadOptions = {}
 ): Promise<ErGraphLoadResult> {
-	const cacheFile = resolveCacheFile(context);
+	const cacheFile = cacheFilePath(context, 'er-graph', workspaceRoot);
 	const runtime = await ensureMdSparrowRuntime(context);
-	const jarIdentity = runtime.releaseTag ?? runtime.jarPath;
-	options.progress?.report({ message: 'ER: вычисление отпечатка проекта' });
-	const fingerprint = await computeFingerprint(workspaceRoot, jarIdentity);
-	const cached = await readCache(cacheFile, fingerprint);
-	if (cached) {
-		log.debug(`кэш найден: ${cacheFile}`);
-		return { graph: cached, fromCache: true, fingerprint };
+	const graphDirs = await detectedSourceDirs(workspaceRoot);
+	const salt = async () => ['cf-md-graph', await runtimeSalt(runtime), `поддержка:${supportEnabled()}`, JSON.stringify(graphDirs)];
+	const entry = await readCachedEntry(cacheFile, isErGraph);
+	if (entry) {
+		options.progress?.report({ message: 'ER: вычисление отпечатка проекта' });
+		if ((await sourceFingerprint(workspaceRoot, await salt())) === entry.fingerprint) {
+			log.debug(`кэш найден: ${cacheFile}`);
+			return { graph: entry.payload, fromCache: true, fingerprint: entry.fingerprint };
+		}
 	}
 	options.progress?.report({ message: 'ER: построение графа (md-sparrow cf-md-graph)' });
-	const graphDirs = await detectedSourceDirs(workspaceRoot);
+	const fingerprintPromise = salt().then((items) => sourceFingerprint(workspaceRoot, items));
 	const res = await runMdSparrowParamsRead(
 		runtime,
 		{
@@ -269,6 +138,7 @@ export async function loadErGraph(
 	} catch (e) {
 		throw new Error(`Не удалось разобрать JSON графа: ${e instanceof Error ? e.message : String(e)}`);
 	}
-	await writeCache(cacheFile, fingerprint, graph);
+	const fingerprint = await fingerprintPromise;
+	await writeCached(cacheFile, fingerprint, graph);
 	return { graph, fromCache: false, fingerprint };
 }

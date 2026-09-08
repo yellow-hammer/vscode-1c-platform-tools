@@ -9,7 +9,8 @@ import { clearMdSparrowJarCache, ensureMdSparrowRuntime } from './mdSparrowBoots
 import { isMdSparrowUnknownCommandError, MdSparrowOutdatedError } from './mdSparrowErrors';
 import { logger } from '../../shared/logger';
 import { detectedSourceDirs } from '../../shared/sourcePaths';
-import { runMdSparrowParamsRead, type MdSparrowParams } from './mdSparrowParams';
+import { runMdSparrowParamsRead, supportEnabled, type MdSparrowParams } from './mdSparrowParams';
+import { cacheFilePath, readCachedEntry, runtimeSalt, sourceFingerprint, writeCached } from './mdSparrowCache';
 
 const log = logger.scope('metadata');
 
@@ -107,14 +108,33 @@ export function resolveMetadataOpen(
 }
 
 /**
- * Промис с деревом метаданных корня workspace (подпроцесс md-sparrow).
+ * Дерево метаданных корня рабочей области: из кэша, пока исходный код не менялся, иначе от md-sparrow.
  */
 export async function loadProjectMetadataTree(
 	context: vscode.ExtensionContext,
 	projectRoot: string
 ): Promise<ProjectMetadataTreeDto> {
 	const abs = path.normalize(path.resolve(projectRoot));
-	const res = await runProjectMetadataTreeWithRepair(context, abs);
+	const runtime = await ensureMdSparrowRuntime(context);
+	const cacheFile = cacheFilePath(context, 'project-metadata-tree', abs);
+	const salt = async () => [
+		await runtimeSalt(runtime),
+		`поддержка:${supportEnabled()}`,
+		JSON.stringify(await projectMetadataTreeParams(abs)),
+	];
+	const entry = await readCachedEntry(cacheFile, isProjectMetadataTreeDto);
+	if (entry) {
+		if ((await sourceFingerprint(abs, await salt())) === entry.fingerprint) {
+			log.debug('дерево метаданных из кэша');
+			return entry.payload;
+		}
+	}
+	// Отпечаток берётся одновременно с чтением: обход не задерживает первый ответ,
+	// а правка во время чтения меняет отпечаток и кэш не переживёт её
+	const [res, fingerprint] = await Promise.all([
+		runProjectMetadataTreeWithRepair(context, abs),
+		salt().then((items) => sourceFingerprint(abs, items)),
+	]);
 	
 	if (res.exitCode !== 0) {
 		const errText = res.stderr.trim() || res.stdout.trim() || `код ${res.exitCode}`;
@@ -134,6 +154,7 @@ export async function loadProjectMetadataTree(
 		log.error('дерево: неожиданная форма JSON ответа md-sparrow');
 		throw new Error('Не удалось разобрать ответ md-sparrow.');
 	}
+	await writeCached(cacheFile, fingerprint, parsed);
 	return parsed;
 }
 
