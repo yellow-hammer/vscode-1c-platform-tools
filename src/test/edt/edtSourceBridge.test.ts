@@ -180,6 +180,18 @@ suite('мост между проектом EDT и раннером', () => {
 			assert.deepStrictEqual(edtExternalProjectsOf(root, 'src/epf/Отчет/src/ExternalReports/Отчет'), [
 				{ name: 'Отчет', projectDir: 'src/epf/Отчет' },
 			]);
+
+			// в одном проекте живут и обработка, и отчёт: команде нужны оба
+			const second = path.join(root, 'src', 'epf', 'Отчет', 'src', 'ExternalDataProcessors', 'Выгрузка');
+			fs.mkdirSync(second, { recursive: true });
+			fs.writeFileSync(path.join(second, 'Выгрузка.mdo'), '<mdclass:ExternalDataProcessor/>');
+			assert.deepStrictEqual(edtExternalProjectsOf(root, 'src/epf/Отчет'), [
+				{ name: 'Выгрузка', projectDir: 'src/epf/Отчет' },
+				{ name: 'Отчет', projectDir: 'src/epf/Отчет' },
+			]);
+			assert.deepStrictEqual(edtExternalProjectsOf(root, 'src/epf/Отчет/src/ExternalReports/Отчет'), [
+				{ name: 'Отчет', projectDir: 'src/epf/Отчет' },
+			]);
 		} finally {
 			fs.rmSync(root, { recursive: true, force: true });
 		}

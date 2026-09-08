@@ -198,7 +198,7 @@ export function edtExternalProjectsOf(workspaceRoot: string, sourceDir: string):
 	const relative = (dir: string) => runnerPath(path.relative(workspaceRoot, dir));
 	const own = externalProjectOf(absolute);
 	if (own) {
-		return [{ name: own.name, projectDir: relative(own.projectDir) }];
+		return own.names.map((name) => ({ name, projectDir: relative(own.projectDir) }));
 	}
 	const found: EdtExternalProject[] = [];
 	let entries: fs.Dirent[] = [];
@@ -213,32 +213,39 @@ export function edtExternalProjectsOf(workspaceRoot: string, sourceDir: string):
 		}
 		const project = externalProjectOf(path.join(absolute, entry.name));
 		if (project) {
-			found.push({ name: project.name, projectDir: relative(project.projectDir) });
+			found.push(...project.names.map((name) => ({ name, projectDir: relative(project.projectDir) })));
 		}
 	}
 	return found;
 }
 
 /** Проект внешнего объекта, которому принадлежит каталог: сам проект или каталог объекта в нём. */
-function externalProjectOf(directory: string): { name: string; projectDir: string } | undefined {
+function externalProjectOf(directory: string): { names: string[]; projectDir: string } | undefined {
 	for (const candidate of [directory, path.resolve(directory, '..', '..', '..')]) {
 		if (!fs.existsSync(path.join(candidate, '.project'))) {
 			continue;
 		}
+		const names: string[] = [];
 		for (const kind of EXTERNAL_DIRECTORIES) {
 			const objects = path.join(candidate, 'src', kind);
-			let names: string[] = [];
 			try {
-				names = fs.readdirSync(objects, { withFileTypes: true })
-					.filter((entry) => entry.isDirectory() && fs.existsSync(path.join(objects, entry.name, `${entry.name}.mdo`)))
-					.map((entry) => entry.name);
+				names.push(
+					...fs.readdirSync(objects, { withFileTypes: true })
+						.filter((entry) => entry.isDirectory() && fs.existsSync(path.join(objects, entry.name, `${entry.name}.mdo`)))
+						.map((entry) => entry.name)
+				);
 			} catch {
 				continue;
 			}
-			if (names.length > 0) {
-				return { name: names[0], projectDir: candidate };
-			}
 		}
+		if (names.length === 0) {
+			continue;
+		}
+		// Каталог самого объекта: остальные объекты проекта команде не нужны
+		const object = path.basename(directory);
+		return candidate === directory || !names.includes(object)
+			? { names, projectDir: candidate }
+			: { names: [object], projectDir: candidate };
 	}
 	return undefined;
 }

@@ -294,7 +294,7 @@ export class SetVersionCommands extends BaseCommand {
 		const srcPath = (await this.paths())?.reports.find((report) => report.name === selected)?.dir ?? path.join(erfPath, selected);
 		const commandName = getSetVersionReportCommandName(selected);
 		if (edtExternalProjectsOf(workspaceRoot, srcPath).length > 0) {
-			await this.stampEdtExternal(erfPath, [selected], version, workspaceRoot, commandName.title);
+			await this.stampEdtExternal(srcPath, [selected], version, workspaceRoot, commandName.title);
 			return;
 		}
 		const args = ['set-version', '--src', srcPath, '--check-module', '--new-version', version];
@@ -348,7 +348,7 @@ export class SetVersionCommands extends BaseCommand {
 		const srcPath = (await this.paths())?.processors.find((processor) => processor.name === selected)?.dir ?? path.join(epfPath, selected);
 		const commandName = getSetVersionProcessorCommandName(selected);
 		if (edtExternalProjectsOf(workspaceRoot, srcPath).length > 0) {
-			await this.stampEdtExternal(epfPath, [selected], version, workspaceRoot, commandName.title);
+			await this.stampEdtExternal(srcPath, [selected], version, workspaceRoot, commandName.title);
 			return;
 		}
 		const args = ['set-version', '--src', srcPath, '--check-module', '--new-version', version];
