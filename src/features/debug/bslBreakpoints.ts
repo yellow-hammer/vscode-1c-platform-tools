@@ -1,9 +1,9 @@
 import * as vscode from 'vscode';
 import { logger } from '../../shared/logger';
+import { isMethodDeclaration } from '../../shared/bslDeclaration';
 
 const log = logger.scope('dap');
 
-const PROC_START = /^\s*(Процедура|Функция)\s+[А-Яа-яёЁA-Za-z_][А-Яа-яёЁ\w]*\s*\(/i;
 const VAR_DECLARE = /^Перем\s/i;
 
 /**
@@ -21,7 +21,7 @@ export function adjustBreakpointLine(lines: string[], line: number): number {
 			t.startsWith('&') ||
 			t.startsWith('|') ||
 			VAR_DECLARE.test(t) ||
-			PROC_START.test(t)
+			isMethodDeclaration(t)
 		) {
 			continue;
 		}

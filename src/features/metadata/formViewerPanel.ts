@@ -25,6 +25,7 @@ import type {
 import { PROPERTY_GROUP_ORDER, enumValueLabel, propertyGroupName, propertyLabel } from './formItemPropertySpec';
 import { beginOpenPanel, endOpenPanel, revealOpenPanel, trackOpenPanel } from '../editors/openPanels';
 import { formOwnerFileOf, formatOfFile, helpDirectoryOf } from '../../shared/objectPaths';
+import { declaresMethod } from '../../shared/bslDeclaration';
 
 /** Обработчик события формы или элемента. */
 export interface FormEventDto {
@@ -780,12 +781,7 @@ async function openFormModuleAt(
 /** Номер строки объявления процедуры или функции обработчика (-1, если не нашли). */
 export function findHandlerLine(moduleText: string, handler: string): number {
 	const lines = moduleText.split(/\r?\n/);
-	const declaration = new RegExp(`^\\s*(Процедура|Функция|Procedure|Function)\\s+${escapeRegExp(handler)}\\s*\\(`, 'i');
-	return lines.findIndex((line) => declaration.test(line));
-}
-
-function escapeRegExp(text: string): string {
-	return text.replace(/[.*+?^${}()|[\]\\]/g, String.raw`\$&`);
+	return lines.findIndex((line) => declaresMethod(line, handler));
 }
 
 interface FormViewerViewModel {
