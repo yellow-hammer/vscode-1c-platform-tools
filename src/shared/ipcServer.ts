@@ -12,14 +12,14 @@ import { extractCommandFlags, isProjectPathInWorkspace } from './ipcRequest';
 
 const log = logger.scope('ipc');
 
-interface IpcRequest {
+export interface IpcRequest {
 	id: unknown;
 	method: unknown;
 	params?: unknown;
 	token?: unknown;
 }
 
-interface IpcExecuteCommandParams {
+export interface IpcExecuteCommandParams {
 	commandId?: unknown;
 	args?: unknown;
 	projectPath?: unknown;
@@ -191,7 +191,14 @@ async function handleExecuteCommandSync(
 	}
 }
 
-async function handleExecuteCommand(
+/**
+ * Обрабатывает запрос на исполнение команды.
+ *
+ * @param request - Запрос канала
+ * @param params - Идентификатор команды и её аргументы
+ * @returns Ответ канала: результат команды либо отказ
+ */
+export async function handleExecuteCommand(
 	request: IpcRequest,
 	params: IpcExecuteCommandParams
 ): Promise<IpcResponse> {
@@ -203,6 +210,19 @@ async function handleExecuteCommand(
 			error: {
 				message: 'Поле params.commandId должно быть непустой строкой',
 				code: 'INVALID_COMMAND_ID',
+			},
+		};
+	}
+
+	// Канал исполняет только то, что сам и перечисляет: иначе по нему доступна
+	// любая команда редактора, включая чужих расширений
+	if (!isCommandExposedToMcp(params.commandId)) {
+		log.warn(`Команда не опубликована агенту, исполнение отклонено: ${params.commandId}`);
+		return {
+			...base,
+			error: {
+				message: `Команда ${params.commandId} не публикуется агенту`,
+				code: 'COMMAND_NOT_EXPOSED',
 			},
 		};
 	}
@@ -463,6 +483,9 @@ function listenServer(server: net.Server, config: IpcServerConfig): void {
 
 	server.listen(config.port, config.host, () => {
 		log.info(`сервер запущен на ${config.host}:${config.port}`);
+		if (config.token === null) {
+			log.warn('токен не задан: команды примет любой процесс этой машины, задайте 1c-platform-tools.ipc.token');
+		}
 	});
 }
 
