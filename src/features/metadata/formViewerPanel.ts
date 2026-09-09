@@ -761,7 +761,12 @@ async function openFormModuleAt(
 	column?: vscode.ViewColumn
 ): Promise<void> {
 	try {
-		await ensureBslModuleFile(moduleFsPath);
+		if (await ensureBslModuleFile(moduleFsPath) === 'binary') {
+			void vscode.window.showInformationMessage(
+				`Модуль формы защищён паролем и хранится двоичным: ${path.basename(moduleFsPath, '.bsl')}.bin`
+			);
+			return;
+		}
 		const doc = await vscode.workspace.openTextDocument(vscode.Uri.file(moduleFsPath));
 		const editor = await vscode.window.showTextDocument(doc, { preview: false, viewColumn: column });
 		if (!handler) {

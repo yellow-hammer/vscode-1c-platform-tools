@@ -490,9 +490,15 @@ export function registerMetadataFeature(
 
 	async function openOrCreateModuleFile(modulePath: string): Promise<void> {
 		try {
-			const created = await ensureBslModuleFile(modulePath);
+			const state = await ensureBslModuleFile(modulePath);
+			if (state === 'binary') {
+				void vscode.window.showInformationMessage(
+					`Модуль защищён паролем и хранится двоичным: ${path.basename(modulePath, '.bsl')}.bin`
+				);
+				return;
+			}
 			await openTextFile(modulePath);
-			if (created) {
+			if (state === 'created') {
 				notifyQuiet(`Создан пустой модуль: ${path.basename(modulePath)}`);
 			}
 		} catch (e) {

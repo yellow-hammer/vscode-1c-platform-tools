@@ -475,8 +475,8 @@ let objectKindLabels: Readonly<Record<string, string>> = {};
 /** Подпись вида объекта или ссылочного типа; без словаря - само имя вида. */
 export function mdObjectKindLabel(prefix: string): string | undefined {
 	return objectKindLabels[prefix];
-}
-
+}
+
 /** Все подписи видов объектов, как их отдала библиотека. */
 export function mdObjectKindLabels(): Readonly<Record<string, string>> {
 	return objectKindLabels;
@@ -894,8 +894,8 @@ export async function runMdSparrowJson<T>(
 }
 
 /** Словари формата в рамках сеанса: набор констант меняется только вместе с версией формата. */
-const enumDictionaryCache = new Map<string, MetadataEnumDictionary>();
-
+const enumDictionaryCache = new Map<string, MetadataEnumDictionary>();
+
 /** Ссылочные типы конфигурации: читаются раз на конфигурацию, состав меняется вместе с ней. */
 const refTypesCache = new Map<string, MetadataRefTypeDictionary>();
 
@@ -3152,7 +3152,14 @@ async function openObjectModuleFromPanel(objectXmlFsPath: string, moduleKind: st
 }
 
 async function openModuleFile(modulePath: string, createdMessage: string): Promise<void> {
-	if (await ensureBslModuleFile(modulePath)) {
+	const state = await ensureBslModuleFile(modulePath);
+	if (state === 'binary') {
+		void vscode.window.showInformationMessage(
+			`Модуль защищён паролем и хранится двоичным: ${path.basename(modulePath, '.bsl')}.bin`
+		);
+		return;
+	}
+	if (state === 'created') {
 		notifyQuiet(createdMessage);
 	}
 	const doc = await vscode.workspace.openTextDocument(vscode.Uri.file(modulePath));
