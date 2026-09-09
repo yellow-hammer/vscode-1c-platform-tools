@@ -41,6 +41,7 @@ import {
 	formModuleNextTo,
 	formatOfFile,
 	moduleFileOf,
+	objectDirectoryOf,
 	templateContentFileOf,
 	templateDescriptorFileOf,
 } from '../../shared/objectPaths';
@@ -523,6 +524,38 @@ export function registerMetadataFeature(
 			return;
 		}
 		void vscode.window.showInformationMessage('Выберите форму в дереве метаданных.');
+	}
+
+	/** Макет объекта: вид и файл содержимого от md-sparrow. */
+	async function readObjectTemplate(
+		objectXml: string,
+		templateName: string,
+		cwd: string,
+		configurationXmlAbs?: string
+	): Promise<{ templateType?: string; contentFile?: string } | undefined> {
+		const runtime = await ensureMdSparrowRuntime(context);
+		if (!runtime) {
+			return undefined;
+		}
+		const schema = configurationXmlAbs
+			? await mdSparrowSchemaFlagFromConfigurationXml(configurationXmlAbs)
+			: await mainSchemaFlag();
+		const result = await runMdSparrowParamsRead(
+			runtime,
+			{ op: 'cf-md-object-structure-get', objectXml, schemaVersion: schema },
+			{ cwd }
+		);
+		if (result.exitCode !== 0) {
+			return undefined;
+		}
+		try {
+			const structure = JSON.parse(result.stdout.trim()) as {
+				templates?: { name?: string; templateType?: string; contentFile?: string }[];
+			};
+			return structure.templates?.find((template) => template.name === templateName);
+		} catch {
+			return undefined;
+		}
 	}
 
 	async function resolveFirstXmlInDir(dir: string): Promise<string | undefined> {
@@ -2351,13 +2384,29 @@ export function registerMetadataFeature(
 				let title = '';
 				let cwd: string | undefined;
 				let configurationXmlAbs: string | undefined;
+				// Вид макета объекта уже спрошен у библиотеки, описание перечитывать незачем
+				let kindKnown = false;
 				if (item instanceof MetadataObjectNodeTreeItem && item.nodeKind === 'template' && item.owner.resourceUri) {
 					const objectFile = item.owner.resourceUri.fsPath;
-					// У макета EDT своего описания нет: вид макета записан в описании владельца
-					descriptorXml = templateDescriptorFileOf(objectFile, item.name) ?? objectFile;
-					templateXml = templateContentFileOf(objectFile, item.name);
-					title = `${item.owner.name}.${item.name}`;
 					cwd = item.owner.metadataRootAbs ?? path.dirname(item.owner.resourceUri.fsPath);
+					// Вид макета и файл его содержимого знает md-sparrow: у каждого вида свой файл
+					const template = await readObjectTemplate(objectFile, item.name, cwd, item.owner.configurationXmlAbs);
+					if (!template) {
+						void vscode.window.showInformationMessage('Состав макетов объекта не прочитан.');
+						return;
+					}
+					if (template.templateType !== 'DATA_COMPOSITION_SCHEMA') {
+						void vscode.window.showInformationMessage('Макет не является схемой компоновки данных.');
+						return;
+					}
+					if (!template.contentFile) {
+						void vscode.window.showInformationMessage(`Рядом с макетом «${item.name}» нет файла содержимого.`);
+						return;
+					}
+					templateXml = path.join(objectDirectoryOf(objectFile), template.contentFile);
+					descriptorXml = templateXml;
+					kindKnown = true;
+					title = `${item.owner.name}.${item.name}`;
 					configurationXmlAbs = item.owner.configurationXmlAbs;
 				} else if (item instanceof MetadataLeafTreeItem && item.resourceUri) {
 					const file = item.resourceUri.fsPath;
@@ -2372,8 +2421,8 @@ export function registerMetadataFeature(
 					return;
 				}
 				try {
-					const descriptor = await fs.promises.readFile(descriptorXml, 'utf8');
-					if (!descriptor.includes('DataCompositionSchema')) {
+					const descriptor = kindKnown ? '' : await fs.promises.readFile(descriptorXml, 'utf8');
+					if (!kindKnown && !descriptor.includes('DataCompositionSchema')) {
 						void vscode.window.showInformationMessage('Макет не является схемой компоновки данных.');
 						return;
 					}
