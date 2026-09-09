@@ -25,7 +25,7 @@
 | **1cpt: hooks** | `.1cpt/hooks.json` | [хуки](automation.md#хуки-команд) `pre`/`post`/`onError` на команды расширения | нет |
 | **1cpt: пайплайны** | `.1cpt/pipelines.json` | [пайплайны](automation.md#пайплайны): графы шагов с визуальным редактором | нет |
 
-Подпись «Осн. профиль запуска» отличает базовый файл настроек от именованных профилей; фактическое имя файла зависит от установленного vanessa-runner (`env.json` для 2.x, `autumn-properties.json` для 3.x).
+Имя файла зависит от установленного vanessa-runner: `env.json` для 2.x, `autumn-properties.json` для 3.x.
 
 ## Создание
 
