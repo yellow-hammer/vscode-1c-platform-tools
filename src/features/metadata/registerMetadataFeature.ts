@@ -98,6 +98,12 @@ export interface RegisterMetadataFeatureParams {
 }
 
 /** Правила поддержки: слова и порядок окна правила поддержки конфигуратора. */
+/** Подчинённые объекты в ответе о строении: вид и файл содержимого приходят вместе с именем. */
+interface ObjectChildrenDto {
+	forms?: { name?: string; formType?: string; contentFile?: string }[];
+	templates?: { name?: string; templateType?: string; contentFile?: string; binaryContent?: boolean }[];
+}
+
 const SUPPORT_RULE_PICKS: ReadonlyArray<{ readonly label: string; readonly mode: string }> = [
 	{ label: 'Объект поставщика не редактируется', mode: '0' },
 	{ label: 'Объект поставщика редактируется с сохранением поддержки', mode: '1' },
@@ -526,13 +532,12 @@ export function registerMetadataFeature(
 		void vscode.window.showInformationMessage('Выберите форму в дереве метаданных.');
 	}
 
-	/** Макет объекта: вид и файл содержимого от md-sparrow. */
-	async function readObjectTemplate(
+	/** Состав подчинённых объектов от md-sparrow: у формы и макета оттуда вид и файл содержимого. */
+	async function readObjectStructure(
 		objectXml: string,
-		templateName: string,
 		cwd: string,
 		configurationXmlAbs?: string
-	): Promise<{ templateType?: string; contentFile?: string } | undefined> {
+	): Promise<ObjectChildrenDto | undefined> {
 		const runtime = await ensureMdSparrowRuntime(context);
 		if (!runtime) {
 			return undefined;
@@ -549,10 +554,7 @@ export function registerMetadataFeature(
 			return undefined;
 		}
 		try {
-			const structure = JSON.parse(result.stdout.trim()) as {
-				templates?: { name?: string; templateType?: string; contentFile?: string }[];
-			};
-			return structure.templates?.find((template) => template.name === templateName);
+			return JSON.parse(result.stdout.trim()) as ObjectChildrenDto;
 		} catch {
 			return undefined;
 		}
@@ -2063,7 +2065,20 @@ export function registerMetadataFeature(
 					void vscode.window.showInformationMessage('У формы нет объекта-владельца.');
 					return;
 				}
-				const formXml = formContentFileOf(owner.resourceUri.fsPath, node.name);
+				const objectFile = owner.resourceUri.fsPath;
+				const cwd = owner.metadataRootAbs ?? path.dirname(objectFile);
+				// Вид формы и файл её содержимого знает md-sparrow: у обычной формы файл свой
+				const structure = await readObjectStructure(objectFile, cwd, owner.configurationXmlAbs);
+				const form = structure?.forms?.find((entry) => entry.name === node.name);
+				if (form?.formType === 'ORDINARY') {
+					void vscode.window.showInformationMessage(
+						`Форма «${node.name}» обычная: её показывает только конфигуратор. Модуль формы открывается отсюда.`
+					);
+					return;
+				}
+				const formXml = form?.contentFile
+					? path.join(objectDirectoryOf(objectFile), form.contentFile)
+					: formContentFileOf(objectFile, node.name);
 				await openFormViewerForXml(formXml, formModuleNextTo(formXml), `${owner.name}.${node.name}`, {
 					metadataRootAbs: owner.metadataRootAbs,
 					configurationXmlAbs: owner.configurationXmlAbs,
@@ -2390,7 +2405,8 @@ export function registerMetadataFeature(
 					const objectFile = item.owner.resourceUri.fsPath;
 					cwd = item.owner.metadataRootAbs ?? path.dirname(item.owner.resourceUri.fsPath);
 					// Вид макета и файл его содержимого знает md-sparrow: у каждого вида свой файл
-					const template = await readObjectTemplate(objectFile, item.name, cwd, item.owner.configurationXmlAbs);
+					const structure = await readObjectStructure(objectFile, cwd, item.owner.configurationXmlAbs);
+					const template = structure?.templates?.find((entry) => entry.name === item.name);
 					if (!template) {
 						void vscode.window.showInformationMessage('Состав макетов объекта не прочитан.');
 						return;
