@@ -69,6 +69,7 @@ const guides = [
 	{ text: 'Отладка 1С', link: '/debug' },
 	{ text: 'AI и MCP', link: '/ai-mcp' },
 	{ text: 'Docker и ibcmd', link: '/docker' },
+	{ text: 'Формат EDT', link: '/edt' },
 	{ text: 'Внешние компоненты', link: '/components' },
 	{ text: 'Сочетания клавиш', link: '/keyboard' },
 ];

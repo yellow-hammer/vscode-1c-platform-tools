@@ -12,6 +12,7 @@
 import * as path from 'node:path';
 import * as vscode from 'vscode';
 import * as fs from 'node:fs/promises';
+import { describeMarker } from '../../shared/projectLayout';
 
 const XML_HEAD_SIZE = 4096;
 const CANCEL_CHECK_INTERVAL = 512;
@@ -175,13 +176,15 @@ function getWorkspaceRelativePath(uri: vscode.Uri): string {
 
 /**
  * Классификация по началу файла: корень внешней обработки или отчёта.
- * Ожидается фрагмент в начале файла (например первые 4 КБ).
+ *
+ * Ожидается фрагмент в начале файла (например первые 4 КБ). В формате EDT
+ * корневой тег идёт с префиксом пространства имён: `<mdclass:ExternalReport`.
  */
 export function classifyXmlArtifactHead(content: string): 'processor' | 'report' | null {
-	if (/<ExternalDataProcessor[\s>]/.test(content)) {
+	if (/<(?:[\w.-]+:)?ExternalDataProcessor[\s>]/.test(content)) {
 		return 'processor';
 	}
-	if (/<ExternalReport[\s>]/.test(content)) {
+	if (/<(?:[\w.-]+:)?ExternalReport[\s>]/.test(content)) {
 		return 'report';
 	}
 	return null;
@@ -271,13 +274,13 @@ async function scanConfigurationAndExtensionSources(
 
 /** Признак расширения в заголовке `Configuration.mdo` проекта EDT. */
 export function isEdtExtensionHead(head: string): boolean {
-	return /<objectBelonging>/.test(head) || /<namePrefix>/.test(head);
+	return describeMarker(head, 'edt').isExtension;
 }
 
 /** Имя конфигурации или расширения из заголовка `Configuration.mdo`. */
 export function edtNameFromHead(head: string): string | undefined {
-	const name = head.match(/<name>([^<]+)<\/name>/)?.[1]?.trim();
-	return name !== undefined && name.length > 0 ? name : undefined;
+	const { name } = describeMarker(head, 'edt');
+	return name.length > 0 ? name : undefined;
 }
 
 /**
@@ -482,6 +485,47 @@ async function scanProcessorAndReportSources(
 }
 
 /**
+ * Внешние обработки и отчёты в проектах EDT.
+ *
+ * Тип задаёт каталог проекта (`ExternalDataProcessors`, `ExternalReports`), а
+ * описание объекта лежит в файле, названном по объекту. Читать заголовки не
+ * нужно: маска сама отбирает описания объектов, не задевая вложенные файлы.
+ */
+async function scanEdtExternalSources(
+	exclude: string[],
+	token: vscode.CancellationToken | undefined
+): Promise<ProcessorReportSources> {
+	const [processorFiles, reportFiles] = await Promise.all([
+		vscode.workspace.findFiles('**/src/ExternalDataProcessors/*/*.mdo', undefined, undefined, token),
+		vscode.workspace.findFiles('**/src/ExternalReports/*/*.mdo', undefined, undefined, token),
+	]);
+
+	const procSources: ProcessorArtifact[] = [];
+	const reportSources: ReportArtifact[] = [];
+	const seenProc = new Set<string>();
+	const seenRep = new Set<string>();
+
+	for (const [kind, files] of [
+		['processor', processorFiles],
+		['report', reportFiles],
+	] as const) {
+		for (const uri of files) {
+			throwIfCancelled(token);
+			if (isUriExcluded(uri, exclude)) {
+				continue;
+			}
+			// Описание объекта названо по объекту: Имя/Имя.mdo
+			if (path.parse(uri.fsPath).name !== path.basename(path.dirname(uri.fsPath))) {
+				continue;
+			}
+			addProcessorOrReportSource(kind, uri, seenProc, seenRep, procSources, reportSources);
+		}
+	}
+
+	return { procSources, reportSources };
+}
+
+/**
  * Полный скан артефактов workspace.
  *
  * @param token — отмена при повторном `refresh` (передаётся в {@link vscode.workspace.findFiles}).
@@ -516,10 +560,14 @@ export async function scanArtifacts(
 		token
 	);
 
+	throwIfCancelled(token);
+
+	const edtExternals = await scanEdtExternalSources(exclude, token);
+
 	return {
 		configurations: [...configSources, ...configBinaries],
 		extensions: [...extSources, ...extBinaries],
-		processors: [...procSources, ...procBinaries],
-		reports: [...reportSources, ...reportBinaries],
+		processors: [...procSources, ...edtExternals.procSources, ...procBinaries],
+		reports: [...reportSources, ...edtExternals.reportSources, ...reportBinaries],
 	};
 }

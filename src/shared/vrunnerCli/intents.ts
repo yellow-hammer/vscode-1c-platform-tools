@@ -154,6 +154,18 @@ export type VRunnerIntent =
 	}
 	/** Синтаксический контроль конфигурации. */
 	| { kind: 'validate.syntaxCheck'; common?: CommonArgs }
+	/** Проверка проекта средствами EDT. */
+	| { kind: 'validate.edt'; src?: string; junitPath?: string; common?: CommonArgs }
+
+	// ---- Конвертация исходников между форматами ----
+	/**
+	 * Конвертировать исходники конфигурации между форматами EDT и конфигуратора.
+	 *
+	 * Формат источника раннер определяет сам, результат пишется в другом.
+	 */
+	| { kind: 'cf.convert'; src?: string; out: string; common?: CommonArgs }
+	/** Конвертировать исходники расширения между форматами. */
+	| { kind: 'cfe.convert'; src?: string; out: string; extensionName?: string; common?: CommonArgs }
 
 	// ---- Сеансы информационной базы (через rac и ras) ----
 	/**

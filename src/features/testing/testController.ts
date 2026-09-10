@@ -299,9 +299,16 @@ export class TestingController implements vscode.Disposable {
 		// все обходы и классификацию запускаем параллельно — БЕЗ мутаций дерева.
 		// Дерево обновляется ниже единым последовательным дифом, чтобы пользователь
 		// не видел «прыгающие» узлы во время refresh.
-		const jobs = this.adapters
-			.filter((adapter) => adapter.isEnabled())
-			.flatMap((adapter) => adapter.getIncludeGlobs().map((glob) => ({ adapter, glob })));
+		const jobs = (
+			await Promise.all(
+				this.adapters
+					.filter((adapter) => adapter.isEnabled())
+					.map(async (adapter) => {
+						const globs = await adapter.getIncludeGlobs();
+						return globs.map((glob) => ({ adapter, glob }));
+					})
+			)
+		).flat();
 
 		const discovered = await Promise.all(
 			jobs.map(async ({ adapter, glob }) => {

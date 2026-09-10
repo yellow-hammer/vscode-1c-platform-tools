@@ -12,8 +12,11 @@ import {
 	getBuildConfigurationCommandName,
 	getDecompileConfigurationCommandName,
 	getLoadConfigurationIncrementFromSrcCommandName,
-	getLoadConfigurationFromFilesByListCommandName
+	getLoadConfigurationFromFilesByListCommandName,
+	getConvertSourcesCommandName
 } from '../features/tools/commandNames';
+import { configurationScope } from '../shared/activeConfiguration';
+import { VRUNNER_FEATURES, isAtLeast } from '../shared/vrunnerVersion';
 import {
 	checkVersionFileExists,
 	handleMissingVersionFile
@@ -43,7 +46,7 @@ export class ConfigurationCommands extends BaseCommand {
 		mode: 'init' | 'load' = 'load',
 		opts?: CommandExecutionOptions
 	): Promise<StructuredCommandResult | void> {
-		const srcPath = this.vrunner.getCfPath();
+		const srcPath = await this.activeCfPath();
 		const ibConnectionParam = await this.vrunner.getIbConnectionParam();
 		const commandName = getLoadConfigurationFromSrcCommandName(mode);
 		if (mode === 'init') {
@@ -78,7 +81,7 @@ export class ConfigurationCommands extends BaseCommand {
 	}
 
 	async dumpToSrc(opts?: CommandExecutionOptions): Promise<StructuredCommandResult | void> {
-		const srcPath = this.vrunner.getCfPath();
+		const srcPath = await this.activeCfPath();
 		const ibConnectionParam = await this.vrunner.getIbConnectionParam();
 		const dumpToSrcCmd = getDumpConfigurationToSrcCommandName();
 		return this.runIntent(
@@ -105,7 +108,7 @@ export class ConfigurationCommands extends BaseCommand {
 			return;
 		}
 
-		const srcPath = this.vrunner.getCfPath();
+		const srcPath = await this.activeCfPath();
 		const srcFullPath = path.join(cwd, srcPath);
 		const configDumpInfoPath = path.join(srcFullPath, 'ConfigDumpInfo.xml');
 		const versionFileExists = await checkVersionFileExists(configDumpInfoPath);
@@ -225,7 +228,7 @@ export class ConfigurationCommands extends BaseCommand {
 			return;
 		}
 
-		const srcPath = this.vrunner.getCfPath();
+		const srcPath = await this.activeCfPath();
 		const buildPath = this.vrunner.getOutPath();
 		const buildFullPath = path.join(cwd, buildPath);
 		if (!(await this.ensureDirectoryForExecution(
@@ -247,10 +250,58 @@ export class ConfigurationCommands extends BaseCommand {
 		);
 	}
 
+	/**
+	 * Конвертирует исходники конфигурации между форматами EDT и конфигуратора.
+	 *
+	 * Формат источника определяет сам vanessa-runner по маркерам каталога,
+	 * результат пишется в противоположном формате.
+	 *
+	 * @param opts - Опции выполнения
+	 */
+	async convertSources(opts?: CommandExecutionOptions): Promise<StructuredCommandResult | void> {
+		const version = await this.vrunner.getVRunnerVersion();
+		if (version !== undefined && !isAtLeast(version, VRUNNER_FEATURES.edtSources)) {
+			return this.reportUnavailable(
+				'Конвертация исходников между форматами появилась в vanessa-runner 3.0.0-rc8.',
+				opts
+			);
+		}
+
+		const workspaceRoot = this.ensureWorkspace();
+		if (!workspaceRoot) {
+			return;
+		}
+
+		const scope = await configurationScope(workspaceRoot, {
+			configuration: this.vrunner.getCfPath(),
+			extensions: [this.vrunner.getCfePath(), this.vrunner.getTestsCfePath()],
+		});
+		const source = scope.configuration;
+		if (!source) {
+			return this.reportUnavailable('В рабочей области нет исходников конфигурации.', opts);
+		}
+
+		const relativeSource = path.relative(workspaceRoot, source.dir).split(path.sep).join('/');
+		const suffix = source.format === 'edt' ? 'cf-designer' : 'cf-edt';
+		const defaultOut = path.join(this.vrunner.getOutPath(), suffix);
+		const outputPath = opts?.wait === true
+			? defaultOut
+			: await this.pickOutputPath(defaultOut, 'Каталог для конвертированных исходников');
+		if (!outputPath) {
+			return;
+		}
+
+		const commandName = getConvertSourcesCommandName();
+		return this.runIntent(
+			{ kind: 'cf.convert', src: relativeSource || undefined, out: outputPath },
+			opts, commandName.title, outputPath, commandName.id
+		);
+	}
+
 	async decompile(opts?: CommandExecutionOptions): Promise<StructuredCommandResult | void> {
 		const buildPath = this.vrunner.getOutPath();
 		const inputPath = path.join(buildPath, '1Cv8.cf');
-		const srcPath = this.vrunner.getCfPath();
+		const srcPath = await this.activeCfPath();
 		const decompileCmd = getDecompileConfigurationCommandName();
 		return this.runIntent(
 			{ kind: 'cf.decompileFile', file: inputPath, out: srcPath },
@@ -273,7 +324,7 @@ export class ConfigurationCommands extends BaseCommand {
 			return;
 		}
 
-		const srcPath = this.vrunner.getCfPath();
+		const srcPath = await this.activeCfPath();
 		const lastUploadedCommitPath = path.join(workspaceRoot, srcPath, 'lastUploadedCommit.txt');
 
 		let currentSha = '';
@@ -351,7 +402,7 @@ export class ConfigurationCommands extends BaseCommand {
 			return;
 		}
 
-		const srcPath = this.vrunner.getCfPath();
+		const srcPath = await this.activeCfPath();
 		const configFullPath = path.resolve(workspaceRoot, srcPath);
 		const content = await fs.readFile(objlistPath, 'utf-8');
 		const lines = this.parseObjlistLines(content);

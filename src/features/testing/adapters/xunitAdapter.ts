@@ -4,6 +4,7 @@ import * as fsSync from 'node:fs';
 import * as fs from 'node:fs/promises';
 import { VRunnerManager } from '../../../shared/vrunnerManager';
 import { logger } from '../../../shared/logger';
+import { activeExternalGlobBases } from './adapterUtils';
 import { TestFrameworkAdapter, AdapterRunPlan, RunUnit, FileTreeLocation } from '../frameworkAdapter';
 import { DiscoveredFile } from '../parsers/parserTypes';
 import { parseBslTestModule } from '../parsers/bslTestParser';
@@ -60,13 +61,20 @@ export class XUnitAdapter implements TestFrameworkAdapter {
 		return hasConfigurationSources(this.vrunner);
 	}
 
-	public getIncludeGlobs(): string[] {
+	public async getIncludeGlobs(): Promise<string[]> {
 		const epfBase = normalizeGlobBase(this.vrunner.getTestsSrcPath());
-		return [
-			// форматы конфигуратора и EDT
+		const configured = [
+			// форматы конфигуратора и EDT под настроенным путём тестов
 			`${epfBase}/**/Ext/ObjectModule.bsl`,
 			`${epfBase}/**/src/ExternalDataProcessors/*/ObjectModule.bsl`,
 		];
+
+		// Тестовые обработки в формате EDT лежат отдельными проектами
+		const projects = (await activeExternalGlobBases(this.vrunner)).map(
+			(base) => `${base}/src/ExternalDataProcessors/*/ObjectModule.bsl`
+		);
+
+		return [...configured, ...projects].filter((glob, index, all) => all.indexOf(glob) === index);
 	}
 
 	public parseFile(content: string): DiscoveredFile | undefined {

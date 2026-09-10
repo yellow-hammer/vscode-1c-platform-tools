@@ -5,6 +5,8 @@ import {
 	compareVRunnerVersions,
 	isAtLeast,
 	supportsFeature,
+	VRUNNER_FEATURES,
+	type VRunnerVersion,
 } from '../../shared/vrunnerVersion';
 
 suite('vrunnerVersion', () => {
@@ -95,5 +97,25 @@ suite('vrunnerVersion', () => {
 	test('parseVRunnerVersionFromOpmMetadata: битый xml → undefined', () => {
 		assert.strictEqual(parseVRunnerVersionFromOpmMetadata(''), undefined);
 		assert.strictEqual(parseVRunnerVersionFromOpmMetadata('<not-opm/>'), undefined);
+	});
+});
+
+suite('vrunnerVersion: гейт с предрелизом', () => {
+	test('возможность EDT доступна с rc8, но не раньше', () => {
+		const at = (raw: string) => isAtLeast(parseVRunnerVersion(raw) as VRunnerVersion, VRUNNER_FEATURES.edtSources);
+
+		assert.strictEqual(at('3.0.0-rc7'), false);
+		assert.strictEqual(at('3.0.0-rc8'), true);
+		assert.strictEqual(at('3.0.0-rc9'), true);
+		assert.strictEqual(at('3.0.0-rc10'), true);
+		assert.strictEqual(at('3.0.0'), true);
+		assert.strictEqual(at('3.1.0'), true);
+		assert.strictEqual(at('2.6.1'), false);
+	});
+
+	test('гейт без предрелиза по-прежнему принимает ранние rc', () => {
+		const version = parseVRunnerVersion('3.0.0-rc3') as VRunnerVersion;
+
+		assert.strictEqual(isAtLeast(version, VRUNNER_FEATURES.ibsrvAttach), true);
 	});
 });

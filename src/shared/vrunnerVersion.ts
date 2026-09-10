@@ -35,6 +35,13 @@ export const VRUNNER_FEATURES = {
 	ibsrv: '3.0.0',
 	/** Подключение к внешнему ibsrv: --ibsrv-attach / --ibsrv-port (3.0.0-rc3). */
 	ibsrvAttach: '3.0.0',
+	/**
+	 * Работа с исходниками EDT: загрузка, сборка, выгрузка и конвертация.
+	 *
+	 * Появилась в 3.0.0-rc8, поэтому гейт указан с предрелизом: на rc7 команды
+	 * формат EDT не понимают.
+	 */
+	edtSources: '3.0.0-rc8',
 } as const;
 
 /** Идентификатор возможности vrunner для гейтинга по версии. */
@@ -123,10 +130,35 @@ export function compareVRunnerVersions(a: VRunnerVersion, b: VRunnerVersion): nu
 }
 
 /**
+/**
+ * Сравнивает пометки предрелиза: `rc7` < `rc8` < `rc10`.
+ *
+ * Числовой хвост сравнивается числом, чтобы `rc10` не оказался младше `rc7`.
+ */
+function comparePrereleases(a: string, b: string): number {
+	const split = (value: string): [string, number] => {
+		const match = value.match(/^([A-Za-z.-]*)(\d*)$/);
+		return match ? [match[1], match[2] ? Number(match[2]) : 0] : [value, 0];
+	};
+	const [aName, aNumber] = split(a);
+	const [bName, bNumber] = split(b);
+	if (aName !== bName) {
+		return aName < bName ? -1 : 1;
+	}
+	if (aNumber !== bNumber) {
+		return aNumber < bNumber ? -1 : 1;
+	}
+	return 0;
+}
+
+/**
  * Проверяет, что версия не ниже целевой (по major.minor.patch).
  *
  * Предрелиз целевой версии считается удовлетворяющим: `3.0.0-rc3`
  * удовлетворяет `>= 3.0.0` (возможность уже есть в ветке 3.0).
+ *
+ * Когда предрелиз указан в самой цели (`3.0.0-rc8`), он участвует в сравнении:
+ * возможность появилась не в начале ветки, и на ранних rc её ещё нет.
  *
  * @param version - Проверяемая версия
  * @param target - Целевая версия в виде строки (например, '3.0.0')
@@ -137,7 +169,19 @@ export function isAtLeast(version: VRunnerVersion, target: string): boolean {
 	if (!parsedTarget) {
 		return false;
 	}
-	return compareVRunnerVersions(version, parsedTarget) >= 0;
+
+	const core = compareVRunnerVersions(version, parsedTarget);
+	if (core !== 0) {
+		return core > 0;
+	}
+	if (!parsedTarget.prerelease) {
+		return true;
+	}
+	// Финальный релиз новее любого своего предрелиза
+	if (!version.prerelease) {
+		return true;
+	}
+	return comparePrereleases(version.prerelease, parsedTarget.prerelease) >= 0;
 }
 
 /**

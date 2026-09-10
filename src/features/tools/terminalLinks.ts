@@ -18,12 +18,9 @@
 import * as path from 'node:path';
 import * as fs from 'node:fs/promises';
 import * as vscode from 'vscode';
-import {
-	METADATA_TYPE_NAMES,
-	resolveBslPathFromMetadata,
-	type MetadataSourceFormat,
-} from '../diagnostics/metadataPathResolver';
+import { METADATA_TYPE_NAMES, resolveBslPathFromMetadata } from '../diagnostics/metadataPathResolver';
 import { resolveProjectLayout, type SourceRoot } from '../../shared/projectLayout';
+import { sourcePath } from '../../shared/objectPaths';
 import { DEFAULT_PATHS } from '../../shared/pathDefaults';
 import { VRunnerManager } from '../../shared/vrunnerManager';
 import { logger } from '../../shared/logger';
@@ -246,13 +243,11 @@ export async function resolveMetadataInRoots(
 	roots: readonly Pick<SourceRoot, 'dir' | 'format'>[]
 ): Promise<string | undefined> {
 	for (const root of roots) {
-		const relative = resolveBslPathFromMetadata(metadataPath, root.format as MetadataSourceFormat);
+		const relative = resolveBslPathFromMetadata(metadataPath, root.format);
 		if (!relative) {
 			continue;
 		}
-		// В EDT исходники лежат в подкаталоге src проекта
-		const base = root.format === 'edt' ? path.join(root.dir, 'src') : root.dir;
-		const candidate = path.join(base, ...relative.split('/'));
+		const candidate = sourcePath(root as SourceRoot, relative);
 		if (await exists(candidate)) {
 			return candidate;
 		}
