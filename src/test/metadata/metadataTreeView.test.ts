@@ -694,7 +694,7 @@ suite('metadataTreeView: расширение неподдерживаемого
 		const old = roots[2];
 		assert.strictEqual(old.label, 'СтарыйФормат');
 		assert.strictEqual(old.collapsibleState, vscode.TreeItemCollapsibleState.Collapsed);
-		assert.strictEqual(old.contextValue, 'metadataSourceUnsupported');
+		assert.strictEqual(old.contextValue, 'metadataSourceUnsupported mdDesigner');
 		const children = await provider.getChildren(old);
 		assert.strictEqual(children.length, 1);
 		assert.ok(children[0] instanceof MetadataSourceNoteTreeItem);
