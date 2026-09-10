@@ -314,7 +314,7 @@ suite('metadataObjectEditSpec: виды без состава', () => {
 			const paths = normalized.flatMap((tab) => tab.groups.flatMap((group) => group.fields.map((f) => f.path)));
 
 			assert.ok(paths.includes('internalName'), `${kind}: нет имени`);
-			assert.ok(paths.includes('synonymRu'), `${kind}: нет синонима`);
+			assert.ok(paths.includes('synonym'), `${kind}: нет синонима`);
 			assert.ok(paths.includes(keyPath), `${kind}: нет свойства ${keyPath}`);
 			assert.deepStrictEqual(paths, [...new Set(paths)], `${kind}: свойство встречается дважды`);
 			for (const tab of normalized) {
@@ -329,7 +329,7 @@ suite('metadataObjectEditSpec: виды без состава', () => {
 		const paths = normalizeTabLayout(buildRoleEditTabs())
 			.flatMap((tab) => tab.groups.flatMap((group) => group.fields.map((field) => field.path)));
 
-		assert.deepStrictEqual(paths, ['internalName', 'synonymRu', 'comment']);
+		assert.deepStrictEqual(paths, ['internalName', 'synonym', 'comment']);
 	});
 
 	test('у общей команды модуль в группе модулей', () => {

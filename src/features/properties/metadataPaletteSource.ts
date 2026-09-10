@@ -24,6 +24,7 @@ import {
 	mdObjectKindLabel,
 	mdObjectKindLabels,
 	objectPaletteTabs,
+	withEditLanguage,
 } from '../metadata/metadataObjectPropertiesPanel';
 import { ensureMdSparrowRuntime } from '../metadata/mdSparrowBootstrap';
 import { runMdSparrowParamsMutation, runMdSparrowParamsRead, type MdSparrowOp } from '../metadata/mdSparrowParams';
@@ -338,6 +339,23 @@ function state(target: PaletteTarget, tabs: readonly MetadataEditTabSpec[], dto:
 	};
 }
 
+/**
+ * Подпись языка у многоязычных свойств.
+ *
+ * Язык текстов и список таких свойств приходят вместе со свойствами: у палитры
+ * своего списка нет.
+ */
+function withLanguageOf(
+	tabs: readonly MetadataEditTabSpec[],
+	dto: Record<string, unknown>
+): readonly MetadataEditTabSpec[] {
+	const languageCode = typeof dto.languageCode === 'string' ? dto.languageCode : undefined;
+	const localized = Array.isArray(dto.localStringProperties)
+		? dto.localStringProperties.filter((item): item is string => typeof item === 'string')
+		: undefined;
+	return withEditLanguage(tabs, languageCode, localized);
+}
+
 interface ReadResult {
 	readonly dto: Record<string, unknown>;
 	readonly tabs: readonly MetadataEditTabSpec[];
@@ -366,7 +384,11 @@ async function readProperties(
 				forConfiguration[key.slice('configuration.'.length)] = values as string[];
 			}
 		}
-		return { dto, tabs: applyEnumDictionary(SOURCE_PROPERTIES_TABS, forConfiguration, labels), schema };
+		return {
+			dto,
+			tabs: withLanguageOf(applyEnumDictionary(SOURCE_PROPERTIES_TABS, forConfiguration, labels), dto),
+			schema,
+		};
 	}
 	if (target.child) {
 		const node = findChildInObject(dto, target.child);
@@ -390,7 +412,10 @@ async function readProperties(
 		return {
 			dto: node ?? { name: target.child.name },
 			tabs: withPropertyStates(
-				applyEnumDictionary(childNodeTabs(node !== undefined, node, typeOptions), forNode, labels),
+				withLanguageOf(
+					applyEnumDictionary(childNodeTabs(node !== undefined, node, typeOptions), forNode, labels),
+					dto
+				),
 				node?.propertyStates,
 				node?.extendable
 			),
@@ -402,7 +427,7 @@ async function readProperties(
 		readJson(runtime, 'cf-md-object-enums', target, schema).catch(() => ({})),
 	]);
 	const tabs = withPropertyStates(
-		objectPaletteTabs(dto, structure, String(dto.internalName ?? target.title), enums),
+		withLanguageOf(objectPaletteTabs(dto, structure, String(dto.internalName ?? target.title), enums), dto),
 		propertyStatesOf(dto),
 		extendableOf(dto)
 	);

@@ -14,7 +14,7 @@ export interface ErCatalogEntry {
 	readonly key: string;
 	readonly objectType: string;
 	readonly name: string;
-	readonly synonymRu: string;
+	readonly synonym: string;
 }
 
 /** init: webview получает уже подсчитанный подграф под стартовый scope. */

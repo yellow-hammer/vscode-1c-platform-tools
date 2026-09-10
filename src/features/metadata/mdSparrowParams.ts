@@ -160,7 +160,7 @@ export interface MdSparrowParams {
 	schemaVersion?: string;
 	type?: string;
 	kind?: string;
-	synonymRu?: string;
+	synonym?: string;
 	synonymEmpty?: boolean;
 	autoName?: boolean;
 	/** Отпечаток прочитанных правил поддержки: правка поверх устаревшего снимка отклоняется. */

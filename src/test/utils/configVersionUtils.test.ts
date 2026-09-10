@@ -39,9 +39,32 @@ suite('версия и свойства поставки из описания �
 			const props = await readConfigurationDeliveryProperties(xml);
 			assert.ok(props);
 			assert.strictEqual(props.name, 'Демо');
-			assert.strictEqual(props.synonymRu, 'Демо конфигурация');
+			assert.strictEqual(props.synonym, 'Демо конфигурация');
 			assert.strictEqual(props.vendor, 'Фирма "1С"');
 			assert.strictEqual(props.appVersion, '8.3');
+		} finally {
+			fs.rmSync(dir, { recursive: true, force: true });
+		}
+	});
+
+	test('конфигурация не на русском: подпись берётся на её языке', async () => {
+		const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'cf-version-de-'));
+		const xml = path.join(dir, 'Configuration.xml');
+		fs.writeFileSync(
+			xml,
+			[
+				'<MetaDataObject version="2.21"><Configuration><Properties>',
+				'<Name>Zweisprachig</Name>',
+				'<Synonym><v8:item><v8:lang>de</v8:lang><v8:content>Demo</v8:content></v8:item></Synonym>',
+				'<Version>1.0.0.1</Version>',
+				'</Properties></Configuration></MetaDataObject>',
+			].join('\n'),
+			'utf8'
+		);
+		try {
+			const props = await readConfigurationDeliveryProperties(xml);
+			assert.ok(props);
+			assert.strictEqual(props.synonym, 'Demo');
 		} finally {
 			fs.rmSync(dir, { recursive: true, force: true });
 		}

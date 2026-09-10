@@ -52,7 +52,7 @@ function parseGraph(raw: string): ErGraph {
 					key: String(o.key ?? ''),
 					objectType: String(o.objectType ?? ''),
 					name: String(o.name ?? ''),
-					synonymRu: String(o.synonymRu ?? ''),
+					synonym: String(o.synonym ?? ''),
 					sourceId: String(o.sourceId ?? ''),
 					relativePath: String(o.relativePath ?? ''),
 					subsystemKeys: normalizeStringArray(o.subsystemKeys),

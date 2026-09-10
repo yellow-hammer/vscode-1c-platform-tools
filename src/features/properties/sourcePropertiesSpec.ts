@@ -28,7 +28,7 @@ export const SOURCE_PROPERTIES_TABS: readonly MetadataEditTabSpec[] = [
 				title: 'Основные',
 				fields: [
 					{ path: 'name', label: 'Имя', control: 'text' },
-					{ path: 'synonymRu', label: 'Синоним', control: 'text' },
+					{ path: 'synonym', label: 'Синоним', control: 'text' },
 					{ path: 'comment', label: 'Комментарий', control: 'text' },
 					{ path: 'defaultRunMode', label: 'Основной режим запуска', control: 'select' },
 					{ path: 'scriptVariant', label: 'Вариант встроенного языка', control: 'select' },
@@ -39,11 +39,11 @@ export const SOURCE_PROPERTIES_TABS: readonly MetadataEditTabSpec[] = [
 			{
 				title: 'Представление',
 				fields: [
-					{ path: 'briefInformationRu', label: 'Краткая информация', control: 'textarea' },
-					{ path: 'detailedInformationRu', label: 'Подробная информация', control: 'textarea' },
-					{ path: 'copyrightRu', label: 'Авторские права', control: 'textarea' },
-					{ path: 'vendorInformationAddressRu', label: 'Адрес информации о поставщике', control: 'text' },
-					{ path: 'configurationInformationAddressRu', label: 'Адрес информации о конфигурации', control: 'text' },
+					{ path: 'briefInformation', label: 'Краткая информация', control: 'textarea' },
+					{ path: 'detailedInformation', label: 'Подробная информация', control: 'textarea' },
+					{ path: 'copyright', label: 'Авторские права', control: 'textarea' },
+					{ path: 'vendorInformationAddress', label: 'Адрес информации о поставщике', control: 'text' },
+					{ path: 'configurationInformationAddress', label: 'Адрес информации о конфигурации', control: 'text' },
 				],
 			},
 			{

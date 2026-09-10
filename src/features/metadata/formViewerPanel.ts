@@ -818,7 +818,7 @@ interface FormViewerViewModel {
 /** Реквизит объекта-владельца: имя, синоним и тип значения. */
 interface OwnerAttributeDto {
 	name?: string;
-	synonymRu?: string;
+	synonym?: string;
 	type?: { types?: string[] };
 }
 
@@ -830,7 +830,7 @@ interface OwnerStructureDto {
 	childSynonyms?: Record<string, string>;
 	tabularSections?: {
 		name?: string;
-		synonymRu?: string;
+		synonym?: string;
 		attributes?: OwnerAttributeDto[];
 		standardAttributeSynonyms?: Record<string, string>;
 	}[];
@@ -886,8 +886,8 @@ export function dataPathTitles(
 		return out;
 	}
 	for (const attribute of structure.attributes ?? []) {
-		if (attribute.name && attribute.synonymRu) {
-			out[`${mainAttribute}.${attribute.name}`] = attribute.synonymRu;
+		if (attribute.name && attribute.synonym) {
+			out[`${mainAttribute}.${attribute.name}`] = attribute.synonym;
 		}
 	}
 	for (const [name, synonym] of Object.entries(structure.childSynonyms ?? {})) {
@@ -900,15 +900,15 @@ export function dataPathTitles(
 		if (!section.name) {
 			continue;
 		}
-		if (section.synonymRu) {
-			out[`${mainAttribute}.${section.name}`] = section.synonymRu;
+		if (section.synonym) {
+			out[`${mainAttribute}.${section.name}`] = section.synonym;
 		}
 		for (const [name, synonym] of Object.entries(section.standardAttributeSynonyms ?? {})) {
 			out[`${mainAttribute}.${section.name}.${name}`] = synonym;
 		}
 		for (const column of section.attributes ?? []) {
-			if (column.name && column.synonymRu) {
-				out[`${mainAttribute}.${section.name}.${column.name}`] = column.synonymRu;
+			if (column.name && column.synonym) {
+				out[`${mainAttribute}.${section.name}.${column.name}`] = column.synonym;
 			}
 		}
 	}

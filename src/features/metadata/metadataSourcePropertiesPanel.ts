@@ -36,7 +36,7 @@ export interface SourcePropertyDictionaries {
 
 export interface SourcePropertiesDto {
 	name: string;
-	synonymRu: string;
+	synonym: string;
 	comment: string;
 	defaultRunMode: string;
 	usePurposes: string[];
@@ -45,11 +45,11 @@ export interface SourcePropertiesDto {
 	managedApplicationModule: string;
 	sessionModule: string;
 	externalConnectionModule: string;
-	briefInformationRu: string;
-	detailedInformationRu: string;
-	copyrightRu: string;
-	vendorInformationAddressRu: string;
-	configurationInformationAddressRu: string;
+	briefInformation: string;
+	detailedInformation: string;
+	copyright: string;
+	vendorInformationAddress: string;
+	configurationInformationAddress: string;
 	vendor: string;
 	version: string;
 	updateCatalogAddress: string;

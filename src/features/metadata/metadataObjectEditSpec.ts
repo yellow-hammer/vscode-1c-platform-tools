@@ -61,7 +61,7 @@ export interface MetadataEditCondition {
 }
 
 export interface MetadataEditField {
-	/** Путь в DTO свойств: `synonymRu` или `catalog.choiceMode`. */
+	/** Путь в DTO свойств: `synonym` или `catalog.choiceMode`. */
 	readonly path: string;
 	readonly label: string;
 	readonly control: MetadataEditControl;
@@ -109,17 +109,16 @@ const STATE_KEYS_BY_FIELD: Readonly<Record<string, string>> = {
 };
 
 /**
- * Ключ состояния по пути поля: `synonymRu` и `catalog.hierarchical` дают `synonym`
+ * Ключ состояния по пути поля: `synonym` и `catalog.hierarchical` дают `synonym`
  * и `hierarchical`, как md-sparrow именует состояния в обоих форматах.
  */
 export function propertyStateKey(path: string): string {
 	const last = path.slice(path.lastIndexOf('.') + 1);
-	const stripped = last.endsWith('Ru') ? last.slice(0, -2) : last;
-	const known = STATE_KEYS_BY_FIELD[stripped];
+	const known = STATE_KEYS_BY_FIELD[last];
 	if (known) {
 		return known;
 	}
-	return stripped.charAt(0).toLowerCase() + stripped.slice(1);
+	return last.charAt(0).toLowerCase() + last.slice(1);
 }
 
 /** Состояния свойств заимствованного узла из его описания: md-sparrow отдаёт их под именами свойств. */
@@ -486,7 +485,7 @@ export function buildCatalogEditTabs(input: CatalogEditSpecInput): MetadataEditT
 					title: 'Основные',
 					fields: [
 						{ path: 'internalName', label: 'Имя', control: 'text', readonly: true },
-						{ path: 'synonymRu', label: 'Синоним', control: 'text' },
+						{ path: 'synonym', label: 'Синоним', control: 'text' },
 						{ path: 'comment', label: 'Комментарий', control: 'text' },
 						{ path: 'object', label: 'Модуль объекта', control: 'moduleLink' },
 						{ path: 'manager', label: 'Модуль менеджера', control: 'moduleLink' },
@@ -495,19 +494,19 @@ export function buildCatalogEditTabs(input: CatalogEditSpecInput): MetadataEditT
 				{
 					title: 'Представление',
 					fields: [
-						{ path: 'catalog.objectPresentationRu', label: 'Представление объекта', control: 'text' },
+						{ path: 'catalog.objectPresentation', label: 'Представление объекта', control: 'text' },
 						{
-							path: 'catalog.extendedObjectPresentationRu',
+							path: 'catalog.extendedObjectPresentation',
 							label: 'Расширенное представление объекта',
 							control: 'text',
 						},
-						{ path: 'catalog.listPresentationRu', label: 'Представление списка', control: 'text' },
+						{ path: 'catalog.listPresentation', label: 'Представление списка', control: 'text' },
 						{
-							path: 'catalog.extendedListPresentationRu',
+							path: 'catalog.extendedListPresentation',
 							label: 'Расширенное представление списка',
 							control: 'text',
 						},
-						{ path: 'catalog.explanationRu', label: 'Пояснение', control: 'textarea' },
+						{ path: 'catalog.explanation', label: 'Пояснение', control: 'textarea' },
 					],
 				},
 				{
@@ -873,7 +872,7 @@ export function buildDocumentEditTabs(input: DocumentEditSpecInput): MetadataEdi
 					title: 'Основные',
 					fields: [
 						{ path: 'internalName', label: 'Имя', control: 'text', readonly: true },
-						{ path: 'synonymRu', label: 'Синоним', control: 'text' },
+						{ path: 'synonym', label: 'Синоним', control: 'text' },
 						{ path: 'comment', label: 'Комментарий', control: 'text' },
 						{ path: 'object', label: 'Модуль объекта', control: 'moduleLink' },
 						{ path: 'manager', label: 'Модуль менеджера', control: 'moduleLink' },
@@ -882,19 +881,19 @@ export function buildDocumentEditTabs(input: DocumentEditSpecInput): MetadataEdi
 				{
 					title: 'Представление',
 					fields: [
-						{ path: 'document.objectPresentationRu', label: 'Представление объекта', control: 'text' },
+						{ path: 'document.objectPresentation', label: 'Представление объекта', control: 'text' },
 						{
-							path: 'document.extendedObjectPresentationRu',
+							path: 'document.extendedObjectPresentation',
 							label: 'Расширенное представление объекта',
 							control: 'text',
 						},
-						{ path: 'document.listPresentationRu', label: 'Представление списка', control: 'text' },
+						{ path: 'document.listPresentation', label: 'Представление списка', control: 'text' },
 						{
-							path: 'document.extendedListPresentationRu',
+							path: 'document.extendedListPresentation',
 							label: 'Расширенное представление списка',
 							control: 'text',
 						},
-						{ path: 'document.explanationRu', label: 'Пояснение', control: 'textarea' },
+						{ path: 'document.explanation', label: 'Пояснение', control: 'textarea' },
 					],
 				},
 				{
@@ -1183,7 +1182,7 @@ export function buildEnumEditTabs(input: SimpleObjectEditSpecInput): MetadataEdi
 					title: 'Основные',
 					fields: [
 						{ path: 'internalName', label: 'Имя', control: 'text', readonly: true },
-						{ path: 'synonymRu', label: 'Синоним', control: 'text' },
+						{ path: 'synonym', label: 'Синоним', control: 'text' },
 						{ path: 'comment', label: 'Комментарий', control: 'text' },
 						{ path: 'manager', label: 'Модуль менеджера', control: 'moduleLink' },
 					],
@@ -1191,13 +1190,13 @@ export function buildEnumEditTabs(input: SimpleObjectEditSpecInput): MetadataEdi
 				{
 					title: 'Представление',
 					fields: [
-						{ path: 'enumeration.listPresentationRu', label: 'Представление списка', control: 'text' },
+						{ path: 'enumeration.listPresentation', label: 'Представление списка', control: 'text' },
 						{
-							path: 'enumeration.extendedListPresentationRu',
+							path: 'enumeration.extendedListPresentation',
 							label: 'Расширенное представление списка',
 							control: 'text',
 						},
-						{ path: 'enumeration.explanationRu', label: 'Пояснение', control: 'textarea' },
+						{ path: 'enumeration.explanation', label: 'Пояснение', control: 'textarea' },
 					],
 				},
 				{
@@ -1290,7 +1289,7 @@ export function buildConstantEditTabs(input: SimpleObjectEditSpecInput): Metadat
 					title: 'Основные',
 					fields: [
 						{ path: 'internalName', label: 'Имя', control: 'text', readonly: true },
-						{ path: 'synonymRu', label: 'Синоним', control: 'text' },
+						{ path: 'synonym', label: 'Синоним', control: 'text' },
 						{ path: 'comment', label: 'Комментарий', control: 'text' },
 						{ path: 'constant.type', label: 'Тип', control: 'type' },
 						{ path: 'valueManager', label: 'Модуль менеджера значения', control: 'moduleLink' },
@@ -1300,16 +1299,16 @@ export function buildConstantEditTabs(input: SimpleObjectEditSpecInput): Metadat
 				{
 					title: 'Представление',
 					fields: [
-						{ path: 'constant.extendedPresentationRu', label: 'Расширенное представление', control: 'text' },
-						{ path: 'constant.toolTipRu', label: 'Подсказка', control: 'text' },
-						{ path: 'constant.explanationRu', label: 'Пояснение', control: 'textarea' },
+						{ path: 'constant.extendedPresentation', label: 'Расширенное представление', control: 'text' },
+						{ path: 'constant.toolTip', label: 'Подсказка', control: 'text' },
+						{ path: 'constant.explanation', label: 'Пояснение', control: 'textarea' },
 					],
 				},
 				{
 					title: 'Представление значения',
 					fields: [
-						{ path: 'constant.formatRu', label: 'Формат', control: 'text' },
-						{ path: 'constant.editFormatRu', label: 'Формат редактирования', control: 'text' },
+						{ path: 'constant.format', label: 'Формат', control: 'text' },
+						{ path: 'constant.editFormat', label: 'Формат редактирования', control: 'text' },
 						{ path: 'constant.mask', label: 'Маска', control: 'text' },
 						{ path: 'constant.markNegatives', label: 'Выделять отрицательные', control: 'check' },
 						{ path: 'constant.passwordMode', label: 'Режим пароля', control: 'check' },
@@ -1457,7 +1456,7 @@ export function buildReportEditTabs(input: ReportEditSpecInput): MetadataEditTab
 	const forms = objectFormOptions(prefix, input.internalName, input.formNames, input.commonFormNames);
 	const mainGroupFields: MetadataEditField[] = [
 		{ path: 'internalName', label: 'Имя', control: 'text', readonly: true },
-		{ path: 'synonymRu', label: 'Синоним', control: 'text' },
+		{ path: 'synonym', label: 'Синоним', control: 'text' },
 		{ path: 'comment', label: 'Комментарий', control: 'text' },
 	];
 	// схема компоновки и хранилища - суть отчёта, у обработки их нет
@@ -1543,8 +1542,8 @@ export function buildReportEditTabs(input: ReportEditSpecInput): MetadataEditTab
 				{
 					title: 'Представление',
 					fields: [
-						{ path: 'report.extendedPresentationRu', label: 'Расширенное представление', control: 'text' },
-						{ path: 'report.explanationRu', label: 'Пояснение', control: 'textarea' },
+						{ path: 'report.extendedPresentation', label: 'Расширенное представление', control: 'text' },
+						{ path: 'report.explanation', label: 'Пояснение', control: 'textarea' },
 					],
 				},
 				{ title: 'Компоновка', fields: compositionFields },
@@ -1642,7 +1641,7 @@ export function buildChartOfCalculationTypesEditTabs(
 					title: 'Основные',
 					fields: [
 						{ path: 'internalName', label: 'Имя', control: 'text', readonly: true },
-						{ path: 'synonymRu', label: 'Синоним', control: 'text' },
+						{ path: 'synonym', label: 'Синоним', control: 'text' },
 						{ path: 'comment', label: 'Комментарий', control: 'text' },
 						{ path: 'object', label: 'Модуль объекта', control: 'moduleLink' },
 						{ path: 'manager', label: 'Модуль менеджера', control: 'moduleLink' },
@@ -1678,26 +1677,26 @@ export function buildChartOfCalculationTypesEditTabs(
 					title: 'Представление',
 					fields: [
 						{
-							path: 'chartOfCalculationTypes.objectPresentationRu',
+							path: 'chartOfCalculationTypes.objectPresentation',
 							label: 'Представление объекта',
 							control: 'text',
 						},
 						{
-							path: 'chartOfCalculationTypes.extendedObjectPresentationRu',
+							path: 'chartOfCalculationTypes.extendedObjectPresentation',
 							label: 'Расширенное представление объекта',
 							control: 'text',
 						},
 						{
-							path: 'chartOfCalculationTypes.listPresentationRu',
+							path: 'chartOfCalculationTypes.listPresentation',
 							label: 'Представление списка',
 							control: 'text',
 						},
 						{
-							path: 'chartOfCalculationTypes.extendedListPresentationRu',
+							path: 'chartOfCalculationTypes.extendedListPresentation',
 							label: 'Расширенное представление списка',
 							control: 'text',
 						},
-						{ path: 'chartOfCalculationTypes.explanationRu', label: 'Пояснение', control: 'textarea' },
+						{ path: 'chartOfCalculationTypes.explanation', label: 'Пояснение', control: 'textarea' },
 					],
 				},
 				{
@@ -1906,7 +1905,7 @@ export function buildChartOfAccountsEditTabs(input: ChartOfAccountsEditSpecInput
 					title: 'Основные',
 					fields: [
 						{ path: 'internalName', label: 'Имя', control: 'text', readonly: true },
-						{ path: 'synonymRu', label: 'Синоним', control: 'text' },
+						{ path: 'synonym', label: 'Синоним', control: 'text' },
 						{ path: 'comment', label: 'Комментарий', control: 'text' },
 						{ path: 'object', label: 'Модуль объекта', control: 'moduleLink' },
 						{ path: 'manager', label: 'Модуль менеджера', control: 'moduleLink' },
@@ -1932,19 +1931,19 @@ export function buildChartOfAccountsEditTabs(input: ChartOfAccountsEditSpecInput
 				{
 					title: 'Представление',
 					fields: [
-						{ path: 'chartOfAccounts.objectPresentationRu', label: 'Представление объекта', control: 'text' },
+						{ path: 'chartOfAccounts.objectPresentation', label: 'Представление объекта', control: 'text' },
 						{
-							path: 'chartOfAccounts.extendedObjectPresentationRu',
+							path: 'chartOfAccounts.extendedObjectPresentation',
 							label: 'Расширенное представление объекта',
 							control: 'text',
 						},
-						{ path: 'chartOfAccounts.listPresentationRu', label: 'Представление списка', control: 'text' },
+						{ path: 'chartOfAccounts.listPresentation', label: 'Представление списка', control: 'text' },
 						{
-							path: 'chartOfAccounts.extendedListPresentationRu',
+							path: 'chartOfAccounts.extendedListPresentation',
 							label: 'Расширенное представление списка',
 							control: 'text',
 						},
-						{ path: 'chartOfAccounts.explanationRu', label: 'Пояснение', control: 'textarea' },
+						{ path: 'chartOfAccounts.explanation', label: 'Пояснение', control: 'textarea' },
 					],
 				},
 				{
@@ -2196,7 +2195,7 @@ export function buildTaskEditTabs(input: TaskEditSpecInput): MetadataEditTabSpec
 					title: 'Основные',
 					fields: [
 						{ path: 'internalName', label: 'Имя', control: 'text', readonly: true },
-						{ path: 'synonymRu', label: 'Синоним', control: 'text' },
+						{ path: 'synonym', label: 'Синоним', control: 'text' },
 						{ path: 'comment', label: 'Комментарий', control: 'text' },
 						{ path: 'object', label: 'Модуль объекта', control: 'moduleLink' },
 						{ path: 'manager', label: 'Модуль менеджера', control: 'moduleLink' },
@@ -2231,19 +2230,19 @@ export function buildTaskEditTabs(input: TaskEditSpecInput): MetadataEditTabSpec
 				{
 					title: 'Представление',
 					fields: [
-						{ path: 'task.objectPresentationRu', label: 'Представление объекта', control: 'text' },
+						{ path: 'task.objectPresentation', label: 'Представление объекта', control: 'text' },
 						{
-							path: 'task.extendedObjectPresentationRu',
+							path: 'task.extendedObjectPresentation',
 							label: 'Расширенное представление объекта',
 							control: 'text',
 						},
-						{ path: 'task.listPresentationRu', label: 'Представление списка', control: 'text' },
+						{ path: 'task.listPresentation', label: 'Представление списка', control: 'text' },
 						{
-							path: 'task.extendedListPresentationRu',
+							path: 'task.extendedListPresentation',
 							label: 'Расширенное представление списка',
 							control: 'text',
 						},
-						{ path: 'task.explanationRu', label: 'Пояснение', control: 'textarea' },
+						{ path: 'task.explanation', label: 'Пояснение', control: 'textarea' },
 					],
 				},
 				{
@@ -2435,7 +2434,7 @@ export function buildBusinessProcessEditTabs(input: BusinessProcessEditSpecInput
 					title: 'Основные',
 					fields: [
 						{ path: 'internalName', label: 'Имя', control: 'text', readonly: true },
-						{ path: 'synonymRu', label: 'Синоним', control: 'text' },
+						{ path: 'synonym', label: 'Синоним', control: 'text' },
 						{ path: 'comment', label: 'Комментарий', control: 'text' },
 						{
 							path: 'businessProcess.task',
@@ -2457,19 +2456,19 @@ export function buildBusinessProcessEditTabs(input: BusinessProcessEditSpecInput
 				{
 					title: 'Представление',
 					fields: [
-						{ path: 'businessProcess.objectPresentationRu', label: 'Представление объекта', control: 'text' },
+						{ path: 'businessProcess.objectPresentation', label: 'Представление объекта', control: 'text' },
 						{
-							path: 'businessProcess.extendedObjectPresentationRu',
+							path: 'businessProcess.extendedObjectPresentation',
 							label: 'Расширенное представление объекта',
 							control: 'text',
 						},
-						{ path: 'businessProcess.listPresentationRu', label: 'Представление списка', control: 'text' },
+						{ path: 'businessProcess.listPresentation', label: 'Представление списка', control: 'text' },
 						{
-							path: 'businessProcess.extendedListPresentationRu',
+							path: 'businessProcess.extendedListPresentation',
 							label: 'Расширенное представление списка',
 							control: 'text',
 						},
-						{ path: 'businessProcess.explanationRu', label: 'Пояснение', control: 'textarea' },
+						{ path: 'businessProcess.explanation', label: 'Пояснение', control: 'textarea' },
 					],
 				},
 				{
@@ -2675,7 +2674,7 @@ export function buildChartOfCharacteristicTypesEditTabs(
 					title: 'Основные',
 					fields: [
 						{ path: 'internalName', label: 'Имя', control: 'text', readonly: true },
-						{ path: 'synonymRu', label: 'Синоним', control: 'text' },
+						{ path: 'synonym', label: 'Синоним', control: 'text' },
 						{ path: 'comment', label: 'Комментарий', control: 'text' },
 						{ path: 'chartOfCharacteristicTypes.type', label: 'Тип значения характеристики', control: 'type' },
 						{
@@ -2693,26 +2692,26 @@ export function buildChartOfCharacteristicTypesEditTabs(
 					title: 'Представление',
 					fields: [
 						{
-							path: 'chartOfCharacteristicTypes.objectPresentationRu',
+							path: 'chartOfCharacteristicTypes.objectPresentation',
 							label: 'Представление объекта',
 							control: 'text',
 						},
 						{
-							path: 'chartOfCharacteristicTypes.extendedObjectPresentationRu',
+							path: 'chartOfCharacteristicTypes.extendedObjectPresentation',
 							label: 'Расширенное представление объекта',
 							control: 'text',
 						},
 						{
-							path: 'chartOfCharacteristicTypes.listPresentationRu',
+							path: 'chartOfCharacteristicTypes.listPresentation',
 							label: 'Представление списка',
 							control: 'text',
 						},
 						{
-							path: 'chartOfCharacteristicTypes.extendedListPresentationRu',
+							path: 'chartOfCharacteristicTypes.extendedListPresentation',
 							label: 'Расширенное представление списка',
 							control: 'text',
 						},
-						{ path: 'chartOfCharacteristicTypes.explanationRu', label: 'Пояснение', control: 'textarea' },
+						{ path: 'chartOfCharacteristicTypes.explanation', label: 'Пояснение', control: 'textarea' },
 					],
 				},
 				{
@@ -2988,7 +2987,7 @@ export function buildExchangePlanEditTabs(input: ExchangePlanEditSpecInput): Met
 					title: 'Основные',
 					fields: [
 						{ path: 'internalName', label: 'Имя', control: 'text', readonly: true },
-						{ path: 'synonymRu', label: 'Синоним', control: 'text' },
+						{ path: 'synonym', label: 'Синоним', control: 'text' },
 						{ path: 'comment', label: 'Комментарий', control: 'text' },
 						{ path: 'object', label: 'Модуль объекта', control: 'moduleLink' },
 						{ path: 'manager', label: 'Модуль менеджера', control: 'moduleLink' },
@@ -2997,19 +2996,19 @@ export function buildExchangePlanEditTabs(input: ExchangePlanEditSpecInput): Met
 				{
 					title: 'Представление',
 					fields: [
-						{ path: 'exchangePlan.objectPresentationRu', label: 'Представление объекта', control: 'text' },
+						{ path: 'exchangePlan.objectPresentation', label: 'Представление объекта', control: 'text' },
 						{
-							path: 'exchangePlan.extendedObjectPresentationRu',
+							path: 'exchangePlan.extendedObjectPresentation',
 							label: 'Расширенное представление объекта',
 							control: 'text',
 						},
-						{ path: 'exchangePlan.listPresentationRu', label: 'Представление списка', control: 'text' },
+						{ path: 'exchangePlan.listPresentation', label: 'Представление списка', control: 'text' },
 						{
-							path: 'exchangePlan.extendedListPresentationRu',
+							path: 'exchangePlan.extendedListPresentation',
 							label: 'Расширенное представление списка',
 							control: 'text',
 						},
-						{ path: 'exchangePlan.explanationRu', label: 'Пояснение', control: 'textarea' },
+						{ path: 'exchangePlan.explanation', label: 'Пояснение', control: 'textarea' },
 					],
 				},
 				{
@@ -3236,20 +3235,20 @@ export function buildDocumentJournalEditTabs(input: DocumentJournalEditSpecInput
 					title: 'Основные',
 					fields: [
 						{ path: 'internalName', label: 'Имя', control: 'text', readonly: true },
-						{ path: 'synonymRu', label: 'Синоним', control: 'text' },
+						{ path: 'synonym', label: 'Синоним', control: 'text' },
 						{ path: 'comment', label: 'Комментарий', control: 'text' },
 					],
 				},
 				{
 					title: 'Представление',
 					fields: [
-						{ path: 'documentJournal.listPresentationRu', label: 'Представление списка', control: 'text' },
+						{ path: 'documentJournal.listPresentation', label: 'Представление списка', control: 'text' },
 						{
-							path: 'documentJournal.extendedListPresentationRu',
+							path: 'documentJournal.extendedListPresentation',
 							label: 'Расширенное представление списка',
 							control: 'text',
 						},
-						{ path: 'documentJournal.explanationRu', label: 'Пояснение', control: 'textarea' },
+						{ path: 'documentJournal.explanation', label: 'Пояснение', control: 'textarea' },
 					],
 				},
 				{
@@ -3350,7 +3349,7 @@ export function buildSessionParameterEditTabs(): MetadataEditTabSpec[] {
 					title: 'Основные',
 					fields: [
 						{ path: 'internalName', label: 'Имя', control: 'text', readonly: true },
-						{ path: 'synonymRu', label: 'Синоним', control: 'text' },
+						{ path: 'synonym', label: 'Синоним', control: 'text' },
 						{ path: 'comment', label: 'Комментарий', control: 'text' },
 					],
 				},
@@ -3374,7 +3373,7 @@ export function buildDocumentNumeratorEditTabs(): MetadataEditTabSpec[] {
 					title: 'Основные',
 					fields: [
 						{ path: 'internalName', label: 'Имя', control: 'text', readonly: true },
-						{ path: 'synonymRu', label: 'Синоним', control: 'text' },
+						{ path: 'synonym', label: 'Синоним', control: 'text' },
 						{ path: 'comment', label: 'Комментарий', control: 'text' },
 					],
 				},
@@ -3425,7 +3424,7 @@ export function buildEventSubscriptionEditTabs(): MetadataEditTabSpec[] {
 					title: 'Основные',
 					fields: [
 						{ path: 'internalName', label: 'Имя', control: 'text', readonly: true },
-						{ path: 'synonymRu', label: 'Синоним', control: 'text' },
+						{ path: 'synonym', label: 'Синоним', control: 'text' },
 						{ path: 'comment', label: 'Комментарий', control: 'text' },
 					],
 				},
@@ -3453,7 +3452,7 @@ export function buildScheduledJobEditTabs(): MetadataEditTabSpec[] {
 					title: 'Основные',
 					fields: [
 						{ path: 'internalName', label: 'Имя', control: 'text', readonly: true },
-						{ path: 'synonymRu', label: 'Синоним', control: 'text' },
+						{ path: 'synonym', label: 'Синоним', control: 'text' },
 						{ path: 'comment', label: 'Комментарий', control: 'text' },
 					],
 				},
@@ -3495,7 +3494,7 @@ export function buildCommonCommandEditTabs(): MetadataEditTabSpec[] {
 					title: 'Основные',
 					fields: [
 						{ path: 'internalName', label: 'Имя', control: 'text', readonly: true },
-						{ path: 'synonymRu', label: 'Синоним', control: 'text' },
+						{ path: 'synonym', label: 'Синоним', control: 'text' },
 						{ path: 'comment', label: 'Комментарий', control: 'text' },
 						{ path: 'commandModule', label: 'Модуль команды', control: 'moduleLink' },
 					],
@@ -3503,7 +3502,7 @@ export function buildCommonCommandEditTabs(): MetadataEditTabSpec[] {
 				{
 					title: 'Представление',
 					fields: [
-						{ path: 'commonCommand.toolTipRu', label: 'Подсказка', control: 'text' },
+						{ path: 'commonCommand.toolTip', label: 'Подсказка', control: 'text' },
 						{
 							path: 'commonCommand.representation',
 							label: 'Отображение',
@@ -3568,14 +3567,14 @@ export function buildCommonAttributeEditTabs(): MetadataEditTabSpec[] {
 					title: 'Основные',
 					fields: [
 						{ path: 'internalName', label: 'Имя', control: 'text', readonly: true },
-						{ path: 'synonymRu', label: 'Синоним', control: 'text' },
+						{ path: 'synonym', label: 'Синоним', control: 'text' },
 						{ path: 'comment', label: 'Комментарий', control: 'text' },
 						{ path: 'commonAttribute.type', label: 'Тип', control: 'type' },
 					],
 				},
 				{
 					title: 'Представление',
-					fields: [{ path: 'commonAttribute.toolTipRu', label: 'Подсказка', control: 'text' }],
+					fields: [{ path: 'commonAttribute.toolTip', label: 'Подсказка', control: 'text' }],
 				},
 				{
 					title: 'Данные',
@@ -3682,7 +3681,7 @@ export function buildCommonPictureEditTabs(): MetadataEditTabSpec[] {
 					title: 'Основные',
 					fields: [
 						{ path: 'internalName', label: 'Имя', control: 'text', readonly: true },
-						{ path: 'synonymRu', label: 'Синоним', control: 'text' },
+						{ path: 'synonym', label: 'Синоним', control: 'text' },
 						{ path: 'comment', label: 'Комментарий', control: 'text' },
 					],
 				},
@@ -3717,7 +3716,7 @@ export function buildRoleEditTabs(): MetadataEditTabSpec[] {
 					title: 'Основные',
 					fields: [
 						{ path: 'internalName', label: 'Имя', control: 'text', readonly: true },
-						{ path: 'synonymRu', label: 'Синоним', control: 'text' },
+						{ path: 'synonym', label: 'Синоним', control: 'text' },
 						{ path: 'comment', label: 'Комментарий', control: 'text' },
 					],
 				},
@@ -3737,7 +3736,7 @@ export function buildExternalDataSourceEditTabs(): MetadataEditTabSpec[] {
 					title: 'Основные',
 					fields: [
 						{ path: 'internalName', label: 'Имя', control: 'text', readonly: true },
-						{ path: 'synonymRu', label: 'Синоним', control: 'text' },
+						{ path: 'synonym', label: 'Синоним', control: 'text' },
 						{ path: 'comment', label: 'Комментарий', control: 'text' },
 					],
 				},
@@ -3767,7 +3766,7 @@ export function buildCommonModuleEditTabs(): MetadataEditTabSpec[] {
 					title: 'Основные',
 					fields: [
 						{ path: 'internalName', label: 'Имя', control: 'text', readonly: true },
-						{ path: 'synonymRu', label: 'Синоним', control: 'text' },
+						{ path: 'synonym', label: 'Синоним', control: 'text' },
 						{ path: 'comment', label: 'Комментарий', control: 'text' },
 						{ path: 'module', label: 'Модуль', control: 'moduleLink' },
 					],
@@ -3908,7 +3907,7 @@ export function buildRegisterEditTabs(input: RegisterEditSpecInput): MetadataEdi
 					title: 'Основные',
 					fields: [
 						{ path: 'internalName', label: 'Имя', control: 'text', readonly: true },
-						{ path: 'synonymRu', label: 'Синоним', control: 'text' },
+						{ path: 'synonym', label: 'Синоним', control: 'text' },
 						{ path: 'comment', label: 'Комментарий', control: 'text' },
 						{ path: 'recordSet', label: 'Модуль набора записей', control: 'moduleLink' },
 						{ path: 'manager', label: 'Модуль менеджера', control: 'moduleLink' },
@@ -3919,21 +3918,21 @@ export function buildRegisterEditTabs(input: RegisterEditSpecInput): MetadataEdi
 					fields: [
 						...(input.information
 							? [
-									{ path: 'register.recordPresentationRu', label: 'Представление записи', control: 'text' as const },
+									{ path: 'register.recordPresentation', label: 'Представление записи', control: 'text' as const },
 									{
-										path: 'register.extendedRecordPresentationRu',
+										path: 'register.extendedRecordPresentation',
 										label: 'Расширенное представление записи',
 										control: 'text' as const,
 									},
 								]
 							: []),
-						{ path: 'register.listPresentationRu', label: 'Представление списка', control: 'text' },
+						{ path: 'register.listPresentation', label: 'Представление списка', control: 'text' },
 						{
-							path: 'register.extendedListPresentationRu',
+							path: 'register.extendedListPresentation',
 							label: 'Расширенное представление списка',
 							control: 'text',
 						},
-						{ path: 'register.explanationRu', label: 'Пояснение', control: 'textarea' },
+						{ path: 'register.explanation', label: 'Пояснение', control: 'textarea' },
 					],
 				},
 				{
@@ -4722,7 +4721,7 @@ export function buildGenericEditTabs(
 			title: 'Основные',
 			fields: [
 				{ path: 'internalName', label: 'Имя', control: 'text', readonly: true },
-				{ path: 'synonymRu', label: 'Синоним', control: 'text' },
+				{ path: 'synonym', label: 'Синоним', control: 'text' },
 				{ path: 'comment', label: 'Комментарий', control: 'text' },
 			],
 		},

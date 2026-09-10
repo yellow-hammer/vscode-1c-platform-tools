@@ -12,7 +12,7 @@ suite('metadataObjectPropertiesPanel tabs', () => {
 		const props = {
 			kind: 'subsystem',
 			internalName: 'Продажи',
-			synonymRu: 'Продажи',
+			synonym: 'Продажи',
 			comment: '',
 			nestedSubsystems: ['ОбменДанными'],
 			contentRefs: ['Catalog.Номенклатура', 'Document.Заказ', 'Catalog.Контрагенты'],
@@ -36,9 +36,9 @@ suite('metadataObjectPropertiesPanel tabs', () => {
 		const props = {
 			kind: 'catalog',
 			internalName: 'Номенклатура',
-			synonymRu: 'Номенклатура',
+			synonym: 'Номенклатура',
 			comment: '',
-			tabularSections: [{ name: 'Товары', synonymRu: 'Товары', comment: '' }],
+			tabularSections: [{ name: 'Товары', synonym: 'Товары', comment: '' }],
 		};
 		const structure = {
 			kind: 'catalog',
@@ -46,9 +46,9 @@ suite('metadataObjectPropertiesPanel tabs', () => {
 			tabularSections: [
 				{
 					name: 'Товары',
-					synonymRu: 'Товары',
+					synonym: 'Товары',
 					comment: '',
-					attributes: [{ name: 'Количество', synonymRu: 'Количество', comment: '' }],
+					attributes: [{ name: 'Количество', synonym: 'Количество', comment: '' }],
 				},
 			],
 		};
@@ -65,7 +65,7 @@ suite('metadataObjectPropertiesPanel tabs', () => {
 		const props = {
 			kind: 'report',
 			internalName: 'АнализПродаж',
-			synonymRu: 'Анализ продаж',
+			synonym: 'Анализ продаж',
 			comment: '',
 			customScalarFlag: 'Use',
 		};
@@ -196,7 +196,7 @@ suite('metadataObjectPropertiesPanel: единая форма для видов 
 	const base = (kind: string, extra: Record<string, unknown> = {}) => ({
 		kind,
 		internalName: 'Объект',
-		synonymRu: 'Объект',
+		synonym: 'Объект',
 		comment: '',
 		...extra,
 	});
@@ -258,7 +258,7 @@ suite('metadataObjectPropertiesPanel: скалярные свойства вид
 	const language = {
 		kind: 'language',
 		internalName: 'Русский',
-		synonymRu: 'Русский',
+		synonym: 'Русский',
 		comment: '',
 		scalars: { LanguageCode: 'ru', ObjectBelonging: 'NATIVE' },
 		scalarMeta: {
@@ -298,7 +298,7 @@ suite('metadataObjectPropertiesPanel: скалярные свойства вид
 		const model = buildMetadataObjectPropertiesEditableForTest('Language', adopted, null);
 		assert.notStrictEqual(model?.readonly, true);
 		const fields = (model?.tabs ?? []).flatMap((tab) => tab.groups).flatMap((group) => group.fields);
-		const synonym = fields.find((field) => field.path === 'synonymRu');
+		const synonym = fields.find((field) => field.path === 'synonym');
 		assert.strictEqual(synonym?.state?.label, 'изменено');
 		assert.strictEqual(synonym?.state?.changed, true);
 		assert.notStrictEqual(synonym?.readonly, true);
@@ -308,7 +308,7 @@ suite('metadataObjectPropertiesPanel: скалярные свойства вид
 		// Комментарий свой у заимствованного, остальные свойства вне списка расширение не меняет
 		assert.notStrictEqual(fields.find((field) => field.path === 'comment')?.readonly, true);
 		for (const field of fields) {
-			if (!['synonymRu', 'comment', 'scalars.LanguageCode'].includes(field.path)) {
+			if (!['synonym', 'comment', 'scalars.LanguageCode'].includes(field.path)) {
 				assert.strictEqual(field.readonly, true, field.path);
 			}
 		}
@@ -318,7 +318,7 @@ suite('metadataObjectPropertiesPanel: скалярные свойства вид
 		const props = {
 			kind: 'commonForm',
 			internalName: 'Настройки',
-			synonymRu: 'Настройки',
+			synonym: 'Настройки',
 			comment: '',
 			scalars: { IncludeHelpInContents: false, FormType: 'MANAGED' },
 			scalarMeta: {
@@ -337,7 +337,7 @@ suite('metadataObjectPropertiesPanel: разделы состава без вк�
 		const props = {
 			kind: 'chartOfAccounts',
 			internalName: 'Основной',
-			synonymRu: 'Основной',
+			synonym: 'Основной',
 			comment: '',
 			attributes: [],
 			tabularSections: [],
@@ -365,7 +365,7 @@ suite('metadataObjectPropertiesPanel: ссылочные скаляры канд
 		const props = {
 			kind: 'functionalOption',
 			internalName: 'ИспользоватьХарактеристики',
-			synonymRu: '',
+			synonym: '',
 			comment: '',
 			scalars: { Location: 'Constant.ИспользоватьХарактеристики' },
 			scalarMeta: { Location: { type: 'string' } },
@@ -387,7 +387,7 @@ suite('metadataObjectPropertiesPanel: ссылочные скаляры канд
 		const props = {
 			kind: 'filterCriterion',
 			internalName: 'СвязанныеДокументы',
-			synonymRu: '',
+			synonym: '',
 			comment: '',
 			scalars: { DefaultForm: '' },
 			scalarMeta: { DefaultForm: { type: 'string' } },
@@ -490,7 +490,7 @@ suite('язык многоязычных свойств в подписи', () =
 				{
 					title: 'Основное',
 					fields: [
-						{ path: 'synonymRu', label: 'Синоним', control: 'text' as const },
+						{ path: 'synonym', label: 'Синоним', control: 'text' as const },
 						{ path: 'comment', label: 'Комментарий', control: 'text' as const },
 					],
 				},
@@ -499,14 +499,46 @@ suite('язык многоязычных свойств в подписи', () =
 	];
 
 	test('на конфигурации не на русском язык виден в подписи', () => {
-		const [tab] = withEditLanguage(tabs, 'de');
+		const [tab] = withEditLanguage(tabs, 'de', ['synonym', 'toolTip']);
 
 		assert.strictEqual(tab.groups[0].fields[0].label, 'Синоним (de)');
 		assert.strictEqual(tab.groups[0].fields[1].label, 'Комментарий');
 	});
 
 	test('на русской конфигурации подписи не меняются', () => {
-		assert.strictEqual(withEditLanguage(tabs, 'ru'), tabs);
-		assert.strictEqual(withEditLanguage(tabs, undefined), tabs);
+		assert.strictEqual(withEditLanguage(tabs, 'ru', ['synonym']), tabs);
+		assert.strictEqual(withEditLanguage(tabs, undefined, ['synonym']), tabs);
+	});
+
+	test('без списка от md-sparrow подписи не меняются', () => {
+		assert.strictEqual(withEditLanguage(tabs, 'de', undefined), tabs);
+		assert.strictEqual(withEditLanguage(tabs, 'de', []), tabs);
+	});
+
+	test('свойство вида объекта подписывается по последнему звену пути', () => {
+		const nested = [
+			{
+				id: 'catalog',
+				title: 'Справочник',
+				groups: [
+					{
+						title: 'Представление',
+						fields: [
+							{
+								path: 'catalog.objectPresentation',
+								label: 'Представление объекта',
+								control: 'text' as const,
+							},
+							{ path: 'catalog.hierarchical', label: 'Иерархический', control: 'check' as const },
+						],
+					},
+				],
+			},
+		];
+
+		const [tab] = withEditLanguage(nested, 'de', ['objectPresentation']);
+
+		assert.strictEqual(tab.groups[0].fields[0].label, 'Представление объекта (de)');
+		assert.strictEqual(tab.groups[0].fields[1].label, 'Иерархический');
 	});
 });

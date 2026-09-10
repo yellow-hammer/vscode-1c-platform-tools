@@ -279,7 +279,7 @@ export class SupportCommands extends BaseCommand {
 		}
 
 		const vendorEscaped = (props.vendor ?? '1C').replaceAll('"', '""');
-		const nameRuEscaped = (props.synonymRu ?? props.name ?? 'Конфигурация').replaceAll('"', '""');
+		const presentationEscaped = (props.synonym ?? props.name ?? 'Конфигурация').replaceAll('"', '""');
 		const nameInternal = props.name?.trim() || 'Конфигурация';
 		const versionValue = props.version?.trim() || versionTrimmed;
 		const guidConfigFile = generateDeliveryItemGuid('Файл конфигурации');
@@ -287,7 +287,7 @@ export class SupportCommands extends BaseCommand {
 
 		const content = templateContent
 			.replaceAll('%Vendor%', vendorEscaped)
-			.replaceAll('%NameRu%', nameRuEscaped)
+			.replaceAll('%NamePresentation%', presentationEscaped)
 			.replaceAll('%NameInternal%', nameInternal)
 			.replaceAll('%Version%', versionValue)
 			.replaceAll('%GuidConfigFile%', guidConfigFile)

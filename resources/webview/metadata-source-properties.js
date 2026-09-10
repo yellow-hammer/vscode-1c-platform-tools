@@ -201,7 +201,7 @@
 	function collect() {
 		return {
 			name: document.getElementById('name').value.trim(),
-			synonymRu: document.getElementById('synonymRu').value,
+			synonym: document.getElementById('synonym').value,
 			comment: document.getElementById('comment').value,
 			defaultRunMode: document.getElementById('defaultRunMode').value,
 			usePurposes: collectCheckList('usePurposes'),
@@ -210,11 +210,11 @@
 			managedApplicationModule: initial.managedApplicationModule || '',
 			sessionModule: initial.sessionModule || '',
 			externalConnectionModule: initial.externalConnectionModule || '',
-			briefInformationRu: document.getElementById('briefInformationRu').value,
-			detailedInformationRu: document.getElementById('detailedInformationRu').value,
-			copyrightRu: document.getElementById('copyrightRu').value,
-			vendorInformationAddressRu: document.getElementById('vendorInformationAddressRu').value,
-			configurationInformationAddressRu: document.getElementById('configurationInformationAddressRu').value,
+			briefInformation: document.getElementById('briefInformation').value,
+			detailedInformation: document.getElementById('detailedInformation').value,
+			copyright: document.getElementById('copyright').value,
+			vendorInformationAddress: document.getElementById('vendorInformationAddress').value,
+			configurationInformationAddress: document.getElementById('configurationInformationAddress').value,
 			vendor: document.getElementById('vendor').value,
 			version: document.getElementById('version').value,
 			updateCatalogAddress: document.getElementById('updateCatalogAddress').value,
@@ -229,16 +229,16 @@
 
 	function fillFromDto(dto) {
 		setValue('name', dto.name);
-		setValue('synonymRu', dto.synonymRu);
+		setValue('synonym', dto.synonym);
 		setValue('comment', dto.comment);
 		initCheckList('usePurposes', dto.usePurposeOptions || [], dto.usePurposes || [], (v) => valueLabel('usePurposes', v));
 		selectedRoles = (dto.defaultRoles || []).slice();
 		renderRoleChips();
-		setValue('briefInformationRu', dto.briefInformationRu);
-		setValue('detailedInformationRu', dto.detailedInformationRu);
-		setValue('copyrightRu', dto.copyrightRu);
-		setValue('vendorInformationAddressRu', dto.vendorInformationAddressRu);
-		setValue('configurationInformationAddressRu', dto.configurationInformationAddressRu);
+		setValue('briefInformation', dto.briefInformation);
+		setValue('detailedInformation', dto.detailedInformation);
+		setValue('copyright', dto.copyright);
+		setValue('vendorInformationAddress', dto.vendorInformationAddress);
+		setValue('configurationInformationAddress', dto.configurationInformationAddress);
 		setValue('vendor', dto.vendor);
 		setValue('version', dto.version);
 		setValue('updateCatalogAddress', dto.updateCatalogAddress);

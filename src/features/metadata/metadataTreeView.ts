@@ -47,12 +47,12 @@ const log = logger.scope('metadata');
 interface MdObjectStructureDto {
 	readonly kind: string;
 	readonly internalName: string;
-	readonly attributes: Array<{ name: string; synonymRu: string; comment: string }>;
+	readonly attributes: Array<{ name: string; synonym: string; comment: string }>;
 	readonly tabularSections: Array<{
 		name: string;
-		synonymRu: string;
+		synonym: string;
 		comment: string;
-		attributes: Array<{ name: string; synonymRu: string; comment: string }>;
+		attributes: Array<{ name: string; synonym: string; comment: string }>;
 	}>;
 	readonly forms: string[];
 	readonly commands: string[];
@@ -619,8 +619,8 @@ type MetadataNodeKind =
 	| 'cube'
 	| 'function';
 
-type MdNamedNode = { name: string; synonymRu: string; comment: string };
-type MdTabularSection = { name: string; synonymRu: string; comment: string; attributes: MdNamedNode[] };
+type MdNamedNode = { name: string; synonym: string; comment: string };
+type MdTabularSection = { name: string; synonym: string; comment: string; attributes: MdNamedNode[] };
 
 interface MetadataSectionSpec {
 	readonly kind: MetadataSectionKind;
@@ -956,12 +956,12 @@ function objectStructureNamedList(value: unknown): MdNamedNode[] {
 			const record = item as Record<string, unknown>;
 			out.push({
 				name,
-				synonymRu: typeof record.synonymRu === 'string' ? record.synonymRu : '',
+				synonym: typeof record.synonym === 'string' ? record.synonym : '',
 				comment: typeof record.comment === 'string' ? record.comment : '',
 			});
 			continue;
 		}
-		out.push({ name, synonymRu: '', comment: '' });
+		out.push({ name, synonym: '', comment: '' });
 	}
 	return out;
 }
@@ -982,7 +982,7 @@ function objectStructureTabularSectionsList(value: unknown): MdTabularSection[] 
 		}
 		out.push({
 			name,
-			synonymRu: typeof record.synonymRu === 'string' ? record.synonymRu : '',
+			synonym: typeof record.synonym === 'string' ? record.synonym : '',
 			comment: typeof record.comment === 'string' ? record.comment : '',
 			attributes: objectStructureNamedList(record.attributes),
 		});

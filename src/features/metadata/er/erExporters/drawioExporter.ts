@@ -180,7 +180,7 @@ function humanVia(p: string): string | null {
 
 function nodeLabel(node: ErNode): string {
 	const type = OBJECT_TYPE_LABELS[node.objectType] ?? node.objectType;
-	const syn = node.synonymRu && node.synonymRu !== node.name ? `«${node.synonymRu}»` : '';
+	const syn = node.synonym && node.synonym !== node.name ? `«${node.synonym}»` : '';
 	return syn ? `${type}\n${node.name}\n${syn}` : `${type}\n${node.name}`;
 }
 
