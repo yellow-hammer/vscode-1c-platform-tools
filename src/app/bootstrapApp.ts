@@ -25,6 +25,7 @@ import { registerTodoFlow } from './registerTodoFlow';
 import { registerMainTreeFlow } from './registerMainTreeFlow';
 import { registerTestingFlow } from './registerTestingFlow';
 import { registerActiveConfigurationFeature } from '../features/project/activeConfigurationFeature';
+import { registerEdtFeature } from '../features/edt/registerEdtFeature';
 import { registerLaunchFeature } from '../features/launch/launchFeature';
 import { registerPlatformServerFeature } from '../features/launch/platformServerFeature';
 import { registerDiagnosticsFeature } from '../features/diagnostics/registerDiagnosticsFeature';
@@ -87,6 +88,7 @@ export async function bootstrapApp(context: vscode.ExtensionContext): Promise<vo
 
 	const { testingFeatureDisposables, rebuildTesting } = registerTestingFlow(isProjectRef);
 	const activeConfigurationDisposables = registerActiveConfigurationFeature(context, isProjectRef);
+	const edtDisposables = registerEdtFeature();
 	const launchFeatureDisposables = registerLaunchFeature(context, isProjectRef);
 	const platformServerDisposables = registerPlatformServerFeature(context, isProjectRef);
 	const diagnosticsFeatureDisposables = registerDiagnosticsFeature();
@@ -136,6 +138,7 @@ export async function bootstrapApp(context: vscode.ExtensionContext): Promise<vo
 		...todoFeatureDisposables,
 		...testingFeatureDisposables,
 		...activeConfigurationDisposables,
+		...edtDisposables,
 		...launchFeatureDisposables,
 		...platformServerDisposables,
 		...diagnosticsFeatureDisposables,

@@ -399,6 +399,35 @@ export function getConvertExtensionSourcesCommandName(): CommandNameAndTitle {
 	};
 }
 
+/** Названия команд 1С:EDT. */
+export function getEdtImportCommandName(): CommandNameAndTitle {
+	return { id: '1c-platform-tools.edt.import', name: 'Импортировать в проект EDT', title: 'Импортировать в проект EDT' };
+}
+
+export function getEdtExportCommandName(): CommandNameAndTitle {
+	return { id: '1c-platform-tools.edt.export', name: 'Выгрузить проект EDT в XML', title: 'Выгрузить проект EDT в XML' };
+}
+
+export function getEdtValidateCommandName(): CommandNameAndTitle {
+	return { id: '1c-platform-tools.edt.validate', name: 'Проверить проект EDT', title: 'Проверить проект EDT' };
+}
+
+export function getEdtFormatCommandName(): CommandNameAndTitle {
+	return { id: '1c-platform-tools.edt.formatModules', name: 'Форматировать модули', title: 'Форматировать модули' };
+}
+
+export function getEdtSortCommandName(): CommandNameAndTitle {
+	return { id: '1c-platform-tools.edt.sortProject', name: 'Сортировать объекты', title: 'Сортировать объекты' };
+}
+
+export function getEdtProjectInfoCommandName(): CommandNameAndTitle {
+	return { id: '1c-platform-tools.edt.projectInfo', name: 'Сведения о проекте EDT', title: 'Сведения о проекте EDT' };
+}
+
+export function getEdtOpenCommandName(): CommandNameAndTitle {
+	return { id: '1c-platform-tools.edt.open', name: 'Открыть проект в EDT', title: 'Открыть проект в EDT' };
+}
+
 /**
  * Получить название и заголовок для команды Vanessa тестов
  */

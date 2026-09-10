@@ -26,6 +26,7 @@ const DOMAINS = new Set([
 	'debug',
 	'dependencies',
 	'editors',
+	'edt',
 	'env',
 	'epf',
 	'file',

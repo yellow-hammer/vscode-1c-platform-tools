@@ -57,6 +57,10 @@ export interface EnvironmentSummary {
 	platformVersions: string[];
 	/** Путь к rac. */
 	racPath?: string;
+	/** Найденные версии 1С:EDT. */
+	edtVersions: string[];
+	/** Путь к 1cedtcli выбранной установки. */
+	edtCliPath?: string;
 	/** IPC включён. */
 	ipcEnabled: boolean;
 	/** Порт IPC. */
@@ -101,6 +105,12 @@ export function formatEnvironmentSummary(summary: EnvironmentSummary): string {
 		`- Платформа 1С: ${summary.platformVersions.length > 0 ? summary.platformVersions.join(', ') : 'не найдена'}`
 	);
 	lines.push(`- rac: ${summary.racPath ?? 'не найден'}`);
+	lines.push(
+		`- 1С:EDT: ${summary.edtVersions.length > 0 ? summary.edtVersions.join(', ') : 'не найдена'}`
+	);
+	if (summary.edtCliPath) {
+		lines.push(`- 1cedtcli: ${summary.edtCliPath}`);
+	}
 	lines.push(formatIpcLine(summary));
 	return `${lines.join('\n')}\n`;
 }
