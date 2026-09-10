@@ -192,6 +192,7 @@ export class ProfileEditorProvider implements vscode.CustomTextEditorProvider {
 			commandSections.map((section) => ({
 				label: section.label.replace(/^Команда: /, ''),
 				description: `${section.options.length} параметров`,
+				detail: section.hint,
 				section,
 			})),
 			{ title: 'Параметры для команды', placeHolder: 'Команда vanessa-runner…' }

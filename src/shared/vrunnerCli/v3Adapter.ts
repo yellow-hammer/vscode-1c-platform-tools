@@ -236,6 +236,40 @@ export class V3CliAdapter implements VRunnerCliAdapter {
 				}
 				return [cmd(['test', 'vanessa'], [...options, ...common(intent)], [])];
 			}
+			case 'test.yaxunit': {
+				// Штатная команда 3.x: секцию vrunner.test.yaxunit раннер читает сам.
+				// Готовый конфиг он использует как есть, поэтому фильтр и отчёт
+				// передаются только без него.
+				const options: string[] = [];
+				if (intent.configPath !== undefined) {
+					options.push('--yaxunit-config', intent.configPath);
+				}
+				if (intent.filter?.extensions?.length) {
+					options.push('--ext', intent.filter.extensions.join(','));
+				}
+				if (intent.filter?.modules?.length) {
+					options.push('--modules', intent.filter.modules.join(','));
+				}
+				if (intent.filter?.tests?.length) {
+					options.push('--tests', intent.filter.tests.join(','));
+				}
+				if (intent.report !== undefined) {
+					options.push('--report', intent.report, '--report-format', 'jUnit');
+				}
+				if (intent.ordinaryApp !== undefined) {
+					options.push('--ordinaryapp', intent.ordinaryApp);
+				}
+				if (intent.exitCodePath !== undefined) {
+					options.push('--exitcode', intent.exitCodePath);
+				}
+				if (intent.additional !== undefined) {
+					options.push('--additional', intent.additional);
+				}
+				if (intent.noWait) {
+					options.push('--no-wait');
+				}
+				return [cmd(['test', 'yaxunit'], [...options, ...common(intent)], [])];
+			}
 			case 'validate.syntaxCheck':
 				return [cmd(['validate', 'syntax-check'], common(intent), [])];
 			case 'validate.edt': {

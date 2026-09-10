@@ -298,6 +298,7 @@ export class ClustersProvider implements vscode.TreeDataProvider<ClusterTreeNode
 				const result = await this.service.listConnections(connection, clusterId, {
 					processId: scope.processId,
 					infobaseId: scope.infobaseId,
+					infobaseName: scope.infobaseName,
 				});
 				return this.materialize(group.cacheKey, result, 'Соединений нет', (items) =>
 					sortConnections(items).map((item) => new ConnectionItemNode(connection, clusterId, item))

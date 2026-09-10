@@ -10,7 +10,7 @@
     "1с предприятие",
     "bsl"
   ],
-  "version": "0.8.12",
+  "version": "0.8.13",
   "publisher": "yellow-hammer",
   "extensionKind": [
     "workspace"
@@ -3211,7 +3211,7 @@
         },
         {
           "command": "1c-platform-tools.metadata.addObject",
-          "when": "view == 1c-platform-tools-metadata-tree && viewItem == metadataSourceExternalArtifact",
+          "when": "view == 1c-platform-tools-metadata-tree && viewItem =~ /(^| )metadataSourceExternalArtifact( |$)/",
           "group": "inline"
         },
         {
@@ -3276,7 +3276,7 @@
         },
         {
           "command": "1c-platform-tools.metadata.openSourceXml",
-          "when": "view == 1c-platform-tools-metadata-tree && (viewItem =~ /(^| )metadataSourceConfigLike( |$)/ || viewItem =~ /(^| )(metadataObjectProperties(Subsystem)?|metadataLeafFile|metadataObjectForm)( |$)/)",
+          "when": "view == 1c-platform-tools-metadata-tree && (viewItem =~ /(^| )metadataSourceConfigLike( |$)/ || viewItem =~ /(^| )metadataSourceUnsupported( |$)/ || viewItem =~ /(^| )(metadataObjectProperties(Subsystem)?|metadataLeafFile|metadataObjectForm)( |$)/)",
           "group": "2_reveal@1"
         },
         {
@@ -3286,12 +3286,12 @@
         },
         {
           "command": "1c-platform-tools.metadata.compile",
-          "when": "view == 1c-platform-tools-metadata-tree && (viewItem =~ /(^| )metadataSourceConfigLike( |$)/ || viewItem == metadataSourceExternalArtifact || viewItem =~ /(^| )metadataLeafFile( |$)/)",
+          "when": "view == 1c-platform-tools-metadata-tree && (viewItem =~ /(^| )metadataSourceConfigLike( |$)/ || viewItem =~ /(^| )metadataSourceUnsupported( |$)/ || viewItem =~ /(^| )metadataSourceExternalArtifact( |$)/ || viewItem =~ /(^| )metadataLeafFile( |$)/)",
           "group": "4_build@1"
         },
         {
           "command": "1c-platform-tools.metadata.addObject",
-          "when": "view == 1c-platform-tools-metadata-tree && (viewItem == metadataGroup_catalogs || viewItem == metadataGroupExt_catalogs || viewItem == metadataGroup_constants || viewItem == metadataGroupExt_constants || viewItem == metadataGroup_enums || viewItem == metadataGroupExt_enums || viewItem == metadataGroup_documents || viewItem == metadataGroupExt_documents || viewItem == metadataGroup_reports || viewItem == metadataGroupExt_reports || viewItem == metadataGroup_externalReports || viewItem == metadataGroupExt_externalReports || viewItem == metadataGroup_dataProcessors || viewItem == metadataGroupExt_dataProcessors || viewItem == metadataGroup_externalDataProcessors || viewItem == metadataGroupExt_externalDataProcessors || viewItem == metadataGroup_tasks || viewItem == metadataGroupExt_tasks || viewItem == metadataGroup_chartOfCharacteristicTypes || viewItem == metadataGroupExt_chartOfCharacteristicTypes || viewItem == metadataGroup_chartOfAccounts || viewItem == metadataGroupExt_chartOfAccounts || viewItem == metadataGroup_chartOfCalculationTypes || viewItem == metadataGroupExt_chartOfCalculationTypes || viewItem == metadataGroup_externalDataSources || viewItem == metadataGroupExt_externalDataSources || viewItem == metadataSubgroup_common_common_subsystem || viewItem == metadataSubgroupExt_common_common_subsystem || viewItem == metadataSubgroup_common_common_commonmodule || viewItem == metadataSubgroupExt_common_common_commonmodule || viewItem == metadataSubgroup_common_common_sessionparam || viewItem == metadataSubgroupExt_common_common_sessionparam || viewItem == metadataSubgroup_common_common_role || viewItem == metadataSubgroupExt_common_common_role || viewItem == metadataSubgroup_common_common_commonattribute || viewItem == metadataSubgroupExt_common_common_commonattribute || viewItem == metadataSubgroup_common_common_exchangeplan || viewItem == metadataSubgroupExt_common_common_exchangeplan || viewItem == metadataSubgroup_common_common_commonpicture || viewItem == metadataSubgroupExt_common_common_commonpicture || viewItem == metadataSubgroup_documents_documentNumerators || viewItem == metadataSubgroupExt_documents_documentNumerators || viewItem == metadataSourceExternalArtifact)",
+          "when": "view == 1c-platform-tools-metadata-tree && (viewItem == metadataGroup_catalogs || viewItem == metadataGroupExt_catalogs || viewItem == metadataGroup_constants || viewItem == metadataGroupExt_constants || viewItem == metadataGroup_enums || viewItem == metadataGroupExt_enums || viewItem == metadataGroup_documents || viewItem == metadataGroupExt_documents || viewItem == metadataGroup_reports || viewItem == metadataGroupExt_reports || viewItem == metadataGroup_externalReports || viewItem == metadataGroupExt_externalReports || viewItem == metadataGroup_dataProcessors || viewItem == metadataGroupExt_dataProcessors || viewItem == metadataGroup_externalDataProcessors || viewItem == metadataGroupExt_externalDataProcessors || viewItem == metadataGroup_tasks || viewItem == metadataGroupExt_tasks || viewItem == metadataGroup_chartOfCharacteristicTypes || viewItem == metadataGroupExt_chartOfCharacteristicTypes || viewItem == metadataGroup_chartOfAccounts || viewItem == metadataGroupExt_chartOfAccounts || viewItem == metadataGroup_chartOfCalculationTypes || viewItem == metadataGroupExt_chartOfCalculationTypes || viewItem == metadataGroup_externalDataSources || viewItem == metadataGroupExt_externalDataSources || viewItem == metadataSubgroup_common_common_subsystem || viewItem == metadataSubgroupExt_common_common_subsystem || viewItem == metadataSubgroup_common_common_commonmodule || viewItem == metadataSubgroupExt_common_common_commonmodule || viewItem == metadataSubgroup_common_common_sessionparam || viewItem == metadataSubgroupExt_common_common_sessionparam || viewItem == metadataSubgroup_common_common_role || viewItem == metadataSubgroupExt_common_common_role || viewItem == metadataSubgroup_common_common_commonattribute || viewItem == metadataSubgroupExt_common_common_commonattribute || viewItem == metadataSubgroup_common_common_exchangeplan || viewItem == metadataSubgroupExt_common_common_exchangeplan || viewItem == metadataSubgroup_common_common_commonpicture || viewItem == metadataSubgroupExt_common_common_commonpicture || viewItem == metadataSubgroup_documents_documentNumerators || viewItem == metadataSubgroupExt_documents_documentNumerators || viewItem =~ /(^| )metadataSourceExternalArtifact( |$)/)",
           "group": "3_create@1"
         },
         {
@@ -4162,7 +4162,7 @@
           "1c-platform-tools.test.path.yaxunitConfig": {
             "type": "string",
             "default": "tools/yaxunit.json",
-            "description": "Базовый конфиг YAxUnit (RunUnitTests). Панель тестирования накладывает на него фильтр по выбранному модулю/тесту и берёт из него reportPath."
+            "description": "Базовый конфиг YAxUnit (RunUnitTests), если секция yaxunit активного профиля не задаёт свой. Панель тестирования накладывает на него фильтр по выбранному модулю или тесту и берёт из него reportPath."
           },
           "1c-platform-tools.test.frameworks.vanessa": {
             "type": "boolean",
@@ -4422,9 +4422,9 @@
     "@vscode/test-electron": "^3.1.0",
     "@vscode/vsce": "^3.9.2",
     "esbuild": "^0.28.2",
-    "eslint": "^10.9.0",
+    "eslint": "^10.10.0",
     "typescript": "^5.9.3",
-    "typescript-eslint": "^8.67.0",
+    "typescript-eslint": "^8.69.0",
     "vitepress": "^1.6.4",
     "yazl": "^3.3.1"
   }

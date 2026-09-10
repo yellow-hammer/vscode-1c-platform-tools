@@ -43,4 +43,30 @@ suite('profileEditor: каталог опций', () => {
 		// опции наборов доступны и на уровне команды (каскад)
 		assert.ok(cfeLoad.options.some((option) => option.key === 'ibconnection'));
 	});
+
+	test('v2: секция yaxunit с опциями run и пояснением', () => {
+		const { sections } = loadEditorSections(extensionPath, 'v2');
+		const yaxunit = sections.find((section) => section.id === 'yaxunit');
+		assert.ok(yaxunit, 'должна быть секция yaxunit');
+		assert.strictEqual(yaxunit.advertised, true);
+		assert.deepStrictEqual(yaxunit.jsonPath, ['yaxunit']);
+		assert.ok(yaxunit.hint && yaxunit.hint.length > 0, 'пояснение, кто читает секцию');
+		assert.deepStrictEqual(
+			yaxunit.options.map((option) => option.key).sort(),
+			['--additional', '--command', '--exitCodePath', '--no-wait', '--ordinaryapp']
+		);
+		const command = yaxunit.options.find((option) => option.key === '--command');
+		assert.ok(command && command.description.length > 5, 'описание из каталога 2.x');
+		assert.ok(
+			sections.findIndex((section) => section.id === 'yaxunit') < sections.findIndex((section) => section.id === 'run'),
+			'секция среди приоритетных'
+		);
+	});
+
+	test('v3: секция vrunner.test.yaxunit с опцией yaxunit-config', () => {
+		const { sections } = loadEditorSections(extensionPath, 'v3');
+		const yaxunit = sections.find((section) => section.id === 'vrunner.test.yaxunit');
+		assert.ok(yaxunit, 'должна быть секция vrunner.test.yaxunit');
+		assert.ok(yaxunit.options.some((option) => option.key === 'yaxunit-config'));
+	});
 });

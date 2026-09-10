@@ -23,6 +23,13 @@
 /** Сквозные опции команды (аргументы, валидные в обоих CLI). */
 export type CommonArgs = readonly string[];
 
+/** Отбор тестов YAxUnit: имена расширений, модулей и полные имена тестов `Модуль.Тест`. */
+export interface YaxunitFilter {
+	extensions?: readonly string[];
+	modules?: readonly string[];
+	tests?: readonly string[];
+}
+
 /** Намерение для vanessa-runner (замкнутый union). */
 export type VRunnerIntent =
 	// ---- Информационная база ----
@@ -124,6 +131,27 @@ export type VRunnerIntent =
 	 * файлу настроек Vanessa Automation (VAParams).
 	 */
 	| { kind: 'test.vanessa'; featurePath?: string; vanessaSettings?: string; common?: CommonArgs }
+	/**
+	 * Прогнать модульные тесты YAxUnit.
+	 *
+	 * `configPath` — готовый конфиг (`RunUnitTests=`); без него vanessa-runner 3
+	 * собирает конфиг сам из опций и файла настроек, а 2.x без конфига тесты не
+	 * запускает. `filter` и `report` выражаются только без готового конфига: с
+	 * ним раннер берёт фильтр и путь отчёта из самого файла. Опции запуска
+	 * приходят из секции `yaxunit` профиля 2.x.
+	 */
+	| {
+		kind: 'test.yaxunit';
+		configPath?: string;
+		filter?: YaxunitFilter;
+		/** Путь jUnit-отчёта; раннер пишет отчёт туда, когда готового конфига нет. */
+		report?: string;
+		ordinaryApp?: string;
+		exitCodePath?: string;
+		additional?: string;
+		noWait?: boolean;
+		common?: CommonArgs;
+	}
 	/** Синтаксический контроль конфигурации. */
 	| { kind: 'validate.syntaxCheck'; common?: CommonArgs }
 	/** Проверка проекта средствами EDT. */

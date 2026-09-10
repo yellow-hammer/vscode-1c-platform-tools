@@ -6,6 +6,7 @@ const V3_SECTION_PATH: Record<string, string[]> = {
 	default: [],
 	vanessa: ['test', 'vanessa'],
 	xunit: ['test', 'xunit'],
+	yaxunit: ['test', 'yaxunit'],
 	'syntax-check': ['validate', 'syntax-check'],
 };
 
@@ -44,6 +45,77 @@ export function settingValue(
 	return typeof sectionValue === 'object' && sectionValue !== null
 		? (sectionValue as Record<string, unknown>)[`--${option}`]
 		: undefined;
+}
+
+/**
+ * Секция YAxUnit активного профиля: что расширение переносит в запуск тестов.
+ *
+ * В 2.x секцию `yaxunit` vanessa-runner не читает, её ключи те же, что у
+ * команды `run`: `--command` с `RunUnitTests=<конфиг>` задаёт готовый конфиг,
+ * остальные уходят в командную строку. В 3.x секцию `vrunner.test.yaxunit`
+ * раннер читает сам, расширению нужны только готовый конфиг и путь отчёта.
+ */
+export interface YaxunitProfileSection {
+	/** Готовый конфиг YAxUnit как записан в профиле. */
+	configPath?: string;
+	/** Путь jUnit-отчёта из секции 3.x: без готового конфига раннер пишет отчёт туда. */
+	report?: string;
+	/** Режим клиента для `vrunner run` (2.x). */
+	ordinaryApp?: string;
+	/** Файл кода возврата для `vrunner run` (2.x). */
+	exitCodePath?: string;
+	/** Дополнительные параметры запуска 1С (2.x). */
+	additional?: string;
+	/** Не ждать завершения 1С (2.x). */
+	noWait?: boolean;
+}
+
+/**
+ * Путь конфига из строки запуска `RunUnitTests=<путь>`; параметры после `;` отбрасываются.
+ *
+ * @param command - Значение `--command` секции yaxunit
+ * @returns Путь как записан в профиле или undefined, если строка не про YAxUnit
+ */
+export function yaxunitConfigPathFromCommand(command: string): string | undefined {
+	const match = /^\s*RunUnitTests\s*=\s*([^;]*)/i.exec(command);
+	const value = match?.[1].trim();
+	return value ? value : undefined;
+}
+
+/**
+ * Читает секцию YAxUnit активного профиля с учётом схемы.
+ *
+ * @param settings - Разобранное содержимое файла настроек
+ * @param schema - Схема файла настроек (2.x или 3.x)
+ * @returns Значения секции; пустой объект, если секции нет
+ */
+export function yaxunitSectionFromEnv(
+	settings: Record<string, unknown>,
+	schema: SettingsSchema = 'v2'
+): YaxunitProfileSection {
+	const text = (option: string): string | undefined => {
+		const value = settingValue(settings, schema, 'yaxunit', option);
+		if (typeof value === 'number') {
+			return String(value);
+		}
+		return typeof value === 'string' && value.trim().length > 0 ? value.trim() : undefined;
+	};
+	if (schema === 'v3') {
+		const format = text('report-format');
+		return {
+			configPath: text('yaxunit-config'),
+			// Отчёт другого формата панель не прочитает: путь остаётся раннеру
+			report: format === undefined || format.toLowerCase() === 'junit' ? text('report') : undefined,
+		};
+	}
+	const command = text('command');
+	return {
+		configPath: command ? yaxunitConfigPathFromCommand(command) : undefined,
+		ordinaryApp: text('ordinaryapp'),
+		exitCodePath: text('exitCodePath'),
+		additional: text('additional'),
+		noWait: settingValue(settings, schema, 'yaxunit', 'no-wait') === true ? true : undefined,
+	};
 }
 
 /**

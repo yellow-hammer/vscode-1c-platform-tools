@@ -33,6 +33,16 @@ suite('serviceFiles/envSections', () => {
 		}
 	});
 
+	test('секция yaxunit есть в обоих форматах и указывает на tools/yaxunit.json', () => {
+		const env = ENV_OPTIONAL_SECTIONS.find((option) => option.id === 'yaxunit');
+		assert.ok(env, 'секция yaxunit для env.json');
+		assert.strictEqual(env.section['--command'], 'RunUnitTests=tools/yaxunit.json');
+		const result = mergeAutumnSections({ vrunner: {} }, ['yaxunit']) as {
+			vrunner: { test: { yaxunit: Record<string, unknown> } };
+		};
+		assert.strictEqual(result.vrunner.test.yaxunit['yaxunit-config'], 'tools/yaxunit.json');
+	});
+
 	suite('autumn (v3)', () => {
 		const autumnBase = { vrunner: { ibconnection: '/F./build/ib' } };
 

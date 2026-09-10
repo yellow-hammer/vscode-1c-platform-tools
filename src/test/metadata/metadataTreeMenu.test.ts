@@ -56,7 +56,7 @@ function menuFor(viewItem: string): string[] {
 /** contextValue узлов дерева: собирается в metadataTreeView по виду объекта. */
 const NODES = {
 	source: 'metadataSourceConfigLike mdDesigner',
-	externalRoot: 'metadataSourceExternalArtifact',
+	externalRoot: 'metadataSourceExternalArtifact mdDesigner',
 	group: 'metadataGroup_catalogs',
 	groupWithoutCreate: 'metadataGroup_informationRegisters',
 	catalog: 'metadataObjectProperties mdObjModule mdMgrModule mdDesigner',
@@ -185,6 +185,13 @@ suite('контекстное меню дерева метаданных', () =>
 			menuFor(NODES.externalArtifact)
 		);
 		assert.ok(menuFor(NODES.subsystem).includes('Фильтр по подсистеме'));
+	});
+
+	test('корень чужой версии выгрузки: файл и сборка остаются', () => {
+		// Признак формата дописан к виду узла, а отбор велся сравнением целиком
+		const unsupported = menuFor('metadataSourceUnsupported mdDesigner');
+		assert.ok(unsupported.includes('Открыть XML'), unsupported.join(' → '));
+		assert.ok(unsupported.includes('Собрать'), unsupported.join(' → '));
 	});
 
 	test('«Собрать» у корня выгрузки, внешнего файла и группы внешних файлов', () => {

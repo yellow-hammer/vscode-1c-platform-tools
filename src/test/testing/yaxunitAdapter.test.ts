@@ -17,6 +17,7 @@ const EDT_WORKSPACE = path.join(FIXTURES, 'edt-workspace');
 function vrunnerAt(workspaceRoot: string): VRunnerManager {
 	return {
 		getWorkspaceRoot: () => workspaceRoot,
+		readActiveSettings: async () => ({ settings: {}, schema: 'v2' }),
 		planIntent: async () => [['run', 'enterprise']],
 	} as unknown as VRunnerManager;
 }
