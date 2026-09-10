@@ -13,6 +13,13 @@
 import type { RacCredentials } from './racArgs';
 import type { SyncedMemento } from './connectionStore';
 import type * as vscode from 'vscode';
+import {
+	CLUSTER_BINDINGS_STATE_KEY,
+	CONNECTION_BINDINGS_STATE_KEY,
+	CREDENTIAL_SETS_STATE_KEY,
+	INFOBASE_BINDINGS_STATE_KEY,
+	SYNCED_STATE_KEYS,
+} from './constants';
 
 /** Роль набора: она же его вид. */
 export type CredentialRole = 'cluster' | 'agent' | 'infobase';
@@ -65,18 +72,6 @@ export interface ClusterBinding {
 	connectionName: string;
 	clusterName: string;
 }
-
-/** Ключ списка наборов. */
-export const CREDENTIAL_SETS_STATE_KEY = '1c-platform-tools.clusters.credentialSets';
-
-/** Ключ привязок наборов к базам. */
-export const INFOBASE_BINDINGS_STATE_KEY = '1c-platform-tools.clusters.infobaseBindings';
-
-/** Ключ привязок наборов к подключениям. */
-export const CONNECTION_BINDINGS_STATE_KEY = '1c-platform-tools.clusters.connectionBindings';
-
-/** Ключ привязок наборов к кластерам. */
-export const CLUSTER_BINDINGS_STATE_KEY = '1c-platform-tools.clusters.clusterAdminBindings';
 
 /** Префикс ключей защищённого хранилища. */
 const SECRET_PREFIX = '1c-platform-tools.clusters.sets.';
@@ -208,12 +203,7 @@ export class ClusterCredentialStore {
 		private readonly state: SyncedMemento,
 		private readonly secrets: vscode.SecretStorage
 	) {
-		this.state.setKeysForSync([
-			CREDENTIAL_SETS_STATE_KEY,
-			INFOBASE_BINDINGS_STATE_KEY,
-			CONNECTION_BINDINGS_STATE_KEY,
-			CLUSTER_BINDINGS_STATE_KEY,
-		]);
+		this.state.setKeysForSync(SYNCED_STATE_KEYS);
 		this.load();
 	}
 
@@ -246,9 +236,11 @@ export class ClusterCredentialStore {
 			.filter((item): item is ClusterBinding => item !== undefined);
 	}
 
-	/** Наборы в порядке добавления. */
-	list(): CredentialSet[] {
-		return this.sets.map((set) => ({ ...set }));
+	/** Наборы в порядке добавления; с ролью — только её наборы. */
+	list(kind?: CredentialRole): CredentialSet[] {
+		return this.sets
+			.filter((set) => kind === undefined || set.kind === kind)
+			.map((set) => ({ ...set }));
 	}
 
 	/** Набор по идентификатору. */

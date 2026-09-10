@@ -39,13 +39,13 @@ jobs:
         run: npm ci
 
       - name: Настроить GitHub Pages
-        uses: actions/configure-pages@v5
+        uses: actions/configure-pages@v6
 
       - name: Собрать сайт
         run: npm run docs:build
 
       - name: Загрузить артефакт сайта
-        uses: actions/upload-pages-artifact@v4
+        uses: actions/upload-pages-artifact@v5
         with:
           path: docs/.vitepress/dist
 
@@ -58,4 +58,4 @@ jobs:
     steps:
       - name: Опубликовать на GitHub Pages
         id: deployment
-        uses: actions/deploy-pages@v4
+        uses: actions/deploy-pages@v5

@@ -1,6 +1,7 @@
 import * as assert from 'node:assert';
 import {
 	decodeRacOutput,
+	attributeAuthFailure,
 	describeRacFailure,
 	formatRacCommandForLog,
 	isRacUsageOutput,
@@ -104,7 +105,8 @@ suite('вывод rac: неудачи', () => {
 		const failure = describeRacFailure(1, '', 'Администрирование кластера не разрешено');
 
 		assert.strictEqual(failure.kind, 'auth');
-		assert.ok(failure.message.includes('Администратор не принят'));
+		assert.strictEqual(failure.role, 'cluster');
+		assert.ok(failure.message.includes('Администратор кластера не принят'));
 	});
 
 	test('формулировка платформы 8.5 «не аутентифицирован» тоже распознаётся', () => {
@@ -112,8 +114,38 @@ suite('вывод rac: неудачи', () => {
 		const agent = describeRacFailure(127, '', 'Администратор центрального сервера не аутентифицирован');
 
 		assert.strictEqual(cluster.kind, 'auth');
+		assert.strictEqual(cluster.role, 'cluster');
 		assert.strictEqual(agent.kind, 'auth');
-		assert.ok(cluster.message.includes('Администратор не принят'));
+		assert.strictEqual(agent.role, 'agent');
+		assert.ok(agent.message.includes('центрального сервера не принят'));
+	});
+
+	test('отказ по правам на базу — тоже auth, и роль в нём — администратор базы', () => {
+		const failure = describeRacFailure(1, '', 'Недостаточно прав пользователя на информационную базу');
+
+		assert.strictEqual(failure.kind, 'auth');
+		assert.strictEqual(failure.role, 'infobase');
+		assert.ok(failure.message.includes('информационной базы не принят'));
+	});
+
+	test('отказ без названной роли остаётся общим', () => {
+		const failure = describeRacFailure(1, '', 'Authentication failed');
+
+		assert.strictEqual(failure.kind, 'auth');
+		assert.strictEqual(failure.role, undefined);
+		assert.ok(failure.message.includes('Администратор не принят'));
+	});
+
+	test('роль отказа переписывается той, чьи данные уходили в вызов', () => {
+		const failure = describeRacFailure(1, '', 'Администратор кластера не аутентифицирован');
+		const attributed = attributeAuthFailure(failure, 'agent');
+
+		assert.strictEqual(attributed.role, 'agent');
+		assert.ok(attributed.message.includes('центрального сервера'));
+		assert.strictEqual(
+			attributeAuthFailure(describeRacFailure(1, '', 'Кластер не найден'), 'agent').role,
+			undefined
+		);
 	});
 
 	test('английская формулировка отказа тоже распознаётся', () => {

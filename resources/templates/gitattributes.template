@@ -36,4 +36,5 @@ Form.bin binary
 *.cfe binary
 *.epf binary
 *.erf binary
+*.mxl binary
 ParentConfigurations.bin binary

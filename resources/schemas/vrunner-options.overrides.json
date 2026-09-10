@@ -190,10 +190,25 @@
 			}
 		}
 	},
+	"v2CustomSections": [
+		{
+			"id": "yaxunit",
+			"label": "YAxUnit: запуск тестов",
+			"hint": "Опции vrunner run для запуска тестов YAxUnit; сам vanessa-runner эту секцию не читает",
+			"keys": [
+				"--command",
+				"--ordinaryapp",
+				"--exitCodePath",
+				"--additional",
+				"--no-wait"
+			]
+		}
+	],
 	"v2Sections": [
 		"default",
 		"vanessa",
 		"xunit",
+		"yaxunit",
 		"syntax-check",
 		"run",
 		"designer",

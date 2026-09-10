@@ -1,0 +1,694 @@
+{
+	"projectRoot": "fixture://unsupported-extension",
+	"mainSchemaVersion": "2.20",
+	"mainSchemaVersionFlag": "V2_20",
+	"sources": [
+		{
+			"kind": "main",
+			"id": "main",
+			"label": "Основная конфигурация",
+			"configurationXmlRelativePath": "src/cf/Configuration.xml",
+			"metadataRootRelativePath": "src/cf",
+			"schemaVersion": "2.20",
+			"schemaSupported": true,
+			"supportEditingEnabled": false,
+			"groups": [
+				{
+					"id": "common",
+					"label": "Общие",
+					"iconHint": "symbol-namespace",
+					"items": [],
+					"subgroups": [
+						{
+							"id": "common_subsystem",
+							"label": "Подсистемы",
+							"iconHint": "symbol-namespace",
+							"items": []
+						},
+						{
+							"id": "common_commonmodule",
+							"label": "Общие модули",
+							"iconHint": "symbol-method",
+							"items": []
+						},
+						{
+							"id": "common_sessionparam",
+							"label": "Параметры сеанса",
+							"iconHint": "person",
+							"items": []
+						},
+						{
+							"id": "common_role",
+							"label": "Роли",
+							"iconHint": "person",
+							"items": []
+						},
+						{
+							"id": "common_commonattribute",
+							"label": "Общие реквизиты",
+							"iconHint": "symbol-method",
+							"items": []
+						},
+						{
+							"id": "common_exchangeplan",
+							"label": "Планы обмена",
+							"iconHint": "globe",
+							"items": []
+						},
+						{
+							"id": "common_filtercriterion",
+							"label": "Критерии отбора",
+							"iconHint": "symbol-misc",
+							"items": []
+						},
+						{
+							"id": "common_eventsubscription",
+							"label": "Подписки на события",
+							"iconHint": "globe",
+							"items": []
+						},
+						{
+							"id": "common_scheduledjob",
+							"label": "Регламентные задания",
+							"iconHint": "globe",
+							"items": []
+						},
+						{
+							"id": "common_bot",
+							"label": "Боты",
+							"iconHint": "plug",
+							"items": []
+						},
+						{
+							"id": "common_functionaloption",
+							"label": "Функциональные опции",
+							"iconHint": "symbol-misc",
+							"items": []
+						},
+						{
+							"id": "common_functionaloptionsparam",
+							"label": "Параметры функциональных опций",
+							"iconHint": "symbol-misc",
+							"items": []
+						},
+						{
+							"id": "common_definedtype",
+							"label": "Определяемые типы",
+							"iconHint": "symbol-misc",
+							"items": []
+						},
+						{
+							"id": "common_settingsstorage",
+							"label": "Хранилища настроек",
+							"iconHint": "database",
+							"items": []
+						},
+						{
+							"id": "common_commoncommand",
+							"label": "Общие команды",
+							"iconHint": "terminal",
+							"items": []
+						},
+						{
+							"id": "common_commandgroup",
+							"label": "Группы команд",
+							"iconHint": "terminal",
+							"items": []
+						},
+						{
+							"id": "common_commonform",
+							"label": "Общие формы",
+							"iconHint": "layout",
+							"items": []
+						},
+						{
+							"id": "common_commontemplate",
+							"label": "Общие макеты",
+							"iconHint": "layout",
+							"items": []
+						},
+						{
+							"id": "common_commonpicture",
+							"label": "Общие картинки",
+							"iconHint": "symbol-color",
+							"items": []
+						},
+						{
+							"id": "common_xdtopackage",
+							"label": "XDTO-пакеты",
+							"iconHint": "globe",
+							"items": []
+						},
+						{
+							"id": "common_webservice",
+							"label": "Web-сервисы",
+							"iconHint": "globe",
+							"items": []
+						},
+						{
+							"id": "common_httpservice",
+							"label": "HTTP-сервисы",
+							"iconHint": "globe",
+							"items": []
+						},
+						{
+							"id": "common_interface",
+							"label": "Интерфейсы",
+							"iconHint": "layout",
+							"items": []
+						},
+						{
+							"id": "common_wsreference",
+							"label": "WS-ссылки",
+							"iconHint": "globe",
+							"items": []
+						},
+						{
+							"id": "common_websocketclient",
+							"label": "WebSocket-клиенты",
+							"iconHint": "plug",
+							"items": []
+						},
+						{
+							"id": "common_integrationservice",
+							"label": "Сервисы интеграции",
+							"iconHint": "plug",
+							"items": []
+						},
+						{
+							"id": "common_styleitem",
+							"label": "Элементы стиля",
+							"iconHint": "symbol-color",
+							"items": []
+						},
+						{
+							"id": "common_style",
+							"label": "Стили",
+							"iconHint": "symbol-color",
+							"items": []
+						},
+						{
+							"id": "common_language",
+							"label": "Языки",
+							"iconHint": "symbol-namespace",
+							"items": [
+								{
+									"objectType": "Language",
+									"name": "Русский",
+									"relativePath": ""
+								}
+							]
+						},
+						{
+							"id": "common_palettecolor",
+							"label": "Цвета палитры",
+							"iconHint": "symbol-color",
+							"items": []
+						}
+					]
+				},
+				{
+					"id": "constants",
+					"label": "Константы",
+					"iconHint": "symbol-numeric",
+					"items": [],
+					"subgroups": []
+				},
+				{
+					"id": "catalogs",
+					"label": "Справочники",
+					"iconHint": "library",
+					"items": [],
+					"subgroups": []
+				},
+				{
+					"id": "documents",
+					"label": "Документы",
+					"iconHint": "file",
+					"items": [],
+					"subgroups": [
+						{
+							"id": "documentNumerators",
+							"label": "Нумераторы",
+							"iconHint": "symbol-numeric",
+							"items": []
+						},
+						{
+							"id": "sequences",
+							"label": "Последовательности",
+							"iconHint": "layers",
+							"items": []
+						}
+					]
+				},
+				{
+					"id": "documentJournals",
+					"label": "Журналы документов",
+					"iconHint": "book",
+					"items": [],
+					"subgroups": []
+				},
+				{
+					"id": "enums",
+					"label": "Перечисления",
+					"iconHint": "bracket",
+					"items": [],
+					"subgroups": []
+				},
+				{
+					"id": "reports",
+					"label": "Отчёты",
+					"iconHint": "graph",
+					"items": [],
+					"subgroups": []
+				},
+				{
+					"id": "dataProcessors",
+					"label": "Обработки",
+					"iconHint": "tools",
+					"items": [],
+					"subgroups": []
+				},
+				{
+					"id": "chartOfCharacteristicTypes",
+					"label": "Планы видов характеристик",
+					"iconHint": "table",
+					"items": [],
+					"subgroups": []
+				},
+				{
+					"id": "chartOfAccounts",
+					"label": "Планы счетов",
+					"iconHint": "account",
+					"items": [],
+					"subgroups": []
+				},
+				{
+					"id": "chartOfCalculationTypes",
+					"label": "Планы видов расчёта",
+					"iconHint": "layers",
+					"items": [],
+					"subgroups": []
+				},
+				{
+					"id": "informationRegisters",
+					"label": "Регистры сведений",
+					"iconHint": "table",
+					"items": [],
+					"subgroups": []
+				},
+				{
+					"id": "accumulationRegisters",
+					"label": "Регистры накопления",
+					"iconHint": "circle-outline",
+					"items": [],
+					"subgroups": []
+				},
+				{
+					"id": "accountingRegisters",
+					"label": "Регистры бухгалтерии",
+					"iconHint": "account",
+					"items": [],
+					"subgroups": []
+				},
+				{
+					"id": "calculationRegisters",
+					"label": "Регистры расчёта",
+					"iconHint": "symbol-operator",
+					"items": [],
+					"subgroups": []
+				},
+				{
+					"id": "businessProcesses",
+					"label": "Бизнес-процессы",
+					"iconHint": "git-branch",
+					"items": [],
+					"subgroups": []
+				},
+				{
+					"id": "tasks",
+					"label": "Задачи",
+					"iconHint": "tasklist",
+					"items": [],
+					"subgroups": []
+				},
+				{
+					"id": "externalDataSources",
+					"label": "Внешние источники данных",
+					"iconHint": "database",
+					"items": [],
+					"subgroups": []
+				}
+			]
+		},
+		{
+			"kind": "extension",
+			"id": "New",
+			"label": "НовыйФормат",
+			"configurationXmlRelativePath": "src/cfe/New/Configuration.xml",
+			"metadataRootRelativePath": "src/cfe/New",
+			"schemaVersion": "2.20",
+			"schemaSupported": true,
+			"supportEditingEnabled": false,
+			"groups": [
+				{
+					"id": "common",
+					"label": "Общие",
+					"iconHint": "symbol-namespace",
+					"items": [],
+					"subgroups": [
+						{
+							"id": "common_subsystem",
+							"label": "Подсистемы",
+							"iconHint": "symbol-namespace",
+							"items": []
+						},
+						{
+							"id": "common_commonmodule",
+							"label": "Общие модули",
+							"iconHint": "symbol-method",
+							"items": []
+						},
+						{
+							"id": "common_sessionparam",
+							"label": "Параметры сеанса",
+							"iconHint": "person",
+							"items": []
+						},
+						{
+							"id": "common_role",
+							"label": "Роли",
+							"iconHint": "person",
+							"items": [
+								{
+									"objectType": "Role",
+									"name": "ОсновнаяРоль",
+									"relativePath": ""
+								}
+							]
+						},
+						{
+							"id": "common_commonattribute",
+							"label": "Общие реквизиты",
+							"iconHint": "symbol-method",
+							"items": []
+						},
+						{
+							"id": "common_exchangeplan",
+							"label": "Планы обмена",
+							"iconHint": "globe",
+							"items": []
+						},
+						{
+							"id": "common_filtercriterion",
+							"label": "Критерии отбора",
+							"iconHint": "symbol-misc",
+							"items": []
+						},
+						{
+							"id": "common_eventsubscription",
+							"label": "Подписки на события",
+							"iconHint": "globe",
+							"items": []
+						},
+						{
+							"id": "common_scheduledjob",
+							"label": "Регламентные задания",
+							"iconHint": "globe",
+							"items": []
+						},
+						{
+							"id": "common_bot",
+							"label": "Боты",
+							"iconHint": "plug",
+							"items": []
+						},
+						{
+							"id": "common_functionaloption",
+							"label": "Функциональные опции",
+							"iconHint": "symbol-misc",
+							"items": []
+						},
+						{
+							"id": "common_functionaloptionsparam",
+							"label": "Параметры функциональных опций",
+							"iconHint": "symbol-misc",
+							"items": []
+						},
+						{
+							"id": "common_definedtype",
+							"label": "Определяемые типы",
+							"iconHint": "symbol-misc",
+							"items": []
+						},
+						{
+							"id": "common_settingsstorage",
+							"label": "Хранилища настроек",
+							"iconHint": "database",
+							"items": []
+						},
+						{
+							"id": "common_commoncommand",
+							"label": "Общие команды",
+							"iconHint": "terminal",
+							"items": []
+						},
+						{
+							"id": "common_commandgroup",
+							"label": "Группы команд",
+							"iconHint": "terminal",
+							"items": []
+						},
+						{
+							"id": "common_commonform",
+							"label": "Общие формы",
+							"iconHint": "layout",
+							"items": []
+						},
+						{
+							"id": "common_commontemplate",
+							"label": "Общие макеты",
+							"iconHint": "layout",
+							"items": []
+						},
+						{
+							"id": "common_commonpicture",
+							"label": "Общие картинки",
+							"iconHint": "symbol-color",
+							"items": []
+						},
+						{
+							"id": "common_xdtopackage",
+							"label": "XDTO-пакеты",
+							"iconHint": "globe",
+							"items": []
+						},
+						{
+							"id": "common_webservice",
+							"label": "Web-сервисы",
+							"iconHint": "globe",
+							"items": []
+						},
+						{
+							"id": "common_httpservice",
+							"label": "HTTP-сервисы",
+							"iconHint": "globe",
+							"items": []
+						},
+						{
+							"id": "common_interface",
+							"label": "Интерфейсы",
+							"iconHint": "layout",
+							"items": []
+						},
+						{
+							"id": "common_wsreference",
+							"label": "WS-ссылки",
+							"iconHint": "globe",
+							"items": []
+						},
+						{
+							"id": "common_websocketclient",
+							"label": "WebSocket-клиенты",
+							"iconHint": "plug",
+							"items": []
+						},
+						{
+							"id": "common_integrationservice",
+							"label": "Сервисы интеграции",
+							"iconHint": "plug",
+							"items": []
+						},
+						{
+							"id": "common_styleitem",
+							"label": "Элементы стиля",
+							"iconHint": "symbol-color",
+							"items": []
+						},
+						{
+							"id": "common_style",
+							"label": "Стили",
+							"iconHint": "symbol-color",
+							"items": []
+						},
+						{
+							"id": "common_language",
+							"label": "Языки",
+							"iconHint": "symbol-namespace",
+							"items": []
+						},
+						{
+							"id": "common_palettecolor",
+							"label": "Цвета палитры",
+							"iconHint": "symbol-color",
+							"items": []
+						}
+					]
+				},
+				{
+					"id": "constants",
+					"label": "Константы",
+					"iconHint": "symbol-numeric",
+					"items": [],
+					"subgroups": []
+				},
+				{
+					"id": "catalogs",
+					"label": "Справочники",
+					"iconHint": "library",
+					"items": [],
+					"subgroups": []
+				},
+				{
+					"id": "documents",
+					"label": "Документы",
+					"iconHint": "file",
+					"items": [],
+					"subgroups": [
+						{
+							"id": "documentNumerators",
+							"label": "Нумераторы",
+							"iconHint": "symbol-numeric",
+							"items": []
+						},
+						{
+							"id": "sequences",
+							"label": "Последовательности",
+							"iconHint": "layers",
+							"items": []
+						}
+					]
+				},
+				{
+					"id": "documentJournals",
+					"label": "Журналы документов",
+					"iconHint": "book",
+					"items": [],
+					"subgroups": []
+				},
+				{
+					"id": "enums",
+					"label": "Перечисления",
+					"iconHint": "bracket",
+					"items": [],
+					"subgroups": []
+				},
+				{
+					"id": "reports",
+					"label": "Отчёты",
+					"iconHint": "graph",
+					"items": [],
+					"subgroups": []
+				},
+				{
+					"id": "dataProcessors",
+					"label": "Обработки",
+					"iconHint": "tools",
+					"items": [],
+					"subgroups": []
+				},
+				{
+					"id": "chartOfCharacteristicTypes",
+					"label": "Планы видов характеристик",
+					"iconHint": "table",
+					"items": [],
+					"subgroups": []
+				},
+				{
+					"id": "chartOfAccounts",
+					"label": "Планы счетов",
+					"iconHint": "account",
+					"items": [],
+					"subgroups": []
+				},
+				{
+					"id": "chartOfCalculationTypes",
+					"label": "Планы видов расчёта",
+					"iconHint": "layers",
+					"items": [],
+					"subgroups": []
+				},
+				{
+					"id": "informationRegisters",
+					"label": "Регистры сведений",
+					"iconHint": "table",
+					"items": [],
+					"subgroups": []
+				},
+				{
+					"id": "accumulationRegisters",
+					"label": "Регистры накопления",
+					"iconHint": "circle-outline",
+					"items": [],
+					"subgroups": []
+				},
+				{
+					"id": "accountingRegisters",
+					"label": "Регистры бухгалтерии",
+					"iconHint": "account",
+					"items": [],
+					"subgroups": []
+				},
+				{
+					"id": "calculationRegisters",
+					"label": "Регистры расчёта",
+					"iconHint": "symbol-operator",
+					"items": [],
+					"subgroups": []
+				},
+				{
+					"id": "businessProcesses",
+					"label": "Бизнес-процессы",
+					"iconHint": "git-branch",
+					"items": [],
+					"subgroups": []
+				},
+				{
+					"id": "tasks",
+					"label": "Задачи",
+					"iconHint": "tasklist",
+					"items": [],
+					"subgroups": []
+				},
+				{
+					"id": "externalDataSources",
+					"label": "Внешние источники данных",
+					"iconHint": "database",
+					"items": [],
+					"subgroups": []
+				}
+			]
+		},
+		{
+			"kind": "extension",
+			"id": "Old",
+			"label": "СтарыйФормат",
+			"configurationXmlRelativePath": "src/cfe/Old/Configuration.xml",
+			"metadataRootRelativePath": "src/cfe/Old",
+			"schemaVersion": "2.9",
+			"schemaSupported": false,
+			"supportEditingEnabled": false,
+			"groups": []
+		}
+	]
+}

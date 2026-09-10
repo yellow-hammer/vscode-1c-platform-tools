@@ -1,10 +1,12 @@
 import * as assert from 'node:assert';
 import * as vscode from 'vscode';
 import * as path from 'node:path';
+import * as fs from 'node:fs';
 import {
 	MetadataLeafTreeItem,
 	MetadataMdGroupTreeItem,
 	MetadataObjectNodeTreeItem,
+	MetadataSourceNoteTreeItem,
 	MetadataSourceTreeItem,
 	MetadataTreeDataProvider,
 	defaultMetadataLeafOpenCommand,
@@ -15,7 +17,7 @@ import {
 	metadataObjectOwnsFile,
 	objectChildFromFilePath,
 } from '../../features/metadata/metadataTreeView';
-import { resolveMetadataOpen } from '../../features/metadata/metadataTreeService';
+import { resolveMetadataOpen, type ProjectMetadataTreeDto } from '../../features/metadata/metadataTreeService';
 import { metadataLeafReadsObjectProperties } from '../../features/properties/metadataPaletteSource';
 import { createMockExtensionContext } from '../fixtures/mocks/vscodeMocks';
 
@@ -638,5 +640,51 @@ suite('resolveMetadataOpen', () => {
 				moduleFsPath: undefined,
 			}
 		);
+	});
+});
+
+suite('metadataTreeView: расширение неподдерживаемого формата', () => {
+	/** Ответ md-sparrow на fixtures/unsupported-extension из его репозитория. */
+	function fixtureTree(): ProjectMetadataTreeDto {
+		const file = path.resolve(__dirname, '..', '..', '..', 'src', 'test', 'fixtures', 'metadata', 'unsupported-extension-tree.json');
+		return JSON.parse(fs.readFileSync(file, 'utf8')) as ProjectMetadataTreeDto;
+	}
+
+	function providerWith(dto: ProjectMetadataTreeDto): MetadataTreeDataProvider {
+		const provider = new MetadataTreeDataProvider(createMockExtensionContext());
+		const mutable = provider as unknown as {
+			_workspaceRoot: string;
+			rebuildItemCache(workspaceRoot: string, tree: ProjectMetadataTreeDto): void;
+		};
+		mutable._workspaceRoot = 'C:/ws';
+		mutable.rebuildItemCache('C:/ws', dto);
+		return provider;
+	}
+
+	test('остаётся в дереве, под ним один узел о версии выгрузки, соседи строятся', async () => {
+		const provider = providerWith(fixtureTree());
+
+		const roots = (await provider.getChildren()) as MetadataSourceTreeItem[];
+		assert.deepStrictEqual(roots.map((root) => root.sourceId), ['main', 'New', 'Old']);
+
+		const old = roots[2];
+		assert.strictEqual(old.label, 'СтарыйФормат');
+		assert.strictEqual(old.collapsibleState, vscode.TreeItemCollapsibleState.Collapsed);
+		assert.strictEqual(old.contextValue, 'metadataSourceUnsupported');
+		const children = await provider.getChildren(old);
+		assert.strictEqual(children.length, 1);
+		assert.ok(children[0] instanceof MetadataSourceNoteTreeItem);
+		assert.ok(String(children[0].label).includes('2.9'), `в тексте версия: ${String(children[0].label)}`);
+		assert.strictEqual(provider.getParent(children[0]), old);
+
+		const fresh = await provider.getChildren(roots[1]);
+		assert.ok(fresh.length > 0, 'поддерживаемое расширение раскрывается');
+		assert.ok(fresh.every((item) => !(item instanceof MetadataSourceNoteTreeItem)));
+	});
+
+	test('поддерживаемый источник узла о версии не получает', () => {
+		const supported = new MetadataSourceTreeItem('New', 'НовыйФормат', 'extension', undefined, undefined);
+		assert.strictEqual(supported.collapsibleState, vscode.TreeItemCollapsibleState.Collapsed);
+		assert.strictEqual(supported.contextValue, 'metadataSourceConfigLike');
 	});
 });

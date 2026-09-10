@@ -10,11 +10,8 @@
  */
 
 import type * as vscode from 'vscode';
-import { DEFAULT_RAS_PORT } from './constants';
+import { CONNECTIONS_STATE_KEY, DEFAULT_RAS_PORT, SYNCED_STATE_KEYS } from './constants';
 import type { ClusterConnection } from './model';
-
-/** Ключ глобального состояния со списком подключений. */
-export const CONNECTIONS_STATE_KEY = '1c-platform-tools.clusters.connections';
 
 /** Глобальное состояние: у него, в отличие от рабочего, есть синхронизация. */
 export type SyncedMemento = vscode.Memento & {
@@ -113,7 +110,7 @@ export class ConnectionStore {
 
 	constructor(private readonly state: SyncedMemento) {
 		// Список едет между машинами штатной синхронизацией параметров.
-		this.state.setKeysForSync([CONNECTIONS_STATE_KEY]);
+		this.state.setKeysForSync(SYNCED_STATE_KEYS);
 		this.load();
 	}
 

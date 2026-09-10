@@ -221,7 +221,9 @@ export class MetadataSourceTreeItem extends vscode.TreeItem {
 		/** Возможность изменения включена конфигуратором: без неё правила не правятся. */
 		public readonly supportEditingEnabled?: boolean,
 		/** Отпечаток правил поддержки: правка сверяется с ним. */
-		public readonly supportGeneration?: string
+		public readonly supportGeneration?: string,
+		/** Версия выгрузки, которую md-sparrow не читает: узел без состава. */
+		public readonly unsupportedSchemaVersion?: string
 	) {
 		super(
 			label,
@@ -230,7 +232,10 @@ export class MetadataSourceTreeItem extends vscode.TreeItem {
 				: vscode.TreeItemCollapsibleState.Collapsed
 		);
 		this.contextValue = 'metadataSource';
-		if (sourceKind === 'main' || sourceKind === 'extension') {
+		if (unsupportedSchemaVersion !== undefined) {
+			// Состав не прочитан: из действий остаются файл выгрузки и сборка
+			this.contextValue = 'metadataSourceUnsupported';
+		} else if (sourceKind === 'main' || sourceKind === 'extension') {
 			this.contextValue = 'metadataSourceConfigLike';
 		} else if (sourceKind === 'externalErf' || sourceKind === 'externalEpf') {
 			this.contextValue = 'metadataSourceExternalArtifact';
@@ -252,6 +257,23 @@ export class MetadataSourceTreeItem extends vscode.TreeItem {
 				: 'Конфигурация поставщика: возможность изменения включают в конфигураторе.'
 					+ ' Из дерева метаданных доступно только снятие с поддержки';
 		}
+	}
+}
+
+/** Узел под расширением чужого формата вместо состава. */
+export class MetadataSourceNoteTreeItem extends vscode.TreeItem {
+	constructor(
+		public readonly sourceId: string,
+		schemaVersion: string
+	) {
+		super(
+			schemaVersion
+				? `Формат выгрузки ${schemaVersion} не поддерживается, состав не показан`
+				: 'Формат выгрузки не определён, состав не показан',
+			vscode.TreeItemCollapsibleState.None
+		);
+		this.contextValue = 'metadataSourceNote';
+		this.iconPath = new vscode.ThemeIcon('warning');
 	}
 }
 
@@ -1296,6 +1318,8 @@ export class MetadataTreeDataProvider implements vscode.TreeDataProvider<vscode.
 	private readonly _leavesBySubgroup = new Map<string, MetadataLeafTreeItem[]>();
 	/** Источники внешних отчётов/обработок: листья сразу под корнем, без групп. */
 	private readonly _flatLeavesBySource = new Map<string, MetadataLeafTreeItem[]>();
+	/** Узлы о версии выгрузки под расширениями чужого формата. */
+	private readonly _notesBySource = new Map<string, MetadataSourceNoteTreeItem>();
 	private readonly _objectSectionsByLeaf = new Map<string, MetadataObjectSectionTreeItem[]>();
 	private readonly _objectNodesBySection = new Map<string, MetadataObjectNodeTreeItem[]>();
 	private readonly _tabularAttrsByNode = new Map<string, MetadataObjectNodeTreeItem[]>();
@@ -1371,6 +1395,7 @@ export class MetadataTreeDataProvider implements vscode.TreeDataProvider<vscode.
 		this._leavesByGroup.clear();
 		this._leavesBySubgroup.clear();
 		this._flatLeavesBySource.clear();
+		this._notesBySource.clear();
 		this._objectSectionsByLeaf.clear();
 		this._objectNodesBySection.clear();
 		this._tabularAttrsByNode.clear();
@@ -1457,6 +1482,7 @@ export class MetadataTreeDataProvider implements vscode.TreeDataProvider<vscode.
 		this._leavesByGroup.clear();
 		this._leavesBySubgroup.clear();
 		this._flatLeavesBySource.clear();
+		this._notesBySource.clear();
 		this._objectSectionsByLeaf.clear();
 		this._objectNodesBySection.clear();
 		this._tabularAttrsByNode.clear();
@@ -1467,9 +1493,11 @@ export class MetadataTreeDataProvider implements vscode.TreeDataProvider<vscode.
 			const cfgAbs = cfgRel.length > 0 ? path.join(workspaceRoot, cfgRel) : undefined;
 			const metaAbs = path.join(workspaceRoot, src.metadataRootRelativePath);
 			const expanded = this.expandedSources();
+			const unsupported = src.schemaSupported === false;
 			const sItem = new MetadataSourceTreeItem(
 				src.id, src.label, src.kind, cfgAbs, metaAbs, expanded?.has(src.id), src.support,
-				src.supportEditingEnabled, src.supportGeneration);
+				src.supportEditingEnabled, src.supportGeneration,
+				unsupported ? (src.schemaVersion ?? '') : undefined);
 			const sourceIcon = metadataSourceIcon(src.kind, this._context.extensionUri);
 			// Возможность изменения не включена: правки закрыты целиком, остаётся снятие с поддержки
 			const editingOff = (sItem.contextValue ?? '').includes('mdSupportRules') && src.supportEditingEnabled !== true;
@@ -1478,6 +1506,15 @@ export class MetadataTreeDataProvider implements vscode.TreeDataProvider<vscode.
 					? sourceIcon
 					: supportIcon(sourceIcon, src.support ?? '', editingOff);
 			this._sourceItems.push(sItem);
+
+			if (unsupported) {
+				log.warn(
+					`расширение ${src.label} в ${src.metadataRootRelativePath}: формат выгрузки ${src.schemaVersion} не поддерживается, состав не прочитан`
+				);
+				this._notesBySource.set(src.id, new MetadataSourceNoteTreeItem(src.id, src.schemaVersion ?? ''));
+				this._groupsBySource.set(src.id, []);
+				continue;
+			}
 
 			if (isExternalArtifactSourceKind(src.kind)) {
 				const flat: MetadataLeafTreeItem[] = [];
@@ -1652,6 +1689,10 @@ export class MetadataTreeDataProvider implements vscode.TreeDataProvider<vscode.
 			return [...this._sourceItems];
 		}
 		if (element instanceof MetadataSourceTreeItem) {
+			const note = this._notesBySource.get(element.sourceId);
+			if (note) {
+				return [note];
+			}
 			const flat = this._flatLeavesBySource.get(element.sourceId);
 			if (flat) {
 				return this.filterLeaves(flat);
@@ -1900,6 +1941,9 @@ export class MetadataTreeDataProvider implements vscode.TreeDataProvider<vscode.
 				}
 			}
 			return undefined;
+		}
+		if (element instanceof MetadataSourceNoteTreeItem) {
+			return this._sourceItems.find((s) => s.sourceId === element.sourceId);
 		}
 		if (element instanceof MetadataLeafTreeItem) {
 			if (element instanceof MetadataSubsystemChildTreeItem) {
