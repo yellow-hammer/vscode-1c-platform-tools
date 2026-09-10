@@ -389,7 +389,9 @@ export class MetadataLeafTreeItem extends vscode.TreeItem {
 		/** Правила поставщика открыты: смена режима объекта доступна. */
 		public readonly supportRulesOpen?: boolean,
 		/** Отпечаток правил поддержки: правка сверяется с ним. */
-		public readonly supportGeneration?: string
+		public readonly supportGeneration?: string,
+		/** Синоним объекта: по нему ищут в дереве, в подписи он не показывается. */
+		public readonly synonym?: string
 	) {
 		const absFromRelativePath =
 			relativePath && relativePath.length > 0
@@ -1827,8 +1829,9 @@ export class MetadataTreeDataProvider implements vscode.TreeDataProvider<vscode.
 		if (!this._textFilter) {
 			return true;
 		}
-		const name = leaf.name.toLowerCase();
-		return this._textFilter.terms.every((term) => name.includes(term));
+		// Синоним участвует в поиске, но в подписи узла его не показываем
+		const haystack = `${leaf.name} ${leaf.synonym ?? ''}`.toLowerCase();
+		return this._textFilter.terms.every((term) => haystack.includes(term));
 	}
 
 	private anySourceHasMatches(): boolean {
@@ -2320,7 +2323,8 @@ function createMetadataLeaf(
 		resolveMetadataOpen(item.open, workspaceRoot),
 		item.support,
 		supportRulesOpen,
-		supportGeneration
+		supportGeneration,
+		item.synonym
 	);
 }
 

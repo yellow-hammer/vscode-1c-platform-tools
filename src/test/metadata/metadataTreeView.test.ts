@@ -162,7 +162,7 @@ suite('metadataTreeView поиск по имени', () => {
 			'C:/ws/src/cf/Configuration.xml',
 			'C:/ws/src/cf'
 		);
-		const leaf = (name: string): MetadataLeafTreeItem =>
+		const leaf = (name: string, synonym?: string): MetadataLeafTreeItem =>
 			new MetadataLeafTreeItem(
 				'main',
 				'commonModules',
@@ -174,7 +174,12 @@ suite('metadataTreeView поиск по имени', () => {
 				'C:/ws',
 				context.extensionUri,
 				'C:/ws/src/cf/Configuration.xml',
-				'C:/ws/src/cf'
+				'C:/ws/src/cf',
+				undefined,
+				undefined,
+				undefined,
+				undefined,
+				synonym
 			);
 		const mutable = provider as unknown as {
 			_workspaceRoot: string;
@@ -189,6 +194,7 @@ suite('metadataTreeView поиск по имени', () => {
 			leaf('_ДемоЗаметки'),
 			leaf('_ДемоЗаказыПокупателей'),
 			leaf('ОбщегоНазначения'),
+			leaf('_ДемоРаботаСФайлами', 'Работа с файлами'),
 		]);
 		return { provider, root, group };
 	}
@@ -215,7 +221,20 @@ suite('metadataTreeView поиск по имени', () => {
 
 		provider.setTextFilter('демо');
 		const demoLeaves = await provider.getChildren(group);
-		assert.strictEqual(demoLeaves.length, 2);
+		assert.strictEqual(demoLeaves.length, 3);
+	});
+
+	test('ищет по синониму, а подпись узла остаётся именем', async () => {
+		const { provider, group } = createProvider();
+		provider.setTextFilter('работа с файл');
+		const leaves = await provider.getChildren(group);
+
+		assert.deepStrictEqual(
+			leaves.map((item) => (item as MetadataLeafTreeItem).name),
+			['_ДемоРаботаСФайлами']
+		);
+		assert.strictEqual(leaves[0].label, '_ДемоРаботаСФайлами');
+		assert.strictEqual(leaves[0].description, '');
 	});
 
 	test('группа без совпадений скрывается, с совпадениями — раскрывается', async () => {
@@ -239,7 +258,7 @@ suite('metadataTreeView поиск по имени', () => {
 		provider.setTextFilter('   ');
 		assert.strictEqual(provider.getTextFilter(), undefined);
 		const leaves = await provider.getChildren(group);
-		assert.strictEqual(leaves.length, 3);
+		assert.strictEqual(leaves.length, 4);
 	});
 });
 

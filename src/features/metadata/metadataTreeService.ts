@@ -69,6 +69,8 @@ export interface MetadataItemDto {
 	readonly objectBelonging?: string;
 	/** Поддержка поставщика: locked - изменение запрещено, editable - разрешено. */
 	readonly support?: string;
+	/** Синоним объекта: участвует в поиске по дереву. */
+	readonly synonym?: string;
 	/** Необязательная цель открытия из md-sparrow; клик в IDE работает и без неё. */
 	readonly open?: MetadataItemOpenDto;
 }
