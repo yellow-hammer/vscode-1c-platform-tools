@@ -654,7 +654,10 @@ export function registerLaunchFeature(
 			// Хуки читаются с кэшем: без сброса правка .1cpt/hooks.json не действует до перезагрузки окна
 			invalidateHooksCache(workspaceFolder.uri.fsPath);
 			refresh();
-			void vscode.commands.executeCommand('1c-platform-tools.tools.refresh').then(undefined, () => undefined);
+			// Вне проекта 1С дерева нет, а команда обновления ответила бы уведомлением на каждую смену ветки
+			if (isProjectRef.current) {
+				void vscode.commands.executeCommand('1c-platform-tools.tools.refresh').then(undefined, () => undefined);
+			}
 		};
 		// Удалили файл активного именованного профиля — возвращаемся к базовому
 		const onFsDelete = async () => {
