@@ -93,6 +93,8 @@ interface MdObjectPropertiesDto {
 	kind: string;
 	internalName: string;
 	synonymRu: string;
+	/** Язык, на котором прочитаны и будут записаны тексты: у конфигурации он свой. */
+	languageCode?: string;
 	comment: string;
 	attributes?: Array<{ name: string; synonymRu?: string; comment?: string }>;
 	tabularSections?: Array<{ name: string; synonymRu?: string; comment?: string }>;
@@ -1327,8 +1329,9 @@ function buildEditableModel(
 	const withEnums = applyEnumDictionary(normalizeTabLayout(withTemplates), enums, valueLabels);
 	const withTypes = applyTypeOptions(withEnums, refTypes, mdObjectKindLabels());
 	const withCurrent = ensureCurrentSelectValues(withTypes, props as unknown as Record<string, unknown>, valueLabels);
+	const withLanguage = withEditLanguage(withCurrent, props?.languageCode);
 	const tabs = withPropertyStates(
-		withTabsForStructure(withCurrent, buildStructureLists(props, structure)),
+		withTabsForStructure(withLanguage, buildStructureLists(props, structure)),
 		propertyStatesOf(props),
 		extendableOf(props)
 	);
@@ -1338,6 +1341,27 @@ function buildEditableModel(
 		return { ...model, readonly: true, tabs: tabsAsReadonly(tabs) };
 	}
 	return { ...model, tabs };
+}
+
+/**
+ * Язык в подписи многоязычного свойства.
+ *
+ * Синоним и представления хранятся по строке на язык, а правится тот, на котором
+ * написана сама конфигурация. Когда он не русский, человек должен это видеть.
+ */
+export function withEditLanguage(tabs: MetadataEditTabSpec[], languageCode?: string): MetadataEditTabSpec[] {
+	if (!languageCode || languageCode === 'ru') {
+		return tabs;
+	}
+	return tabs.map((tab) => ({
+		...tab,
+		groups: tab.groups.map((group) => ({
+			...group,
+			fields: group.fields.map((field) =>
+				field.path.endsWith('Ru') ? { ...field, label: `${field.label} (${languageCode})` } : field
+			),
+		})),
+	}));
 }
 
 /** Файл объекта в формате EDT: у выгрузки конфигуратора объект лежит в .xml. */

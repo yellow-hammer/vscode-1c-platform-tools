@@ -4,6 +4,7 @@ import {
 	buildRefContentSectionsForTest,
 	buildMetadataObjectPropertiesTabsForTest,
 	buildStructureListsForTest,
+	withEditLanguage,
 } from '../../features/metadata/metadataObjectPropertiesPanel';
 
 suite('metadataObjectPropertiesPanel tabs', () => {
@@ -477,5 +478,35 @@ suite('metadataObjectPropertiesPanel: состав плана обмена', () 
 		);
 		assert.strictEqual(sections?.[0].modes?.byRef['Document.Заказ'], 'Deny');
 		assert.strictEqual(sections?.[0].modes?.defaultValue, 'Deny');
+	});
+});
+
+suite('язык многоязычных свойств в подписи', () => {
+	const tabs = [
+		{
+			id: 'overview',
+			title: 'Общее',
+			groups: [
+				{
+					title: 'Основное',
+					fields: [
+						{ path: 'synonymRu', label: 'Синоним', control: 'text' as const },
+						{ path: 'comment', label: 'Комментарий', control: 'text' as const },
+					],
+				},
+			],
+		},
+	];
+
+	test('на конфигурации не на русском язык виден в подписи', () => {
+		const [tab] = withEditLanguage(tabs, 'de');
+
+		assert.strictEqual(tab.groups[0].fields[0].label, 'Синоним (de)');
+		assert.strictEqual(tab.groups[0].fields[1].label, 'Комментарий');
+	});
+
+	test('на русской конфигурации подписи не меняются', () => {
+		assert.strictEqual(withEditLanguage(tabs, 'ru'), tabs);
+		assert.strictEqual(withEditLanguage(tabs, undefined), tabs);
 	});
 });
