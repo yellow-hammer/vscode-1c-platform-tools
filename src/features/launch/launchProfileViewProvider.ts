@@ -9,8 +9,7 @@
 
 import * as vscode from 'vscode';
 import * as path from 'node:path';
-import * as fsSync from 'node:fs';
-import { VRunnerManager } from '../../shared/vrunnerManager';
+import { VRunnerManager, type SettingsFileState } from '../../shared/vrunnerManager';
 import { activeProfileLabel, LOCAL_OVERRIDES_FILE } from '../../shared/envProfiles';
 import { configurationScope, onDidChangeActiveConfiguration } from '../../shared/activeConfiguration';
 import { edtProjectName, readEdtSettings, resolveEdt } from '../edt/edtRunner';
@@ -27,6 +26,17 @@ function item(
 	treeItem.tooltip = tooltip;
 	treeItem.command = command;
 	return treeItem;
+}
+
+/** Подсказка к строке файла настроек: почему команды заблокированы. */
+function settingsHint(state: SettingsFileState, vrunner: VRunnerManager): string {
+	if (state.ready) {
+		return 'Открыть в редакторе профиля';
+	}
+	if (!state.exists) {
+		return 'Профиль запуска не создан, команды заблокированы. Нажмите, чтобы создать.';
+	}
+	return `Команды заблокированы. ${vrunner.settingsProblemMessage(state)}`;
 }
 
 export class LaunchProfileViewProvider implements vscode.TreeDataProvider<vscode.TreeItem>, vscode.Disposable {
@@ -114,10 +124,7 @@ export class LaunchProfileViewProvider implements vscode.TreeDataProvider<vscode
 			this.vrunner.getActiveEnvProfileId(),
 			this.vrunner.discoverEnvProfiles()
 		);
-		const settingsFile = this.vrunner.getActiveEnvFile();
-		const settingsExists = workspaceRoot
-			? fsSync.existsSync(path.join(workspaceRoot, settingsFile))
-			: false;
+		const settings = this.vrunner.describeSettingsState();
 		// эффективная строка подключения: временные параметры > env.local.json >
 		// профиль (в том числе значения с подставленным ${gitBranch})
 		const ibConnection = this.vrunner.getEffectiveEnvOverrides()?.ibConnection
@@ -140,12 +147,10 @@ export class LaunchProfileViewProvider implements vscode.TreeDataProvider<vscode
 			),
 			...(this.edtProject ? [this.edtItem(this.edtProject)] : []),
 			item(
-				`Файл настроек: ${settingsFile}`,
-				settingsExists ? 'check' : 'warning',
-				settingsExists
-					? 'Открыть в редакторе профиля'
-					: 'Профиль запуска не создан, команды заблокированы. Нажмите, чтобы создать.',
-				settingsExists
+				`Файл настроек: ${settings.fileName}`,
+				settings.ready ? 'check' : 'warning',
+				settingsHint(settings, this.vrunner),
+				settings.ready || settings.readError
 					? { command: '1c-platform-tools.env.openProfileEditor', title: 'Редактор профиля' }
 					: { command: '1c-platform-tools.serviceFiles.ensure', title: 'Файл настроек', arguments: ['launchProfile'] }
 			),

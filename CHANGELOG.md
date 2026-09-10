@@ -5,6 +5,18 @@
 Формат основан на [Keep a Changelog](https://keepachangelog.com/ru/1.0.0/),
 и этот проект придерживается [Semantic Versioning](https://semver.org/lang/ru/).
 
+## [0.8.13] - 2026-09-02
+
+
+### Исправления
+
+- **clusters:** Убрали лишние требования к наборам учётных данных
+
+- **clusters:** Вернули подключения в синхронизацию параметров
+
+- **deps:** Вернули @types/vscode к версии engines и закрыли его от dependabot
+
+
 ## [0.8.12] - 2026-08-31
 
 

@@ -317,6 +317,18 @@ suite('аргументы rac: сеансы, соединения, блокир�
 		assert.ok(args.includes('--infobase=ib-id'));
 	});
 
+	test('соединения базы читаются с её администратором', () => {
+		const args = buildConnectionListArgs({
+			address: ADDRESS,
+			clusterId: CLUSTER,
+			infobaseId: 'ib-id',
+			infobase: { user: 'Админ', password: 'pwd' },
+		});
+
+		assert.ok(args.includes('--infobase-user=Админ'));
+		assert.ok(args.includes('--infobase-pwd=pwd'));
+	});
+
 	test('разрыв соединения передаёт и процесс, и соединение', () => {
 		const args = buildConnectionDisconnectArgs({
 			address: ADDRESS,
