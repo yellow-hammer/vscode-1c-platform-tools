@@ -30,6 +30,7 @@ import { runMdSparrowParamsMutation, runMdSparrowParamsRead, type MdSparrowOp } 
 import { mdSparrowSchemaFlagFromConfigurationXml } from '../metadata/mdSparrowSchemaVersion';
 import { logger } from '../../shared/logger';
 import { applyPaletteEdits, paletteGroupsFromSpec } from './propertyPaletteSpec';
+import { extendableOf, propertyStatesOf, withPropertyStates } from '../metadata/metadataObjectEditSpec';
 import { SOURCE_PROPERTIES_TABS } from './sourcePropertiesSpec';
 import { PRIMITIVE_TYPES, applyEnumDictionary, refTypeName } from '../metadata/metadataObjectEditSpec';
 import {
@@ -42,6 +43,7 @@ import {
 	findChildNode,
 } from './childNodePropertiesSpec';
 import type { PropertyPaletteState, PropertyPaletteViewProvider } from './propertyPaletteView';
+import { formDescriptorFileOf, templateDescriptorFileOf } from '../../shared/objectPaths';
 
 const log = logger.scope('metadata');
 
@@ -92,8 +94,7 @@ export function metadataLeafReadsObjectProperties(item: MetadataLeafTreeItem): b
 }
 
 /**
- * Файл описания узла, у которого он свой: `<Объект>/Forms/<Имя>.xml` у формы и
- * `<Объект>/Templates/<Имя>.xml` у макета.
+ * Файл описания узла, у которого он свой: у формы и макета в выгрузке конфигуратора.
  *
  * @returns Путь либо {@code undefined}, если свойства узла лежат в объекте
  */
@@ -102,14 +103,13 @@ function childOwnXmlPath(item: MetadataObjectNodeTreeItem): string | undefined {
 	if (!owner.resourceUri) {
 		return undefined;
 	}
-	const subdir = item.nodeKind === 'form' ? 'Forms' : item.nodeKind === 'template' ? 'Templates' : undefined;
-	if (!subdir) {
-		return undefined;
+	if (item.nodeKind === 'form') {
+		return formDescriptorFileOf(owner.resourceUri.fsPath, item.name);
 	}
-	// Каталог состава назван по файлу объекта, а не по узлу дерева: у внешнего
-	// файла каталог артефакта носит имя erf, а объект внутри - своё
-	const stem = path.basename(owner.resourceUri.fsPath, '.xml');
-	return path.join(path.dirname(owner.resourceUri.fsPath), stem, subdir, `${item.name}.xml`);
+	if (item.nodeKind === 'template') {
+		return templateDescriptorFileOf(owner.resourceUri.fsPath, item.name);
+	}
+	return undefined;
 }
 
 /**
@@ -389,7 +389,11 @@ async function readProperties(
 			: childNodeTypeOptions(await readJson(runtime, 'cf-list-ref-types', target, schema).catch(() => ({})));
 		return {
 			dto: node ?? { name: target.child.name },
-			tabs: applyEnumDictionary(childNodeTabs(node !== undefined, node, typeOptions), forNode, labels),
+			tabs: withPropertyStates(
+				applyEnumDictionary(childNodeTabs(node !== undefined, node, typeOptions), forNode, labels),
+				node?.propertyStates,
+				node?.extendable
+			),
 			schema,
 		};
 	}
@@ -397,7 +401,11 @@ async function readProperties(
 		readJson(runtime, 'cf-md-object-structure-get', target, schema).catch(() => ({})),
 		readJson(runtime, 'cf-md-object-enums', target, schema).catch(() => ({})),
 	]);
-	const tabs = objectPaletteTabs(dto, structure, String(dto.internalName ?? target.title), enums);
+	const tabs = withPropertyStates(
+		objectPaletteTabs(dto, structure, String(dto.internalName ?? target.title), enums),
+		propertyStatesOf(dto),
+		extendableOf(dto)
+	);
 	return { dto, tabs, schema };
 }
 

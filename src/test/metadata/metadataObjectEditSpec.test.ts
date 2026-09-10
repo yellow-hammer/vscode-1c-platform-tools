@@ -480,12 +480,15 @@ suite('metadataObjectEditSpec: перечисление, константа, о�
 		assert.strictEqual(tabs[0]?.render, 'edit');
 	});
 
-	test('заимствованное перечисление расширения показывает ту же форму без правки', () => {
+	test('заимствованное перечисление правится в рамках класса расширения', () => {
 		const props = {
 			kind: 'enum',
 			internalName: 'СтатусыЗаказов',
 			synonymRu: 'Статусы заказов',
 			comment: '',
+			objectBelonging: 'Adopted',
+			propertyStates: { synonym: 'Extended' },
+			extendable: ['synonym', 'defaultListForm', 'defaultChoiceForm', 'managerModule'],
 			attributes: [],
 			tabularSections: [],
 			enumeration: { objectBelonging: 'ADOPTED' },
@@ -495,12 +498,20 @@ suite('metadataObjectEditSpec: перечисление, константа, о�
 			forms: [],
 			commands: [],
 		});
-		assert.strictEqual(model?.readonly, true);
+		assert.notStrictEqual(model?.readonly, true);
 		const fields = (model?.tabs ?? []).flatMap((tab) => tab.groups.flatMap((group) => [...group.fields]));
 		assert.ok(fields.length > 0, 'форма строится');
+		const synonym = fields.find((field) => field.path === 'synonymRu');
+		assert.notStrictEqual(synonym?.readonly, true);
+		assert.strictEqual(synonym?.state?.label, 'изменено');
+		assert.notStrictEqual(fields.find((field) => field.path === 'comment')?.readonly, true);
+		const others = fields.filter(
+			(field) => !['synonymRu', 'comment', 'enumeration.defaultListForm', 'enumeration.defaultChoiceForm', 'manager'].includes(field.path)
+		);
+		assert.ok(others.length > 0, 'есть свойства вне класса расширения');
 		assert.ok(
-			fields.every((field) => field.readonly === true),
-			'все поля только для чтения'
+			others.every((field) => field.readonly === true),
+			'свойства вне класса расширения только для чтения'
 		);
 	});
 });
@@ -828,12 +839,14 @@ suite('metadataObjectEditSpec: регистры', () => {
 		assert.strictEqual(tabs[0]?.render, 'edit');
 	});
 
-	test('заимствованный регистр расширения показывает ту же форму без правки', () => {
+	test('заимствованный регистр правится, а его состав только смотрят', () => {
 		const props = {
 			kind: 'accumulationRegister',
 			internalName: 'Остатки',
 			synonymRu: 'Остатки',
 			comment: '',
+			objectBelonging: 'Adopted',
+			extendable: ['synonym'],
 			attributes: [],
 			tabularSections: [],
 			register: { objectBelonging: 'ADOPTED' },
@@ -843,7 +856,7 @@ suite('metadataObjectEditSpec: регистры', () => {
 			forms: [],
 			commands: [],
 		});
-		assert.strictEqual(model?.readonly, true);
+		assert.notStrictEqual(model?.readonly, true);
 		const lists = buildStructureListsForTest(props, { kind: 'accumulationRegister' });
 		assert.ok(
 			lists.lists.every((list: { editable: boolean }) => list.editable === false),

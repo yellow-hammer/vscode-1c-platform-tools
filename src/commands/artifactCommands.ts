@@ -99,8 +99,7 @@ export class ArtifactCommands extends BaseCommand {
 		}
 		const srcRel = getRelativePath(artifactUri);
 		const intent: VRunnerIntent = { kind: 'cf.build', src: srcRel, out: outFile };
-		const [args] = await this.vrunner.planIntent(intent);
-		await this.runPlanned([args], [intent], {
+		await this.runPlanned([intent], {
 			cwd: workspaceRoot,
 			name: `Собрать конфигурацию: ${path.basename(artifactUri.fsPath)}`,
 			appendOverrides: false,
@@ -123,8 +122,7 @@ export class ArtifactCommands extends BaseCommand {
 		}
 		const inRel = getRelativePath(artifactUri);
 		const intent: VRunnerIntent = { kind: 'cf.decompileFile', file: inRel, out: outDir };
-		const [args] = await this.vrunner.planIntent(intent);
-		await this.runPlanned([args], [intent], {
+		await this.runPlanned([intent], {
 			cwd: workspaceRoot,
 			name: `Разобрать конфигурацию: ${path.basename(artifactUri.fsPath)}`,
 			appendOverrides: false,
@@ -153,8 +151,7 @@ export class ArtifactCommands extends BaseCommand {
 		const outFile = path.join(outPath, `${name}.cfe`);
 		const extensionName = await resolveExtensionNameFromSrc(artifactUri.fsPath);
 		const intent: VRunnerIntent = { kind: 'cfe.buildCfe', src: srcRel, out: outFile, extensionName };
-		const [args] = await this.vrunner.planIntent(intent);
-		await this.runPlanned([args], [intent], {
+		await this.runPlanned([intent], {
 			cwd: workspaceRoot,
 			name: `Собрать расширение: ${name}`,
 			appendOverrides: false,
@@ -204,43 +201,15 @@ export class ArtifactCommands extends BaseCommand {
 			out: targetDir,
 			common: ibConnectionParam,
 		};
-		const steps = await this.vrunner.planIntent(intent);
-		await this.runPlanned(steps, [intent], {
+		await this.runPlanned([intent], {
 			cwd: workspaceRoot,
 			name: `Разобрать расширение: ${cfeName}`,
 			appendOverrides: false,
 		});
 	}
 
-	/**
-	 * Исходники внешнего файла в формате EDT: описание объекта лежит в `.mdo`.
-	 *
-	 * Такие исходники vanessa-runner не собирает и не разбирает - команды
-	 * обработок и отчётов формат EDT отклоняют.
-	 */
-	private async isEdtExternalSource(artifactUri: vscode.Uri): Promise<boolean> {
-		const files = await this.getFilesByExtension(artifactUri.fsPath, '.mdo');
-		return files.length > 0;
-	}
-
-	/** Сообщает, что формат EDT этой команде недоступен. */
-	private async refuseEdtExternal(artifactUri: vscode.Uri): Promise<boolean> {
-		if (!(await this.isEdtExternalSource(artifactUri))) {
-			return false;
-		}
-		void vscode.window.showErrorMessage(
-			'Внешние обработки и отчёты в формате EDT vanessa-runner не собирает и не разбирает: ' +
-			'соберите их средствами EDT.'
-		);
-		return true;
-	}
-
 	/** Собрать внешнюю обработку из исходников. */
 	async buildProcessor(artifactUri: vscode.Uri): Promise<void> {
-		if (await this.refuseEdtExternal(artifactUri)) {
-			return;
-		}
-
 		const workspaceRoot = this.ensureWorkspace();
 		if (!workspaceRoot || !(await this.ensureOscriptAvailable())) {
 			return;
@@ -256,8 +225,7 @@ export class ArtifactCommands extends BaseCommand {
 		const srcRel = getRelativePath(artifactUri);
 		const ibConnectionParam = await this.vrunner.getIbConnectionParam();
 		const intent: VRunnerIntent = { kind: 'epf.build', src: srcRel, out: outDir, common: ibConnectionParam };
-		const [args] = await this.vrunner.planIntent(intent);
-		await this.runPlanned([args], [intent], {
+		await this.runPlanned([intent], {
 			cwd: workspaceRoot,
 			name: `Собрать обработку: ${path.basename(artifactUri.fsPath)}`,
 			appendOverrides: false,
@@ -266,10 +234,6 @@ export class ArtifactCommands extends BaseCommand {
 
 	/** Разобрать .epf в исходники. */
 	async decompileProcessor(artifactUri: vscode.Uri): Promise<void> {
-		if (await this.refuseEdtExternal(artifactUri)) {
-			return;
-		}
-
 		const workspaceRoot = this.ensureWorkspace();
 		if (!workspaceRoot || !(await this.ensureOscriptAvailable())) {
 			return;
@@ -285,8 +249,7 @@ export class ArtifactCommands extends BaseCommand {
 		const inRel = getRelativePath(artifactUri);
 		const ibConnectionParam = await this.vrunner.getIbConnectionParam();
 		const intent: VRunnerIntent = { kind: 'epf.decompile', input: inRel, out: epfPath, common: ibConnectionParam };
-		const [args] = await this.vrunner.planIntent(intent);
-		await this.runPlanned([args], [intent], {
+		await this.runPlanned([intent], {
 			cwd: workspaceRoot,
 			name: `Разобрать обработку: ${path.basename(artifactUri.fsPath)}`,
 			appendOverrides: false,
@@ -295,10 +258,6 @@ export class ArtifactCommands extends BaseCommand {
 
 	/** Собрать внешний отчёт из исходников. */
 	async buildReport(artifactUri: vscode.Uri): Promise<void> {
-		if (await this.refuseEdtExternal(artifactUri)) {
-			return;
-		}
-
 		const workspaceRoot = this.ensureWorkspace();
 		if (!workspaceRoot || !(await this.ensureOscriptAvailable())) {
 			return;
@@ -314,8 +273,7 @@ export class ArtifactCommands extends BaseCommand {
 		const srcRel = getRelativePath(artifactUri);
 		const ibConnectionParam = await this.vrunner.getIbConnectionParam();
 		const intent: VRunnerIntent = { kind: 'epf.build', src: srcRel, out: outDir, common: ibConnectionParam };
-		const [args] = await this.vrunner.planIntent(intent);
-		await this.runPlanned([args], [intent], {
+		await this.runPlanned([intent], {
 			cwd: workspaceRoot,
 			name: `Собрать отчёт: ${path.basename(artifactUri.fsPath)}`,
 			appendOverrides: false,
@@ -324,10 +282,6 @@ export class ArtifactCommands extends BaseCommand {
 
 	/** Разобрать .erf в исходники. */
 	async decompileReport(artifactUri: vscode.Uri): Promise<void> {
-		if (await this.refuseEdtExternal(artifactUri)) {
-			return;
-		}
-
 		const workspaceRoot = this.ensureWorkspace();
 		if (!workspaceRoot || !(await this.ensureOscriptAvailable())) {
 			return;
@@ -343,8 +297,7 @@ export class ArtifactCommands extends BaseCommand {
 		const inRel = getRelativePath(artifactUri);
 		const ibConnectionParam = await this.vrunner.getIbConnectionParam();
 		const intent: VRunnerIntent = { kind: 'epf.decompile', input: inRel, out: erfPath, common: ibConnectionParam };
-		const [args] = await this.vrunner.planIntent(intent);
-		await this.runPlanned([args], [intent], {
+		await this.runPlanned([intent], {
 			cwd: workspaceRoot,
 			name: `Разобрать отчёт: ${path.basename(artifactUri.fsPath)}`,
 			appendOverrides: false,

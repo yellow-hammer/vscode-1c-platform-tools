@@ -748,6 +748,18 @@
         "icon": "$(tools)"
       },
       {
+        "command": "1c-platform-tools.infobaseList.openStartWindow",
+        "title": "Открыть окно запуска платформы",
+        "category": "1С: Администрирование",
+        "icon": "$(window)"
+      },
+      {
+        "command": "1c-platform-tools.infobaseList.openEdtStart",
+        "title": "Открыть 1C:EDT Start",
+        "category": "1С: Администрирование",
+        "icon": "$(code)"
+      },
+      {
         "command": "1c-platform-tools.env.openProfileEditor",
         "title": "Открыть редактор профиля",
         "category": "1С: Конфигурации запуска",
@@ -1289,12 +1301,12 @@
       },
       {
         "command": "1c-platform-tools.cf.load",
-        "title": "Загрузить конфигурацию из src/cf",
+        "title": "Загрузить конфигурацию из исходного кода",
         "category": "1С: Конфигурация"
       },
       {
         "command": "1c-platform-tools.infobase.initFromSrc",
-        "title": "Инициализировать конфигурацию из src/cf",
+        "title": "Инициализировать конфигурацию из исходного кода",
         "category": "1С: Конфигурация"
       },
       {
@@ -1314,12 +1326,12 @@
       },
       {
         "command": "1c-platform-tools.cf.dump",
-        "title": "Выгрузить конфигурацию в src/cf",
+        "title": "Выгрузить конфигурацию в исходный код",
         "category": "1С: Конфигурация"
       },
       {
         "command": "1c-platform-tools.cf.dumpIncrement",
-        "title": "Выгрузить изменения в src/cf",
+        "title": "Выгрузить изменения в исходный код",
         "category": "1С: Конфигурация"
       },
       {
@@ -1334,17 +1346,17 @@
       },
       {
         "command": "1c-platform-tools.cf.compile",
-        "title": "Собрать 1Cv8.cf из src/cf",
+        "title": "Собрать 1Cv8.cf из исходного кода",
         "category": "1С: Конфигурация"
       },
       {
         "command": "1c-platform-tools.cf.decompile",
-        "title": "Разобрать 1Cv8.cf в src/cf",
+        "title": "Разобрать 1Cv8.cf в исходный код",
         "category": "1С: Конфигурация"
       },
       {
         "command": "1c-platform-tools.cfe.load",
-        "title": "Загрузить расширения из src/cfe",
+        "title": "Загрузить расширения из исходного кода",
         "category": "1С: Расширения"
       },
       {
@@ -1359,7 +1371,7 @@
       },
       {
         "command": "1c-platform-tools.cfe.dump",
-        "title": "Выгрузить расширения в src/cfe",
+        "title": "Выгрузить расширения в исходный код",
         "category": "1С: Расширения"
       },
       {
@@ -1384,12 +1396,12 @@
       },
       {
         "command": "1c-platform-tools.cfe.compile",
-        "title": "Собрать *.cfe из src/cfe",
+        "title": "Собрать *.cfe из исходного кода",
         "category": "1С: Расширения"
       },
       {
         "command": "1c-platform-tools.cfe.decompile",
-        "title": "Разобрать *.cfe в src/cfe",
+        "title": "Разобрать *.cfe в исходный код",
         "category": "1С: Расширения"
       },
       {
@@ -1667,9 +1679,10 @@
         "category": "1С: EDT"
       },
       {
-        "command": "1c-platform-tools.edt.open",
-        "title": "Открыть проект в EDT",
-        "category": "1С: EDT"
+        "command": "1c-platform-tools.run.edt",
+        "title": "Запустить EDT",
+        "category": "1С: Запуск",
+        "icon": "$(code)"
       },
       {
         "command": "1c-platform-tools.test.validateEdt",
@@ -2580,6 +2593,16 @@
       ],
       "view/title": [
         {
+          "command": "1c-platform-tools.infobaseList.openStartWindow",
+          "when": "view == 1c-platform-tools-admin-infobases",
+          "group": "navigation@10"
+        },
+        {
+          "command": "1c-platform-tools.infobaseList.openEdtStart",
+          "when": "view == 1c-platform-tools-admin-infobases",
+          "group": "navigation@20"
+        },
+        {
           "command": "1c-platform-tools.infobaseList.refresh",
           "when": "view == 1c-platform-tools-admin-infobases",
           "group": "navigation@30"
@@ -3188,7 +3211,7 @@
         },
         {
           "command": "1c-platform-tools.metadata.addObject",
-          "when": "view == 1c-platform-tools-metadata-tree && viewItem == metadataSourceExternalArtifact",
+          "when": "view == 1c-platform-tools-metadata-tree && viewItem =~ /(^| )metadataSourceExternalArtifact( |$)/",
           "group": "inline"
         },
         {
@@ -3253,7 +3276,7 @@
         },
         {
           "command": "1c-platform-tools.metadata.openSourceXml",
-          "when": "view == 1c-platform-tools-metadata-tree && (viewItem =~ /(^| )metadataSourceConfigLike( |$)/ || viewItem == metadataSourceUnsupported || viewItem =~ /(^| )(metadataObjectProperties(Subsystem)?|metadataLeafFile|metadataObjectForm)( |$)/)",
+          "when": "view == 1c-platform-tools-metadata-tree && (viewItem =~ /(^| )metadataSourceConfigLike( |$)/ || viewItem =~ /(^| )metadataSourceUnsupported( |$)/ || viewItem =~ /(^| )(metadataObjectProperties(Subsystem)?|metadataLeafFile|metadataObjectForm)( |$)/)",
           "group": "2_reveal@1"
         },
         {
@@ -3263,12 +3286,12 @@
         },
         {
           "command": "1c-platform-tools.metadata.compile",
-          "when": "view == 1c-platform-tools-metadata-tree && (viewItem =~ /(^| )metadataSourceConfigLike( |$)/ || viewItem == metadataSourceUnsupported || viewItem == metadataSourceExternalArtifact || viewItem =~ /(^| )metadataLeafFile( |$)/)",
+          "when": "view == 1c-platform-tools-metadata-tree && (viewItem =~ /(^| )metadataSourceConfigLike( |$)/ || viewItem =~ /(^| )metadataSourceUnsupported( |$)/ || viewItem =~ /(^| )metadataSourceExternalArtifact( |$)/ || viewItem =~ /(^| )metadataLeafFile( |$)/)",
           "group": "4_build@1"
         },
         {
           "command": "1c-platform-tools.metadata.addObject",
-          "when": "view == 1c-platform-tools-metadata-tree && (viewItem == metadataGroup_catalogs || viewItem == metadataGroupExt_catalogs || viewItem == metadataGroup_constants || viewItem == metadataGroupExt_constants || viewItem == metadataGroup_enums || viewItem == metadataGroupExt_enums || viewItem == metadataGroup_documents || viewItem == metadataGroupExt_documents || viewItem == metadataGroup_reports || viewItem == metadataGroupExt_reports || viewItem == metadataGroup_externalReports || viewItem == metadataGroupExt_externalReports || viewItem == metadataGroup_dataProcessors || viewItem == metadataGroupExt_dataProcessors || viewItem == metadataGroup_externalDataProcessors || viewItem == metadataGroupExt_externalDataProcessors || viewItem == metadataGroup_tasks || viewItem == metadataGroupExt_tasks || viewItem == metadataGroup_chartOfCharacteristicTypes || viewItem == metadataGroupExt_chartOfCharacteristicTypes || viewItem == metadataGroup_chartOfAccounts || viewItem == metadataGroupExt_chartOfAccounts || viewItem == metadataGroup_chartOfCalculationTypes || viewItem == metadataGroupExt_chartOfCalculationTypes || viewItem == metadataGroup_externalDataSources || viewItem == metadataGroupExt_externalDataSources || viewItem == metadataSubgroup_common_common_subsystem || viewItem == metadataSubgroupExt_common_common_subsystem || viewItem == metadataSubgroup_common_common_commonmodule || viewItem == metadataSubgroupExt_common_common_commonmodule || viewItem == metadataSubgroup_common_common_sessionparam || viewItem == metadataSubgroupExt_common_common_sessionparam || viewItem == metadataSubgroup_common_common_role || viewItem == metadataSubgroupExt_common_common_role || viewItem == metadataSubgroup_common_common_commonattribute || viewItem == metadataSubgroupExt_common_common_commonattribute || viewItem == metadataSubgroup_common_common_exchangeplan || viewItem == metadataSubgroupExt_common_common_exchangeplan || viewItem == metadataSubgroup_common_common_commonpicture || viewItem == metadataSubgroupExt_common_common_commonpicture || viewItem == metadataSubgroup_documents_documentNumerators || viewItem == metadataSubgroupExt_documents_documentNumerators || viewItem == metadataSourceExternalArtifact)",
+          "when": "view == 1c-platform-tools-metadata-tree && (viewItem == metadataGroup_catalogs || viewItem == metadataGroupExt_catalogs || viewItem == metadataGroup_constants || viewItem == metadataGroupExt_constants || viewItem == metadataGroup_enums || viewItem == metadataGroupExt_enums || viewItem == metadataGroup_documents || viewItem == metadataGroupExt_documents || viewItem == metadataGroup_reports || viewItem == metadataGroupExt_reports || viewItem == metadataGroup_externalReports || viewItem == metadataGroupExt_externalReports || viewItem == metadataGroup_dataProcessors || viewItem == metadataGroupExt_dataProcessors || viewItem == metadataGroup_externalDataProcessors || viewItem == metadataGroupExt_externalDataProcessors || viewItem == metadataGroup_tasks || viewItem == metadataGroupExt_tasks || viewItem == metadataGroup_chartOfCharacteristicTypes || viewItem == metadataGroupExt_chartOfCharacteristicTypes || viewItem == metadataGroup_chartOfAccounts || viewItem == metadataGroupExt_chartOfAccounts || viewItem == metadataGroup_chartOfCalculationTypes || viewItem == metadataGroupExt_chartOfCalculationTypes || viewItem == metadataGroup_externalDataSources || viewItem == metadataGroupExt_externalDataSources || viewItem == metadataSubgroup_common_common_subsystem || viewItem == metadataSubgroupExt_common_common_subsystem || viewItem == metadataSubgroup_common_common_commonmodule || viewItem == metadataSubgroupExt_common_common_commonmodule || viewItem == metadataSubgroup_common_common_sessionparam || viewItem == metadataSubgroupExt_common_common_sessionparam || viewItem == metadataSubgroup_common_common_role || viewItem == metadataSubgroupExt_common_common_role || viewItem == metadataSubgroup_common_common_commonattribute || viewItem == metadataSubgroupExt_common_common_commonattribute || viewItem == metadataSubgroup_common_common_exchangeplan || viewItem == metadataSubgroupExt_common_common_exchangeplan || viewItem == metadataSubgroup_common_common_commonpicture || viewItem == metadataSubgroupExt_common_common_commonpicture || viewItem == metadataSubgroup_documents_documentNumerators || viewItem == metadataSubgroupExt_documents_documentNumerators || viewItem =~ /(^| )metadataSourceExternalArtifact( |$)/)",
           "group": "3_create@1"
         },
         {
@@ -3288,7 +3311,7 @@
         },
         {
           "command": "1c-platform-tools.metadata.setChildNodeType",
-          "when": "view == 1c-platform-tools-metadata-tree && viewItem =~ /(^| )mdChildEdit( |$)/",
+          "when": "view == 1c-platform-tools-metadata-tree && viewItem =~ /(^| )mdChildTyped( |$)/",
           "group": "5_edit@2"
         },
         {
@@ -3782,7 +3805,7 @@
               "Только загружать; обновление конфигурации БД остаётся отдельной командой"
             ],
             "default": "ask",
-            "description": "Обновлять ли конфигурацию БД (UpdateDBCfg) сразу после загрузки конфигурации из исходников, из 1Cv8.cf или по objlist.txt. Заданное значение убирает вопрос."
+            "description": "Обновлять ли конфигурацию БД (UpdateDBCfg) сразу после загрузки конфигурации из исходного кода, из 1Cv8.cf или по objlist.txt. Заданное значение убирает вопрос."
           },
           "1c-platform-tools.path.epf": {
             "type": "string",

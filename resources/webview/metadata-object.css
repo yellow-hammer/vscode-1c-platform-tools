@@ -393,6 +393,18 @@ body {
 	content: ' •';
 }
 
+/* Состояние свойства заимствованного узла: контролируется или изменено расширением. */
+.edit-state {
+	display: block;
+	font-size: 11px;
+	opacity: 0.75;
+}
+
+.edit-state-changed {
+	color: var(--vscode-gitDecoration-modifiedResourceForeground, var(--vscode-charts-blue));
+	opacity: 1;
+}
+
 .edit-input {
 	width: 100%;
 	box-sizing: border-box;

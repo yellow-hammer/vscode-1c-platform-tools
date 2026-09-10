@@ -8,7 +8,16 @@ import * as path from 'node:path';
 import * as vscode from 'vscode';
 import { registerFormPanel } from '../editors/formPanels';
 import { beginOpenPanel, endOpenPanel, revealOpenPanel, trackOpenPanel } from '../editors/openPanels';
-import { formModulePath, objectFormXmlPath, openFormViewer } from './formViewerPanel';
+import { openFormViewer } from './formViewerPanel';
+import { ensureBslModuleFile } from './bslModuleFile';
+import {
+	commandModuleFileOf,
+	formContentFileOf,
+	formModuleNextTo,
+	formatOfFile,
+	moduleFileOf,
+	type ModuleKind,
+} from '../../shared/objectPaths';
 import { ensureMdSparrowRuntime } from './mdSparrowBootstrap';
 import { logger } from '../../shared/logger';
 import { mdSparrowSchemaFlagFromConfigurationXml } from './mdSparrowSchemaVersion';
@@ -74,6 +83,7 @@ import {
 } from './metadataObjectPropertyProfiles';
 import { notifyQuiet } from '../../shared/notify';
 import { isAdopted } from './objectBelonging';
+import { extendableOf, propertyStatesOf, withPropertyStates } from './metadataObjectEditSpec';
 
 const log = logger.scope('metadata');
 
@@ -852,6 +862,11 @@ function mergeTabularSections(
 }
 
 async function resolveSchemaFlag(params: OpenMetadataObjectPropertiesParams): Promise<string> {
+	// Версия схемы описывает выгрузку конфигуратора; у проекта EDT её место
+	// занимают схемы метамодели, и md-sparrow берёт их из своей сборки
+	if (isEdtObjectFile(params.objectXmlFsPath)) {
+		return '';
+	}
 	if (params.cfgPath) {
 		return mdSparrowSchemaFlagFromConfigurationXml(params.cfgPath);
 	}
@@ -1312,13 +1327,22 @@ function buildEditableModel(
 	const withEnums = applyEnumDictionary(normalizeTabLayout(withTemplates), enums, valueLabels);
 	const withTypes = applyTypeOptions(withEnums, refTypes, mdObjectKindLabels());
 	const withCurrent = ensureCurrentSelectValues(withTypes, props as unknown as Record<string, unknown>, valueLabels);
-	const tabs = withTabsForStructure(withCurrent, buildStructureLists(props, structure));
-	// Заимствованный объект и объект на поддержке без изменения показываются
-	// той же формой, но только на просмотр: запись всё равно отклонит md-sparrow
-	if (propsIsAdopted(props) || origin?.support === 'locked') {
+	const tabs = withPropertyStates(
+		withTabsForStructure(withCurrent, buildStructureLists(props, structure)),
+		propertyStatesOf(props),
+		extendableOf(props)
+	);
+	// Объект на поддержке без изменения показывается той же формой, но только на
+	// просмотр: запись всё равно отклонит md-sparrow
+	if (origin?.support === 'locked') {
 		return { ...model, readonly: true, tabs: tabsAsReadonly(tabs) };
 	}
 	return { ...model, tabs };
+}
+
+/** Файл объекта в формате EDT: у выгрузки конфигуратора объект лежит в .xml. */
+function isEdtObjectFile(objectPath: string): boolean {
+	return formatOfFile(objectPath) === 'edt';
 }
 
 /** Принадлежность объекта: заимствованные приходят с ObjectBelonging = Adopted. */
@@ -2217,9 +2241,6 @@ async function loadOriginModel(
 	if (!adopted && !support) {
 		return undefined;
 	}
-	if (adopted && !readonlyReason) {
-		readonlyReason = 'Заимствованный объект расширения правится в расширяемой конфигурации.';
-	}
 	return { adopted, support, vendor, version, readonlyReason };
 }
 
@@ -3107,52 +3128,34 @@ export function applySynonymEdits(dto: Record<string, unknown>, edits: MetadataS
 	}
 }
 
-const MODULE_FILE_BY_KIND: Record<string, string> = {
-	object: 'ObjectModule.bsl',
-	manager: 'ManagerModule.bsl',
-	module: 'Module.bsl',
-	valueManager: 'ValueManagerModule.bsl',
-	recordSet: 'RecordSetModule.bsl',
-};
+/** Виды модулей объекта, которые панель предлагает открыть. */
+const PANEL_MODULE_KINDS: ReadonlySet<string> = new Set<ModuleKind>([
+	'object',
+	'manager',
+	'module',
+	'valueManager',
+	'recordSet',
+]);
 
 /** Открывает модуль команды объекта, создавая пустой файл при отсутствии. */
 async function openCommandModuleFromPanel(objectXmlFsPath: string, commandName: string): Promise<void> {
-	const stem = path.basename(objectXmlFsPath, '.xml');
-	const modulePath = path.join(
-		path.dirname(objectXmlFsPath),
-		stem,
-		'Commands',
-		commandName,
-		'Ext',
-		'CommandModule.bsl'
-	);
-	const uri = vscode.Uri.file(modulePath);
-	try {
-		await vscode.workspace.fs.stat(uri);
-	} catch {
-		await vscode.workspace.fs.createDirectory(vscode.Uri.file(path.dirname(modulePath)));
-		await vscode.workspace.fs.writeFile(uri, new Uint8Array());
-		notifyQuiet('Создан пустой модуль команды');
-	}
-	const doc = await vscode.workspace.openTextDocument(uri);
-	await vscode.window.showTextDocument(doc, { preview: false });
+	await openModuleFile(commandModuleFileOf(objectXmlFsPath, commandName), 'Создан пустой модуль команды');
 }
 
-async function openObjectModuleFromPanel(objectXmlFsPath: string, internalName: string, moduleKind: string): Promise<void> {
-	const fileName = MODULE_FILE_BY_KIND[moduleKind];
-	if (!fileName) {
+/** Открывает модуль объекта заданного вида, создавая пустой файл при отсутствии. */
+async function openObjectModuleFromPanel(objectXmlFsPath: string, moduleKind: string): Promise<void> {
+	if (!PANEL_MODULE_KINDS.has(moduleKind)) {
 		return;
 	}
-	const modulePath = path.join(path.dirname(objectXmlFsPath), internalName, 'Ext', fileName);
-	const uri = vscode.Uri.file(modulePath);
-	try {
-		await vscode.workspace.fs.stat(uri);
-	} catch {
-		await vscode.workspace.fs.createDirectory(vscode.Uri.file(path.dirname(modulePath)));
-		await vscode.workspace.fs.writeFile(uri, new Uint8Array());
-		notifyQuiet(`Создан пустой модуль: ${fileName}`);
+	const modulePath = moduleFileOf(objectXmlFsPath, moduleKind as ModuleKind);
+	await openModuleFile(modulePath, `Создан пустой модуль: ${path.basename(modulePath)}`);
+}
+
+async function openModuleFile(modulePath: string, createdMessage: string): Promise<void> {
+	if (await ensureBslModuleFile(modulePath)) {
+		notifyQuiet(createdMessage);
 	}
-	const doc = await vscode.workspace.openTextDocument(uri);
+	const doc = await vscode.workspace.openTextDocument(vscode.Uri.file(modulePath));
 	await vscode.window.showTextDocument(doc, { preview: false });
 }
 
@@ -3505,10 +3508,10 @@ function registerEditableSaveHandler(
 				return;
 			}
 			if (msg.type === 'openObjectForm' && typeof msg.name === 'string') {
-				const formXml = objectFormXmlPath(params.objectXmlFsPath, msg.name);
+				const formXml = formContentFileOf(params.objectXmlFsPath, msg.name);
 				await openFormViewer(context, {
 					formXmlFsPath: formXml,
-					moduleFsPath: formModulePath(formXml),
+					moduleFsPath: formModuleNextTo(formXml),
 					title: `${editable.props.internalName}.${msg.name}`,
 					cwd: params.cwd,
 					cfgPath: params.cfgPath,
@@ -3546,7 +3549,7 @@ function registerEditableSaveHandler(
 			}
 			if (msg.type === 'openModule' && typeof msg.module === 'string') {
 				try {
-					await openObjectModuleFromPanel(params.objectXmlFsPath, editable.props.internalName, msg.module);
+					await openObjectModuleFromPanel(params.objectXmlFsPath, msg.module);
 				} catch (e) {
 					const errMsg = e instanceof Error ? e.message : String(e);
 					void vscode.window.showErrorMessage(`Не удалось открыть модуль: ${errMsg}`.slice(0, ERR_PREVIEW));

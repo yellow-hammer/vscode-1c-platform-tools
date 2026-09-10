@@ -125,7 +125,7 @@ export interface MdSparrowParams {
 	op: MdSparrowOp;
 	configurationXml?: string;
 	objectXml?: string;
-	/** Файл содержимого формы: `Forms/<Имя>/Ext/Form.xml`. */
+	/** Файл содержимого формы: `Ext/Form.xml` в выгрузке конфигуратора, `Form.form` в проекте EDT. */
 	formXml?: string;
 	artifactsRoot?: string;
 	targetCfRoot?: string;

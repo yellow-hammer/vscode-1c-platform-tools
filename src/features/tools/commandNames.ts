@@ -64,8 +64,8 @@ export function getLoadConfigurationFromCfCommandName(): CommandNameAndTitle {
 export function getLoadExtensionsCommandName(): CommandNameAndTitle {
 	return {
 		id: '1c-platform-tools.cfe.load',
-		name: 'Загрузить расширения из src/cfe',
-		title: 'Загрузить расширения из src/cfe'
+		name: 'Загрузить расширения из исходного кода',
+		title: 'Загрузить расширения из исходного кода'
 	};
 }
 
@@ -424,8 +424,8 @@ export function getEdtProjectInfoCommandName(): CommandNameAndTitle {
 	return { id: '1c-platform-tools.edt.projectInfo', name: 'Сведения о проекте EDT', title: 'Сведения о проекте EDT' };
 }
 
-export function getEdtOpenCommandName(): CommandNameAndTitle {
-	return { id: '1c-platform-tools.edt.open', name: 'Открыть проект в EDT', title: 'Открыть проект в EDT' };
+export function getRunEdtCommandName(): CommandNameAndTitle {
+	return { id: '1c-platform-tools.run.edt', name: 'EDT', title: 'Запустить EDT' };
 }
 
 /**
@@ -506,13 +506,13 @@ export function getLoadConfigurationFromSrcCommandName(
 		return {
 			id: '1c-platform-tools.infobase.initFromSrc',
 			name: 'Инициализация конфигурации',
-			title: 'Инициализировать конфигурацию из src/cf'
+			title: 'Инициализировать конфигурацию из исходного кода'
 		};
 	}
 	return {
 		id: '1c-platform-tools.cf.load',
-		name: 'Загрузить конфигурацию из src/cf',
-		title: 'Загрузить конфигурацию из src/cf'
+		name: 'Загрузить конфигурацию из исходного кода',
+		title: 'Загрузить конфигурацию из исходного кода'
 	};
 }
 
@@ -522,8 +522,8 @@ export function getLoadConfigurationFromSrcCommandName(
 export function getDumpConfigurationToSrcCommandName(): CommandNameAndTitle {
 	return {
 		id: '1c-platform-tools.cf.dump',
-		name: 'Выгрузить конфигурацию в src/cf',
-		title: 'Выгрузить конфигурацию в src/cf'
+		name: 'Выгрузить конфигурацию в исходный код',
+		title: 'Выгрузить конфигурацию в исходный код'
 	};
 }
 
@@ -533,8 +533,8 @@ export function getDumpConfigurationToSrcCommandName(): CommandNameAndTitle {
 export function getDumpConfigurationIncrementToSrcCommandName(): CommandNameAndTitle {
 	return {
 		id: '1c-platform-tools.cf.dumpIncrement',
-		name: 'Выгрузить изменения в src/cf',
-		title: 'Выгрузить изменения в src/cf'
+		name: 'Выгрузить изменения в исходный код',
+		title: 'Выгрузить изменения в исходный код'
 	};
 }
 
@@ -592,8 +592,8 @@ export function getLoadConfigurationFromFilesByListCommandName(): CommandNameAnd
 export function getLoadExtensionFromSrcCommandName(): CommandNameAndTitle {
 	return {
 		id: '1c-platform-tools.cfe.load',
-		name: 'Загрузить расширения из src/cfe',
-		title: 'Загрузить расширения из src/cfe'
+		name: 'Загрузить расширения из исходного кода',
+		title: 'Загрузить расширения из исходного кода'
 	};
 }
 
@@ -625,8 +625,8 @@ export function getLoadExtensionFromCfeCommandName(): CommandNameAndTitle {
 export function getDumpExtensionToSrcCommandName(): CommandNameAndTitle {
 	return {
 		id: '1c-platform-tools.cfe.dump',
-		name: 'Выгрузить расширения в src/cfe',
-		title: 'Выгрузить расширения в src/cfe'
+		name: 'Выгрузить расширения в исходный код',
+		title: 'Выгрузить расширения в исходный код'
 	};
 }
 

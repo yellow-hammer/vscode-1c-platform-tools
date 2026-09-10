@@ -7,6 +7,7 @@
 
 import * as path from 'node:path';
 import * as fs from 'node:fs/promises';
+import { formatOfFile } from '../shared/objectPaths';
 
 /** Регулярное выражение для извлечения версии из Configuration.xml (тег Configuration/Properties/Version) */
 const CONFIGURATION_VERSION_REGEX = /<Version>([^<]*)<\/Version>/;
@@ -18,6 +19,29 @@ const CONFIGURATION_VENDOR_REGEX = /<Vendor>([^<]*)<\/Vendor>/;
 const COMPATIBILITY_MODE_REGEX = /<CompatibilityMode>Version(\d+)_(\d+)/;
 /** Регулярное выражение для извлечения синонима (ru) конфигурации из первого блока Synonym */
 const SYNONYM_RU_REGEX = /<Synonym>[\s\S]*?<v8:lang>ru<\/v8:lang>\s*<v8:content>([^<]*)<\/v8:content>/;
+
+/** Те же свойства в описании проекта EDT: имена со строчной буквы, режим совместимости номером версии. */
+const EDT_VERSION_REGEX = /<version>([^<]*)<\/version>/;
+const EDT_NAME_REGEX = /<name>([^<]*)<\/name>/;
+const EDT_VENDOR_REGEX = /<vendor>([^<]*)<\/vendor>/;
+const EDT_COMPATIBILITY_MODE_REGEX = /<compatibilityMode>(\d+)\.(\d+)/;
+const EDT_SYNONYM_RU_REGEX = /<synonym>\s*<key>ru<\/key>\s*<value>([^<]*)<\/value>/;
+
+/** Значение первой группы либо пустая строка. */
+function group(regex: RegExp, content: string): string {
+	const match = regex.exec(content);
+	return match ? (match[1] ?? '').trim() : '';
+}
+
+/** Текст элемента без экранирования XML. */
+function unescapeXml(value: string): string {
+	return value
+		.replaceAll('&quot;', '"')
+		.replaceAll('&apos;', "'")
+		.replaceAll('&lt;', '<')
+		.replaceAll('&gt;', '>')
+		.replaceAll('&amp;', '&');
+}
 
 import * as vscode from 'vscode';
 import { logger } from '../shared/logger';
@@ -32,8 +56,8 @@ const log = logger.scope('commands');
 export async function readConfigurationVersion(configurationXmlPath: string): Promise<string | undefined> {
 	try {
 		const content = await fs.readFile(configurationXmlPath, { encoding: 'utf-8' });
-		const match = CONFIGURATION_VERSION_REGEX.exec(content);
-		return match ? (match[1] ?? '').trim() : '';
+		const regex = formatOfFile(configurationXmlPath) === 'edt' ? EDT_VERSION_REGEX : CONFIGURATION_VERSION_REGEX;
+		return unescapeXml(group(regex, content));
 	} catch {
 		return undefined;
 	}
@@ -63,22 +87,19 @@ export async function readConfigurationDeliveryProperties(
 ): Promise<ConfigurationDeliveryProperties | undefined> {
 	try {
 		const content = await fs.readFile(configurationXmlPath, { encoding: 'utf-8' });
-		const versionMatch = CONFIGURATION_VERSION_REGEX.exec(content);
-		const nameMatch = CONFIGURATION_NAME_REGEX.exec(content);
-		const vendorMatch = CONFIGURATION_VENDOR_REGEX.exec(content);
-		const compatMatch = COMPATIBILITY_MODE_REGEX.exec(content);
-		const synonymMatch = SYNONYM_RU_REGEX.exec(content);
+		const edt = formatOfFile(configurationXmlPath) === 'edt';
+		const compatMatch = (edt ? EDT_COMPATIBILITY_MODE_REGEX : COMPATIBILITY_MODE_REGEX).exec(content);
 		const appVersion =
 			compatMatch?.[1] && compatMatch?.[2]
 				? `${compatMatch[1]}.${compatMatch[2]}`
 				: '8.3';
-		const name = (nameMatch?.[1] ?? '').trim() || 'Конфигурация';
+		const name = unescapeXml(group(edt ? EDT_NAME_REGEX : CONFIGURATION_NAME_REGEX, content)) || 'Конфигурация';
 		return {
-			version: (versionMatch?.[1] ?? '').trim(),
+			version: unescapeXml(group(edt ? EDT_VERSION_REGEX : CONFIGURATION_VERSION_REGEX, content)),
 			name,
-			vendor: (vendorMatch?.[1] ?? '').trim() || '1C',
+			vendor: unescapeXml(group(edt ? EDT_VENDOR_REGEX : CONFIGURATION_VENDOR_REGEX, content)) || '1C',
 			appVersion,
-			synonymRu: (synonymMatch?.[1] ?? '').trim() || name
+			synonymRu: unescapeXml(group(edt ? EDT_SYNONYM_RU_REGEX : SYNONYM_RU_REGEX, content)) || name
 		};
 	} catch {
 		return undefined;

@@ -30,6 +30,6 @@ export function registerEdtFeature(): vscode.Disposable[] {
 		vscode.commands.registerCommand('1c-platform-tools.edt.formatModules', formatEdtModules),
 		vscode.commands.registerCommand('1c-platform-tools.edt.sortProject', sortEdtProject),
 		vscode.commands.registerCommand('1c-platform-tools.edt.projectInfo', showEdtProjectInfo),
-		vscode.commands.registerCommand('1c-platform-tools.edt.open', openInEdt),
+		vscode.commands.registerCommand('1c-platform-tools.run.edt', openInEdt),
 	];
 }

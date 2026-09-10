@@ -30,6 +30,8 @@ interface ChildMutationSpec {
 	readonly duplicate: boolean;
 	/** Операция требует имени табличной части, в которой лежит узел. */
 	readonly insideTabularSection?: boolean;
+	/** У узла есть тип значения: у табличной части, значения перечисления и команды его нет. */
+	readonly typed: boolean;
 }
 
 /**
@@ -39,15 +41,15 @@ interface ChildMutationSpec {
  * у остальных видов есть.
  */
 const SPEC_BY_KIND: Readonly<Record<MutatableChildKind, ChildMutationSpec>> = {
-	attribute: { op: 'cf-md-attribute', duplicate: true },
-	tabularSection: { op: 'cf-md-tabular-section', duplicate: true },
-	tabularAttribute: { op: 'cf-md-tabular-attribute', duplicate: true, insideTabularSection: true },
-	dimension: { op: 'cf-md-dimension', duplicate: true },
-	resource: { op: 'cf-md-resource', duplicate: true },
-	value: { op: 'cf-md-enum-value', duplicate: true },
-	command: { op: 'cf-md-command', duplicate: false },
-	accountingFlag: { op: 'cf-md-accounting-flag', duplicate: false },
-	extDimensionAccountingFlag: { op: 'cf-md-ext-dimension-accounting-flag', duplicate: false },
+	attribute: { op: 'cf-md-attribute', duplicate: true, typed: true },
+	tabularSection: { op: 'cf-md-tabular-section', duplicate: true, typed: false },
+	tabularAttribute: { op: 'cf-md-tabular-attribute', duplicate: true, insideTabularSection: true, typed: true },
+	dimension: { op: 'cf-md-dimension', duplicate: true, typed: true },
+	resource: { op: 'cf-md-resource', duplicate: true, typed: true },
+	value: { op: 'cf-md-enum-value', duplicate: true, typed: false },
+	command: { op: 'cf-md-command', duplicate: false, typed: false },
+	accountingFlag: { op: 'cf-md-accounting-flag', duplicate: false, typed: true },
+	extDimensionAccountingFlag: { op: 'cf-md-ext-dimension-accounting-flag', duplicate: false, typed: true },
 };
 
 /** Раздел объекта, в который добавляют узел: вид раздела -> вид его узлов. */
@@ -71,6 +73,12 @@ export function childKindIsMutatable(kind: string): kind is MutatableChildKind {
 export function childKindSupportsDuplicate(kind: string): boolean {
 	return childKindIsMutatable(kind) && SPEC_BY_KIND[kind].duplicate;
 }
+
+/** У узла этого вида есть тип значения, который можно сменить. */
+export function childKindHasType(kind: string): boolean {
+	return childKindIsMutatable(kind) && SPEC_BY_KIND[kind].typed;
+}
+
 
 /** Вид узлов раздела: в этот раздел можно добавлять, если он известен. */
 export function childKindOfSection(sectionKind: string): MutatableChildKind | undefined {

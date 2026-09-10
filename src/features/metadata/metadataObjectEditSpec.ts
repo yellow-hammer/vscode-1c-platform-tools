@@ -77,6 +77,102 @@ export interface MetadataEditField {
 	readonly itemsKind?: 'objectForms';
 	/** От значения зависит состав полей: палитра пересобирает показ сразу после выбора. */
 	readonly rebuilds?: boolean;
+	/** Состояние свойства у заимствованного узла расширения: отметка рядом с подписью. */
+	readonly state?: MetadataEditPropertyState;
+}
+
+/** Отметка состояния свойства заимствованного узла. */
+export interface MetadataEditPropertyState {
+	readonly label: string;
+	readonly hint: string;
+	/** Значение задано расширением, а не сверяется с расширяемой конфигурацией. */
+	readonly changed: boolean;
+}
+
+/** Состояния свойств заимствованного узла в написании md-sparrow. */
+export const PROPERTY_STATE_MARKS: Readonly<Record<string, MetadataEditPropertyState>> = {
+	Checked: { label: 'контролируется', hint: 'Значение сверяется с расширяемой конфигурацией', changed: false },
+	Extended: { label: 'изменено', hint: 'Значение задано расширением', changed: true },
+	MultiState: { label: 'дополнено', hint: 'Тип дополнен расширением', changed: true },
+};
+
+/**
+ * Поля, чьё имя не совпадает с именем свойства у состояний: модули объекта идут
+ * короткими именами, а подсказка в метамодели EDT пишется слитно.
+ */
+const STATE_KEYS_BY_FIELD: Readonly<Record<string, string>> = {
+	object: 'objectModule',
+	manager: 'managerModule',
+	recordSet: 'recordSetModule',
+	valueManager: 'valueManagerModule',
+	toolTip: 'tooltip',
+};
+
+/**
+ * Ключ состояния по пути поля: `synonymRu` и `catalog.hierarchical` дают `synonym`
+ * и `hierarchical`, как md-sparrow именует состояния в обоих форматах.
+ */
+export function propertyStateKey(path: string): string {
+	const last = path.slice(path.lastIndexOf('.') + 1);
+	const stripped = last.endsWith('Ru') ? last.slice(0, -2) : last;
+	const known = STATE_KEYS_BY_FIELD[stripped];
+	if (known) {
+		return known;
+	}
+	return stripped.charAt(0).toLowerCase() + stripped.slice(1);
+}
+
+/** Состояния свойств заимствованного узла из его описания: md-sparrow отдаёт их под именами свойств. */
+export function propertyStatesOf(node: unknown): Readonly<Record<string, string>> | undefined {
+	const states = (node as { propertyStates?: unknown } | null | undefined)?.propertyStates;
+	if (typeof states !== 'object' || states === null || Array.isArray(states)) {
+		return undefined;
+	}
+	const out: Record<string, string> = {};
+	for (const [key, value] of Object.entries(states as Record<string, unknown>)) {
+		if (typeof value === 'string') {
+			out[key] = value;
+		}
+	}
+	return out;
+}
+
+/** Свойства, которые расширение вправе менять у заимствованного узла; у своего узла их нет. */
+export function extendableOf(node: unknown): readonly string[] | undefined {
+	const list = (node as { extendable?: unknown } | null | undefined)?.extendable;
+	return Array.isArray(list) ? list.filter((item): item is string => typeof item === 'string') : undefined;
+}
+
+/**
+ * Те же вкладки для заимствованного узла: у полей отметки состояний, а свойства,
+ * которых расширение не меняет, только на просмотр. Комментарий у заимствованного
+ * узла свой, он правится всегда.
+ */
+export function withPropertyStates(
+	tabs: readonly MetadataEditTabSpec[],
+	states: Readonly<Record<string, string>> | undefined,
+	extendable?: readonly string[]
+): MetadataEditTabSpec[] {
+	const hasStates = states !== undefined && Object.keys(states).length > 0;
+	if (!hasStates && extendable === undefined) {
+		return [...tabs];
+	}
+	const allowed = extendable === undefined ? undefined : new Set([...extendable, 'comment']);
+	return tabs.map((tab) => ({
+		...tab,
+		groups: tab.groups.map((group) => ({
+			...group,
+			fields: group.fields.map((field) => {
+				const key = propertyStateKey(field.path);
+				const state = hasStates ? PROPERTY_STATE_MARKS[states[key] ?? ''] : undefined;
+				const locked = allowed !== undefined && !allowed.has(key) && !field.readonly;
+				if (!state && !locked) {
+					return field;
+				}
+				return { ...field, ...(state ? { state } : {}), ...(locked ? { readonly: true } : {}) };
+			}),
+		})),
+	}));
 }
 
 export interface MetadataEditGroup {

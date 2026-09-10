@@ -8,7 +8,8 @@ import * as vscode from 'vscode';
 import { logger } from '../../shared/logger';
 import { infobaseConnectionString, readInfobases, type InfobaseEntry } from '../../shared/infobaseList';
 import { readClustersSettings } from '../clusters/settings';
-import { launchInfobase, shouldPassIbName, type CestartMode } from './cestart';
+import { launchInfobase, launchStartWindow, shouldPassIbName, type CestartMode } from './cestart';
+import { launchEdtStart } from './edtStart';
 import type { IbasesProvider } from './ibasesProvider';
 import { IbaseItem } from './nodes';
 
@@ -59,6 +60,28 @@ async function runInfobase(entry: InfobaseEntry, mode: CestartMode): Promise<voi
 	}
 }
 
+/** Открывает окно запуска платформы со списком баз. */
+function openStartWindow(): void {
+	const result = launchStartWindow({ extraRoots: [readClustersSettings().platformPath] });
+	if (result.ok) {
+		log.info(`окно запуска платформы: ${result.binary}`);
+		return;
+	}
+	log.warn(result.message);
+	void vscode.window.showErrorMessage(result.message);
+}
+
+/** Открывает окно 1C:EDT Start: его проекты это рабочие области EDT, по одной под базу. */
+function openEdtStart(): void {
+	const result = launchEdtStart();
+	if (result.ok) {
+		log.info(`окно 1C:EDT Start: ${result.binary} ${result.args.join(' ')}`);
+		return;
+	}
+	log.warn(result.message);
+	void vscode.window.showErrorMessage(result.message);
+}
+
 /**
  * Берёт запись базы из узла дерева.
  *
@@ -93,8 +116,8 @@ function pickItems(): IbasePickItem[] {
 /**
  * Показывает список баз в палитре и запускает выбранную.
  *
- * Enter и кнопка «Предприятие» открывают Предприятие, кнопка «Конфигуратор» —
- * Конфигуратор.
+ * Enter и кнопка «Предприятие» открывают Предприятие, кнопка «Конфигуратор»
+ * Конфигуратор, кнопка «EDT» рабочую область базы в EDT.
  *
  * @returns Промис, который разрешается, когда окно выбора закрыто
  */
@@ -118,8 +141,8 @@ async function showInfobaseList(): Promise<void> {
 			resolve();
 		};
 		pick.onDidTriggerItemButton((event) => {
-			const mode: CestartMode = event.button.tooltip === DESIGNER_BUTTON.tooltip ? 'DESIGNER' : 'ENTERPRISE';
 			pick.hide();
+			const mode: CestartMode = event.button.tooltip === DESIGNER_BUTTON.tooltip ? 'DESIGNER' : 'ENTERPRISE';
 			void runInfobase(event.item.entry, mode);
 		});
 		pick.onDidAccept(() => {
@@ -164,5 +187,7 @@ export function registerIbasesCommands(provider: IbasesProvider): vscode.Disposa
 			}
 			await runInfobase(entry, 'DESIGNER');
 		}),
+		vscode.commands.registerCommand('1c-platform-tools.infobaseList.openStartWindow', () => openStartWindow()),
+		vscode.commands.registerCommand('1c-platform-tools.infobaseList.openEdtStart', () => openEdtStart()),
 	];
 }

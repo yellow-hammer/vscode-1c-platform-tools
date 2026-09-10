@@ -24,6 +24,10 @@ export interface InfobaseEntry {
 	readonly orderInList: number;
 	/** Порядок в дереве списка платформы; нет поля — 0. */
 	readonly orderInTree: number;
+	/** Идентификатор записи: по нему 1С:EDT находит рабочую область базы. */
+	readonly id?: string;
+	/** Версия платформы из записи, если она задана. */
+	readonly version?: string;
 }
 
 /**
@@ -41,10 +45,20 @@ export function parseInfobaseList(text: string): InfobaseEntry[] {
 	let folder = '/';
 	let orderInList = 0;
 	let orderInTree = 0;
+	let id = '';
+	let version = '';
 
 	const flush = (): void => {
 		if (name && connect) {
-			out.push({ name, connect, folder, orderInList, orderInTree });
+			out.push({
+				name,
+				connect,
+				folder,
+				orderInList,
+				orderInTree,
+				...(id ? { id } : {}),
+				...(version ? { version } : {}),
+			});
 		}
 	};
 
@@ -57,6 +71,8 @@ export function parseInfobaseList(text: string): InfobaseEntry[] {
 			folder = '/';
 			orderInList = 0;
 			orderInTree = 0;
+			id = '';
+			version = '';
 			continue;
 		}
 		const eq = line.indexOf('=');
@@ -73,6 +89,10 @@ export function parseInfobaseList(text: string): InfobaseEntry[] {
 			orderInList = parseOrder(value);
 		} else if (key === 'orderintree') {
 			orderInTree = parseOrder(value);
+		} else if (key === 'id') {
+			id = value;
+		} else if (key === 'version') {
+			version = value;
 		}
 	}
 	flush();

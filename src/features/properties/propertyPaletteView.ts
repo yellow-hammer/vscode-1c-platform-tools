@@ -28,6 +28,8 @@ export interface PropertyRow {
 	readonly rebuilds?: boolean;
 	/** Пояснение к свойству: показывается внизу панели у выделенной строки. */
 	readonly hint?: string;
+	/** Состояние свойства заимствованного узла: отметка под подписью. */
+	readonly state?: { readonly label: string; readonly hint: string; readonly changed: boolean };
 }
 
 /** Изменённые значения: ключ строки -> новое значение. */
@@ -314,6 +316,15 @@ export class PropertyPaletteViewProvider implements vscode.WebviewViewProvider {
 		opacity: 1;
 		font-weight: 600;
 	}
+	.row-state {
+		display: block;
+		font-size: 11px;
+		opacity: 0.75;
+	}
+	.row-state.is-extended {
+		color: var(--vscode-gitDecoration-modifiedResourceForeground, var(--vscode-charts-blue));
+		opacity: 1;
+	}
 	.row-value input[type="text"],
 	.row-value select {
 		width: 100%;
@@ -515,7 +526,13 @@ export class PropertyPaletteViewProvider implements vscode.WebviewViewProvider {
 			const line = element('div', 'row'
 				+ (selectedKey === row.key ? ' is-selected' : '')
 				+ (draft.has(row.key) ? ' is-changed' : ''));
-			line.append(element('div', 'row-label', row.label));
+			const label = element('div', 'row-label', row.label);
+			if (row.state) {
+				const state = element('span', 'row-state' + (row.state.changed ? ' is-extended' : ''), row.state.label);
+				state.title = row.state.hint;
+				label.append(state);
+			}
+			line.append(label);
 			const value = element('div', 'row-value');
 			if (editable && !row.readonly) {
 				value.append(editor(row, line));

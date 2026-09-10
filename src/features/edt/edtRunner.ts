@@ -150,6 +150,32 @@ export function isProjectRegistered(workspaceDir: string, projectName: string): 
 }
 
 /**
+ * Отключает проект от рабочей области, файлы на диске остаются: выгрузку EDT
+ * импортирует только в проект, которого в рабочей области ещё нет.
+ *
+ * @param projectDir - Каталог проекта EDT
+ * @param workspaceDir - Каталог рабочей области
+ * @param cwd - Каталог запуска
+ * @returns Код возврата; ноль, если проекта в рабочей области не было
+ */
+export async function detachProject(projectDir: string, workspaceDir: string, cwd: string): Promise<number> {
+	if (!fs.existsSync(path.join(projectDir, '.project'))) {
+		return 0;
+	}
+	const projectName = edtProjectName(projectDir);
+	if (!isProjectRegistered(workspaceDir, projectName)) {
+		return 0;
+	}
+	return runEdtCommand({
+		command: 'delete',
+		args: ['-y', 'true', projectName],
+		title: `EDT: отключение ${projectName}`,
+		workspaceDir,
+		cwd,
+	});
+}
+
+/**
  * Подключает проект к рабочей области, если он ещё не подключён.
  *
  * Команды над проектом обращаются к нему по имени, а имя знает только рабочая
@@ -197,11 +223,9 @@ export async function runEdtCommand(request: EdtCommand): Promise<number> {
 		return 1;
 	}
 
-	if (running) {
-		// Свой код возврата у отказа: с кодом выполняющейся команды вызывающий
-		// решил бы, что его работа сделана
-		void vscode.window.showInformationMessage('Команда 1С:EDT уже выполняется: рабочая область занята.');
-		return 1;
+	// Рабочую область 1cedtcli не делит: следующая команда ждёт, пока закончится текущая
+	while (running) {
+		await running.catch(() => undefined);
 	}
 
 	const args = buildEdtArgs(request, settings);

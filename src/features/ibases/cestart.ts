@@ -327,3 +327,22 @@ export function launchInfobase(
 		return { ok: false, message: 'Не удалось запустить 1С.' };
 	}
 }
+
+/**
+ * Открывает окно запуска платформы: 1cestart без параметров показывает список баз.
+ *
+ * @param deps - Поиск стартера и запуск процесса
+ * @returns Успех с командой либо сообщение, почему не вышло
+ */
+export function launchStartWindow(deps: Pick<LaunchInfobaseDeps, 'extraRoots' | 'find' | 'spawn'> = {}): LaunchInfobaseResult {
+	const lookup = (deps.find ?? findCestart)({ extraRoots: deps.extraRoots });
+	if (!lookup.binary) {
+		return {
+			ok: false,
+			message: 'Не найден 1cestart. Укажите каталог установки платформы в настройках.',
+		};
+	}
+	const run = deps.spawn ?? ((command: string, spawnArgs: readonly string[]) => spawnDetached(command, spawnArgs));
+	run(lookup.binary, []);
+	return { ok: true, binary: lookup.binary, args: [] };
+}

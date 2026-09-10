@@ -49,6 +49,7 @@ export function registerArtifactsFeature(
 		'**/*.epf',
 		'**/*.erf',
 		'**/Configuration.xml',
+		'**/Configuration.mdo',
 	];
 	const artifactWatchers = artifactPatterns.flatMap((pattern) => {
 		const watcher = vscode.workspace.createFileSystemWatcher(pattern);

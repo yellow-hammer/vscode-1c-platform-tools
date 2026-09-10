@@ -21,6 +21,7 @@ import { mdSparrowSchemaFlagFromConfigurationXml } from './mdSparrowSchemaVersio
 import { offerGithubTokenOnRateLimit } from '../../shared/githubToken';
 import { ADOPTED_HINT, SUPPORT_HINTS, adoptedIcon, initAdoptedIcons, isAdopted, supportIcon } from './objectBelonging';
 import {
+	childKindHasType,
 	childKindIsMutatable,
 	childKindOfSection,
 	childKindSupportsDuplicate,
@@ -32,6 +33,14 @@ import {
 	METADATA_OBJECT_SECTION_SOURCES_BY_TYPE,
 	type MetadataObjectSectionSource,
 } from './metadataObjectSectionProfiles';
+import {
+	formatOfFile,
+	formModuleFileOf,
+	moduleFileOf,
+	nestedSubsystemFileOf,
+	nestedSubsystemsDirectoryOf,
+	objectDirectoryOf,
+} from '../../shared/objectPaths';
 
 const log = logger.scope('metadata');
 
@@ -108,19 +117,17 @@ export type ObjectModuleKind =
 	| 'form';
 
 interface ObjectModuleDescriptor {
-	/** Путь к файлу модуля относительно каталога `<Объект>/Ext`. */
-	readonly fileName: string;
 	/** Токен в contextValue листа для when-условия пункта меню. */
 	readonly contextToken: string;
 }
 
 const OBJECT_MODULE_DESCRIPTORS: Record<ObjectModuleKind, ObjectModuleDescriptor> = {
-	object: { fileName: 'ObjectModule.bsl', contextToken: 'mdObjModule' },
-	manager: { fileName: 'ManagerModule.bsl', contextToken: 'mdMgrModule' },
-	recordset: { fileName: 'RecordSetModule.bsl', contextToken: 'mdRecModule' },
-	valueManager: { fileName: 'ValueManagerModule.bsl', contextToken: 'mdValModule' },
-	module: { fileName: 'Module.bsl', contextToken: 'mdModule' },
-	form: { fileName: path.join('Form', 'Module.bsl'), contextToken: 'mdFormModule' },
+	object: { contextToken: 'mdObjModule' },
+	manager: { contextToken: 'mdMgrModule' },
+	recordset: { contextToken: 'mdRecModule' },
+	valueManager: { contextToken: 'mdValModule' },
+	module: { contextToken: 'mdModule' },
+	form: { contextToken: 'mdFormModule' },
 };
 
 /**
@@ -192,19 +199,29 @@ function assignMetadataLeafOpenCommand(item: MetadataLeafTreeItem): void {
 	};
 }
 
+/**
+ * Признак формата в contextValue: команды, которых у проекта EDT нет (проверка
+ * выгрузки, заимствование в расширение), в меню требуют признак конфигуратора.
+ */
+function withFormatToken(contextValue: string, file: string | undefined): string {
+	if (!file) {
+		return contextValue;
+	}
+	return `${contextValue} ${formatOfFile(file) === 'edt' ? 'mdEdt' : 'mdDesigner'}`;
+}
+
 /** У объекта бывают реквизиты или табличные части. */
 export function objectAcceptsChildNodes(objectType: string): boolean {
 	const sources = METADATA_OBJECT_SECTION_SOURCES_BY_TYPE[normalizeMetadataObjectType(objectType)];
 	return !!sources && (sources.includes('attributes') || sources.includes('tabularSections'));
 }
 
-/** Абсолютный путь к файлу модуля объекта рядом с его XML (`<Объект>/Ext/<Модуль>.bsl`). */
-export function objectModuleFilePath(
-	objectXmlFsPath: string,
-	objectName: string,
-	kind: ObjectModuleKind
-): string {
-	return path.join(path.dirname(objectXmlFsPath), objectName, 'Ext', OBJECT_MODULE_DESCRIPTORS[kind].fileName);
+/** Абсолютный путь к файлу модуля объекта: раскладку решает формат файла описания. */
+export function objectModuleFilePath(objectXmlFsPath: string, kind: ObjectModuleKind): string {
+	if (kind === 'form') {
+		return formModuleFileOf(objectXmlFsPath);
+	}
+	return moduleFileOf(objectXmlFsPath, kind === 'recordset' ? 'recordSet' : kind);
 }
 
 /** Корень дерева: основная конфигурация, расширение или блок внешних отчётов/обработок. */
@@ -248,6 +265,7 @@ export class MetadataSourceTreeItem extends vscode.TreeItem {
 		if (supportEditingEnabled === true) {
 			this.contextValue = `${this.contextValue} mdSupportRule`;
 		}
+		this.contextValue = withFormatToken(this.contextValue, configurationXmlAbs);
 		this.iconPath = new vscode.ThemeIcon('root-folder');
 		if (onSupport) {
 			this.tooltip = supportEditingEnabled === true
@@ -334,7 +352,7 @@ export function metadataObjectOwnsFile(objectXmlAbs: string, fileAbs: string): b
 	if (object.toLowerCase() === file.toLowerCase()) {
 		return true;
 	}
-	const dir = object.replace(/\.xml$/i, '') + path.sep;
+	const dir = objectDirectoryOf(object) + path.sep;
 	return file.toLowerCase().startsWith(dir.toLowerCase());
 }
 
@@ -358,7 +376,7 @@ export function objectChildFromFilePath(
 	objectXmlAbs: string,
 	fileAbs: string
 ): { readonly sectionKind: MetadataSectionKind; readonly name: string } | undefined {
-	const dir = path.normalize(objectXmlAbs).replace(/\.xml$/i, '') + path.sep;
+	const dir = objectDirectoryOf(path.normalize(objectXmlAbs)) + path.sep;
 	const file = path.normalize(fileAbs);
 	if (!file.toLowerCase().startsWith(dir.toLowerCase())) {
 		return undefined;
@@ -406,7 +424,7 @@ export class MetadataLeafTreeItem extends vscode.TreeItem {
 		const hasObjectPath = !!abs;
 		const hasMetadataStructure = hasObjectPath && canExpandMetadataObject(normalizedObjectType);
 		const hasNestedSubsystems =
-			hasObjectPath && normalizedObjectType === 'Subsystem' && hasNestedSubsystemChildren(abs, name);
+			hasObjectPath && normalizedObjectType === 'Subsystem' && hasNestedSubsystemChildren(abs);
 		super(
 			name,
 			hasMetadataStructure || hasNestedSubsystems
@@ -447,6 +465,7 @@ export class MetadataLeafTreeItem extends vscode.TreeItem {
 			if (tokens.length > 0) {
 				this.contextValue = [this.contextValue, ...tokens].join(' ');
 			}
+			this.contextValue = withFormatToken(this.contextValue, configurationXmlAbs ?? abs);
 		}
 		this.iconPath = metadataObjectTypeIcon(
 			normalizedObjectType,
@@ -695,10 +714,12 @@ export class MetadataObjectSectionTreeItem extends vscode.TreeItem {
 		super(label, hasChildren ? vscode.TreeItemCollapsibleState.Collapsed : vscode.TreeItemCollapsibleState.None);
 		// Токен вместо перечисления видов в условиях меню: новый вид раздела
 		// получает пункт «Добавить» сам, как только md-sparrow научится его создавать
-		this.contextValue =
+		this.contextValue = withFormatToken(
 			childKindOfSection(sectionKind) || sectionKind === 'forms'
 				? 'metadataObjectSection mdSectionAdd'
-				: 'metadataObjectSection';
+				: 'metadataObjectSection',
+			owner.configurationXmlAbs ?? owner.resourceUri?.fsPath
+		);
 		this.iconPath = ownerAwareIcon(metadataSectionIcon(sectionKind, extensionUri), owner);
 	}
 }
@@ -754,6 +775,9 @@ export function childNodeContextValue(nodeKind: MetadataNodeKind): string {
 	if (childKindIsMutatable(nodeKind)) {
 		parts.push('mdChildEdit');
 	}
+	if (childKindHasType(nodeKind)) {
+		parts.push('mdChildTyped');
+	}
 	if (childKindSupportsDuplicate(nodeKind)) {
 		parts.push('mdChildDuplicate');
 	}
@@ -777,7 +801,10 @@ export class MetadataObjectNodeTreeItem extends vscode.TreeItem {
 		public readonly support?: string
 	) {
 		super(label, hasChildren ? vscode.TreeItemCollapsibleState.Collapsed : vscode.TreeItemCollapsibleState.None);
-		this.contextValue = childNodeContextValue(nodeKind);
+		this.contextValue = withFormatToken(
+			childNodeContextValue(nodeKind),
+			owner.configurationXmlAbs ?? owner.resourceUri?.fsPath
+		);
 		const ownFile = nodeKind === 'form' || nodeKind === 'template';
 		const effectiveSupport = childNodeSupport(owner.support, support, ownFile);
 		if (owner.supportRulesOpen && (effectiveSupport === 'locked' || effectiveSupport === 'editable')) {
@@ -888,15 +915,23 @@ function canExpandMetadataObject(objectType: string): boolean {
 	return sectionSpecsForObjectType(objectType).length > 0;
 }
 
-function hasNestedSubsystemChildren(subsystemXmlAbs: string, subsystemName: string): boolean {
-	const nestedDir = path.join(path.dirname(subsystemXmlAbs), subsystemName, 'Subsystems');
+/**
+ * Есть ли у подсистемы вложенные.
+ *
+ * У конфигуратора вложенная подсистема лежит файлом в каталоге `Subsystems`, у EDT
+ * каталогом с описанием внутри.
+ */
+function hasNestedSubsystemChildren(subsystemFile: string): boolean {
+	const nestedDir = nestedSubsystemsDirectoryOf(subsystemFile);
 	if (!fs.existsSync(nestedDir)) {
 		return false;
 	}
 	try {
-		return fs
-			.readdirSync(nestedDir, { withFileTypes: true })
-			.some((entry) => entry.isFile() && entry.name.toLowerCase().endsWith('.xml'));
+		return fs.readdirSync(nestedDir, { withFileTypes: true }).some((entry) =>
+			entry.isFile()
+				? entry.name.toLowerCase().endsWith('.xml')
+				: fs.existsSync(path.join(nestedDir, entry.name, `${entry.name}.mdo`))
+		);
 	} catch {
 		return false;
 	}
@@ -1368,7 +1403,17 @@ export class MetadataTreeDataProvider implements vscode.TreeDataProvider<vscode.
 		return vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
 	}
 
+	/**
+	 * Каталог исходников активной конфигурации.
+	 *
+	 * Пока дерево прочитано, каталог берётся из него: у проекта EDT это
+	 * подкаталог src проекта, а не настроенный путь выгрузки.
+	 */
 	resolveCfRoot(): string | undefined {
+		const main = this.mainSource();
+		if (main?.metadataRootAbs) {
+			return main.metadataRootAbs;
+		}
 		const root = this.workspaceRoot();
 		if (!root) {
 			return undefined;
@@ -1378,12 +1423,21 @@ export class MetadataTreeDataProvider implements vscode.TreeDataProvider<vscode.
 		return path.normalize(path.join(root, rel));
 	}
 
+	/** Описание активной конфигурации: Configuration.xml выгрузки либо Configuration.mdo проекта EDT. */
 	get configurationXml(): string | undefined {
+		const main = this.mainSource();
+		if (main?.configurationXmlAbs) {
+			return main.configurationXmlAbs;
+		}
 		const cf = this.resolveCfRoot();
 		if (!cf) {
 			return undefined;
 		}
 		return path.join(cf, 'Configuration.xml');
+	}
+
+	private mainSource(): MetadataSourceTreeItem | undefined {
+		return this._sourceItems.find((item) => item.sourceKind === 'main');
 	}
 
 	async refresh(): Promise<void> {
@@ -1413,6 +1467,13 @@ export class MetadataTreeDataProvider implements vscode.TreeDataProvider<vscode.
 		try {
 			this._dto = await loadProjectMetadataTree(this._context, root);
 			this.rebuildItemCache(root, this._dto);
+			// Панель дерева показывает проверку выгрузки только конфигуратору: у проекта EDT своя проверка
+			const main = this._dto.sources.find((source) => source.kind === 'main');
+			void vscode.commands.executeCommand(
+				'setContext',
+				'1c-platform-tools.metadata.mainFormat',
+				main?.configurationXmlRelativePath ? formatOfFile(main.configurationXmlRelativePath) : 'designer'
+			);
 		} catch (e) {
 			const msg = e instanceof Error ? e.message : String(e);
 			log.error(`дерево: ${msg}`);
@@ -2010,8 +2071,10 @@ export class MetadataTreeDataProvider implements vscode.TreeDataProvider<vscode.
 				if (!leaf.resourceUri) {
 					return undefined;
 				}
-				const stem = path.basename(leaf.resourceUri.fsPath, '.xml');
-				return childStates.get(`${stem}/${subdir}/${name}.xml`);
+				// У выгрузки форма и макет описаны своим файлом, у проекта EDT лежат своим каталогом
+				const edt = formatOfFile(leaf.resourceUri.fsPath) === 'edt';
+				const stem = path.basename(leaf.resourceUri.fsPath, edt ? '.mdo' : '.xml');
+				return childStates.get(edt ? `${stem}/${subdir}/${name}` : `${stem}/${subdir}/${name}.xml`);
 			}
 			const elementKey = childSupportElementKey(nodeKind, name, tabularSection);
 			return elementKey ? childStates.get(elementKey) : undefined;
@@ -2143,7 +2206,7 @@ export class MetadataTreeDataProvider implements vscode.TreeDataProvider<vscode.
 				schema = schemaFromTree;
 			}
 		}
-		if (!schema) {
+		if (schema === undefined) {
 			throw new Error('Не удалось определить схему XSD для структуры объекта.');
 		}
 		const runtime = await ensureMdSparrowRuntime(this._context);
@@ -2250,8 +2313,7 @@ export class MetadataTreeDataProvider implements vscode.TreeDataProvider<vscode.
 		if (!parentLeaf.resourceUri || !this._workspaceRoot) {
 			return undefined;
 		}
-		const parentDir = path.dirname(parentLeaf.resourceUri.fsPath);
-		const candidateAbs = path.join(parentDir, parentLeaf.name, 'Subsystems', `${nestedName}.xml`);
+		const candidateAbs = nestedSubsystemFileOf(parentLeaf.resourceUri.fsPath, nestedName);
 		if (!fs.existsSync(candidateAbs)) {
 			return undefined;
 		}

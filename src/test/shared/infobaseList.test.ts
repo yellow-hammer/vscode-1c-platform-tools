@@ -22,6 +22,16 @@ suite('Список информационных баз', () => {
 		);
 	});
 
+	test('идентификатор и версия платформы читаются из записи', () => {
+		const entries = parseInfobaseList(readPlatformText(path.join(FIXTURES, 'ibases.v8i')) ?? '');
+		const byName = new Map(entries.map((e) => [e.name, e]));
+
+		assert.strictEqual(byName.get('Рабочая')?.id, '00000000-0000-0000-0000-000000000003');
+		assert.strictEqual(byName.get('Рабочая')?.version, '8.3');
+		assert.strictEqual(byName.get('Песочница')?.version, undefined);
+	});
+
+
 	test('порядок дерева читается из записи, без поля — ноль', () => {
 		const entries = parseInfobaseList(readPlatformText(path.join(FIXTURES, 'ibases.v8i')) ?? '');
 		const byName = new Map(entries.map((e) => [e.name, e]));

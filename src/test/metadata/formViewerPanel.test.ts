@@ -2,12 +2,8 @@ import * as assert from 'assert';
 import * as path from 'path';
 import * as fs from 'node:fs';
 import {
-	commonFormXmlPath,
 	findHandlerLine,
 	formItemProperties,
-	formModulePath,
-	objectFormXmlPath,
-	ownerObjectXmlPath,
 	dataPathTitles,
 	dataPathTypes,
 	commandTitles,
@@ -21,29 +17,7 @@ import {
 import type { FormItemDto } from '../../features/metadata/formViewerPanel';
 import { enumValueLabel, propertyLabel } from '../../features/metadata/formItemPropertySpec';
 
-suite('Просмотр формы: пути и переход к обработчику', () => {
-	const objectXml = path.join('C:', 'проект', 'src', 'cf', 'Catalogs', 'Валюты.xml');
-
-	test('форма объекта лежит в Forms/<Имя>/Ext/Form.xml', () => {
-		assert.strictEqual(
-			objectFormXmlPath(objectXml, 'ФормаСписка'),
-			path.join('C:', 'проект', 'src', 'cf', 'Catalogs', 'Валюты', 'Forms', 'ФормаСписка', 'Ext', 'Form.xml')
-		);
-	});
-
-	test('у общей формы содержимое лежит в каталоге самой формы', () => {
-		const commonFormXml = path.join('C:', 'проект', 'src', 'cf', 'CommonForms', 'ФормаНастроек.xml');
-		assert.strictEqual(
-			commonFormXmlPath(commonFormXml, 'ФормаНастроек'),
-			path.join('C:', 'проект', 'src', 'cf', 'CommonForms', 'ФормаНастроек', 'Ext', 'Form.xml')
-		);
-	});
-
-	test('модуль формы лежит рядом с содержимым', () => {
-		const formXml = objectFormXmlPath(objectXml, 'ФормаСписка');
-		assert.strictEqual(formModulePath(formXml), path.join(path.dirname(formXml), 'Form', 'Module.bsl'));
-	});
-
+suite('Просмотр формы: переход к обработчику', () => {
 	test('обработчик находится по объявлению процедуры', () => {
 		const module = [
 			'&НаСервере',
@@ -495,16 +469,6 @@ suite('Подписи свойств и значений элемента фор
 });
 
 suite('Подписи полей формы по синонимам реквизитов', () => {
-	test('объект-владелец находится по пути формы', () => {
-		const form = path.join('C:', 'п', 'src', 'cf', 'Catalogs', 'Валюты', 'Forms', 'ФормаЭлемента', 'Ext', 'Form.xml');
-		assert.strictEqual(ownerObjectXmlPath(form), path.join('C:', 'п', 'src', 'cf', 'Catalogs', 'Валюты.xml'));
-	});
-
-	test('у общей формы владельца нет', () => {
-		const form = path.join('C:', 'п', 'src', 'cf', 'CommonForms', 'МояФорма', 'Ext', 'Form.xml');
-		assert.strictEqual(ownerObjectXmlPath(form), undefined);
-	});
-
 	test('синоним берётся и у обычного, и у стандартного реквизита', () => {
 		const titles = dataPathTitles(
 			{

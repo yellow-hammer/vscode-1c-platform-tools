@@ -15,6 +15,8 @@ import * as path from 'node:path';
 import * as vscode from 'vscode';
 import { logger } from '../../../shared/logger';
 import { configuredSourceDirs } from '../../../shared/sourcePaths';
+import { resolveProjectLayout } from '../../../shared/projectLayout';
+import { sourceDirectory } from '../../../shared/objectPaths';
 import { ensureMdSparrowRuntime } from '../mdSparrowBootstrap';
 import { isMdSparrowUnknownCommandError, MdSparrowOutdatedError } from '../mdSparrowErrors';
 import { runMdSparrowParamsRead } from '../mdSparrowParams';
@@ -52,8 +54,17 @@ function resolveCacheFile(context: vscode.ExtensionContext): string {
 async function collectGraphRoots(workspaceRoot: string): Promise<string[]> {
 	const dirs = configuredSourceDirs();
 	const roots: string[] = [];
+	// Конфигурация и расширения обеих раскладок: у проекта EDT каталог выгрузки не существует
+	try {
+		const layout = await resolveProjectLayout(workspaceRoot, { configuration: dirs.cf, extensions: [dirs.cfe] });
+		for (const source of [...(layout.configuration ? [layout.configuration] : []), ...layout.extensions, ...layout.others]) {
+			roots.push(sourceDirectory(source));
+		}
+	} catch {
+		/* раскладка не разобрана: остаются каталоги выгрузки */
+	}
 	const cfRoot = path.join(workspaceRoot, ...dirs.cf.split('/'));
-	if (fssync.existsSync(cfRoot)) {
+	if (fssync.existsSync(cfRoot) && !roots.includes(cfRoot)) {
 		roots.push(cfRoot);
 	}
 	const subRoots = [dirs.cfe, dirs.erf, dirs.epf];
@@ -98,6 +109,9 @@ async function computeFingerprint(workspaceRoot: string, jarIdentity: string): P
 	return hash.digest('hex');
 }
 
+/** Файлы, по которым меняется граф: описания объектов и форм обеих раскладок. */
+const SOURCE_FILE_EXTENSIONS = new Set(['.xml', '.mdo', '.form', '.dcs']);
+
 async function walkXml(dir: string, onFile: (abs: string) => Promise<void>): Promise<void> {
 	let entries: fssync.Dirent[];
 	try {
@@ -112,7 +126,7 @@ async function walkXml(dir: string, onFile: (abs: string) => Promise<void>): Pro
 			await walkXml(abs, onFile);
 			continue;
 		}
-		if (entry.isFile() && entry.name.toLowerCase().endsWith('.xml')) {
+		if (entry.isFile() && SOURCE_FILE_EXTENSIONS.has(path.extname(entry.name).toLowerCase())) {
 			await onFile(abs);
 		}
 	}
