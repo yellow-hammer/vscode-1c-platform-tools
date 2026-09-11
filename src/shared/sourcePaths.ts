@@ -29,6 +29,11 @@ export interface SourceDirs {
  *
  * @param workspaceRoot - Корень рабочей области
  */
+/** Каталог внешних объектов выгрузки конфигуратора; корень рабочей области таким не бывает. */
+function designerContainer(container: string | undefined): string | undefined {
+	return container === undefined || container === '.' ? undefined : container;
+}
+
 export async function detectedSourceDirs(workspaceRoot: string): Promise<SourceDirs> {
 	const paths = await projectPaths(workspaceRoot);
 	const externals = [...paths.processors, ...paths.reports, ...paths.testProcessors].filter(
@@ -37,8 +42,9 @@ export async function detectedSourceDirs(workspaceRoot: string): Promise<SourceD
 	return {
 		cf: paths.configuration?.dir ?? CONVENTIONAL_PATHS.cf,
 		cfe: paths.extensionsContainer ?? CONVENTIONAL_PATHS.cfe,
-		epf: paths.processorsContainer ?? CONVENTIONAL_PATHS.epf,
-		erf: paths.reportsContainer ?? CONVENTIONAL_PATHS.erf,
+		// Общий каталог проектов EDT это корень рабочей области: его целиком не отдаём
+		epf: designerContainer(paths.processorsContainer) ?? CONVENTIONAL_PATHS.epf,
+		erf: designerContainer(paths.reportsContainer) ?? CONVENTIONAL_PATHS.erf,
 		cfeDirs: [...paths.extensions, ...paths.testExtensions].map((extension) => extension.dir),
 		epfDirs: externals.filter((external) => external.kind === 'processor').map((external) => external.dir),
 		erfDirs: externals.filter((external) => external.kind === 'report').map((external) => external.dir),

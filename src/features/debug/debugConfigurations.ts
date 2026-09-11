@@ -53,9 +53,11 @@ export class OnecDebugConfigurationProvoider implements vscode.DebugConfiguratio
 		// Внешние обработки и отчёты: каталоги выгрузки конфигуратора всегда в шаблоне,
 		// несуществующие адаптер пропускает; проекты EDT лежат отдельно, поэтому идут
 		// каждый своим каталогом
+		const container = (value: string | undefined, fallback: string) =>
+			asTemplate(value === undefined || value === '.' ? fallback : value);
 		const externalSources = [
-			asTemplate(paths?.processorsContainer ?? CONVENTIONAL_PATHS.epf),
-			asTemplate(paths?.reportsContainer ?? CONVENTIONAL_PATHS.erf),
+			container(paths?.processorsContainer, CONVENTIONAL_PATHS.epf),
+			container(paths?.reportsContainer, CONVENTIONAL_PATHS.erf),
 			...(paths ? [...paths.processors, ...paths.reports, ...paths.testProcessors] : [])
 				.filter((external) => external.format === 'edt')
 				.map((external) => asTemplate(external.dir)),

@@ -3,21 +3,39 @@ import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import {
+	baseProjectOfManifest,
+	designerExternalsUnder,
+	edtBaseProjectOf,
 	edtExternalProjectsOf,
+	edtProjectOfExternal,
+	edtStagingTarget,
 	edtToolingRefusal,
 	planEdtBridge,
 	sourceFormatOfDirectory,
 	withBaseProject,
 } from '../../features/edt/edtSourceBridge';
+import { edtProjectName } from '../../features/edt/edtRunner';
+import { invalidateProjectLayout, resolveProjectLayout, setLayoutExclusions } from '../../shared/projectLayout';
 import { parseVRunnerVersion, type VRunnerVersion } from '../../shared/vrunnerVersion';
 
 const version = (raw: string): VRunnerVersion => parseVRunnerVersion(raw) as VRunnerVersion;
+
+/** Рабочие области с исходным кодом в обоих форматах. */
+const FIXTURES = path.resolve(__dirname, '../../../src/test/fixtures/projectLayout');
+const DESIGNER_WORKSPACE = path.join(FIXTURES, 'designer');
+const EDT_WORKSPACE = path.join(FIXTURES, 'edt-workspace');
+const MIXED_WORKSPACE = path.join(FIXTURES, 'mixed-externals');
 
 /** Активная конфигурация в формате EDT. */
 const edtSource = { format: 'edt' as const, dir: 'ssl31' };
 const layout = { buildDir: 'build' };
 
 suite('мост между проектом EDT и раннером', () => {
+	setup(() => {
+		setLayoutExclusions(() => []);
+		invalidateProjectLayout();
+	});
+
 	test('загрузка из проекта идёт из его выгрузки', () => {
 		const plan = planEdtBridge({ kind: 'cf.loadFromSrc', src: 'ssl31', updateDb: false }, edtSource, layout);
 
@@ -41,7 +59,8 @@ suite('мост между проектом EDT и раннером', () => {
 		const plan = planEdtBridge({ kind: 'cf.dumpIbToSrc', out: 'ssl31' }, edtSource, layout);
 
 		assert.deepStrictEqual(plan?.intent, { kind: 'cf.dumpIbToSrc', out: 'build/edt-export/ssl31' });
-		assert.deepStrictEqual(plan?.exports, []);
+		// Прошлая выгрузка иначе ушла бы в проект вместе с новой
+		assert.deepStrictEqual(plan?.exports, [{ clear: 'build/edt-export/ssl31' }]);
 		assert.deepStrictEqual(plan?.imports, [
 			{ source: 'build/edt-export/ssl31', projectDir: 'ssl31', needsBase: false, external: false },
 		]);
@@ -99,7 +118,9 @@ suite('мост между проектом EDT и раннером', () => {
 		);
 
 		assert.deepStrictEqual(plan?.intent, { kind: 'epf.build', src: 'build/edt-export/epf', out: 'build/epf' });
+		// Объекты выгрузки конфигуратора из того же каталога идут в промежуточный каталог рядом с выгрузками проектов
 		assert.deepStrictEqual(plan?.exports, [
+			{ designerSource: 'src/epf', target: 'build/edt-export/epf' },
 			{ projectDir: 'src/epf/Загрузка', target: 'build/edt-export/epf/Загрузка', externalName: 'Загрузка' },
 			{ projectDir: 'src/epf/Отчет', target: 'build/edt-export/epf/Отчет', externalName: 'Отчет' },
 		]);
@@ -112,9 +133,71 @@ suite('мост между проектом EDT и раннером', () => {
 			layout
 		);
 
+		assert.deepStrictEqual(plan?.exports, [{ clear: 'build/edt-export/epf' }]);
 		assert.deepStrictEqual(plan?.imports, [
 			{ source: 'build/edt-export/epf', projectDir: 'src/epf', needsBase: false, external: true },
 		]);
+	});
+
+	test('проекты внешних объектов в корне рабочей области получают свой промежуточный каталог', () => {
+		assert.strictEqual(edtStagingTarget('build', '.'), 'build/edt-export/workspace');
+		assert.strictEqual(edtStagingTarget('build', 'dp'), 'build/edt-export/dp');
+		assert.strictEqual(edtStagingTarget('build', 'src\\epf'), 'build/edt-export/epf');
+
+		const plan = planEdtBridge({ kind: 'epf.decompile', input: 'build/epf', out: '.' }, { format: 'edt', dir: '.' }, layout);
+
+		assert.deepStrictEqual(plan?.intent, { kind: 'epf.decompile', input: 'build/epf', out: 'build/edt-export/workspace' });
+		assert.deepStrictEqual(plan?.imports, [
+			{ source: 'build/edt-export/workspace', projectDir: '.', needsBase: false, external: true },
+		]);
+	});
+
+	test('базовый проект берётся из манифеста, затем по имени проекта, затем у активной конфигурации', () => {
+		const at = (...parts: string[]) => path.join(EDT_WORKSPACE, ...parts);
+		const lookup = { configurations: [at('ssl31'), at('учёт')], projectName: edtProjectName, active: at('ssl31') };
+
+		// Манифест называет проект его именем в EDT, а не каталогом
+		assert.strictEqual(edtBaseProjectOf(at('учёт.РасширениеУчёта'), lookup), at('учёт'));
+		assert.strictEqual(edtBaseProjectOf(at('tests', 'cfe', 'yaxunit-test'), { ...lookup, active: at('учёт') }), at('ssl31'));
+		// Без манифеста расширение выдаёт себя именем каталога <конфигурация>.<расширение>
+		assert.strictEqual(edtBaseProjectOf(at('ssl31._ДемоРасширение'), { ...lookup, active: at('учёт') }), at('ssl31'));
+		// Проект внешних объектов ни на кого не ссылается: базовым служит активная конфигурация
+		assert.strictEqual(edtBaseProjectOf(at('dp'), { ...lookup, active: at('учёт') }), at('учёт'));
+		assert.strictEqual(edtBaseProjectOf(at('dp'), { ...lookup, active: undefined }), undefined);
+		assert.strictEqual(edtBaseProjectOf(at('ssl31'), lookup), undefined);
+
+		assert.strictEqual(baseProjectOfManifest('Runtime-Version: 8.3.24\r\nBase-Project: Основа\r\n'), 'Основа');
+		assert.strictEqual(baseProjectOfManifest('Runtime-Version: 8.3.24\n'), undefined);
+	});
+
+	test('внешний объект знает свой проект EDT по имени', async () => {
+		const found = await resolveProjectLayout(EDT_WORKSPACE);
+
+		assert.strictEqual(edtProjectOfExternal(found, 'ТестоваяВнешняяОбработка')?.dir, path.join(EDT_WORKSPACE, 'dp'));
+		assert.strictEqual(edtProjectOfExternal(found, 'ТестовыйВнешнийОтчет')?.kind, 'report');
+		assert.strictEqual(
+			edtProjectOfExternal(found, 'Тесты_Арифметика')?.dir,
+			path.join(EDT_WORKSPACE, 'tests', 'epf', 'Тесты_Арифметика')
+		);
+		assert.strictEqual(edtProjectOfExternal(found, 'Нет'), undefined);
+	});
+
+	test('объекты выгрузки конфигуратора берутся из каталога команды по его виду', async () => {
+		const designer = await resolveProjectLayout(DESIGNER_WORKSPACE);
+		const names = (dir: string) => designerExternalsUnder(designer, DESIGNER_WORKSPACE, dir).map((root) => root.name).sort();
+
+		assert.deepStrictEqual(names('src/epf'), ['ПечатьСчёта']);
+		assert.deepStrictEqual(names('src/erf'), ['ОстаткиТоваров', 'ОтчётПоОстаткам']);
+		// Рабочая область как каталог: объекты решения без тестовых
+		assert.deepStrictEqual(names('.'), ['ОстаткиТоваров', 'ОтчётПоОстаткам', 'ПечатьСчёта']);
+		assert.deepStrictEqual(names('tests/epf'), ['Тесты_Арифметика']);
+
+		const mixed = await resolveProjectLayout(MIXED_WORKSPACE);
+		assert.deepStrictEqual(
+			designerExternalsUnder(mixed, MIXED_WORKSPACE, 'src/epf').map((root) => root.dir),
+			[path.join(MIXED_WORKSPACE, 'src', 'epf', 'Печать')]
+		);
+		assert.deepStrictEqual(designerExternalsUnder(await resolveProjectLayout(EDT_WORKSPACE), EDT_WORKSPACE, '.'), []);
 	});
 
 	test('исходники конфигуратора и команды над базой идут к раннеру как есть', () => {

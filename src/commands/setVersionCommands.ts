@@ -1,4 +1,4 @@
-import { projectPaths } from '../shared/projectPaths';
+import { projectPaths, type RelativeExternal } from '../shared/projectPaths';
 import { NO_CONFIGURATION_SOURCES } from './baseCommand';
 import * as vscode from 'vscode';
 import * as path from 'node:path';
@@ -16,8 +16,9 @@ import { configurationScope } from '../shared/activeConfiguration';
 import { configurationDescriptorFile } from '../shared/objectPaths';
 import { ensureMdSparrowRuntime } from '../features/metadata/mdSparrowBootstrap';
 import { runMdSparrowParamsMutation } from '../features/metadata/mdSparrowParams';
-import { edtExternalProjectsOf, EDT_STAGING_DIR } from '../features/edt/edtSourceBridge';
+import { edtStagingTarget } from '../features/edt/edtSourceBridge';
 import { runEdtExports, runEdtImports } from '../features/edt/edtBridgeRunner';
+import { edtStagingRoot } from '../features/edt/edtRunner';
 
 const log = logger.scope('commands');
 
@@ -61,66 +62,47 @@ export class SetVersionCommands extends BaseCommand {
 	}
 
 	/**
-	 * Ставит версию внешним объектам проектов EDT.
+	 * Ставит версию внешнему объекту проекта EDT.
 	 *
-	 * Проект выгружается самой EDT, версию в выгрузку ставит раннер, результат
-	 * возвращается в проект импортом: так же идут сборка и разборка.
+	 * Проект выгружается самой EDT, версию в выгрузку объекта ставит раннер, объект
+	 * возвращается в свой проект импортом: так же идут сборка и разборка.
 	 *
-	 * @param artifactsRoot - Каталог внешних объектов относительно рабочей области
-	 * @param names - Имена объектов
+	 * @param external - Объект и его проект
 	 * @param version - Новая версия
 	 * @param workspaceRoot - Корень рабочей области
 	 * @param title - Название задачи в терминале
 	 */
 	private async stampEdtExternal(
-		artifactsRoot: string,
-		names: readonly string[],
+		external: RelativeExternal,
 		version: string,
 		workspaceRoot: string,
 		title: string
 	): Promise<void> {
-		const projects = edtExternalProjectsOf(workspaceRoot, artifactsRoot).filter((project) =>
-			names.includes(project.name)
-		);
-		if (projects.length === 0) {
-			vscode.window.showInformationMessage('В каталоге нет проектов внешних объектов EDT.');
-			return;
-		}
-		const buildDir = this.vrunner.getOutPath();
-		const staging = `${buildDir}/${EDT_STAGING_DIR}/${path.basename(artifactsRoot)}`;
-		const context = { workspaceRoot, buildDir, baseProjectDir: await this.activeEdtProjectDirForVersion() };
+		const buildDir = edtStagingRoot(workspaceRoot, this.vrunner.getOutPath());
+		const staging = edtStagingTarget(buildDir, external.dir);
+		const baseProjectDir = (await this.edtBaseProjectResolver(workspaceRoot))(external.dir);
+		const context = { workspaceRoot, buildDir };
+		const dump = `${staging}/${external.name}`;
+		// Промежуточный каталог чистится целиком: прошлые выгрузки других объектов проекта иначе вернулись бы в него вместе с этой
 		const exported = await runEdtExports(
-			projects.map((project) => ({
-				projectDir: project.projectDir,
-				target: `${staging}/${project.name}`,
-				externalName: project.name,
-			})),
+			[
+				{ clear: staging },
+				{ projectDir: external.dir, target: dump, externalName: external.name, baseProjectDir },
+			],
 			context
 		);
 		if (!exported) {
 			void vscode.window.showErrorMessage('Выгрузка проекта 1С:EDT не удалась, версия не изменена.');
 			return;
 		}
-		const argsList = projects.map((project) => [
-			'set-version',
-			'--src',
-			`${staging}/${project.name}`,
-			'--check-module',
-			'--new-version',
-			version,
-		]);
-		await this.vrunner.executeVRunnerTaskSequenceAndWait(argsList, { cwd: workspaceRoot, name: title });
-		await runEdtImports([{ source: staging, projectDir: artifactsRoot, needsBase: true, external: true }], context);
-	}
-
-	/** Каталог проекта активной конфигурации EDT: базовый проект внешних объектов. */
-	private async activeEdtProjectDirForVersion(): Promise<string | undefined> {
-		const workspaceRoot = this.vrunner.getWorkspaceRoot();
-		if (!workspaceRoot) {
-			return undefined;
-		}
-		const scope = await configurationScope(workspaceRoot);
-		return scope.configuration?.format === 'edt' ? scope.configuration.dir : undefined;
+		await this.vrunner.executeVRunnerTaskSequenceAndWait(
+			[['set-version', '--src', dump, '--check-module', '--new-version', version]],
+			{ cwd: workspaceRoot, name: title }
+		);
+		await runEdtImports(
+			[{ source: staging, projectDir: path.posix.dirname(external.dir), needsBase: false, external: true, baseProjectDir }],
+			context
+		);
 	}
 
 
@@ -292,13 +274,13 @@ export class SetVersionCommands extends BaseCommand {
 			return;
 		}
 
-		const erfPath = await this.reportsContainer();
-		const srcPath = (await this.paths())?.reports.find((report) => report.name === selected)?.dir ?? path.join(erfPath, selected);
+		const external = (await this.paths())?.reports.find((report) => report.name === selected);
 		const commandName = getSetVersionReportCommandName(selected);
-		if (edtExternalProjectsOf(workspaceRoot, srcPath).length > 0) {
-			await this.stampEdtExternal(srcPath, [selected], version, workspaceRoot, commandName.title);
+		if (external?.format === 'edt') {
+			await this.stampEdtExternal(external, version, workspaceRoot, commandName.title);
 			return;
 		}
+		const srcPath = external?.dir ?? path.join(await this.reportsContainer(), selected);
 		const args = ['set-version', '--src', srcPath, '--check-module', '--new-version', version];
 
 		await this.vrunner.executeVRunnerInTerminal(args, {
@@ -346,13 +328,13 @@ export class SetVersionCommands extends BaseCommand {
 			return;
 		}
 
-		const epfPath = await this.processorsContainer();
-		const srcPath = (await this.paths())?.processors.find((processor) => processor.name === selected)?.dir ?? path.join(epfPath, selected);
+		const external = (await this.paths())?.processors.find((processor) => processor.name === selected);
 		const commandName = getSetVersionProcessorCommandName(selected);
-		if (edtExternalProjectsOf(workspaceRoot, srcPath).length > 0) {
-			await this.stampEdtExternal(srcPath, [selected], version, workspaceRoot, commandName.title);
+		if (external?.format === 'edt') {
+			await this.stampEdtExternal(external, version, workspaceRoot, commandName.title);
 			return;
 		}
+		const srcPath = external?.dir ?? path.join(await this.processorsContainer(), selected);
 		const args = ['set-version', '--src', srcPath, '--check-module', '--new-version', version];
 
 		await this.vrunner.executeVRunnerInTerminal(args, {

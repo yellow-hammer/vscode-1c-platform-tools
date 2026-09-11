@@ -71,6 +71,7 @@ export interface ProjectPaths {
 	reports: RelativeExternal[];
 	/** Тестовые обработки и отчёты: под каталогом тестов. */
 	testProcessors: RelativeExternal[];
+	/** Общий каталог обработок; у проектов EDT это каталог проектов, в том числе `.`. */
 	processorsContainer?: string;
 	reportsContainer?: string;
 	testProcessorsContainer?: string;
@@ -86,14 +87,19 @@ export function runnerPath(workspaceRoot: string, absolute: string): string {
 	return relative.length > 0 ? relative : '.';
 }
 
-/** Общий каталог корней относительно рабочей области. */
+/** Путь в записи раннера лежит внутри рабочей области. */
+function insideWorkspace(relative: string): boolean {
+	return !relative.startsWith('..') && !path.isAbsolute(relative);
+}
+
+/** Общий каталог корней относительно рабочей области; сама рабочая область каталогом не считается. */
 function container(workspaceRoot: string, roots: ReadonlyArray<{ dir: string }>): string | undefined {
 	const parent = commonParent(roots);
 	if (parent === undefined) {
 		return undefined;
 	}
 	const relative = runnerPath(workspaceRoot, parent);
-	return relative === '.' || relative.startsWith('..') ? undefined : relative;
+	return relative !== '.' && insideWorkspace(relative) ? relative : undefined;
 }
 
 /** Каталоги выгрузки конфигуратора: у расширений EDT базой служит корень рабочей области. */
@@ -105,13 +111,28 @@ function designerOnly<T extends { format: SourceFormat }>(roots: ReadonlyArray<T
  * Каталог внешних объектов: у выгрузки конфигуратора общий каталог объектов, у
  * проектов EDT общий каталог проектов. Команда получает каталог целиком, а
  * проекты выгружает сама EDT, поэтому смешанной рабочей области хватает выгрузки.
+ *
+ * Проекты EDT принято класть прямо в рабочую область, поэтому их каталогом
+ * бывает она сама. Проект, открытый как рабочая область, сам себе каталог.
  */
 function externalContainer(
 	workspaceRoot: string,
 	roots: ReadonlyArray<{ dir: string; format: SourceFormat }>
 ): string | undefined {
 	const designer = designerOnly(roots);
-	return container(workspaceRoot, designer.length > 0 ? designer : roots);
+	if (designer.length > 0) {
+		return container(workspaceRoot, designer);
+	}
+	const parent = commonParent(roots);
+	if (parent === undefined) {
+		return undefined;
+	}
+	const relative = runnerPath(workspaceRoot, parent);
+	if (insideWorkspace(relative)) {
+		return relative;
+	}
+	const projects = new Set(roots.map((root) => path.resolve(root.dir)));
+	return projects.size === 1 ? runnerPath(workspaceRoot, [...projects][0]) : undefined;
 }
 
 /**

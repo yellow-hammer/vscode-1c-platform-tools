@@ -10,16 +10,18 @@ import { anyNeedsExclusiveInfobase, infobaseHolder, keepsInfobaseAfterRun } from
 import { configurationScope } from '../shared/activeConfiguration';
 import { CONVENTIONAL_PATHS, projectPaths, type ProjectPaths } from '../shared/projectPaths';
 import {
+	edtBaseProjectOf,
 	edtExternalProjectsOf,
 	edtToolingRefusal,
 	intentSourcePath,
 	planEdtBridge,
 	sourceFormatOfDirectory,
+	type EdtBaseLookup,
 	type EdtExportStep,
 	type EdtImportStep,
 } from '../features/edt/edtSourceBridge';
 import { runEdtExports, runEdtImports } from '../features/edt/edtBridgeRunner';
-import { edtStagingRoot } from '../features/edt/edtRunner';
+import { edtProjectName, edtStagingRoot } from '../features/edt/edtRunner';
 import { notifyQuiet } from '../shared/notify';
 import type { CommandExecutionOptions, StructuredCommandResult } from '../shared/commandExecutionTypes';
 
@@ -492,14 +494,42 @@ export abstract class BaseCommand {
 		if (workspaceRoot === undefined || (exports.length === 0 && imports.length === 0)) {
 			return { intents: rewritten };
 		}
-		const context = { workspaceRoot, buildDir, baseProjectDir: await this.activeEdtProjectDir() };
-		if (!(await runEdtExports(exports, context))) {
+		// Базовый проект у каждого шага свой: расширение чужой конфигурации к активной не относится
+		const baseOf = await this.edtBaseProjectResolver(workspaceRoot);
+		const context = { workspaceRoot, buildDir };
+		const withBase = exports.map((step) =>
+			'projectDir' in step ? { ...step, baseProjectDir: baseOf(step.projectDir) } : step
+		);
+		if (!(await runEdtExports(withBase, context))) {
 			const reported = await this.reportUnavailable('Выгрузка проекта 1С:EDT не удалась, команда не запущена.', opts);
 			return reported ?? 'blocked';
 		}
+		const owned = imports.map((step) => ({ ...step, baseProjectDir: baseOf(step.projectDir) }));
 		return {
 			intents: rewritten,
-			after: imports.length > 0 ? () => runEdtImports(imports, context) : undefined,
+			after: owned.length > 0 ? () => runEdtImports(owned, context) : undefined,
+		};
+	}
+
+	/**
+	 * Базовый проект для проекта EDT: по манифесту проекта или по его имени среди
+	 * конфигураций рабочей области, иначе проект активной конфигурации.
+	 *
+	 * @returns Каталог базового проекта относительно рабочей области по каталогу проекта
+	 */
+	protected async edtBaseProjectResolver(workspaceRoot: string): Promise<(projectDir: string) => string | undefined> {
+		const layout = await resolveProjectLayout(workspaceRoot);
+		const lookup: EdtBaseLookup = {
+			configurations: [...(layout.configuration ? [layout.configuration] : []), ...layout.others]
+				.filter((root) => root.format === 'edt')
+				.map((root) => root.dir),
+			projectName: edtProjectName,
+			active: await this.activeEdtProjectDir(),
+		};
+		const relative = (dir: string) => path.relative(workspaceRoot, dir).split(path.sep).join('/') || '.';
+		return (projectDir) => {
+			const base = edtBaseProjectOf(path.resolve(workspaceRoot, projectDir), lookup);
+			return base === undefined ? undefined : relative(base);
 		};
 	}
 
