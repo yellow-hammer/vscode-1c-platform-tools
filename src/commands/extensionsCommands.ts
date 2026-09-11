@@ -591,6 +591,13 @@ export class ExtensionsCommands extends BaseCommand {
 		if (!sources) {
 			return;
 		}
+		// Список объектов знает раскладку выгрузки: проекту EDT его не подать
+		if ((await this.paths())?.extensions.some((extension) => extension.format === 'edt')) {
+			return this.reportUnavailable(
+				'Загрузка по objlist.txt работает только с выгрузкой конфигуратора, а расширения в формате 1С:EDT.',
+				opts
+			);
+		}
 		const extensionFolders = sources.folders;
 
 		const selectedFolders = await this.selectExtensions(extensionFolders, opts);

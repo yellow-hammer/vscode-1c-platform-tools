@@ -118,6 +118,10 @@ export class ConfigurationCommands extends BaseCommand {
 		if (typeof srcPath !== 'string') {
 			return srcPath;
 		}
+		const edt = await this.refuseEdtConfiguration(opts);
+		if (edt !== null) {
+			return edt;
+		}
 		const srcFullPath = path.join(cwd, srcPath);
 		const configDumpInfoPath = path.join(srcFullPath, 'ConfigDumpInfo.xml');
 		const versionFileExists = await checkVersionFileExists(configDumpInfoPath);
@@ -345,6 +349,10 @@ export class ConfigurationCommands extends BaseCommand {
 		if (typeof srcPath !== 'string') {
 			return srcPath;
 		}
+		const edt = await this.refuseEdtConfiguration(opts);
+		if (edt !== null) {
+			return edt;
+		}
 		const lastUploadedCommitPath = path.join(workspaceRoot, srcPath, 'lastUploadedCommit.txt');
 
 		let currentSha = '';
@@ -425,6 +433,10 @@ export class ConfigurationCommands extends BaseCommand {
 		const srcPath = await this.requireCfPath(opts);
 		if (typeof srcPath !== 'string') {
 			return srcPath;
+		}
+		const edt = await this.refuseEdtConfiguration(opts);
+		if (edt !== null) {
+			return edt;
 		}
 		const configFullPath = path.resolve(workspaceRoot, srcPath);
 		const content = await fs.readFile(objlistPath, 'utf-8');

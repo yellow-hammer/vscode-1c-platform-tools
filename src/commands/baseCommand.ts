@@ -3,7 +3,7 @@ import * as vscode from 'vscode';
 import * as fs from 'node:fs/promises';
 import { VRunnerManager, type VRunnerExecutionResult } from '../shared/vrunnerManager';
 import type { VRunnerIntent } from '../shared/vrunnerCli';
-import type { SourceFormat } from '../shared/projectLayout';
+import { enclosingEdtProject, resolveProjectLayout, rootOfDirectory, type SourceFormat } from '../shared/projectLayout';
 import { logger } from '../shared/logger';
 import { runWithHooks, runHooksAroundTerminalTask } from '../shared/commandHooks';
 import { anyNeedsExclusiveInfobase, infobaseHolder, keepsInfobaseAfterRun } from '../shared/exclusiveInfobase';
@@ -14,7 +14,6 @@ import {
 	edtToolingRefusal,
 	intentSourcePath,
 	planEdtBridge,
-	samePath,
 	sourceFormatOfDirectory,
 	type EdtExportStep,
 	type EdtImportStep,
@@ -29,6 +28,10 @@ export const NO_CONFIGURATION_SOURCES =
 	'Исходный код конфигурации в рабочей области не найден: нужен Configuration.xml выгрузки конфигуратора или проект EDT.';
 
 const log = logger.scope('commands');
+
+/** Команда есть только у выгрузки конфигуратора: дерево команд её у проекта EDT не показывает. */
+const DESIGNER_ONLY_COMMAND =
+	'Команда работает только с выгрузкой конфигуратора, а активная конфигурация в формате 1С:EDT.';
 
 /** Команда не начинается, пока базу держит чужой процесс. */
 export const INFOBASE_BUSY = 'Информационная база занята: команда не запущена.';
@@ -441,15 +444,6 @@ export abstract class BaseCommand {
 	}
 
 	/**
-	 * Каталог исходников конфигурации, с которой работают команды.
-	 *
-	 * В формате конфигуратора это настроенный каталог, в формате EDT - каталог
-	 * проекта: раннер сам разбирается, что внутри. Настройка остаётся запасным
-	 * вариантом, пока автоопределение не нашло исходников.
-	 *
-	 * @returns Путь относительно рабочей области
-	 */
-	/**
 	 * Проводит намерения через проект 1С:EDT.
 	 *
 	 * Исходники проекта EDT раннер не читает: перед командой проект выгружается
@@ -535,22 +529,43 @@ export abstract class BaseCommand {
 
 		const relative = (dir: string) => path.relative(workspaceRoot, dir).split(path.sep).join('/');
 		const wanted = intentSourcePath(intent);
-		const roots = [scope.configuration, ...scope.extensions];
-		for (const root of roots) {
-			if (root && wanted && samePath(relative(root.dir), wanted)) {
+		if (wanted) {
+			// Путь внутри корня раскладки ведёт к самому корню: у проекта EDT команда
+			// работает с каталогом проекта, а не с его src
+			const absolute = path.resolve(workspaceRoot, wanted);
+			const root = rootOfDirectory(await resolveProjectLayout(workspaceRoot), absolute);
+			if (root) {
 				return { format: root.format, dir: relative(root.dir) || undefined };
 			}
-		}
-		// Путь есть, но это не конфигурация и не расширение: формат смотрим по
-		// самому каталогу. Пустой или ещё не созданный каталог, куда команда
-		// только разложит результат, наследует формат активной конфигурации
-		if (wanted) {
-			const format = sourceFormatOfDirectory(path.resolve(workspaceRoot, wanted)) ?? scope.configuration?.format;
+			const project = enclosingEdtProject(workspaceRoot, absolute);
+			if (project) {
+				return { format: 'edt', dir: relative(project) || undefined };
+			}
+			// Путь вне корней: формат смотрим по самому каталогу. Пустой или ещё не
+			// созданный каталог, куда команда только разложит результат, наследует
+			// формат активной конфигурации
+			const format = sourceFormatOfDirectory(absolute) ?? scope.configuration?.format;
 			return format ? { format, dir: wanted } : undefined;
 		}
 		return scope.configuration
 			? { format: scope.configuration.format, dir: relative(scope.configuration.dir) || undefined }
 			: undefined;
+	}
+
+	/**
+	 * Отказ команды, у которой на проекте 1С:EDT нет дела: списки объектов,
+	 * приращения и файлы версий существуют только у выгрузки конфигуратора.
+	 *
+	 * @returns Результат-ошибку в режиме wait либо undefined после сообщения в UI;
+	 *          null, когда конфигурация в формате конфигуратора и команда идёт дальше
+	 */
+	protected async refuseEdtConfiguration(
+		opts?: CommandExecutionOptions
+	): Promise<StructuredCommandResult | void | null> {
+		if ((await this.paths())?.configuration?.format !== 'edt') {
+			return null;
+		}
+		return this.reportUnavailable(DESIGNER_ONLY_COMMAND, opts);
 	}
 
 	protected async activeCfPath(): Promise<string | undefined> {

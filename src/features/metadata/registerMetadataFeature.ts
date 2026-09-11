@@ -1,7 +1,7 @@
 import { CONVENTIONAL_PATHS, projectPaths } from '../../shared/projectPaths';
-import { resolveProjectLayout } from '../../shared/projectLayout';
+import { resolveProjectLayout, sameOrUnder } from '../../shared/projectLayout';
 import * as fs from 'node:fs';
-import { createEdtProject } from '../edt/edtCommands';
+import { createEdtProject, validateEdtProject } from '../edt/edtCommands';
 import { edtProjectName } from '../edt/edtRunner';
 import * as path from 'node:path';
 import * as vscode from 'vscode';
@@ -85,7 +85,7 @@ import { showComponentError } from '../../shared/githubToken';
 import { uiOnlyHandler } from '../../shared/agentGate';
 import { describeComponentState, readComponentStates } from '../../shared/componentsRegistry';
 import { CfDumpFinding, DumpValidationDiagnostics } from './dumpValidationDiagnostics';
-import { metadataCompileTarget, type MetadataCompileKind } from './metadataCompileTarget';
+import { edtProjectDirOf, metadataCompileTarget, type MetadataCompileKind } from './metadataCompileTarget';
 import { ArtifactCommands } from '../../commands/artifactCommands';
 
 export interface RegisterMetadataFeatureParams {
@@ -2621,6 +2621,12 @@ export function registerMetadataFeature(
 				const cfeRoot = edt
 					? extensionProjectDir(configurationXml, name.trim())
 					: path.join(root, (await projectPaths(root)).extensionsContainer ?? CONVENTIONAL_PATHS.cfe, name.trim());
+				if (edt && !sameOrUnder(cfeRoot, root)) {
+					void vscode.window.showErrorMessage(
+						'Проект расширения создаётся рядом с проектом конфигурации, а открыта папка самого проекта. Откройте рабочую область 1С:EDT с проектами.'
+					);
+					return;
+				}
 				if (fs.existsSync(cfeRoot)) {
 					void vscode.window.showErrorMessage(`Каталог расширения уже есть: ${cfeRoot}`);
 					return;
@@ -2707,7 +2713,8 @@ export function registerMetadataFeature(
 				// Проект EDT проверяет сама среда: у выгрузки конфигуратора схемы, у проекта модель
 				const descriptor = source?.configurationXmlAbs ?? metadataTreeProvider.configurationXml;
 				if (descriptor && formatOfFile(descriptor) === 'edt') {
-					await vscode.commands.executeCommand('1c-platform-tools.edt.validate');
+					// Проверяется выбранный проект: у расширения он свой
+					await validateEdtProject(edtProjectDirOf(descriptor));
 					return;
 				}
 				const roots: string[] = [];
@@ -2782,22 +2789,27 @@ export function registerMetadataFeature(
 				return;
 			}
 			await runMdSparrowMutation(async () => {
-				const cfRoot = metadataTreeProvider.resolveCfRoot();
+				const workspaceRoot = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+				const main = metadataTreeProvider.configurationXml;
+				// Рядом с проектом EDT выгрузка встаёт в привычное место: его src выгрузкой не является
+				const cfRoot =
+					main && formatOfFile(main) === 'edt'
+						? workspaceRoot && path.join(workspaceRoot, CONVENTIONAL_PATHS.cf)
+						: metadataTreeProvider.resolveCfRoot();
 				if (!cfRoot) {
 					void vscode.window.showInformationMessage('Нет открытой папки проекта или выгрузки CF.');
 					return;
 				}
 				const configurationXmlPath = path.join(cfRoot, 'Configuration.xml');
-				let hasConfigurationXml = false;
+				let occupied = false;
 				try {
-					await fs.promises.access(configurationXmlPath);
-					hasConfigurationXml = true;
+					occupied = (await fs.promises.readdir(cfRoot)).length > 0;
 				} catch {
-					/* нет корня выгрузки */
+					/* каталога ещё нет */
 				}
-				if (hasConfigurationXml) {
+				if (occupied) {
 					const answer = await vscode.window.showWarningMessage(
-						'Уже есть конфигурация. Все метаданные будут удалены. Продолжить?',
+						`Каталог ${cfRoot} не пуст. Всё его содержимое будет удалено. Продолжить?`,
 						{ modal: true },
 						'Продолжить'
 					);

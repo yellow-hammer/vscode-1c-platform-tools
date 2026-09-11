@@ -21,7 +21,7 @@ import { buildProcessCommand } from '../../utils/commandUtils';
 import { createVRunnerTask } from '../tasks/vrunnerTask';
 import { logger } from '../../shared/logger';
 import { findEdtInstallations, pickEdtInstallation, type EdtInstallation } from '../../shared/edtLocator';
-import { markerIn } from '../../shared/projectLayout';
+import { isEdtProject } from '../../shared/projectLayout';
 
 const log = logger.scope('edt');
 
@@ -90,7 +90,7 @@ function temporaryProjectDir(workspaceRoot: string): string {
  * @param buildPath - Каталог сборки проекта
  */
 export function edtStagingRoot(workspaceRoot: string, buildPath: string): string {
-	return markerIn(workspaceRoot)?.format === 'edt' ? temporaryProjectDir(workspaceRoot) : buildPath;
+	return isEdtProject(workspaceRoot) ? temporaryProjectDir(workspaceRoot) : buildPath;
 }
 
 /**
@@ -104,7 +104,7 @@ export function edtWorkspaceDir(workspaceRoot: string, buildPath: string, settin
 	if (configured) {
 		return path.isAbsolute(configured) ? configured : path.join(workspaceRoot, configured);
 	}
-	if (markerIn(workspaceRoot)?.format === 'edt') {
+	if (isEdtProject(workspaceRoot)) {
 		return path.join(temporaryProjectDir(workspaceRoot), DEFAULT_WORKSPACE_DIR);
 	}
 	return path.join(workspaceRoot, buildPath, DEFAULT_WORKSPACE_DIR);

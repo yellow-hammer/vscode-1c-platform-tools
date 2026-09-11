@@ -14,6 +14,10 @@ import {
 	resolveProjectLayout,
 	setLayoutExclusions,
 	setTestsDirectory,
+	rootOfDirectory,
+	sameOrUnder,
+	isEdtProject,
+	enclosingEdtProject,
 	sourceEntry,
 } from '../../shared/projectLayout';
 
@@ -163,6 +167,51 @@ suite('раскладка проекта', () => {
 		assert.strictEqual(layout.configuration, undefined);
 		assert.deepStrictEqual(layout.extensions, []);
 		assert.deepStrictEqual(layout.testExtensions.map((root) => root.name), ['Тесты']);
+	});
+
+	test('путь внутри корня ведёт к корню: у проекта EDT это каталог проекта', async () => {
+		const layout = await resolveProjectLayout(EDT_WORKSPACE);
+		const project = path.join(EDT_WORKSPACE, 'ssl31');
+		assert.strictEqual(rootOfDirectory(layout, path.join(project, 'src'))?.dir, project);
+		assert.strictEqual(rootOfDirectory(layout, path.join(project, 'src', 'Catalogs', 'Валюты'))?.dir, project);
+		assert.strictEqual(rootOfDirectory(layout, project)?.dir, project);
+		// Расширение и тестовое расширение: свои корни, а не конфигурация
+		const extension = path.join(EDT_WORKSPACE, 'ssl31._ДемоРасширение');
+		assert.strictEqual(rootOfDirectory(layout, path.join(extension, 'src'))?.dir, extension);
+		const testExtension = path.join(EDT_WORKSPACE, 'tests', 'cfe', 'yaxunit-test');
+		assert.strictEqual(rootOfDirectory(layout, path.join(testExtension, 'src'))?.dir, testExtension);
+		// Каталог вне корней ничьим не считается
+		assert.strictEqual(rootOfDirectory(layout, path.join(EDT_WORKSPACE, 'dp')), undefined);
+		assert.strictEqual(rootOfDirectory(layout, EDT_WORKSPACE), undefined);
+	});
+
+	test('вложенность каталогов: тот же, внутри, снаружи и сосед с общим началом', () => {
+		assert.strictEqual(sameOrUnder('/w/a', '/w/a'), true);
+		assert.strictEqual(sameOrUnder('/w/a/src', '/w/a'), true);
+		assert.strictEqual(sameOrUnder('/w', '/w/a'), false);
+		assert.strictEqual(sameOrUnder('/w/ab', '/w/a'), false);
+	});
+
+	test('проект EDT узнаётся по описанию конфигурации или по файлам проекта', () => {
+		assert.strictEqual(isEdtProject(path.join(EDT_WORKSPACE, 'ssl31')), true);
+		assert.strictEqual(isEdtProject(path.join(EDT_WORKSPACE, 'ssl31', 'src')), false);
+		assert.strictEqual(isEdtProject(DESIGNER_WORKSPACE), false);
+		// Проект внешних объектов описания конфигурации не имеет, его выдают файлы проекта
+		const external = fs.mkdtempSync(path.join(os.tmpdir(), 'edt-external-'));
+		try {
+			assert.strictEqual(isEdtProject(external), false);
+			fs.writeFileSync(path.join(external, '.project'), '<projectDescription/>');
+			fs.mkdirSync(path.join(external, 'DT-INF'));
+			fs.writeFileSync(path.join(external, 'DT-INF', 'PROJECT.PMF'), 'Manifest-Version: 1.0');
+			assert.strictEqual(isEdtProject(external), true);
+			assert.strictEqual(enclosingEdtProject(external, path.join(external, 'src', 'X')), external);
+		} finally {
+			fs.rmSync(external, { recursive: true, force: true });
+		}
+		// Поиск не выходит за рабочую область
+		const project = path.join(EDT_WORKSPACE, 'ssl31');
+		assert.strictEqual(enclosingEdtProject(EDT_WORKSPACE, path.join(project, 'src', 'Catalogs')), project);
+		assert.strictEqual(enclosingEdtProject(path.join(project, 'src'), path.join(project, 'src', 'Catalogs')), undefined);
 	});
 
 	test('повторный вызов отдаёт разобранную раскладку', async () => {

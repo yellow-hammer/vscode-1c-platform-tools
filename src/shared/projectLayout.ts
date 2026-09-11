@@ -162,6 +162,72 @@ export function externalKindOfHead(head: string): ExternalKind | undefined {
 	return undefined;
 }
 
+/** Тот же каталог или каталог внутри него; на Windows регистр не важен. */
+export function sameOrUnder(directory: string, root: string): boolean {
+	const relative = path.relative(path.resolve(root), path.resolve(directory));
+	if (relative === '') {
+		return true;
+	}
+	return !relative.startsWith('..') && !path.isAbsolute(relative);
+}
+
+/**
+ * Корень раскладки, которому принадлежит каталог: сам корень или каталог внутри него.
+ *
+ * Инструментам передаётся корень целиком: у проекта EDT это каталог проекта, а не
+ * его `src`, который приходит из дерева метаданных. Из вложенных корней берётся
+ * самый глубокий.
+ */
+export function rootOfDirectory(layout: ProjectLayout, directory: string): SourceRoot | undefined {
+	const roots = [
+		...(layout.configuration ? [layout.configuration] : []),
+		...layout.others,
+		...layout.extensions,
+		...layout.testExtensions,
+	];
+	let found: SourceRoot | undefined;
+	for (const root of roots) {
+		if (sameOrUnder(directory, root.dir) && (!found || root.dir.length > found.dir.length)) {
+			found = root;
+		}
+	}
+	return found;
+}
+
+/**
+ * Каталог проекта 1С:EDT: конфигурация, расширение или проект внешних объектов.
+ *
+ * Проект внешних объектов описания конфигурации не имеет, его выдают файлы проекта.
+ */
+export function isEdtProject(directory: string): boolean {
+	return (
+		markerIn(directory)?.format === 'edt' ||
+		(fssync.existsSync(path.join(directory, '.project')) &&
+			fssync.existsSync(path.join(directory, 'DT-INF', 'PROJECT.PMF')))
+	);
+}
+
+/**
+ * Ближайший проект EDT, внутри которого лежит каталог, не выше корня рабочей области.
+ *
+ * @returns каталог проекта либо undefined
+ */
+export function enclosingEdtProject(workspaceRoot: string, directory: string): string | undefined {
+	const top = path.resolve(workspaceRoot);
+	let current = path.resolve(directory);
+	while (sameOrUnder(current, top)) {
+		if (isEdtProject(current)) {
+			return current;
+		}
+		const parent = path.dirname(current);
+		if (parent === current) {
+			break;
+		}
+		current = parent;
+	}
+	return undefined;
+}
+
 /** Файл описания конфигурации или расширения. */
 export function sourceEntry(root: SourceRoot): string {
 	return path.join(root.dir, root.format === 'designer' ? DESIGNER_MARKER : EDT_MARKER);

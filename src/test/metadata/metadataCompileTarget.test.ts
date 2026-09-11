@@ -25,6 +25,17 @@ suite('цель сборки из узла метаданных', () => {
 		);
 	}
 
+	/** Корень проекта EDT: дерево называет каталогом метаданных его src. */
+	function edtSource(sourceKind: string, projectDir: string): MetadataSourceTreeItem {
+		return new MetadataSourceTreeItem(
+			sourceKind,
+			sourceKind,
+			sourceKind,
+			path.join(projectDir, 'src', 'Configuration', 'Configuration.mdo'),
+			path.join(projectDir, 'src')
+		);
+	}
+
 	function leaf(objectType: string, relativePath: string): MetadataLeafTreeItem {
 		return new MetadataLeafTreeItem(
 			'epf',
@@ -58,6 +69,16 @@ suite('цель сборки из узла метаданных', () => {
 			'extension',
 			'C:/ws/src/cfe/Демо'
 		);
+	});
+
+	test('у проекта EDT собирается каталог проекта, а не его src', () => {
+		assertTarget(metadataCompileTarget(edtSource('main', 'C:/ws/ssl31')), 'configuration', 'C:/ws/ssl31');
+		assertTarget(
+			metadataCompileTarget(edtSource('extension', 'C:/ws/ssl31._ДемоРасширение')),
+			'extension',
+			'C:/ws/ssl31._ДемоРасширение'
+		);
+		assertTarget(metadataCompileTarget(edtSource('extension', 'C:/ws/tests/cfe/yaxunit-test')), 'extension', 'C:/ws/tests/cfe/yaxunit-test');
 	});
 
 	test('внешняя обработка и отчёт собираются из своей папки, не из всего src/epf', () => {
