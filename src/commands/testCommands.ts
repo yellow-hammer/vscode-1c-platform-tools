@@ -23,7 +23,9 @@ import { DEFAULT_TESTING, BUILD_SUBDIRS } from '../shared/pathDefaults';
 import { CONVENTIONAL_PATHS } from '../shared/projectPaths';
 import * as fs from 'node:fs/promises';
 import { settingValue, resolveConfigPath, reportsXunitFromEnv, extractJUnitPathFromReportsXunit, extractAllurePathFromReportsXunit, vanessaReportTarget, vanessaSettingsPathFromEnv, syntaxCheckJUnitPathFromEnv, syntaxCheckAllurePathsFromEnv, yaxunitSectionFromEnv, YaxunitProfileSection } from '../features/testing/projectTestConfig';
-import { parseSyntaxCheckFindings, toSyntaxCheckErrors, SyntaxCheckFinding } from '../features/diagnostics/syntaxCheckJUnit';
+import { locateSyntaxCheckFiles, parseSyntaxCheckFindings, toSyntaxCheckErrors, SyntaxCheckFinding } from '../features/diagnostics/syntaxCheckJUnit';
+import { resolveMetadataInRoots } from '../features/tools/terminalLinks';
+import { resolveProjectLayout, type SourceRoot } from '../shared/projectLayout';
 import { readRunSummary, formatRunSummary, RunReportFormat } from '../features/testing/runReportSummary';
 import { ensureAllure } from '../shared/allureComponent';
 import { logger } from '../shared/logger';
@@ -363,6 +365,9 @@ export class TestCommands extends BaseCommand {
 	 * --junitpath), с откатом на стандартный. Отсутствие отчёта — не ошибка:
 	 * проверка могла упасть до его записи, тогда остаётся stdout.
 	 *
+	 * Адрес файла ищется по корням раскладки правилами формата каждого корня:
+	 * в проекте EDT модуль лежит в src и без Ext.
+	 *
 	 * @param opts — опции выполнения (нужны для выбора файла настроек)
 	 * @returns список ошибок (пустой, если отчёта нет или он не разобрался)
 	 */
@@ -390,9 +395,30 @@ export class TestCommands extends BaseCommand {
 			return [];
 		}
 
-		const cfRel = (await this.activeCfPath()) ?? CONVENTIONAL_PATHS.cf;
+		const roots = await this.syntaxCheckRoots(workspaceRoot);
+		const located = await locateSyntaxCheckFiles(
+			findings,
+			(metadataPath) => resolveMetadataInRoots(metadataPath, roots),
+			workspaceRoot
+		);
+		const configuration = (await this.paths())?.configuration ?? { dir: CONVENTIONAL_PATHS.cf, format: 'designer' as const };
 
-		return toSyntaxCheckErrors(findings, cfRel);
+		return toSyntaxCheckErrors(findings, located, configuration);
+	}
+
+	/** Корни исходников рабочей области: конфигурация, расширения и прочие конфигурации. */
+	private async syntaxCheckRoots(workspaceRoot: string): Promise<SourceRoot[]> {
+		try {
+			const layout = await resolveProjectLayout(workspaceRoot);
+			return [
+				...(layout.configuration ? [layout.configuration] : []),
+				...layout.extensions,
+				...layout.testExtensions,
+				...layout.others,
+			];
+		} catch {
+			return [];
+		}
 	}
 
 	/**

@@ -1,5 +1,22 @@
 import * as assert from 'node:assert';
-import { parseSyntaxCheckFindings, toSyntaxCheckErrors } from '../../features/diagnostics/syntaxCheckJUnit';
+import * as path from 'node:path';
+import {
+	locateSyntaxCheckFiles,
+	parseSyntaxCheckFindings,
+	toSyntaxCheckErrors,
+	type SyntaxCheckFinding,
+} from '../../features/diagnostics/syntaxCheckJUnit';
+import { resolveMetadataInRoots } from '../../features/tools/terminalLinks';
+import { invalidateProjectLayout, resolveProjectLayout, setLayoutExclusions } from '../../shared/projectLayout';
+
+/** Рабочая область с проектами EDT. */
+const EDT_WORKSPACE = path.resolve(__dirname, '../../../src/test/fixtures/projectLayout/edt-workspace');
+
+/** Выгрузка конфигуратора в привычном месте. */
+const DESIGNER_CF = { dir: 'src/cf', format: 'designer' as const };
+
+/** Находка с текстом по умолчанию. */
+const finding = (metadataPath: string): SyntaxCheckFinding => ({ metadataPath, message: 'Ошибка', severity: 'error' });
 
 suite('syntaxCheckJUnit', () => {
 	test('разворачивает многострочный message в отдельные находки', () => {
@@ -67,12 +84,12 @@ suite('toSyntaxCheckErrors', () => {
 	test('модуль раскладывается в путь к .bsl', () => {
 		const errors = toSyntaxCheckErrors(
 			[{ metadataPath: 'ОбщийМодуль.ОбщегоНазначения.Модуль', message: 'Переменная не определена', severity: 'error' }],
-			'src/cf'
+			new Map(),
+			DESIGNER_CF
 		);
 
 		assert.strictEqual(errors.length, 1);
-		assert.ok(errors[0].filepath.startsWith('src/cf/'), `путь от корня проекта: ${errors[0].filepath}`);
-		assert.ok(errors[0].filepath.endsWith('.bsl'), 'адресуется файл модуля');
+		assert.strictEqual(errors[0].filepath, 'src/cf/CommonModules/ОбщегоНазначения/Ext/Module.bsl');
 		assert.strictEqual(errors[0].metadataPath, 'ОбщийМодуль.ОбщегоНазначения.Модуль');
 		assert.strictEqual(errors[0].severity, 'error');
 	});
@@ -80,11 +97,47 @@ suite('toSyntaxCheckErrors', () => {
 	test('нераскладываемый тип оставляет путь по метаданным', () => {
 		const errors = toSyntaxCheckErrors(
 			[{ metadataPath: 'Справка.Раздел', message: 'Ошибка в справке', severity: 'warning' }],
-			'src/cf'
+			new Map(),
+			DESIGNER_CF
 		);
 
 		assert.strictEqual(errors[0].filepath, 'Справка.Раздел');
 		assert.strictEqual(errors[0].severity, 'warning');
+	});
+
+	test('конфигурация в корне рабочей области: путь без ведущей точки', () => {
+		const errors = toSyntaxCheckErrors([finding('ОбщийМодуль.Имя.Модуль')], new Map(), { dir: '.', format: 'designer' });
+
+		assert.strictEqual(errors[0].filepath, 'CommonModules/Имя/Ext/Module.bsl');
+	});
+
+	test('проект EDT: адрес найденного модуля берётся с диска, ненайденный раскладывается через src', async () => {
+		setLayoutExclusions(() => []);
+		invalidateProjectLayout();
+		const layout = await resolveProjectLayout(EDT_WORKSPACE);
+		const roots = [...(layout.configuration ? [layout.configuration] : []), ...layout.extensions, ...layout.testExtensions];
+		const findings = [
+			finding('ОбщийМодуль.ОбщийТест.Модуль'),
+			finding('ОбщийМодуль.ОбщийТест.Модуль'),
+			finding('Справочник.Валюты.Форма.ФормаСписка.Форма'),
+			finding('ОбщийМодуль.НетТакого.Модуль'),
+			finding('Справка.Раздел'),
+		];
+
+		const located = await locateSyntaxCheckFiles(
+			findings,
+			(metadataPath) => resolveMetadataInRoots(metadataPath, roots),
+			EDT_WORKSPACE
+		);
+		const errors = toSyntaxCheckErrors(findings, located, { dir: 'ssl31', format: 'edt' });
+
+		assert.deepStrictEqual(errors.map((error) => error.filepath), [
+			'ssl31/src/CommonModules/ОбщийТест/Module.bsl',
+			'ssl31/src/CommonModules/ОбщийТест/Module.bsl',
+			'ssl31/src/Catalogs/Валюты/Forms/ФормаСписка/Module.bsl',
+			'ssl31/src/CommonModules/НетТакого/Module.bsl',
+			'Справка.Раздел',
+		]);
 	});
 	test('запись vanessa-runner 3: путь и текст склеены в name', () => {
 		// Формат 3.0.0-rc14: classname=syntax-check, в name путь и текст через пробел
