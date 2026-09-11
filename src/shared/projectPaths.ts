@@ -12,7 +12,13 @@
 import * as path from 'node:path';
 import { configurationScope } from './activeConfiguration';
 import { DEFAULT_PATHS, TESTS_SUBDIRS, testsSubPath } from './pathDefaults';
-import { commonParent, resolveProjectLayout, type ExternalKind, type SourceFormat } from './projectLayout';
+import {
+	commonParent,
+	resolveProjectLayout,
+	testsDirectoryName,
+	type ExternalKind,
+	type SourceFormat,
+} from './projectLayout';
 
 /**
  * Привычные места исходного кода: куда класть то, чего в рабочей области ещё нет.
@@ -26,9 +32,16 @@ export const CONVENTIONAL_PATHS = {
 	cfe: DEFAULT_PATHS.cfe,
 	epf: DEFAULT_PATHS.epf,
 	erf: DEFAULT_PATHS.erf,
-	tests: DEFAULT_PATHS.tests,
-	testsCfe: testsSubPath(DEFAULT_PATHS.tests, TESTS_SUBDIRS.cfe),
-	testsEpf: testsSubPath(DEFAULT_PATHS.tests, TESTS_SUBDIRS.epf),
+	/** Каталог тестов: имя из настроек. */
+	get tests(): string {
+		return testsDirectoryName();
+	},
+	get testsCfe(): string {
+		return testsSubPath(testsDirectoryName(), TESTS_SUBDIRS.cfe);
+	},
+	get testsEpf(): string {
+		return testsSubPath(testsDirectoryName(), TESTS_SUBDIRS.epf);
+	},
 } as const;
 
 /** Корень исходного кода относительно рабочей области. */
@@ -49,14 +62,14 @@ export interface ProjectPaths {
 	configuration?: RelativeRoot;
 	/** Расширения решения. */
 	extensions: RelativeRoot[];
-	/** Тестовые расширения: под каталогом tests. */
+	/** Тестовые расширения: под каталогом тестов. */
 	testExtensions: RelativeRoot[];
 	/** Общий каталог расширений выгрузки конфигуратора; у проектов EDT его нет. */
 	extensionsContainer?: string;
 	testExtensionsContainer?: string;
 	processors: RelativeExternal[];
 	reports: RelativeExternal[];
-	/** Тестовые обработки и отчёты: под каталогом tests. */
+	/** Тестовые обработки и отчёты: под каталогом тестов. */
 	testProcessors: RelativeExternal[];
 	processorsContainer?: string;
 	reportsContainer?: string;

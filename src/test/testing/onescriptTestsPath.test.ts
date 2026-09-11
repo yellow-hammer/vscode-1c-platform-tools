@@ -1,7 +1,7 @@
 import * as assert from 'node:assert';
 import * as vscode from 'vscode';
 import { resolveOnescriptTestsPath } from '../../features/testing/onescriptTestsPath';
-import { DEFAULT_TESTING } from '../../shared/pathDefaults';
+import { testsDirectoryName } from '../../shared/projectLayout';
 
 suite('onescriptTestsPath', () => {
 	teardown(async () => {
@@ -16,7 +16,8 @@ suite('onescriptTestsPath', () => {
 		assert.strictEqual(resolveOnescriptTestsPath(), 'проверка/тесты');
 	});
 
-	test('без настройки привычный каталог tests', () => {
-		assert.strictEqual(resolveOnescriptTestsPath(), DEFAULT_TESTING.onescriptTestsPath);
+	test('без настройки скриптовые тесты лежат в каталоге тестов', () => {
+		assert.strictEqual(resolveOnescriptTestsPath(), testsDirectoryName());
+		assert.strictEqual(resolveOnescriptTestsPath(), 'tests');
 	});
 });

@@ -13,6 +13,7 @@ import {
 	markerIn,
 	resolveProjectLayout,
 	setLayoutExclusions,
+	setTestsDirectory,
 	sourceEntry,
 } from '../../shared/projectLayout';
 
@@ -123,14 +124,37 @@ suite('раскладка проекта', () => {
 		assert.deepStrictEqual(layout.externals.map(rel), ['dp', 'tests/epf/Тесты_Арифметика']);
 	});
 
-	test('тестовое отличается каталогом tests в пути, общий родитель даёт контейнер', () => {
+	test('тестовое отличается каталогом тестов в пути, общий родитель даёт контейнер', () => {
 		assert.strictEqual(isTestPath('/w', '/w/tests/cfe/Тесты'), true);
 		assert.strictEqual(isTestPath('/w', '/w/src/cfe/Тесты'), false);
 		assert.strictEqual(isTestPath('/w', '/w/tests'), false);
+		// Регистр имени не важен: на Windows это один и тот же каталог
+		assert.strictEqual(isTestPath('/w', '/w/Tests/cfe/Тесты'), true);
 		assert.strictEqual(commonParent([{ dir: '/w/src/cfe/А' }, { dir: '/w/src/cfe/Б' }]), path.normalize('/w/src/cfe'));
 		assert.strictEqual(commonParent([{ dir: '/w/src/cfe/А' }, { dir: '/w/src/cfe/репо/src/cfe/Б' }]), path.normalize('/w/src/cfe'));
 		assert.strictEqual(commonParent([{ dir: '/w/src/cfe/А' }, { dir: '/w/other/Б' }]), path.normalize('/w'));
 		assert.strictEqual(commonParent([]), undefined);
+	});
+
+	test('имя каталога тестов берётся из настройки', async () => {
+		setTestsDirectory(() => 'проверки');
+		try {
+			assert.strictEqual(isTestPath('/w', '/w/проверки/cfe/Тесты'), true);
+			assert.strictEqual(isTestPath('/w', '/w/tests/cfe/Тесты'), false);
+			// Под другим именем каталог tests фикстуры перестаёт быть тестовым
+			const layout = await resolveProjectLayout(DESIGNER_WORKSPACE);
+			assert.deepStrictEqual(layout.testExtensions, []);
+			assert.ok(layout.extensions.some((root) => root.name === 'Тесты'));
+		} finally {
+			setTestsDirectory(() => 'tests');
+		}
+		// Пустая настройка значит имя по умолчанию
+		setTestsDirectory(() => '  ');
+		try {
+			assert.strictEqual(isTestPath('/w', '/w/tests/cfe/Тесты'), true);
+		} finally {
+			setTestsDirectory(() => 'tests');
+		}
 	});
 
 	test('исключённые каталоги обход не смотрит', async () => {

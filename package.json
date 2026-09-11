@@ -4130,10 +4130,17 @@
             "default": "features",
             "description": "Каталог feature-файлов Vanessa Automation (относительно корня проекта)."
           },
-          "1c-platform-tools.test.path.onescriptTests": {
+          "1c-platform-tools.test.directoryName": {
             "type": "string",
             "default": "tests",
-            "markdownDescription": "Каталог тестов OneScript (1testrunner/OneUnit) относительно корня проекта: у скриптовых тестов маркеров нет, поэтому каталог задаётся настройкой."
+            "pattern": "^[^\\\\/]*$",
+            "patternErrorMessage": "Имя одного каталога, без слэшей.",
+            "markdownDescription": "Имя каталога тестов. Всё, что лежит под каталогом с этим именем, считается тестовым: расширения, обработки и отчёты оттуда идут командами тестового окружения. Регистр не важен. Пусто: `tests`."
+          },
+          "1c-platform-tools.test.path.onescriptTests": {
+            "type": "string",
+            "default": "",
+            "markdownDescription": "Каталог тестов OneScript (1testrunner/OneUnit) относительно корня проекта: у скриптовых тестов маркеров нет, поэтому каталог задаётся настройкой. Пусто: каталог тестов из `#1c-platform-tools.test.directoryName#`."
           },
           "1c-platform-tools.test.cfe.selected": {
             "type": "array",
@@ -4172,7 +4179,7 @@
           "1c-platform-tools.test.frameworks.xunit": {
             "type": "boolean",
             "default": true,
-            "description": "Показывать в панели тестирования тестовые обработки xUnit/Vanessa-ADD (исходники в tests/epf; перед прогоном собираются в .epf). Активен только при наличии исходного кода конфигурации: тесты выполняются в информационной базе."
+            "description": "Показывать в панели тестирования тестовые обработки xUnit/Vanessa-ADD (исходники в каталоге тестов; перед прогоном собираются в .epf). Активен только при наличии исходного кода конфигурации: тесты выполняются в информационной базе."
           },
           "1c-platform-tools.test.frameworks.yaxunit": {
             "type": "boolean",

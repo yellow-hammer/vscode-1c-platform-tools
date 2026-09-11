@@ -9,6 +9,7 @@ import * as vscode from 'vscode';
 import { BaseCommand } from './baseCommand';
 import { resolveExtensionNameFromSrc } from '../features/extensions/extensionNames';
 import { BUILD_SUBDIRS } from '../shared/pathDefaults';
+import { isTestPath } from '../shared/projectLayout';
 import type { VRunnerIntent } from '../shared/vrunnerCli';
 
 function getRelativePath(uri: vscode.Uri): string {
@@ -25,7 +26,7 @@ function getRelativePath(uri: vscode.Uri): string {
 export class ArtifactCommands extends BaseCommand {
 
 	/**
-	 * Относится ли артефакт к тестовым расширениям: исходники в `tests/cfe`,
+	 * Относится ли артефакт к тестовым расширениям: исходники под каталогом тестов,
 	 * собранные `*.cfe` - в своём каталоге сборки. От этого зависят каталоги по
 	 * умолчанию: иначе кнопка увела бы тестовое расширение к расширениям решения.
 	 *
@@ -37,7 +38,12 @@ export class ArtifactCommands extends BaseCommand {
 		const builtTests = path.join(this.vrunner.getOutPath(), BUILD_SUBDIRS.testsCfe)
 			.replaceAll('\\', '/')
 			.replace(/^\.?\//, '');
-		return rel === builtTests || rel.startsWith(`${builtTests}/`) || rel.split('/').slice(0, -1).includes('tests');
+		const workspaceRoot = vscode.workspace.getWorkspaceFolder(artifactUri)?.uri.fsPath;
+		return (
+			rel === builtTests ||
+			rel.startsWith(`${builtTests}/`) ||
+			(workspaceRoot !== undefined && isTestPath(workspaceRoot, artifactUri.fsPath))
+		);
 	}
 
 	private async pickOutputFile(

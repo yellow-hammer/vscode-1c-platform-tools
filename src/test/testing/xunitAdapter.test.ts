@@ -2,7 +2,8 @@ import * as assert from 'node:assert';
 import * as path from 'node:path';
 import { epfTestSourceInfo, XUnitAdapter } from '../../features/testing/adapters/xunitAdapter';
 import { VRunnerManager } from '../../shared/vrunnerManager';
-import { DEFAULT_PATHS, TESTS_SUBDIRS, testsSubPath } from '../../shared/pathDefaults';
+import { TESTS_SUBDIRS, testsSubPath } from '../../shared/pathDefaults';
+import { testsDirectoryName } from '../../shared/projectLayout';
 
 suite('xunitAdapter', () => {
 	test('epfTestSourceInfo: стандартная структура decompileepf', () => {
@@ -40,7 +41,7 @@ suite('xunitAdapter', () => {
 
 		// Панель ищет исходники там же, куда смотрят команды сборки, иначе ветка
 		// xUnit опустеет
-		const expected = testsSubPath(DEFAULT_PATHS.tests, TESTS_SUBDIRS.epf);
+		const expected = testsSubPath(testsDirectoryName(), TESTS_SUBDIRS.epf);
 		assert.strictEqual(expected, 'tests/epf');
 		assert.deepStrictEqual(globs, [
 			`${expected}/**/Ext/ObjectModule.bsl`,

@@ -8,14 +8,18 @@
  */
 
 import * as vscode from 'vscode';
-import { DEFAULT_PATHS } from './pathDefaults';
-import { invalidateProjectLayout, setLayoutExclusions } from './projectLayout';
+import { DEFAULT_PATHS, DEFAULT_TESTING } from './pathDefaults';
+import { invalidateProjectLayout, setLayoutExclusions, setTestsDirectory } from './projectLayout';
 
 /** Описания конфигураций, расширений и внешних объектов обоих форматов и проекты EDT. */
 const MARKERS = '**/{Configuration.xml,Configuration.mdo,*.xml,*.mdo,.project}';
 
-/** Настройки, от которых зависит обход: каталог сборки и исключения артефактов. */
-const SETTINGS = ['1c-platform-tools.path.out', '1c-platform-tools.artifacts.exclude'];
+/** Настройки, от которых зависит раскладка: каталог сборки, исключения артефактов и каталог тестов. */
+const SETTINGS = [
+	'1c-platform-tools.path.out',
+	'1c-platform-tools.artifacts.exclude',
+	'1c-platform-tools.test.directoryName',
+];
 
 /** Разборка кладёт тысячи файлов подряд: сброс один на всю пачку. */
 const DEBOUNCE_MS = 300;
@@ -33,8 +37,16 @@ function exclusions(): string[] {
 	return [...new Set([build, ...excluded].filter((item) => item.length > 0 && !item.includes('/')))];
 }
 
+/** Имя каталога тестов из настроек. */
+function testsDirectory(): string {
+	return vscode.workspace
+		.getConfiguration('1c-platform-tools')
+		.get<string>('test.directoryName', DEFAULT_TESTING.directoryName);
+}
+
 export function registerProjectLayoutWatch(context: vscode.ExtensionContext): void {
 	setLayoutExclusions(exclusions);
+	setTestsDirectory(testsDirectory);
 	let timer: NodeJS.Timeout | undefined;
 	const forget = () => {
 		invalidateProjectLayout();

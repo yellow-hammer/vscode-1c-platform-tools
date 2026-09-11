@@ -9,7 +9,7 @@
  * проекту EDT с каталогом `src/ExternalDataProcessors` или `src/ExternalReports`.
  *
  * Тестовое отличается от поставляемого местом: корень, у которого в пути есть
- * каталог `tests`, тестовый. Так лежат `tests/cfe` и `tests/epf` в обоих форматах.
+ * каталог тестов, тестовый. Имя каталога задаёт настройка, по умолчанию `tests`.
  *
  * Раскладка единственный источник путей: настроек каталогов исходного кода нет.
  * Результат кэшируется на рабочую область: потребителей много, а обход дерева
@@ -20,6 +20,7 @@
 import * as fs from 'node:fs/promises';
 import * as fssync from 'node:fs';
 import * as path from 'node:path';
+import { DEFAULT_TESTING } from './pathDefaults';
 
 /** Формат исходного кода. */
 export type SourceFormat = 'designer' | 'edt';
@@ -84,14 +85,30 @@ const EDT_EXTERNAL_DIRECTORIES: Readonly<Record<ExternalKind, string>> = {
 	report: 'ExternalReports',
 };
 
-/** Каталог тестов: корни под ним тестовые. */
-const TESTS_DIRECTORY = 'tests';
-
 /** Каталоги, в которые обход не заходит: пакеты и результаты сборок; скрытые каталоги пропускаются все. */
 const SKIP_DIRECTORIES = new Set(['node_modules', 'oscript_modules', 'Ext', 'out', 'dist', 'target', 'coverage']);
 
 /** Размер читаемого заголовка файла метаданных. */
 const HEAD_SIZE = 4096;
+
+/** Имя каталога тестов из настроек. */
+let testsDirectory: () => string = () => DEFAULT_TESTING.directoryName;
+
+/**
+ * Задаёт источник имени каталога тестов.
+ *
+ * @param provider - Имя каталога; читается при каждом разборе
+ */
+export function setTestsDirectory(provider: () => string): void {
+	testsDirectory = provider;
+	cache.clear();
+}
+
+/** Имя каталога тестов: пустая настройка значит имя по умолчанию. */
+export function testsDirectoryName(): string {
+	const name = testsDirectory().trim();
+	return name.length > 0 ? name : DEFAULT_TESTING.directoryName;
+}
 
 /** Каталоги, которые обход пропускает сверх встроенных: каталог сборки и исключения артефактов. */
 let extraExclusions: () => readonly string[] = () => [];
@@ -297,7 +314,12 @@ export function isTestPath(workspaceRoot: string, directory: string): boolean {
 	if (relative === '' || relative.startsWith('..') || path.isAbsolute(relative)) {
 		return false;
 	}
-	return relative.split(/[\\/]/).slice(0, -1).includes(TESTS_DIRECTORY);
+	// Регистр имени не важен: на Windows Tests и tests это один каталог
+	const name = testsDirectoryName().toLowerCase();
+	return relative
+		.split(/[\\/]/)
+		.slice(0, -1)
+		.some((segment) => segment.toLowerCase() === name);
 }
 
 /**
@@ -322,7 +344,7 @@ export function commonParent(roots: ReadonlyArray<{ dir: string }>): string | un
 	return joined.length > 0 ? joined : undefined;
 }
 
-/** Разобранная раскладка и ключ исключений, по которым она получена. */
+/** Разобранная раскладка и ключ настроек, по которым она получена. */
 interface CacheEntry {
 	key: string;
 	layout: Promise<ProjectLayout>;
@@ -352,7 +374,7 @@ export function invalidateProjectLayout(workspaceRoot?: string): void {
 export function resolveProjectLayout(workspaceRoot: string): Promise<ProjectLayout> {
 	const root = path.resolve(workspaceRoot);
 	const exclusions = [...extraExclusions()];
-	const key = JSON.stringify(exclusions);
+	const key = JSON.stringify([exclusions, testsDirectoryName()]);
 	const cached = cache.get(root);
 	if (cached?.key === key) {
 		return cached.layout;

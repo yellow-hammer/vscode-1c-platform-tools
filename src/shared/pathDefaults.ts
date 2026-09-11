@@ -18,8 +18,6 @@ export const DEFAULT_PATHS = {
 	epf: 'src/epf',
 	/** Привычное место внешних отчётов */
 	erf: 'src/erf',
-	/** Корень тестов: *.os и подкаталоги исходного кода */
-	tests: 'tests',
 	/** Результаты сборки (path.out) */
 	out: 'build/out',
 	/** Каталог шаблонов поставки (path.dist) */
@@ -27,16 +25,16 @@ export const DEFAULT_PATHS = {
 } as const;
 
 /**
- * Подкаталоги внутри корня тестов.
+ * Подкаталоги внутри каталога тестов.
  *
  * Раскладка фиксированная: настройки на каждый подкаталог не заводим, иначе
- * корень тестов повторялся бы в каждой из них, а переименование каталога
- * правилось бы в нескольких местах. Один корень - один переезд.
+ * каталог тестов повторялся бы в каждой из них, а переименование каталога
+ * правилось бы в нескольких местах. Один каталог - один переезд.
  */
 export const TESTS_SUBDIRS = {
-	/** Тестовые расширения: tests/cfe */
+	/** Тестовые расширения */
 	cfe: 'cfe',
-	/** Тестовые обработки: tests/epf */
+	/** Тестовые обработки */
 	epf: 'epf'
 } as const;
 
@@ -86,10 +84,12 @@ export const BUILD_SUBDIRS = {
 
 /** Дефолты путей группы 1c-platform-tools.test.* */
 export const DEFAULT_TESTING = {
+	/** Имя каталога тестов (test.directoryName): корни под ним тестовые */
+	directoryName: 'tests',
 	/** Каталог feature-файлов (test.path.features) */
 	featuresPath: 'features',
-	/** Каталог тестов OneScript */
-	onescriptTestsPath: 'tests',
+	/** Каталог тестов OneScript (test.path.onescriptTests); пусто - каталог тестов */
+	onescriptTestsPath: '',
 	/** Каталог временных файлов прогонов (test.path.reports) */
 	reportsPath: 'build/out/testapi',
 	/** Базовый конфиг YAxUnit (test.path.yaxunitConfig) */
@@ -118,6 +118,7 @@ export const DEFAULT_ENV = {
 export const SETTING_DEFAULTS: ReadonlyArray<{ readonly key: string; readonly value: string }> = [
 	{ key: '1c-platform-tools.path.out', value: DEFAULT_PATHS.out },
 	{ key: '1c-platform-tools.path.dist', value: DEFAULT_PATHS.dist },
+	{ key: '1c-platform-tools.test.directoryName', value: DEFAULT_TESTING.directoryName },
 	{ key: '1c-platform-tools.test.path.features', value: DEFAULT_TESTING.featuresPath },
 	{ key: '1c-platform-tools.test.path.onescriptTests', value: DEFAULT_TESTING.onescriptTestsPath },
 	{ key: '1c-platform-tools.test.path.reports', value: DEFAULT_TESTING.reportsPath },
