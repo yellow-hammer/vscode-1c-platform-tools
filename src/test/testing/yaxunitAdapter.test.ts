@@ -5,6 +5,7 @@ import * as fs from 'node:fs/promises';
 import * as vscode from 'vscode';
 import { VRunnerManager } from '../../shared/vrunnerManager';
 import { YaxunitAdapter, extractModuleName } from '../../features/testing/adapters/yaxunitAdapter';
+import { initActiveConfiguration, setActiveConfiguration } from '../../shared/activeConfiguration';
 
 import { invalidateProjectLayout } from '../../shared/projectLayout';
 
@@ -20,6 +21,25 @@ function vrunnerAt(workspaceRoot: string): VRunnerManager {
 		readActiveSettings: async () => ({ settings: {}, schema: 'v2' }),
 		planIntent: async () => [['run', 'enterprise']],
 	} as unknown as VRunnerManager;
+}
+
+/** Хранилище выбора конфигурации в памяти. */
+function memoryContext(): unknown {
+	const values = new Map<string, unknown>();
+	return {
+		workspaceState: {
+			get: (key: string) => values.get(key),
+			update: async (key: string, value: unknown) => {
+				values.set(key, value);
+			},
+			keys: () => [...values.keys()],
+		},
+	};
+}
+
+/** Положение модуля в дереве по пути внутри рабочей области. */
+function locate(adapter: YaxunitAdapter, workspaceRoot: string, ...segments: string[]) {
+	return adapter.describeFileLocation(vscode.Uri.file(path.join(workspaceRoot, ...segments)), workspaceRoot);
 }
 
 suite('yaxunitAdapter', () => {
@@ -157,8 +177,13 @@ suite('yaxunitAdapter', () => {
 });
 
 suite('yaxunitAdapter: раскладка EDT', () => {
-	test('модули ищутся в проекте конфигурации, в её расширениях и в тестовых проектах', async () => {
+	setup(async () => {
 		invalidateProjectLayout();
+		initActiveConfiguration(memoryContext() as never);
+		await setActiveConfiguration(undefined);
+	});
+
+	test('модули ищутся в проекте конфигурации, в её расширениях и в тестовых проектах', async () => {
 		const adapter = new YaxunitAdapter(vrunnerAt(EDT_WORKSPACE));
 
 		const globs = await adapter.getIncludeGlobs();
@@ -168,5 +193,48 @@ suite('yaxunitAdapter: раскладка EDT', () => {
 			'ssl31._ДемоРасширение/src/CommonModules/*/Module.bsl',
 			'tests/cfe/yaxunit-test/src/CommonModules/*/Module.bsl',
 		]);
+	});
+
+	test('в дереве модули группируются по проекту, а не по каталогу src', async () => {
+		const adapter = new YaxunitAdapter(vrunnerAt(EDT_WORKSPACE));
+		await adapter.getIncludeGlobs();
+
+		assert.deepStrictEqual(locate(adapter, EDT_WORKSPACE, 'ssl31', 'src', 'CommonModules', 'ОбщийТест', 'Module.bsl'), {
+			segments: ['БиблиотекаСтандартныхПодсистемДемо'],
+			label: 'ОбщийТест',
+		});
+		assert.deepStrictEqual(
+			locate(adapter, EDT_WORKSPACE, 'ssl31._ДемоРасширение', 'src', 'CommonModules', 'ОМ_Тест', 'Module.bsl').segments,
+			['_ДемоРасширение']
+		);
+		assert.deepStrictEqual(
+			locate(adapter, EDT_WORKSPACE, 'tests', 'cfe', 'yaxunit-test', 'src', 'CommonModules', 'ОМ_Тест', 'Module.bsl').segments,
+			['Тесты']
+		);
+	});
+
+	test('у выгрузки конфигуратора группа тоже имя расширения из метаданных', async () => {
+		const adapter = new YaxunitAdapter(vrunnerAt(DESIGNER_WORKSPACE));
+		await adapter.getIncludeGlobs();
+
+		// имя расширения в метаданных отличается от имени каталога
+		assert.deepStrictEqual(
+			locate(adapter, DESIGNER_WORKSPACE, 'src', 'cfe', 'МоёРасширение', 'CommonModules', 'ОМ_Тест', 'Ext', 'Module.bsl').segments,
+			['Расширение']
+		);
+		assert.deepStrictEqual(
+			locate(adapter, DESIGNER_WORKSPACE, 'tests', 'cfe', 'Тесты', 'CommonModules', 'ОМ_Тест', 'Ext', 'Module.bsl').segments,
+			['Тесты']
+		);
+	});
+
+	test('модуль вне корней раскладки группируется по каталогу перед CommonModules', async () => {
+		const adapter = new YaxunitAdapter(vrunnerAt(DESIGNER_WORKSPACE));
+		await adapter.getIncludeGlobs();
+
+		assert.deepStrictEqual(
+			locate(adapter, DESIGNER_WORKSPACE, 'чужое', 'Другое', 'CommonModules', 'ОМ_Тест', 'Ext', 'Module.bsl').segments,
+			['Другое']
+		);
 	});
 });

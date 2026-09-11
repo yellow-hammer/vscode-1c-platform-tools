@@ -1,4 +1,5 @@
 import { configurationScope } from '../../../shared/activeConfiguration';
+import { sameOrUnder, type SourceRoot } from '../../../shared/projectLayout';
 import { runnerPath } from '../../../shared/projectPaths';
 import * as vscode from 'vscode';
 import * as path from 'node:path';
@@ -41,6 +42,9 @@ export class YaxunitAdapter implements TestFrameworkAdapter {
 
 	constructor(private readonly vrunner: VRunnerManager) {}
 
+	/** Корни, по которым идёт поиск; читаются вместе с масками, по ним файл получает место в дереве. */
+	private roots: SourceRoot[] = [];
+
 	public async isEnabled(): Promise<boolean> {
 		const config = vscode.workspace.getConfiguration('1c-platform-tools');
 		return config.get<boolean>('test.frameworks.yaxunit', true);
@@ -56,15 +60,18 @@ export class YaxunitAdapter implements TestFrameworkAdapter {
 			const relative = runnerPath(workspaceRoot, dir);
 			return relative === '.' ? '' : `${relative}/`;
 		};
-		const extensions = [...scope.extensions, ...scope.testExtensions];
-		const designer = extensions
+		// В формате EDT тесты YAxUnit живут и в проекте самой конфигурации
+		this.roots = [
+			...(scope.configuration?.format === 'edt' ? [scope.configuration] : []),
+			...scope.extensions,
+			...scope.testExtensions,
+		];
+		const designer = this.roots
 			.filter((root) => root.format === 'designer')
 			.map((root) => `${prefix(root.dir)}CommonModules/*/Ext/Module.bsl`);
-		// В формате EDT тесты YAxUnit живут и в проекте самой конфигурации
-		const edt = [
-			...(scope.configuration?.format === 'edt' ? [scope.configuration] : []),
-			...extensions.filter((root) => root.format === 'edt'),
-		].map((root) => `${prefix(root.dir)}src/CommonModules/*/Module.bsl`);
+		const edt = this.roots
+			.filter((root) => root.format === 'edt')
+			.map((root) => `${prefix(root.dir)}src/CommonModules/*/Module.bsl`);
 
 		return [...designer, ...edt].filter((glob, index, all) => all.indexOf(glob) === index);
 	}
@@ -82,13 +89,15 @@ export class YaxunitAdapter implements TestFrameworkAdapter {
 	}
 
 	public describeFileLocation(fileUri: vscode.Uri, _workspaceRoot: string) {
-		// Путь .../cfe/<Расширение>/CommonModules/<Модуль>/Module.bsl →
-		// в дереве: <Расширение> → <Модуль> (вместо бессмысленного Module.bsl)
+		// В дереве: <Расширение> → <Модуль> (вместо бессмысленного Module.bsl).
+		// Группу даёт корень раскладки: сегмент пути перед CommonModules у проекта
+		// EDT это src, а не имя проекта
+		const root = owningRoot(this.roots, fileUri.fsPath);
 		const segments = fileUri.fsPath.split(/[\\/]/);
 		const index = segments.lastIndexOf('CommonModules');
-		const extensionName = index >= 2 ? segments[index - 1] : undefined;
+		const group = root ? root.name || path.basename(root.dir) : index >= 2 ? segments[index - 1] : undefined;
 		return {
-			segments: extensionName ? [extensionName] : [],
+			segments: group ? [group] : [],
 			label: extractModuleName(fileUri.fsPath)
 		};
 	}
@@ -227,11 +236,7 @@ export class YaxunitAdapter implements TestFrameworkAdapter {
 		}
 		const scope = await configurationScope(workspaceRoot);
 		const roots = [...scope.extensions, ...scope.testExtensions];
-		const names = units.map((unit) => {
-			const file = path.resolve(unit.fileUri.fsPath);
-			const root = roots.find((item) => file.startsWith(path.resolve(item.dir) + path.sep));
-			return root?.name;
-		});
+		const names = units.map((unit) => owningRoot(roots, unit.fileUri.fsPath)?.name);
 		return [...new Set(names.filter((name): name is string => name !== undefined && name.length > 0))];
 	}
 
@@ -266,6 +271,17 @@ export class YaxunitAdapter implements TestFrameworkAdapter {
 			return schema === 'v3' ? undefined : {};
 		}
 	}
+}
+
+/** Корень раскладки, которому принадлежит файл: из вложенных самый глубокий. */
+function owningRoot(roots: readonly SourceRoot[], file: string): SourceRoot | undefined {
+	let found: SourceRoot | undefined;
+	for (const root of roots) {
+		if (sameOrUnder(file, root.dir) && (!found || root.dir.length > found.dir.length)) {
+			found = root;
+		}
+	}
+	return found;
 }
 
 export function extractModuleName(fsPath: string): string {
