@@ -39,12 +39,15 @@ export async function activeSourceGlobBases(vrunner: VRunnerManager): Promise<st
 }
 
 /**
- * Каталоги проектов EDT с внешними обработками и отчётами как базы для glob.
+ * Каталоги проектов EDT с тестовыми обработками как базы для glob.
+ *
+ * Проекты с обработками решения панели тестирования не нужны: их модули не
+ * тесты, а собранный из них .epf раннер xUnit не запустит как набор.
  *
  * @param vrunner - Менеджер vrunner (корень рабочей области и пути настроек)
- * @returns Базы относительно корня рабочей области
+ * @returns Базы относительно корня рабочей области без повторов
  */
-export async function activeExternalGlobBases(vrunner: VRunnerManager): Promise<string[]> {
+export async function testProcessorGlobBases(vrunner: VRunnerManager): Promise<string[]> {
 	const workspaceRoot = vrunner.getWorkspaceRoot();
 	if (!workspaceRoot) {
 		return [];
@@ -52,9 +55,10 @@ export async function activeExternalGlobBases(vrunner: VRunnerManager): Promise<
 
 	const layout = await resolveProjectLayout(workspaceRoot);
 
-	return layout.externals.map((dir) =>
-		normalizeGlobBase(path.relative(workspaceRoot, dir).split(path.sep).join('/'))
-	);
+	return layout.testProcessors
+		.filter((root) => root.format === 'edt' && root.kind === 'processor')
+		.map((root) => normalizeGlobBase(path.relative(workspaceRoot, root.dir).split(path.sep).join('/')))
+		.filter((base, index, all) => all.indexOf(base) === index);
 }
 
 export function normalizeGlobBase(configured: string): string {

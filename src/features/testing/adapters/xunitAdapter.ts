@@ -4,40 +4,48 @@ import * as fsSync from 'node:fs';
 import * as fs from 'node:fs/promises';
 import { VRunnerManager } from '../../../shared/vrunnerManager';
 import { logger } from '../../../shared/logger';
-import { activeExternalGlobBases } from './adapterUtils';
-import { TestFrameworkAdapter, AdapterRunPlan, RunUnit, FileTreeLocation } from '../frameworkAdapter';
+import { TestFrameworkAdapter, AdapterRunPlan, AdapterRunStep, RunUnit, FileTreeLocation } from '../frameworkAdapter';
 import { DiscoveredFile } from '../parsers/parserTypes';
 import { parseBslTestModule } from '../parsers/bslTestParser';
 import { BUILD_SUBDIRS } from '../../../shared/pathDefaults';
-import { resolveProjectLayout } from '../../../shared/projectLayout';
+import { resolveProjectLayout, type SourceFormat } from '../../../shared/projectLayout';
 import { CONVENTIONAL_PATHS, projectPaths } from '../../../shared/projectPaths';
+import type { VRunnerIntent } from '../../../shared/vrunnerCli/intents';
+import { planEdtExternalBuild, runEdtBuildExports, type EdtBuildBridge } from '../../edt/edtBridgeService';
 import { resolveOnescriptTestsPath } from '../onescriptTestsPath';
 import {
 	extractJUnitPathFromReportsXunit,
 	reportsXunitFromEnv,
 	resolveConfigPath
 } from '../projectTestConfig';
-import { normalizeGlobBase, directorySegments } from './adapterUtils';
+import { normalizeGlobBase, directorySegments, testProcessorGlobBases } from './adapterUtils';
 
 const log = logger.scope('testing');
 
 /**
- * Описание исходника тестовой обработки (формат decompileepf)
+ * Описание исходника тестовой обработки
  */
 export interface EpfTestSourceInfo {
 	/** Имя обработки (= имя будущего .epf) */
 	processorName: string;
-	/** Каталог обработки с <Имя>.xml — аргумент compileepf */
+	/**
+	 * Каталог обработки, аргумент сборки: у выгрузки конфигуратора каталог с
+	 * <Имя>.xml, у проекта EDT каталог объекта внутри проекта.
+	 */
 	processorDir: string;
+	/** Каталог проекта EDT; у выгрузки конфигуратора не задан. */
+	projectDir?: string;
+	format: SourceFormat;
 }
 
 /**
  * Адаптер модульных тестов xUnitFor1C / Vanessa-ADD
  *
  * Тесты для 1С — это внешние обработки: discovery идёт по разобранным
- * исходникам (tests/epf, ObjectModule.bsl в формате decompileepf).
- * Перед прогоном обработка собирается в .epf в каталог сборки тестовых
- * обработок (vrunner кэширует сборку), затем запускается бинарник.
+ * исходникам (tests/epf, ObjectModule.bsl в формате decompileepf) и по
+ * тестовым проектам EDT с внешними обработками. Перед прогоном обработка
+ * собирается в .epf в каталог сборки тестовых обработок (vrunner кэширует
+ * сборку), затем запускается бинарник; проект EDT перед сборкой выгружает EDT.
  *
  * Файлы .os в каталоге тестов — мир OneScript (1testrunner): xddTestRunner
  * в 1С подключает только внешние обработки, поэтому .os здесь не сканируются.
@@ -80,7 +88,7 @@ export class XUnitAdapter implements TestFrameworkAdapter {
 		];
 
 		// Тестовые обработки в формате EDT лежат отдельными проектами
-		const projects = (await activeExternalGlobBases(this.vrunner)).map(
+		const projects = (await testProcessorGlobBases(this.vrunner)).map(
 			(base) => `${base}/src/ExternalDataProcessors/*/ObjectModule.bsl`
 		);
 
@@ -92,11 +100,12 @@ export class XUnitAdapter implements TestFrameworkAdapter {
 	}
 
 	public describeFileLocation(fileUri: vscode.Uri, workspaceRoot: string): FileTreeLocation {
-		// Исходник тестовой обработки: узел называется именем обработки
+		// Исходник тестовой обработки: узел называется именем обработки, а в
+		// каталоге тестов лежит каталог обработки либо проект EDT
 		const epfInfo = epfTestSourceInfo(fileUri.fsPath);
 		if (epfInfo) {
 			const epfBase = this.testsBase;
-			const wrapperDir = path.dirname(epfInfo.processorDir);
+			const wrapperDir = path.dirname(epfInfo.projectDir ?? epfInfo.processorDir);
 			const segments = directorySegments(
 				path.join(wrapperDir, 'placeholder'),
 				epfBase,
@@ -119,22 +128,70 @@ export class XUnitAdapter implements TestFrameworkAdapter {
 			const binariesPath = path.join(this.vrunner.getOutPath(), BUILD_SUBDIRS.testsEpf);
 			const builtEpf = path.join(binariesPath, `${epfInfo.processorName}.epf`);
 			const basePlan = await this.buildXunitPlan(builtEpf, reportDir);
-			const [buildArgs] = await this.vrunner.planIntent(
-				{ kind: 'epf.build', src: epfInfo.processorDir, out: binariesPath }
-			);
-			return {
-				...basePlan,
-				prepare: [
-					{
-						tool: 'vrunner',
-						args: buildArgs,
-						title: `Сборка обработки ${epfInfo.processorName}`
-					}
-				]
-			};
+			return { ...basePlan, prepare: await this.buildSteps([epfInfo], binariesPath) };
 		}
 
 		return this.buildXunitPlan(unit.fileUri.fsPath, reportDir);
+	}
+
+	/**
+	 * Шаги сборки обработок в каталог сборки тестовых обработок.
+	 *
+	 * Обработку из проекта EDT раннер собрать не может: проект сначала выгружает
+	 * сама EDT, и собирается уже выгрузка. Выгрузки идут одним шагом перед всеми
+	 * сборками, одна выгрузка с несколькими обработками собирается один раз.
+	 *
+	 * @param infos - Исходники обработок
+	 * @param binariesPath - Каталог сборки тестовых обработок
+	 * @throws {Error} Если обработка EDT лежит вне проекта EDT
+	 */
+	private async buildSteps(infos: readonly EpfTestSourceInfo[], binariesPath: string): Promise<AdapterRunStep[]> {
+		const workspaceRoot = this.vrunner.getWorkspaceRoot();
+		const bridges: EdtBuildBridge[] = [];
+		const builds = new Map<string, { args: string[]; names: string[] }>();
+		for (const info of infos) {
+			let intent: VRunnerIntent = { kind: 'epf.build', src: info.processorDir, out: binariesPath };
+			if (info.format === 'edt') {
+				const bridge = workspaceRoot
+					? await planEdtExternalBuild(workspaceRoot, this.vrunner.getOutPath(), intent)
+					: undefined;
+				if (!bridge) {
+					throw new Error(
+						`Обработка ${info.processorName} лежит вне проекта 1С:EDT: ` +
+						`в ${info.projectDir ?? info.processorDir} нет файлов проекта.`
+					);
+				}
+				bridges.push(bridge);
+				intent = bridge.intent;
+			}
+			const [args] = await this.vrunner.planIntent(intent);
+			const key = JSON.stringify(args);
+			const build = builds.get(key) ?? { args, names: [] };
+			build.names.push(info.processorName);
+			builds.set(key, build);
+		}
+
+		const steps: AdapterRunStep[] = [...builds.values()].map(({ args, names }) => ({
+			tool: 'vrunner',
+			args,
+			title: names.length === 1 ? `Сборка обработки ${names[0]}` : `Сборка обработок: ${names.join(', ')}`,
+		}));
+		if (bridges.length > 0) {
+			const projects = [
+				...new Set(
+					bridges.flatMap((bridge) =>
+						bridge.exports.flatMap((step) => ('projectDir' in step ? [step.projectDir] : []))
+					)
+				),
+			];
+			steps.unshift({
+				tool: 'action',
+				args: [],
+				title: `Выгрузка из 1С:EDT: ${projects.join(', ')}`,
+				run: () => runEdtBuildExports(bridges),
+			});
+		}
+		return steps;
 	}
 
 	/**
@@ -167,24 +224,17 @@ export class XUnitAdapter implements TestFrameworkAdapter {
 		const workspaceRoot = this.vrunner.getWorkspaceRoot();
 		const binariesFsPath = workspaceRoot ? resolveConfigPath(binariesPath, workspaceRoot) : binariesPath;
 		const runDir = path.join(reportDir, 'epf');
-		const prepare: AdapterRunPlan['prepare'] = [];
-		const selected: string[] = [];
+		const infos: EpfTestSourceInfo[] = [];
 		for (const unit of units) {
 			const epfInfo = epfTestSourceInfo(unit.fileUri.fsPath);
 			if (!epfInfo) {
 				// В наборе есть уже собранные .epf — общий каталог сборки не гарантирован
 				return undefined;
 			}
-			selected.push(`${epfInfo.processorName}.epf`);
-			const [buildArgs] = await this.vrunner.planIntent(
-				{ kind: 'epf.build', src: epfInfo.processorDir, out: binariesPath }
-			);
-			prepare.push({
-				tool: 'vrunner',
-				args: buildArgs,
-				title: `Сборка обработки ${epfInfo.processorName}`
-			});
+			infos.push(epfInfo);
 		}
+		const selected = infos.map((info) => `${info.processorName}.epf`);
+		const prepare = await this.buildSteps(infos, binariesPath);
 
 		prepare.push({
 			tool: 'action',
@@ -256,8 +306,10 @@ const XUNIT_NO_REPORT_HINT =
 /**
  * Распознаёт исходник тестовой обработки по пути к ObjectModule.bsl
  *
- * Структура decompileepf: <обёртки>/<Имя>/<Имя>.xml + <Имя>/<Имя>/Ext/ObjectModule.bsl.
- * processorDir — внешний каталог с <Имя>.xml (аргумент compileepf).
+ * Структура decompileepf: <обёртки>/<Имя>/<Имя>.xml + <Имя>/<Имя>/Ext/ObjectModule.bsl,
+ * processorDir внешний каталог с <Имя>.xml (аргумент compileepf).
+ * Проект EDT: <проект>/src/ExternalDataProcessors/<Имя>/ObjectModule.bsl,
+ * processorDir каталог объекта, projectDir каталог проекта.
  *
  * @param fsPath - Путь к файлу
  * @returns Описание обработки или undefined, если это не ObjectModule.bsl
@@ -268,18 +320,34 @@ export function epfTestSourceInfo(fsPath: string): EpfTestSourceInfo | undefined
 		return undefined;
 	}
 	const fileName = segments[segments.length - 1].toLowerCase();
-	const extDir = segments[segments.length - 2];
-	if (fileName !== 'objectmodule.bsl' || extDir.toLowerCase() !== 'ext') {
+	if (fileName !== 'objectmodule.bsl') {
 		return undefined;
 	}
 
+	const parentDir = segments[segments.length - 2];
+	if (
+		segments.length >= 5 &&
+		segments[segments.length - 3] === 'ExternalDataProcessors' &&
+		segments[segments.length - 4] === 'src'
+	) {
+		return {
+			processorName: parentDir,
+			processorDir: segments.slice(0, -1).join(path.sep),
+			projectDir: segments.slice(0, -4).join(path.sep),
+			format: 'edt',
+		};
+	}
+
+	if (parentDir.toLowerCase() !== 'ext') {
+		return undefined;
+	}
 	const processorName = segments[segments.length - 3];
 	// Внешний каталог обработки: обычно дублирует имя (<Имя>/<Имя>/Ext/...)
 	const innerDir = segments.slice(0, -2).join(path.sep);
 	const outerDir = path.dirname(innerDir);
 	const processorDir = path.basename(outerDir) === processorName ? outerDir : innerDir;
 
-	return { processorName, processorDir };
+	return { processorName, processorDir, format: 'designer' };
 }
 
 /**

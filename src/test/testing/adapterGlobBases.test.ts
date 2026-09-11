@@ -1,6 +1,6 @@
 import * as assert from 'node:assert';
 import * as path from 'node:path';
-import { activeExternalGlobBases, activeSourceGlobBases } from '../../features/testing/adapters/adapterUtils';
+import { activeSourceGlobBases, testProcessorGlobBases } from '../../features/testing/adapters/adapterUtils';
 import { initActiveConfiguration, setActiveConfiguration } from '../../shared/activeConfiguration';
 import { invalidateProjectLayout } from '../../shared/projectLayout';
 import type { VRunnerManager } from '../../shared/vrunnerManager';
@@ -50,10 +50,10 @@ suite('базы поиска тестов в раскладке EDT', () => {
 		assert.deepStrictEqual(bases.sort(), ['учёт', 'учёт.РасширениеУчёта'].sort());
 	});
 
-	test('проекты с внешними обработками отдаются отдельно', async () => {
-		const bases = await activeExternalGlobBases(vrunnerAt(EDT_WORKSPACE));
+	test('проекты с тестовыми обработками отдаются отдельно, обработки решения панели не нужны', async () => {
+		const bases = await testProcessorGlobBases(vrunnerAt(EDT_WORKSPACE));
 
-		assert.deepStrictEqual(bases, ['dp', 'tests/epf/Тесты_Арифметика']);
+		assert.deepStrictEqual(bases, ['tests/epf/Тесты_Арифметика']);
 	});
 
 	test('в раскладке конфигуратора баз проектов нет', async () => {
