@@ -49,7 +49,7 @@ description: Операции с платформой 1С в этом проек
 
 Тестовые расширения (YAxUnit и расширение с тестами) лежат отдельно, в `tests/cfe`
 (подкаталог корня тестов `path.tests`), и обслуживаются своими командами: `1c-platform-tools.test.loadExtensions`,
-`test.dumpExtensions`, `test.buildExtensions`, `test.decompileExtensions`.
+`test.dumpExtensions`, `test.compileExtensions`, `test.decompileExtensions`.
 
 ## Внешние обработки и отчёты
 

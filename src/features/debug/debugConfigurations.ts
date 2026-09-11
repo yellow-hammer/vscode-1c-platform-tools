@@ -5,6 +5,7 @@ import { logger } from '../../shared/logger';
 import { VRunnerManager } from '../../shared/vrunnerManager';
 import { resolvePlatformVersion } from '../../shared/platformBinary';
 import { CONVENTIONAL_PATHS, projectPaths } from '../../shared/projectPaths';
+import { BUILD_SUBDIRS } from '../../shared/pathDefaults';
 
 const platformBasePath =
 	process.platform === 'win32' ? '${env:PROGRAMFILES}/1cv8' : '/opt/1C/v8.3/x86_64';
@@ -63,9 +64,11 @@ export class OnecDebugConfigurationProvoider implements vscode.DebugConfiguratio
 
 		// Собранные .epf/.erf: сервер отладки адресует внешние модули по URL файла
 		const outPath = this.vrunner.getOutPath().replace(/\\/g, '/').replace(/^\.?\//, '');
+		// Тестовые обработки собираются в свой каталог: без него их точки останова не привязать
 		(baseConfig as Record<string, unknown>).externalFilesBuilds = [
-			`\${workspaceFolder}/${outPath}/epf`,
-			`\${workspaceFolder}/${outPath}/erf`,
+			`\${workspaceFolder}/${outPath}/${BUILD_SUBDIRS.epf}`,
+			`\${workspaceFolder}/${outPath}/${BUILD_SUBDIRS.erf}`,
+			`\${workspaceFolder}/${outPath}/${BUILD_SUBDIRS.testsEpf}`,
 		];
 
 		return [baseConfig];

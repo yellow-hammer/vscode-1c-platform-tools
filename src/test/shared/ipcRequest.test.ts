@@ -1,6 +1,6 @@
 import * as assert from 'node:assert';
 import * as path from 'node:path';
-import { isProjectPathInWorkspace, extractCommandFlags } from '../../shared/ipcRequest';
+import { isProjectPathInWorkspace, extractCommandFlags, resolveProjectPath } from '../../shared/ipcRequest';
 
 /** Путь в стиле текущей файловой системы. */
 function local(...segments: string[]): string {
@@ -62,6 +62,23 @@ suite('isProjectPathInWorkspace', () => {
 	test('лишние разделители и точки не мешают', () => {
 		const root = local('work', 'erp');
 		assert.strictEqual(isProjectPathInWorkspace(path.join(root, 'src', '..'), [root]), true);
+	});
+});
+
+suite('resolveProjectPath', () => {
+	test('абсолютный путь остаётся своим', () => {
+		const root = path.resolve('/w/project');
+		assert.strictEqual(resolveProjectPath(root, [path.resolve('/w')]), root);
+	});
+
+	test('относительный путь считается от первой папки рабочей области', () => {
+		const root = path.resolve('/w');
+		assert.strictEqual(resolveProjectPath('ssl31', [root, path.resolve('/other')]), path.join(root, 'ssl31'));
+		assert.strictEqual(resolveProjectPath('.', [root]), root);
+	});
+
+	test('без рабочей области относительный путь не к чему привязать', () => {
+		assert.strictEqual(resolveProjectPath('ssl31', []), undefined);
 	});
 });
 

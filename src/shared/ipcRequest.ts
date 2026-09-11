@@ -45,6 +45,22 @@ export function isProjectPathInWorkspace(
 }
 
 /**
+ * Абсолютный корень проекта из запроса: относительный путь считается от первой
+ * папки рабочей области, а не от каталога процесса редактора.
+ *
+ * @returns Абсолютный путь либо undefined, если относительный путь не к чему привязать
+ */
+export function resolveProjectPath(
+	projectPath: string,
+	workspaceRoots: readonly string[]
+): string | undefined {
+	if (path.isAbsolute(projectPath)) {
+		return path.resolve(projectPath);
+	}
+	return workspaceRoots.length > 0 ? path.resolve(workspaceRoots[0], projectPath) : undefined;
+}
+
+/**
  * Извлекает флаги выполнения из первого элемента аргументов команды.
  *
  * MCP-сервер передаёт объект с флагами первым аргументом. Вызовы из UI и

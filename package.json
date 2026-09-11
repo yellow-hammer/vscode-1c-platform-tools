@@ -3455,7 +3455,7 @@
         },
         {
           "command": "1c-platform-tools.metadata.revealInTree",
-          "when": "1c-platform-tools.is1CProject == true && resourceScheme == 'file' && (resourceExtname == '.xml' || resourceExtname == '.bsl' || resourceExtname == '.os')",
+          "when": "1c-platform-tools.is1CProject == true && resourceScheme == 'file' && (resourceExtname == '.xml' || resourceExtname == '.mdo' || resourceExtname == '.form' || resourceExtname == '.bsl' || resourceExtname == '.os')",
           "group": "1c_metadata@1"
         }
       ],
@@ -3500,14 +3500,14 @@
       "editor/title/context": [
         {
           "command": "1c-platform-tools.metadata.revealInTree",
-          "when": "1c-platform-tools.is1CProject == true && resourceScheme == 'file' && (resourceExtname == '.xml' || resourceExtname == '.bsl' || resourceExtname == '.os')",
+          "when": "1c-platform-tools.is1CProject == true && resourceScheme == 'file' && (resourceExtname == '.xml' || resourceExtname == '.mdo' || resourceExtname == '.form' || resourceExtname == '.bsl' || resourceExtname == '.os')",
           "group": "1c_metadata@1"
         }
       ],
       "explorer/context": [
         {
           "command": "1c-platform-tools.metadata.revealInTree",
-          "when": "1c-platform-tools.is1CProject == true && resourceScheme == 'file' && (resourceExtname == '.xml' || resourceExtname == '.bsl' || resourceExtname == '.os')",
+          "when": "1c-platform-tools.is1CProject == true && resourceScheme == 'file' && (resourceExtname == '.xml' || resourceExtname == '.mdo' || resourceExtname == '.form' || resourceExtname == '.bsl' || resourceExtname == '.os')",
           "group": "1c_metadata@1"
         }
       ]

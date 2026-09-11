@@ -8,7 +8,7 @@ import type { CommandExecutionOptions, StructuredCommandResult } from './command
 import { commandSupportsWait, isCommandExposedToMcp } from './mcpCommandPolicy';
 import { agentCommandDescription } from './agentCommandDescriptions';
 import { readManifestCommands } from './commandCatalog';
-import { extractCommandFlags, isProjectPathInWorkspace } from './ipcRequest';
+import { extractCommandFlags, isProjectPathInWorkspace, resolveProjectPath } from './ipcRequest';
 
 const log = logger.scope('ipc');
 
@@ -115,18 +115,8 @@ async function handleExecuteCommandSync(
 	const startMs = Date.now();
 
 	try {
-		const optsForCommand: CommandExecutionOptions = {
-			wait: true,
-			projectPath,
-			settingsFile: flags.settingsFile,
-			ibConnection: flags.ibConnection,
-			sha: flags.sha,
-			extensions: flags.extensions,
-			frameworks: flags.frameworks,
-			profile: flags.profile,
-			execute: flags.execute,
-			command: flags.command,
-		};
+		// Команде уходят все присланные опции: канал владеет только ожиданием и корнем проекта
+		const optsForCommand: CommandExecutionOptions = { ...flags, wait: true, projectPath };
 		const manager = VRunnerManager.getInstance();
 		const rawResult = projectPath
 			? await manager.runWithProjectRoot(projectPath, async () => vscode.commands.executeCommand(commandId, optsForCommand))
@@ -230,13 +220,29 @@ export async function handleExecuteCommand(
 	const args = Array.isArray(params.args) ? params.args : [];
 	const flags = extractCommandFlags(args);
 
-	const expectedProjectPath =
+	const requestedProjectPath =
 		typeof params.projectPath === 'string' && params.projectPath.trim() !== ''
-			? params.projectPath
+			? params.projectPath.trim()
 			: undefined;
 
 	const workspaceFolders = vscode.workspace.workspaceFolders ?? [];
 	const workspaceRoots = workspaceFolders.map((folder) => folder.uri.fsPath);
+
+	// Относительный корень проекта считается от рабочей области: иначе команды искали бы
+	// исходники от каталога процесса редактора
+	const expectedProjectPath = requestedProjectPath
+		? resolveProjectPath(requestedProjectPath, workspaceRoots)
+		: undefined;
+	if (requestedProjectPath && !expectedProjectPath) {
+		return {
+			...base,
+			error: {
+				message: 'Относительный projectPath не к чему привязать: рабочая область не открыта',
+				code: 'INVALID_PROJECT_PATH',
+				details: { projectPath: requestedProjectPath },
+			},
+		};
+	}
 
 	if (
 		expectedProjectPath &&
