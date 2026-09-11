@@ -6,48 +6,41 @@
  * создаёт папку с именем из базы.
  */
 
-/** Расширение, уже лежащее в исходниках. */
-export interface DiskExtension {
-	/** Имя каталога в src/cfe (или tests/cfe). */
-	folder: string;
-	/** Имя из Configuration.xml или имя каталога, если XML нет. */
-	extensionName: string;
-}
+import { findExtension, type ExtensionNames } from './extensionSelection';
 
 /** Цель выгрузки одного расширения. */
 export interface ExtensionDumpTarget {
-	/** Каталог исходников относительно корня расширений. */
+	/** Каталог исходников относительно рабочей области; его нет, пока расширение не выгружено впервые. */
+	dir?: string;
+	/** Имя каталога: им зовётся собранный `*.cfe`; у нового расширения совпадает с именем из базы. */
 	folder: string;
 	/** Имя расширения для vanessa-runner. */
 	extensionName: string;
 }
 
 /**
- * Сопоставляет выбранные имена с каталогами на диске.
+ * Сопоставляет выбранные имена с расширениями на диске.
  *
- * Совпадение — по имени каталога или по имени из метаданных, без учёта
- * регистра. Нет пары — каталог будет назван как выбранное имя.
+ * Совпадение — по имени каталога, пути к нему или имени из метаданных, без
+ * учёта регистра. Нет пары — каталог будет назван как выбранное имя.
  *
- * @param disk - Уже существующие каталоги
+ * @param disk - Уже существующие расширения
  * @param selectedNames - Имена из выбора, настройки или списка ИБ
  * @returns Цели выгрузки в порядке выбора
  */
 export function resolveDumpTargets(
-	disk: readonly DiskExtension[],
+	disk: readonly ExtensionNames[],
 	selectedNames: readonly string[]
 ): ExtensionDumpTarget[] {
 	return selectedNames.map((selected) => {
-		const match = disk.find(
-			(item) =>
-				equalsIgnoreCase(item.folder, selected) ||
-				equalsIgnoreCase(item.extensionName, selected)
-		);
+		const match = findExtension(disk, selected);
 		if (match === undefined) {
 			return { folder: selected, extensionName: selected };
 		}
 		return {
+			dir: match.dir,
 			folder: match.folder,
-			extensionName: match.extensionName
+			extensionName: match.name
 		};
 	});
 }
@@ -64,8 +57,4 @@ export function isUsableExtensionFolderName(name: string): boolean {
 		return false;
 	}
 	return !/[<>:"/\\|?*]/.test(trimmed);
-}
-
-function equalsIgnoreCase(left: string, right: string): boolean {
-	return left.toLowerCase() === right.toLowerCase();
 }

@@ -10,6 +10,7 @@ import {
 	getSetVersionProcessorCommandName
 } from '../features/tools/commandNames';
 import { pickExtensions } from '../features/extensions/extensionPicker';
+import { extensionEntries } from '../features/extensions/extensionRoots';
 import { logger } from '../shared/logger';
 import { configurationScope } from '../shared/activeConfiguration';
 import { configurationDescriptorFile } from '../shared/objectPaths';
@@ -183,12 +184,13 @@ export class SetVersionCommands extends BaseCommand {
 	}
 
 	/**
-	 * Устанавливает версию выбранным расширениям (src/cfe).
+	 * Устанавливает версию выбранным расширениям.
 	 *
-	 * Показывает quickpick с чекбоксами по каталогам src/cfe (та же логика и
-	 * сохранённый выбор, что у команд загрузки/выгрузки расширений) и для
-	 * каждого выбранного расширения выполняет:
-	 * vrunner set-version --src src/cfe/&lt;имя&gt; --new-version &lt;версия&gt;
+	 * Предлагает расширения решения и тестовые из раскладки, тем же выбором и с тем
+	 * же сохранённым подмножеством, что у команд загрузки и выгрузки расширений.
+	 * Выгрузке конфигуратора версию ставит раннер:
+	 * vrunner set-version --src &lt;каталог расширения&gt; --new-version &lt;версия&gt;;
+	 * проекту EDT версия пишется в его описание.
 	 *
 	 * @returns Промис, который разрешается после запуска команды
 	 */
@@ -201,10 +203,7 @@ export class SetVersionCommands extends BaseCommand {
 			return;
 		}
 
-		// Расширения активной конфигурации: у проекта EDT они лежат соседними проектами, а не в src/cfe
-		const active = await this.activeExtensions();
-		const extensions =
-			active.length > 0 ? active.map((extension) => extension.name) : await this.getExtensionFoldersForTree();
+		const extensions = extensionEntries(await this.paths(), 'all');
 		if (extensions.length === 0) {
 			log.info('Расширений в рабочей области не найдено');
 			vscode.window.showInformationMessage('Расширений в рабочей области не найдено.');
@@ -226,18 +225,21 @@ export class SetVersionCommands extends BaseCommand {
 			return;
 		}
 
-		const cfePath = await this.extensionsContainer();
 		const argsList: string[][] = [];
-		for (const name of selected) {
-			const extension = active.find((item) => item.name === name);
-			if (extension?.format === 'edt') {
-				const descriptor = path.join(workspaceRoot, extension.dir, 'src', 'Configuration', 'Configuration.mdo');
+		for (const extension of selected) {
+			if (extension.format === 'edt') {
+				const descriptor = configurationDescriptorFile({
+					name: extension.name,
+					dir: path.join(workspaceRoot, extension.dir),
+					format: extension.format,
+					isExtension: true,
+				});
 				if (!(await this.stampEdtProject(descriptor, version, workspaceRoot))) {
 					return;
 				}
 				continue;
 			}
-			argsList.push(['set-version', '--src', extension ? extension.dir : path.join(cfePath, name), '--new-version', version]);
+			argsList.push(['set-version', '--src', extension.dir, '--new-version', version]);
 		}
 		if (argsList.length === 0) {
 			vscode.window.showInformationMessage(`Версия расширений: ${version}`);

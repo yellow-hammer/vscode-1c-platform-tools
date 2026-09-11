@@ -8,6 +8,13 @@ import * as path from 'node:path';
 import * as vscode from 'vscode';
 import { BaseCommand } from './baseCommand';
 import { resolveExtensionNameFromSrc } from '../features/extensions/extensionNames';
+import {
+	extensionContaining,
+	extensionEntries,
+	newExtensionDir,
+	NO_PLACE_FOR_EDT_EXTENSION
+} from '../features/extensions/extensionRoots';
+import { cfeStem, findExtension, type ExtensionScope } from '../features/extensions/extensionSelection';
 import { BUILD_SUBDIRS } from '../shared/pathDefaults';
 import { isTestPath } from '../shared/projectLayout';
 import type { VRunnerIntent } from '../shared/vrunnerCli';
@@ -152,10 +159,13 @@ export class ArtifactCommands extends BaseCommand {
 		if (!outPath) {
 			return;
 		}
-		const srcRel = getRelativePath(artifactUri);
-		const name = path.basename(artifactUri.fsPath);
+		// Путь внутри расширения раскладки ведёт к самому расширению: файл зовётся
+		// по его каталогу, как и у сборки всех расширений
+		const root = extensionContaining(extensionEntries(await this.paths(), 'all'), workspaceRoot, artifactUri.fsPath);
+		const srcRel = root?.dir ?? getRelativePath(artifactUri);
+		const name = root?.folder ?? path.basename(artifactUri.fsPath);
 		const outFile = path.join(outPath, `${name}.cfe`);
-		const extensionName = await resolveExtensionNameFromSrc(artifactUri.fsPath);
+		const extensionName = root?.name ?? (await resolveExtensionNameFromSrc(artifactUri.fsPath));
 		const intent: VRunnerIntent = { kind: 'cfe.buildCfe', src: srcRel, out: outFile, extensionName };
 		await this.runPlanned([intent], {
 			cwd: workspaceRoot,
@@ -172,8 +182,10 @@ export class ArtifactCommands extends BaseCommand {
 	 * (loadext + decompileext по цепочке); 3.x разбирает файл одной командой
 	 * `cfe decompile --cfe-file` во временной ИБ, не затрагивая рабочую.
 	 *
-	 * Расширение раскладывается в подкаталог <выбранный каталог>/<имя расширения>
-	 * (формат src/cfe/<имя>).
+	 * Файл зовётся по каталогу расширения, поэтому по умолчанию раскладывается в
+	 * каталог этого расширения из раскладки под его именем из метаданных; файл
+	 * без такого расширения идёт в новый каталог по своему имени. Выбранный
+	 * вручную каталог получает подкаталог по имени файла.
 	 */
 	async decompileExtension(artifactUri: vscode.Uri): Promise<void> {
 		const workspaceRoot = this.ensureWorkspace();
@@ -183,22 +195,27 @@ export class ArtifactCommands extends BaseCommand {
 		if (!(await this.vrunner.ensureProfileSettingsFile(true))) {
 			return;
 		}
-		const sourcesRoot = this.isTestsScopeArtifact(artifactUri)
-			? await this.testExtensionsContainer()
-			: await this.extensionsContainer();
-		const outDir = await this.pickOutputPath(sourcesRoot, 'Каталог для разборки расширения');
+		const scope: ExtensionScope = this.isTestsScopeArtifact(artifactUri) ? 'tests' : 'solution';
+		const paths = await this.paths();
+		const cfeName = path.basename(artifactUri.fsPath);
+		const stem = cfeStem(cfeName);
+		const root =
+			findExtension(extensionEntries(paths, scope), stem) ?? findExtension(extensionEntries(paths, 'all'), stem);
+		const defaultDir = root?.dir ?? newExtensionDir(paths, stem, scope);
+		if (defaultDir === undefined) {
+			void vscode.window.showErrorMessage(NO_PLACE_FOR_EDT_EXTENSION);
+			return;
+		}
+		const outDir = await this.pickOutputPath(defaultDir, 'Каталог для разборки расширения');
 		if (!outDir) {
 			return;
 		}
-		const cfeName = path.basename(artifactUri.fsPath);
-		const folderName = cfeName.replace(/\.cfe$/i, '');
-		// Файл .cfe собирается из каталога с тем же именем; имя расширения внутри
-		// может отличаться от имени файла — берём его из метаданных исходников
-		const extensionName = await resolveExtensionNameFromSrc(
-			path.join(workspaceRoot, sourcesRoot, folderName)
-		);
+		const targetRel = outDir === defaultDir ? defaultDir : path.posix.join(outDir, stem);
+		// Имя внутри файла то же, куда бы его ни разложили
+		const extensionName =
+			root?.name ?? (await resolveExtensionNameFromSrc(path.join(workspaceRoot, targetRel), stem));
 		const cfeRel = getRelativePath(artifactUri);
-		const targetDir = this.pathForCmd(path.join(outDir, folderName));
+		const targetDir = this.pathForCmd(targetRel);
 		const ibConnectionParam = await this.vrunner.getIbConnectionParam();
 		const intent: VRunnerIntent = {
 			kind: 'cfe.decompileCfeFile',
