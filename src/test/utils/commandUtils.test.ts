@@ -121,6 +121,14 @@ suite('commandUtils', () => {
 		assert.strictEqual(quoteExecutable('vrunner.bat', 'cmd'), 'vrunner.bat');
 	});
 
+	test('quoteExecutable для PowerShell ставит оператор вызова перед путём в кавычках', () => {
+		assert.strictEqual(
+			quoteExecutable(String.raw`C:\Users\ikarl\1C\1C_EDT 2026.1\1cedt\1cedtcli.exe`, 'powershell'),
+			String.raw`& 'C:\Users\ikarl\1C\1C_EDT 2026.1\1cedt\1cedtcli.exe'`
+		);
+		assert.strictEqual(quoteExecutable('vrunner.bat', 'powershell'), 'vrunner.bat');
+	});
+
 	test('quoteExecutable для POSIX берёт путь в одинарные кавычки', () => {
 		assert.strictEqual(quoteExecutable('/opt/1c tools/vrunner', 'sh'), "'/opt/1c tools/vrunner'");
 		assert.strictEqual(quoteExecutable('/usr/bin/vrunner', 'sh'), '/usr/bin/vrunner');

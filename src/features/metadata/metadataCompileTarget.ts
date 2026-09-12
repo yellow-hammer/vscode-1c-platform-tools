@@ -5,6 +5,7 @@
 
 import * as path from 'node:path';
 import * as vscode from 'vscode';
+import { formatOfFile } from '../../shared/objectPaths';
 import { MetadataLeafTreeItem, MetadataSourceTreeItem } from './metadataTreeView';
 
 /** Что собираем из выбранного узла. */
@@ -22,14 +23,15 @@ export interface MetadataCompileTarget {
  */
 export function metadataCompileTarget(item: unknown): MetadataCompileTarget | undefined {
 	if (item instanceof MetadataSourceTreeItem) {
-		if (!item.metadataRootAbs) {
+		const sourceDir = sourceDirectoryOf(item);
+		if (!sourceDir) {
 			return undefined;
 		}
 		if (item.sourceKind === 'main') {
-			return { kind: 'configuration', sourceUri: vscode.Uri.file(item.metadataRootAbs) };
+			return { kind: 'configuration', sourceUri: vscode.Uri.file(sourceDir) };
 		}
 		if (item.sourceKind === 'extension') {
-			return { kind: 'extension', sourceUri: vscode.Uri.file(item.metadataRootAbs) };
+			return { kind: 'extension', sourceUri: vscode.Uri.file(sourceDir) };
 		}
 		return undefined;
 	}
@@ -43,4 +45,23 @@ export function metadataCompileTarget(item: unknown): MetadataCompileTarget | un
 		}
 	}
 	return undefined;
+}
+
+/**
+ * Каталог исходников корня для инструментов.
+ *
+ * Дерево называет корнем каталог метаданных, а у проекта EDT это его `src`:
+ * раннеру и самой EDT нужен каталог проекта, в котором лежит описание.
+ */
+export function sourceDirectoryOf(item: MetadataSourceTreeItem): string | undefined {
+	const descriptor = item.configurationXmlAbs;
+	if (descriptor && formatOfFile(descriptor) === 'edt') {
+		return edtProjectDirOf(descriptor);
+	}
+	return item.metadataRootAbs;
+}
+
+/** Каталог проекта EDT по описанию его конфигурации `src/Configuration/Configuration.mdo`. */
+export function edtProjectDirOf(configurationMdo: string): string {
+	return path.dirname(path.dirname(path.dirname(configurationMdo)));
 }

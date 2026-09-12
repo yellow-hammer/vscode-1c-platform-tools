@@ -1691,12 +1691,12 @@
       },
       {
         "command": "1c-platform-tools.cf.convert",
-        "title": "Конвертировать исходники",
+        "title": "Конвертировать исходный код",
         "category": "1С: Конфигурация"
       },
       {
         "command": "1c-platform-tools.cfe.convert",
-        "title": "Конвертировать исходники расширения",
+        "title": "Конвертировать исходный код расширения",
         "category": "1С: Расширения"
       },
       {
@@ -3455,7 +3455,7 @@
         },
         {
           "command": "1c-platform-tools.metadata.revealInTree",
-          "when": "1c-platform-tools.is1CProject == true && resourceScheme == 'file' && (resourceExtname == '.xml' || resourceExtname == '.bsl' || resourceExtname == '.os')",
+          "when": "1c-platform-tools.is1CProject == true && resourceScheme == 'file' && (resourceExtname == '.xml' || resourceExtname == '.mdo' || resourceExtname == '.form' || resourceExtname == '.bsl' || resourceExtname == '.os')",
           "group": "1c_metadata@1"
         }
       ],
@@ -3500,14 +3500,14 @@
       "editor/title/context": [
         {
           "command": "1c-platform-tools.metadata.revealInTree",
-          "when": "1c-platform-tools.is1CProject == true && resourceScheme == 'file' && (resourceExtname == '.xml' || resourceExtname == '.bsl' || resourceExtname == '.os')",
+          "when": "1c-platform-tools.is1CProject == true && resourceScheme == 'file' && (resourceExtname == '.xml' || resourceExtname == '.mdo' || resourceExtname == '.form' || resourceExtname == '.bsl' || resourceExtname == '.os')",
           "group": "1c_metadata@1"
         }
       ],
       "explorer/context": [
         {
           "command": "1c-platform-tools.metadata.revealInTree",
-          "when": "1c-platform-tools.is1CProject == true && resourceScheme == 'file' && (resourceExtname == '.xml' || resourceExtname == '.bsl' || resourceExtname == '.os')",
+          "when": "1c-platform-tools.is1CProject == true && resourceScheme == 'file' && (resourceExtname == '.xml' || resourceExtname == '.mdo' || resourceExtname == '.form' || resourceExtname == '.bsl' || resourceExtname == '.os')",
           "group": "1c_metadata@1"
         }
       ]
@@ -3714,6 +3714,14 @@
             "media": {
               "markdown": "walkthrough/step15-admin.md"
             }
+          },
+          {
+            "id": "step16-edt",
+            "title": "Проект 1С:EDT",
+            "description": "Проект 1С:EDT расширение находит само и работает с ним теми же панелями и командами; для команд над исходным кодом нужна установленная EDT.\n\n[Открыть панель «1С: Инструменты»](command:workbench.view.extension.1c-platform-tools-tools)\n[Выбрать конфигурацию проекта](command:1c-platform-tools.project.selectConfiguration)",
+            "media": {
+              "markdown": "walkthrough/step16-edt.md"
+            }
           }
         ]
       }
@@ -3774,23 +3782,13 @@
             "default": "build/dist",
             "description": "Каталог хранения шаблонов (cf, cfu, файлы настроек объединения). Используется в группе «Поддержка» при выборе файлов."
           },
-          "1c-platform-tools.path.cf": {
-            "type": "string",
-            "default": "src/cf",
-            "description": "Путь к исходному коду конфигурации"
-          },
-          "1c-platform-tools.path.cfe": {
-            "type": "string",
-            "default": "src/cfe",
-            "description": "Путь к исходному коду расширений"
-          },
           "1c-platform-tools.cfe.selected": {
             "type": "array",
             "items": {
               "type": "string"
             },
             "default": [],
-            "markdownDescription": "Список расширений (имена каталогов в `src/cfe`), с которыми работают команды группы «Расширения» и установка версии расширений. Заданный список команды используют без интерактивного выбора. Если он пуст, при запуске команды показывается окно выбора с чекбоксами, а выбор запоминается для проекта."
+            "markdownDescription": "Список расширений, с которыми работают команды группы «Расширения» и установка версии расширений. Расширение называют именем его каталога, путём к каталогу относительно рабочей области или именем из метаданных, регистр не важен. Заданный список команды используют без интерактивного выбора. Если он пуст, при запуске команды показывается окно выбора с чекбоксами, а выбор запоминается для проекта."
           },
           "1c-platform-tools.cf.load.updateDb": {
             "type": "string",
@@ -3806,21 +3804,6 @@
             ],
             "default": "ask",
             "description": "Обновлять ли конфигурацию БД (UpdateDBCfg) сразу после загрузки конфигурации из исходного кода, из 1Cv8.cf или по objlist.txt. Заданное значение убирает вопрос."
-          },
-          "1c-platform-tools.path.epf": {
-            "type": "string",
-            "default": "src/epf",
-            "description": "Путь к исходному коду внешних обработок"
-          },
-          "1c-platform-tools.path.erf": {
-            "type": "string",
-            "default": "src/erf",
-            "description": "Путь к исходному коду внешних отчётов"
-          },
-          "1c-platform-tools.path.tests": {
-            "type": "string",
-            "default": "tests",
-            "markdownDescription": "Корневой каталог тестов. Раскладка внутри фиксированная: `*.os` в корне, исходники тестовых расширений в `cfe`, исходники тестовых обработок в `epf`. Бинарники тестов здесь не хранятся: дымовые наборы Vanessa-ADD поставляются в пакете add (oscript_modules), собранное уходит в `build/out/tests`."
           },
           "1c-platform-tools.docker.enabled": {
             "type": "boolean",
@@ -3896,7 +3879,7 @@
               ".git",
               "oscript_modules"
             ],
-            "description": "Сегменты пути для исключения при сканировании артефактов (feature, конфигурации, расширения, обработки, отчёты). Например: .git, oscript_modules."
+            "description": "Сегменты пути, которые пропускают и панель артефактов, и поиск каталогов исходного кода. Например: .git, oscript_modules."
           }
         }
       },
@@ -4147,11 +4130,17 @@
             "default": "features",
             "description": "Каталог feature-файлов Vanessa Automation (относительно корня проекта)."
           },
-          "1c-platform-tools.test.path.onescriptTests": {
+          "1c-platform-tools.test.directoryName": {
             "type": "string",
             "default": "tests",
-            "markdownDescription": "Каталог тестов OneScript (1testrunner/OneUnit), относительно корня проекта.",
-            "markdownDeprecationMessage": "Каталог тестов задаётся в `#1c-platform-tools.path.tests#`. Заданное здесь значение пока используется, о чём пишется в журнал."
+            "pattern": "^[^\\\\/]*$",
+            "patternErrorMessage": "Имя одного каталога, без слэшей.",
+            "markdownDescription": "Имя каталога тестов. Всё, что лежит под каталогом с этим именем, считается тестовым: расширения, обработки и отчёты оттуда идут командами тестового окружения. Регистр не важен. Пусто: `tests`."
+          },
+          "1c-platform-tools.test.path.onescriptTests": {
+            "type": "string",
+            "default": "",
+            "markdownDescription": "Каталог тестов OneScript (1testrunner/OneUnit) относительно корня проекта: у скриптовых тестов маркеров нет, поэтому каталог задаётся настройкой. Пусто: каталог тестов из `#1c-platform-tools.test.directoryName#`."
           },
           "1c-platform-tools.test.cfe.selected": {
             "type": "array",
@@ -4159,7 +4148,7 @@
               "type": "string"
             },
             "default": [],
-            "markdownDescription": "Список тестовых расширений (имена каталогов в `tests/cfe`), с которыми работают команды тестовых расширений. Заданный список команды используют без интерактивного выбора. Если он пуст, при запуске команды показывается окно выбора с чекбоксами, а выбор запоминается для проекта. Расширения решения перечисляет `#1c-platform-tools.cfe.selected#`."
+            "markdownDescription": "Список тестовых расширений, с которыми работают команды тестовых расширений. Расширение называют именем его каталога, путём к каталогу относительно рабочей области или именем из метаданных, регистр не важен. Заданный список команды используют без интерактивного выбора. Если он пуст, при запуске команды показывается окно выбора с чекбоксами, а выбор запоминается для проекта. Расширения решения перечисляет `#1c-platform-tools.cfe.selected#`."
           },
           "1c-platform-tools.test.exclude": {
             "type": "array",
@@ -4190,7 +4179,7 @@
           "1c-platform-tools.test.frameworks.xunit": {
             "type": "boolean",
             "default": true,
-            "description": "Показывать в панели тестирования тестовые обработки xUnit/Vanessa-ADD (исходники в tests/epf; перед прогоном собираются в .epf). Активен только при наличии исходников конфигурации (paths.cf): тесты выполняются в информационной базе."
+            "description": "Показывать в панели тестирования тестовые обработки xUnit/Vanessa-ADD (исходники в каталоге тестов; перед прогоном собираются в .epf). Активен только при наличии исходного кода конфигурации: тесты выполняются в информационной базе."
           },
           "1c-platform-tools.test.frameworks.yaxunit": {
             "type": "boolean",
@@ -4310,7 +4299,7 @@
         }
       },
       {
-        "title": "1С:EDT",
+        "title": "EDT",
         "id": "1c-platform-tools.edt",
         "order": 10,
         "properties": {
@@ -4327,7 +4316,7 @@
           "1c-platform-tools.edt.workspace": {
             "type": "string",
             "default": "",
-            "description": "Каталог рабочей области 1С:EDT для команд расширения. Пусто: каталог сборки проекта. Рабочую область 1cedtcli занимает монопольно, поэтому общий временный каталог не подходит."
+            "description": "Каталог рабочей области 1С:EDT для команд расширения. Пусто: каталог сборки проекта, а у проекта EDT, открытого как рабочая область, временный каталог. Рабочую область 1cedtcli занимает монопольно, поэтому общий временный каталог не подходит."
           },
           "1c-platform-tools.edt.timeoutSeconds": {
             "type": "number",

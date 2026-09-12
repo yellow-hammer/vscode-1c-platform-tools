@@ -92,10 +92,14 @@ const ERR_PREVIEW = 500;
 interface MdObjectPropertiesDto {
 	kind: string;
 	internalName: string;
-	synonymRu: string;
+	synonym: string;
+	/** Язык, на котором прочитаны и будут записаны тексты: у конфигурации он свой. */
+	languageCode?: string;
+	/** Свойства, за которыми стоит язык: список приходит от md-sparrow. */
+	localStringProperties?: string[];
 	comment: string;
-	attributes?: Array<{ name: string; synonymRu?: string; comment?: string }>;
-	tabularSections?: Array<{ name: string; synonymRu?: string; comment?: string }>;
+	attributes?: Array<{ name: string; synonym?: string; comment?: string }>;
+	tabularSections?: Array<{ name: string; synonym?: string; comment?: string }>;
 	nestedSubsystems?: string[];
 	contentRefs?: string[];
 	catalog?: Record<string, unknown>;
@@ -170,13 +174,13 @@ interface MetadataPanelStructureLists {
 
 interface MetadataNamedRow {
 	name: string;
-	synonymRu: string;
+	synonym: string;
 	comment: string;
 }
 
 interface MetadataTabularSectionRow {
 	name: string;
-	synonymRu: string;
+	synonym: string;
 	comment: string;
 	attributes: MetadataNamedRow[];
 }
@@ -281,7 +285,7 @@ interface MetadataPanelViewModel {
 	objectKindLabel: string;
 	objectType: string;
 	internalName: string;
-	synonymRu: string;
+	synonym: string;
 	comment: string;
 	objectXmlPath: string;
 	warnings: string[];
@@ -372,7 +376,7 @@ const STRUCTURE_SECTION_TITLE_BY_KEY: Record<string, string> = {
 const PROPERTY_LABEL_BY_KEY: Record<string, string> = {
 	kind: 'Вид',
 	internalName: 'Имя',
-	synonymRu: 'Синоним',
+	synonym: 'Синоним',
 	comment: 'Комментарий',
 	objectBelonging: 'Принадлежность объекта',
 	extendedConfigurationObject: 'Расширяемый объект',
@@ -415,11 +419,11 @@ const PROPERTY_LABEL_BY_KEY: Record<string, string> = {
 	help: 'Справка',
 	dataLockControlMode: 'Режим управления блокировкой данных',
 	fullTextSearch: 'Полнотекстовый поиск',
-	objectPresentationRu: 'Представление объекта',
-	extendedObjectPresentationRu: 'Расширенное представление объекта',
-	listPresentationRu: 'Представление списка',
-	extendedListPresentationRu: 'Расширенное представление списка',
-	explanationRu: 'Пояснение',
+	objectPresentation: 'Представление объекта',
+	extendedObjectPresentation: 'Расширенное представление объекта',
+	listPresentation: 'Представление списка',
+	extendedListPresentation: 'Расширенное представление списка',
+	explanation: 'Пояснение',
 	createOnInput: 'Создавать при вводе',
 	choiceHistoryOnInput: 'История выбора при вводе',
 	dataHistory: 'История данных',
@@ -475,8 +479,8 @@ let objectKindLabels: Readonly<Record<string, string>> = {};
 /** Подпись вида объекта или ссылочного типа; без словаря - само имя вида. */
 export function mdObjectKindLabel(prefix: string): string | undefined {
 	return objectKindLabels[prefix];
-}
-
+}
+
 /** Все подписи видов объектов, как их отдала библиотека. */
 export function mdObjectKindLabels(): Readonly<Record<string, string>> {
 	return objectKindLabels;
@@ -797,7 +801,7 @@ function asNamedRows(value: unknown): MetadataNamedRow[] {
 		if (typeof item === 'string') {
 			const name = item.trim();
 			if (name) {
-				out.push({ name, synonymRu: '', comment: '' });
+				out.push({ name, synonym: '', comment: '' });
 			}
 			continue;
 		}
@@ -811,7 +815,7 @@ function asNamedRows(value: unknown): MetadataNamedRow[] {
 		}
 		out.push({
 			name,
-			synonymRu: typeof record.synonymRu === 'string' ? record.synonymRu : '',
+			synonym: typeof record.synonym === 'string' ? record.synonym : '',
 			comment: typeof record.comment === 'string' ? record.comment : '',
 		});
 	}
@@ -834,7 +838,7 @@ function asTabularRows(value: unknown): MetadataTabularSectionRow[] {
 		}
 		out.push({
 			name,
-			synonymRu: typeof record.synonymRu === 'string' ? record.synonymRu : '',
+			synonym: typeof record.synonym === 'string' ? record.synonym : '',
 			comment: typeof record.comment === 'string' ? record.comment : '',
 			attributes: asNamedRows(record.attributes),
 		});
@@ -894,8 +898,8 @@ export async function runMdSparrowJson<T>(
 }
 
 /** Словари формата в рамках сеанса: набор констант меняется только вместе с версией формата. */
-const enumDictionaryCache = new Map<string, MetadataEnumDictionary>();
-
+const enumDictionaryCache = new Map<string, MetadataEnumDictionary>();
+
 /** Ссылочные типы конфигурации: читаются раз на конфигурацию, состав меняется вместе с ней. */
 const refTypesCache = new Map<string, MetadataRefTypeDictionary>();
 
@@ -1139,7 +1143,7 @@ function buildProfileTabs(
 	const tabs: MetadataPanelTab[] = [{ id: 'overview', title: 'Общее', render: 'overview' }];
 	const propsRecord = isRecord(props) ? props : null;
 	const rawScalars = collectRawScalarMap(propsRecord);
-	const consumedScalarKeys = new Set<string>(['kind', 'internalName', 'synonymRu', 'comment']);
+	const consumedScalarKeys = new Set<string>(['kind', 'internalName', 'synonym', 'comment']);
 
 	for (const group of profile.scalarGroups) {
 		const data = collectScalarPropertiesByKeys(propsRecord, group.keys);
@@ -1327,8 +1331,9 @@ function buildEditableModel(
 	const withEnums = applyEnumDictionary(normalizeTabLayout(withTemplates), enums, valueLabels);
 	const withTypes = applyTypeOptions(withEnums, refTypes, mdObjectKindLabels());
 	const withCurrent = ensureCurrentSelectValues(withTypes, props as unknown as Record<string, unknown>, valueLabels);
+	const withLanguage = withEditLanguage(withCurrent, props?.languageCode, props?.localStringProperties);
 	const tabs = withPropertyStates(
-		withTabsForStructure(withCurrent, buildStructureLists(props, structure)),
+		withTabsForStructure(withLanguage, buildStructureLists(props, structure)),
 		propertyStatesOf(props),
 		extendableOf(props)
 	);
@@ -1338,6 +1343,35 @@ function buildEditableModel(
 		return { ...model, readonly: true, tabs: tabsAsReadonly(tabs) };
 	}
 	return { ...model, tabs };
+}
+
+/**
+ * Язык в подписи многоязычного свойства.
+ *
+ * Синоним и представления хранятся по строке на язык, а правится тот, на котором
+ * написана сама конфигурация. Когда он не русский, человек должен это видеть.
+ * Какие свойства многоязычные, говорит md-sparrow: расширение не держит их список.
+ */
+export function withEditLanguage(
+	tabs: readonly MetadataEditTabSpec[],
+	languageCode?: string,
+	localStringProperties?: readonly string[]
+): readonly MetadataEditTabSpec[] {
+	if (!languageCode || languageCode === 'ru' || !localStringProperties?.length) {
+		return tabs;
+	}
+	const localized = new Set(localStringProperties);
+	return tabs.map((tab) => ({
+		...tab,
+		groups: tab.groups.map((group) => ({
+			...group,
+			fields: group.fields.map((field) =>
+				localized.has(field.path.slice(field.path.lastIndexOf('.') + 1))
+					? { ...field, label: `${field.label} (${languageCode})` }
+					: field
+			),
+		})),
+	}));
 }
 
 /** Файл объекта в формате EDT: у выгрузки конфигуратора объект лежит в .xml. */
@@ -1780,7 +1814,7 @@ function buildViewModel(
 		objectKindLabel: kindLabel(objectKind, objectType),
 		objectType,
 		internalName,
-		synonymRu: props?.synonymRu ?? '',
+		synonym: props?.synonym ?? '',
 		comment: props?.comment ?? '',
 		objectXmlPath: params.objectXmlFsPath,
 		warnings,
@@ -2797,7 +2831,7 @@ const IDENTIFIER_RE = /^[A-Za-zА-ЯЁа-яё_][A-Za-zА-ЯЁа-яё0-9_]*$/;
 interface MetadataStructRowEdit {
 	originalName?: string;
 	name: string;
-	synonymRu: string;
+	synonym: string;
 	deleted: boolean;
 }
 
@@ -2895,7 +2929,7 @@ function parseStructRow(value: unknown): MetadataStructRowEdit | null {
 	return {
 		originalName,
 		name: typeof value.name === 'string' ? value.name.trim() : '',
-		synonymRu: typeof value.synonymRu === 'string' ? value.synonymRu : '',
+		synonym: typeof value.synonym === 'string' ? value.synonym : '',
 		deleted: value.deleted === true,
 	};
 }
@@ -3100,7 +3134,7 @@ export function applySynonymEdits(dto: Record<string, unknown>, edits: MetadataS
 		const synonyms = new Map<string, string>();
 		for (const row of list.rows) {
 			if (!row.deleted && row.name) {
-				synonyms.set(row.name, row.synonymRu);
+				synonyms.set(row.name, row.synonym);
 			}
 		}
 		const dtoList = dto[list.kind];
@@ -3109,20 +3143,20 @@ export function applySynonymEdits(dto: Record<string, unknown>, edits: MetadataS
 		}
 		for (const raw of dtoList) {
 			if (isRecord(raw) && typeof raw.name === 'string' && synonyms.has(raw.name)) {
-				raw.synonymRu = synonyms.get(raw.name);
+				raw.synonym = synonyms.get(raw.name);
 			}
 		}
 	}
 	const tsSyn = new Map<string, string>();
 	for (const ts of edits.tabularSections) {
 		if (!ts.deleted && ts.name) {
-			tsSyn.set(ts.name, ts.synonymRu);
+			tsSyn.set(ts.name, ts.synonym);
 		}
 	}
 	if (Array.isArray(dto.tabularSections)) {
 		for (const raw of dto.tabularSections) {
 			if (isRecord(raw) && typeof raw.name === 'string' && tsSyn.has(raw.name)) {
-				raw.synonymRu = tsSyn.get(raw.name);
+				raw.synonym = tsSyn.get(raw.name);
 			}
 		}
 	}
@@ -3152,7 +3186,14 @@ async function openObjectModuleFromPanel(objectXmlFsPath: string, moduleKind: st
 }
 
 async function openModuleFile(modulePath: string, createdMessage: string): Promise<void> {
-	if (await ensureBslModuleFile(modulePath)) {
+	const state = await ensureBslModuleFile(modulePath);
+	if (state === 'binary') {
+		void vscode.window.showInformationMessage(
+			`Модуль защищён паролем и хранится двоичным: ${path.basename(modulePath, '.bsl')}.bin`
+		);
+		return;
+	}
+	if (state === 'created') {
 		notifyQuiet(createdMessage);
 	}
 	const doc = await vscode.workspace.openTextDocument(vscode.Uri.file(modulePath));

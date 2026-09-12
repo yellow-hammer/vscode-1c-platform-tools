@@ -43,6 +43,21 @@ export interface VRunnerTaskParams {
 	exitCallback?: (exitCode: number) => void;
 	/** Уборка при остановке задачи: например, остановка docker-контейнера. */
 	onCancel?: () => void;
+	/** Дописать вывод к прошлой задаче в терминале, а не очистить его: шаги одной команды читаются подряд. */
+	appendOutput?: boolean;
+}
+
+/**
+ * Вывод задач одной команды в общем терминале: первая задача очищает его,
+ * остальные дописывают, иначе каждый шаг стирал бы вывод предыдущего.
+ */
+export class TaskOutputChain {
+	private tasks = 0;
+
+	/** Дописывать ли вывод очередной задачи; звать при её создании. */
+	public append(): boolean {
+		return this.tasks++ > 0;
+	}
 }
 
 /**
@@ -144,7 +159,7 @@ export function createVRunnerTask(params: VRunnerTaskParams): vscode.Task {
 	task.presentationOptions = {
 		reveal: vscode.TaskRevealKind.Always,
 		panel: vscode.TaskPanelKind.Shared,
-		clear: true,
+		clear: params.appendOutput !== true,
 		showReuseMessage: false,
 	};
 

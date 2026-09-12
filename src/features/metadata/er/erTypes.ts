@@ -48,7 +48,7 @@ export interface ErNode {
 	readonly key: string;
 	readonly objectType: string;
 	readonly name: string;
-	readonly synonymRu: string;
+	readonly synonym: string;
 	readonly sourceId: string;
 	readonly relativePath: string;
 	readonly subsystemKeys: readonly string[];

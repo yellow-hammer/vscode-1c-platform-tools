@@ -3,15 +3,18 @@ import {
 	getStoredExtensionSelection,
 	setStoredExtensionSelection,
 	filterExtensionsBySelection,
+	matchesExtension,
 	normalizeConfiguredExtensions,
-	filterByConfiguredNames,
-	ExtensionScope
+	selectionKey,
+	type ExtensionNames,
+	type ExtensionScope
 } from './extensionSelection';
 
 /** Элемент quickpick для выбора расширения. */
-interface ExtensionPickItem extends vscode.QuickPickItem {
-	/** Имя расширения (каталог в src/cfe или tests/cfe) */
-	name: string;
+interface ExtensionPickItem<T extends ExtensionNames> extends vscode.QuickPickItem {
+	extension: T;
+	/** Под этим ключом выбор запоминается. */
+	key: string;
 }
 
 /**
@@ -29,19 +32,23 @@ interface ExtensionPickItem extends vscode.QuickPickItem {
  *    не коммитится). Если отмечены все — фильтр сбрасывается, чтобы новые
  *    расширения подхватывались автоматически.
  *
- * @param allNames - Все доступные имена расширений
+ * Имя из любого источника подходит расширению по каталогу, пути к нему или
+ * имени из метаданных; в окне расширение подписано именем каталога, рядом имя
+ * из метаданных.
+ *
+ * @param extensions - Все доступные расширения
  * @param memento - workspaceState для хранения выбора
  * @param opts - Параметры выполнения (режим wait, явный список расширений)
  * @returns Выбранное подмножество, либо undefined при отмене quickpick
  */
-export async function pickExtensions(
-	allNames: string[],
+export async function pickExtensions<T extends ExtensionNames>(
+	extensions: readonly T[],
 	memento: vscode.Memento | undefined,
 	opts?: { wait?: boolean; extensions?: string[] },
 	scope: ExtensionScope = 'solution'
-): Promise<string[] | undefined> {
+): Promise<T[] | undefined> {
 	if (Array.isArray(opts?.extensions) && opts.extensions.length > 0) {
-		return filterByConfiguredNames(allNames, normalizeConfiguredExtensions(opts.extensions));
+		return filterExtensionsBySelection(extensions, normalizeConfiguredExtensions(opts.extensions));
 	}
 
 	// У каждой области свой список в настройках: cfe.selected — решение,
@@ -51,7 +58,7 @@ export async function pickExtensions(
 		config.get(scope === 'tests' ? 'test.cfe.selected' : 'cfe.selected')
 	);
 	if (configured.length > 0) {
-		return filterByConfiguredNames(allNames, configured);
+		return filterExtensionsBySelection(extensions, configured);
 	}
 
 	const stored = getStoredExtensionSelection(memento, scope);
@@ -61,12 +68,20 @@ export async function pickExtensions(
 	// пуст или сделан для другого состава), берём все расширения: остановить прогон нечем,
 	// а «ни одного» здесь всегда означает недосмотр, а не намерение.
 	if (opts !== undefined) {
-		const selected = filterExtensionsBySelection(allNames, stored);
-		return selected.length > 0 ? selected : allNames;
+		const selected = filterExtensionsBySelection(extensions, stored);
+		return selected.length > 0 ? selected : [...extensions];
 	}
 
-	const isChecked = (name: string): boolean => stored === undefined || stored.includes(name);
-	const items: ExtensionPickItem[] = allNames.map((name) => ({ label: name, name, picked: isChecked(name) }));
+	const items: ExtensionPickItem<T>[] = extensions.map((extension) => {
+		const key = selectionKey(extension, extensions);
+		return {
+			label: key,
+			description: extension.name !== key ? extension.name : undefined,
+			picked: stored === undefined || stored.some((wanted) => matchesExtension(extension, wanted)),
+			extension,
+			key,
+		};
+	});
 	const picked = await vscode.window.showQuickPick(items, {
 		canPickMany: true,
 		title: scope === 'tests' ? 'Тестовые расширения' : 'Расширения',
@@ -76,11 +91,10 @@ export async function pickExtensions(
 		return undefined;
 	}
 
-	const pickedNames = picked.map((item) => item.name);
 	await setStoredExtensionSelection(
 		memento,
-		pickedNames.length === allNames.length ? undefined : pickedNames,
+		picked.length === extensions.length ? undefined : picked.map((item) => item.key),
 		scope
 	);
-	return pickedNames;
+	return picked.map((item) => item.extension);
 }

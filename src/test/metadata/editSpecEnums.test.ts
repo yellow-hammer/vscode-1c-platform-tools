@@ -32,7 +32,7 @@ const tabs: MetadataEditTabSpec[] = [
 						options: [{ value: '', label: '(не задана)' }, { value: 'Форма', label: 'Форма' }],
 						clearable: true,
 					},
-					{ path: 'synonymRu', label: 'Синоним', control: 'text' },
+					{ path: 'synonym', label: 'Синоним', control: 'text' },
 				],
 			},
 		],

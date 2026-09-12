@@ -12,19 +12,19 @@ function objectDto(): Record<string, unknown> {
 		attributes: [
 			{
 				name: 'Владелец',
-				synonymRu: 'Владелец',
+				synonym: 'Владелец',
 				comment: '',
 				type: { types: ['cfg:CatalogRef.Контрагенты'] },
 				indexing: 'INDEX',
 				fillChecking: 'SHOW_ERROR',
 				fullTextSearch: 'USE',
-				toolTipRu: 'Кому принадлежит',
+				toolTip: 'Кому принадлежит',
 				choiceParameters: [{ name: 'Отбор.Организация', valueText: 'true' }],
 				choiceParameterLinks: [
 					{ name: 'Отбор.Владелец', dataPath: 'Catalog.Номенклатура.Attribute.Склад', mode: 'CLEAR' },
 				],
 			},
-			{ name: 'Пустой', synonymRu: '', comment: '' },
+			{ name: 'Пустой', synonym: '', comment: '' },
 		],
 	};
 }
@@ -34,7 +34,7 @@ suite('свойства палитры у узла состава', () => {
 		const node = findChildNode(objectDto(), 'attributes', 'Владелец');
 		assert.strictEqual(node?.indexing, 'INDEX');
 		assert.strictEqual(node?.fillChecking, 'SHOW_ERROR');
-		assert.strictEqual(node?.toolTipRu, 'Кому принадлежит');
+		assert.strictEqual(node?.toolTip, 'Кому принадлежит');
 	});
 
 	test('один тип отдаётся значением для списка', () => {
@@ -129,7 +129,7 @@ suite('свойства палитры у узла состава', () => {
 		const filled = findChildNode(objectDto(), 'attributes', 'Владелец');
 		const empty = findChildNode(objectDto(), 'attributes', 'Пустой');
 		assert.deepStrictEqual(childNodePaletteFields(filled), [
-			'toolTipRu',
+			'toolTip',
 			'fillChecking',
 			'indexing',
 			'fullTextSearch',
@@ -180,11 +180,11 @@ suite('свойства палитры у узла состава', () => {
 	test('правка свойств палитры ложится обратно в объект', () => {
 		const next = applyChildNodeEdits(objectDto(), 'attributes', 'Владелец', {
 			indexing: 'DONT_INDEX',
-			toolTipRu: 'Новая подсказка',
+			toolTip: 'Новая подсказка',
 		});
 		const saved = (next?.attributes as Record<string, unknown>[])[0];
 		assert.strictEqual(saved.indexing, 'DONT_INDEX');
-		assert.strictEqual(saved.toolTipRu, 'Новая подсказка');
+		assert.strictEqual(saved.toolTip, 'Новая подсказка');
 		assert.strictEqual(saved.fillChecking, 'SHOW_ERROR', 'нетронутое свойство остаётся прежним');
 	});
 });

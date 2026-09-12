@@ -1,4 +1,5 @@
 import { DiscoveredCase, DiscoveredFile } from './parserTypes';
+import { METHOD_DECLARATION } from '../../../shared/bslDeclaration';
 
 /**
  * Парсер тестовых модулей BSL/OneScript
@@ -29,9 +30,8 @@ const SERVICE_METHOD_NAMES = new Set(
 	].map((name) => name.toLowerCase())
 );
 
-/** Объявление процедуры/функции: Процедура ИмяМетода( */
-const METHOD_DECLARATION_REGEX =
-	/^\s*(?:Процедура|Функция|Procedure|Function)\s+([\wа-яёА-ЯЁ]+)\s*\(/i;
+/** Объявление процедуры или функции: имя метода в первой группе. */
+const METHOD_DECLARATION_REGEX = METHOD_DECLARATION;
 
 /** Признак экспортности в строке объявления (\b не работает с кириллицей — используем lookahead) */
 const EXPORT_REGEX = /\)\s*(?:Экспорт|Export)(?![\wа-яёА-ЯЁ])/i;

@@ -9,7 +9,7 @@
       "key": "Subsystem._ДемоАнкетирование",
       "objectType": "Subsystem",
       "name": "_ДемоАнкетирование",
-      "synonymRu": "Анкетирование",
+      "synonym": "Анкетирование",
       "sourceId": "main",
       "relativePath": "src/cf/Subsystems/_ДемоАнкетирование.xml",
       "subsystemKeys": [],
@@ -19,7 +19,7 @@
       "key": "CommonModule.Анкетирование",
       "objectType": "CommonModule",
       "name": "Анкетирование",
-      "synonymRu": "Анкетирование",
+      "synonym": "Анкетирование",
       "sourceId": "main",
       "relativePath": "src/cf/CommonModules/Анкетирование.xml",
       "subsystemKeys": [
@@ -32,7 +32,7 @@
       "key": "CommonModule.АнкетированиеКлиент",
       "objectType": "CommonModule",
       "name": "АнкетированиеКлиент",
-      "synonymRu": "Анкетирование клиент",
+      "synonym": "Анкетирование клиент",
       "sourceId": "main",
       "relativePath": "src/cf/CommonModules/АнкетированиеКлиент.xml",
       "subsystemKeys": [
@@ -45,7 +45,7 @@
       "key": "CommonModule.АнкетированиеКлиентСервер",
       "objectType": "CommonModule",
       "name": "АнкетированиеКлиентСервер",
-      "synonymRu": "Анкетирование клиент сервер",
+      "synonym": "Анкетирование клиент сервер",
       "sourceId": "main",
       "relativePath": "src/cf/CommonModules/АнкетированиеКлиентСервер.xml",
       "subsystemKeys": [
@@ -58,7 +58,7 @@
       "key": "Role._ДемоЧтениеДанныхДляОтветовНаВопросыАнкет",
       "objectType": "Role",
       "name": "_ДемоЧтениеДанныхДляОтветовНаВопросыАнкет",
-      "synonymRu": "Демо: Чтение данных для ответов на вопросы анкет",
+      "synonym": "Демо: Чтение данных для ответов на вопросы анкет",
       "sourceId": "main",
       "relativePath": "src/cf/Roles/_ДемоЧтениеДанныхДляОтветовНаВопросыАнкет.xml",
       "subsystemKeys": [
@@ -70,7 +70,7 @@
       "key": "Role._ДемоЧтениеДанныхРеспондентов",
       "objectType": "Role",
       "name": "_ДемоЧтениеДанныхРеспондентов",
-      "synonymRu": "Демо: Чтение данных респондентов",
+      "synonym": "Демо: Чтение данных респондентов",
       "sourceId": "main",
       "relativePath": "src/cf/Roles/_ДемоЧтениеДанныхРеспондентов.xml",
       "subsystemKeys": [
@@ -82,7 +82,7 @@
       "key": "Role.Подсистема_ДемоАнкетирование",
       "objectType": "Role",
       "name": "Подсистема_ДемоАнкетирование",
-      "synonymRu": "Раздел \"Анкетирование\"",
+      "synonym": "Раздел \"Анкетирование\"",
       "sourceId": "main",
       "relativePath": "src/cf/Roles/Подсистема_ДемоАнкетирование.xml",
       "subsystemKeys": [
@@ -94,7 +94,7 @@
       "key": "FunctionalOption._ДемоИспользоватьАнкетированиеБСП",
       "objectType": "FunctionalOption",
       "name": "_ДемоИспользоватьАнкетированиеБСП",
-      "synonymRu": "Демо: Использовать анкетирование БСП",
+      "synonym": "Демо: Использовать анкетирование БСП",
       "sourceId": "main",
       "relativePath": "src/cf/FunctionalOptions/_ДемоИспользоватьАнкетированиеБСП.xml",
       "subsystemKeys": [
@@ -106,7 +106,7 @@
       "key": "CommonCommand._ДемоПанельОтчетовАнкетирование",
       "objectType": "CommonCommand",
       "name": "_ДемоПанельОтчетовАнкетирование",
-      "synonymRu": "Демо: Отчеты по анкетированию",
+      "synonym": "Демо: Отчеты по анкетированию",
       "sourceId": "main",
       "relativePath": "src/cf/CommonCommands/_ДемоПанельОтчетовАнкетирование.xml",
       "subsystemKeys": [
@@ -118,7 +118,7 @@
       "key": "CommonForm._ДемоПримечание",
       "objectType": "CommonForm",
       "name": "_ДемоПримечание",
-      "synonymRu": "Демо: Примечание",
+      "synonym": "Демо: Примечание",
       "sourceId": "main",
       "relativePath": "src/cf/CommonForms/_ДемоПримечание.xml",
       "subsystemKeys": [
@@ -130,7 +130,7 @@
       "key": "CommonPicture._ДемоРазделАнкетирование",
       "objectType": "CommonPicture",
       "name": "_ДемоРазделАнкетирование",
-      "synonymRu": "Демо: Раздел \"Анкетирование\"",
+      "synonym": "Демо: Раздел \"Анкетирование\"",
       "sourceId": "main",
       "relativePath": "src/cf/CommonPictures/_ДемоРазделАнкетирование.xml",
       "subsystemKeys": [
@@ -142,7 +142,7 @@
       "key": "CommonPicture._ДемоРазделАнкетирование48",
       "objectType": "CommonPicture",
       "name": "_ДемоРазделАнкетирование48",
-      "synonymRu": "Демо: Раздел \"Анкетирование\" (48x48)",
+      "synonym": "Демо: Раздел \"Анкетирование\" (48x48)",
       "sourceId": "main",
       "relativePath": "src/cf/CommonPictures/_ДемоРазделАнкетирование48.xml",
       "subsystemKeys": [
@@ -154,7 +154,7 @@
       "key": "Constant.ИспользоватьАнкетирование",
       "objectType": "Constant",
       "name": "ИспользоватьАнкетирование",
-      "synonymRu": "Использовать анкетирование",
+      "synonym": "Использовать анкетирование",
       "sourceId": "main",
       "relativePath": "src/cf/Constants/ИспользоватьАнкетирование.xml",
       "subsystemKeys": [
@@ -167,7 +167,7 @@
       "key": "Catalog.ВариантыОтветовАнкет",
       "objectType": "Catalog",
       "name": "ВариантыОтветовАнкет",
-      "synonymRu": "Варианты ответов анкет",
+      "synonym": "Варианты ответов анкет",
       "sourceId": "main",
       "relativePath": "src/cf/Catalogs/ВариантыОтветовАнкет.xml",
       "subsystemKeys": [
@@ -181,7 +181,7 @@
       "key": "Catalog.ВопросыШаблонаАнкеты",
       "objectType": "Catalog",
       "name": "ВопросыШаблонаАнкеты",
-      "synonymRu": "Вопросы шаблона анкеты",
+      "synonym": "Вопросы шаблона анкеты",
       "sourceId": "main",
       "relativePath": "src/cf/Catalogs/ВопросыШаблонаАнкеты.xml",
       "subsystemKeys": [
@@ -195,7 +195,7 @@
       "key": "Catalog.ШаблоныАнкет",
       "objectType": "Catalog",
       "name": "ШаблоныАнкет",
-      "synonymRu": "Шаблоны анкет",
+      "synonym": "Шаблоны анкет",
       "sourceId": "main",
       "relativePath": "src/cf/Catalogs/ШаблоныАнкет.xml",
       "subsystemKeys": [
@@ -209,7 +209,7 @@
       "key": "Document.Анкета",
       "objectType": "Document",
       "name": "Анкета",
-      "synonymRu": "Анкета",
+      "synonym": "Анкета",
       "sourceId": "main",
       "relativePath": "src/cf/Documents/Анкета.xml",
       "subsystemKeys": [
@@ -223,7 +223,7 @@
       "key": "Document.НазначениеОпросов",
       "objectType": "Document",
       "name": "НазначениеОпросов",
-      "synonymRu": "Проведение опросов",
+      "synonym": "Проведение опросов",
       "sourceId": "main",
       "relativePath": "src/cf/Documents/НазначениеОпросов.xml",
       "subsystemKeys": [
@@ -237,7 +237,7 @@
       "key": "Enum.ТипыВопросовШаблонаАнкеты",
       "objectType": "Enum",
       "name": "ТипыВопросовШаблонаАнкеты",
-      "synonymRu": "Типы вопросов шаблона анкеты",
+      "synonym": "Типы вопросов шаблона анкеты",
       "sourceId": "main",
       "relativePath": "src/cf/Enums/ТипыВопросовШаблонаАнкеты.xml",
       "subsystemKeys": [
@@ -250,7 +250,7 @@
       "key": "Enum.ТипыТабличныхВопросов",
       "objectType": "Enum",
       "name": "ТипыТабличныхВопросов",
-      "synonymRu": "Типы табличных вопросов",
+      "synonym": "Типы табличных вопросов",
       "sourceId": "main",
       "relativePath": "src/cf/Enums/ТипыТабличныхВопросов.xml",
       "subsystemKeys": [
@@ -263,7 +263,7 @@
       "key": "ChartOfCharacteristicTypes.ВопросыДляАнкетирования",
       "objectType": "ChartOfCharacteristicTypes",
       "name": "ВопросыДляАнкетирования",
-      "synonymRu": "Вопросы для анкетирования",
+      "synonym": "Вопросы для анкетирования",
       "sourceId": "main",
       "relativePath": "src/cf/ChartsOfCharacteristicTypes/ВопросыДляАнкетирования.xml",
       "subsystemKeys": [
@@ -278,7 +278,7 @@
       "key": "Subsystem.Респонденты",
       "objectType": "Subsystem",
       "name": "Респонденты",
-      "synonymRu": "Респонденты",
+      "synonym": "Респонденты",
       "sourceId": "main",
       "relativePath": "src/cf/Subsystems/_ДемоАнкетирование/Subsystems/Респонденты.xml",
       "subsystemKeys": [],
@@ -288,7 +288,7 @@
       "key": "Subsystem.СозданиеАнкетИОпросов",
       "objectType": "Subsystem",
       "name": "СозданиеАнкетИОпросов",
-      "synonymRu": "Создание анкет и опросов",
+      "synonym": "Создание анкет и опросов",
       "sourceId": "main",
       "relativePath": "src/cf/Subsystems/_ДемоАнкетирование/Subsystems/СозданиеАнкетИОпросов.xml",
       "subsystemKeys": [],
@@ -298,7 +298,7 @@
       "key": "Subsystem.ХодАнкетированияИАнализ",
       "objectType": "Subsystem",
       "name": "ХодАнкетированияИАнализ",
-      "synonymRu": "Ход анкетирования и анализ",
+      "synonym": "Ход анкетирования и анализ",
       "sourceId": "main",
       "relativePath": "src/cf/Subsystems/_ДемоАнкетирование/Subsystems/ХодАнкетированияИАнализ.xml",
       "subsystemKeys": [],

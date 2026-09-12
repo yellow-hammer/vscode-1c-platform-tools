@@ -21,7 +21,6 @@ import * as vscode from 'vscode';
 import { METADATA_TYPE_NAMES, resolveBslPathFromMetadata } from '../diagnostics/metadataPathResolver';
 import { resolveProjectLayout, type SourceRoot } from '../../shared/projectLayout';
 import { sourcePath } from '../../shared/objectPaths';
-import { DEFAULT_PATHS } from '../../shared/pathDefaults';
 import { VRunnerManager } from '../../shared/vrunnerManager';
 import { logger } from '../../shared/logger';
 
@@ -207,15 +206,11 @@ export class SourceTerminalLinkProvider implements vscode.TerminalLinkProvider<R
 	private async resolveMetadata(metadataPath: string, workspaceRoot: string): Promise<string | undefined> {
 		let roots: SourceRoot[];
 		try {
-			const layout = await resolveProjectLayout(workspaceRoot, {
-				configuration: vscode.workspace
-					.getConfiguration('1c-platform-tools')
-					.get<string>('path.cf', DEFAULT_PATHS.cf),
-				extensions: [this.vrunner.getCfePath(), this.vrunner.getTestsCfePath()],
-			});
+			const layout = await resolveProjectLayout(workspaceRoot);
 			roots = [
 				...(layout.configuration ? [layout.configuration] : []),
 				...layout.extensions,
+				...layout.testExtensions,
 				...layout.others,
 			];
 		} catch (error) {

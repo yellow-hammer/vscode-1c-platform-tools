@@ -1,3 +1,4 @@
+import { CONVENTIONAL_PATHS, projectPaths } from '../../shared/projectPaths';
 import * as vscode from 'vscode';
 import * as path from 'node:path';
 import * as fs from 'node:fs/promises';
@@ -69,6 +70,10 @@ export function registerConfigureTestingCommand(vrunner: VRunnerManager): vscode
 		const config = vscode.workspace.getConfiguration('1c-platform-tools');
 		const featuresPath = config.get<string>('test.path.features', DEFAULT_TESTING.featuresPath);
 		const onescriptPath = resolveOnescriptTestsPath();
+		const layoutRoot = vrunner.getWorkspaceRoot();
+		const paths = layoutRoot ? await projectPaths(layoutRoot) : undefined;
+		const testsEpf = paths?.testProcessorsContainer ?? CONVENTIONAL_PATHS.testsEpf;
+		const testsCfe = paths?.testExtensionsContainer ?? CONVENTIONAL_PATHS.testsCfe;
 
 		const frameworks: FrameworkPick[] = [
 			{
@@ -81,16 +86,16 @@ export function registerConfigureTestingCommand(vrunner: VRunnerManager): vscode
 			{
 				key: 'xunit',
 				label: 'xUnit (Vanessa-ADD)',
-				description: `тестовые обработки (исходники в ${vrunner.getTestsSrcPath()})`,
+				description: `тестовые обработки (исходный код в ${testsEpf})`,
 				defaultEnabled: true,
-				dir: vrunner.getTestsSrcPath()
+				dir: testsEpf
 			},
 			{
 				key: 'yaxunit',
 				label: 'YAxUnit',
-				description: `модули тестового расширения (исходники в ${vrunner.getTestsCfePath()})`,
+				description: `модули тестового расширения (исходный код в ${testsCfe})`,
 				defaultEnabled: true,
-				dir: vrunner.getTestsCfePath()
+				dir: testsCfe
 			},
 			{
 				key: 'onescript',

@@ -8,9 +8,6 @@ import { invalidateProjectLayout } from '../../shared/projectLayout';
 /** Рабочая область с двумя конфигурациями в формате EDT. */
 const EDT_WORKSPACE = path.resolve(__dirname, '../../../src/test/fixtures/projectLayout/edt-workspace');
 
-/** Настройки путей проекта по умолчанию. */
-const DEFAULT_PATHS = { configuration: 'src/cf', extensions: ['src/cfe'] };
-
 /** Хранилище выбора, как workspaceState. */
 function memoryState(): { context: { workspaceState: unknown } } {
 	const values = new Map<string, unknown>();
@@ -39,7 +36,7 @@ suite('активная конфигурация', () => {
 	});
 
 	test('без выбора активна первая найденная конфигурация', async () => {
-		const scope = await configurationScope(EDT_WORKSPACE, DEFAULT_PATHS);
+		const scope = await configurationScope(EDT_WORKSPACE);
 
 		assert.strictEqual(scope.configuration?.name, 'БиблиотекаСтандартныхПодсистемДемо');
 		assert.deepStrictEqual(
@@ -51,7 +48,7 @@ suite('активная конфигурация', () => {
 	test('выбор задаёт конфигурацию и переносит прежнюю в остальные', async () => {
 		await setActiveConfiguration(path.join(EDT_WORKSPACE, 'учёт'));
 
-		const scope = await configurationScope(EDT_WORKSPACE, DEFAULT_PATHS);
+		const scope = await configurationScope(EDT_WORKSPACE);
 
 		assert.strictEqual(scope.configuration?.name, 'УчётДемо');
 		assert.deepStrictEqual(
@@ -61,14 +58,14 @@ suite('активная конфигурация', () => {
 	});
 
 	test('расширения берутся от активной конфигурации', async () => {
-		const ssl = await configurationScope(EDT_WORKSPACE, DEFAULT_PATHS);
+		const ssl = await configurationScope(EDT_WORKSPACE);
 		assert.deepStrictEqual(
 			ssl.extensions.map((root) => root.name),
 			['_ДемоРасширение']
 		);
 
 		await setActiveConfiguration(path.join(EDT_WORKSPACE, 'учёт'));
-		const accounting = await configurationScope(EDT_WORKSPACE, DEFAULT_PATHS);
+		const accounting = await configurationScope(EDT_WORKSPACE);
 
 		assert.deepStrictEqual(
 			accounting.extensions.map((root) => root.name),
@@ -79,7 +76,7 @@ suite('активная конфигурация', () => {
 	test('выбор несуществующей конфигурации не ломает область работы', async () => {
 		await setActiveConfiguration(path.join(EDT_WORKSPACE, 'которой-нет'));
 
-		const scope = await configurationScope(EDT_WORKSPACE, DEFAULT_PATHS);
+		const scope = await configurationScope(EDT_WORKSPACE);
 
 		assert.strictEqual(scope.configuration?.name, 'БиблиотекаСтандартныхПодсистемДемо');
 	});

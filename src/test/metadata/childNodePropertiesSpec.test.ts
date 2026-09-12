@@ -12,10 +12,10 @@ const objectDto = {
 	kind: 'catalog',
 	internalName: 'Валюты',
 	attributes: [
-		{ name: 'НаименованиеПолное', synonymRu: 'Наименование валюты', comment: '', type: { types: ['xs:string'] } },
-		{ name: 'Наценка', synonymRu: 'Наценка', comment: 'процент', type: { types: ['xs:decimal'] } },
+		{ name: 'НаименованиеПолное', synonym: 'Наименование валюты', comment: '', type: { types: ['xs:string'] } },
+		{ name: 'Наценка', synonym: 'Наценка', comment: 'процент', type: { types: ['xs:decimal'] } },
 	],
-	tabularSections: [{ name: 'Представления', synonymRu: 'Представления', comment: '' }],
+	tabularSections: [{ name: 'Представления', synonym: 'Представления', comment: '' }],
 };
 
 suite('Свойства узлов состава объекта', () => {
@@ -31,7 +31,7 @@ suite('Свойства узлов состава объекта', () => {
 	test('узел находится по имени, один тип идёт значением для списка', () => {
 		const node = findChildNode(objectDto, 'attributes', 'Наценка');
 
-		assert.strictEqual(node?.synonymRu, 'Наценка');
+		assert.strictEqual(node?.synonym, 'Наценка');
 		assert.strictEqual(node?.comment, 'процент');
 		assert.strictEqual(node?.typeSingle, 'xs:decimal', 'тип правится списком, значение идёт как в XML');
 	});
@@ -48,7 +48,7 @@ suite('Свойства узлов состава объекта', () => {
 			paletteGroupsFromSpec(childNodeTabs(true, node, options), node).flatMap((g) => g.rows).map((r) => [r.key, r])
 		);
 
-		assert.strictEqual(rows.get('synonymRu')?.readonly, false);
+		assert.strictEqual(rows.get('synonym')?.readonly, false);
 		assert.strictEqual(rows.get('comment')?.readonly, false);
 		assert.strictEqual(rows.get('name')?.readonly, true, 'переименование - отдельная операция');
 		assert.strictEqual(rows.get('typeSingle')?.readonly, false, 'тип выбирается списком');
@@ -64,20 +64,20 @@ suite('Свойства узлов состава объекта', () => {
 
 	test('правка узла ложится в DTO объекта, остальное не трогается', () => {
 		const next = applyChildNodeEdits(objectDto, 'attributes', 'Наценка', {
-			synonymRu: 'Наценка на курс',
+			synonym: 'Наценка на курс',
 			comment: '',
 			name: 'ДругоеИмя',
 		}) as typeof objectDto;
 
-		assert.strictEqual(next.attributes[1].synonymRu, 'Наценка на курс');
+		assert.strictEqual(next.attributes[1].synonym, 'Наценка на курс');
 		assert.strictEqual(next.attributes[1].comment, '');
 		assert.strictEqual(next.attributes[1].name, 'Наценка', 'имя через палитру не меняется');
-		assert.strictEqual(next.attributes[0].synonymRu, 'Наименование валюты', 'соседний реквизит не тронут');
-		assert.strictEqual(objectDto.attributes[1].synonymRu, 'Наценка', 'исходный DTO не меняется');
+		assert.strictEqual(next.attributes[0].synonym, 'Наименование валюты', 'соседний реквизит не тронут');
+		assert.strictEqual(objectDto.attributes[1].synonym, 'Наценка', 'исходный DTO не меняется');
 	});
 
 	test('пропавший узел даёт пустой результат, а не порчу DTO', () => {
-		assert.strictEqual(applyChildNodeEdits(objectDto, 'attributes', 'Нету', { synonymRu: 'X' }), undefined);
-		assert.strictEqual(applyChildNodeEdits(objectDto, 'enumValues', 'Наценка', { synonymRu: 'X' }), undefined);
+		assert.strictEqual(applyChildNodeEdits(objectDto, 'attributes', 'Нету', { synonym: 'X' }), undefined);
+		assert.strictEqual(applyChildNodeEdits(objectDto, 'enumValues', 'Наценка', { synonym: 'X' }), undefined);
 	});
 });

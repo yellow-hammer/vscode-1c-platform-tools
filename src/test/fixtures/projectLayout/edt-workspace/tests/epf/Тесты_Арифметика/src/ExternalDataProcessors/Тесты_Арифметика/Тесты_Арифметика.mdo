@@ -1,0 +1,84 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mdclass:ExternalDataProcessor xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:core="http://g5.1c.ru/v8/dt/mcore" xmlns:mdclass="http://g5.1c.ru/v8/dt/metadata/mdclass" uuid="4c1090aa-a76e-4693-87c0-6f4b7494467d">
+  <producedTypes>
+    <objectType typeId="ad42f029-5d1a-4697-a290-1f18b3ac64a5" valueTypeId="b0bfe108-8805-4d49-a22c-dea2dae5b5a9"/>
+  </producedTypes>
+  <name>ТестоваяВнешняяОбработка</name>
+  <synonym>
+    <key>ru</key>
+    <value>Тестовая внешняя обработка</value>
+  </synonym>
+  <containedObjects classId="c3831ec8-d8d5-4f93-8a22-f9bfae07327f" objectId="60d92f5c-f354-437e-bcc5-5e8f0eff109d"/>
+  <defaultForm>ExternalDataProcessor.ТестоваяВнешняяОбработка.Form.Форма</defaultForm>
+  <auxiliaryForm>ExternalDataProcessor.ТестоваяВнешняяОбработка.Form.ОбычнаяФорма</auxiliaryForm>
+  <attributes uuid="bdbc7de7-e212-4c0e-a7c7-db82c215f725">
+    <name>РеквизитОбработки</name>
+    <synonym>
+      <key>ru</key>
+      <value>Реквизит обработки</value>
+    </synonym>
+    <type>
+      <types>String</types>
+      <stringQualifiers>
+        <length>10</length>
+      </stringQualifiers>
+    </type>
+    <minValue xsi:type="core:UndefinedValue"/>
+    <maxValue xsi:type="core:UndefinedValue"/>
+  </attributes>
+  <tabularSections uuid="ad429002-8810-4537-9a1d-2e843fea4982">
+    <producedTypes>
+      <objectType typeId="4e7e8dfa-1cfc-4b22-8c4c-8b2cb5d89a83" valueTypeId="83031211-fe59-431a-9942-066c49b9e42c"/>
+      <rowType typeId="f2271e23-e417-4cd0-8878-5df0d078326e" valueTypeId="c8ce4a61-8c2f-4315-b837-7896f789db3e"/>
+    </producedTypes>
+    <name>ТабличнаяЧастьОбработки</name>
+    <synonym>
+      <key>ru</key>
+      <value>Табличная часть обработки</value>
+    </synonym>
+    <attributes uuid="28233ec8-4d29-4d09-869d-1bc06c589b07">
+      <name>РеквизитТЧ</name>
+      <synonym>
+        <key>ru</key>
+        <value>Реквизит ТЧ</value>
+      </synonym>
+      <type>
+        <types>String</types>
+        <stringQualifiers>
+          <length>10</length>
+        </stringQualifiers>
+      </type>
+      <minValue xsi:type="core:UndefinedValue"/>
+      <maxValue xsi:type="core:UndefinedValue"/>
+      <fillValue xsi:type="core:StringValue">
+        <value></value>
+      </fillValue>
+    </attributes>
+  </tabularSections>
+  <forms uuid="b1c1a9cc-1ef8-4a92-b48c-984b79293f16">
+    <name>Форма</name>
+    <synonym>
+      <key>ru</key>
+      <value>Форма</value>
+    </synonym>
+    <usePurposes>PersonalComputer</usePurposes>
+    <usePurposes>MobileDevice</usePurposes>
+  </forms>
+  <forms uuid="973d4c92-4a27-4be7-895f-4c242a20bd45">
+    <name>ОбычнаяФорма</name>
+    <synonym>
+      <key>ru</key>
+      <value>Обычная форма</value>
+    </synonym>
+    <formType>Ordinary</formType>
+    <usePurposes>PersonalComputer</usePurposes>
+    <usePurposes>MobileDevice</usePurposes>
+  </forms>
+  <templates uuid="edd30b01-8ffc-4eb1-acb4-887081e25587">
+    <name>Макет</name>
+    <synonym>
+      <key>ru</key>
+      <value>Макет</value>
+    </synonym>
+  </templates>
+</mdclass:ExternalDataProcessor>

@@ -19,10 +19,13 @@ import { collectAllureResultDirs } from '../utils/allureResults';
 import { configurationScope } from '../shared/activeConfiguration';
 import { VRUNNER_FEATURES, isAtLeast } from '../shared/vrunnerVersion';
 import type { CommandExecutionOptions, StructuredCommandResult, SyntaxCheckError } from '../shared/commandExecutionTypes';
-import { DEFAULT_TESTING, DEFAULT_PATHS, BUILD_SUBDIRS } from '../shared/pathDefaults';
+import { DEFAULT_TESTING, BUILD_SUBDIRS } from '../shared/pathDefaults';
+import { CONVENTIONAL_PATHS } from '../shared/projectPaths';
 import * as fs from 'node:fs/promises';
 import { settingValue, resolveConfigPath, reportsXunitFromEnv, extractJUnitPathFromReportsXunit, extractAllurePathFromReportsXunit, vanessaReportTarget, vanessaSettingsPathFromEnv, syntaxCheckJUnitPathFromEnv, syntaxCheckAllurePathsFromEnv, yaxunitSectionFromEnv, YaxunitProfileSection } from '../features/testing/projectTestConfig';
-import { parseSyntaxCheckFindings, toSyntaxCheckErrors, SyntaxCheckFinding } from '../features/diagnostics/syntaxCheckJUnit';
+import { locateSyntaxCheckFiles, parseSyntaxCheckFindings, toSyntaxCheckErrors, SyntaxCheckFinding } from '../features/diagnostics/syntaxCheckJUnit';
+import { resolveMetadataInRoots } from '../features/tools/terminalLinks';
+import { resolveProjectLayout, type SourceRoot } from '../shared/projectLayout';
 import { readRunSummary, formatRunSummary, RunReportFormat } from '../features/testing/runReportSummary';
 import { ensureAllure } from '../shared/allureComponent';
 import { logger } from '../shared/logger';
@@ -338,10 +341,7 @@ export class TestCommands extends BaseCommand {
 			return;
 		}
 
-		const scope = await configurationScope(workspaceRoot, {
-			configuration: this.vrunner.getCfPath(),
-			extensions: [this.vrunner.getCfePath(), this.vrunner.getTestsCfePath()],
-		});
+		const scope = await configurationScope(workspaceRoot);
 		const project = scope.configuration;
 		if (!project || project.format !== 'edt') {
 			return this.reportUnavailable(
@@ -364,6 +364,9 @@ export class TestCommands extends BaseCommand {
 	 * Путь к отчёту берётся из настроек прогона (секция syntax-check,
 	 * --junitpath), с откатом на стандартный. Отсутствие отчёта — не ошибка:
 	 * проверка могла упасть до его записи, тогда остаётся stdout.
+	 *
+	 * Адрес файла ищется по корням раскладки правилами формата каждого корня:
+	 * в проекте EDT модуль лежит в src и без Ext.
 	 *
 	 * @param opts — опции выполнения (нужны для выбора файла настроек)
 	 * @returns список ошибок (пустой, если отчёта нет или он не разобрался)
@@ -392,11 +395,30 @@ export class TestCommands extends BaseCommand {
 			return [];
 		}
 
-		const cfRel = vscode.workspace
-			.getConfiguration('1c-platform-tools')
-			.get<string>('path.cf', DEFAULT_PATHS.cf);
+		const roots = await this.syntaxCheckRoots(workspaceRoot);
+		const located = await locateSyntaxCheckFiles(
+			findings,
+			(metadataPath) => resolveMetadataInRoots(metadataPath, roots),
+			workspaceRoot
+		);
+		const configuration = (await this.paths())?.configuration ?? { dir: CONVENTIONAL_PATHS.cf, format: 'designer' as const };
 
-		return toSyntaxCheckErrors(findings, cfRel);
+		return toSyntaxCheckErrors(findings, located, configuration);
+	}
+
+	/** Корни исходников рабочей области: конфигурация, расширения и прочие конфигурации. */
+	private async syntaxCheckRoots(workspaceRoot: string): Promise<SourceRoot[]> {
+		try {
+			const layout = await resolveProjectLayout(workspaceRoot);
+			return [
+				...(layout.configuration ? [layout.configuration] : []),
+				...layout.extensions,
+				...layout.testExtensions,
+				...layout.others,
+			];
+		} catch {
+			return [];
+		}
 	}
 
 	/**
@@ -510,7 +532,7 @@ export class TestCommands extends BaseCommand {
 	/**
 	 * Собирает тестовые обработки из исходников в бинарники
 	 *
-	 * Выполняет vrunner compileepf <path.tests>/epf <path.out>/tests/epf:
+	 * Выполняет vrunner compileepf tests/epf build/out/tests/epf:
 	 * разобранные исходники тестовых обработок (tests/epf) собираются в .epf
 	 * в каталог результатов сборки (build/out/tests/epf) — собранные артефакты
 	 * не попадают в git. vrunner кэширует сборку и пересобирает только
@@ -520,7 +542,7 @@ export class TestCommands extends BaseCommand {
 	 * @returns void в UI-режиме, StructuredCommandResult при wait: true
 	 */
 	async buildTestEpf(opts?: CommandExecutionOptions): Promise<StructuredCommandResult | void> {
-		const sourcesPath = this.vrunner.getTestsSrcPath();
+		const sourcesPath = await this.testProcessorsContainer();
 		const binariesPath = path.join(this.vrunner.getOutPath(), BUILD_SUBDIRS.testsEpf);
 		const ibConnectionParam = await this.vrunner.getIbConnectionParam();
 		const buildEpfCmd = getBuildTestEpfCommandName();
@@ -533,7 +555,7 @@ export class TestCommands extends BaseCommand {
 	/**
 	 * Разбирает бинарники тестовых обработок в исходники
 	 *
-	 * Выполняет vrunner decompileepf <path.tests> <path.tests>/epf:
+	 * Выполняет vrunner decompileepf tests tests/epf:
 	 * .epf из каталога тестов раскладываются в исходники (tests/epf) —
 	 * удобно для первичного переноса существующих бинарных тестов под контроль версий.
 	 *
@@ -541,8 +563,8 @@ export class TestCommands extends BaseCommand {
 	 * @returns void в UI-режиме, StructuredCommandResult при wait: true
 	 */
 	async decompileTestEpf(opts?: CommandExecutionOptions): Promise<StructuredCommandResult | void> {
-		const sourcesPath = this.vrunner.getTestsSrcPath();
-		const binariesPath = this.vrunner.getTestsPath();
+		const sourcesPath = await this.testProcessorsContainer();
+		const binariesPath = CONVENTIONAL_PATHS.tests;
 		const ibConnectionParam = await this.vrunner.getIbConnectionParam();
 		const decompileEpfCmd = getDecompileTestEpfCommandName();
 		return this.runIntent(

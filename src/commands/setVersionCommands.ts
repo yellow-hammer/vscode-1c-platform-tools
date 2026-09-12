@@ -1,6 +1,7 @@
+import { projectPaths, type RelativeExternal } from '../shared/projectPaths';
+import { NO_CONFIGURATION_SOURCES } from './baseCommand';
 import * as vscode from 'vscode';
 import * as path from 'node:path';
-import * as fs from 'node:fs/promises';
 import { BaseCommand } from './baseCommand';
 import {
 	getSetVersionConfigurationCommandName,
@@ -9,13 +10,15 @@ import {
 	getSetVersionProcessorCommandName
 } from '../features/tools/commandNames';
 import { pickExtensions } from '../features/extensions/extensionPicker';
+import { extensionEntries } from '../features/extensions/extensionRoots';
 import { logger } from '../shared/logger';
 import { configurationScope } from '../shared/activeConfiguration';
 import { configurationDescriptorFile } from '../shared/objectPaths';
 import { ensureMdSparrowRuntime } from '../features/metadata/mdSparrowBootstrap';
 import { runMdSparrowParamsMutation } from '../features/metadata/mdSparrowParams';
-import { edtExternalProjectsOf, EDT_STAGING_DIR } from '../features/edt/edtSourceBridge';
+import { edtStagingTarget } from '../features/edt/edtSourceBridge';
 import { runEdtExports, runEdtImports } from '../features/edt/edtBridgeRunner';
+import { edtStagingRoot } from '../features/edt/edtRunner';
 
 const log = logger.scope('commands');
 
@@ -59,69 +62,47 @@ export class SetVersionCommands extends BaseCommand {
 	}
 
 	/**
-	 * Ставит версию внешним объектам проектов EDT.
+	 * Ставит версию внешнему объекту проекта EDT.
 	 *
-	 * Проект выгружается самой EDT, версию в выгрузку ставит раннер, результат
-	 * возвращается в проект импортом: так же идут сборка и разборка.
+	 * Проект выгружается самой EDT, версию в выгрузку объекта ставит раннер, объект
+	 * возвращается в свой проект импортом: так же идут сборка и разборка.
 	 *
-	 * @param artifactsRoot - Каталог внешних объектов относительно рабочей области
-	 * @param names - Имена объектов
+	 * @param external - Объект и его проект
 	 * @param version - Новая версия
 	 * @param workspaceRoot - Корень рабочей области
 	 * @param title - Название задачи в терминале
 	 */
 	private async stampEdtExternal(
-		artifactsRoot: string,
-		names: readonly string[],
+		external: RelativeExternal,
 		version: string,
 		workspaceRoot: string,
 		title: string
 	): Promise<void> {
-		const projects = edtExternalProjectsOf(workspaceRoot, artifactsRoot).filter((project) =>
-			names.includes(project.name)
-		);
-		if (projects.length === 0) {
-			vscode.window.showInformationMessage('В каталоге нет проектов внешних объектов EDT.');
-			return;
-		}
-		const buildDir = this.vrunner.getOutPath();
-		const staging = `${buildDir}/${EDT_STAGING_DIR}/${path.basename(artifactsRoot)}`;
-		const context = { workspaceRoot, buildDir, baseProjectDir: await this.activeEdtProjectDirForVersion() };
+		const buildDir = edtStagingRoot(workspaceRoot, this.vrunner.getOutPath());
+		const staging = edtStagingTarget(buildDir, external.dir);
+		const baseProjectDir = (await this.edtBaseProjectResolver(workspaceRoot))(external.dir);
+		const context = { workspaceRoot, buildDir };
+		const dump = `${staging}/${external.name}`;
+		// Промежуточный каталог чистится целиком: прошлые выгрузки других объектов проекта иначе вернулись бы в него вместе с этой
 		const exported = await runEdtExports(
-			projects.map((project) => ({
-				projectDir: project.projectDir,
-				target: `${staging}/${project.name}`,
-				externalName: project.name,
-			})),
+			[
+				{ clear: staging },
+				{ projectDir: external.dir, target: dump, externalName: external.name, baseProjectDir },
+			],
 			context
 		);
 		if (!exported) {
 			void vscode.window.showErrorMessage('Выгрузка проекта 1С:EDT не удалась, версия не изменена.');
 			return;
 		}
-		const argsList = projects.map((project) => [
-			'set-version',
-			'--src',
-			`${staging}/${project.name}`,
-			'--check-module',
-			'--new-version',
-			version,
-		]);
-		await this.vrunner.executeVRunnerTaskSequenceAndWait(argsList, { cwd: workspaceRoot, name: title });
-		await runEdtImports([{ source: staging, projectDir: artifactsRoot, needsBase: true, external: true }], context);
-	}
-
-	/** Каталог проекта активной конфигурации EDT: базовый проект внешних объектов. */
-	private async activeEdtProjectDirForVersion(): Promise<string | undefined> {
-		const workspaceRoot = this.vrunner.getWorkspaceRoot();
-		if (!workspaceRoot) {
-			return undefined;
-		}
-		const scope = await configurationScope(workspaceRoot, {
-			configuration: this.vrunner.getCfPath(),
-			extensions: [this.vrunner.getCfePath(), this.vrunner.getTestsCfePath()],
-		});
-		return scope.configuration?.format === 'edt' ? scope.configuration.dir : undefined;
+		await this.vrunner.executeVRunnerTaskSequenceAndWait(
+			[['set-version', '--src', dump, '--check-module', '--new-version', version]],
+			{ cwd: workspaceRoot, name: title }
+		);
+		await runEdtImports(
+			[{ source: staging, projectDir: path.posix.dirname(external.dir), needsBase: false, external: true, baseProjectDir }],
+			context
+		);
 	}
 
 
@@ -163,17 +144,18 @@ export class SetVersionCommands extends BaseCommand {
 			return;
 		}
 
-		const scope = await configurationScope(workspaceRoot, {
-			configuration: this.vrunner.getCfPath(),
-			extensions: [this.vrunner.getCfePath(), this.vrunner.getTestsCfePath()],
-		});
+		const scope = await configurationScope(workspaceRoot);
 		if (scope.configuration?.format === 'edt') {
 			if (await this.stampEdtProject(configurationDescriptorFile(scope.configuration), version, workspaceRoot)) {
 				vscode.window.showInformationMessage(`Версия конфигурации: ${version}`);
 			}
 			return;
 		}
-		const cfPath = this.vrunner.getCfPath();
+		const cfPath = await this.activeCfPath();
+		if (cfPath === undefined) {
+			vscode.window.showErrorMessage(NO_CONFIGURATION_SOURCES);
+			return;
+		}
 		const args = ['set-version', '--src', cfPath, '--new-version', version];
 		const commandName = getSetVersionConfigurationCommandName();
 
@@ -184,12 +166,13 @@ export class SetVersionCommands extends BaseCommand {
 	}
 
 	/**
-	 * Устанавливает версию выбранным расширениям (src/cfe).
+	 * Устанавливает версию выбранным расширениям.
 	 *
-	 * Показывает quickpick с чекбоксами по каталогам src/cfe (та же логика и
-	 * сохранённый выбор, что у команд загрузки/выгрузки расширений) и для
-	 * каждого выбранного расширения выполняет:
-	 * vrunner set-version --src src/cfe/&lt;имя&gt; --new-version &lt;версия&gt;
+	 * Предлагает расширения решения и тестовые из раскладки, тем же выбором и с тем
+	 * же сохранённым подмножеством, что у команд загрузки и выгрузки расширений.
+	 * Выгрузке конфигуратора версию ставит раннер:
+	 * vrunner set-version --src &lt;каталог расширения&gt; --new-version &lt;версия&gt;;
+	 * проекту EDT версия пишется в его описание.
 	 *
 	 * @returns Промис, который разрешается после запуска команды
 	 */
@@ -202,13 +185,10 @@ export class SetVersionCommands extends BaseCommand {
 			return;
 		}
 
-		// Расширения активной конфигурации: у проекта EDT они лежат соседними проектами, а не в src/cfe
-		const active = await this.activeExtensions();
-		const extensions =
-			active.length > 0 ? active.map((extension) => extension.name) : await this.getExtensionFoldersForTree();
+		const extensions = extensionEntries(await this.paths(), 'all');
 		if (extensions.length === 0) {
-			log.info('В папке src/cfe не найдено расширений');
-			vscode.window.showInformationMessage('В папке src/cfe не найдено расширений');
+			log.info('Расширений в рабочей области не найдено');
+			vscode.window.showInformationMessage('Расширений в рабочей области не найдено.');
 			return;
 		}
 
@@ -227,18 +207,21 @@ export class SetVersionCommands extends BaseCommand {
 			return;
 		}
 
-		const cfePath = this.vrunner.getCfePath();
 		const argsList: string[][] = [];
-		for (const name of selected) {
-			const extension = active.find((item) => item.name === name);
-			if (extension?.format === 'edt') {
-				const descriptor = path.join(workspaceRoot, extension.dir, 'src', 'Configuration', 'Configuration.mdo');
+		for (const extension of selected) {
+			if (extension.format === 'edt') {
+				const descriptor = configurationDescriptorFile({
+					name: extension.name,
+					dir: path.join(workspaceRoot, extension.dir),
+					format: extension.format,
+					isExtension: true,
+				});
 				if (!(await this.stampEdtProject(descriptor, version, workspaceRoot))) {
 					return;
 				}
 				continue;
 			}
-			argsList.push(['set-version', '--src', extension ? extension.dir : path.join(cfePath, name), '--new-version', version]);
+			argsList.push(['set-version', '--src', extension.dir, '--new-version', version]);
 		}
 		if (argsList.length === 0) {
 			vscode.window.showInformationMessage(`Версия расширений: ${version}`);
@@ -255,8 +238,8 @@ export class SetVersionCommands extends BaseCommand {
 	/**
 	 * Устанавливает версию внешнему отчёту.
 	 * При вызове из палитры команд без аргумента показывает список отчётов для выбора.
-	 * Выполняет: vrunner set-version --src src/erf/&lt;имя&gt; --check-module --new-version &lt;версия&gt;
-	 * @param reportName - Имя каталога отчёта в src/erf (если не указано — показывается выбор из списка)
+	 * Выполняет: vrunner set-version --src &lt;каталог отчёта&gt; --check-module --new-version &lt;версия&gt;
+	 * @param reportName - Имя отчёта (если не указано, показывается выбор из списка)
 	 * @returns Промис, который разрешается после запуска команды
 	 */
 	async setVersionReport(reportName?: string): Promise<void> {
@@ -272,8 +255,8 @@ export class SetVersionCommands extends BaseCommand {
 		if (selected === undefined) {
 			const reports = await this.getReportFoldersForTree();
 			if (reports.length === 0) {
-				log.info('В папке src/erf не найдено внешних отчётов');
-				vscode.window.showInformationMessage('В папке src/erf не найдено внешних отчётов');
+				log.info('Внешних отчётов в рабочей области нет');
+				vscode.window.showInformationMessage('Внешних отчётов в рабочей области нет');
 				return;
 			}
 			const picked = await vscode.window.showQuickPick(reports, {
@@ -291,13 +274,13 @@ export class SetVersionCommands extends BaseCommand {
 			return;
 		}
 
-		const erfPath = this.vrunner.getErfPath();
-		const srcPath = path.join(erfPath, selected);
+		const external = (await this.paths())?.reports.find((report) => report.name === selected);
 		const commandName = getSetVersionReportCommandName(selected);
-		if (edtExternalProjectsOf(workspaceRoot, srcPath).length > 0) {
-			await this.stampEdtExternal(erfPath, [selected], version, workspaceRoot, commandName.title);
+		if (external?.format === 'edt') {
+			await this.stampEdtExternal(external, version, workspaceRoot, commandName.title);
 			return;
 		}
+		const srcPath = external?.dir ?? path.join(await this.reportsContainer(), selected);
 		const args = ['set-version', '--src', srcPath, '--check-module', '--new-version', version];
 
 		await this.vrunner.executeVRunnerInTerminal(args, {
@@ -309,8 +292,8 @@ export class SetVersionCommands extends BaseCommand {
 	/**
 	 * Устанавливает версию внешней обработке.
 	 * При вызове из палитры команд без аргумента показывает список обработок для выбора.
-	 * Выполняет: vrunner set-version --src src/epf/&lt;имя&gt; --check-module --new-version &lt;версия&gt;
-	 * @param processorName - Имя каталога обработки в src/epf (если не указано — показывается выбор из списка)
+	 * Выполняет: vrunner set-version --src &lt;каталог обработки&gt; --check-module --new-version &lt;версия&gt;
+	 * @param processorName - Имя обработки (если не указано, показывается выбор из списка)
 	 * @returns Промис, который разрешается после запуска команды
 	 */
 	async setVersionProcessor(processorName?: string): Promise<void> {
@@ -326,8 +309,8 @@ export class SetVersionCommands extends BaseCommand {
 		if (selected === undefined) {
 			const processors = await this.getProcessorFoldersForTree();
 			if (processors.length === 0) {
-				log.info('В папке src/epf не найдено внешних обработок');
-				vscode.window.showInformationMessage('В папке src/epf не найдено внешних обработок');
+				log.info('Внешних обработок в рабочей области нет');
+				vscode.window.showInformationMessage('Внешних обработок в рабочей области нет');
 				return;
 			}
 			const picked = await vscode.window.showQuickPick(processors, {
@@ -345,13 +328,13 @@ export class SetVersionCommands extends BaseCommand {
 			return;
 		}
 
-		const epfPath = this.vrunner.getEpfPath();
-		const srcPath = path.join(epfPath, selected);
+		const external = (await this.paths())?.processors.find((processor) => processor.name === selected);
 		const commandName = getSetVersionProcessorCommandName(selected);
-		if (edtExternalProjectsOf(workspaceRoot, srcPath).length > 0) {
-			await this.stampEdtExternal(epfPath, [selected], version, workspaceRoot, commandName.title);
+		if (external?.format === 'edt') {
+			await this.stampEdtExternal(external, version, workspaceRoot, commandName.title);
 			return;
 		}
+		const srcPath = external?.dir ?? path.join(await this.processorsContainer(), selected);
 		const args = ['set-version', '--src', srcPath, '--check-module', '--new-version', version];
 
 		await this.vrunner.executeVRunnerInTerminal(args, {
@@ -370,19 +353,14 @@ export class SetVersionCommands extends BaseCommand {
 		if (!workspaceRoot) {
 			return [];
 		}
-		const cfePath = this.vrunner.getCfePath();
-		const fullPath = path.join(workspaceRoot, cfePath);
-		try {
-			const entries = await fs.readdir(fullPath, { withFileTypes: true });
-			return entries.filter((e) => e.isDirectory()).map((e) => e.name);
-		} catch {
-			return [];
-		}
+		const paths = await projectPaths(workspaceRoot);
+		return [...paths.extensions, ...paths.testExtensions].map((extension) =>
+			extension.format === 'edt' ? extension.name : path.basename(extension.dir)
+		);
 	}
 
 	/**
-	 * Возвращает список имён каталогов внешних отчётов в src/erf (для дерева команд).
-	 * При отсутствии каталога или ошибке чтения возвращает пустой массив без уведомления пользователя.
+	 * Имена внешних отчётов рабочей области (для дерева команд).
 	 * @returns Промис, который разрешается массивом имён каталогов
 	 */
 	async getReportFoldersForTree(): Promise<string[]> {
@@ -390,19 +368,11 @@ export class SetVersionCommands extends BaseCommand {
 		if (!workspaceRoot) {
 			return [];
 		}
-		const erfPath = this.vrunner.getErfPath();
-		const fullPath = path.join(workspaceRoot, erfPath);
-		try {
-			const entries = await fs.readdir(fullPath, { withFileTypes: true });
-			return entries.filter((e) => e.isDirectory()).map((e) => e.name);
-		} catch {
-			return [];
-		}
+		return (await projectPaths(workspaceRoot)).reports.map((report) => report.name);
 	}
 
 	/**
-	 * Возвращает список имён каталогов внешних обработок в src/epf (для дерева команд).
-	 * При отсутствии каталога или ошибке чтения возвращает пустой массив без уведомления пользователя.
+	 * Имена внешних обработок рабочей области (для дерева команд).
 	 * @returns Промис, который разрешается массивом имён каталогов
 	 */
 	async getProcessorFoldersForTree(): Promise<string[]> {
@@ -410,13 +380,6 @@ export class SetVersionCommands extends BaseCommand {
 		if (!workspaceRoot) {
 			return [];
 		}
-		const epfPath = this.vrunner.getEpfPath();
-		const fullPath = path.join(workspaceRoot, epfPath);
-		try {
-			const entries = await fs.readdir(fullPath, { withFileTypes: true });
-			return entries.filter((e) => e.isDirectory()).map((e) => e.name);
-		} catch {
-			return [];
-		}
+		return (await projectPaths(workspaceRoot)).processors.map((processor) => processor.name);
 	}
 }

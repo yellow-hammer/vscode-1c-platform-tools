@@ -25,6 +25,7 @@ import type {
 import { PROPERTY_GROUP_ORDER, enumValueLabel, propertyGroupName, propertyLabel } from './formItemPropertySpec';
 import { beginOpenPanel, endOpenPanel, revealOpenPanel, trackOpenPanel } from '../editors/openPanels';
 import { formOwnerFileOf, formatOfFile, helpDirectoryOf } from '../../shared/objectPaths';
+import { declaresMethod } from '../../shared/bslDeclaration';
 
 /** Обработчик события формы или элемента. */
 export interface FormEventDto {
@@ -760,7 +761,12 @@ async function openFormModuleAt(
 	column?: vscode.ViewColumn
 ): Promise<void> {
 	try {
-		await ensureBslModuleFile(moduleFsPath);
+		if (await ensureBslModuleFile(moduleFsPath) === 'binary') {
+			void vscode.window.showInformationMessage(
+				`Модуль формы защищён паролем и хранится двоичным: ${path.basename(moduleFsPath, '.bsl')}.bin`
+			);
+			return;
+		}
 		const doc = await vscode.workspace.openTextDocument(vscode.Uri.file(moduleFsPath));
 		const editor = await vscode.window.showTextDocument(doc, { preview: false, viewColumn: column });
 		if (!handler) {
@@ -780,12 +786,7 @@ async function openFormModuleAt(
 /** Номер строки объявления процедуры или функции обработчика (-1, если не нашли). */
 export function findHandlerLine(moduleText: string, handler: string): number {
 	const lines = moduleText.split(/\r?\n/);
-	const declaration = new RegExp(`^\\s*(Процедура|Функция|Procedure|Function)\\s+${escapeRegExp(handler)}\\s*\\(`, 'i');
-	return lines.findIndex((line) => declaration.test(line));
-}
-
-function escapeRegExp(text: string): string {
-	return text.replace(/[.*+?^${}()|[\]\\]/g, String.raw`\$&`);
+	return lines.findIndex((line) => declaresMethod(line, handler));
 }
 
 interface FormViewerViewModel {
@@ -817,7 +818,7 @@ interface FormViewerViewModel {
 /** Реквизит объекта-владельца: имя, синоним и тип значения. */
 interface OwnerAttributeDto {
 	name?: string;
-	synonymRu?: string;
+	synonym?: string;
 	type?: { types?: string[] };
 }
 
@@ -829,7 +830,7 @@ interface OwnerStructureDto {
 	childSynonyms?: Record<string, string>;
 	tabularSections?: {
 		name?: string;
-		synonymRu?: string;
+		synonym?: string;
 		attributes?: OwnerAttributeDto[];
 		standardAttributeSynonyms?: Record<string, string>;
 	}[];
@@ -885,8 +886,8 @@ export function dataPathTitles(
 		return out;
 	}
 	for (const attribute of structure.attributes ?? []) {
-		if (attribute.name && attribute.synonymRu) {
-			out[`${mainAttribute}.${attribute.name}`] = attribute.synonymRu;
+		if (attribute.name && attribute.synonym) {
+			out[`${mainAttribute}.${attribute.name}`] = attribute.synonym;
 		}
 	}
 	for (const [name, synonym] of Object.entries(structure.childSynonyms ?? {})) {
@@ -899,15 +900,15 @@ export function dataPathTitles(
 		if (!section.name) {
 			continue;
 		}
-		if (section.synonymRu) {
-			out[`${mainAttribute}.${section.name}`] = section.synonymRu;
+		if (section.synonym) {
+			out[`${mainAttribute}.${section.name}`] = section.synonym;
 		}
 		for (const [name, synonym] of Object.entries(section.standardAttributeSynonyms ?? {})) {
 			out[`${mainAttribute}.${section.name}.${name}`] = synonym;
 		}
 		for (const column of section.attributes ?? []) {
-			if (column.name && column.synonymRu) {
-				out[`${mainAttribute}.${section.name}.${column.name}`] = column.synonymRu;
+			if (column.name && column.synonym) {
+				out[`${mainAttribute}.${section.name}.${column.name}`] = column.synonym;
 			}
 		}
 	}

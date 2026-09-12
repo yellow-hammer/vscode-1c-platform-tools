@@ -13,6 +13,7 @@ import * as os from 'node:os';
 import * as path from 'node:path';
 import * as vscode from 'vscode';
 import { configurationScope } from '../../shared/activeConfiguration';
+import type { SourceFormat } from '../../shared/projectLayout';
 import { VRunnerManager } from '../../shared/vrunnerManager';
 import { logger } from '../../shared/logger';
 import {
@@ -24,8 +25,8 @@ import {
 	runEdtCommand,
 } from './edtRunner';
 import { showValidationFindings } from './edtDiagnostics';
-import { buildCommand, detectShellType } from '../../utils/commandUtils';
-import { createVRunnerTask } from '../tasks/vrunnerTask';
+import { buildProcessCommand } from '../../utils/commandUtils';
+import { createVRunnerTask, TaskOutputChain } from '../tasks/vrunnerTask';
 import { ensureMdSparrowRuntime } from '../metadata/mdSparrowBootstrap';
 import { runMdSparrowParamsMutation } from '../metadata/mdSparrowParams';
 import { notifyQuiet } from '../../shared/notify';
@@ -47,6 +48,8 @@ interface EdtTarget {
 	projectName: string;
 	/** Каталог рабочей области EDT. */
 	workspaceDir: string;
+	/** Формат исходников активной конфигурации. */
+	format: SourceFormat;
 }
 
 /**
@@ -62,10 +65,7 @@ async function edtTarget(requireEdt = true): Promise<EdtTarget | undefined> {
 		return undefined;
 	}
 
-	const scope = await configurationScope(workspaceRoot, {
-		configuration: vrunner.getCfPath(),
-		extensions: [vrunner.getCfePath(), vrunner.getTestsCfePath()],
-	});
+	const scope = await configurationScope(workspaceRoot);
 	const configuration = scope.configuration;
 	if (!configuration) {
 		void vscode.window.showErrorMessage('В рабочей области нет исходников конфигурации.');
@@ -84,6 +84,7 @@ async function edtTarget(requireEdt = true): Promise<EdtTarget | undefined> {
 		projectDir: path.relative(workspaceRoot, configuration.dir) || '.',
 		projectName: edtProjectName(configuration.dir),
 		workspaceDir: edtWorkspaceDir(workspaceRoot, vrunner.getOutPath()),
+		format: configuration.format,
 	};
 }
 
@@ -100,9 +101,14 @@ export async function importToEdt(): Promise<void> {
 	if (!target) {
 		return;
 	}
+	if (target.format === 'edt') {
+		void vscode.window.showErrorMessage(
+			'Команда импортирует выгрузку конфигуратора, а активная конфигурация уже в формате 1С:EDT.'
+		);
+		return;
+	}
 
-	const vrunner = VRunnerManager.getInstance();
-	const sources = path.join(target.workspaceRoot, vrunner.getCfPath());
+	const sources = target.projectPath;
 	const projectName = await vscode.window.showInputBox({
 		title: 'Импорт в проект EDT',
 		prompt: 'Имя проекта EDT',
@@ -112,12 +118,14 @@ export async function importToEdt(): Promise<void> {
 		return;
 	}
 
+	const output = new TaskOutputChain();
 	const configurationImport = await runEdtCommand({
 		command: 'import',
 		args: ['--configuration-files', sources, '--project-name', projectName],
 		title: `EDT: импорт в проект ${projectName}`,
 		workspaceDir: target.workspaceDir,
 		cwd: target.workspaceRoot,
+		output,
 	});
 	if (configurationImport !== 0) {
 		return;
@@ -138,6 +146,7 @@ export async function importToEdt(): Promise<void> {
 			title: `EDT: импорт расширения ${extension.name}`,
 			workspaceDir: target.workspaceDir,
 			cwd: target.workspaceRoot,
+			output,
 		});
 	}
 }
@@ -220,12 +229,9 @@ async function exists(target: string): Promise<boolean> {
  * Каталоги расширений активной конфигурации с их именами из метаданных.
  */
 async function extensionSources(workspaceRoot: string): Promise<{ name: string; dir: string }[]> {
-	const vrunner = VRunnerManager.getInstance();
-	const scope = await configurationScope(workspaceRoot, {
-		configuration: vrunner.getCfPath(),
-		extensions: [vrunner.getCfePath(), vrunner.getTestsCfePath()],
-	});
-	return scope.extensions.map((extension) => ({
+	const scope = await configurationScope(workspaceRoot);
+	// Импортируется выгрузка: проект расширения EDT ею не является
+	return scope.extensions.filter((extension) => extension.format === 'designer').map((extension) => ({
 		name: extension.name || path.basename(extension.dir),
 		dir: extension.dir,
 	}));
@@ -251,7 +257,8 @@ export async function exportFromEdt(): Promise<void> {
 		return;
 	}
 
-	if ((await ensureProjectRegistered(target.projectPath, target.workspaceDir, target.workspaceRoot)) !== 0) {
+	const output = new TaskOutputChain();
+	if ((await ensureProjectRegistered(target.projectPath, target.workspaceDir, target.workspaceRoot, output)) !== 0) {
 		return;
 	}
 
@@ -261,6 +268,7 @@ export async function exportFromEdt(): Promise<void> {
 		title: `EDT: выгрузка ${target.projectName}`,
 		workspaceDir: target.workspaceDir,
 		cwd: target.workspaceRoot,
+		output,
 	});
 }
 
@@ -270,16 +278,23 @@ export async function exportFromEdt(): Promise<void> {
  * Результат пишется в TSV: файл открывается по завершении, чтобы ошибки было
  * видно сразу.
  */
-export async function validateEdtProject(): Promise<void> {
-	const target = await edtTarget();
-	if (!target) {
+export async function validateEdtProject(projectDir?: unknown): Promise<void> {
+	const base = await edtTarget();
+	if (!base) {
 		return;
 	}
+	const target = typeof projectDir === 'string' ? projectTarget(base, projectDir) : base;
 
 	const vrunner = VRunnerManager.getInstance();
 	const report = path.join(target.workspaceRoot, vrunner.getOutPath(), 'edt-validate.tsv');
 
-	if ((await ensureProjectRegistered(target.projectPath, target.workspaceDir, target.workspaceRoot)) !== 0) {
+	// Расширение проверяется вместе с расширяемой конфигурацией: без неё EDT его не разберёт
+	const output = new TaskOutputChain();
+	if (target.projectPath !== base.projectPath
+		&& (await ensureProjectRegistered(base.projectPath, base.workspaceDir, base.workspaceRoot, output)) !== 0) {
+		return;
+	}
+	if ((await ensureProjectRegistered(target.projectPath, target.workspaceDir, target.workspaceRoot, output)) !== 0) {
 		return;
 	}
 
@@ -293,10 +308,21 @@ export async function validateEdtProject(): Promise<void> {
 		title: `EDT: проверка ${target.projectName}`,
 		workspaceDir: target.workspaceDir,
 		cwd: target.workspaceRoot,
+		output,
 	});
 
 	// Замечания показываем в Problems: отчёт из проверки приходит таблицей
 	await showValidationFindings(report, target.projectPath);
+}
+
+/** Тот же проект рабочей области, но другой каталог: расширение или соседняя конфигурация. */
+function projectTarget(base: EdtTarget, projectPath: string): EdtTarget {
+	return {
+		...base,
+		projectPath,
+		projectDir: path.relative(base.workspaceRoot, projectPath) || '.',
+		projectName: edtProjectName(projectPath),
+	};
 }
 
 /**
@@ -385,7 +411,7 @@ export async function openInEdt(): Promise<void> {
 	// Задача живёт, пока открыта сама EDT: закрытие редактора завершает и её
 	const task = createVRunnerTask({
 		name: `EDT ${installation.version}`,
-		command: buildCommand(installation.gui, ['-data', target.workspaceDir], detectShellType()),
+		command: buildProcessCommand(installation.gui, ['-data', target.workspaceDir]),
 		cwd: target.workspaceRoot,
 		definition: { type: '1c-edt', command: 'open' },
 	});

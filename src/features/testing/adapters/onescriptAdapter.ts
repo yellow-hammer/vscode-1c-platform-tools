@@ -45,9 +45,9 @@ export class OneScriptAdapter implements TestFrameworkAdapter {
 
 	constructor(private readonly vrunner: VRunnerManager) {}
 
-	public isEnabled(): boolean {
-		// Конфликта с xUnit нет: .os-файлы — всегда OneScript,
-		// тесты xUnit для 1С — внешние обработки (исходники в <path.tests>/epf)
+	public async isEnabled(): Promise<boolean> {
+		// Конфликта с xUnit нет: .os-файлы всегда OneScript,
+		// тесты xUnit для 1С это внешние обработки
 		const config = vscode.workspace.getConfiguration('1c-platform-tools');
 		return config.get<boolean>('test.frameworks.onescript', true);
 	}

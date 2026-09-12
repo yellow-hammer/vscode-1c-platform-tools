@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<MetaDataObject xmlns="http://v8.1c.ru/8.3/MDClasses" xmlns:v8="http://v8.1c.ru/8.1/data/core" xmlns:xr="http://v8.1c.ru/8.3/xcf/readable" version="2.9">
+	<Configuration uuid="8d2e6b7a-45c3-4f19-b6a8-1c9e0d4f7a22">
+		<Properties>
+			<Name>Вложенное</Name>
+			<Synonym>
+				<v8:item>
+					<v8:lang>ru</v8:lang>
+					<v8:content>Вложенное</v8:content>
+				</v8:item>
+			</Synonym>
+			<Comment/>
+			<ConfigurationExtensionPurpose>Customization</ConfigurationExtensionPurpose>
+			<ObjectBelonging>Adopted</ObjectBelonging>
+			<NamePrefix>Влж_</NamePrefix>
+			<DefaultRunMode>ManagedApplication</DefaultRunMode>
+			<ScriptVariant>Russian</ScriptVariant>
+		</Properties>
+		<ChildObjects/>
+	</Configuration>
+</MetaDataObject>

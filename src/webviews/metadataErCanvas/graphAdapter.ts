@@ -14,7 +14,7 @@ interface MdNodeData extends NodeDataDefinition {
 	readonly nodeKind: 'md';
 	readonly objectType: string;
 	readonly name: string;
-	readonly synonymRu: string;
+	readonly synonym: string;
 	readonly sourceId: string;
 	readonly relativePath: string;
 	readonly partial: boolean;
@@ -52,8 +52,8 @@ function nodeLabel(node: ErNode, opts: NodeLabelOptions): string {
 	if (opts.showName) {
 		lines.push(node.name);
 	}
-	if (opts.showSynonym && node.synonymRu) {
-		lines.push(node.synonymRu);
+	if (opts.showSynonym && node.synonym) {
+		lines.push(node.synonym);
 	}
 	return lines.join('\n') || node.name;
 }
@@ -159,7 +159,7 @@ export function toCytoscapeElements(
 			nodeKind: 'md',
 			objectType: node.objectType,
 			name: node.name,
-			synonymRu: node.synonymRu,
+			synonym: node.synonym,
 			sourceId: node.sourceId,
 			relativePath: node.relativePath,
 			partial: node.partial,

@@ -13,7 +13,7 @@ import type { MetadataEditField, MetadataEditGroup, MetadataEditTabSpec } from '
 /** Узел состава в плоском виде: спека работает с ним, а не с местом в массиве DTO. */
 export interface ChildNodeDto extends Record<string, unknown> {
 	name: string;
-	synonymRu?: string;
+	synonym?: string;
 	comment?: string;
 	/** Принадлежность в расширении: заимствованный узел приходит как Adopted. */
 	objectBelonging?: string;
@@ -32,7 +32,7 @@ export interface ChildNodeDto extends Record<string, unknown> {
 	typeFractionDigits?: string;
 	typeAllowedSign?: string;
 	typeDateFractions?: string;
-	toolTipRu?: string;
+	toolTip?: string;
 	fillChecking?: string;
 	indexing?: string;
 	fullTextSearch?: string;
@@ -59,7 +59,7 @@ const PALETTE_FIELDS: readonly {
 	control: 'text' | 'select';
 	readonly?: boolean;
 }[] = [
-	{ path: 'toolTipRu', label: 'Подсказка', control: 'text' },
+	{ path: 'toolTip', label: 'Подсказка', control: 'text' },
 	{ path: 'fillChecking', label: 'Проверка заполнения', control: 'select' },
 	{ path: 'indexing', label: 'Индексирование', control: 'select' },
 	{ path: 'fullTextSearch', label: 'Полнотекстовый поиск', control: 'select' },
@@ -171,7 +171,7 @@ export function childNodeTabs(
 	const present = new Set(childNodePaletteFields(node));
 	const main: MetadataEditField[] = [
 		{ path: 'name', label: 'Имя', control: 'text' as const, readonly: true },
-		{ path: 'synonymRu', label: 'Синоним', control: 'text' as const },
+		{ path: 'synonym', label: 'Синоним', control: 'text' as const },
 		{ path: 'comment', label: 'Комментарий', control: 'text' as const },
 	];
 	if (node?.typeSingle !== undefined) {
@@ -256,7 +256,7 @@ function nodeFrom(
 	const types = typeList(found.type);
 	const node: ChildNodeDto = {
 		name,
-		synonymRu: typeof found.synonymRu === 'string' ? found.synonymRu : '',
+		synonym: typeof found.synonym === 'string' ? found.synonym : '',
 		comment: typeof found.comment === 'string' ? found.comment : '',
 	};
 	if (typeof found.objectBelonging === 'string') {
@@ -460,7 +460,7 @@ export function applyChildNodeEdits(
 		return undefined;
 	}
 	const writable = PALETTE_FIELDS.filter((field) => !field.readonly).map((field) => field.path);
-	for (const key of ['synonymRu', 'comment', ...writable]) {
+	for (const key of ['synonym', 'comment', ...writable]) {
 		if (edits[key] !== undefined) {
 			found[key] = edits[key];
 		}

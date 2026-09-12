@@ -17,8 +17,10 @@ const CONFIGURATION_NAME_REGEX = /<Name>([^<]*)<\/Name>/;
 const CONFIGURATION_VENDOR_REGEX = /<Vendor>([^<]*)<\/Vendor>/;
 /** Регулярное выражение для извлечения режима совместимости (CompatibilityMode), например Version8_3_27 */
 const COMPATIBILITY_MODE_REGEX = /<CompatibilityMode>Version(\d+)_(\d+)/;
-/** Регулярное выражение для извлечения синонима (ru) конфигурации из первого блока Synonym */
+/** Синоним конфигурации на русском из первого блока Synonym */
 const SYNONYM_RU_REGEX = /<Synonym>[\s\S]*?<v8:lang>ru<\/v8:lang>\s*<v8:content>([^<]*)<\/v8:content>/;
+/** Синоним на первом записанном языке: у конфигурации не на русском русской строки нет */
+const SYNONYM_ANY_REGEX = /<Synonym>\s*<v8:item>\s*<v8:lang>[^<]*<\/v8:lang>\s*<v8:content>([^<]*)<\/v8:content>/;
 
 /** Те же свойства в описании проекта EDT: имена со строчной буквы, режим совместимости номером версии. */
 const EDT_VERSION_REGEX = /<version>([^<]*)<\/version>/;
@@ -26,6 +28,7 @@ const EDT_NAME_REGEX = /<name>([^<]*)<\/name>/;
 const EDT_VENDOR_REGEX = /<vendor>([^<]*)<\/vendor>/;
 const EDT_COMPATIBILITY_MODE_REGEX = /<compatibilityMode>(\d+)\.(\d+)/;
 const EDT_SYNONYM_RU_REGEX = /<synonym>\s*<key>ru<\/key>\s*<value>([^<]*)<\/value>/;
+const EDT_SYNONYM_ANY_REGEX = /<synonym>\s*<key>[^<]*<\/key>\s*<value>([^<]*)<\/value>/;
 
 /** Значение первой группы либо пустая строка. */
 function group(regex: RegExp, content: string): string {
@@ -66,21 +69,21 @@ export async function readConfigurationVersion(configurationXmlPath: string): Pr
 /**
  * Свойства конфигурации для подстановки в описание комплекта поставки (1cv8.mft, edf).
  * appVersion формируется из CompatibilityMode (первые две цифры версии, например 8.3).
- * synonymRu — синоним конфигурации (ru) из Configuration/Properties/Synonym.
+ * synonym - подпись конфигурации: русская строка, иначе первая записанная, иначе имя.
  */
 export interface ConfigurationDeliveryProperties {
 	version: string;
 	name: string;
 	vendor: string;
 	appVersion: string;
-	synonymRu: string;
+	synonym: string;
 }
 
 /**
- * Читает из Configuration.xml свойства для описания комплекта поставки (Version, Name, Vendor, AppVersion, SynonymRu).
+ * Читает из Configuration.xml свойства для описания комплекта поставки (Version, Name, Vendor, AppVersion, Synonym).
  * AppVersion берётся из CompatibilityMode (первые две цифры, например Version8_3_27 → 8.3).
  * @param configurationXmlPath - Полный путь к Configuration.xml
- * @returns Промис с объектом { version, name, vendor, appVersion, synonymRu }; при ошибке чтения — undefined
+ * @returns Промис с объектом { version, name, vendor, appVersion, synonym }; при ошибке чтения — undefined
  */
 export async function readConfigurationDeliveryProperties(
 	configurationXmlPath: string
@@ -99,7 +102,10 @@ export async function readConfigurationDeliveryProperties(
 			name,
 			vendor: unescapeXml(group(edt ? EDT_VENDOR_REGEX : CONFIGURATION_VENDOR_REGEX, content)) || '1C',
 			appVersion,
-			synonymRu: unescapeXml(group(edt ? EDT_SYNONYM_RU_REGEX : SYNONYM_RU_REGEX, content)) || name
+			synonym:
+				unescapeXml(group(edt ? EDT_SYNONYM_RU_REGEX : SYNONYM_RU_REGEX, content)) ||
+				unescapeXml(group(edt ? EDT_SYNONYM_ANY_REGEX : SYNONYM_ANY_REGEX, content)) ||
+				name
 		};
 	} catch {
 		return undefined;

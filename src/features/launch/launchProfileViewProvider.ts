@@ -77,10 +77,7 @@ export class LaunchProfileViewProvider implements vscode.TreeDataProvider<vscode
 		const workspaceRoot = this.vrunner.getWorkspaceRoot();
 		let project: string | undefined;
 		if (workspaceRoot) {
-			const scope = await configurationScope(workspaceRoot, {
-				configuration: this.vrunner.getCfPath(),
-				extensions: [this.vrunner.getCfePath(), this.vrunner.getTestsCfePath()],
-			});
+			const scope = await configurationScope(workspaceRoot);
 			project = scope.configuration?.format === 'edt' ? edtProjectName(scope.configuration.dir) : undefined;
 		}
 		if (project !== this.edtProject) {

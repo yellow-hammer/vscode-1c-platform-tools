@@ -12,7 +12,7 @@ const tabs: MetadataEditTabSpec[] = [
 				title: 'Основные',
 				fields: [
 					{ path: 'internalName', label: 'Имя', control: 'text' },
-					{ path: 'synonymRu', label: 'Синоним', control: 'text' },
+					{ path: 'synonym', label: 'Синоним', control: 'text' },
 					{ path: 'catalog.hierarchical', label: 'Иерархический', control: 'check' },
 					{ path: 'catalog.codeLength', label: 'Длина кода', control: 'number' },
 					{
@@ -55,7 +55,7 @@ const tabs: MetadataEditTabSpec[] = [
 
 const dto = {
 	internalName: 'Валюты',
-	synonymRu: 'Валюты',
+	synonym: 'Валюты',
 	catalog: {
 		hierarchical: false,
 		codeLength: 9,
@@ -117,13 +117,13 @@ suite('Палитра свойств по спецификации', () => {
 
 	test('правки ложатся в DTO с типом поля', () => {
 		const next = applyPaletteEdits(dto, tabs, {
-			synonymRu: 'Валюты мира',
+			synonym: 'Валюты мира',
 			'catalog.hierarchical': 'true',
 			'catalog.codeLength': '11',
 			'catalog.choiceMode': 'FROM_FORM',
 		}) as typeof dto;
 
-		assert.strictEqual(next.synonymRu, 'Валюты мира');
+		assert.strictEqual(next.synonym, 'Валюты мира');
 		assert.strictEqual(next.catalog.hierarchical, true, 'флажок ложится булевым');
 		assert.strictEqual(next.catalog.codeLength, 11, 'число ложится числом');
 		assert.strictEqual(next.catalog.choiceMode, 'FROM_FORM');
@@ -147,7 +147,7 @@ suite('Палитра свойств конфигурации', () => {
 	test('свойства конфигурации разложены по группам и правятся', () => {
 		const groups = paletteGroupsFromSpec(SOURCE_PROPERTIES_TABS, {
 			name: 'УправлениеТорговлей',
-			synonymRu: 'Управление торговлей',
+			synonym: 'Управление торговлей',
 			vendor: 'ООО',
 			compatibilityMode: 'VERSION_8_3_21',
 			managedApplicationModule: 'Module.bsl',

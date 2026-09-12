@@ -8,18 +8,18 @@ import type { CommandExecutionOptions, StructuredCommandResult } from './command
 import { commandSupportsWait, isCommandExposedToMcp } from './mcpCommandPolicy';
 import { agentCommandDescription } from './agentCommandDescriptions';
 import { readManifestCommands } from './commandCatalog';
-import { extractCommandFlags, isProjectPathInWorkspace } from './ipcRequest';
+import { extractCommandFlags, isProjectPathInWorkspace, resolveProjectPath } from './ipcRequest';
 
 const log = logger.scope('ipc');
 
-interface IpcRequest {
+export interface IpcRequest {
 	id: unknown;
 	method: unknown;
 	params?: unknown;
 	token?: unknown;
 }
 
-interface IpcExecuteCommandParams {
+export interface IpcExecuteCommandParams {
 	commandId?: unknown;
 	args?: unknown;
 	projectPath?: unknown;
@@ -115,18 +115,8 @@ async function handleExecuteCommandSync(
 	const startMs = Date.now();
 
 	try {
-		const optsForCommand: CommandExecutionOptions = {
-			wait: true,
-			projectPath,
-			settingsFile: flags.settingsFile,
-			ibConnection: flags.ibConnection,
-			sha: flags.sha,
-			extensions: flags.extensions,
-			frameworks: flags.frameworks,
-			profile: flags.profile,
-			execute: flags.execute,
-			command: flags.command,
-		};
+		// Команде уходят все присланные опции: канал владеет только ожиданием и корнем проекта
+		const optsForCommand: CommandExecutionOptions = { ...flags, wait: true, projectPath };
 		const manager = VRunnerManager.getInstance();
 		const rawResult = projectPath
 			? await manager.runWithProjectRoot(projectPath, async () => vscode.commands.executeCommand(commandId, optsForCommand))
@@ -191,7 +181,14 @@ async function handleExecuteCommandSync(
 	}
 }
 
-async function handleExecuteCommand(
+/**
+ * Обрабатывает запрос на исполнение команды.
+ *
+ * @param request - Запрос канала
+ * @param params - Идентификатор команды и её аргументы
+ * @returns Ответ канала: результат команды либо отказ
+ */
+export async function handleExecuteCommand(
 	request: IpcRequest,
 	params: IpcExecuteCommandParams
 ): Promise<IpcResponse> {
@@ -207,16 +204,45 @@ async function handleExecuteCommand(
 		};
 	}
 
+	// Канал исполняет только то, что сам и перечисляет: иначе по нему доступна
+	// любая команда редактора, включая чужих расширений
+	if (!isCommandExposedToMcp(params.commandId)) {
+		log.warn(`Команда не опубликована агенту, исполнение отклонено: ${params.commandId}`);
+		return {
+			...base,
+			error: {
+				message: `Команда ${params.commandId} не публикуется агенту`,
+				code: 'COMMAND_NOT_EXPOSED',
+			},
+		};
+	}
+
 	const args = Array.isArray(params.args) ? params.args : [];
 	const flags = extractCommandFlags(args);
 
-	const expectedProjectPath =
+	const requestedProjectPath =
 		typeof params.projectPath === 'string' && params.projectPath.trim() !== ''
-			? params.projectPath
+			? params.projectPath.trim()
 			: undefined;
 
 	const workspaceFolders = vscode.workspace.workspaceFolders ?? [];
 	const workspaceRoots = workspaceFolders.map((folder) => folder.uri.fsPath);
+
+	// Относительный корень проекта считается от рабочей области: иначе команды искали бы
+	// исходники от каталога процесса редактора
+	const expectedProjectPath = requestedProjectPath
+		? resolveProjectPath(requestedProjectPath, workspaceRoots)
+		: undefined;
+	if (requestedProjectPath && !expectedProjectPath) {
+		return {
+			...base,
+			error: {
+				message: 'Относительный projectPath не к чему привязать: рабочая область не открыта',
+				code: 'INVALID_PROJECT_PATH',
+				details: { projectPath: requestedProjectPath },
+			},
+		};
+	}
 
 	if (
 		expectedProjectPath &&
@@ -463,6 +489,9 @@ function listenServer(server: net.Server, config: IpcServerConfig): void {
 
 	server.listen(config.port, config.host, () => {
 		log.info(`сервер запущен на ${config.host}:${config.port}`);
+		if (config.token === null) {
+			log.warn('токен не задан: команды примет любой процесс этой машины, задайте 1c-platform-tools.ipc.token');
+		}
 	});
 }
 

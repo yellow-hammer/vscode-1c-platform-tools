@@ -3,26 +3,38 @@ import * as vscode from 'vscode';
 import * as fs from 'node:fs/promises';
 import { VRunnerManager, type VRunnerExecutionResult } from '../shared/vrunnerManager';
 import type { VRunnerIntent } from '../shared/vrunnerCli';
-import type { SourceFormat } from '../shared/projectLayout';
+import { enclosingEdtProject, resolveProjectLayout, rootOfDirectory, type SourceFormat } from '../shared/projectLayout';
 import { logger } from '../shared/logger';
 import { runWithHooks, runHooksAroundTerminalTask } from '../shared/commandHooks';
 import { anyNeedsExclusiveInfobase, infobaseHolder, keepsInfobaseAfterRun } from '../shared/exclusiveInfobase';
 import { configurationScope } from '../shared/activeConfiguration';
+import { CONVENTIONAL_PATHS, projectPaths, type ProjectPaths } from '../shared/projectPaths';
 import {
+	edtBaseProjectOf,
 	edtExternalProjectsOf,
 	edtToolingRefusal,
 	intentSourcePath,
 	planEdtBridge,
-	samePath,
 	sourceFormatOfDirectory,
+	type EdtBaseLookup,
 	type EdtExportStep,
 	type EdtImportStep,
 } from '../features/edt/edtSourceBridge';
-import { runEdtExports, runEdtImports } from '../features/edt/edtBridgeRunner';
+import { runEdtExports, runEdtImports, type EdtBridgeContext } from '../features/edt/edtBridgeRunner';
+import { TaskOutputChain } from '../features/tasks/vrunnerTask';
+import { edtProjectName, edtStagingRoot } from '../features/edt/edtRunner';
 import { notifyQuiet } from '../shared/notify';
 import type { CommandExecutionOptions, StructuredCommandResult } from '../shared/commandExecutionTypes';
 
+/** Ответ команд, которым нужен исходный код конфигурации, а его в рабочей области нет. */
+export const NO_CONFIGURATION_SOURCES =
+	'Исходный код конфигурации в рабочей области не найден: нужен Configuration.xml выгрузки конфигуратора или проект EDT.';
+
 const log = logger.scope('commands');
+
+/** Команда есть только у выгрузки конфигуратора: дерево команд её у проекта EDT не показывает. */
+const DESIGNER_ONLY_COMMAND =
+	'Команда работает только с выгрузкой конфигуратора, а активная конфигурация в формате 1С:EDT.';
 
 /** Команда не начинается, пока базу держит чужой процесс. */
 export const INFOBASE_BUSY = 'Информационная база занята: команда не запущена.';
@@ -368,12 +380,12 @@ export abstract class BaseCommand {
 		const notices = this.vrunner.consumePlanNotices();
 		if (steps.length === 1) {
 			return this.appendNotices(
-				await this.runVRunner(steps[0], opts, terminalName, artifact, commandId, true, onComplete),
+				await this.runVRunner(steps[0], opts, terminalName, artifact, commandId, true, onComplete, bridged.output),
 				notices
 			);
 		}
 		return this.appendNotices(
-			await this.runVRunnerSequential(steps, opts, terminalName, commandId, true, onComplete),
+			await this.runVRunnerSequential(steps, opts, terminalName, commandId, true, onComplete, bridged.output),
 			notices
 		);
 	}
@@ -435,15 +447,6 @@ export abstract class BaseCommand {
 	}
 
 	/**
-	 * Каталог исходников конфигурации, с которой работают команды.
-	 *
-	 * В формате конфигуратора это настроенный каталог, в формате EDT - каталог
-	 * проекта: раннер сам разбирается, что внутри. Настройка остаётся запасным
-	 * вариантом, пока автоопределение не нашло исходников.
-	 *
-	 * @returns Путь относительно рабочей области
-	 */
-	/**
 	 * Проводит намерения через проект 1С:EDT.
 	 *
 	 * Исходники проекта EDT раннер не читает: перед командой проект выгружается
@@ -452,15 +455,20 @@ export abstract class BaseCommand {
 	 *
 	 * @param intents - Что собирались запустить
 	 * @param opts - Опции выполнения
-	 * @returns Намерения над выгрузкой и импорт после команды; результат-ошибку в
-	 *          режиме wait либо 'blocked' после показа сообщения
+	 * @returns Намерения над выгрузкой, импорт после команды и общий терминал
+	 *          шагов; результат-ошибку в режиме wait либо 'blocked' после показа
+	 *          сообщения
 	 */
 	private async bridgeEdt(
 		intents: readonly VRunnerIntent[],
 		opts?: CommandExecutionOptions
-	): Promise<{ intents: VRunnerIntent[]; after?: () => Promise<void> } | StructuredCommandResult | 'blocked'> {
+	): Promise<
+		| { intents: VRunnerIntent[]; after?: () => Promise<void>; output?: TaskOutputChain }
+		| StructuredCommandResult
+		| 'blocked'
+	> {
 		const workspaceRoot = this.vrunner.getWorkspaceRoot();
-		const buildDir = this.vrunner.getOutPath();
+		const buildDir = workspaceRoot ? edtStagingRoot(workspaceRoot, this.vrunner.getOutPath()) : this.vrunner.getOutPath();
 		const rewritten: VRunnerIntent[] = [];
 		const exports: EdtExportStep[] = [];
 		const imports: EdtImportStep[] = [];
@@ -492,14 +500,45 @@ export abstract class BaseCommand {
 		if (workspaceRoot === undefined || (exports.length === 0 && imports.length === 0)) {
 			return { intents: rewritten };
 		}
-		const context = { workspaceRoot, buildDir, baseProjectDir: await this.activeEdtProjectDir() };
-		if (!(await runEdtExports(exports, context))) {
+		// Базовый проект у каждого шага свой: расширение чужой конфигурации к активной не относится
+		const baseOf = await this.edtBaseProjectResolver(workspaceRoot);
+		// Шаги моста и команда раннера пишут в один терминал подряд, не стирая друг друга
+		const output = new TaskOutputChain();
+		const context: EdtBridgeContext = { workspaceRoot, buildDir, output };
+		const withBase = exports.map((step) =>
+			'projectDir' in step ? { ...step, baseProjectDir: baseOf(step.projectDir) } : step
+		);
+		if (!(await runEdtExports(withBase, context))) {
 			const reported = await this.reportUnavailable('Выгрузка проекта 1С:EDT не удалась, команда не запущена.', opts);
 			return reported ?? 'blocked';
 		}
+		const owned = imports.map((step) => ({ ...step, baseProjectDir: baseOf(step.projectDir) }));
 		return {
 			intents: rewritten,
-			after: imports.length > 0 ? () => runEdtImports(imports, context) : undefined,
+			after: owned.length > 0 ? () => runEdtImports(owned, context) : undefined,
+			output,
+		};
+	}
+
+	/**
+	 * Базовый проект для проекта EDT: по манифесту проекта или по его имени среди
+	 * конфигураций рабочей области, иначе проект активной конфигурации.
+	 *
+	 * @returns Каталог базового проекта относительно рабочей области по каталогу проекта
+	 */
+	protected async edtBaseProjectResolver(workspaceRoot: string): Promise<(projectDir: string) => string | undefined> {
+		const layout = await resolveProjectLayout(workspaceRoot);
+		const lookup: EdtBaseLookup = {
+			configurations: [...(layout.configuration ? [layout.configuration] : []), ...layout.others]
+				.filter((root) => root.format === 'edt')
+				.map((root) => root.dir),
+			projectName: edtProjectName,
+			active: await this.activeEdtProjectDir(),
+		};
+		const relative = (dir: string) => path.relative(workspaceRoot, dir).split(path.sep).join('/') || '.';
+		return (projectDir) => {
+			const base = edtBaseProjectOf(path.resolve(workspaceRoot, projectDir), lookup);
+			return base === undefined ? undefined : relative(base);
 		};
 	}
 
@@ -509,10 +548,7 @@ export abstract class BaseCommand {
 		if (!workspaceRoot) {
 			return undefined;
 		}
-		const scope = await configurationScope(workspaceRoot, {
-			configuration: this.vrunner.getCfPath(),
-			extensions: [this.vrunner.getCfePath(), this.vrunner.getTestsCfePath()],
-		});
+		const scope = await configurationScope(workspaceRoot);
 		return scope.configuration?.format === 'edt' ? scope.configuration.dir : undefined;
 	}
 
@@ -528,24 +564,26 @@ export abstract class BaseCommand {
 		if (!workspaceRoot) {
 			return undefined;
 		}
-		const scope = await configurationScope(workspaceRoot, {
-			configuration: this.vrunner.getCfPath(),
-			extensions: [this.vrunner.getCfePath(), this.vrunner.getTestsCfePath()],
-		});
+		const scope = await configurationScope(workspaceRoot);
 
 		const relative = (dir: string) => path.relative(workspaceRoot, dir).split(path.sep).join('/');
 		const wanted = intentSourcePath(intent);
-		const roots = [scope.configuration, ...scope.extensions];
-		for (const root of roots) {
-			if (root && wanted && samePath(relative(root.dir), wanted)) {
+		if (wanted) {
+			// Путь внутри корня раскладки ведёт к самому корню: у проекта EDT команда
+			// работает с каталогом проекта, а не с его src
+			const absolute = path.resolve(workspaceRoot, wanted);
+			const root = rootOfDirectory(await resolveProjectLayout(workspaceRoot), absolute);
+			if (root) {
 				return { format: root.format, dir: relative(root.dir) || undefined };
 			}
-		}
-		// Путь есть, но это не конфигурация и не расширение: формат смотрим по
-		// самому каталогу. Пустой или ещё не созданный каталог, куда команда
-		// только разложит результат, наследует формат активной конфигурации
-		if (wanted) {
-			const format = sourceFormatOfDirectory(path.resolve(workspaceRoot, wanted)) ?? scope.configuration?.format;
+			const project = enclosingEdtProject(workspaceRoot, absolute);
+			if (project) {
+				return { format: 'edt', dir: relative(project) || undefined };
+			}
+			// Путь вне корней: формат смотрим по самому каталогу. Пустой или ещё не
+			// созданный каталог, куда команда только разложит результат, наследует
+			// формат активной конфигурации
+			const format = sourceFormatOfDirectory(absolute) ?? scope.configuration?.format;
 			return format ? { format, dir: wanted } : undefined;
 		}
 		return scope.configuration
@@ -553,22 +591,68 @@ export abstract class BaseCommand {
 			: undefined;
 	}
 
-	protected async activeCfPath(): Promise<string> {
+	/**
+	 * Отказ команды, у которой на проекте 1С:EDT нет дела: списки объектов,
+	 * приращения и файлы версий существуют только у выгрузки конфигуратора.
+	 *
+	 * @returns Результат-ошибку в режиме wait либо undefined после сообщения в UI;
+	 *          null, когда конфигурация в формате конфигуратора и команда идёт дальше
+	 */
+	protected async refuseEdtConfiguration(
+		opts?: CommandExecutionOptions
+	): Promise<StructuredCommandResult | void | null> {
+		if ((await this.paths())?.configuration?.format !== 'edt') {
+			return null;
+		}
+		return this.reportUnavailable(DESIGNER_ONLY_COMMAND, opts);
+	}
+
+	protected async activeCfPath(): Promise<string | undefined> {
+		return (await this.paths())?.configuration?.dir;
+	}
+
+	/**
+	 * Исходный код активной конфигурации; без него команда отвечает сообщением.
+	 *
+	 * @returns Каталог относительно рабочей области, результат агенту либо undefined после сообщения в UI
+	 */
+	protected async requireCfPath(opts?: CommandExecutionOptions): Promise<string | StructuredCommandResult | undefined> {
+		const dir = await this.activeCfPath();
+		if (dir !== undefined) {
+			return dir;
+		}
+		return (await this.reportUnavailable(NO_CONFIGURATION_SOURCES, opts)) ?? undefined;
+	}
+
+	/** Пути раскладки рабочей области; undefined без рабочей области. */
+	protected async paths(): Promise<ProjectPaths | undefined> {
 		const workspaceRoot = this.vrunner.getWorkspaceRoot();
-		if (!workspaceRoot) {
-			return this.vrunner.getCfPath();
-		}
+		return workspaceRoot ? projectPaths(workspaceRoot) : undefined;
+	}
 
-		const scope = await configurationScope(workspaceRoot, {
-			configuration: this.vrunner.getCfPath(),
-			extensions: [this.vrunner.getCfePath(), this.vrunner.getTestsCfePath()],
-		});
-		if (!scope.configuration) {
-			return this.vrunner.getCfPath();
-		}
+	/** Каталог расширений выгрузки конфигуратора либо привычное место, когда их ещё нет. */
+	protected async extensionsContainer(): Promise<string> {
+		return (await this.paths())?.extensionsContainer ?? CONVENTIONAL_PATHS.cfe;
+	}
 
-		const relative = path.relative(workspaceRoot, scope.configuration.dir).split(path.sep).join('/');
-		return relative.length > 0 ? relative : this.vrunner.getCfPath();
+	/** Каталог тестовых расширений либо привычное место, когда их ещё нет. */
+	protected async testExtensionsContainer(): Promise<string> {
+		return (await this.paths())?.testExtensionsContainer ?? CONVENTIONAL_PATHS.testsCfe;
+	}
+
+	/** Каталог внешних обработок либо привычное место, когда их ещё нет. */
+	protected async processorsContainer(): Promise<string> {
+		return (await this.paths())?.processorsContainer ?? CONVENTIONAL_PATHS.epf;
+	}
+
+	/** Каталог внешних отчётов либо привычное место, когда их ещё нет. */
+	protected async reportsContainer(): Promise<string> {
+		return (await this.paths())?.reportsContainer ?? CONVENTIONAL_PATHS.erf;
+	}
+
+	/** Каталог тестовых обработок либо привычное место, когда их ещё нет. */
+	protected async testProcessorsContainer(): Promise<string> {
+		return (await this.paths())?.testProcessorsContainer ?? CONVENTIONAL_PATHS.testsEpf;
 	}
 
 	/**
@@ -582,10 +666,7 @@ export abstract class BaseCommand {
 			return [];
 		}
 
-		const scope = await configurationScope(workspaceRoot, {
-			configuration: this.vrunner.getCfPath(),
-			extensions: [this.vrunner.getCfePath(), this.vrunner.getTestsCfePath()],
-		});
+		const scope = await configurationScope(workspaceRoot);
 		return scope.extensions.map((extension) => ({
 			name: extension.name,
 			dir: path.relative(workspaceRoot, extension.dir).split(path.sep).join('/'),
@@ -681,11 +762,12 @@ export abstract class BaseCommand {
 			return;
 		}
 		const onComplete = composeCompletion(window.restore, bridged.after);
+		const runOptions = { ...options, output: bridged.output };
 		if (!onComplete) {
-			await this.vrunner.executeVRunnerCommandsInSequence(argsList, options);
+			await this.vrunner.executeVRunnerCommandsInSequence(argsList, runOptions);
 			return;
 		}
-		void this.vrunner.executeVRunnerTaskSequenceAndWait(argsList, options)
+		void this.vrunner.executeVRunnerTaskSequenceAndWait(argsList, runOptions)
 			.catch((error) => log.error(`Ошибка запуска команды: ${(error as Error).message}`))
 			.finally(() => void onComplete());
 	}
@@ -718,7 +800,7 @@ export abstract class BaseCommand {
 		const steps = await this.vrunner.planIntents(bridged.intents, opts?.settingsFile, opts?.ibConnection);
 		const notices = this.vrunner.consumePlanNotices();
 		return this.appendNotices(
-			await this.runVRunnerSequential(steps, opts, terminalName, commandId, true, onComplete),
+			await this.runVRunnerSequential(steps, opts, terminalName, commandId, true, onComplete, bridged.output),
 			notices
 		);
 	}
@@ -747,6 +829,7 @@ export abstract class BaseCommand {
 	 *
 	 * @param planned - true, если args — финальный план интента (параметры
 	 *                  профиля уже добавлены адаптером, повторно не дописывать)
+	 * @param output - Общий терминал с шагами, которые прошли до команды
 	 */
 	protected async runVRunner(
 		args: string[],
@@ -755,7 +838,8 @@ export abstract class BaseCommand {
 		artifact?: string,
 		commandId?: string,
 		planned = false,
-		onComplete?: () => Promise<void>
+		onComplete?: () => Promise<void>,
+		output?: TaskOutputChain
 	): Promise<StructuredCommandResult | void> {
 		const cwd = this.getExecutionCwd(opts);
 		if (!cwd) {
@@ -792,21 +876,22 @@ export abstract class BaseCommand {
 			}
 		}
 
+		const runOptions = { cwd, name: terminalName, appendOverrides, output };
 		if (commandId) {
 			void runHooksAroundTerminalTask({
 				commandId, cwd, args, workspaceRoot,
 				trackCompletion: onComplete !== undefined,
-				runTracked: () => this.vrunner.executeVRunnerTaskAndWait(args, { cwd, name: terminalName, appendOverrides }),
-				runUntracked: () => this.vrunner.executeVRunnerInTerminal(args, { cwd, name: terminalName, appendOverrides }),
+				runTracked: () => this.vrunner.executeVRunnerTaskAndWait(args, runOptions),
+				runUntracked: () => this.vrunner.executeVRunnerInTerminal(args, runOptions),
 			})
 				.catch((err) => log.error(`Ошибка хуков команды: ${(err as Error).message}`))
 				.finally(() => void onComplete?.());
 		} else if (onComplete) {
-			void this.vrunner.executeVRunnerTaskAndWait(args, { cwd, name: terminalName, appendOverrides })
+			void this.vrunner.executeVRunnerTaskAndWait(args, runOptions)
 				.catch((err) => log.error(`Ошибка запуска команды: ${(err as Error).message}`))
 				.finally(() => void onComplete());
 		} else {
-			this.vrunner.executeVRunnerInTerminal(args, { cwd, name: terminalName, appendOverrides });
+			this.vrunner.executeVRunnerInTerminal(args, runOptions);
 		}
 	}
 
@@ -820,7 +905,8 @@ export abstract class BaseCommand {
 		terminalName: string,
 		commandId?: string,
 		planned = false,
-		onComplete?: () => Promise<void>
+		onComplete?: () => Promise<void>,
+		output?: TaskOutputChain
 	): Promise<StructuredCommandResult | void> {
 		const cwd = this.getExecutionCwd(opts);
 		if (!cwd) {
@@ -874,21 +960,22 @@ export abstract class BaseCommand {
 		// Объединяем в одну цепочку (&& / ; — в зависимости от оболочки),
 		// чтобы каждая следующая команда стартовала после реального завершения
 		// предыдущей, а не по факту попадания в input-буфер терминала.
+		const runOptions = { cwd, name: terminalName, appendOverrides, output };
 		if (commandId) {
 			void runHooksAroundTerminalTask({
 				commandId, cwd, args: flatArgs, workspaceRoot,
 				trackCompletion: onComplete !== undefined,
-				runTracked: () => this.vrunner.executeVRunnerTaskSequenceAndWait(argsList, { cwd, name: terminalName, appendOverrides }),
-				runUntracked: () => this.vrunner.executeVRunnerCommandsInSequence(argsList, { cwd, name: terminalName, appendOverrides }),
+				runTracked: () => this.vrunner.executeVRunnerTaskSequenceAndWait(argsList, runOptions),
+				runUntracked: () => this.vrunner.executeVRunnerCommandsInSequence(argsList, runOptions),
 			})
 				.catch((err) => log.error(`Ошибка хуков команды: ${(err as Error).message}`))
 				.finally(() => void onComplete?.());
 		} else if (onComplete) {
-			void this.vrunner.executeVRunnerTaskSequenceAndWait(argsList, { cwd, name: terminalName, appendOverrides })
+			void this.vrunner.executeVRunnerTaskSequenceAndWait(argsList, runOptions)
 				.catch((err) => log.error(`Ошибка запуска команды: ${(err as Error).message}`))
 				.finally(() => void onComplete());
 		} else {
-			await this.vrunner.executeVRunnerCommandsInSequence(argsList, { cwd, name: terminalName, appendOverrides });
+			await this.vrunner.executeVRunnerCommandsInSequence(argsList, runOptions);
 		}
 	}
 }

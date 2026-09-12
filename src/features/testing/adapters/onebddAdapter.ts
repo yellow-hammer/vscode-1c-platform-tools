@@ -35,13 +35,13 @@ export class OneBddAdapter implements TestFrameworkAdapter {
 
 	constructor(private readonly vrunner: VRunnerManager) {}
 
-	public isEnabled(): boolean {
+	public async isEnabled(): Promise<boolean> {
 		const config = vscode.workspace.getConfiguration('1c-platform-tools');
 		if (!config.get<boolean>('test.frameworks.onebdd', true)) {
 			return false;
 		}
 		// В проектах 1С каталог фич принадлежит Vanessa Automation
-		return !hasConfigurationSources(this.vrunner);
+		return !(await hasConfigurationSources(this.vrunner));
 	}
 
 	public getIncludeGlobs(): string[] {

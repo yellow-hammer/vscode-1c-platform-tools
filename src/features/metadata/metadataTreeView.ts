@@ -3,10 +3,10 @@
  * @module metadataTreeView
  */
 
+import { CONVENTIONAL_PATHS } from '../../shared/projectPaths';
 import * as path from 'node:path';
 import * as fs from 'node:fs';
 import * as vscode from 'vscode';
-import { VRunnerManager } from '../../shared/vrunnerManager';
 import { logger } from '../../shared/logger';
 import {
 	loadProjectMetadataTree,
@@ -47,12 +47,12 @@ const log = logger.scope('metadata');
 interface MdObjectStructureDto {
 	readonly kind: string;
 	readonly internalName: string;
-	readonly attributes: Array<{ name: string; synonymRu: string; comment: string }>;
+	readonly attributes: Array<{ name: string; synonym: string; comment: string }>;
 	readonly tabularSections: Array<{
 		name: string;
-		synonymRu: string;
+		synonym: string;
 		comment: string;
-		attributes: Array<{ name: string; synonymRu: string; comment: string }>;
+		attributes: Array<{ name: string; synonym: string; comment: string }>;
 	}>;
 	readonly forms: string[];
 	readonly commands: string[];
@@ -411,7 +411,9 @@ export class MetadataLeafTreeItem extends vscode.TreeItem {
 		/** Правила поставщика открыты: смена режима объекта доступна. */
 		public readonly supportRulesOpen?: boolean,
 		/** Отпечаток правил поддержки: правка сверяется с ним. */
-		public readonly supportGeneration?: string
+		public readonly supportGeneration?: string,
+		/** Синоним объекта: по нему ищут в дереве, в подписи он не показывается. */
+		public readonly synonym?: string
 	) {
 		const absFromRelativePath =
 			relativePath && relativePath.length > 0
@@ -639,8 +641,8 @@ type MetadataNodeKind =
 	| 'cube'
 	| 'function';
 
-type MdNamedNode = { name: string; synonymRu: string; comment: string };
-type MdTabularSection = { name: string; synonymRu: string; comment: string; attributes: MdNamedNode[] };
+type MdNamedNode = { name: string; synonym: string; comment: string };
+type MdTabularSection = { name: string; synonym: string; comment: string; attributes: MdNamedNode[] };
 
 interface MetadataSectionSpec {
 	readonly kind: MetadataSectionKind;
@@ -976,12 +978,12 @@ function objectStructureNamedList(value: unknown): MdNamedNode[] {
 			const record = item as Record<string, unknown>;
 			out.push({
 				name,
-				synonymRu: typeof record.synonymRu === 'string' ? record.synonymRu : '',
+				synonym: typeof record.synonym === 'string' ? record.synonym : '',
 				comment: typeof record.comment === 'string' ? record.comment : '',
 			});
 			continue;
 		}
-		out.push({ name, synonymRu: '', comment: '' });
+		out.push({ name, synonym: '', comment: '' });
 	}
 	return out;
 }
@@ -1002,7 +1004,7 @@ function objectStructureTabularSectionsList(value: unknown): MdTabularSection[] 
 		}
 		out.push({
 			name,
-			synonymRu: typeof record.synonymRu === 'string' ? record.synonymRu : '',
+			synonym: typeof record.synonym === 'string' ? record.synonym : '',
 			comment: typeof record.comment === 'string' ? record.comment : '',
 			attributes: objectStructureNamedList(record.attributes),
 		});
@@ -1418,9 +1420,7 @@ export class MetadataTreeDataProvider implements vscode.TreeDataProvider<vscode.
 		if (!root) {
 			return undefined;
 		}
-		const vm = VRunnerManager.getInstance(this._context);
-		const rel = vm.getCfPath();
-		return path.normalize(path.join(root, rel));
+		return path.normalize(path.join(root, CONVENTIONAL_PATHS.cf));
 	}
 
 	/** Описание активной конфигурации: Configuration.xml выгрузки либо Configuration.mdo проекта EDT. */
@@ -1870,8 +1870,9 @@ export class MetadataTreeDataProvider implements vscode.TreeDataProvider<vscode.
 		if (!this._textFilter) {
 			return true;
 		}
-		const name = leaf.name.toLowerCase();
-		return this._textFilter.terms.every((term) => name.includes(term));
+		// Синоним участвует в поиске, но в подписи узла его не показываем
+		const haystack = `${leaf.name} ${leaf.synonym ?? ''}`.toLowerCase();
+		return this._textFilter.terms.every((term) => haystack.includes(term));
 	}
 
 	private anySourceHasMatches(): boolean {
@@ -2366,7 +2367,8 @@ function createMetadataLeaf(
 		resolveMetadataOpen(item.open, workspaceRoot),
 		item.support,
 		supportRulesOpen,
-		supportGeneration
+		supportGeneration,
+		item.synonym
 	);
 }
 

@@ -3,6 +3,7 @@ import {
 	isUsableExtensionFolderName,
 	resolveDumpTargets
 } from '../../features/extensions/extensionDumpTargets';
+import { selectionKey } from '../../features/extensions/extensionSelection';
 
 suite('extensionDumpTargets', () => {
 	test('нет каталога — папка и имя как в базе', () => {
@@ -12,24 +13,42 @@ suite('extensionDumpTargets', () => {
 		]);
 	});
 
-	test('каталог с другим именем находится по Configuration.xml', () => {
-		const disk = [{ folder: 'yaxunit-test', extensionName: 'Тесты' }];
+	test('каталог с другим именем находится по имени из метаданных', () => {
+		const disk = [{ folder: 'yaxunit-test', name: 'Тесты', dir: 'tests/cfe/yaxunit-test' }];
 		assert.deepStrictEqual(resolveDumpTargets(disk, ['Тесты']), [
-			{ folder: 'yaxunit-test', extensionName: 'Тесты' }
+			{ dir: 'tests/cfe/yaxunit-test', folder: 'yaxunit-test', extensionName: 'Тесты' }
 		]);
 	});
 
-	test('выбор по имени каталога сохраняет имя из метаданных', () => {
-		const disk = [{ folder: 'yaxunit-test', extensionName: 'Тесты' }];
-		assert.deepStrictEqual(resolveDumpTargets(disk, ['yaxunit-test']), [
-			{ folder: 'yaxunit-test', extensionName: 'Тесты' }
+	test('выбор по имени каталога или пути сохраняет имя из метаданных', () => {
+		const disk = [{ folder: 'yaxunit-test', name: 'Тесты', dir: 'tests/cfe/yaxunit-test' }];
+		const expected = [{ dir: 'tests/cfe/yaxunit-test', folder: 'yaxunit-test', extensionName: 'Тесты' }];
+		assert.deepStrictEqual(resolveDumpTargets(disk, ['yaxunit-test']), expected);
+		assert.deepStrictEqual(resolveDumpTargets(disk, ['tests/cfe/yaxunit-test']), expected);
+	});
+
+	test('проект EDT: имя из базы ведёт в каталог проекта', () => {
+		const disk = [{ folder: 'ssl31._ДемоРасширение', name: '_ДемоРасширение', dir: 'ssl31._ДемоРасширение' }];
+		assert.deepStrictEqual(resolveDumpTargets(disk, ['_ДемоРасширение', 'Новое']), [
+			{ dir: 'ssl31._ДемоРасширение', folder: 'ssl31._ДемоРасширение', extensionName: '_ДемоРасширение' },
+			{ folder: 'Новое', extensionName: 'Новое' }
+		]);
+	});
+
+	test('одноимённые каталоги: ключ выбора ведёт к своему', () => {
+		const disk = [
+			{ folder: 'Общее', name: 'Общее', dir: 'src/cfe/Общее' },
+			{ folder: 'Общее', name: 'ОбщееПодмодуля', dir: 'src/cfe/подмодуль/src/cfe/Общее' },
+		];
+		assert.deepStrictEqual(resolveDumpTargets(disk, [selectionKey(disk[1], disk)]), [
+			{ dir: 'src/cfe/подмодуль/src/cfe/Общее', folder: 'Общее', extensionName: 'ОбщееПодмодуля' }
 		]);
 	});
 
 	test('сопоставление без учёта регистра, существующие каталоги не переименовываются', () => {
-		const disk = [{ folder: 'Salary', extensionName: 'Зарплата' }];
+		const disk = [{ folder: 'Salary', name: 'Зарплата', dir: 'src/cfe/Salary' }];
 		assert.deepStrictEqual(resolveDumpTargets(disk, ['зарплата', 'Новое']), [
-			{ folder: 'Salary', extensionName: 'Зарплата' },
+			{ dir: 'src/cfe/Salary', folder: 'Salary', extensionName: 'Зарплата' },
 			{ folder: 'Новое', extensionName: 'Новое' }
 		]);
 	});

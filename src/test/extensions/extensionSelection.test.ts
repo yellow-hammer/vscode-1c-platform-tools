@@ -2,12 +2,16 @@ import * as assert from 'node:assert';
 import * as vscode from 'vscode';
 import { pickExtensions } from '../../features/extensions/extensionPicker';
 import {
+	cfeStem,
 	getStoredExtensionSelection,
 	setStoredExtensionSelection,
 	filterExtensionsBySelection,
 	filterCfeFilesBySelection,
+	findExtension,
+	matchesExtension,
 	normalizeConfiguredExtensions,
-	filterByConfiguredNames
+	selectionKey,
+	type ExtensionNames
 } from '../../features/extensions/extensionSelection';
 
 /** Минимальная подмена vscode.Memento для тестов хранения. */
@@ -28,24 +32,77 @@ class FakeMemento implements vscode.Memento {
 	}
 }
 
+/** Расширение выгрузки конфигуратора: каталог и имя из метаданных совпадают. */
+const plain = (folder: string, dir = `src/cfe/${folder}`): ExtensionNames => ({ folder, name: folder, dir });
+
+/** Расширения рабочей области EDT: проект назван по конфигурации, тестовое лежит под tests. */
+const DEMO: ExtensionNames = { folder: 'ssl31._ДемоРасширение', name: '_ДемоРасширение', dir: 'ssl31._ДемоРасширение' };
+const TESTS: ExtensionNames = { folder: 'yaxunit-test', name: 'Тесты', dir: 'tests/cfe/yaxunit-test' };
+
 suite('extensionSelection', () => {
-	test('filterExtensionsBySelection: без выбора — все каталоги', () => {
-		const available = ['ext_a', 'ext_b', 'ext_c'];
+	test('matchesExtension: подходит имя каталога, путь к нему и имя из метаданных, регистр не важен', () => {
+		assert.strictEqual(matchesExtension(TESTS, 'yaxunit-test'), true);
+		assert.strictEqual(matchesExtension(TESTS, 'YAXUNIT-TEST'), true);
+		assert.strictEqual(matchesExtension(TESTS, 'Тесты'), true);
+		assert.strictEqual(matchesExtension(TESTS, 'тесты'), true);
+		assert.strictEqual(matchesExtension(TESTS, 'tests/cfe/yaxunit-test'), true);
+		assert.strictEqual(matchesExtension(TESTS, 'tests\\cfe\\yaxunit-test\\'), true);
+		assert.strictEqual(matchesExtension(TESTS, ' yaxunit-test '), true);
+		assert.strictEqual(matchesExtension(TESTS, 'yaxunit'), false);
+		assert.strictEqual(matchesExtension(TESTS, ''), false);
+	});
+
+	test('matchesExtension: расширение без каталога находится по имени', () => {
+		const fromInfobase: ExtensionNames = { folder: 'Зарплата', name: 'Зарплата' };
+		assert.strictEqual(matchesExtension(fromInfobase, 'зарплата'), true);
+		assert.strictEqual(matchesExtension(fromInfobase, 'src/cfe/Зарплата'), false);
+	});
+
+	test('findExtension: первое подходящее', () => {
+		assert.strictEqual(findExtension([DEMO, TESTS], '_ДемоРасширение'), DEMO);
+		assert.strictEqual(findExtension([DEMO, TESTS], 'tests/cfe/yaxunit-test'), TESTS);
+		assert.strictEqual(findExtension([DEMO, TESTS], 'Нет'), undefined);
+	});
+
+	test('selectionKey: имя каталога, а у одноимённых каталогов путь', () => {
+		assert.strictEqual(selectionKey(DEMO, [DEMO, TESTS]), 'ssl31._ДемоРасширение');
+		assert.strictEqual(selectionKey(TESTS, [DEMO, TESTS]), 'yaxunit-test');
+		const twins = [plain('Тесты'), plain('Тесты', 'tests/cfe/Тесты')];
+		assert.strictEqual(selectionKey(twins[0], twins), 'src/cfe/Тесты');
+		assert.strictEqual(selectionKey(twins[1], twins), 'tests/cfe/Тесты');
+	});
+
+	test('filterExtensionsBySelection: без выбора — все расширения', () => {
+		const available = [plain('ext_a'), plain('ext_b'), plain('ext_c')];
 		assert.deepStrictEqual(filterExtensionsBySelection(available, undefined), available);
 	});
 
 	test('filterExtensionsBySelection: оставляет только выбранные, сохраняя порядок', () => {
-		const available = ['ext_a', 'ext_b', 'ext_c'];
-		assert.deepStrictEqual(filterExtensionsBySelection(available, ['ext_c', 'ext_a']), ['ext_a', 'ext_c']);
+		const available = [plain('ext_a'), plain('ext_b'), plain('ext_c')];
+		assert.deepStrictEqual(filterExtensionsBySelection(available, ['ext_c', 'ext_a']), [available[0], available[2]]);
 	});
 
 	test('filterExtensionsBySelection: новые каталоги в подмножество не попадают', () => {
-		const available = ['ext_a', 'ext_b', 'ext_new'];
-		assert.deepStrictEqual(filterExtensionsBySelection(available, ['ext_a', 'ext_b']), ['ext_a', 'ext_b']);
+		const available = [plain('ext_a'), plain('ext_b'), plain('ext_new')];
+		assert.deepStrictEqual(filterExtensionsBySelection(available, ['ext_a', 'ext_b']), [available[0], available[1]]);
 	});
 
 	test('filterExtensionsBySelection: пустой выбор — пустой результат', () => {
-		assert.deepStrictEqual(filterExtensionsBySelection(['ext_a'], []), []);
+		assert.deepStrictEqual(filterExtensionsBySelection([plain('ext_a')], []), []);
+	});
+
+	test('filterExtensionsBySelection: любое из имён расширения, без учёта регистра', () => {
+		const available = [DEMO, TESTS];
+		assert.deepStrictEqual(filterExtensionsBySelection(available, ['_деморасширение']), [DEMO]);
+		assert.deepStrictEqual(filterExtensionsBySelection(available, ['tests/cfe/yaxunit-test']), [TESTS]);
+		assert.deepStrictEqual(filterExtensionsBySelection(available, ['Тесты', 'ssl31._ДемоРасширение']), [DEMO, TESTS]);
+		assert.deepStrictEqual(filterExtensionsBySelection(available, ['ext_x']), []);
+	});
+
+	test('cfeStem: имя файла без .cfe, каталог отбрасывается', () => {
+		assert.strictEqual(cfeStem('ssl31._ДемоРасширение.cfe'), 'ssl31._ДемоРасширение');
+		assert.strictEqual(cfeStem('build/out/cfe/Ext_A.CFE'), 'Ext_A');
+		assert.strictEqual(cfeStem('build\\out\\cfe\\Ext_A.cfe'), 'Ext_A');
 	});
 
 	test('filterCfeFilesBySelection: без выбора — все файлы', () => {
@@ -53,7 +110,7 @@ suite('extensionSelection', () => {
 		assert.deepStrictEqual(filterCfeFilesBySelection(files, undefined), files);
 	});
 
-	test('filterCfeFilesBySelection: сопоставление по имени без учёта регистра', () => {
+	test('filterCfeFilesBySelection: сопоставление по имени файла без учёта регистра', () => {
 		const files = ['Ext_A.cfe', 'ext_b.CFE', 'ext_c.cfe'];
 		assert.deepStrictEqual(filterCfeFilesBySelection(files, ['ext_a', 'ext_b']), ['Ext_A.cfe', 'ext_b.CFE']);
 	});
@@ -69,15 +126,6 @@ suite('extensionSelection', () => {
 			normalizeConfiguredExtensions([' ext_a ', '', 'ext_b', 42, '  ']),
 			['ext_a', 'ext_b']
 		);
-	});
-
-	test('filterByConfiguredNames: пересечение без учёта регистра, порядок доступных', () => {
-		const available = ['Ext_A', 'ext_b', 'ext_c'];
-		assert.deepStrictEqual(filterByConfiguredNames(available, ['EXT_A', 'ext_c']), ['Ext_A', 'ext_c']);
-	});
-
-	test('filterByConfiguredNames: имена не из списка отбрасываются', () => {
-		assert.deepStrictEqual(filterByConfiguredNames(['ext_a', 'ext_b'], ['ext_x']), []);
 	});
 
 	test('getStoredExtensionSelection: по умолчанию undefined', () => {
@@ -109,17 +157,17 @@ suite('extensionSelection: области выбора', () => {
 		assert.deepStrictEqual(getStoredExtensionSelection(memento, 'tests'), ['ТестовоеРасширение']);
 	});
 
-	test('настройка области отбирает свои каталоги: имена решения к тестовым не подходят', () => {
-		// в settings.json списки разные: extensions.selected - решение,
+	test('настройка области отбирает свои расширения: имена решения к тестовым не подходят', () => {
+		// в settings.json списки разные: cfe.selected - решение,
 		// test.cfe.selected - тестовые; пересечения между ними нет
-		const testFolders = ['yaxunit', 'yaxunit-test'];
+		const testExtensions = [plain('yaxunit', 'tests/cfe/yaxunit'), TESTS];
 		assert.deepStrictEqual(
-			filterByConfiguredNames(testFolders, normalizeConfiguredExtensions(['РасширениеРешения'])),
+			filterExtensionsBySelection(testExtensions, normalizeConfiguredExtensions(['РасширениеРешения'])),
 			[]
 		);
 		assert.deepStrictEqual(
-			filterByConfiguredNames(testFolders, normalizeConfiguredExtensions([' YAXUNIT '])),
-			['yaxunit']
+			filterExtensionsBySelection(testExtensions, normalizeConfiguredExtensions([' YAXUNIT '])),
+			[testExtensions[0]]
 		);
 	});
 
@@ -150,21 +198,37 @@ suite('pickExtensions: прогон без окна выбора', () => {
 			keys: () => [],
 		}) as unknown as vscode.Memento;
 
-	test('пустой запомненный выбор не останавливает прогон: берём все', async () => {
-		const picked = await pickExtensions(['Расширение1', 'Расширение2'], memento([]), { wait: true });
+	const first = plain('Расширение1');
+	const second = plain('Расширение2');
 
-		assert.deepStrictEqual(picked, ['Расширение1', 'Расширение2']);
+	test('пустой запомненный выбор не останавливает прогон: берём все', async () => {
+		const picked = await pickExtensions([first, second], memento([]), { wait: true });
+
+		assert.deepStrictEqual(picked, [first, second]);
 	});
 
 	test('запомненный выбор от другого состава не оставляет прогон без расширений', async () => {
-		const picked = await pickExtensions(['Расширение1'], memento(['УдалённоеРасширение']), { wait: true });
+		const picked = await pickExtensions([first], memento(['УдалённоеРасширение']), { wait: true });
 
-		assert.deepStrictEqual(picked, ['Расширение1']);
+		assert.deepStrictEqual(picked, [first]);
 	});
 
 	test('запомненный выбор применяется, когда совпал', async () => {
-		const picked = await pickExtensions(['Расширение1', 'Расширение2'], memento(['Расширение2']), { wait: true });
+		const picked = await pickExtensions([first, second], memento(['Расширение2']), { wait: true });
 
-		assert.deepStrictEqual(picked, ['Расширение2']);
+		assert.deepStrictEqual(picked, [second]);
+	});
+
+	test('запомненный выбор подходит расширению по любому из имён', async () => {
+		// Установка версии запоминала имя из метаданных, команды расширений путь к проекту:
+		// оба находят то же расширение
+		assert.deepStrictEqual(await pickExtensions([DEMO, TESTS], memento(['_ДемоРасширение']), { wait: true }), [DEMO]);
+		assert.deepStrictEqual(await pickExtensions([DEMO, TESTS], memento(['tests/cfe/yaxunit-test']), { wait: true }), [TESTS]);
+	});
+
+	test('явный список агента отбирает по имени каталога или из метаданных', async () => {
+		assert.deepStrictEqual(await pickExtensions([DEMO, TESTS], memento(undefined), { wait: true, extensions: ['yaxunit-test'] }), [TESTS]);
+		assert.deepStrictEqual(await pickExtensions([DEMO, TESTS], memento(undefined), { wait: true, extensions: ['Тесты', '_ДемоРасширение'] }), [DEMO, TESTS]);
+		assert.deepStrictEqual(await pickExtensions([DEMO, TESTS], memento(undefined), { wait: true, extensions: ['Нет'] }), []);
 	});
 });

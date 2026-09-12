@@ -65,13 +65,16 @@ export function parseExtensionNameFromConfigurationMdo(mdo: string): string | un
  * Возвращает имя расширения для каталога исходников.
  *
  * Читает `<каталог исходников>/Configuration.xml`; если файла нет или имя
- * не извлекается — возвращает имя каталога (прежнее поведение).
+ * не извлекается — возвращает запасное имя.
  *
  * @param extensionSrcDir - Абсолютный путь к каталогу исходников расширения
- * @returns Имя расширения из метаданных или имя каталога
+ * @param fallback - Запасное имя; по умолчанию имя каталога
+ * @returns Имя расширения из метаданных или запасное имя
  */
-export async function resolveExtensionNameFromSrc(extensionSrcDir: string): Promise<string> {
-	const fallback = path.basename(extensionSrcDir);
+export async function resolveExtensionNameFromSrc(
+	extensionSrcDir: string,
+	fallback: string = path.basename(extensionSrcDir)
+): Promise<string> {
 	// Выгрузка конфигуратора и проект EDT держат описание в разных файлах.
 	const markers: Array<[string, (content: string) => string | undefined]> = [
 		['Configuration.xml', parseExtensionNameFromConfigurationXml],

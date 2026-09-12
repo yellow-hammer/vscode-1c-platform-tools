@@ -69,27 +69,27 @@ export const AGENT_COMMAND_DESCRIPTIONS: Record<string, AgentCommandDescription>
 		category: TESTING,
 	},
 	'1c-platform-tools.test.loadExtensions': {
-		title: 'Загрузить тестовые расширения в ИБ из исходников (подкаталог cfe корня тестов, по умолчанию tests/cfe): YAxUnit и расширение с тестами; параметр extensions отбирает нужные',
+		title: 'Загрузить тестовые расширения в ИБ из исходного кода: YAxUnit и расширение с тестами; параметр extensions отбирает нужные',
 		category: TESTING,
 	},
 	'1c-platform-tools.test.compileExtensions': {
-		title: 'Собрать тестовые расширения из исходников в *.cfe в каталоге результатов сборки; параметр extensions отбирает нужные',
+		title: 'Собрать тестовые расширения из исходного кода в *.cfe в каталоге результатов сборки; параметр extensions отбирает нужные',
 		category: TESTING,
 	},
 	'1c-platform-tools.test.dumpExtensions': {
-		title: 'Выгрузить установленные тестовые расширения из ИБ в исходники: перенос существующего расширения с тестами под контроль версий',
+		title: 'Выгрузить установленные тестовые расширения из ИБ в исходный код: перенос существующего расширения с тестами под контроль версий',
 		category: TESTING,
 	},
 	'1c-platform-tools.test.decompileExtensions': {
-		title: 'Разобрать собранные тестовые *.cfe в исходники (tests/cfe): так раскладывают полученный со стороны YAxUnit.cfe; параметр extensions отбирает нужные',
+		title: 'Разобрать собранные тестовые *.cfe в исходный код тестовых расширений: так раскладывают полученный со стороны YAxUnit.cfe; параметр extensions отбирает нужные',
 		category: TESTING,
 	},
 	'1c-platform-tools.test.compileEpf': {
-		title: 'Собрать обработки с тестами из исходников',
+		title: 'Собрать обработки с тестами из исходного кода',
 		category: TESTING,
 	},
 	'1c-platform-tools.test.decompileEpf': {
-		title: 'Разобрать обработки с тестами в исходники',
+		title: 'Разобрать обработки с тестами в исходный код',
 		category: TESTING,
 	},
 	'1c-platform-tools.test.configure': {
@@ -157,11 +157,11 @@ export const AGENT_COMMAND_DESCRIPTIONS: Record<string, AgentCommandDescription>
 	// Конфигурация и расширения: каталоги настраиваются, поэтому в описании
 	// говорится о смысле, а не о конкретном пути
 	'1c-platform-tools.cf.load': {
-		title: 'Загрузить конфигурацию в ИБ из исходников проекта',
+		title: 'Загрузить конфигурацию в ИБ из исходного кода проекта',
 		category: CONFIGURATION,
 	},
 	'1c-platform-tools.infobase.initFromSrc': {
-		title: 'Загрузить конфигурацию в пустую ИБ из исходников проекта',
+		title: 'Загрузить конфигурацию в пустую ИБ из исходного кода проекта',
 		category: CONFIGURATION,
 	},
 	'1c-platform-tools.cf.loadIncrement': {
@@ -177,11 +177,11 @@ export const AGENT_COMMAND_DESCRIPTIONS: Record<string, AgentCommandDescription>
 		category: CONFIGURATION,
 	},
 	'1c-platform-tools.cf.dump': {
-		title: 'Выгрузить конфигурацию ИБ в исходники проекта',
+		title: 'Выгрузить конфигурацию ИБ в исходный код проекта',
 		category: CONFIGURATION,
 	},
 	'1c-platform-tools.cf.dumpIncrement': {
-		title: 'Выгрузить в исходники только изменённые объекты конфигурации',
+		title: 'Выгрузить в исходный код только изменённые объекты конфигурации',
 		category: CONFIGURATION,
 	},
 	'1c-platform-tools.cf.unload': {
@@ -193,15 +193,15 @@ export const AGENT_COMMAND_DESCRIPTIONS: Record<string, AgentCommandDescription>
 		category: CONFIGURATION,
 	},
 	'1c-platform-tools.cf.compile': {
-		title: 'Собрать файл .cf из исходников конфигурации, без загрузки в ИБ',
+		title: 'Собрать файл .cf из исходного кода конфигурации, без загрузки в ИБ',
 		category: CONFIGURATION,
 	},
 	'1c-platform-tools.cf.decompile': {
-		title: 'Разобрать файл .cf в исходники конфигурации, без обращения к ИБ',
+		title: 'Разобрать файл .cf в исходный код конфигурации, без обращения к ИБ',
 		category: CONFIGURATION,
 	},
 	'1c-platform-tools.cfe.load': {
-		title: 'Загрузить расширения в ИБ из исходников проекта',
+		title: 'Загрузить расширения в ИБ из исходного кода проекта',
 		category: EXTENSIONS,
 	},
 	'1c-platform-tools.cfe.loadByList': {
@@ -213,7 +213,7 @@ export const AGENT_COMMAND_DESCRIPTIONS: Record<string, AgentCommandDescription>
 		category: EXTENSIONS,
 	},
 	'1c-platform-tools.cfe.dump': {
-		title: 'Выгрузить расширения ИБ в исходники проекта; пустой src/cfe заполняется по списку из базы',
+		title: 'Выгрузить расширения ИБ в исходный код проекта; пустой каталог расширений заполняется по списку из базы',
 		category: EXTENSIONS,
 	},
 	'1c-platform-tools.cfe.unload': {
@@ -221,11 +221,11 @@ export const AGENT_COMMAND_DESCRIPTIONS: Record<string, AgentCommandDescription>
 		category: EXTENSIONS,
 	},
 	'1c-platform-tools.cfe.compile': {
-		title: 'Собрать файлы .cfe из исходников расширений, без загрузки в ИБ',
+		title: 'Собрать файлы .cfe из исходного кода расширений, без загрузки в ИБ',
 		category: EXTENSIONS,
 	},
 	'1c-platform-tools.cfe.decompile': {
-		title: 'Разобрать файлы .cfe в исходники расширений, без обращения к ИБ',
+		title: 'Разобрать файлы .cfe в исходный код расширений, без обращения к ИБ',
 		category: EXTENSIONS,
 	},
 	'1c-platform-tools.cfe.updateDb': {
@@ -235,19 +235,19 @@ export const AGENT_COMMAND_DESCRIPTIONS: Record<string, AgentCommandDescription>
 
 	// Внешние файлы
 	'1c-platform-tools.epf.compileProcessor': {
-		title: 'Собрать внешние обработки из исходников',
+		title: 'Собрать внешние обработки из исходного кода',
 		category: EXTERNAL,
 	},
 	'1c-platform-tools.epf.decompileProcessor': {
-		title: 'Разобрать внешние обработки в исходники',
+		title: 'Разобрать внешние обработки в исходный код',
 		category: EXTERNAL,
 	},
 	'1c-platform-tools.epf.compileReport': {
-		title: 'Собрать внешние отчёты из исходников',
+		title: 'Собрать внешние отчёты из исходного кода',
 		category: EXTERNAL,
 	},
 	'1c-platform-tools.epf.decompileReport': {
-		title: 'Разобрать внешние отчёты в исходники',
+		title: 'Разобрать внешние отчёты в исходный код',
 		category: EXTERNAL,
 	},
 	'1c-platform-tools.epf.clearCache': {

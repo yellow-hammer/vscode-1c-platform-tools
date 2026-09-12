@@ -53,7 +53,7 @@ interface CatalogEntry {
 	readonly key: string;
 	readonly objectType: string;
 	readonly name: string;
-	readonly synonymRu: string;
+	readonly synonym: string;
 }
 
 interface OpenObjectPayload {
@@ -234,7 +234,7 @@ function buildCatalog(graph: ErGraph): CatalogEntry[] {
 			key: node.key,
 			objectType: node.objectType,
 			name: node.name,
-			synonymRu: node.synonymRu,
+			synonym: node.synonym,
 		}))
 		.sort((a, b) => a.key.localeCompare(b.key, 'ru'));
 }
@@ -329,9 +329,9 @@ async function pickAndAddObject(instance: CanvasInstance): Promise<void> {
 	const items = instance.graph.nodes
 		.map((node) => ({
 			label: node.name,
-			description: node.synonymRu && node.synonymRu !== node.name ? `«${node.synonymRu}»` : '',
+			description: node.synonym && node.synonym !== node.name ? `«${node.synonym}»` : '',
 			detail: node.relativePath || '',
-			filterText: `${node.key} ${node.name} ${node.synonymRu} ${node.objectType}`,
+			filterText: `${node.key} ${node.name} ${node.synonym} ${node.objectType}`,
 			key: node.key,
 		}))
 		.sort((a, b) => a.label.localeCompare(b.label, 'ru'));

@@ -1,4 +1,6 @@
+import * as path from 'node:path';
 import type { SyntaxCheckError } from '../../shared/commandExecutionTypes';
+import type { SourceFormat } from '../../shared/projectLayout';
 import { resolveBslPathFromMetadata } from './metadataPathResolver';
 import { parseJUnitXml, JUnitCase } from '../testing/parsers/junitParser';
 
@@ -138,27 +140,72 @@ export function parseSyntaxCheckFindings(xml: string): SyntaxCheckFinding[] {
 	return findings;
 }
 
+/** Корень исходников для адреса находки: каталог относительно корня проекта. */
+export interface SyntaxCheckSourceRoot {
+	dir: string;
+	format: SourceFormat;
+}
+
+/**
+ * Адреса модулей, найденных на диске, относительно корня проекта.
+ *
+ * Поиск идёт по каждому пути по метаданным один раз: у модуля бывает много находок.
+ *
+ * @param findings - Находки из jUnit-отчёта
+ * @param locate - Поиск файла модуля по пути по метаданным; абсолютный путь либо undefined
+ * @param workspaceRoot - Корень проекта
+ * @returns Путь по метаданным → путь файла с прямыми разделителями
+ */
+export async function locateSyntaxCheckFiles(
+	findings: readonly SyntaxCheckFinding[],
+	locate: (metadataPath: string) => Promise<string | undefined>,
+	workspaceRoot: string
+): Promise<Map<string, string>> {
+	const located = new Map<string, string>();
+	for (const metadataPath of new Set(findings.map((finding) => finding.metadataPath))) {
+		const absolute = await locate(metadataPath);
+		if (absolute) {
+			located.set(metadataPath, path.relative(workspaceRoot, absolute).split(path.sep).join('/'));
+		}
+	}
+	return located;
+}
+
 /**
  * Переводит находки в ошибки для синхронного ответа команды.
  *
- * Агенту нужен путь к файлу, а не путь по метаданным: он правит .bsl.
- * Там, где тип метаданных не раскладывается в модуль, остаётся исходный путь.
+ * Агенту нужен путь к файлу, а не путь по метаданным: он правит .bsl. Адрес
+ * берётся у найденного на диске модуля; не найденный раскладывается по правилам
+ * формата конфигурации, а тип, который в модуль не раскладывается, оставляет
+ * путь по метаданным.
  *
  * @param findings - Находки из jUnit-отчёта
- * @param cfRel - Каталог исходников конфигурации относительно корня проекта
+ * @param located - Найденные на диске модули: путь по метаданным → путь относительно корня проекта
+ * @param configuration - Корень конфигурации для находок, чьих модулей на диске нет
  * @returns Ошибки с адресом файла и текстом сообщения
  */
 export function toSyntaxCheckErrors(
 	findings: SyntaxCheckFinding[],
-	cfRel: string
+	located: ReadonlyMap<string, string>,
+	configuration: SyntaxCheckSourceRoot
 ): SyntaxCheckError[] {
-	return findings.map((finding) => {
-		const bslRel = resolveBslPathFromMetadata(finding.metadataPath);
-		return {
-			filepath: bslRel ? `${cfRel}/${bslRel}` : finding.metadataPath,
-			metadataPath: finding.metadataPath,
-			severity: finding.severity,
-			message: finding.message,
-		};
-	});
+	return findings.map((finding) => ({
+		filepath:
+			located.get(finding.metadataPath) ??
+			expectedModulePath(finding.metadataPath, configuration) ??
+			finding.metadataPath,
+		metadataPath: finding.metadataPath,
+		severity: finding.severity,
+		message: finding.message,
+	}));
+}
+
+/** Путь модуля по правилам формата корня: у проекта EDT исходники лежат в src. */
+function expectedModulePath(metadataPath: string, root: SyntaxCheckSourceRoot): string | undefined {
+	const relative = resolveBslPathFromMetadata(metadataPath, root.format);
+	if (!relative) {
+		return undefined;
+	}
+	const dir = root.dir.split('\\').join('/');
+	return path.posix.join(dir === '.' ? '' : dir, root.format === 'edt' ? 'src' : '', relative);
 }

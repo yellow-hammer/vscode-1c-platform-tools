@@ -2,7 +2,7 @@ import * as crypto from 'node:crypto';
 import * as path from 'node:path';
 import * as fs from 'node:fs/promises';
 import * as vscode from 'vscode';
-import { BaseCommand } from './baseCommand';
+import { BaseCommand, NO_CONFIGURATION_SOURCES } from './baseCommand';
 import type { VRunnerIntent } from '../shared/vrunnerCli';
 import {
 	getUpdateCfgSupportCommandName,
@@ -219,22 +219,11 @@ export class SupportCommands extends BaseCommand {
 	/**
 	 * Описание активной конфигурации: `Configuration.xml` выгрузки либо `Configuration.mdo` проекта EDT.
 	 *
-	 * Версия и поставщик читаются из него, какой бы формат ни был у исходников.
+	 * Версия и поставщик читаются из него, какой бы формат ни был у исходного кода.
 	 */
-	private async configurationDescriptor(workspaceRoot: string): Promise<string> {
-		const cfPath = this.vrunner.getCfPath();
-		try {
-			const scope = await configurationScope(workspaceRoot, {
-				configuration: cfPath,
-				extensions: [this.vrunner.getCfePath(), this.vrunner.getTestsCfePath()],
-			});
-			if (scope.configuration) {
-				return configurationDescriptorFile(scope.configuration);
-			}
-		} catch {
-			/* раскладка не разобрана: остаётся каталог выгрузки */
-		}
-		return path.join(workspaceRoot, cfPath, 'Configuration.xml');
+	private async configurationDescriptor(workspaceRoot: string): Promise<string | undefined> {
+		const scope = await configurationScope(workspaceRoot);
+		return scope.configuration ? configurationDescriptorFile(scope.configuration) : undefined;
 	}
 
 	async createDeliveryDescriptionFile(): Promise<void> {
@@ -250,6 +239,10 @@ export class SupportCommands extends BaseCommand {
 		}
 
 		const configurationXmlPath = await this.configurationDescriptor(workspaceRoot);
+		if (!configurationXmlPath) {
+			void vscode.window.showWarningMessage(NO_CONFIGURATION_SOURCES);
+			return;
+		}
 		const props = await readConfigurationDeliveryProperties(configurationXmlPath);
 		if (!props) {
 			void vscode.window.showErrorMessage(
@@ -286,7 +279,7 @@ export class SupportCommands extends BaseCommand {
 		}
 
 		const vendorEscaped = (props.vendor ?? '1C').replaceAll('"', '""');
-		const nameRuEscaped = (props.synonymRu ?? props.name ?? 'Конфигурация').replaceAll('"', '""');
+		const presentationEscaped = (props.synonym ?? props.name ?? 'Конфигурация').replaceAll('"', '""');
 		const nameInternal = props.name?.trim() || 'Конфигурация';
 		const versionValue = props.version?.trim() || versionTrimmed;
 		const guidConfigFile = generateDeliveryItemGuid('Файл конфигурации');
@@ -294,7 +287,7 @@ export class SupportCommands extends BaseCommand {
 
 		const content = templateContent
 			.replaceAll('%Vendor%', vendorEscaped)
-			.replaceAll('%NameRu%', nameRuEscaped)
+			.replaceAll('%NamePresentation%', presentationEscaped)
 			.replaceAll('%NameInternal%', nameInternal)
 			.replaceAll('%Version%', versionValue)
 			.replaceAll('%GuidConfigFile%', guidConfigFile)
@@ -339,7 +332,7 @@ export class SupportCommands extends BaseCommand {
 		}
 
 		const configurationXmlPath = await this.configurationDescriptor(workspaceRoot);
-		const versionFromSource = await readConfigurationVersion(configurationXmlPath);
+		const versionFromSource = configurationXmlPath ? await readConfigurationVersion(configurationXmlPath) : undefined;
 		const suggestedVersion = (versionFromSource?.trim() && versionFromSource) || '1.0.0';
 
 		const version = await vscode.window.showInputBox({
@@ -409,7 +402,7 @@ export class SupportCommands extends BaseCommand {
 		const configurationXmlPath = await this.configurationDescriptor(workspaceRoot);
 		let versionFromSource: string | undefined;
 		try {
-			versionFromSource = await readConfigurationVersion(configurationXmlPath);
+			versionFromSource = configurationXmlPath ? await readConfigurationVersion(configurationXmlPath) : undefined;
 		} catch {
 			versionFromSource = undefined;
 		}

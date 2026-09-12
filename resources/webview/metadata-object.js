@@ -4,7 +4,7 @@
 	/** @type {HTMLElement | null} */
 	const initialEl = document.getElementById('metadata-object-initial');
 	const raw = initialEl ? initialEl.textContent : '{}';
-	/** @type {{tabs?: Array<{id:string,title:string,count?:number,render:string,data?:unknown}>, warnings?: string[], internalName?: string, objectKind?: string, objectKindLabel?: string, objectType?: string, synonymRu?: string, comment?: string, objectXmlPath?: string}} */
+	/** @type {{tabs?: Array<{id:string,title:string,count?:number,render:string,data?:unknown}>, warnings?: string[], internalName?: string, objectKind?: string, objectKindLabel?: string, objectType?: string, synonym?: string, comment?: string, objectXmlPath?: string}} */
 	let model = {};
 	try {
 		model = JSON.parse(raw || '{}');
@@ -98,8 +98,8 @@
 		return {
 			originalName: typeof item.name === 'string' ? item.name : '',
 			name: typeof item.name === 'string' ? item.name : '',
-			synonymRu: typeof item.synonymRu === 'string' ? item.synonymRu : '',
-			baselineSynonymRu: typeof item.synonymRu === 'string' ? item.synonymRu : '',
+			synonym: typeof item.synonym === 'string' ? item.synonym : '',
+			baselineSynonym: typeof item.synonym === 'string' ? item.synonym : '',
 			comment: typeof item.comment === 'string' ? item.comment : '',
 			deleted: false,
 		};
@@ -142,7 +142,7 @@
 	}
 
 	function structRowDirty(row) {
-		return row.deleted || !row.originalName || row.name !== row.originalName || row.synonymRu !== row.baselineSynonymRu;
+		return row.deleted || !row.originalName || row.name !== row.originalName || row.synonym !== row.baselineSynonym;
 	}
 
 	function structOrderKey(structure) {
@@ -226,7 +226,7 @@
 			return {
 				originalName: row.originalName || undefined,
 				name: String(row.name || '').trim(),
-				synonymRu: row.synonymRu,
+				synonym: row.synonym,
 				deleted: Boolean(row.deleted),
 			};
 		};
@@ -1671,7 +1671,7 @@
 		const mainFields = [
 			{ label: 'Вид', value: model.objectKindLabel || model.objectKind || model.objectType || '' },
 			{ label: 'Имя', value: model.internalName || '' },
-			{ label: 'Синоним', value: model.synonymRu || '' },
+			{ label: 'Синоним', value: model.synonym || '' },
 			{ label: 'Комментарий', value: model.comment || '' },
 		];
 		const locationFields = [{ label: 'XML файл', value: model.objectXmlPath || '' }];
@@ -2565,7 +2565,7 @@
 			: '';
 		return `<div class="struct-item${deleted ? ' struct-item-deleted' : ''}"${row.comment ? ` title="${escapeHtml(row.comment)}"` : ''}>
 			<input class="edit-input struct-input struct-input-name${invalid}" data-spath="${spath}" data-sfield="name" value="${escapeHtml(row.name)}" placeholder="Имя" spellcheck="false"${dis} />
-			<input class="edit-input struct-input" data-spath="${spath}" data-sfield="synonymRu" value="${escapeHtml(row.synonymRu)}" placeholder="Синоним"${dis} />
+			<input class="edit-input struct-input" data-spath="${spath}" data-sfield="synonym" value="${escapeHtml(row.synonym)}" placeholder="Синоним"${dis} />
 			<span class="struct-actions-inline">${moduleButton}
 				<button type="button" class="struct-btn" data-smove="${spath}" data-smove-dir="-1" title="Вверх"${dis}>↑</button>
 				<button type="button" class="struct-btn" data-smove="${spath}" data-smove-dir="1" title="Вниз"${dis}>↓</button>
@@ -2610,8 +2610,8 @@
 	function structReadonlyListHtml(list) {
 		const rows = (list.rows || [])
 			.map(function (row) {
-				const synonym = row.synonymRu && row.synonymRu !== row.name
-					? `<span class="struct-item-syn">${escapeHtml(row.synonymRu)}</span>`
+				const synonym = row.synonym && row.synonym !== row.name
+					? `<span class="struct-item-syn">${escapeHtml(row.synonym)}</span>`
 					: '';
 				return `<div class="struct-item"><span class="struct-item-name">${escapeHtml(row.name)}</span>${synonym}</div>`;
 			})
@@ -2672,16 +2672,16 @@
 				}
 				if (field === 'name') {
 					// Синоним следует за именем, пока пользователь не задал его вручную.
-					const followsName = row.synonymRu === '' || row.synonymRu === synonymFromName(row.name);
+					const followsName = row.synonym === '' || row.synonym === synonymFromName(row.name);
 					row.name = input.value;
 					input.classList.toggle('struct-input-invalid', !row.deleted && !structNameValid(input.value));
 					if (followsName) {
-						row.synonymRu = synonymFromName(input.value);
+						row.synonym = synonymFromName(input.value);
 						const synInput = contentRoot.querySelector(
-							`[data-spath="${CSS.escape(spath)}"][data-sfield="synonymRu"]`
+							`[data-spath="${CSS.escape(spath)}"][data-sfield="synonym"]`
 						);
 						if (synInput) {
-							synInput.value = row.synonymRu;
+							synInput.value = row.synonym;
 						}
 					}
 				} else {
@@ -2750,7 +2750,7 @@
 		for (const btn of contentRoot.querySelectorAll('[data-sadd]')) {
 			btn.addEventListener('click', function () {
 				const target = btn.getAttribute('data-sadd');
-				const emptyRow = { originalName: '', name: '', synonymRu: '', baselineSynonymRu: '', comment: '', deleted: false };
+				const emptyRow = { originalName: '', name: '', synonym: '', baselineSynonym: '', comment: '', deleted: false };
 				let newSpath = '';
 				if (target.startsWith('l.')) {
 					const listIdx = Number(target.split('.')[1]);
@@ -2785,7 +2785,7 @@
 
 	function readonlyStructRowHtml(item) {
 		const name = toDisplayText(item.name);
-		const synonymRaw = typeof item.synonymRu === 'string' ? item.synonymRu.trim() : '';
+		const synonymRaw = typeof item.synonym === 'string' ? item.synonym.trim() : '';
 		const synonym = synonymRaw && synonymRaw !== item.name ? synonymRaw : '';
 		const comment = typeof item.comment === 'string' ? item.comment.trim() : '';
 		return `<div class="struct-item"${comment ? ` title="${escapeHtml(comment)}"` : ''}>

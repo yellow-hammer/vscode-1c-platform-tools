@@ -12,7 +12,7 @@
 
 import * as path from 'node:path';
 import * as vscode from 'vscode';
-import { resolveProjectLayout, type LayoutPaths, type SourceRoot } from './projectLayout';
+import { resolveProjectLayout, type SourceRoot } from './projectLayout';
 
 /** Ключ выбранной конфигурации в workspaceState. */
 const ACTIVE_CONFIGURATION_KEY = 'activeConfigurationDir';
@@ -30,8 +30,10 @@ export const onDidChangeActiveConfiguration = changed.event;
 export interface ConfigurationScope {
 	/** Выбранная конфигурация; её нет, когда исходного кода в рабочей области нет. */
 	configuration?: SourceRoot;
-	/** Расширения выбранной конфигурации. */
+	/** Расширения выбранной конфигурации: поставляемые. */
 	extensions: SourceRoot[];
+	/** Тестовые расширения выбранной конфигурации: под каталогом tests. */
+	testExtensions: SourceRoot[];
 	/** Остальные конфигурации рабочей области - между ними и переключаются. */
 	others: SourceRoot[];
 }
@@ -79,36 +81,39 @@ function belongsTo(extension: SourceRoot, configuration: SourceRoot): boolean {
  * области; иначе берётся первая найденная.
  *
  * @param workspaceRoot - Корень рабочей области
- * @param paths - Настройки путей проекта; без них раскладка определяется обходом
  */
-export async function configurationScope(
-	workspaceRoot: string,
-	paths?: LayoutPaths
-): Promise<ConfigurationScope> {
-	const layout = await resolveProjectLayout(workspaceRoot, paths);
+export async function configurationScope(workspaceRoot: string): Promise<ConfigurationScope> {
+	const layout = await resolveProjectLayout(workspaceRoot);
 	const all = [...(layout.configuration ? [layout.configuration] : []), ...layout.others];
 
 	const selected = memento?.get<string>(ACTIVE_CONFIGURATION_KEY);
 	const configuration = all.find((root) => root.dir === selected) ?? all[0];
 	if (!configuration) {
-		return { configuration: undefined, extensions: layout.extensions, others: [] };
+		return {
+			configuration: undefined,
+			extensions: layout.extensions,
+			testExtensions: layout.testExtensions,
+			others: [],
+		};
 	}
 
 	// Пока конфигурация одна, все найденные расширения относятся к ней: имя
 	// каталога у расширения может не совпадать с именем конфигурации.
 	// Расширение, не подошедшее ни к одной конфигурации, считаем общим:
 	// потерять его хуже, чем показать лишнее.
-	const own = all.length > 1
-		? layout.extensions.filter(
-			(extension) =>
-				belongsTo(extension, configuration) ||
-				!all.some((candidate) => belongsTo(extension, candidate))
-		)
-		: layout.extensions;
+	const own = (extensions: SourceRoot[]): SourceRoot[] =>
+		all.length > 1
+			? extensions.filter(
+				(extension) =>
+					belongsTo(extension, configuration) ||
+					!all.some((candidate) => belongsTo(extension, candidate))
+			)
+			: extensions;
 
 	return {
 		configuration,
-		extensions: own,
+		extensions: own(layout.extensions),
+		testExtensions: own(layout.testExtensions),
 		others: all.filter((root) => root.dir !== configuration.dir),
 	};
 }

@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<MetaDataObject xmlns="http://v8.1c.ru/8.3/MDClasses" xmlns:v8="http://v8.1c.ru/8.1/data/core" xmlns:xr="http://v8.1c.ru/8.3/xcf/readable" version="2.9">
+	<Configuration uuid="3f1c8a52-7b0e-4c1d-9a35-5f0d2c7b9e11">
+		<Properties>
+			<Name>Подмодуль</Name>
+			<Synonym>
+				<v8:item>
+					<v8:lang>ru</v8:lang>
+					<v8:content>Подмодуль</v8:content>
+				</v8:item>
+			</Synonym>
+			<Comment/>
+			<DefaultRunMode>ManagedApplication</DefaultRunMode>
+			<ScriptVariant>Russian</ScriptVariant>
+		</Properties>
+		<ChildObjects/>
+	</Configuration>
+</MetaDataObject>

@@ -21,7 +21,7 @@ import { logger } from './logger';
 import { setTerminalOscriptBinDir } from './terminalEnv';
 import { dockerContainerName, stopDockerContainer } from './dockerRun';
 import { runCancellableCommand, CancellableProcessResult } from './cancellableProcess';
-import { DEFAULT_PATHS, DEFAULT_VRUNNER, DEFAULT_ENV, TESTS_SUBDIRS, testsSubPath } from './pathDefaults';
+import { DEFAULT_PATHS, DEFAULT_VRUNNER, DEFAULT_ENV } from './pathDefaults';
 import { getOvmBinaryPath, getOvmBinDir, getOvmRootDir, getOpmBinaryCandidates, getOpmScriptPath, withBinDirFirst } from './ovmPaths';
 import {
 	ACTIVE_ENV_PROFILE_KEY,
@@ -56,7 +56,7 @@ import { VRunnerIntent } from './vrunnerCli';
 import { planIntents, SettingsFileFormat } from './vrunnerCli/planner';
 import { parseSettingsJson, readSettingsJson, readSettingsJsonSync } from './settingsJson';
 import { translateArgsToV3 } from './vrunnerCommandMap';
-import { createVRunnerTask } from '../features/tasks/vrunnerTask';
+import { createVRunnerTask, type TaskOutputChain } from '../features/tasks/vrunnerTask';
 import { decodeProcessOutput } from './processOutput';
 
 const log = logger.scope('vrunner');
@@ -347,18 +347,6 @@ export class VRunnerManager {
 		return config.get<string>('components.path.allure', '').trim() || 'allure';
 	}
 
-	/**
-	 * Получает путь к исходному коду конфигурации
-	 * 
-	 * Путь берется из настроек VS Code (1c-platform-tools.path.cf).
-	 * По умолчанию: 'src/cf'
-	 * 
-	 * @returns Путь к исходному коду конфигурации (относительно workspace)
-	 */
-	public getCfPath(): string {
-		const config = vscode.workspace.getConfiguration('1c-platform-tools');
-		return config.get<string>('path.cf', DEFAULT_PATHS.cf);
-	}
 
 	/**
 	 * Получает путь к результатам сборки
@@ -386,86 +374,11 @@ export class VRunnerManager {
 		return config.get<string>('path.dist', DEFAULT_PATHS.dist);
 	}
 
-	/**
-	 * Получает путь к исходникам внешних обработок
-	 * 
-	 * Путь берется из настроек VS Code (1c-platform-tools.path.epf).
-	 * По умолчанию: 'src/epf'
-	 * 
-	 * @returns Путь к исходникам внешних обработок (относительно workspace)
-	 */
-	public getEpfPath(): string {
-		const config = vscode.workspace.getConfiguration('1c-platform-tools');
-		return config.get<string>('path.epf', DEFAULT_PATHS.epf);
-	}
 
-	/**
-	 * Получает путь к исходникам внешних отчетов
-	 * 
-	 * Путь берется из настроек VS Code (1c-platform-tools.path.erf).
-	 * По умолчанию: 'src/erf'
-	 * 
-	 * @returns Путь к исходникам внешних отчетов (относительно workspace)
-	 */
-	public getErfPath(): string {
-		const config = vscode.workspace.getConfiguration('1c-platform-tools');
-		return config.get<string>('path.erf', DEFAULT_PATHS.erf);
-	}
 
-	/**
-	 * Получает путь к исходникам тестовых расширений
-	 *
-	 * Тестовые расширения живут рядом с тестами, а не в исходниках решения:
-	 * они не поставляются, поэтому команды группы «Расширения», дерево
-	 * метаданных и установка версии их не трогают. Собираются и подключаются
-	 * отдельными командами перед прогоном - как тестовые обработки.
-	 *
-	 * Подкаталог cfe внутри корня тестов (1c-platform-tools.path.tests).
-	 * По умолчанию: 'tests/cfe'
-	 *
-	 * @returns Путь к исходникам тестовых расширений (относительно workspace)
-	 */
-	public getTestsCfePath(): string {
-		return testsSubPath(this.getTestsPath(), TESTS_SUBDIRS.cfe);
-	}
 
-	/**
-	 * Получает путь к исходникам расширений
-	 *
-	 * Путь берется из настроек VS Code (1c-platform-tools.path.cfe).
-	 * По умолчанию: 'src/cfe'
-	 *
-	 * @returns Путь к исходникам расширений (относительно workspace)
-	 */
-	public getCfePath(): string {
-		const config = vscode.workspace.getConfiguration('1c-platform-tools');
-		return config.get<string>('path.cfe', DEFAULT_PATHS.cfe);
-	}
 
-	/**
-	 * Получает путь к исходникам тестовых обработок (xUnit/Vanessa-ADD)
-	 *
-	 * Подкаталог epf внутри корня тестов (1c-platform-tools.path.tests).
-	 * По умолчанию: 'tests/epf'
-	 *
-	 * @returns Путь к исходникам тестовых обработок (относительно workspace)
-	 */
-	public getTestsSrcPath(): string {
-		return testsSubPath(this.getTestsPath(), TESTS_SUBDIRS.epf);
-	}
 
-	/**
-	 * Получает путь к каталогу исполняемых тестов (*.os и собранные *.epf)
-	 *
-	 * Путь берется из настроек VS Code (1c-platform-tools.path.tests).
-	 * По умолчанию: 'tests'
-	 *
-	 * @returns Путь к каталогу тестов (относительно workspace)
-	 */
-	public getTestsPath(): string {
-		const config = vscode.workspace.getConfiguration('1c-platform-tools');
-		return config.get<string>('path.tests', DEFAULT_PATHS.tests);
-	}
 
 	// ibcmd — настройка проекта: задаётся пользователем в файле настроек
 	// vanessa-runner («--ibcmd» в env.json, vrunner.ibcmd в
@@ -1435,6 +1348,8 @@ export class VRunnerManager {
 			translateRaw?: boolean;
 			definition?: vscode.TaskDefinition;
 			exitCallback?: (exitCode: number) => void;
+			/** Общий терминал шагов одной команды: без него задача очищает терминал */
+			output?: TaskOutputChain;
 		}
 	): Promise<vscode.Task | undefined> {
 		await this.getVRunnerVersion();
@@ -1469,6 +1384,7 @@ export class VRunnerManager {
 			definition: options?.definition,
 			exitCallback: options?.exitCallback,
 			onCancel: containerName === undefined ? undefined : () => stopDockerContainer(containerName),
+			appendOutput: options?.output?.append(),
 		});
 	}
 
@@ -1483,7 +1399,7 @@ export class VRunnerManager {
 	 */
 	public async executeVRunnerTask(
 		args: string[],
-		options?: { cwd?: string; env?: NodeJS.ProcessEnv; name?: string; appendOverrides?: boolean }
+		options?: { cwd?: string; env?: NodeJS.ProcessEnv; name?: string; appendOverrides?: boolean; output?: TaskOutputChain }
 	): Promise<void> {
 		const task = await this.createVRunnerTaskFromArgs(args, options);
 		if (task) {
@@ -1498,7 +1414,7 @@ export class VRunnerManager {
 	 */
 	public async executeVRunnerTaskAndWait(
 		args: string[],
-		options?: { cwd?: string; env?: NodeJS.ProcessEnv; name?: string; appendOverrides?: boolean }
+		options?: { cwd?: string; env?: NodeJS.ProcessEnv; name?: string; appendOverrides?: boolean; output?: TaskOutputChain }
 	): Promise<number> {
 		let resolveExit!: (exitCode: number) => void;
 		const exitPromise = new Promise<number>((resolve) => {
@@ -1527,7 +1443,7 @@ export class VRunnerManager {
 	 */
 	public async executeVRunnerTaskSequence(
 		argsArray: string[][],
-		options?: { cwd?: string; env?: NodeJS.ProcessEnv; name?: string; appendOverrides?: boolean }
+		options?: { cwd?: string; env?: NodeJS.ProcessEnv; name?: string; appendOverrides?: boolean; output?: TaskOutputChain }
 	): Promise<void> {
 		if (argsArray.length === 0) {
 			return;
@@ -1586,6 +1502,7 @@ export class VRunnerManager {
 			cwd,
 			env: this.childEnv(options?.env),
 			onCancel: containerName === undefined ? undefined : () => stopDockerContainer(containerName),
+			appendOutput: options?.output?.append(),
 		});
 		await vscode.tasks.executeTask(task);
 	}
@@ -1597,7 +1514,7 @@ export class VRunnerManager {
 	 */
 	public async executeVRunnerTaskSequenceAndWait(
 		argsArray: string[][],
-		options?: { cwd?: string; env?: NodeJS.ProcessEnv; name?: string; appendOverrides?: boolean }
+		options?: { cwd?: string; env?: NodeJS.ProcessEnv; name?: string; appendOverrides?: boolean; output?: TaskOutputChain }
 	): Promise<number> {
 		if (argsArray.length === 0) {
 			return 0;
@@ -1659,6 +1576,7 @@ export class VRunnerManager {
 			env: this.childEnv(options?.env),
 			exitCallback: resolveExit,
 			onCancel: containerName === undefined ? undefined : () => stopDockerContainer(containerName),
+			appendOutput: options?.output?.append(),
 		});
 		await vscode.tasks.executeTask(task);
 		return exitPromise;
@@ -1686,7 +1604,7 @@ export class VRunnerManager {
 	 */
 	public async executeVRunnerInTerminal(
 		args: string[],
-		options?: { cwd?: string; env?: NodeJS.ProcessEnv; name?: string; shellType?: ShellType; appendOverrides?: boolean }
+		options?: { cwd?: string; env?: NodeJS.ProcessEnv; name?: string; shellType?: ShellType; appendOverrides?: boolean; output?: TaskOutputChain }
 	): Promise<void> {
 		await this.getVRunnerVersion();
 		// По умолчанию команды идут как задачи VS Code (Rerun, список задач).
@@ -1771,7 +1689,7 @@ export class VRunnerManager {
 	 */
 	public async executeVRunnerCommandsInSequence(
 		argsArray: string[][],
-		options?: { cwd?: string; env?: NodeJS.ProcessEnv; name?: string; shellType?: ShellType; appendOverrides?: boolean }
+		options?: { cwd?: string; env?: NodeJS.ProcessEnv; name?: string; shellType?: ShellType; appendOverrides?: boolean; output?: TaskOutputChain }
 	): Promise<void> {
 		if (argsArray.length === 0) {
 			return;

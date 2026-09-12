@@ -1,3 +1,6 @@
+import { configurationScope } from '../../../shared/activeConfiguration';
+import { sameOrUnder, type SourceRoot } from '../../../shared/projectLayout';
+import { runnerPath } from '../../../shared/projectPaths';
 import * as vscode from 'vscode';
 import * as path from 'node:path';
 import * as fs from 'node:fs/promises';
@@ -7,9 +10,7 @@ import { TestFrameworkAdapter, AdapterRunPlan, RunUnit } from '../frameworkAdapt
 import { DiscoveredFile } from '../parsers/parserTypes';
 import { parseBslTestModule } from '../parsers/bslTestParser';
 import { resolveConfigPath, yaxunitSectionFromEnv, type YaxunitProfileSection } from '../projectTestConfig';
-import { activeSourceGlobBases, normalizeGlobBase } from './adapterUtils';
 import { DEFAULT_TESTING } from '../../../shared/pathDefaults';
-import { resolveExtensionNameFromSrc } from '../../extensions/extensionNames';
 import type { SettingsSchema } from '../../../shared/envProfiles';
 import type { YaxunitFilter } from '../../../shared/vrunnerCli';
 
@@ -25,7 +26,7 @@ const NO_REPORT_HINT =
  *
  * Discovery: общие модули тестового расширения с регистрацией тестов через
  * ДобавитьТест("..."). Смотрим оба корня расширений: и решения (path.cfe), и
- * тестовых (<path.tests>/cfe) - расширение с тестами держат отдельно от поставки,
+ * тестовых (tests/cfe) - расширение с тестами держат отдельно от поставки,
  * но и внутри решения оно встречается.
  *
  * Запуск: готовый конфиг из секции yaxunit активного профиля, иначе из
@@ -41,28 +42,38 @@ export class YaxunitAdapter implements TestFrameworkAdapter {
 
 	constructor(private readonly vrunner: VRunnerManager) {}
 
-	public isEnabled(): boolean {
+	/** Корни, по которым идёт поиск; читаются вместе с масками, по ним файл получает место в дереве. */
+	private roots: SourceRoot[] = [];
+
+	public async isEnabled(): Promise<boolean> {
 		const config = vscode.workspace.getConfiguration('1c-platform-tools');
 		return config.get<boolean>('test.frameworks.yaxunit', true);
 	}
 
 	public async getIncludeGlobs(): Promise<string[]> {
-		const configured = [this.vrunner.getCfePath(), this.vrunner.getTestsCfePath()]
-			.map((root) => normalizeGlobBase(root))
-			.filter((base) => base.length > 0)
-			.flatMap((base) => [
-				// расширения лежат подкаталогами настроенного пути
-				`${base}/*/CommonModules/*/Ext/Module.bsl`,
-				`${base}/*/src/CommonModules/*/Module.bsl`,
-			]);
+		const workspaceRoot = this.vrunner.getWorkspaceRoot();
+		if (!workspaceRoot) {
+			return [];
+		}
+		const scope = await configurationScope(workspaceRoot);
+		const prefix = (dir: string) => {
+			const relative = runnerPath(workspaceRoot, dir);
+			return relative === '.' ? '' : `${relative}/`;
+		};
+		// В формате EDT тесты YAxUnit живут и в проекте самой конфигурации
+		this.roots = [
+			...(scope.configuration?.format === 'edt' ? [scope.configuration] : []),
+			...scope.extensions,
+			...scope.testExtensions,
+		];
+		const designer = this.roots
+			.filter((root) => root.format === 'designer')
+			.map((root) => `${prefix(root.dir)}CommonModules/*/Ext/Module.bsl`);
+		const edt = this.roots
+			.filter((root) => root.format === 'edt')
+			.map((root) => `${prefix(root.dir)}src/CommonModules/*/Module.bsl`);
 
-		// В формате EDT конфигурация и расширения - отдельные проекты рабочей
-		// области, настроенными путями их не описать.
-		const projects = (await activeSourceGlobBases(this.vrunner)).map(
-			(base) => `${base}/src/CommonModules/*/Module.bsl`
-		);
-
-		return [...configured, ...projects].filter((glob, index, all) => all.indexOf(glob) === index);
+		return [...designer, ...edt].filter((glob, index, all) => all.indexOf(glob) === index);
 	}
 
 	public parseFile(content: string): DiscoveredFile | undefined {
@@ -78,13 +89,15 @@ export class YaxunitAdapter implements TestFrameworkAdapter {
 	}
 
 	public describeFileLocation(fileUri: vscode.Uri, _workspaceRoot: string) {
-		// Путь .../cfe/<Расширение>/CommonModules/<Модуль>/Module.bsl →
-		// в дереве: <Расширение> → <Модуль> (вместо бессмысленного Module.bsl)
+		// В дереве: <Расширение> → <Модуль> (вместо бессмысленного Module.bsl).
+		// Группу даёт корень раскладки: сегмент пути перед CommonModules у проекта
+		// EDT это src, а не имя проекта
+		const root = owningRoot(this.roots, fileUri.fsPath);
 		const segments = fileUri.fsPath.split(/[\\/]/);
 		const index = segments.lastIndexOf('CommonModules');
-		const extensionName = index >= 2 ? segments[index - 1] : undefined;
+		const group = root ? root.name || path.basename(root.dir) : index >= 2 ? segments[index - 1] : undefined;
 		return {
-			segments: extensionName ? [extensionName] : [],
+			segments: group ? [group] : [],
 			label: extractModuleName(fileUri.fsPath)
 		};
 	}
@@ -217,13 +230,14 @@ export class YaxunitAdapter implements TestFrameworkAdapter {
 	 * @returns Имена расширений без повторов
 	 */
 	private async extensionNames(units: RunUnit[]): Promise<string[]> {
-		const dirs = [...new Set(
-			units
-				.map((unit) => extensionSourceDir(unit.fileUri.fsPath))
-				.filter((dir): dir is string => dir !== undefined)
-		)];
-		const names = await Promise.all(dirs.map((dir) => resolveExtensionNameFromSrc(dir)));
-		return [...new Set(names)];
+		const workspaceRoot = this.vrunner.getWorkspaceRoot();
+		if (!workspaceRoot) {
+			return [];
+		}
+		const scope = await configurationScope(workspaceRoot);
+		const roots = [...scope.extensions, ...scope.testExtensions];
+		const names = units.map((unit) => owningRoot(roots, unit.fileUri.fsPath)?.name);
+		return [...new Set(names.filter((name): name is string => name !== undefined && name.length > 0))];
 	}
 
 	/**
@@ -259,16 +273,15 @@ export class YaxunitAdapter implements TestFrameworkAdapter {
 	}
 }
 
-/**
- * Извлекает имя общего модуля из пути .../CommonModules/<Имя>/Module.bsl
- */
-export function extensionSourceDir(fsPath: string): string | undefined {
-	const segments = fsPath.split(/[\\/]/);
-	const index = segments.lastIndexOf('CommonModules');
-	if (index < 1) {
-		return undefined;
+/** Корень раскладки, которому принадлежит файл: из вложенных самый глубокий. */
+function owningRoot(roots: readonly SourceRoot[], file: string): SourceRoot | undefined {
+	let found: SourceRoot | undefined;
+	for (const root of roots) {
+		if (sameOrUnder(file, root.dir) && (!found || root.dir.length > found.dir.length)) {
+			found = root;
+		}
 	}
-	return segments.slice(0, index).join(path.sep);
+	return found;
 }
 
 export function extractModuleName(fsPath: string): string {

@@ -12,7 +12,13 @@
 
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-import type { SourceFormat } from '../../shared/projectLayout';
+import {
+	isTestPath,
+	sameOrUnder,
+	type ExternalRoot,
+	type ProjectLayout,
+	type SourceFormat,
+} from '../../shared/projectLayout';
 import type { VRunnerIntent } from '../../shared/vrunnerCli/intents';
 import { isAtLeast, VRUNNER_FEATURES, type VRunnerVersion } from '../../shared/vrunnerVersion';
 
@@ -21,6 +27,12 @@ const FORMAT_PROBE_DEPTH = 4;
 
 /** Промежуточный каталог выгрузок проектов EDT внутри каталога сборки. */
 export const EDT_STAGING_DIR = 'edt-export';
+
+/** Промежуточный каталог того, что импортируется в проекты EDT: выгрузка проекта с подменёнными объектами. */
+export const EDT_IMPORT_DIR = 'edt-import';
+
+/** Имя промежуточного каталога для исходников, лежащих прямо в рабочей области: у неё самой имени нет. */
+const WORKSPACE_STAGING_NAME = 'workspace';
 
 /** Интенты, читающие исходники: проект выгружается перед командой. */
 const READ_SOURCE_INTENTS: ReadonlySet<VRunnerIntent['kind']> = new Set([
@@ -54,34 +66,115 @@ export interface EdtExternalProject {
 }
 
 /** Выгрузка проекта EDT в формат конфигуратора перед командой. */
-export interface EdtExportStep {
+export interface EdtProjectExport {
 	/** Каталог проекта относительно рабочей области. */
 	projectDir: string;
 	/** Каталог выгрузки относительно рабочей области. */
 	target: string;
 	/** Имя внешнего объекта: его выгрузка перекладывается в раскладку раннера. */
 	externalName?: string;
+	/** Каталог базового проекта относительно рабочей области: он подключается первым. */
+	baseProjectDir?: string;
 }
+
+/**
+ * Объекты выгрузки конфигуратора из каталога, где лежат и проекты EDT: раннер
+ * получает промежуточный каталог целиком, поэтому они копируются туда как есть.
+ */
+export interface EdtDesignerCopy {
+	/** Каталог исходников команды относительно рабочей области. */
+	designerSource: string;
+	/** Промежуточный каталог относительно рабочей области. */
+	target: string;
+}
+
+/** Очистка промежуточного каталога перед командой: прошлый результат иначе ушёл бы в проект. */
+export interface EdtStagingClear {
+	/** Каталог относительно рабочей области. */
+	clear: string;
+}
+
+/** Шаг перед командой раннера. */
+export type EdtExportStep = EdtProjectExport | EdtDesignerCopy | EdtStagingClear;
 
 /** Импорт результата команды обратно в проект EDT. */
 export interface EdtImportStep {
 	/** Каталог с выгрузкой относительно рабочей области. */
 	source: string;
-	/** Каталог проекта относительно рабочей области. */
+	/** Каталог проекта относительно рабочей области; у внешних объектов каталог, где заводятся новые проекты. */
 	projectDir: string;
 	/** Расширение импортируется с именем базового проекта. */
 	needsBase: boolean;
 	/**
-	 * Каталог с выгрузками внешних объектов: каждая уходит в свой проект. Импорт
-	 * идёт без базового проекта: с ним EDT требует базовый проект, импортированный
-	 * в ту же рабочую область из выгрузки, а без него кладёт те же файлы. Базовый
-	 * проект вписывается в манифест после импорта.
+	 * Каталог с выгрузками внешних объектов, по каталогу `<Имя>/<Имя>.xml` на объект.
+	 * Объект возвращается в свой проект, а объект без проекта получает новый.
+	 * Импорт идёт без базового проекта: с ним EDT требует базовый проект,
+	 * импортированный в ту же рабочую область из выгрузки, а без него кладёт те же
+	 * файлы. Базовый проект вписывается в манифест после импорта.
 	 */
 	external: boolean;
+	/** Каталог базового проекта относительно рабочей области. */
+	baseProjectDir?: string;
 }
 
 /** Строка манифеста проекта EDT с именем базового проекта. */
 const BASE_PROJECT_LINE = 'Base-Project: ';
+
+/** Манифест проекта EDT относительно его каталога. */
+const PROJECT_MANIFEST = path.join('DT-INF', 'PROJECT.PMF');
+
+/**
+ * Имя базового проекта из манифеста `DT-INF/PROJECT.PMF`.
+ *
+ * @returns Имя либо undefined, когда базового проекта в манифесте нет
+ */
+export function baseProjectOfManifest(manifest: string): string | undefined {
+	const line = manifest.split(/\r?\n/).find((candidate) => candidate.startsWith(BASE_PROJECT_LINE));
+	const name = line?.slice(BASE_PROJECT_LINE.length).trim();
+	return name ? name : undefined;
+}
+
+/** Где искать базовый проект. */
+export interface EdtBaseLookup {
+	/** Абсолютные каталоги проектов конфигураций EDT рабочей области. */
+	configurations: readonly string[];
+	/** Имя проекта по его каталогу: под ним проект знает рабочая область EDT. */
+	projectName: (projectDir: string) => string;
+	/** Абсолютный каталог проекта активной конфигурации: базовый, когда другого не нашлось. */
+	active?: string;
+}
+
+/**
+ * Базовый проект расширения или проекта внешних объектов EDT.
+ *
+ * Имя базового проекта лежит в манифесте проекта; без манифеста расширение
+ * выдаёт себя именем проекта `<конфигурация>.<расширение>`. Когда не нашлось ни
+ * того, ни другого, базовым служит проект активной конфигурации. У самой
+ * конфигурации базового проекта нет.
+ *
+ * @param projectDir - Абсолютный каталог проекта
+ * @returns Абсолютный каталог базового проекта либо undefined
+ */
+export function edtBaseProjectOf(projectDir: string, lookup: EdtBaseLookup): string | undefined {
+	if (lookup.configurations.some((dir) => samePath(dir, projectDir))) {
+		return undefined;
+	}
+	const named = baseProjectOfManifest(readText(path.join(projectDir, PROJECT_MANIFEST)));
+	const byManifest = named === undefined ? undefined : lookup.configurations.find((dir) => lookup.projectName(dir) === named);
+	if (byManifest !== undefined) {
+		return byManifest;
+	}
+	const byName = lookup.configurations.find((dir) => path.basename(projectDir).startsWith(`${path.basename(dir)}.`));
+	return byName ?? lookup.active;
+}
+
+function readText(file: string): string {
+	try {
+		return fs.readFileSync(file, 'utf8');
+	} catch {
+		return '';
+	}
+}
 
 /**
  * Манифест проекта внешнего объекта с базовым проектом.
@@ -185,6 +278,51 @@ function runnerPath(...parts: string[]): string {
 }
 
 /**
+ * Промежуточный каталог для исходников команды: по имени их каталога.
+ *
+ * Внешние объекты EDT лежат прямо в рабочей области, у которой имени нет; они
+ * получают своё, чтобы не ложиться вперемешку с выгрузками проектов.
+ *
+ * @param buildDir - Каталог сборки относительно рабочей области
+ * @param sourceDir - Каталог исходников относительно рабочей области
+ */
+export function edtStagingTarget(buildDir: string, sourceDir: string): string {
+	// Пути раннера приходят и с обратными слэшами, а на Linux это не разделитель
+	const name = path.posix.basename(sourceDir.replace(/\\/g, '/'));
+	return runnerPath(buildDir, EDT_STAGING_DIR, name && name !== '.' ? name : WORKSPACE_STAGING_NAME);
+}
+
+/**
+ * Проект EDT, в котором лежит внешний объект с таким именем.
+ *
+ * @param layout - Раскладка рабочей области
+ * @param name - Имя объекта
+ */
+export function edtProjectOfExternal(layout: ProjectLayout, name: string): ExternalRoot | undefined {
+	return [...layout.processors, ...layout.reports, ...layout.testProcessors].find(
+		(root) => root.format === 'edt' && root.name === name
+	);
+}
+
+/**
+ * Внешние объекты выгрузки конфигуратора внутри каталога исходников команды.
+ *
+ * Каталог под каталогом тестов собирает тестовые объекты, остальные каталоги
+ * объекты решения: у рабочей области как каталога тестовые объекты остаются в своём.
+ *
+ * @param layout - Раскладка рабочей области
+ * @param workspaceRoot - Корень рабочей области
+ * @param directory - Каталог относительно рабочей области либо абсолютный
+ */
+export function designerExternalsUnder(layout: ProjectLayout, workspaceRoot: string, directory: string): ExternalRoot[] {
+	const absolute = path.resolve(workspaceRoot, directory);
+	const candidates = isTestPath(workspaceRoot, absolute)
+		? layout.testProcessors
+		: [...layout.processors, ...layout.reports];
+	return candidates.filter((root) => root.format === 'designer' && sameOrUnder(root.dir, absolute));
+}
+
+/**
  * Проекты внешних объектов EDT, которых касается путь команды.
  *
  * Путь бывает каталогом объекта внутри проекта (`<проект>/src/ExternalDataProcessors/<Имя>`),
@@ -198,7 +336,7 @@ export function edtExternalProjectsOf(workspaceRoot: string, sourceDir: string):
 	const relative = (dir: string) => runnerPath(path.relative(workspaceRoot, dir));
 	const own = externalProjectOf(absolute);
 	if (own) {
-		return [{ name: own.name, projectDir: relative(own.projectDir) }];
+		return own.names.map((name) => ({ name, projectDir: relative(own.projectDir) }));
 	}
 	const found: EdtExternalProject[] = [];
 	let entries: fs.Dirent[] = [];
@@ -213,32 +351,39 @@ export function edtExternalProjectsOf(workspaceRoot: string, sourceDir: string):
 		}
 		const project = externalProjectOf(path.join(absolute, entry.name));
 		if (project) {
-			found.push({ name: project.name, projectDir: relative(project.projectDir) });
+			found.push(...project.names.map((name) => ({ name, projectDir: relative(project.projectDir) })));
 		}
 	}
 	return found;
 }
 
 /** Проект внешнего объекта, которому принадлежит каталог: сам проект или каталог объекта в нём. */
-function externalProjectOf(directory: string): { name: string; projectDir: string } | undefined {
+function externalProjectOf(directory: string): { names: string[]; projectDir: string } | undefined {
 	for (const candidate of [directory, path.resolve(directory, '..', '..', '..')]) {
 		if (!fs.existsSync(path.join(candidate, '.project'))) {
 			continue;
 		}
+		const names: string[] = [];
 		for (const kind of EXTERNAL_DIRECTORIES) {
 			const objects = path.join(candidate, 'src', kind);
-			let names: string[] = [];
 			try {
-				names = fs.readdirSync(objects, { withFileTypes: true })
-					.filter((entry) => entry.isDirectory() && fs.existsSync(path.join(objects, entry.name, `${entry.name}.mdo`)))
-					.map((entry) => entry.name);
+				names.push(
+					...fs.readdirSync(objects, { withFileTypes: true })
+						.filter((entry) => entry.isDirectory() && fs.existsSync(path.join(objects, entry.name, `${entry.name}.mdo`)))
+						.map((entry) => entry.name)
+				);
 			} catch {
 				continue;
 			}
-			if (names.length > 0) {
-				return { name: names[0], projectDir: candidate };
-			}
 		}
+		if (names.length === 0) {
+			continue;
+		}
+		// Каталог самого объекта: остальные объекты проекта команде не нужны
+		const object = path.basename(directory);
+		return candidate === directory || !names.includes(object)
+			? { names, projectDir: candidate }
+			: { names: [object], projectDir: candidate };
 	}
 	return undefined;
 }
@@ -259,12 +404,11 @@ export function planEdtBridge(
 	if (source?.format !== 'edt') {
 		return undefined;
 	}
-	const staging = runnerPath(layout.buildDir, EDT_STAGING_DIR);
 	const sourceDir = source.dir ?? intentSourcePath(intent);
 	if (!sourceDir) {
 		return undefined;
 	}
-	const target = runnerPath(staging, path.basename(sourceDir));
+	const target = edtStagingTarget(layout.buildDir, sourceDir);
 
 	if (READ_SOURCE_INTENTS.has(intent.kind) && 'src' in intent && typeof intent.src === 'string') {
 		return {
@@ -276,7 +420,7 @@ export function planEdtBridge(
 	if (WRITE_SOURCE_INTENTS.has(intent.kind) && 'out' in intent) {
 		return {
 			intent: { ...intent, out: target },
-			exports: [],
+			exports: [{ clear: target }],
 			imports: [{ source: target, projectDir: runnerPath(sourceDir), needsBase: intent.kind.startsWith('cfe.'), external: false }],
 		};
 	}
@@ -285,20 +429,24 @@ export function planEdtBridge(
 		if (projects.length === 0) {
 			return undefined;
 		}
+		// Рядом с проектами EDT бывают объекты выгрузки конфигуратора: раннер собирает промежуточный каталог целиком
 		return {
 			intent: { ...intent, src: target },
-			exports: projects.map((project) => ({
-				projectDir: project.projectDir,
-				target: runnerPath(target, project.name),
-				externalName: project.name,
-			})),
+			exports: [
+				{ designerSource: runnerPath(sourceDir), target },
+				...projects.map((project) => ({
+					projectDir: project.projectDir,
+					target: runnerPath(target, project.name),
+					externalName: project.name,
+				})),
+			],
 			imports: [],
 		};
 	}
 	if (intent.kind === 'epf.decompile') {
 		return {
 			intent: { ...intent, out: target },
-			exports: [],
+			exports: [{ clear: target }],
 			imports: [{ source: target, projectDir: runnerPath(sourceDir), needsBase: false, external: true }],
 		};
 	}

@@ -60,7 +60,10 @@ export class RunCommands extends BaseCommand {
 		if (!(await confirmGuiCommandInRemote(commandName.title))) {
 			return;
 		}
-		const intent: VRunnerIntent = { kind: 'run.enterprise', noWait: true, common: connectionArgs };
+		// Обработка и строка /C приходят от агента: без них открывается пустое Предприятие
+		const execute = typeof opts?.execute === 'string' && opts.execute.trim() !== '' ? opts.execute.trim() : undefined;
+		const command = typeof opts?.command === 'string' && opts.command.trim() !== '' ? opts.command.trim() : undefined;
+		const intent: VRunnerIntent = { kind: 'run.enterprise', noWait: true, execute, command, common: connectionArgs };
 		const window = await this.openInfobaseWindow([intent], opts);
 		if (window === 'blocked') {
 			return opts?.wait === true ? this.executionError(INFOBASE_BUSY) : undefined;

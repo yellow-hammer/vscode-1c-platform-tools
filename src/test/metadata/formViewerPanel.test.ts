@@ -472,10 +472,10 @@ suite('Подписи полей формы по синонимам реквиз
 	test('синоним берётся и у обычного, и у стандартного реквизита', () => {
 		const titles = dataPathTitles(
 			{
-				attributes: [{ name: 'НаименованиеПолное', synonymRu: 'Наименование валюты' }],
+				attributes: [{ name: 'НаименованиеПолное', synonym: 'Наименование валюты' }],
 				standardAttributeSynonyms: { Code: 'Цифровой код', Description: 'Символьный код' },
 				tabularSections: [
-					{ name: 'Курсы', synonymRu: 'Курсы валют', attributes: [{ name: 'Курс', synonymRu: 'Курс валюты' }] },
+					{ name: 'Курсы', synonym: 'Курсы валют', attributes: [{ name: 'Курс', synonym: 'Курс валюты' }] },
 				],
 			},
 			'Объект'
@@ -493,8 +493,8 @@ suite('Подписи полей формы по синонимам реквиз
 				tabularSections: [
 					{
 						name: 'ТабличнаяЧасть1',
-						synonymRu: 'Табличная часть 1',
-						attributes: [{ name: 'Значение1', synonymRu: 'Значение 1' }],
+						synonym: 'Табличная часть 1',
+						attributes: [{ name: 'Значение1', synonym: 'Значение 1' }],
 						standardAttributeSynonyms: { LineNumber: 'N' },
 					},
 				],
@@ -512,7 +512,7 @@ suite('Подписи полей формы по синонимам реквиз
 				tabularSections: [
 					{
 						name: 'Строки',
-						attributes: [{ name: 'LineNumber', synonymRu: 'Свой номер' }],
+						attributes: [{ name: 'LineNumber', synonym: 'Свой номер' }],
 						standardAttributeSynonyms: { LineNumber: 'N' },
 					},
 				],
@@ -541,7 +541,7 @@ suite('Подписи полей формы по синонимам реквиз
 		const titles = dataPathTitles(
 			{
 				internalName: 'ВариантыОтчетов',
-				attributes: [{ name: 'Наименование', synonymRu: 'Имя варианта' }],
+				attributes: [{ name: 'Наименование', synonym: 'Имя варианта' }],
 				childSynonyms: { Признак: 'Признак варианта' },
 			},
 			'Список',
@@ -552,7 +552,7 @@ suite('Подписи полей формы по синонимам реквиз
 	});
 
 	test('без главного реквизита остаются подписи реквизитов формы', () => {
-		const titles = dataPathTitles({ attributes: [{ name: 'А', synonymRu: 'Б' }] }, '', [
+		const titles = dataPathTitles({ attributes: [{ name: 'А', synonym: 'Б' }] }, '', [
 			{ name: 'Список', title: 'Список валют' },
 		]);
 

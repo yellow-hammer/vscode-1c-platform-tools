@@ -12,13 +12,16 @@
  * @module edtRunner
  */
 
+import { createHash } from 'node:crypto';
 import * as fs from 'node:fs';
+import * as os from 'node:os';
 import * as path from 'node:path';
 import * as vscode from 'vscode';
-import { buildCommand, detectShellType } from '../../utils/commandUtils';
-import { createVRunnerTask } from '../tasks/vrunnerTask';
+import { buildProcessCommand } from '../../utils/commandUtils';
+import { createVRunnerTask, type TaskOutputChain } from '../tasks/vrunnerTask';
 import { logger } from '../../shared/logger';
 import { findEdtInstallations, pickEdtInstallation, type EdtInstallation } from '../../shared/edtLocator';
+import { isEdtProject } from '../../shared/projectLayout';
 
 const log = logger.scope('edt');
 
@@ -70,6 +73,27 @@ export function resolveEdt(settings: EdtSettings = readEdtSettings()): EdtInstal
 }
 
 /**
+ * Своё место во временном каталоге для проекта EDT, открытого как рабочая область:
+ * каталог сборки лежит внутри проекта, а рабочую область и выгрузки внутри проекта
+ * EDT не принимает.
+ */
+function temporaryProjectDir(workspaceRoot: string): string {
+	const key = createHash('sha1').update(path.resolve(workspaceRoot)).digest('hex').slice(0, 8);
+	return path.join(os.tmpdir(), '1c-platform-tools', `${path.basename(workspaceRoot)}-${key}`);
+}
+
+/**
+ * Корень выгрузок моста: каталог сборки, а у проекта EDT, открытого как рабочая область,
+ * временный каталог.
+ *
+ * @param workspaceRoot - Корень рабочей области VS Code
+ * @param buildPath - Каталог сборки проекта
+ */
+export function edtStagingRoot(workspaceRoot: string, buildPath: string): string {
+	return isEdtProject(workspaceRoot) ? temporaryProjectDir(workspaceRoot) : buildPath;
+}
+
+/**
  * Каталог рабочей области для команд EDT.
  *
  * @param workspaceRoot - Корень рабочей области VS Code
@@ -79,6 +103,9 @@ export function edtWorkspaceDir(workspaceRoot: string, buildPath: string, settin
 	const configured = settings.workspace.trim();
 	if (configured) {
 		return path.isAbsolute(configured) ? configured : path.join(workspaceRoot, configured);
+	}
+	if (isEdtProject(workspaceRoot)) {
+		return path.join(temporaryProjectDir(workspaceRoot), DEFAULT_WORKSPACE_DIR);
 	}
 	return path.join(workspaceRoot, buildPath, DEFAULT_WORKSPACE_DIR);
 }
@@ -95,6 +122,8 @@ export interface EdtCommand {
 	workspaceDir: string;
 	/** Каталог запуска процесса. */
 	cwd: string;
+	/** Общий терминал шагов команды: без него задача очищает терминал. */
+	output?: TaskOutputChain;
 }
 
 /**
@@ -156,9 +185,15 @@ export function isProjectRegistered(workspaceDir: string, projectName: string): 
  * @param projectDir - Каталог проекта EDT
  * @param workspaceDir - Каталог рабочей области
  * @param cwd - Каталог запуска
+ * @param output - Общий терминал шагов команды
  * @returns Код возврата; ноль, если проекта в рабочей области не было
  */
-export async function detachProject(projectDir: string, workspaceDir: string, cwd: string): Promise<number> {
+export async function detachProject(
+	projectDir: string,
+	workspaceDir: string,
+	cwd: string,
+	output?: TaskOutputChain
+): Promise<number> {
 	if (!fs.existsSync(path.join(projectDir, '.project'))) {
 		return 0;
 	}
@@ -172,6 +207,7 @@ export async function detachProject(projectDir: string, workspaceDir: string, cw
 		title: `EDT: отключение ${projectName}`,
 		workspaceDir,
 		cwd,
+		output,
 	});
 }
 
@@ -184,12 +220,14 @@ export async function detachProject(projectDir: string, workspaceDir: string, cw
  * @param projectDir - Каталог проекта EDT
  * @param workspaceDir - Каталог рабочей области
  * @param cwd - Каталог запуска
+ * @param output - Общий терминал шагов команды
  * @returns Код возврата подключения; ноль, если проект уже был подключён
  */
 export async function ensureProjectRegistered(
 	projectDir: string,
 	workspaceDir: string,
-	cwd: string
+	cwd: string,
+	output?: TaskOutputChain
 ): Promise<number> {
 	const projectName = edtProjectName(projectDir);
 	if (isProjectRegistered(workspaceDir, projectName)) {
@@ -202,6 +240,7 @@ export async function ensureProjectRegistered(
 		title: `EDT: подключение проекта ${projectName}`,
 		workspaceDir,
 		cwd,
+		output,
 	});
 }
 
@@ -229,7 +268,8 @@ export async function runEdtCommand(request: EdtCommand): Promise<number> {
 	}
 
 	const args = buildEdtArgs(request, settings);
-	const command = buildCommand(installation.cli, args, detectShellType());
+	// Задача исполняет команду процессом, а не терминалом пользователя: экранирование по оболочке процесса
+	const command = buildProcessCommand(installation.cli, args);
 	log.info(`EDT ${installation.version}: ${request.command}`);
 
 	running = new Promise<number>((resolve) => {
@@ -239,6 +279,7 @@ export async function runEdtCommand(request: EdtCommand): Promise<number> {
 			cwd: request.cwd,
 			definition: { type: EDT_TASK_TYPE, command: request.command },
 			exitCallback: resolve,
+			appendOutput: request.output?.append(),
 		});
 		void vscode.tasks.executeTask(task);
 	});

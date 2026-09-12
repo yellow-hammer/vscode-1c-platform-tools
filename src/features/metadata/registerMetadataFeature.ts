@@ -1,10 +1,11 @@
+import { CONVENTIONAL_PATHS, projectPaths } from '../../shared/projectPaths';
+import { resolveProjectLayout, sameOrUnder } from '../../shared/projectLayout';
 import * as fs from 'node:fs';
-import { createEdtProject } from '../edt/edtCommands';
+import { createEdtProject, validateEdtProject } from '../edt/edtCommands';
 import { edtProjectName } from '../edt/edtRunner';
 import * as path from 'node:path';
 import * as vscode from 'vscode';
 import { BSP_REGISTRATION_MARKER, buildBspRegistration } from './bspRegistration';
-import { VRunnerManager } from '../../shared/vrunnerManager';
 import {
 	ensureMdSparrowRuntime,
 } from './mdSparrowBootstrap';
@@ -40,6 +41,7 @@ import {
 	formModuleNextTo,
 	formatOfFile,
 	moduleFileOf,
+	objectDirectoryOf,
 	templateContentFileOf,
 	templateDescriptorFileOf,
 } from '../../shared/objectPaths';
@@ -83,7 +85,7 @@ import { showComponentError } from '../../shared/githubToken';
 import { uiOnlyHandler } from '../../shared/agentGate';
 import { describeComponentState, readComponentStates } from '../../shared/componentsRegistry';
 import { CfDumpFinding, DumpValidationDiagnostics } from './dumpValidationDiagnostics';
-import { metadataCompileTarget, type MetadataCompileKind } from './metadataCompileTarget';
+import { edtProjectDirOf, metadataCompileTarget, type MetadataCompileKind } from './metadataCompileTarget';
 import { ArtifactCommands } from '../../commands/artifactCommands';
 
 export interface RegisterMetadataFeatureParams {
@@ -96,6 +98,12 @@ export interface RegisterMetadataFeatureParams {
 }
 
 /** Правила поддержки: слова и порядок окна правила поддержки конфигуратора. */
+/** Подчинённые объекты в ответе о строении: вид и файл содержимого приходят вместе с именем. */
+interface ObjectChildrenDto {
+	forms?: { name?: string; formType?: string; contentFile?: string }[];
+	templates?: { name?: string; templateType?: string; contentFile?: string; binaryContent?: boolean }[];
+}
+
 const SUPPORT_RULE_PICKS: ReadonlyArray<{ readonly label: string; readonly mode: string }> = [
 	{ label: 'Объект поставщика не редактируется', mode: '0' },
 	{ label: 'Объект поставщика редактируется с сохранением поддержки', mode: '1' },
@@ -274,21 +282,16 @@ export function registerMetadataFeature(
 		return undefined;
 	}
 
-	/** Каталоги расширений проекта: у каждого свой Configuration.xml. */
-	function listExtensionRoots(): string[] {
+	/** Каталоги расширений выгрузки конфигуратора из раскладки. */
+	async function listExtensionRoots(): Promise<string[]> {
 		const root = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
 		if (!root) {
 			return [];
 		}
-		const cfeRoot = path.join(root, VRunnerManager.getInstance(context).getCfePath());
-		if (!fs.existsSync(cfeRoot)) {
-			return [];
-		}
-		return fs
-			.readdirSync(cfeRoot, { withFileTypes: true })
-			.filter((entry) => entry.isDirectory())
-			.map((entry) => path.join(cfeRoot, entry.name))
-			.filter((dir) => fs.existsSync(path.join(dir, 'Configuration.xml')));
+		const layout = await resolveProjectLayout(root);
+		return [...layout.extensions, ...layout.testExtensions]
+			.filter((extension) => extension.format === 'designer')
+			.map((extension) => extension.dir);
 	}
 
 	async function openTextFile(pathToOpen: string): Promise<void> {
@@ -494,9 +497,15 @@ export function registerMetadataFeature(
 
 	async function openOrCreateModuleFile(modulePath: string): Promise<void> {
 		try {
-			const created = await ensureBslModuleFile(modulePath);
+			const state = await ensureBslModuleFile(modulePath);
+			if (state === 'binary') {
+				void vscode.window.showInformationMessage(
+					`Модуль защищён паролем и хранится двоичным: ${path.basename(modulePath, '.bsl')}.bin`
+				);
+				return;
+			}
 			await openTextFile(modulePath);
-			if (created) {
+			if (state === 'created') {
 				notifyQuiet(`Создан пустой модуль: ${path.basename(modulePath)}`);
 			}
 		} catch (e) {
@@ -521,6 +530,34 @@ export function registerMetadataFeature(
 			return;
 		}
 		void vscode.window.showInformationMessage('Выберите форму в дереве метаданных.');
+	}
+
+	/** Состав подчинённых объектов от md-sparrow: у формы и макета оттуда вид и файл содержимого. */
+	async function readObjectStructure(
+		objectXml: string,
+		cwd: string,
+		configurationXmlAbs?: string
+	): Promise<ObjectChildrenDto | undefined> {
+		const runtime = await ensureMdSparrowRuntime(context);
+		if (!runtime) {
+			return undefined;
+		}
+		const schema = configurationXmlAbs
+			? await mdSparrowSchemaFlagFromConfigurationXml(configurationXmlAbs)
+			: await mainSchemaFlag();
+		const result = await runMdSparrowParamsRead(
+			runtime,
+			{ op: 'cf-md-object-structure-get', objectXml, schemaVersion: schema },
+			{ cwd }
+		);
+		if (result.exitCode !== 0) {
+			return undefined;
+		}
+		try {
+			return JSON.parse(result.stdout.trim()) as ObjectChildrenDto;
+		} catch {
+			return undefined;
+		}
 	}
 
 	async function resolveFirstXmlInDir(dir: string): Promise<string | undefined> {
@@ -781,8 +818,10 @@ export function registerMetadataFeature(
 			return;
 		}
 		const isReport = sourceKind === 'externalErf';
-		const vrunner = VRunnerManager.getInstance(context);
-		const rootRelative = isReport ? vrunner.getErfPath() : vrunner.getEpfPath();
+		const paths = await projectPaths(workspaceRoot);
+		const rootRelative = isReport
+			? paths.reportsContainer ?? CONVENTIONAL_PATHS.erf
+			: paths.processorsContainer ?? CONVENTIONAL_PATHS.epf;
 		const rootAbs = path.resolve(workspaceRoot, rootRelative);
 		try {
 			await fs.promises.mkdir(rootAbs, { recursive: true });
@@ -804,7 +843,7 @@ export function registerMetadataFeature(
 			const candidate = `${prefix}${nextIndex}`;
 			if (!existingNames.includes(candidate)) {
 				const configurationXml =
-					metadataTreeProvider.configurationXml ?? path.join(workspaceRoot, 'src', 'cf', 'Configuration.xml');
+					metadataTreeProvider.configurationXml ?? path.join(workspaceRoot, CONVENTIONAL_PATHS.cf, 'Configuration.xml');
 				const schema = await pickSchemaFlagInitEmptyCf(configurationXml);
 				if (schema === undefined) {
 					return;
@@ -2026,7 +2065,20 @@ export function registerMetadataFeature(
 					void vscode.window.showInformationMessage('У формы нет объекта-владельца.');
 					return;
 				}
-				const formXml = formContentFileOf(owner.resourceUri.fsPath, node.name);
+				const objectFile = owner.resourceUri.fsPath;
+				const cwd = owner.metadataRootAbs ?? path.dirname(objectFile);
+				// Вид формы и файл её содержимого знает md-sparrow: у обычной формы файл свой
+				const structure = await readObjectStructure(objectFile, cwd, owner.configurationXmlAbs);
+				const form = structure?.forms?.find((entry) => entry.name === node.name);
+				if (form?.formType === 'ORDINARY') {
+					void vscode.window.showInformationMessage(
+						`Форма «${node.name}» обычная: её показывает только конфигуратор. Модуль формы открывается отсюда.`
+					);
+					return;
+				}
+				const formXml = form?.contentFile
+					? path.join(objectDirectoryOf(objectFile), form.contentFile)
+					: formContentFileOf(objectFile, node.name);
 				await openFormViewerForXml(formXml, formModuleNextTo(formXml), `${owner.name}.${node.name}`, {
 					metadataRootAbs: owner.metadataRootAbs,
 					configurationXmlAbs: owner.configurationXmlAbs,
@@ -2349,13 +2401,30 @@ export function registerMetadataFeature(
 				let title = '';
 				let cwd: string | undefined;
 				let configurationXmlAbs: string | undefined;
+				// Вид макета объекта уже спрошен у библиотеки, описание перечитывать незачем
+				let kindKnown = false;
 				if (item instanceof MetadataObjectNodeTreeItem && item.nodeKind === 'template' && item.owner.resourceUri) {
 					const objectFile = item.owner.resourceUri.fsPath;
-					// У макета EDT своего описания нет: вид макета записан в описании владельца
-					descriptorXml = templateDescriptorFileOf(objectFile, item.name) ?? objectFile;
-					templateXml = templateContentFileOf(objectFile, item.name);
-					title = `${item.owner.name}.${item.name}`;
 					cwd = item.owner.metadataRootAbs ?? path.dirname(item.owner.resourceUri.fsPath);
+					// Вид макета и файл его содержимого знает md-sparrow: у каждого вида свой файл
+					const structure = await readObjectStructure(objectFile, cwd, item.owner.configurationXmlAbs);
+					const template = structure?.templates?.find((entry) => entry.name === item.name);
+					if (!template) {
+						void vscode.window.showInformationMessage('Состав макетов объекта не прочитан.');
+						return;
+					}
+					if (template.templateType !== 'DATA_COMPOSITION_SCHEMA') {
+						void vscode.window.showInformationMessage('Макет не является схемой компоновки данных.');
+						return;
+					}
+					if (!template.contentFile) {
+						void vscode.window.showInformationMessage(`Рядом с макетом «${item.name}» нет файла содержимого.`);
+						return;
+					}
+					templateXml = path.join(objectDirectoryOf(objectFile), template.contentFile);
+					descriptorXml = templateXml;
+					kindKnown = true;
+					title = `${item.owner.name}.${item.name}`;
 					configurationXmlAbs = item.owner.configurationXmlAbs;
 				} else if (item instanceof MetadataLeafTreeItem && item.resourceUri) {
 					const file = item.resourceUri.fsPath;
@@ -2370,8 +2439,8 @@ export function registerMetadataFeature(
 					return;
 				}
 				try {
-					const descriptor = await fs.promises.readFile(descriptorXml, 'utf8');
-					if (!descriptor.includes('DataCompositionSchema')) {
+					const descriptor = kindKnown ? '' : await fs.promises.readFile(descriptorXml, 'utf8');
+					if (!kindKnown && !descriptor.includes('DataCompositionSchema')) {
 						void vscode.window.showInformationMessage('Макет не является схемой компоновки данных.');
 						return;
 					}
@@ -2551,7 +2620,13 @@ export function registerMetadataFeature(
 				const edt = formatOfFile(configurationXml) === 'edt';
 				const cfeRoot = edt
 					? extensionProjectDir(configurationXml, name.trim())
-					: path.join(root, VRunnerManager.getInstance(context).getCfePath(), name.trim());
+					: path.join(root, (await projectPaths(root)).extensionsContainer ?? CONVENTIONAL_PATHS.cfe, name.trim());
+				if (edt && !sameOrUnder(cfeRoot, root)) {
+					void vscode.window.showErrorMessage(
+						'Проект расширения создаётся рядом с проектом конфигурации, а открыта папка самого проекта. Откройте рабочую область 1С:EDT с проектами.'
+					);
+					return;
+				}
 				if (fs.existsSync(cfeRoot)) {
 					void vscode.window.showErrorMessage(`Каталог расширения уже есть: ${cfeRoot}`);
 					return;
@@ -2638,7 +2713,8 @@ export function registerMetadataFeature(
 				// Проект EDT проверяет сама среда: у выгрузки конфигуратора схемы, у проекта модель
 				const descriptor = source?.configurationXmlAbs ?? metadataTreeProvider.configurationXml;
 				if (descriptor && formatOfFile(descriptor) === 'edt') {
-					await vscode.commands.executeCommand('1c-platform-tools.edt.validate');
+					// Проверяется выбранный проект: у расширения он свой
+					await validateEdtProject(edtProjectDirOf(descriptor));
 					return;
 				}
 				const roots: string[] = [];
@@ -2649,7 +2725,7 @@ export function registerMetadataFeature(
 					if (cfRoot && fs.existsSync(path.join(cfRoot, 'Configuration.xml'))) {
 						roots.push(cfRoot);
 					}
-					roots.push(...listExtensionRoots());
+					roots.push(...(await listExtensionRoots()));
 				}
 				if (roots.length === 0) {
 					void vscode.window.showInformationMessage('Не найдена выгрузка для проверки.');
@@ -2713,22 +2789,27 @@ export function registerMetadataFeature(
 				return;
 			}
 			await runMdSparrowMutation(async () => {
-				const cfRoot = metadataTreeProvider.resolveCfRoot();
+				const workspaceRoot = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+				const main = metadataTreeProvider.configurationXml;
+				// Рядом с проектом EDT выгрузка встаёт в привычное место: его src выгрузкой не является
+				const cfRoot =
+					main && formatOfFile(main) === 'edt'
+						? workspaceRoot && path.join(workspaceRoot, CONVENTIONAL_PATHS.cf)
+						: metadataTreeProvider.resolveCfRoot();
 				if (!cfRoot) {
 					void vscode.window.showInformationMessage('Нет открытой папки проекта или выгрузки CF.');
 					return;
 				}
 				const configurationXmlPath = path.join(cfRoot, 'Configuration.xml');
-				let hasConfigurationXml = false;
+				let occupied = false;
 				try {
-					await fs.promises.access(configurationXmlPath);
-					hasConfigurationXml = true;
+					occupied = (await fs.promises.readdir(cfRoot)).length > 0;
 				} catch {
-					/* нет корня выгрузки */
+					/* каталога ещё нет */
 				}
-				if (hasConfigurationXml) {
+				if (occupied) {
 					const answer = await vscode.window.showWarningMessage(
-						'Уже есть конфигурация. Все метаданные будут удалены. Продолжить?',
+						`Каталог ${cfRoot} не пуст. Всё его содержимое будет удалено. Продолжить?`,
 						{ modal: true },
 						'Продолжить'
 					);

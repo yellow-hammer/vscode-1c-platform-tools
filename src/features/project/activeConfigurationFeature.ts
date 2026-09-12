@@ -28,16 +28,6 @@ const FORMAT_LABELS: Record<SourceRoot['format'], string> = {
 	edt: 'EDT',
 };
 
-/**
- * Настройки путей проекта: пока они есть, раскладка учитывает их.
- */
-function layoutPaths(vrunner: VRunnerManager): { configuration: string; extensions: string[] } {
-	return {
-		configuration: vrunner.getCfPath(),
-		extensions: [vrunner.getCfePath(), vrunner.getTestsCfePath()],
-	};
-}
-
 /** Область работы для текущей рабочей области. */
 async function currentScope(): Promise<{ root: string; scope: ConfigurationScope } | undefined> {
 	const vrunner = VRunnerManager.getInstance();
@@ -45,7 +35,7 @@ async function currentScope(): Promise<{ root: string; scope: ConfigurationScope
 	if (!root) {
 		return undefined;
 	}
-	return { root, scope: await configurationScope(root, layoutPaths(vrunner)) };
+	return { root, scope: await configurationScope(root) };
 }
 
 /** Название конфигурации для списка и статусной строки. */

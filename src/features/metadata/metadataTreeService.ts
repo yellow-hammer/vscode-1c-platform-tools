@@ -8,8 +8,9 @@ import * as vscode from 'vscode';
 import { clearMdSparrowJarCache, ensureMdSparrowRuntime } from './mdSparrowBootstrap';
 import { isMdSparrowUnknownCommandError, MdSparrowOutdatedError } from './mdSparrowErrors';
 import { logger } from '../../shared/logger';
-import { configuredSourceDirs } from '../../shared/sourcePaths';
-import { runMdSparrowParamsRead, type MdSparrowParams } from './mdSparrowParams';
+import { detectedSourceDirs } from '../../shared/sourcePaths';
+import { runMdSparrowParamsRead, supportEnabled, type MdSparrowParams } from './mdSparrowParams';
+import { cacheFilePath, readCachedEntry, runtimeSalt, sourceFingerprint, writeCached } from './mdSparrowCache';
 
 const log = logger.scope('metadata');
 
@@ -72,6 +73,8 @@ export interface MetadataItemDto {
 	readonly objectBelonging?: string;
 	/** Поддержка поставщика: locked - изменение запрещено, editable - разрешено. */
 	readonly support?: string;
+	/** Синоним объекта: участвует в поиске по дереву. */
+	readonly synonym?: string;
 	/** Необязательная цель открытия из md-sparrow; клик в IDE работает и без неё. */
 	readonly open?: MetadataItemOpenDto;
 }
@@ -111,14 +114,33 @@ export function resolveMetadataOpen(
 }
 
 /**
- * Промис с деревом метаданных корня workspace (подпроцесс md-sparrow).
+ * Дерево метаданных корня рабочей области: из кэша, пока исходный код не менялся, иначе от md-sparrow.
  */
 export async function loadProjectMetadataTree(
 	context: vscode.ExtensionContext,
 	projectRoot: string
 ): Promise<ProjectMetadataTreeDto> {
 	const abs = path.normalize(path.resolve(projectRoot));
-	const res = await runProjectMetadataTreeWithRepair(context, abs);
+	const runtime = await ensureMdSparrowRuntime(context);
+	const cacheFile = cacheFilePath(context, 'project-metadata-tree', abs);
+	const salt = async () => [
+		await runtimeSalt(runtime),
+		`поддержка:${supportEnabled()}`,
+		JSON.stringify(await projectMetadataTreeParams(abs)),
+	];
+	const entry = await readCachedEntry(cacheFile, isProjectMetadataTreeDto);
+	if (entry) {
+		if ((await sourceFingerprint(abs, await salt())) === entry.fingerprint) {
+			log.debug('дерево метаданных из кэша');
+			return entry.payload;
+		}
+	}
+	// Отпечаток берётся одновременно с чтением: обход не задерживает первый ответ,
+	// а правка во время чтения меняет отпечаток и кэш не переживёт её
+	const [res, fingerprint] = await Promise.all([
+		runProjectMetadataTreeWithRepair(context, abs),
+		salt().then((items) => sourceFingerprint(abs, items)),
+	]);
 	
 	if (res.exitCode !== 0) {
 		const errText = res.stderr.trim() || res.stdout.trim() || `код ${res.exitCode}`;
@@ -138,12 +160,13 @@ export async function loadProjectMetadataTree(
 		log.error('дерево: неожиданная форма JSON ответа md-sparrow');
 		throw new Error('Не удалось разобрать ответ md-sparrow.');
 	}
+	await writeCached(cacheFile, fingerprint, parsed);
 	return parsed;
 }
 
-/** Параметры project-metadata-tree с каталогами исходников из настроек path.*. */
-export function projectMetadataTreeParams(projectRootAbs: string): MdSparrowParams {
-	const dirs = configuredSourceDirs();
+/** Параметры project-metadata-tree с каталогами исходного кода из раскладки. */
+export async function projectMetadataTreeParams(projectRootAbs: string): Promise<MdSparrowParams> {
+	const dirs = await detectedSourceDirs(projectRootAbs);
 	return {
 		op: 'project-metadata-tree',
 		projectRoot: projectRootAbs,
@@ -151,20 +174,23 @@ export function projectMetadataTreeParams(projectRootAbs: string): MdSparrowPara
 		cfeDir: dirs.cfe,
 		epfDir: dirs.epf,
 		erfDir: dirs.erf,
+		cfeDirs: dirs.cfeDirs,
+		epfDirs: dirs.epfDirs,
+		erfDirs: dirs.erfDirs,
 	};
 }
 
 async function runProjectMetadataTreeWithRepair(context: vscode.ExtensionContext, abs: string) {
 	const initialRes = await runMdSparrowParamsRead(
 		await ensureMdSparrowRuntime(context),
-		projectMetadataTreeParams(abs),
+		await projectMetadataTreeParams(abs),
 		{ cwd: abs }
 	);
 	if (initialRes.exitCode !== 0 && shouldRepairJarAndRetry(initialRes.stderr, initialRes.stdout)) {
 		log.warn('ошибка загрузки классов md-sparrow: очищаем кэш JAR и повторяем запуск');
 		await clearMdSparrowJarCache(context);
 		const repairedRuntime = await ensureMdSparrowRuntime(context);
-		return runMdSparrowParamsRead(repairedRuntime, projectMetadataTreeParams(abs), {
+		return runMdSparrowParamsRead(repairedRuntime, await projectMetadataTreeParams(abs), {
 			cwd: abs,
 		});
 	}

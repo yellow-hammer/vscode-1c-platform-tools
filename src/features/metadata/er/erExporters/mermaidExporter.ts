@@ -127,7 +127,7 @@ function escapeMermaidEdge(value: string): string {
 
 function nodeLabel(node: ErNode): string {
 	const type = OBJECT_TYPE_LABELS[node.objectType] ?? node.objectType;
-	const syn = node.synonymRu && node.synonymRu !== node.name ? `«${node.synonymRu}»` : null;
+	const syn = node.synonym && node.synonym !== node.name ? `«${node.synonym}»` : null;
 	return syn ? `${type} • ${syn}` : `${type} • ${node.name}`;
 }
 

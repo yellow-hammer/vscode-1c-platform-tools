@@ -312,7 +312,7 @@ function refreshChips(): void {
 		const entry = catalogByKey.get(seedKey);
 		const chip = document.createElement('span');
 		chip.className = 'er-chip';
-		chip.title = entry?.synonymRu ? entry.synonymRu : seedKey;
+		chip.title = entry?.synonym ? entry.synonym : seedKey;
 		const text = document.createElement('span');
 		text.className = 'er-chip-text';
 		text.textContent = seedKey;
@@ -583,10 +583,10 @@ function showNodePanel(node: NodeSingular): void {
 	}
 	side.hidden = false;
 
-	setText('#er-side-title', erNode.synonymRu || erNode.name);
+	setText('#er-side-title', erNode.synonym || erNode.name);
 	setText('#er-side-type', erNode.objectType);
 	setText('#er-side-name', erNode.name);
-	setText('#er-side-synonym', erNode.synonymRu || '—');
+	setText('#er-side-synonym', erNode.synonym || '—');
 	setText('#er-side-source', erNode.sourceId);
 	setText('#er-side-path', erNode.relativePath || '—');
 
@@ -930,7 +930,7 @@ function findCatalogMatches(rawQuery: string): ErCatalogEntry[] {
 	}
 	const matches: ErCatalogEntry[] = [];
 	for (const entry of state.catalog) {
-		const searchText = `${entry.key} ${entry.name} ${entry.synonymRu}`.toLowerCase();
+		const searchText = `${entry.key} ${entry.name} ${entry.synonym}`.toLowerCase();
 		if (tokens.every((t) => searchText.includes(t))) {
 			matches.push(entry);
 			if (matches.length >= COMBO_MAX_RESULTS) {
@@ -986,8 +986,8 @@ function buildComboItem(entry: ErCatalogEntry, isActive: boolean, isDisabled: bo
 	keyEl.className = 'er-combo-item-key';
 	keyEl.title = entry.key;
 	const primaryText =
-		state.nodeLabelOptions.showSynonym && entry.synonymRu
-			? entry.synonymRu
+		state.nodeLabelOptions.showSynonym && entry.synonym
+			? entry.synonym
 			: entry.name;
 	keyEl.append(highlightText(primaryText, tokens));
 	const synEl = document.createElement('span');

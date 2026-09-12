@@ -104,7 +104,7 @@ export interface TestFrameworkAdapter {
 	transformReportCases?(cases: JUnitCase[]): JUnitCase[];
 
 	/** Включён ли фреймворк настройками (testing.frameworks.*) */
-	isEnabled(): boolean;
+	isEnabled(): Promise<boolean>;
 
 	/**
 	 * Glob-паттерны файлов тестов относительно корня workspace.
