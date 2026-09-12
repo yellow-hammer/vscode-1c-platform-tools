@@ -14,6 +14,7 @@ import { configurationScope } from '../../shared/activeConfiguration';
 import { enclosingEdtProject, resolveProjectLayout } from '../../shared/projectLayout';
 import { runnerPath } from '../../shared/projectPaths';
 import type { VRunnerIntent } from '../../shared/vrunnerCli/intents';
+import { TaskOutputChain } from '../tasks/vrunnerTask';
 import { runEdtExports, type EdtBridgeContext } from './edtBridgeRunner';
 import { edtProjectName, edtStagingRoot } from './edtRunner';
 import {
@@ -88,8 +89,8 @@ async function baseProjectResolver(workspaceRoot: string): Promise<(projectDir: 
 /**
  * Выгружает проекты планов; без выгрузки собирать нечего.
  *
- * Планы одной рабочей области идут одной серией: у них общий контекст, а
- * одинаковая выгрузка из двух планов делается один раз.
+ * Планы одной рабочей области идут одной серией: у них общий контекст и общий
+ * терминал, а одинаковая выгрузка из двух планов делается один раз.
  *
  * @param bridges - Планы сборки
  * @throws {Error} Если выгрузка не удалась
@@ -102,7 +103,8 @@ export async function runEdtBuildExports(bridges: readonly EdtBuildBridge[]): Pr
 	for (const step of bridges.flatMap((bridge) => bridge.exports)) {
 		exports.set(JSON.stringify(step), step);
 	}
-	if (!(await runEdtExports([...exports.values()], bridges[0].context))) {
+	const context = { ...bridges[0].context, output: new TaskOutputChain() };
+	if (!(await runEdtExports([...exports.values()], context))) {
 		throw new Error('Выгрузка проекта 1С:EDT не удалась, сборка не запущена.');
 	}
 }

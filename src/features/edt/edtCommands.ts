@@ -26,7 +26,7 @@ import {
 } from './edtRunner';
 import { showValidationFindings } from './edtDiagnostics';
 import { buildProcessCommand } from '../../utils/commandUtils';
-import { createVRunnerTask } from '../tasks/vrunnerTask';
+import { createVRunnerTask, TaskOutputChain } from '../tasks/vrunnerTask';
 import { ensureMdSparrowRuntime } from '../metadata/mdSparrowBootstrap';
 import { runMdSparrowParamsMutation } from '../metadata/mdSparrowParams';
 import { notifyQuiet } from '../../shared/notify';
@@ -118,12 +118,14 @@ export async function importToEdt(): Promise<void> {
 		return;
 	}
 
+	const output = new TaskOutputChain();
 	const configurationImport = await runEdtCommand({
 		command: 'import',
 		args: ['--configuration-files', sources, '--project-name', projectName],
 		title: `EDT: импорт в проект ${projectName}`,
 		workspaceDir: target.workspaceDir,
 		cwd: target.workspaceRoot,
+		output,
 	});
 	if (configurationImport !== 0) {
 		return;
@@ -144,6 +146,7 @@ export async function importToEdt(): Promise<void> {
 			title: `EDT: импорт расширения ${extension.name}`,
 			workspaceDir: target.workspaceDir,
 			cwd: target.workspaceRoot,
+			output,
 		});
 	}
 }
@@ -254,7 +257,8 @@ export async function exportFromEdt(): Promise<void> {
 		return;
 	}
 
-	if ((await ensureProjectRegistered(target.projectPath, target.workspaceDir, target.workspaceRoot)) !== 0) {
+	const output = new TaskOutputChain();
+	if ((await ensureProjectRegistered(target.projectPath, target.workspaceDir, target.workspaceRoot, output)) !== 0) {
 		return;
 	}
 
@@ -264,6 +268,7 @@ export async function exportFromEdt(): Promise<void> {
 		title: `EDT: выгрузка ${target.projectName}`,
 		workspaceDir: target.workspaceDir,
 		cwd: target.workspaceRoot,
+		output,
 	});
 }
 
@@ -284,11 +289,12 @@ export async function validateEdtProject(projectDir?: unknown): Promise<void> {
 	const report = path.join(target.workspaceRoot, vrunner.getOutPath(), 'edt-validate.tsv');
 
 	// Расширение проверяется вместе с расширяемой конфигурацией: без неё EDT его не разберёт
+	const output = new TaskOutputChain();
 	if (target.projectPath !== base.projectPath
-		&& (await ensureProjectRegistered(base.projectPath, base.workspaceDir, base.workspaceRoot)) !== 0) {
+		&& (await ensureProjectRegistered(base.projectPath, base.workspaceDir, base.workspaceRoot, output)) !== 0) {
 		return;
 	}
-	if ((await ensureProjectRegistered(target.projectPath, target.workspaceDir, target.workspaceRoot)) !== 0) {
+	if ((await ensureProjectRegistered(target.projectPath, target.workspaceDir, target.workspaceRoot, output)) !== 0) {
 		return;
 	}
 
@@ -302,6 +308,7 @@ export async function validateEdtProject(projectDir?: unknown): Promise<void> {
 		title: `EDT: проверка ${target.projectName}`,
 		workspaceDir: target.workspaceDir,
 		cwd: target.workspaceRoot,
+		output,
 	});
 
 	// Замечания показываем в Problems: отчёт из проверки приходит таблицей

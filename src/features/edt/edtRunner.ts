@@ -18,7 +18,7 @@ import * as os from 'node:os';
 import * as path from 'node:path';
 import * as vscode from 'vscode';
 import { buildProcessCommand } from '../../utils/commandUtils';
-import { createVRunnerTask } from '../tasks/vrunnerTask';
+import { createVRunnerTask, type TaskOutputChain } from '../tasks/vrunnerTask';
 import { logger } from '../../shared/logger';
 import { findEdtInstallations, pickEdtInstallation, type EdtInstallation } from '../../shared/edtLocator';
 import { isEdtProject } from '../../shared/projectLayout';
@@ -122,6 +122,8 @@ export interface EdtCommand {
 	workspaceDir: string;
 	/** Каталог запуска процесса. */
 	cwd: string;
+	/** Общий терминал шагов команды: без него задача очищает терминал. */
+	output?: TaskOutputChain;
 }
 
 /**
@@ -183,9 +185,15 @@ export function isProjectRegistered(workspaceDir: string, projectName: string): 
  * @param projectDir - Каталог проекта EDT
  * @param workspaceDir - Каталог рабочей области
  * @param cwd - Каталог запуска
+ * @param output - Общий терминал шагов команды
  * @returns Код возврата; ноль, если проекта в рабочей области не было
  */
-export async function detachProject(projectDir: string, workspaceDir: string, cwd: string): Promise<number> {
+export async function detachProject(
+	projectDir: string,
+	workspaceDir: string,
+	cwd: string,
+	output?: TaskOutputChain
+): Promise<number> {
 	if (!fs.existsSync(path.join(projectDir, '.project'))) {
 		return 0;
 	}
@@ -199,6 +207,7 @@ export async function detachProject(projectDir: string, workspaceDir: string, cw
 		title: `EDT: отключение ${projectName}`,
 		workspaceDir,
 		cwd,
+		output,
 	});
 }
 
@@ -211,12 +220,14 @@ export async function detachProject(projectDir: string, workspaceDir: string, cw
  * @param projectDir - Каталог проекта EDT
  * @param workspaceDir - Каталог рабочей области
  * @param cwd - Каталог запуска
+ * @param output - Общий терминал шагов команды
  * @returns Код возврата подключения; ноль, если проект уже был подключён
  */
 export async function ensureProjectRegistered(
 	projectDir: string,
 	workspaceDir: string,
-	cwd: string
+	cwd: string,
+	output?: TaskOutputChain
 ): Promise<number> {
 	const projectName = edtProjectName(projectDir);
 	if (isProjectRegistered(workspaceDir, projectName)) {
@@ -229,6 +240,7 @@ export async function ensureProjectRegistered(
 		title: `EDT: подключение проекта ${projectName}`,
 		workspaceDir,
 		cwd,
+		output,
 	});
 }
 
@@ -267,6 +279,7 @@ export async function runEdtCommand(request: EdtCommand): Promise<number> {
 			cwd: request.cwd,
 			definition: { type: EDT_TASK_TYPE, command: request.command },
 			exitCallback: resolve,
+			appendOutput: request.output?.append(),
 		});
 		void vscode.tasks.executeTask(task);
 	});

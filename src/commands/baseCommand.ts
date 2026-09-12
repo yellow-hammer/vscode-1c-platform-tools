@@ -20,7 +20,8 @@ import {
 	type EdtExportStep,
 	type EdtImportStep,
 } from '../features/edt/edtSourceBridge';
-import { runEdtExports, runEdtImports } from '../features/edt/edtBridgeRunner';
+import { runEdtExports, runEdtImports, type EdtBridgeContext } from '../features/edt/edtBridgeRunner';
+import { TaskOutputChain } from '../features/tasks/vrunnerTask';
 import { edtProjectName, edtStagingRoot } from '../features/edt/edtRunner';
 import { notifyQuiet } from '../shared/notify';
 import type { CommandExecutionOptions, StructuredCommandResult } from '../shared/commandExecutionTypes';
@@ -379,12 +380,12 @@ export abstract class BaseCommand {
 		const notices = this.vrunner.consumePlanNotices();
 		if (steps.length === 1) {
 			return this.appendNotices(
-				await this.runVRunner(steps[0], opts, terminalName, artifact, commandId, true, onComplete),
+				await this.runVRunner(steps[0], opts, terminalName, artifact, commandId, true, onComplete, bridged.output),
 				notices
 			);
 		}
 		return this.appendNotices(
-			await this.runVRunnerSequential(steps, opts, terminalName, commandId, true, onComplete),
+			await this.runVRunnerSequential(steps, opts, terminalName, commandId, true, onComplete, bridged.output),
 			notices
 		);
 	}
@@ -454,13 +455,18 @@ export abstract class BaseCommand {
 	 *
 	 * @param intents - Что собирались запустить
 	 * @param opts - Опции выполнения
-	 * @returns Намерения над выгрузкой и импорт после команды; результат-ошибку в
-	 *          режиме wait либо 'blocked' после показа сообщения
+	 * @returns Намерения над выгрузкой, импорт после команды и общий терминал
+	 *          шагов; результат-ошибку в режиме wait либо 'blocked' после показа
+	 *          сообщения
 	 */
 	private async bridgeEdt(
 		intents: readonly VRunnerIntent[],
 		opts?: CommandExecutionOptions
-	): Promise<{ intents: VRunnerIntent[]; after?: () => Promise<void> } | StructuredCommandResult | 'blocked'> {
+	): Promise<
+		| { intents: VRunnerIntent[]; after?: () => Promise<void>; output?: TaskOutputChain }
+		| StructuredCommandResult
+		| 'blocked'
+	> {
 		const workspaceRoot = this.vrunner.getWorkspaceRoot();
 		const buildDir = workspaceRoot ? edtStagingRoot(workspaceRoot, this.vrunner.getOutPath()) : this.vrunner.getOutPath();
 		const rewritten: VRunnerIntent[] = [];
@@ -496,7 +502,9 @@ export abstract class BaseCommand {
 		}
 		// Базовый проект у каждого шага свой: расширение чужой конфигурации к активной не относится
 		const baseOf = await this.edtBaseProjectResolver(workspaceRoot);
-		const context = { workspaceRoot, buildDir };
+		// Шаги моста и команда раннера пишут в один терминал подряд, не стирая друг друга
+		const output = new TaskOutputChain();
+		const context: EdtBridgeContext = { workspaceRoot, buildDir, output };
 		const withBase = exports.map((step) =>
 			'projectDir' in step ? { ...step, baseProjectDir: baseOf(step.projectDir) } : step
 		);
@@ -508,6 +516,7 @@ export abstract class BaseCommand {
 		return {
 			intents: rewritten,
 			after: owned.length > 0 ? () => runEdtImports(owned, context) : undefined,
+			output,
 		};
 	}
 
@@ -753,11 +762,12 @@ export abstract class BaseCommand {
 			return;
 		}
 		const onComplete = composeCompletion(window.restore, bridged.after);
+		const runOptions = { ...options, output: bridged.output };
 		if (!onComplete) {
-			await this.vrunner.executeVRunnerCommandsInSequence(argsList, options);
+			await this.vrunner.executeVRunnerCommandsInSequence(argsList, runOptions);
 			return;
 		}
-		void this.vrunner.executeVRunnerTaskSequenceAndWait(argsList, options)
+		void this.vrunner.executeVRunnerTaskSequenceAndWait(argsList, runOptions)
 			.catch((error) => log.error(`Ошибка запуска команды: ${(error as Error).message}`))
 			.finally(() => void onComplete());
 	}
@@ -790,7 +800,7 @@ export abstract class BaseCommand {
 		const steps = await this.vrunner.planIntents(bridged.intents, opts?.settingsFile, opts?.ibConnection);
 		const notices = this.vrunner.consumePlanNotices();
 		return this.appendNotices(
-			await this.runVRunnerSequential(steps, opts, terminalName, commandId, true, onComplete),
+			await this.runVRunnerSequential(steps, opts, terminalName, commandId, true, onComplete, bridged.output),
 			notices
 		);
 	}
@@ -819,6 +829,7 @@ export abstract class BaseCommand {
 	 *
 	 * @param planned - true, если args — финальный план интента (параметры
 	 *                  профиля уже добавлены адаптером, повторно не дописывать)
+	 * @param output - Общий терминал с шагами, которые прошли до команды
 	 */
 	protected async runVRunner(
 		args: string[],
@@ -827,7 +838,8 @@ export abstract class BaseCommand {
 		artifact?: string,
 		commandId?: string,
 		planned = false,
-		onComplete?: () => Promise<void>
+		onComplete?: () => Promise<void>,
+		output?: TaskOutputChain
 	): Promise<StructuredCommandResult | void> {
 		const cwd = this.getExecutionCwd(opts);
 		if (!cwd) {
@@ -864,21 +876,22 @@ export abstract class BaseCommand {
 			}
 		}
 
+		const runOptions = { cwd, name: terminalName, appendOverrides, output };
 		if (commandId) {
 			void runHooksAroundTerminalTask({
 				commandId, cwd, args, workspaceRoot,
 				trackCompletion: onComplete !== undefined,
-				runTracked: () => this.vrunner.executeVRunnerTaskAndWait(args, { cwd, name: terminalName, appendOverrides }),
-				runUntracked: () => this.vrunner.executeVRunnerInTerminal(args, { cwd, name: terminalName, appendOverrides }),
+				runTracked: () => this.vrunner.executeVRunnerTaskAndWait(args, runOptions),
+				runUntracked: () => this.vrunner.executeVRunnerInTerminal(args, runOptions),
 			})
 				.catch((err) => log.error(`Ошибка хуков команды: ${(err as Error).message}`))
 				.finally(() => void onComplete?.());
 		} else if (onComplete) {
-			void this.vrunner.executeVRunnerTaskAndWait(args, { cwd, name: terminalName, appendOverrides })
+			void this.vrunner.executeVRunnerTaskAndWait(args, runOptions)
 				.catch((err) => log.error(`Ошибка запуска команды: ${(err as Error).message}`))
 				.finally(() => void onComplete());
 		} else {
-			this.vrunner.executeVRunnerInTerminal(args, { cwd, name: terminalName, appendOverrides });
+			this.vrunner.executeVRunnerInTerminal(args, runOptions);
 		}
 	}
 
@@ -892,7 +905,8 @@ export abstract class BaseCommand {
 		terminalName: string,
 		commandId?: string,
 		planned = false,
-		onComplete?: () => Promise<void>
+		onComplete?: () => Promise<void>,
+		output?: TaskOutputChain
 	): Promise<StructuredCommandResult | void> {
 		const cwd = this.getExecutionCwd(opts);
 		if (!cwd) {
@@ -946,21 +960,22 @@ export abstract class BaseCommand {
 		// Объединяем в одну цепочку (&& / ; — в зависимости от оболочки),
 		// чтобы каждая следующая команда стартовала после реального завершения
 		// предыдущей, а не по факту попадания в input-буфер терминала.
+		const runOptions = { cwd, name: terminalName, appendOverrides, output };
 		if (commandId) {
 			void runHooksAroundTerminalTask({
 				commandId, cwd, args: flatArgs, workspaceRoot,
 				trackCompletion: onComplete !== undefined,
-				runTracked: () => this.vrunner.executeVRunnerTaskSequenceAndWait(argsList, { cwd, name: terminalName, appendOverrides }),
-				runUntracked: () => this.vrunner.executeVRunnerCommandsInSequence(argsList, { cwd, name: terminalName, appendOverrides }),
+				runTracked: () => this.vrunner.executeVRunnerTaskSequenceAndWait(argsList, runOptions),
+				runUntracked: () => this.vrunner.executeVRunnerCommandsInSequence(argsList, runOptions),
 			})
 				.catch((err) => log.error(`Ошибка хуков команды: ${(err as Error).message}`))
 				.finally(() => void onComplete?.());
 		} else if (onComplete) {
-			void this.vrunner.executeVRunnerTaskSequenceAndWait(argsList, { cwd, name: terminalName, appendOverrides })
+			void this.vrunner.executeVRunnerTaskSequenceAndWait(argsList, runOptions)
 				.catch((err) => log.error(`Ошибка запуска команды: ${(err as Error).message}`))
 				.finally(() => void onComplete());
 		} else {
-			await this.vrunner.executeVRunnerCommandsInSequence(argsList, { cwd, name: terminalName, appendOverrides });
+			await this.vrunner.executeVRunnerCommandsInSequence(argsList, runOptions);
 		}
 	}
 }

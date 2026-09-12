@@ -14,6 +14,7 @@ import * as path from 'node:path';
 import * as vscode from 'vscode';
 import { logger } from '../../shared/logger';
 import { resolveProjectLayout, type ProjectLayout } from '../../shared/projectLayout';
+import type { TaskOutputChain } from '../tasks/vrunnerTask';
 import { detachProject, edtProjectName, edtWorkspaceDir, ensureProjectRegistered, runEdtCommand } from './edtRunner';
 import {
 	designerExternalsUnder,
@@ -37,6 +38,8 @@ export interface EdtBridgeContext {
 	workspaceRoot: string;
 	/** Каталог сборки относительно рабочей области. */
 	buildDir: string;
+	/** Общий терминал шагов: без него каждая задача очищает терминал. */
+	output?: TaskOutputChain;
 }
 
 /** Проект, который выгружается или принимает выгрузку; каталоги относительно рабочей области либо абсолютные. */
@@ -192,6 +195,7 @@ async function exportProject(step: ProjectStep, target: string, workspaceDir: st
 		title: `EDT: выгрузка ${name}`,
 		workspaceDir,
 		cwd: context.workspaceRoot,
+		output: context.output,
 	});
 	return code === 0;
 }
@@ -209,7 +213,7 @@ async function importProject(
 	workspaceDir: string,
 	context: EdtBridgeContext
 ): Promise<number> {
-	const detached = await detachProject(projectDir, workspaceDir, context.workspaceRoot);
+	const detached = await detachProject(projectDir, workspaceDir, context.workspaceRoot, context.output);
 	if (detached !== 0) {
 		return detached;
 	}
@@ -219,6 +223,7 @@ async function importProject(
 		title: `EDT: импорт в ${edtProjectName(projectDir)}`,
 		workspaceDir,
 		cwd: context.workspaceRoot,
+		output: context.output,
 	});
 }
 
@@ -253,7 +258,8 @@ async function registerProjects(
 		if (dir === undefined) {
 			continue;
 		}
-		if ((await ensureProjectRegistered(path.resolve(context.workspaceRoot, dir), workspaceDir, context.workspaceRoot)) !== 0) {
+		const projectDir = path.resolve(context.workspaceRoot, dir);
+		if ((await ensureProjectRegistered(projectDir, workspaceDir, context.workspaceRoot, context.output)) !== 0) {
 			return false;
 		}
 	}
