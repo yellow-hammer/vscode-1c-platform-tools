@@ -54,7 +54,6 @@ function sharedAssetsPlugin() {
 
 // Руководства в порядке каталога docs/README.md.
 const guides = [
-	{ text: 'Как начать', link: '/getting-started' },
 	{ text: '1С: Инструменты', link: '/tools' },
 	{ text: '1С: Проекты', link: '/projects' },
 	{ text: '1С: Администрирование', link: '/admin' },
@@ -96,7 +95,8 @@ export default defineConfig({
 		logo: '/favicon.png',
 		siteTitle: 'Platform Tools',
 		nav: [
-			{ text: 'Руководства', link: '/tools', activeMatch: '^/(?!$)' },
+			{ text: 'С чего начать', link: '/getting-started', activeMatch: '^/getting-started' },
+			{ text: 'Руководства', link: '/tools', activeMatch: '^/(?!$|getting-started)' },
 			{
 				// Списком, а не одной ссылкой: у Cursor и VSCodium свой маркетплейс,
 				// а на закрытой машине ставят файлом из релизов
@@ -118,6 +118,7 @@ export default defineConfig({
 			},
 		],
 		sidebar: [
+			{ text: 'Начало работы', items: [{ text: 'С чего начать', link: '/getting-started' }] },
 			{ text: 'Руководства по функциям', items: guides },
 			// Страницы приходят из репозитория MCP-сервера: docs/external-docs.json, scripts/sync-docs.mjs
 			{
