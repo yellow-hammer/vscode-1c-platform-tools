@@ -54,6 +54,7 @@ function sharedAssetsPlugin() {
 
 // Руководства в порядке каталога docs/README.md.
 const guides = [
+	{ text: 'Как начать', link: '/getting-started' },
 	{ text: '1С: Инструменты', link: '/tools' },
 	{ text: '1С: Проекты', link: '/projects' },
 	{ text: '1С: Администрирование', link: '/admin' },
