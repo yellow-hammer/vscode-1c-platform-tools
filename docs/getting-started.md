@@ -1,6 +1,6 @@
 <img src="../resources/brand/cat-hi.png" alt="" width="72" align="right">
 
-# Как начать
+# С чего начать
 
 > <img src="../resources/brand/cat-hi.png" alt="" width="26" align="left"> Поставить, открыть проект, заполнить профиль — и дерево команд готово к работе.
 
