@@ -95,7 +95,7 @@ export default defineConfig({
 		logo: '/favicon.png',
 		siteTitle: 'Platform Tools',
 		nav: [
-			{ text: 'С чего начать', link: '/getting-started', activeMatch: '^/getting-started' },
+			{ text: 'Начало работы', link: '/getting-started', activeMatch: '^/getting-started' },
 			{ text: 'Руководства', link: '/tools', activeMatch: '^/(?!$|getting-started)' },
 			{
 				// Списком, а не одной ссылкой: у Cursor и VSCodium свой маркетплейс,

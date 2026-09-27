@@ -10,8 +10,11 @@ hero:
     alt: ''
   actions:
     - theme: brand
-      text: С чего начать
+      text: Начало работы
       link: /getting-started
+    - theme: alt
+      text: Руководства
+      link: /tools
     - theme: alt
       text: VS Code Marketplace
       link: https://marketplace.visualstudio.com/items?itemName=yellow-hammer.1c-platform-tools
