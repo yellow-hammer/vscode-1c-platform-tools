@@ -18,7 +18,14 @@ import {
 	type ShellType
 } from '../../utils/commandUtils';
 import { pathConversionPrefix } from '../../utils/shellEscape';
-import { DOCKER_STOP_TIMEOUT_SECONDS, dockerCommandRun, dockerContainerName } from '../../shared/dockerRun';
+import {
+	DOCKER_STOP_TIMEOUT_SECONDS,
+	WINDOW_CONTAINER_LABEL,
+	dockerCommandRun,
+	dockerContainerName,
+	startWindowContainer,
+	windowContainerLogsRun,
+} from '../../shared/dockerRun';
 
 suite('commandUtils', () => {
 	// Установка кодировки (chcp/[Console]::OutputEncoding) добавляется только на Windows
@@ -273,6 +280,52 @@ suite('commandUtils', () => {
 		await stopping;
 		await new Promise((resolve) => setTimeout(resolve, 0));
 		assert.deepStrictEqual(calls, [`stop -t ${DOCKER_STOP_TIMEOUT_SECONDS} ${name}`, `rm -f ${name}`]);
+	});
+
+	test('клиент с окном: контейнер отсоединён, с меткой и без --rm', () => {
+		assert.deepStrictEqual(
+			dockerRunArgs('vrunner:8.3.27-vnc', ['run', 'designer'], '/home/ws', { containerName: 'c', detached: true }),
+			['run', '-d', '--label', WINDOW_CONTAINER_LABEL, '--name', 'c', '-v', '/home/ws:/workspace', '-w', '/workspace', 'vrunner:8.3.27-vnc', 'run', 'designer']
+		);
+	});
+
+	test('клиент с окном: запуск ждёт только старта контейнера, выход убирает его', async () => {
+		const calls: string[] = [];
+		let finishWait!: (code: string) => void;
+		const docker = (args: readonly string[]): Promise<{ stdout: string; error?: string }> => {
+			calls.push(args.join(' '));
+			if (args[0] === 'wait') {
+				return new Promise((resolve) => (finishWait = (code) => resolve({ stdout: `${code}\n` })));
+			}
+			return Promise.resolve({ stdout: args[0] === 'logs' ? 'Не найдена лицензия' : '' });
+		};
+
+		const started = await startWindowContainer(['run', '-d', '--name', 'c', 'image'], 'c', docker);
+		assert.ok(!('error' in started));
+		assert.deepStrictEqual(calls, [`container prune -f --filter label=${WINDOW_CONTAINER_LABEL}`, 'run -d --name c image', 'wait c']);
+
+		finishWait('1');
+		assert.strictEqual(await started.exited, 1);
+		assert.deepStrictEqual(calls.slice(3), ['logs --tail 50 c', 'rm -f c']);
+	});
+
+	test('клиент с окном: отказ docker run приходит причиной', async () => {
+		const docker = (args: readonly string[]): Promise<{ stdout: string; error?: string }> =>
+			Promise.resolve(args[0] === 'run' ? { stdout: '', error: 'port is already allocated' } : { stdout: '' });
+
+		assert.deepStrictEqual(await startWindowContainer(['run', '-d', 'image'], 'c', docker), { error: 'port is already allocated' });
+	});
+
+	test('клиент с окном: задача показывает вывод, отмена останавливает контейнер', async () => {
+		const calls: string[] = [];
+		const run = windowContainerLogsRun('c', (args) => {
+			calls.push(args.join(' '));
+			return Promise.resolve();
+		});
+
+		assert.deepStrictEqual(run.command, { file: 'docker', args: ['logs', '-f', 'c'] });
+		await run.onCancel?.();
+		assert.deepStrictEqual(calls, [`stop -t ${DOCKER_STOP_TIMEOUT_SECONDS} c`]);
 	});
 
 	test('buildDockerCommandSequence отдаёт строку sh одним аргументом хоста', () => {

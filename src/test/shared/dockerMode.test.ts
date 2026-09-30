@@ -3,6 +3,7 @@ import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import * as vscode from 'vscode';
+import type { VRunnerIntent } from '../../shared/vrunnerCli';
 import { VRunnerManager } from '../../shared/vrunnerManager';
 import { runWithProject } from '../../shared/workspaceProjects';
 import { writeLocalRunner } from '../fixtures/helpers/vrunnerStub';
@@ -52,6 +53,24 @@ suite('Docker: режим проекта', () => {
 			await config().update('docker.image', undefined, vscode.ConfigurationTarget.Workspace);
 			await config().update('docker.runArgs', undefined, vscode.ConfigurationTarget.Workspace);
 		}
+	});
+
+	test('в контейнере клиент 1С не отпускается с --no-wait', async () => {
+		const vrunner = VRunnerManager.getInstance();
+		const intents: VRunnerIntent[] = [
+			{ kind: 'run.designer', noWait: true },
+			{ kind: 'infobase.updateDb' },
+		];
+
+		await runWithProject(PROJECT, async () => {
+			assert.deepStrictEqual(await vrunner.runnableIntents(intents), intents);
+			await config().update('docker.enabled', true, vscode.ConfigurationTarget.Workspace);
+			assert.deepStrictEqual(await vrunner.runnableIntents(intents), [
+				{ kind: 'run.designer', noWait: false },
+				{ kind: 'infobase.updateDb' },
+			]);
+			assert.deepStrictEqual(await vrunner.runOnThisMachine(() => vrunner.runnableIntents(intents)), intents);
+		});
 	});
 
 	test('путь файла проекта для раннера в Docker ведёт в /workspace', async () => {

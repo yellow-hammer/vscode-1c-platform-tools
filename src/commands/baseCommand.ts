@@ -579,7 +579,8 @@ export abstract class BaseCommand {
 	 * знает, поэтому сервер остаётся выключенным и об этом говорится прямо.
 	 *
 	 * Так же расширение поступает с интерактивным запуском конфигуратора и
-	 * предприятия: vrunner завершается сразу, а базу держит само приложение.
+	 * предприятия на этой машине: vrunner завершается сразу, а базу держит само
+	 * приложение. В контейнере vrunner ждёт закрытия клиента, и база возвращается после.
 	 *
 	 * @param intents - Намерения команды
 	 * @param opts - Опции выполнения
@@ -622,7 +623,7 @@ export abstract class BaseCommand {
 			return 'blocked';
 		}
 
-		if (keepsInfobaseAfterRun(intents)) {
+		if (keepsInfobaseAfterRun(await this.vrunner.runnableIntents(intents))) {
 			notifyQuiet(`${holder.label}: остановлен, запустите снова после закрытия 1С`);
 			return {};
 		}
