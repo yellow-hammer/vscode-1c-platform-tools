@@ -15,7 +15,7 @@
 ```json
 {
   "1c-platform-tools.docker.enabled": true,
-  "1c-platform-tools.docker.image": "your-registry/vrunner:8.3.27"
+  "1c-platform-tools.docker.image": "ghcr.io/yellow-hammer/1c-nest/vrunner:8.3.27"
 }
 ```
 
@@ -44,12 +44,9 @@
 
 ## Где взять образ
 
-Готовые публичные образы с платформой 1С не распространяются — лицензия 1С не позволяет. Образ собирается самостоятельно:
+Рецепты образов лежат в [yellow-hammer/1c-nest](https://github.com/yellow-hammer/1c-nest): сервер и клиент 1С, vanessa-runner 3 и 2, варианты с окнами в браузере, 1C:EDT и OneScript. Лицензия 1С не разрешает выкладывать образы с платформой в открытый доступ: участникам организации yellow-hammer они доступны в `ghcr.io/yellow-hammer/1c-nest`, остальные собирают их по этим рецептам со своей учётной записью [releases.1c.ru](https://releases.1c.ru), хватает Docker.
 
-- **[pravets/onec-images](https://github.com/pravets/onec-images)** — рецепты и готовые GitHub Actions для сборки образов платформы и **vrunner** в свой registry; для скачивания дистрибутивов нужны учётные данные [releases.1c.ru](https://releases.1c.ru).
-- **[firstBitMarksistskaya/onec-docker](https://github.com/firstBitMarksistskaya/onec-docker)** — альтернативный набор, включает образы для Jenkins, k8s и gitsync.
-
-Для расширения нужен образ с vanessa-runner (в onec-images — образ `vrunner`).
+Проекту с настройками vanessa-runner 2 (`env.json`) нужен тег `-vrunner2`, окна клиента в браузере показывает тег `-vnc`.
 
 ## GitHub Codespaces
 

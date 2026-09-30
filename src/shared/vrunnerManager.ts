@@ -1367,8 +1367,8 @@ export class VRunnerManager {
 		if (!image) {
 			throw new Error(
 				'Docker-образ не указан в настройках. Укажите образ в настройках расширения ' +
-				'(1c-platform-tools.docker.image). Пример: "myregistry/onec-image:8.3.25" или ' +
-				'"localhost/onec-image:latest". Образ должен содержать установленную платформу 1С:Предприятие и vanessa-runner.'
+				'(1c-platform-tools.docker.image), например "ghcr.io/yellow-hammer/1c-nest/vrunner:8.3.27". ' +
+				'В образе должны быть платформа 1С:Предприятие и vanessa-runner.'
 			);
 		}
 		return image;
