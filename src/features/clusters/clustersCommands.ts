@@ -18,6 +18,7 @@ import type { ClustersAutoRefresh } from './autoRefresh';
 import type { ClusterActivityPanel } from './activityPanel';
 import { activityRequest } from './activityRequest';
 import type { ClusterConnectionsEditor } from './connectionsEditor';
+import { promptInfobaseCredentials } from './infobaseCredentialsPrompt';
 import type { PropertiesPanel } from './propertiesPanel';
 import { CLUSTER_SECTIONS, buildClusterChange, toClusterForm, validateClusterForm } from './clusterProperties';
 import {
@@ -230,7 +231,13 @@ export function registerClustersCommands(deps: ClustersCommandsDeps): vscode.Dis
 			sections: INFOBASE_SECTIONS,
 			validate: validateInfobaseForm,
 			load: async () => {
-				const result = await service.infobaseDetails(connection, clusterId, infobase.id, infobase.name);
+				let result = await service.infobaseDetails(connection, clusterId, infobase.id, infobase.name, false);
+				if (!result.ok && result.failure.kind === 'auth' && result.failure.role === 'infobase') {
+					if (await promptInfobaseCredentials(credentials, node)) {
+						provider.refresh();
+						result = await service.infobaseDetails(connection, clusterId, infobase.id, infobase.name, false);
+					}
+				}
 				return result.ok
 					? { ok: true as const, values: toInfobaseForm(result.value) }
 					: { ok: false as const, message: result.failure.message };

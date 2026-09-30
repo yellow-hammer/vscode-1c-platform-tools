@@ -147,13 +147,16 @@ export class ClusterService {
 		failure: RacFailure,
 		role: RacAuthRole,
 		hadSet: boolean,
-		infobaseName?: string
+		infobaseName?: string,
+		notify = true
 	): RacFailure {
 		if (failure.kind !== 'auth') {
 			return failure;
 		}
 		const kind: MissingCredentialsKind = `${role}${hadSet ? 'Rejected' : 'Missing'}`;
-		this.notifyMissing(role === 'infobase' ? { kind, infobaseName } : { kind });
+		if (notify) {
+			this.notifyMissing(role === 'infobase' ? { kind, infobaseName } : { kind });
+		}
 		return attributeAuthFailure(failure, role);
 	}
 
@@ -251,7 +254,8 @@ export class ClusterService {
 		scope: ClusterScope,
 		infobaseId: string,
 		infobaseName: string,
-		call: (infobase?: RacCredentials) => Promise<RacResult>
+		call: (infobase?: RacCredentials) => Promise<RacResult>,
+		notifyInfobaseFailure = true
 	): Promise<RacResult> {
 		const known = await this.credentials.resolveInfobase(connection.id, infobaseId);
 		const first = await call(known);
@@ -264,7 +268,7 @@ export class ClusterService {
 		}
 		return {
 			ok: false,
-			failure: this.rejected(first.failure, 'infobase', known !== undefined, infobaseName),
+			failure: this.rejected(first.failure, 'infobase', known !== undefined, infobaseName, notifyInfobaseFailure),
 		};
 	}
 
@@ -777,13 +781,15 @@ export class ClusterService {
 		connection: ClusterConnection,
 		clusterId: string,
 		infobaseId: string,
-		infobaseName: string
+		infobaseName: string,
+		notifyInfobaseFailure = true
 	): Promise<ServiceResult<RacRecord>> {
 		const scope = await this.clusterScope(connection, clusterId);
 		const result = await this.withInfobaseAuth(connection, scope, infobaseId, infobaseName, (infobase) =>
 			this.client.run(buildInfobaseInfoArgs({ ...scope, infobaseId, infobase }), {
 				platformVersion: connection.platformVersion,
-			})
+			}),
+			notifyInfobaseFailure
 		);
 		if (!result.ok) {
 			return { ok: false, failure: result.failure };

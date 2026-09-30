@@ -148,6 +148,32 @@ suite('сервис кластера: учётные данные базы', () 
 		assert.strictEqual(result.ok, false);
 		assert.deepStrictEqual(events, [{ kind: 'clusterMissing' }]);
 	});
+
+	test('карточка базы может обработать отказ сама и повторить чтение после привязки', async () => {
+		const { service, credentials, events, client } = harness((args) =>
+			args.includes('--infobase-user=Админ')
+				? accepted([{ infobase: INFOBASE, name: 'Учёт' }])
+				: refused('Недостаточно прав пользователя на информационную базу')
+		);
+
+		const first = await service.infobaseDetails(CONNECTION, CLUSTER, INFOBASE, 'Учёт', false);
+		assert.ok(!first.ok && first.failure.role === 'infobase');
+		assert.deepStrictEqual(events, []);
+
+		const set = await credentials.add({ name: 'Общий', user: 'Админ', kind: 'infobase' }, 'pwd');
+		await credentials.bindInfobase({
+			connectionId: CONNECTION.id,
+			clusterId: CLUSTER,
+			infobaseId: INFOBASE,
+			setId: set.id,
+			connectionName: CONNECTION.name,
+			infobaseName: 'Учёт',
+		});
+		const second = await service.infobaseDetails(CONNECTION, CLUSTER, INFOBASE, 'Учёт', false);
+		assert.strictEqual(second.ok, true);
+		assert.ok(client.calls[1].includes('--infobase-user=Админ'));
+		assert.deepStrictEqual(events, []);
+	});
 });
 
 suite('сервис кластера: роли отказов', () => {
