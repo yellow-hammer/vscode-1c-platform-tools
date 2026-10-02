@@ -1,3 +1,4 @@
+import * as vscode from 'vscode';
 import { BaseCommand, INFOBASE_BUSY } from './baseCommand';
 import type { VRunnerIntent } from '../shared/vrunnerCli';
 import { confirmGuiCommandInRemote } from '../shared/remoteEnv';
@@ -5,6 +6,8 @@ import { getRunEnterpriseCommandName, getRunDesignerCommandName } from '../featu
 import type { CommandExecutionOptions, StructuredCommandResult } from '../shared/commandExecutionTypes';
 import { resolvePlatformBinaryInRoots } from '../shared/platformBinary';
 import { projectPlatformRoots } from '../shared/platformSettings';
+import { runWithHooks } from '../shared/commandHooks';
+import { currentRoot, runWithProject } from '../shared/workspaceProjects';
 
 /**
  * Команды для запуска 1С:Предприятие и Конфигуратора
@@ -46,10 +49,13 @@ export class RunCommands extends BaseCommand {
 	 * @returns Промис, который разрешается после запуска команды
 	 */
 	async runEnterprise(opts?: CommandExecutionOptions): Promise<StructuredCommandResult | void> {
-		return this.runClient(() => this.startEnterprise(opts));
+		return this.runClient((inContainer) => this.startEnterprise(opts, inContainer));
 	}
 
-	private async startEnterprise(opts?: CommandExecutionOptions): Promise<StructuredCommandResult | void> {
+	private async startEnterprise(
+		opts: CommandExecutionOptions | undefined,
+		inContainer: boolean
+	): Promise<StructuredCommandResult | void> {
 		const workspaceRoot = this.ensureWorkspace();
 		if (!workspaceRoot) {
 			return;
@@ -75,6 +81,9 @@ export class RunCommands extends BaseCommand {
 			return opts?.wait === true ? this.executionError(INFOBASE_BUSY) : undefined;
 		}
 		const [args] = await this.vrunner.planIntent(intent, opts?.settingsFile, opts?.ibConnection);
+		if (inContainer) {
+			return this.startInContainer(args, opts, commandName, window.restore);
+		}
 
 		return this.runVRunner(args, opts, commandName.title, undefined, commandName.id, true, window.restore);
 	}
@@ -89,10 +98,13 @@ export class RunCommands extends BaseCommand {
 	 * @returns Промис, который разрешается после запуска команды
 	 */
 	async runDesigner(opts?: CommandExecutionOptions): Promise<StructuredCommandResult | void> {
-		return this.runClient(() => this.startDesigner(opts));
+		return this.runClient((inContainer) => this.startDesigner(opts, inContainer));
 	}
 
-	private async startDesigner(opts?: CommandExecutionOptions): Promise<StructuredCommandResult | void> {
+	private async startDesigner(
+		opts: CommandExecutionOptions | undefined,
+		inContainer: boolean
+	): Promise<StructuredCommandResult | void> {
 		const workspaceRoot = this.ensureWorkspace();
 		if (!workspaceRoot) {
 			return;
@@ -115,8 +127,58 @@ export class RunCommands extends BaseCommand {
 			return opts?.wait === true ? this.executionError(INFOBASE_BUSY) : undefined;
 		}
 		const [args] = await this.vrunner.planIntent(intent, opts?.settingsFile, opts?.ibConnection);
+		if (inContainer) {
+			return this.startInContainer(args, opts, commandName, window.restore);
+		}
 
 		return this.runVRunner(args, opts, commandName.title, undefined, commandName.id, true, window.restore);
+	}
+
+	/**
+	 * Запускает клиент 1С с окном в контейнере: команда завершается, как только он
+	 * запущен, а базу держателю возвращает выход контейнера.
+	 *
+	 * @param args - Итоговые аргументы vrunner
+	 * @param opts - Опции выполнения
+	 * @param commandName - Идентификатор и название команды
+	 * @param restore - Возврат базы держателю
+	 */
+	private async startInContainer(
+		args: string[],
+		opts: CommandExecutionOptions | undefined,
+		commandName: { id: string; title: string },
+		restore: (() => Promise<void>) | undefined
+	): Promise<StructuredCommandResult | void> {
+		const cwd = this.getExecutionCwd(opts);
+		if (!cwd) {
+			await restore?.();
+			if (opts?.wait === true) {
+				return this.executionError('Укажите projectPath или откройте рабочую область с проектом 1С');
+			}
+			this.ensureWorkspace();
+			return;
+		}
+		const root = currentRoot();
+		let started = false;
+		const start = async (): Promise<StructuredCommandResult> => {
+			const run = await this.vrunner.startClientInContainer(args, { cwd, name: commandName.title });
+			if ('error' in run) {
+				return this.executionError(run.error);
+			}
+			started = true;
+			void run.exited.then(() => runWithProject(root, async () => restore?.()));
+			return { success: true, exitCode: 0, stdout: `Клиент 1С запущен в контейнере ${run.container}`, stderr: '' };
+		};
+		const result = await runWithHooks({ commandId: commandName.id, cwd, args, workspaceRoot: root ?? cwd, run: start });
+		if (!started) {
+			await restore?.();
+		}
+		if (opts?.wait === true) {
+			return result;
+		}
+		if (result && !result.success) {
+			void vscode.window.showErrorMessage(`${commandName.title}: ${result.stderr}`);
+		}
 	}
 
 	/**
@@ -125,11 +187,13 @@ export class RunCommands extends BaseCommand {
 	 *
 	 * @param start - Запуск клиента
 	 */
-	private async runClient(start: () => Promise<StructuredCommandResult | void>): Promise<StructuredCommandResult | void> {
+	private async runClient(
+		start: (inContainer: boolean) => Promise<StructuredCommandResult | void>
+	): Promise<StructuredCommandResult | void> {
 		if ((await this.vrunner.shouldUseDocker()) && !(await this.vrunner.runOnThisMachine(() => this.platformInstalled()))) {
-			return this.vrunner.runWithWindow(start);
+			return this.vrunner.runWithWindow(() => start(true));
 		}
-		return this.vrunner.runOnThisMachine(start);
+		return this.vrunner.runOnThisMachine(() => start(false));
 	}
 
 	/** Установлена ли платформа, которую запросит активный профиль запуска. */

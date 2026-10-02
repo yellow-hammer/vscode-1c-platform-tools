@@ -28,6 +28,7 @@ import {
 	type ShellType,
 } from './shellEscape';
 import { CONTAINER_WORKSPACE, isInsideDir, type DockerMount } from '../shared/dockerPaths';
+import { WINDOW_CONTAINER_LABEL } from '../shared/dockerRun';
 
 export {
 	escapeCommandArg,
@@ -311,6 +312,11 @@ export interface DockerRunOptions {
 	mounts?: readonly DockerMount[];
 	/** Параметры `docker run` из настройки docker.runArgs */
 	runArgs?: readonly string[];
+	/**
+	 * Клиент 1С с окном: контейнер запускается отсоединённым, с меткой
+	 * {@link WINDOW_CONTAINER_LABEL}, и после выхода остаётся, пока его не уберут
+	 */
+	detached?: boolean;
 }
 
 /**
@@ -342,7 +348,7 @@ export function withoutPublishedPorts(runArgs: readonly string[]): string[] {
 function dockerRunPrefix(workspaceRoot: string, options: DockerRunOptions, hostPath: (value: string) => string): string[] {
 	return [
 		'run',
-		'--rm',
+		...(options.detached ? ['-d', '--label', WINDOW_CONTAINER_LABEL] : ['--rm']),
 		...(options.containerName ? ['--name', options.containerName] : []),
 		'-v',
 		`${hostPath(workspaceRoot)}:${CONTAINER_WORKSPACE}`,

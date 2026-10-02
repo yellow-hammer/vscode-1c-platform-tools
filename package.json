@@ -4221,7 +4221,7 @@
             "type": "string",
             "default": "",
             "scope": "resource",
-            "description": "Docker-образ для выполнения команд vrunner. Образ должен содержать установленную платформу 1С:Предприятие и vanessa-runner. Пример: 'myregistry/onec-image:8.3.25' или 'localhost/onec-image:latest'. Если не указан, будет показана ошибка с инструкцией."
+            "description": "Docker-образ с платформой 1С:Предприятие и vanessa-runner, например ghcr.io/yellow-hammer/1c-nest/vrunner:8.3.27."
           },
           "1c-platform-tools.docker.runArgs": {
             "type": "array",

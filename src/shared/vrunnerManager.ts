@@ -35,7 +35,7 @@ import { edtTemporaryDir } from './edtStaging';
 import { isEdtProject } from './projectLayout';
 import { logger } from './logger';
 import { setTerminalOscriptBinDir } from './terminalEnv';
-import { dockerCommandRun, dockerContainerName } from './dockerRun';
+import { dockerCommandRun, dockerContainerName, startWindowContainer, windowContainerLogsRun } from './dockerRun';
 import { runCancellableCommand, CancellableProcessResult, type CommandRun } from './cancellableProcess';
 import { DEFAULT_PATHS, DEFAULT_VRUNNER, DEFAULT_ENV } from './pathDefaults';
 import { getOvmBinaryPath, getOvmBinDir, getOvmRootDir, getOpmBinaryCandidates, getOpmScriptPath, withSelectedEngine } from './ovmPaths';
@@ -72,7 +72,7 @@ import { VRunnerIntent } from './vrunnerCli';
 import { planIntents, SettingsFileFormat } from './vrunnerCli/planner';
 import { overlaySettings, parseSettingsJson, readSettingsJson, readSettingsJsonSync } from './settingsJson';
 import { translateArgsToV3 } from './vrunnerCommandMap';
-import { createVRunnerTask, type TaskOutputChain } from '../features/tasks/vrunnerTask';
+import { createVRunnerTask, VRUNNER_TASK_TYPE, type TaskOutputChain } from '../features/tasks/vrunnerTask';
 import { decodeProcessOutput } from './processOutput';
 import { ACTIVE_ENV_OVERRIDES_STATE, ACTIVE_ENV_PROFILE_STATE, projectMemento } from './projectState';
 import { currentRoot, projectRootKey, runWithProject } from './workspaceProjects';
@@ -1003,7 +1003,7 @@ export class VRunnerManager {
 		explicitIbConnection?: string
 	): Promise<string[][]> {
 		const version = await this.getVRunnerVersion();
-		const { steps, notices } = planIntents(intents, {
+		const { steps, notices } = planIntents(await this.runnableIntents(intents), {
 			version,
 			overrideArgs: this.getActiveEnvOverrideArgs(),
 			activeSettingsFile: this.getActiveSettingsParamIfExists()[1],
@@ -1041,6 +1041,20 @@ export class VRunnerManager {
 		} catch {
 			return 'unknown';
 		}
+	}
+
+	/**
+	 * Намерения в том виде, в каком их выполнит vrunner. В контейнере `--no-wait`
+	 * не передаётся: контейнер завершается вместе с vrunner и закрыл бы клиент 1С.
+	 *
+	 * @param intents - Намерения команды
+	 * @returns Намерения для выполнения
+	 */
+	public async runnableIntents(intents: readonly VRunnerIntent[]): Promise<VRunnerIntent[]> {
+		if (!(await this.shouldUseDocker())) {
+			return [...intents];
+		}
+		return intents.map((intent) => ('noWait' in intent && intent.noWait ? { ...intent, noWait: false } : intent));
 	}
 
 	/**
@@ -1294,6 +1308,55 @@ export class VRunnerManager {
 	}
 
 	/**
+	 * Запускает клиент 1С с окном в отсоединённом контейнере: команда завершается, как
+	 * только контейнер запущен. Вывод клиента показывает задача, остановка которой
+	 * закрывает клиент.
+	 *
+	 * @param args - Итоговые аргументы vrunner
+	 * @param options - Каталог и имя задачи с выводом
+	 * @returns Имя контейнера и код его выхода после остановки либо причина отказа
+	 */
+	public async startClientInContainer(
+		args: string[],
+		options: { cwd?: string; name: string }
+	): Promise<{ container: string; exited: Promise<number | undefined> } | { error: string }> {
+		const plan = this.dockerPlan([args]);
+		if ('error' in plan) {
+			return plan;
+		}
+		const container = dockerContainerName();
+		const runArgs = dockerRunArgs(plan.image, plan.argsArray[0], plan.root, {
+			...plan.options,
+			containerName: container,
+			detached: true,
+		});
+		const started = await startWindowContainer(runArgs, container);
+		if ('error' in started) {
+			return started;
+		}
+		// У каждого окна своя задача: повторный запуск той же задачи VS Code предложил бы перезапустить прежнюю
+		const root = this.getEffectiveRoot();
+		const task = createVRunnerTask({
+			name: options.name,
+			command: () => windowContainerLogsRun(container),
+			cwd: options.cwd || root || os.homedir(),
+			env: this.childEnv(),
+			definition: {
+				type: VRUNNER_TASK_TYPE,
+				command: options.name,
+				args: [container],
+				...(root === undefined ? {} : { project: root }),
+			},
+		});
+		try {
+			await vscode.tasks.executeTask(task);
+		} catch (error) {
+			log.error(`Задача с выводом контейнера ${container} не запустилась: ${(error as Error).message}`);
+		}
+		return { container, exited: started.exited };
+	}
+
+	/**
 	 * Docker-образ проекта из настройки `docker.image`.
 	 *
 	 * @returns Docker-образ для выполнения команд
@@ -1304,8 +1367,8 @@ export class VRunnerManager {
 		if (!image) {
 			throw new Error(
 				'Docker-образ не указан в настройках. Укажите образ в настройках расширения ' +
-				'(1c-platform-tools.docker.image). Пример: "myregistry/onec-image:8.3.25" или ' +
-				'"localhost/onec-image:latest". Образ должен содержать установленную платформу 1С:Предприятие и vanessa-runner.'
+				'(1c-platform-tools.docker.image), например "ghcr.io/yellow-hammer/1c-nest/vrunner:8.3.27". ' +
+				'В образе должны быть платформа 1С:Предприятие и vanessa-runner.'
 			);
 		}
 		return image;

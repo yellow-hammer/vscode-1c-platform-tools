@@ -16,6 +16,9 @@ const log = logger.scope('vrunner');
 /** Сколько секунд контейнер закрывается после SIGTERM, прежде чем демон пошлёт SIGKILL. */
 export const DOCKER_STOP_TIMEOUT_SECONDS = 30;
 
+/** Метка контейнеров, в которых открыт клиент 1С с окном. */
+export const WINDOW_CONTAINER_LABEL = '1c-platform-tools.window';
+
 /**
  * Вызов программы `docker`. Промис не отклоняется: остановка и уборка
  * контейнера, которого уже нет, ошибкой не считаются.
@@ -90,4 +93,63 @@ export function stopDockerContainer(containerName: string, docker: DockerCli = d
  */
 export function removeDockerContainer(containerName: string, docker: DockerCli = dockerCli): Promise<void> {
 	return docker(['rm', '-f', containerName], 30000);
+}
+
+/** Вызов программы `docker` с выводом. Промис не отклоняется: ошибка приходит в `error`. */
+export type DockerExec = (args: readonly string[], timeoutMs: number) => Promise<{ stdout: string; error?: string }>;
+
+const dockerExec: DockerExec = (args, timeoutMs) =>
+	new Promise((resolve) => {
+		execFile('docker', args, { timeout: timeoutMs, windowsHide: true, maxBuffer: 4 * 1024 * 1024 }, (error, stdout, stderr) => {
+			resolve(error ? { stdout, error: (stderr || error.message).trim() } : { stdout });
+		});
+	});
+
+/**
+ * Запускает отсоединённый контейнер клиента 1С с окном и следит за ним. Перед запуском
+ * убирает остановленные контейнеры прошлых окон; после выхода контейнер убирается,
+ * а при коде выхода не 0 его вывод попадает в журнал.
+ *
+ * @param runArgs - Аргументы `docker run -d` (см. `dockerRunArgs` с `detached`)
+ * @param containerName - Имя контейнера из этих аргументов
+ * @param docker - Вызов программы `docker`
+ * @returns Код выхода после остановки контейнера либо причина, по которой он не запустился
+ */
+export async function startWindowContainer(
+	runArgs: readonly string[],
+	containerName: string,
+	docker: DockerExec = dockerExec
+): Promise<{ exited: Promise<number | undefined> } | { error: string }> {
+	await docker(['container', 'prune', '-f', '--filter', `label=${WINDOW_CONTAINER_LABEL}`], 60000);
+	// Без образа на машине docker сначала его скачивает
+	const started = await docker(runArgs, 60 * 60 * 1000);
+	if (started.error !== undefined) {
+		return { error: started.error };
+	}
+	log.info(`Клиент 1С с окном запущен в контейнере ${containerName}`);
+	const exited = (async () => {
+		const waited = await docker(['wait', containerName], 0);
+		const code = waited.error === undefined ? Number.parseInt(waited.stdout.trim(), 10) : Number.NaN;
+		if (code !== 0) {
+			const output = await docker(['logs', '--tail', '50', containerName], 30000);
+			log.warn(`Контейнер ${containerName} завершился с кодом ${Number.isNaN(code) ? '?' : code}: ${output.stdout.trim()}`);
+		}
+		await docker(['rm', '-f', containerName], 30000);
+		return Number.isNaN(code) ? undefined : code;
+	})();
+	return { exited };
+}
+
+/**
+ * Вывод контейнера клиента 1С с окном для задачи: остановка задачи закрывает клиент.
+ *
+ * @param containerName - Имя контейнера
+ * @param docker - Вызов программы `docker`
+ * @returns Запуск для задачи
+ */
+export function windowContainerLogsRun(containerName: string, docker: DockerCli = dockerCli): CommandRun {
+	return {
+		command: { file: 'docker', args: ['logs', '-f', containerName] },
+		onCancel: () => stopDockerContainer(containerName, docker),
+	};
 }
