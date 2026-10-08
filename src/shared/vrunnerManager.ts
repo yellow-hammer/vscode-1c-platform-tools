@@ -56,7 +56,7 @@ import {
 	resolveActiveEnvFileName,
 	detectSettingsFormat,
 } from './envProfiles';
-import { DEFAULT_IB_CONNECTION } from './ibConnectionPath';
+import { DEFAULT_IB_CONNECTION, quoteFileIbConnection } from './ibConnectionPath';
 import { containsGitBranchVariable, GIT_BRANCH_VARIABLE, substituteGitBranch } from './launchVariables';
 import { readGitBranchDirName } from './gitHead';
 import {
@@ -2614,7 +2614,7 @@ export class VRunnerManager {
 		// добавляется только для явно заданной строки подключения (например,
 		// из вызова MCP или временных параметров профиля).
 		if (ibConnection) {
-			return ['--ibconnection', ibConnection];
+			return ['--ibconnection', quoteFileIbConnection(ibConnection)];
 		}
 		return [];
 	}

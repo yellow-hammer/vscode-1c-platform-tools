@@ -75,8 +75,11 @@ export class RunCommands extends BaseCommand {
 			return opts?.wait === true ? this.executionError(INFOBASE_BUSY) : undefined;
 		}
 		const [args] = await this.vrunner.planIntent(intent, opts?.settingsFile, opts?.ibConnection);
-
-		return this.runVRunner(args, opts, commandName.title, undefined, commandName.id, true, window.restore);
+		const notices = this.vrunner.consumePlanNotices();
+		return this.appendNotices(
+			await this.runVRunner(args, opts, commandName.title, undefined, commandName.id, true, window.restore),
+			notices
+		);
 	}
 
 	/**
@@ -115,8 +118,11 @@ export class RunCommands extends BaseCommand {
 			return opts?.wait === true ? this.executionError(INFOBASE_BUSY) : undefined;
 		}
 		const [args] = await this.vrunner.planIntent(intent, opts?.settingsFile, opts?.ibConnection);
-
-		return this.runVRunner(args, opts, commandName.title, undefined, commandName.id, true, window.restore);
+		const notices = this.vrunner.consumePlanNotices();
+		return this.appendNotices(
+			await this.runVRunner(args, opts, commandName.title, undefined, commandName.id, true, window.restore),
+			notices
+		);
 	}
 
 	/**

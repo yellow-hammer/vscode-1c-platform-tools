@@ -7,6 +7,7 @@
  * проверяются юнит-тестами.
  */
 
+import { quoteFileIbConnection } from '../ibConnectionPath';
 import { VRunnerIntent } from './intents';
 import { selectCliAdapter } from './index';
 import { isV3Cli, VRunnerVersion } from '../vrunnerVersion';
@@ -36,6 +37,53 @@ export interface PlanResult {
 	steps: string[][];
 	/** Замечания о применённых и отброшенных параметрах. */
 	notices: string[];
+}
+
+/** В аргументах уже есть флаг подключения к информационной базе. */
+function hasIbConnectionFlag(args: readonly string[]): boolean {
+	return args.some((arg) => arg === '--ibconnection' || arg.startsWith('--ibconnection='));
+}
+
+/** Значение `--ibconnection` в аргументах команды. */
+function ibConnectionFromArgs(args: readonly string[]): string | undefined {
+	for (let index = 0; index < args.length; index++) {
+		const arg = args[index];
+		if (arg === '--ibconnection') {
+			return args[index + 1];
+		}
+		if (arg.startsWith('--ibconnection=')) {
+			return arg.slice('--ibconnection='.length);
+		}
+	}
+	return undefined;
+}
+
+/**
+ * Дописывает строку подключения из вызова, если команда ещё не несёт свою.
+ *
+ * @param commonArgs - Сквозные опции намерения
+ * @param connection - Строка подключения из вызова
+ * @returns Опции с `--ibconnection` либо те же
+ */
+function withExplicitIbConnection(commonArgs: readonly string[], connection: string | undefined): string[] {
+	if (!connection || hasIbConnectionFlag(commonArgs)) {
+		return [...commonArgs];
+	}
+	return [...commonArgs, '--ibconnection', quoteFileIbConnection(connection)];
+}
+
+/**
+ * Все шаги плана выполняются в запрошенной базе.
+ *
+ * Команды, у которых флага подключения нет (кластер, проверка EDT), отвечают false:
+ * строка из вызова до них не доходит.
+ *
+ * @param steps - Команды плана
+ * @param connection - Строка подключения из вызова
+ */
+export function stepsUseIbConnection(steps: readonly string[][], connection: string): boolean {
+	const expected = quoteFileIbConnection(connection);
+	return steps.length > 0 && steps.every((step) => ibConnectionFromArgs(step) === expected);
 }
 
 /**
@@ -105,8 +153,9 @@ function stripV2SettingsOnCli3(
  * Строит команды vrunner из намерений.
  *
  * Правила приоритета: явный файл настроек вызова отменяет временные параметры
- * профиля; явная строка подключения исключает из них подключение к ИБ; файл
- * настроек чужого формата не передаётся ни в одну сторону.
+ * профиля; явная строка подключения исключает из них подключение к ИБ и сама
+ * передаётся флагом `--ibconnection`; файл настроек чужого формата не
+ * передаётся ни в одну сторону.
  *
  * @param intents - Намерения (каждое может развернуться в несколько команд)
  * @param context - Данные окружения (версия, профиль, параметры вызова)
@@ -183,12 +232,17 @@ export function planIntents(intents: VRunnerIntent[], context: PlanContext): Pla
 			...(settingsParam.length > 0 && !base.includes('--settings') ? settingsParam : []),
 			...overrides,
 		];
-		const merged: VRunnerIntent = extra.length > 0
-			? { ...intent, common: [...base, ...extra] }
+		const commonArgs = withExplicitIbConnection([...base, ...extra], context.explicitIbConnection);
+		const merged: VRunnerIntent = commonArgs.length > 0
+			? { ...intent, common: commonArgs }
 			: intent;
 		for (const step of adapter.plan(merged)) {
 			steps.push(cli3 ? stripV2SettingsOnCli3(step, context.settingsFormat, notices) : step);
 		}
+	}
+
+	if (context.explicitIbConnection && stepsUseIbConnection(steps, context.explicitIbConnection)) {
+		notices.push(`Подключение из вызова: ${quoteFileIbConnection(context.explicitIbConnection)}.`);
 	}
 
 	return { steps, notices };
