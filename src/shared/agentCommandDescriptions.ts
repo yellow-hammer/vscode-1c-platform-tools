@@ -26,7 +26,6 @@ const EXTERNAL = '1С: Внешние файлы';
 const DEPENDENCIES = '1С: Зависимости';
 const LAUNCH = '1С: Запуск';
 const ENVIRONMENT = '1С: Окружение';
-const TASKS = '1С: Задачи';
 const SESSIONS = '1С: Сеансы';
 const PIPELINES = '1С: Пайплайны';
 const SERVER = '1С: Автономный сервер';
@@ -290,14 +289,6 @@ export const AGENT_COMMAND_DESCRIPTIONS: Record<string, AgentCommandDescription>
 	'1c-platform-tools.dependencies.installOscript': {
 		title: 'Установить OneScript',
 		category: DEPENDENCIES,
-	},
-	'1c-platform-tools.tasks.run': {
-		title: 'Запустить задачу из конфигураций запуска проекта',
-		category: TASKS,
-	},
-	'1c-platform-tools.tasks.runOscript': {
-		title: 'Запустить задачу OneScript (opm run)',
-		category: TASKS,
 	},
 
 	// Запуск платформы: vrunner отдаёт управление сразу после старта

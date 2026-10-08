@@ -1,28 +1,33 @@
 ---
 name: 1c-platform-tools-dependencies
-description: Зависимости и структура проекта 1С. Используй, когда пользователь просит установить зависимости, инициализировать проект, установить OneScript или opm, настроить packagedef или структуру проекта.
+description: Зависимости и структура проекта 1С. Используй, когда пользователь просит установить зависимости, инициализировать packagedef, создать каталоги проекта, установить OneScript или обновить opm.
 ---
 
 # Зависимости и проект: команды и MCP
 
-Выполняй инициализацию проекта, установку OneScript и зависимостей через команды расширения или инструменты MCP. **Выполняй команду сам** (Execute Command или MCP), не проси пользователя нажимать палитру.
+Сначала инструменты MCP. К `opm install` в терминале переходи, когда сервера нет.
 
-## Команды расширения
+| Задача | Command ID | MCP | wait: true |
+|---|---|---|---|
+| Создать packagedef | `1c-platform-tools.dependencies.initializePackagedef` | `deps_initPackagedef` | результат |
+| Создать packagedef (команда проекта) | `1c-platform-tools.project.initialize` | `project_init` | результат |
+| Создать каталоги проекта | `1c-platform-tools.dependencies.initializeProjectStructure` | `deps_initProjStruct` | без исхода |
+| Установить зависимости | `1c-platform-tools.dependencies.install` | `deps_install` | без исхода |
+| Установить OneScript | `1c-platform-tools.dependencies.installOscript` | `deps_installOscript` | без исхода |
+| Обновить opm | `1c-platform-tools.dependencies.updateOpm` | `deps_updateOpm` | без исхода |
+| Удалить зависимости | `1c-platform-tools.dependencies.remove` | `deps_remove` | без исхода |
+| Настроить Git | `1c-platform-tools.dependencies.setupGit` | нет | |
 
-| Задача                                 | Command ID                                                  |
-|----------------------------------------|-------------------------------------------------------------|
-| Инициализировать проект (packagedef)   | `1c-platform-tools.dependencies.initializePackagedef`       |
-| Инициализировать структуру проекта     | `1c-platform-tools.dependencies.initializeProjectStructure` |
-| Настроить Git                          | `1c-platform-tools.dependencies.setupGit`                   |
-| Установить OneScript                   | `1c-platform-tools.dependencies.installOscript`             |
-| Обновить пакетный менеджер opm | `1c-platform-tools.dependencies.updateOpm`                  |
-| Установить зависимости                 | `1c-platform-tools.dependencies.install`                    |
-| Удалить зависимости                    | `1c-platform-tools.dependencies.remove`                     |
+`deps_initPackagedef` и `project_init` делают одно и то же: `projectPath` обязателен, в этом каталоге создаётся `packagedef`, проект становится текущим. Существующий файл не перезаписывается. Для Execute Command каталог можно передать и полем `root`.
 
-## MCP (mcp-1c-platform-tools)
+`deps_initProjStruct` создаёт каталоги шаблона и README в пустых каталогах. Уже лежащие README не перезаписываются. Исход в ответ не входит.
 
-Для зависимостей в первую очередь вызывай **deps_install** (packagedef, vrunner) и **deps_installOscript** (opm, vanessa и др.). Есть также инструменты для initializeProjectStructure и других команд, без `projectPath` они выполняются в текущем проекте. packagedef создаёт **project_init** с обязательным `projectPath` каталога, который станет проектом. К терминалу с `opm install add` прибегай только если MCP недоступен.
+`deps_install` ставит зависимости по `packagedef`. `deps_installOscript` ставит OneScript. Если oscript уже есть, вызывай `deps_install`, а `deps_installOscript` — когда интерпретатора нет.
 
-## Правило
+`1c-platform-tools.dependencies.setupGit` открывает мастер и агенту недоступен. Ответ: «Команда открывает окна VS Code и недоступна агенту. Мастер настройки git выполняется пользователем; для агента настройте git командами git config.» Настраивай git командами git.
 
-При настройке окружения или установке зависимостей вызывай команду расширения или MCP (deps_install, deps_installOscript). Не переходи в терминал по привычке, пока не убедился, что MCP недоступен.
+## Примеры
+
+- Зависимости текущего проекта: `deps_install`.
+- Нет oscript: `deps_installOscript`, затем `deps_install`.
+- Новый каталог сделать проектом: `project_init` с `projectPath`.

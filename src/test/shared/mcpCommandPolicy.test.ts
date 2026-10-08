@@ -105,6 +105,13 @@ suite('mcpCommandPolicy', () => {
 		}
 	});
 
+	test('запуск задачи по имени агенту не отдаётся', () => {
+		assert.strictEqual(isCommandExposedToMcp('1c-platform-tools.tasks.run'), false);
+		assert.strictEqual(isCommandExposedToMcp('1c-platform-tools.tasks.runOscript'), false);
+		assert.strictEqual(isCommandExposedToMcp('1c-platform-tools.tasks.edit'), true);
+		assert.strictEqual(isCommandExposedToMcp('1c-platform-tools.tasks.view'), true);
+	});
+
 	test('команды без синхронного результата помечены', () => {
 		for (const id of [
 			'1c-platform-tools.server.start',
