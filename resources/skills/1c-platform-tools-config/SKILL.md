@@ -1,61 +1,64 @@
 ---
 name: 1c-platform-tools-config
-description: Конфигурации запуска и служебные файлы (env.json и env-профили, launch.json, .gitignore, .gitattributes). Используй, когда пользователь просит открыть/создать env.json, переключить профиль запуска, запустить 1С с параметрами, создать .gitignore/.gitattributes или другие служебные файлы проекта.
+description: Конфигурации запуска и служебные файлы (env.json и env-профили, launch.json, .gitignore, .gitattributes). Используй, когда пользователь просит открыть или создать env.json, переключить профиль запуска, запустить 1С с параметрами, создать .gitignore, .gitattributes или другие служебные файлы проекта.
 ---
 
-# Конфигурации запуска и служебные файлы: команды расширения
+# Конфигурации запуска и служебные файлы
 
-**Выполняй команды сам** (Execute Command), не проси пользователя искать файлы вручную.
+Профиль — файл настроек vanessa-runner в корне проекта. Активный хранится в состоянии проекта, в git не входит, виден в строке состояния и подставляется во все команды vanessa-runner.
 
-## env-профили запуска
+- vanessa-runner 2.x: `env.json` — базовый, `env.<id>.json` — именованный (`env.dev.json`);
+- vanessa-runner 3.x: `autumn-properties.json` и `autumn-properties.<id>.json`;
+- `env.local.json` — личные перекрытия, профилем не считается. Плоский объект с флагами `--ibconnection`, `--db-user`, `--db-pwd`, `--v8version`, `--additional`. Допустимы обёртки `default` (2.x) и `vrunner` (3.x).
 
-Профиль — самодостаточный файл настроек vanessa-runner в корне проекта:
+Приоритет строки подключения: временные параметры, затем `env.local.json`, затем профиль. Временные параметры — адрес ИБ, пользователь, пароль, версия платформы, дополнительные аргументы — действуют на все команды vanessa-runner. В значениях работает `${gitBranch}`: `feature/RS-123` становится `feature-RS-123`, так делают отдельную базу на ветку (`"--ibconnection": "/F./build/${gitBranch}"`).
 
-- `env.json` — базовый профиль (по умолчанию);
-- `env.<id>.json` — именованный профиль (`env.dev.json`, `env.prod.json`);
-- `env.local.json` — личные переопределения разработчика (в `.gitignore`, профилем не считается): плоский объект с флагами vrunner (`--ibconnection`, `--db-user`, `--db-pwd`, `--v8version`, `--additional`); приоритет: временные параметры > `env.local.json` > профиль.
+## Смена профиля
 
-В значениях профиля и перекрытий работает `${gitBranch}` — имя текущей ветки git как безопасное имя каталога (`feature/RS-123` → `feature-RS-123`); так делают отдельную ИБ на каждую ветку: `"--ibconnection": "/F./build/${gitBranch}"`. Текущее значение видно в `env.status` (поля `gitBranch`, `effectiveIbConnection`, `localOverrides`).
+Перед операцией, которая зависит от окружения, вызови `env_status`. В ответе: `activeProfileId`, `settingsFile`, `settingsFileExists`, `settingsSchema` (`v2` или `v3`), `profiles` (`id`, `fileName`, `label`), `overrides`, `localOverrides`, `localOverridesFile`, `gitBranch`, `effectiveIbConnection` (уже с подстановкой ветки и перекрытиями), `vrunnerVersion`, `odata`. Пароль замаскирован.
 
-Активный профиль выбирается локально (не коммитится) и подставляется во все команды vrunner через `--settings`. Поверх него можно задать **временные параметры** (адрес ИБ, пользователь, пароль, версия платформы, дополнительные параметры) — отдельные флаги перекрывают значения файла и применяются ко **всем** командам vanessa-runner. Сам запуск Предприятия/Конфигуратора/тестов — обычными командами (см. навык 1c-platform-tools-run и др.) под активным профилем.
+Если пользователь назвал профиль («запусти тесты под test», «переключись на storage») — переключи его и дальше работай уже с ним. Если не назвал — не переключай, оставайся на активном. Разовый прогон под другим файлом настроек, без смены активного профиля, — параметр `settingsFile` у команды vanessa-runner.
 
-**Перед операциями, зависящими от окружения, проверяй состояние** через `env.status` (MCP: `env_status`): какой профиль активен, какой файл настроек и строка подключения будут применены.
+`env_selectProfile` и Execute Command `1c-platform-tools.env.selectProfile` принимают id (`dev`), имя файла (`env.dev.json`, `autumn-properties.ci.json`) или подпись (`По умолчанию`). У MCP это параметр `profile`, у Execute Command — строка-аргумент. Без имени агентный вызов окно не открывает и возвращает ошибку со списком `available`. Успех: «Активирован профиль «id» (файл fileName).» Неизвестный профиль: «Профиль запуска «…» не найден. Доступные профили: …».
 
-**Правило выбора профиля.** Если пользователь назвал профиль в запросе («запусти тесты под test», «переключись на storage») — переключи его: `1c-platform-tools.env.selectProfile` с аргументом-строкой (id `dev`, имя файла `env.dev.json` или подпись профиля). Если профиль не назван — ничего не переключай, работай под активным профилем из статус-бара. Для разового прогона под другим профилем без переключения передавай `settingsFile` в MCP-инструменте.
+| Задача | Command ID | MCP | wait: true |
+|---|---|---|---|
+| Состояние окружения | `1c-platform-tools.env.status` | `env_status` | результат |
+| Выбрать профиль | `1c-platform-tools.env.selectProfile` | `env_selectProfile` | результат |
+| Сбросить временные параметры | `1c-platform-tools.env.clearOverrides` | `env_clearOverrides` | результат |
+| Определить версию vanessa-runner заново | `1c-platform-tools.env.refreshVersion` | `env_refreshVersion` | результат |
+| Открыть env.json | `1c-platform-tools.env.editSettingsFile` | `env_editSettingsFile` | пустой |
+| Открыть редактор профиля | `1c-platform-tools.env.openProfileEditor` | `env_openProfileEditor` | пустой |
+| Создать базовый набор служебных файлов | `1c-platform-tools.serviceFiles.createRecommendedSet` | `serviceFiles_createRecommendedSet` | пустой |
+| Создать .gitignore | `1c-platform-tools.serviceFiles.createGitignore` | `serviceFiles_createGitignore` | пустой |
+| Создать .gitattributes | `1c-platform-tools.serviceFiles.createGitattributes` | `serviceFiles_createGitattributes` | пустой |
+| Создать env.json | `1c-platform-tools.serviceFiles.createEnvJson` | `serviceFiles_createEnvJson` | пустой |
+| Создать профиль | `1c-platform-tools.env.createProfile` | нет | |
+| Задать временные параметры окном | `1c-platform-tools.env.setOverrides` | нет | |
+| Открыть launch.json | `1c-platform-tools.launch.editConfigurations` | нет | |
+| Меню выбора служебного файла | `1c-platform-tools.serviceFiles.create` | нет | |
 
-| Запрос пользователя (примеры) | Command ID |
-|---|---|
-| Узнать активный профиль и окружение | `1c-platform-tools.env.status` (read-only, возвращает JSON: профиль, файл настроек, версия vrunner, временные параметры, строка подключения) |
-| Выбрать/переключить профиль запуска | `1c-platform-tools.env.selectProfile` (аргумент-строка) или MCP `env_selectProfile { profile: "имя" }` — без окна выбора |
-| Создать новый профиль (env.dev.json и т.п.) | `1c-platform-tools.env.createProfile` |
-| Задать временные параметры (ИБ/версия/пользователь) на лету | `1c-platform-tools.env.setOverrides` |
-| Сбросить временные параметры | `1c-platform-tools.env.clearOverrides` |
-| Открыть env.json | `1c-platform-tools.env.editSettingsFile` |
-| Открыть launch.json | `1c-platform-tools.launch.editConfigurations` |
+`env_editSettingsFile` и `env_openProfileEditor` открывают файл и исход не возвращают. Служебный файл, который уже есть, открывается и не перезаписывается; отсутствующий создаётся. `serviceFiles_createEnvJson` при создании спрашивает секции `vanessa`, `xunit`, `syntax-check` флажками: команда этот выбор у агента не принимает. `serviceFiles_createRecommendedSet` пишет отсутствующие файлы из шаблона без вопросов. Вызывай их с `wait: false`. При `wait: true` канал ответит, что wait не поддерживается, хотя файл уже мог открыться или создаться. Повтор из-за этой фразы не делай: проверь файл на диске.
 
-## Служебные файлы
+Явный `settingsFile` у команды vanessa-runner отменяет перекрытия активного профиля. Явный `ibConnection` убирает из перекрытий подключение, пользователя и пароль. В stdout это строки `[контекст]`: «Перекрытия активного профиля не применены: в вызове задан settingsFile.» либо «Из перекрытий профиля исключено подключение к ИБ: в вызове задана явная строка подключения.» Если перекрытия применены, та же приставка показывает, какие именно.
 
-Расширение создаёт служебные файлы из шаблонов. Существующий файл не перезатирается — открывается; отсутствующий создаётся. При создании `env.json` секции команд (vanessa/xunit/syntax-check) выбираются флажками.
+`1c-platform-tools.env.createProfile` агенту недоступен: «Команда открывает окна VS Code и недоступна агенту. Имя профиля запрашивается в окне VS Code; профиль создаётся пользователем или файлом env.<id>.json.» Создай файл `env.<id>.json` сам.
 
-| Запрос пользователя (примеры) | Command ID |
-|---|---|
-| Создать служебные файлы (меню выбора) | `1c-platform-tools.serviceFiles.create` |
-| Создать базовый набор | `1c-platform-tools.serviceFiles.createRecommendedSet` |
-| Создать .gitignore | `1c-platform-tools.serviceFiles.createGitignore` |
-| Создать .gitattributes | `1c-platform-tools.serviceFiles.createGitattributes` |
-| Создать env.json | `1c-platform-tools.serviceFiles.createEnvJson` |
+`1c-platform-tools.env.setOverrides` агенту недоступен: «Команда открывает окна VS Code и недоступна агенту. Временные параметры задаются в окнах VS Code; для агента передавайте settingsFile или ibConnection в вызове.» Другую версию платформы или другую базу на один запуск передавай `settingsFile` или `ibConnection` в `run_enterprise`, `run_designer` или команду тестов.
 
-## Назначение служебных файлов
+`1c-platform-tools.launch.editConfigurations` в MCP нет. `tasks_edit` открывает `tasks.json`, не `launch.json`.
 
-- **env.json / env.<id>.json** — настройки vanessa-runner (подключение к ИБ, версия платформы, секции команд `default`/`vanessa`/`xunit`/...).
-- **env.local.json** — локальные переопределения; не коммитится.
-- **.gitignore** — исключения для 1С: `/build/`, `/oscript_modules/`, `env.local.json`, `lastUploadedCommit.txt`, бинарники `*.cf/*.cfe/*.epf/*.erf/*.dt`.
-- **.gitattributes** — текст/бинарь и переводы строк для файлов 1С (`*.bsl`, `*.os`, `*.xml` — текст; `*.cf`, `*.epf` — бинарь).
-- **lastUploadedCommit.txt** — служебный файл инкрементальной выгрузки конфигурации (хранит SHA последнего выгруженного коммита).
-- **tools/** — конфиги инструментов (VAParams.json, vrunner.init.json, yaxunit.json, xUnitParams.json и пр.), на которые ссылаются секции env.json.
+`1c-platform-tools.serviceFiles.create` — меню. Агентный вызов отвечает: «Команда открывает окна VS Code и недоступна агенту. Используйте serviceFiles.createRecommendedSet, createGitignore, createGitattributes, createEnvJson или serviceFiles.ensure с id файла.» В MCP есть четыре команды создания из таблицы. `1c-platform-tools.serviceFiles.ensure` в MCP нет.
+
+## Что лежит в файлах
+
+- `env.json` — подключение, платформа, секции команд.
+- `.gitignore` — `/build/`, `/oscript_modules/`, `env.local.json`, `lastUploadedCommit.txt`, бинарники конфигурации.
+- `.gitattributes` — текст и переводы строк для исходников 1С, бинарные cf и epf.
+- `lastUploadedCommit.txt` — SHA инкрементальной загрузки в каталоге исходников конфигурации.
 
 ## Примеры
 
-- «Запусти 1С с другой версией платформы» → `1c-platform-tools.env.setOverrides` (задать `--v8version`), затем запуск.
-- «Переключись на dev-профиль» → `1c-platform-tools.env.selectProfile`.
-- «Сделай gitignore для проекта 1С» → `1c-platform-tools.serviceFiles.createGitignore`.
+- Какой профиль активен: `env_status`.
+- Переключить на dev: `env_selectProfile` с `profile: "dev"`.
+- Gitignore проекта: `serviceFiles_createGitignore` с `wait: false`.

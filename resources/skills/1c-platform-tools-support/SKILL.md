@@ -1,40 +1,25 @@
 ---
 name: 1c-platform-tools-support
-description: Поддержка конфигурации и поставка. Используй, когда пользователь просит выгрузить в dist, обновить поддержку из cf/cfu, создать комплект поставки, файлы cf/cfu, шаблон поставки.
+description: Поддержка конфигурации и поставка. Используй, когда пользователь просит выгрузить конфигурацию поставки, обновить поддержку из cf или cfu, снять с поддержки, создать комплект поставки, файлы поставки или шаблон.
 ---
 
-# Поддержка и поставка: команды и MCP
+# Поддержка и поставка
 
-Выполняй операции с поддержкой и поставкой через команды расширения или инструменты MCP. **Выполняй команду сам** (Execute Command или MCP), не проси пользователя нажимать палитру.
+В MCP из этого раздела опубликован один инструмент: `cf_makeDist` (`1c-platform-tools.cf.makeDist`). Он выгружает конфигурацию поставки и при `wait: true` возвращает результат. Параметры файла: `outputDirectory`, `outputName`.
 
-## Команды расширения
+Остальные команды открывают мастер. Агентный вызов отклоняется до окон: «Команда открывает окна VS Code и недоступна агенту. Мастер поддержки/поставки выполняется пользователем в VS Code.» Попроси человека выполнить команду в палитре.
 
-### Поддержка
-
-| Задача                  | Command ID                                    |
-|-------------------------|-----------------------------------------------|
-| Выгрузить в 1Cv8dist.cf | `1c-platform-tools.cf.makeDist`  |
-| Загрузить из cf/cfu     | `1c-platform-tools.support.updateCfg`         |
-| Снять с поддержки       | `1c-platform-tools.support.disableCfgSupport` |
-
-### Поставка
-
-| Задача                                       | Command ID                                                |
-|----------------------------------------------|-----------------------------------------------------------|
-| Создать файл описания шаблона поставки       | `1c-platform-tools.support.createDeliveryDescriptionFile` |
-| Создать файлы поставки и обновления (cf/cfu) | `1c-platform-tools.support.createDistributionFiles`       |
-| Создать комплект поставки                    | `1c-platform-tools.support.createDistributivePackage`     |
-| Создать файл списка шаблонов                 | `1c-platform-tools.support.createTemplateListFile`        |
-
-## MCP (mcp-1c-platform-tools)
-
-Если доступны инструменты MCP, используй их для тех же операций (имена формируются из command ID: cf_makeDist, support_updateCfg и т.д.).
-
-### Параметр projectPath
-
-Корень проекта 1С (каталог с `packagedef`). Передавай, только если пользователь назвал проект: без параметра команда выполняется в текущем проекте.
+| Задача | Command ID | MCP |
+|---|---|---|
+| Выгрузить в 1Cv8dist.cf | `1c-platform-tools.cf.makeDist` | `cf_makeDist` |
+| Загрузить из cf/cfu | `1c-platform-tools.support.updateCfg` | нет |
+| Снять с поддержки | `1c-platform-tools.support.disableCfgSupport` | нет |
+| Файл описания шаблона поставки | `1c-platform-tools.support.createDeliveryDescriptionFile` | нет |
+| Файлы поставки и обновления | `1c-platform-tools.support.createDistributionFiles` | нет |
+| Комплект поставки | `1c-platform-tools.support.createDistributivePackage` | нет |
+| Файл списка шаблонов | `1c-platform-tools.support.createTemplateListFile` | нет |
 
 ## Примеры
 
-- Вызови `cf_makeDist` или команду `1c-platform-tools.cf.makeDist`.
-- Для создания комплекта поставки — `support_createDistributivePackage` (MCP) или `1c-platform-tools.support.createDistributivePackage` (команда).
+- Выгрузка поставки: `cf_makeDist`.
+- Комплект поставки собирает человек командой `1c-platform-tools.support.createDistributivePackage`.

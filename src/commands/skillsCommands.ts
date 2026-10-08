@@ -64,7 +64,14 @@ const ONE_CPT_SKILL_IDS = [
 	'1c-platform-tools-support',
 	'1c-platform-tools-setversion',
 	'1c-platform-tools-config',
-	'1c-platform-tools-mcp'
+	'1c-platform-tools-mcp',
+	'1c-platform-tools-edt',
+	'1c-platform-tools-session',
+	'1c-platform-tools-server',
+	'1c-platform-tools-tasks',
+	'1c-platform-tools-odata',
+	'1c-platform-tools-pipelines',
+	'1c-platform-tools-debug'
 ] as const;
 
 /**

@@ -3,23 +3,10 @@ import * as path from 'node:path';
 import * as fs from 'node:fs';
 
 import { TREE_GROUPS } from '../../features/tools/treeStructure';
+import { REGISTERED_WITHOUT_DECLARATION } from './registeredWithoutDeclaration';
 
 const EXTENSION_ROOT = path.resolve(__dirname, '../../..');
 const COMMAND_PREFIX = '1c-platform-tools.';
-
-/**
- * Команды, зарегистрированные в коде намеренно без объявления в манифесте:
- * служебные обработчики и команды, доступные только агенту.
- */
-const REGISTERED_WITHOUT_DECLARATION = new Set([
-	'1c-platform-tools.env.status',
-	'1c-platform-tools.env.refreshVersion',
-	'1c-platform-tools.env.statusBarRefresh',
-	'1c-platform-tools.epf.run',
-	'1c-platform-tools.server.statusBarRefresh',
-	'1c-platform-tools.serviceFiles.ensure',
-	'1c-platform-tools.todo.openLocation',
-]);
 
 /** Файлы исходников расширения без тестов. */
 function sourceFiles(dir: string, found: string[] = []): string[] {

@@ -121,6 +121,9 @@ const HIDDEN_EXACT = [
 	`${COMMAND_PREFIX}test.mutatosReport`,
 	// Пункт меню узла панели тестирования: без узла команде нечего запускать
 	`${COMMAND_PREFIX}test.mutatosItem`,
+	// Имя задачи в вызов не передаётся: агент получает объект опций и промахивается
+	`${COMMAND_PREFIX}tasks.run`,
+	`${COMMAND_PREFIX}tasks.runOscript`,
 ];
 
 /**

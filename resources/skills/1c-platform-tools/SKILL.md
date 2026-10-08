@@ -1,159 +1,224 @@
 ---
 name: 1c-platform-tools
-description: Операции с платформой 1С в этом проекте — командами расширения 1C: Platform Tools. Используй, когда пользователь просит загрузить/выгрузить конфигурацию, запустить Конфигуратор или Предприятие, установить зависимости, выполнить любую операцию с платформой 1С. Выполняй команды сам (Execute Command / MCP), не запускай внешние скрипты.
+description: "Операции с платформой 1С в этом проекте — командами расширения 1C: Platform Tools. Используй, когда пользователь просит загрузить или выгрузить конфигурацию, запустить Конфигуратор или Предприятие, установить зависимости, выполнить операцию с платформой 1С. Опубликованные команды выполняй сам. Мастера, которые открывают окно, не вызывай."
 ---
 
 # Команды 1C: Platform Tools для агента
 
-**Если пользователь называет команду или MCP-инструмент по имени** (например «через run_designer», «вызови 1c-platform-tools.run.designer») — сразу вызови именно её. Не заходи сначала в скилл и не перебирай все инструменты; таблицы ниже — когда задача сформулирована без имени команды.
+Если пользователь назвал команду или инструмент по имени, вызови именно её. Таблицы ниже — когда имя не названо.
 
-Выполняй операции 1С через команды расширения. **Ты должен сам выполнять команду**, а не просить пользователя: при запросе «Запусти Конфигуратор» — вызови `1c-platform-tools.run.designer`, при «Запусти Предприятие» — `1c-platform-tools.run.enterprise` и т.д. по таблице ниже. Используй инструмент выполнения команд редактора (Execute Command / runCommand / выполнить команду VS Code). **Не пиши пользователю «из чата вызвать нельзя» или «нажмите Ctrl+Shift+P»** — выполни команду сам. Только если в твоём наборе инструментов нет выполнения команд — тогда предложи пользователю палитру или панель «1С: Инструменты».
+Команду с заполненной колонкой MCP выполняй сам, кроме тех, что ниже помечены «не вызывай»: у них окно, отказ при `wait: true` или нет параметра, без которого команда бессмысленна. `projectPath` передавай, только если пользователь назвал проект: без него вызов идёт в текущий и текущий не меняет. Исходники конфигурации и расширений расширение находит само.
 
-Исходный код конфигурации и расширений расширение находит в проекте само: выгрузку конфигуратора или проекты 1С:EDT. Каталоги в команды не передаются.
+Не вызывай: `cf_loadByList`, `cfe_loadByList` (при `wait: true` отказ, загрузки нет), `cfe_borrowObject`, `epf_addBspRegistration` (окно и выделенный узел), `server_selectServices` (окно выбора сервисов, параметров нет). Запуск задачи по имени в MCP нет: человек запускает `1c-platform-tools.tasks.run` и `1c-platform-tools.tasks.runOscript` из палитры.
+
+Колонка «нет» — инструмента нет. Такую команду через канал агента не вызывай и имя инструмента не собирай. Подробности по доменам — в навыках `1c-platform-tools-*`. Полный список имён MCP и колонка `wait: true` — в навыке `1c-platform-tools-mcp`.
 
 ## Проекты окна
 
-Проект это каталог с `packagedef`; в окне их может быть несколько. Команды выполняются в текущем проекте. Список проектов с их видом (`kind`: `designer`, `edt`, `onec` без исходного кода 1С, `onescript`) и текущий проект возвращает `1c-platform-tools.project.list` с аргументом `{ "wait": true }` (MCP `project_list`); без аргумента команда открывает окно выбора у пользователя. Сделать проект текущим можно командой `1c-platform-tools.project.select` с `{ "root": "<корень>" }` (MCP `project_select`): выбор меняется и у пользователя. Каталог без `packagedef`, в том числе из `candidates` списка проектов, делает проектом `1c-platform-tools.project.initialize` с `{ "root": "<каталог>", "wait": true }` (MCP `project_init` с каталогом в `projectPath`). `projectPath` в вызове MCP выполняет одну команду в указанном проекте и текущий не меняет.
+Проект — каталог с `packagedef`. `project_list` возвращает проекты, вид `kind` (`designer`, `edt`, `onec`, `onescript`) и текущий. `project_select` с `root` делает проект текущим, в том числе у пользователя. `project_list` и `project_select` параметра `projectPath` не имеют. Без `wait` команда списка открывает окно выбора у человека; у MCP `wait: true` по умолчанию, список приходит в ответ.
+
+`project_init` и `deps_initPackagedef` создают `packagedef` в обязательном `projectPath` и делают проект текущим. Для Execute Command каталог можно передать и полем `root`. Существующий `packagedef` не перезаписывается.
+
+| Задача | Command ID | MCP |
+|---|---|---|
+| Список проектов | `1c-platform-tools.project.list` | `project_list` |
+| Выбрать проект | `1c-platform-tools.project.select` | `project_select` |
+| Создать packagedef | `1c-platform-tools.project.initialize` | `project_init` |
+| Показать панель свойств | `1c-platform-tools.properties.show` | `properties_show` |
 
 ## Информационные базы
 
-| Задача                                | Command ID                                          |
-|---------------------------------------|-----------------------------------------------------|
-| Создать пустую ИБ                     | `1c-platform-tools.infobase.create`            |
-| Обновить конфигурацию в ИБ            | `1c-platform-tools.infobase.updateDb`         |
-| Выполнить обработчики обновления              | `1c-platform-tools.infobase.runUpdateHandlers`         |
-| Запретить работу с внешними ресурсами | `1c-platform-tools.infobase.blockExternalResources` |
-| Инициализировать данные               | `1c-platform-tools.infobase.initialize`             |
-| Выгрузить в dt                        | `1c-platform-tools.infobase.dumpDt`               |
-| Загрузить из dt                       | `1c-platform-tools.infobase.restoreDt`             |
+| Задача | Command ID | MCP |
+|---|---|---|
+| Создать пустую ИБ | `1c-platform-tools.infobase.create` | `infobase_create` |
+| Инициализировать конфигурацию из исходного кода | `1c-platform-tools.infobase.initFromSrc` | `infobase_initFromSrc` |
+| Обновить конфигурацию базы | `1c-platform-tools.infobase.updateDb` | `infobase_updateDb` |
+| Выполнить обработчики обновления | `1c-platform-tools.infobase.runUpdateHandlers` | `infobase_runUpdateHandlers` |
+| Инициализировать данные | `1c-platform-tools.infobase.initialize` | `infobase_init` |
+| Выгрузить в dt | `1c-platform-tools.infobase.dumpDt` | `infobase_dumpDt` |
+| Загрузить из dt | `1c-platform-tools.infobase.restoreDt` | `infobase_restoreDt` |
+| Запретить внешние ресурсы | `1c-platform-tools.infobase.blockExternalResources` | `infobase_blockExtRes` |
 
 ## Конфигурация
 
-| Задача                                | Command ID                                             |
-|---------------------------------------|--------------------------------------------------------|
-| Загрузить конфигурацию из исходного кода | `1c-platform-tools.cf.load`          |
-| Загрузить только изменения (git diff) | `1c-platform-tools.cf.loadIncrement` |
-| Загрузить из objlist.txt              | `1c-platform-tools.cf.loadByList`  |
-| Загрузить из 1Cv8.cf                  | `1c-platform-tools.cf.loadFile`           |
-| Выгрузить конфигурацию в исходный код | `1c-platform-tools.cf.dump`            |
-| Выгрузить изменения в исходный код    | `1c-platform-tools.cf.dumpIncrement`   |
-| Выгрузить в 1Cv8.cf                   | `1c-platform-tools.cf.unload`             |
-| Собрать 1Cv8.cf из исходного кода     | `1c-platform-tools.cf.compile`                |
-| Разобрать 1Cv8.cf в исходный код      | `1c-platform-tools.cf.decompile`            |
+| Задача | Command ID | MCP |
+|---|---|---|
+| Загрузить из исходного кода | `1c-platform-tools.cf.load` | `cf_load` |
+| Загрузить изменения | `1c-platform-tools.cf.loadIncrement` | `cf_loadInc` |
+| Загрузить из objlist.txt | `1c-platform-tools.cf.loadByList` | `cf_loadByList` |
+| Загрузить из 1Cv8.cf | `1c-platform-tools.cf.loadFile` | `cf_loadFile` |
+| Выгрузить в исходный код | `1c-platform-tools.cf.dump` | `cf_dump` |
+| Выгрузить изменения | `1c-platform-tools.cf.dumpIncrement` | `cf_dumpInc` |
+| Выгрузить в 1Cv8.cf | `1c-platform-tools.cf.unload` | `cf_unload` |
+| Собрать 1Cv8.cf | `1c-platform-tools.cf.compile` | `cf_compile` |
+| Разобрать 1Cv8.cf | `1c-platform-tools.cf.decompile` | `cf_decompile` |
+| Конвертировать исходный код | `1c-platform-tools.cf.convert` | `cf_convert` |
+| Выгрузить поставку | `1c-platform-tools.cf.makeDist` | `cf_makeDist` |
 
 ## Расширения
 
-| Задача                          | Command ID                                         |
-|---------------------------------|----------------------------------------------------|
-| Загрузить расширение из исходного кода | `1c-platform-tools.cfe.load`         |
-| Загрузить из objlist.txt        | `1c-platform-tools.cfe.loadByList` |
-| Загрузить из *.cfe              | `1c-platform-tools.cfe.loadFile`         |
-| Выгрузить расширение в исходный код | `1c-platform-tools.cfe.dump`           |
-| Выгрузить в *.cfe               | `1c-platform-tools.cfe.unload`           |
-| Собрать *.cfe из исходного кода | `1c-platform-tools.cfe.compile`               |
-| Разобрать *.cfe в исходный код  | `1c-platform-tools.cfe.decompile`           |
+Тестовые расширения лежат в каталоге из настройки `1c-platform-tools.test.directoryName`.
 
-Тестовые расширения (YAxUnit и расширение с тестами) лежат под каталогом тестов (`tests`, имя задаёт
-настройка `test.directoryName`) и обслуживаются своими командами: `1c-platform-tools.test.loadExtensions`,
-`test.dumpExtensions`, `test.compileExtensions`, `test.decompileExtensions`; YAxUnit в них добавляет
-`test.addYaxunit`.
+| Задача | Command ID | MCP |
+|---|---|---|
+| Загрузить из исходного кода | `1c-platform-tools.cfe.load` | `cfe_load` |
+| Загрузить из objlist.txt | `1c-platform-tools.cfe.loadByList` | `cfe_loadByList` |
+| Загрузить из *.cfe | `1c-platform-tools.cfe.loadFile` | `cfe_loadFile` |
+| Выгрузить в исходный код | `1c-platform-tools.cfe.dump` | `cfe_dump` |
+| Выгрузить в *.cfe | `1c-platform-tools.cfe.unload` | `cfe_unload` |
+| Собрать *.cfe | `1c-platform-tools.cfe.compile` | `cfe_compile` |
+| Разобрать *.cfe | `1c-platform-tools.cfe.decompile` | `cfe_decompile` |
+| Конвертировать исходный код | `1c-platform-tools.cfe.convert` | `cfe_convert` |
+| Обновить расширения в базе | `1c-platform-tools.cfe.updateDb` | `cfe_updateDb` |
+| Добавить объект в расширение | `1c-platform-tools.cfe.borrowObject` | `cfe_borrowObject` |
+| Загрузить тестовые расширения | `1c-platform-tools.test.loadExtensions` | `test_loadExts` |
+| Выгрузить тестовые расширения | `1c-platform-tools.test.dumpExtensions` | `test_dumpExts` |
+| Собрать тестовые расширения | `1c-platform-tools.test.compileExtensions` | `test_compileExts` |
+| Разобрать тестовые расширения | `1c-platform-tools.test.decompileExtensions` | `test_decompileExts` |
+| Добавить YAxUnit | `1c-platform-tools.test.addYaxunit` | `test_addYaxunit` |
 
 ## Внешние обработки и отчёты
 
-| Задача                      | Command ID                                       |
-|-----------------------------|--------------------------------------------------|
-| Собрать обработки   | `1c-platform-tools.epf.compileProcessor`     |
-| Разобрать обработки | `1c-platform-tools.epf.decompileProcessor` |
-| Собрать отчёты      | `1c-platform-tools.epf.compileReport`        |
-| Разобрать отчёты    | `1c-platform-tools.epf.decompileReport`    |
-| Удалить кэш                 | `1c-platform-tools.epf.clearCache`     |
+| Задача | Command ID | MCP |
+|---|---|---|
+| Собрать обработки | `1c-platform-tools.epf.compileProcessor` | `epf_compileProc` |
+| Разобрать обработки | `1c-platform-tools.epf.decompileProcessor` | `epf_decompileProc` |
+| Собрать отчёты | `1c-platform-tools.epf.compileReport` | `epf_compileReport` |
+| Разобрать отчёты | `1c-platform-tools.epf.decompileReport` | `epf_decompileReport` |
+| Удалить кэш | `1c-platform-tools.epf.clearCache` | `epf_clearCache` |
+| Запустить обработку в Предприятии | `1c-platform-tools.epf.run` | `epf_run` |
+| Добавить регистрацию БСП | `1c-platform-tools.epf.addBspRegistration` | `epf_addBspRegistration` |
 
-## Поддержка и поставка
+## Поддержка, поставка и версия
 
-| Задача                                       | Command ID                                                |
-|----------------------------------------------|-----------------------------------------------------------|
-| Выгрузить в 1Cv8dist.cf                      | `1c-platform-tools.cf.makeDist`              |
-| Загрузить из cf/cfu                          | `1c-platform-tools.support.updateCfg`                     |
-| Снять с поддержки                            | `1c-platform-tools.support.disableCfgSupport`             |
-| Создать файл описания шаблона поставки       | `1c-platform-tools.support.createDeliveryDescriptionFile` |
-| Создать файлы поставки и обновления (cf/cfu) | `1c-platform-tools.support.createDistributionFiles`       |
-| Создать комплект поставки                    | `1c-platform-tools.support.createDistributivePackage`     |
-| Создать файл списка шаблонов                 | `1c-platform-tools.support.createTemplateListFile`        |
+В MCP из поддержки есть только `cf_makeDist`. Остальное — мастера для человека.
 
-## Зависимости и проект
+| Задача | Command ID | MCP |
+|---|---|---|
+| Загрузить из cf/cfu | `1c-platform-tools.support.updateCfg` | нет |
+| Снять с поддержки | `1c-platform-tools.support.disableCfgSupport` | нет |
+| Файл описания шаблона | `1c-platform-tools.support.createDeliveryDescriptionFile` | нет |
+| Файлы поставки и обновления | `1c-platform-tools.support.createDistributionFiles` | нет |
+| Комплект поставки | `1c-platform-tools.support.createDistributivePackage` | нет |
+| Файл списка шаблонов | `1c-platform-tools.support.createTemplateListFile` | нет |
+| Версия конфигурации | `1c-platform-tools.cf.setVersion` | нет |
+| Версия расширения | `1c-platform-tools.cfe.setVersion` | нет |
+| Версия обработки | `1c-platform-tools.epf.setVersionProcessor` | нет |
+| Версия отчёта | `1c-platform-tools.epf.setVersionReport` | нет |
 
-| Задача                                 | Command ID                                                  |
-|----------------------------------------|-------------------------------------------------------------|
-| Инициализировать проект (packagedef)   | `1c-platform-tools.dependencies.initializePackagedef`       |
-| Инициализировать структуру проекта     | `1c-platform-tools.dependencies.initializeProjectStructure` |
-| Настроить Git                          | `1c-platform-tools.dependencies.setupGit`                   |
-| Установить OneScript                   | `1c-platform-tools.dependencies.installOscript`             |
-| Обновить пакетный менеджер opm | `1c-platform-tools.dependencies.updateOpm`                  |
-| Установить зависимости                 | `1c-platform-tools.dependencies.install`                    |
-| Удалить зависимости                    | `1c-platform-tools.dependencies.remove`                     |
+## Зависимости
 
-### Порядок при настройке зависимостей
+| Задача | Command ID | MCP |
+|---|---|---|
+| Создать packagedef | `1c-platform-tools.dependencies.initializePackagedef` | `deps_initPackagedef` |
+| Создать каталоги проекта | `1c-platform-tools.dependencies.initializeProjectStructure` | `deps_initProjStruct` |
+| Установить OneScript | `1c-platform-tools.dependencies.installOscript` | `deps_installOscript` |
+| Обновить opm | `1c-platform-tools.dependencies.updateOpm` | `deps_updateOpm` |
+| Установить зависимости | `1c-platform-tools.dependencies.install` | `deps_install` |
+| Удалить зависимости | `1c-platform-tools.dependencies.remove` | `deps_remove` |
+| Настроить Git | `1c-platform-tools.dependencies.setupGit` | нет |
 
-1. **Сначала проверь инструменты MCP** (сервер mcp-1c-platform-tools). В нём есть:
-   - **deps_install** — установка зависимостей проекта (packagedef, vrunner и т.п.).
-   - **deps_installOscript** — установка зависимостей OneScript (opm add, модули вроде vanessa-automation-single).
-   Если MCP доступен — вызывай эти инструменты с нужным `projectPath`; **не переходи в терминал** с `opm install add` по привычке.
+Зависимости ставь через `deps_install`. Если oscript уже есть, `deps_installOscript` не вызывай: он ставит интерпретатор. К `opm install` в терминале переходи, когда MCP недоступен. Git-мастер агенту недоступен: настраивай git командами git.
 
-2. **Проверка OneScript**: если нужно подготовить окружение — проверь наличие **oscript** в системе. Если oscript **нет** — вызови установку (`1c-platform-tools.dependencies.installOscript` или MCP-аналог). Если oscript **уже есть** — выполняй только установку зависимостей (через MCP: `deps_install` и при необходимости `deps_installOscript`; или команды расширения `dependencies.install` / `dependencies.updateOpm`).
+## Запуск, сервер, отладка
 
-3. К терминалу (opm, vrunner вручную) прибегай только если MCP недоступен или инструменты не покрывают сценарий.
-
-## Запуск
-
-| Задача                 | Command ID                         |
-|------------------------|------------------------------------|
-| Запустить Предприятие  | `1c-platform-tools.run.enterprise` |
-| Запустить Конфигуратор | `1c-platform-tools.run.designer`   |
+| Задача | Command ID | MCP |
+|---|---|---|
+| Предприятие | `1c-platform-tools.run.enterprise` | `run_enterprise` |
+| Конфигуратор | `1c-platform-tools.run.designer` | `run_designer` |
+| EDT | `1c-platform-tools.run.edt` | `run_edt` |
+| Запустить автономный сервер | `1c-platform-tools.server.start` | `server_start` |
+| Остановить автономный сервер | `1c-platform-tools.server.stop` | `server_stop` |
+| Перезапустить автономный сервер | `1c-platform-tools.server.restart` | `server_restart` |
+| Отладка автономного сервера | `1c-platform-tools.server.debug` | `server_debug` |
+| Журнал автономного сервера | `1c-platform-tools.server.showLogs` | `server_showLogs` |
+| Конфиг публикации | `1c-platform-tools.server.openConfig` | `server_openConfig` |
+| Открыть публикацию в браузере | `1c-platform-tools.server.openInBrowser` | `server_openInBrowser` |
+| Выбрать публикуемые сервисы | `1c-platform-tools.server.selectServices` | `server_selectServices` |
+| Начать замер | `1c-platform-tools.debug.measure.start` | `debug_measure_start` |
+| Закончить замер | `1c-platform-tools.debug.measure.stop` | `debug_measure_stop` |
+| Очистить замер | `1c-platform-tools.debug.measure.clear` | `debug_measure_clear` |
+| Показать результаты замера | `1c-platform-tools.debug.measure.showResults` | `debug_measure_showResults` |
+| Показать значение переменной | `1c-platform-tools.debug.showVariableInWindow` | `debug_showVariableInWindow` |
 
 ## Тестирование
 
-| Задача                  | Command ID                           |
-|-------------------------|--------------------------------------|
-| XUnit тесты             | `1c-platform-tools.test.xunit`       |
-| Синтаксический контроль | `1c-platform-tools.syntaxCheck.run` |
-| Vanessa тесты           | `1c-platform-tools.test.vanessa`     |
-| Allure отчёт            | `1c-platform-tools.test.allure`      |
+| Задача | Command ID | MCP |
+|---|---|---|
+| xUnit | `1c-platform-tools.test.xunit` | `test_xunit` |
+| Vanessa | `1c-platform-tools.test.vanessa` | `test_vanessa` |
+| YAxUnit | `1c-platform-tools.test.yaxunit` | `test_yaxunit` |
+| Мутационное тестирование | `1c-platform-tools.test.mutatos` | `test_mutatos` |
+| Синтаксический контроль | `1c-platform-tools.syntaxCheck.run` | `syntaxCheck_run` |
+| Обновить Problems | `1c-platform-tools.syntaxCheck.refresh` | `syntaxCheck_refresh` |
+| Очистить Problems | `1c-platform-tools.syntaxCheck.clear` | `syntaxCheck_clear` |
+| Allure | `1c-platform-tools.test.allure` | `test_allure` |
+| Включить фреймворки | `1c-platform-tools.test.configure` | `test_configure` |
+| Собрать unit-тесты | `1c-platform-tools.test.compileEpf` | `test_compileEpf` |
+| Разобрать unit-тесты | `1c-platform-tools.test.decompileEpf` | `test_decompileEpf` |
+| Проверить проект EDT | `1c-platform-tools.test.validateEdt` | `test_validateEdt` |
+| Открыть отчёт мутаций в браузере | `1c-platform-tools.test.mutatosReport` | нет |
 
-## Установить версию
+## EDT
 
-| Задача                         | Command ID                                   |
-|--------------------------------|----------------------------------------------|
-| Установить версию конфигурации | `1c-platform-tools.cf.setVersion` |
+| Задача | Command ID | MCP |
+|---|---|---|
+| Импорт в EDT | `1c-platform-tools.edt.import` | `edt_import` |
+| Выгрузка EDT в XML | `1c-platform-tools.edt.export` | `edt_export` |
+| Проверка EDT | `1c-platform-tools.edt.validate` | `edt_validate` |
+| Форматировать модули | `1c-platform-tools.edt.formatModules` | `edt_formatModules` |
+| Сортировать объекты | `1c-platform-tools.edt.sortProject` | `edt_sortProj` |
+| Сведения о проекте EDT | `1c-platform-tools.edt.projectInfo` | `edt_projectInfo` |
 
-## Конфигурации запуска
+## Сеансы
 
-| Задача              | Command ID                                    |
-|---------------------|-----------------------------------------------|
-| Открыть env.json    | `1c-platform-tools.env.editSettingsFile`           |
-| Открыть launch.json | `1c-platform-tools.launch.editConfigurations` |
+| Задача | Command ID | MCP |
+|---|---|---|
+| Запретить начало сеансов | `1c-platform-tools.session.lock` | `session_lock` |
+| Разрешить начало сеансов | `1c-platform-tools.session.unlock` | `session_unlock` |
+| Запретить регламентные задания | `1c-platform-tools.session.lockJobs` | `session_lockJobs` |
+| Разрешить регламентные задания | `1c-platform-tools.session.unlockJobs` | `session_unlockJobs` |
+| Завершить сеансы | `1c-platform-tools.session.kill` | `session_kill` |
+| Проверить, что сеансов нет | `1c-platform-tools.session.checkClosed` | `session_checkClosed` |
+| Показать сеансы | `1c-platform-tools.session.list` | `session_list` |
 
-## Метаданные и ER-диаграмма
+## OData и пайплайны
 
-| Задача                                 | Command ID                                               |
-|----------------------------------------|----------------------------------------------------------|
-| Получить дерево метаданных проекта     | `1c-platform-tools.metadata.getProjectTree`              |
-| Открыть ER-диаграмму                   | `1c-platform-tools.metadata.er.openCanvas`               |
-| Открыть ER-диаграмму объекта           | `1c-platform-tools.metadata.er.openForObject`            |
+| Задача | Command ID | MCP |
+|---|---|---|
+| Запрос OData | `1c-platform-tools.odata.query` | `odata_query` |
+| Состав OData | `1c-platform-tools.odata.setup` | `odata_setup` |
+| Запустить пайплайн | `1c-platform-tools.pipelines.run` | `pipelines_run` |
 
-## Помощь и поддержка
+## Окружение, задачи, служебные файлы
 
-| Задача                          | Command ID                                          |
-|---------------------------------|-----------------------------------------------------|
-| Скопировать сводку окружения    | `1c-platform-tools.help.copyEnvironmentSummary`     |
+| Задача | Command ID | MCP |
+|---|---|---|
+| Состояние окружения | `1c-platform-tools.env.status` | `env_status` |
+| Выбрать профиль | `1c-platform-tools.env.selectProfile` | `env_selectProfile` |
+| Сбросить временные параметры | `1c-platform-tools.env.clearOverrides` | `env_clearOverrides` |
+| Определить версию vanessa-runner | `1c-platform-tools.env.refreshVersion` | `env_refreshVersion` |
+| Открыть env.json | `1c-platform-tools.env.editSettingsFile` | `env_editSettingsFile` |
+| Редактор профиля | `1c-platform-tools.env.openProfileEditor` | `env_openProfileEditor` |
+| Создать профиль | `1c-platform-tools.env.createProfile` | нет |
+| Временные параметры окном | `1c-platform-tools.env.setOverrides` | нет |
+| Открыть launch.json | `1c-platform-tools.launch.editConfigurations` | нет |
+| Открыть tasks.json | `1c-platform-tools.tasks.edit` | `tasks_edit` |
+| Обновить дерево задач | `1c-platform-tools.tasks.view` | `tasks_view` |
+| Запустить задачу | `1c-platform-tools.tasks.run` | нет |
+| Запустить задачу OneScript | `1c-platform-tools.tasks.runOscript` | нет |
+| Базовый набор служебных файлов | `1c-platform-tools.serviceFiles.createRecommendedSet` | `serviceFiles_createRecommendedSet` |
+| Создать .gitignore | `1c-platform-tools.serviceFiles.createGitignore` | `serviceFiles_createGitignore` |
+| Создать .gitattributes | `1c-platform-tools.serviceFiles.createGitattributes` | `serviceFiles_createGitattributes` |
+| Создать env.json | `1c-platform-tools.serviceFiles.createEnvJson` | `serviceFiles_createEnvJson` |
+| Меню служебных файлов | `1c-platform-tools.serviceFiles.create` | нет |
 
-## MCP
+## Метаданные и справка
 
-Если у тебя есть инструменты MCP **mcp-1c-platform-tools**, используй их для тех же операций: загрузка конфигурации — `cf_load`, выгрузка — `cf_dump`, расширения — `cfe_load` / `cfe_dump`, сборка/разбор обработок и отчётов — `epf_compileProc`, `epf_compileReport`, `epf_decompileProc`, `epf_decompileReport` и т.д. **Для зависимостей** — в первую очередь вызывай **deps_install** и **deps_installOscript**; не переходи в терминал с `opm install add`, пока не убедился, что MCP недоступен. Без `projectPath` вызов выполняется в текущем проекте. Имена формируются из command ID: убирается префикс, точки → `_`, длинные слова сокращаются (`dependencies` → `deps`, `Processors` → `Procs`). Полный список возвращается сервером при подключении.
+Команды метаданных, ER-диаграммы и справки в MCP не публикуются. В том числе `1c-platform-tools.metadata.getProjectTree`, `1c-platform-tools.metadata.er.openCanvas`, `1c-platform-tools.metadata.er.openForObject`, `1c-platform-tools.help.copyEnvironmentSummary`. Имя инструмента для них не собирай. Состояние окружения запуска читает `env_status`.
 
-## Дополнительные навыки (Claude Code)
+## Дополнительные навыки
 
-Навык 1c-platform-tools отвечает за **пакетные операции**: загрузка/выгрузка конфигурации и расширений, сборка/разбор EPF/ERF, запуск Конфигуратора/Предприятия — через команды расширения или MCP. Свойства и состав объектов метаданных правит панель свойств расширения: она пишет XML точечно и сверяет результат, поэтому руками эти файлы править не нужно. Для **остального редактирования XML-исходников и валидации форм/ролей/СКД** можно дополнительно использовать набор [cc-1c-skills](https://github.com/Nikolay-Shirokov/cc-1c-skills) (Claude Code): скопируй `.claude/skills/` из того репозитория в корень проекта — появятся слэш-команды (`/epf-build`, `/cf-edit` и др.). Итого: команды расширения и MCP — за «что запустить» (load/dump/build); cc-1c-skills — за «как править и генерировать» XML и объекты. Актуальность cc-1c-skills поддерживай обновлением копии из репозитория по желанию пользователя.
+Навык 1c-platform-tools отвечает за пакетные операции: загрузка и выгрузка, сборка EPF/ERF, запуск. Свойства объектов пишет панель свойств расширения, XML метаданных руками не правь. Для остального редактирования XML, форм, ролей и СКД ставится [cc-1c-skills](https://github.com/Nikolay-Shirokov/cc-1c-skills): слэш-команды вроде `/epf-build` и `/cf-edit`. Команды расширения запускают операции, cc-1c-skills правит исходники.
 
-## Правило
-
-Для любой операции (запуск Конфигуратора/Предприятия, загрузка конфигурации, сборка и т.д.) — **сразу выполни команду расширения** по таблице выше через свой инструмент выполнения команд (или MCP, если доступен). Не перекладывай на пользователя («нажмите Ctrl+Shift+P», «из чата вызвать нельзя»). Только если у тебя нет инструмента для выполнения команд — тогда подскажи палитру или панель «1С: Инструменты». Не запускай bat-файлы или 1cv8 вручную; настройки заданы в проекте (env.json).
+Опубликованную команду выполняй сам. Не пиши, что из чата вызвать нельзя, и не отсылай к Ctrl+Shift+P. Палитру или панель «1С: Инструменты» называй только если в твоём наборе нет выполнения команд. `1cv8` и bat-файлы вручную не запускай: подключение задано в проекте.

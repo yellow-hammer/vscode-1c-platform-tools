@@ -1,57 +1,49 @@
 ---
 name: 1c-platform-tools-extensions
-description: Загрузка и выгрузка расширений конфигурации 1С. Используй, когда пользователь просит загрузить расширение из исходников, выгрузить в cfe, собрать или разобрать cfe, загрузить из objlist.
+description: Загрузка и выгрузка расширений конфигурации 1С. Используй, когда пользователь просит загрузить расширение из исходников, выгрузить в cfe, собрать или разобрать cfe, обновить расширения в базе, конвертировать исходники расширения.
 ---
 
 # Расширения: команды и MCP
 
-Выполняй операции с расширениями через команды расширения или инструменты MCP. **Выполняй команду сам** (Execute Command или MCP), не проси пользователя нажимать палитру.
+Выполняй операции из таблицы сам, кроме `cfe_borrowObject` и `cfe_loadByList`. Исходники расширение находит в проекте само. `projectPath` передавай, только если пользователь назвал проект.
 
-## Команды расширения
+Если пользователь назвал расширения, передай `extensions`: имя каталога, путь от корня проекта или имя из метаданных. Явный список окно не открывает и сохранённый выбор не меняет. Без параметра сначала берётся непустая настройка `1c-platform-tools.cfe.selected`, иначе сохранённый выбор проекта, а если он пуст или уже не подходит составу — все расширения. У тестовых расширений тот же порядок, настройка отбора — `1c-platform-tools.test.cfe.selected`.
 
-| Задача                          | Command ID                                         |
-|---------------------------------|----------------------------------------------------|
-| Загрузить расширение из исходного кода | `1c-platform-tools.cfe.load`         |
-| Загрузить из objlist.txt        | `1c-platform-tools.cfe.loadByList` |
-| Загрузить из *.cfe              | `1c-platform-tools.cfe.loadFile`         |
-| Выгрузить расширение в исходный код | `1c-platform-tools.cfe.dump`           |
-| Выгрузить в *.cfe               | `1c-platform-tools.cfe.unload`           |
-| Собрать *.cfe из исходного кода | `1c-platform-tools.cfe.compile`               |
-| Разобрать *.cfe в исходный код  | `1c-platform-tools.cfe.decompile`           |
+| Задача | Command ID | MCP | wait: true |
+|---|---|---|---|
+| Загрузить из исходного кода | `1c-platform-tools.cfe.load` | `cfe_load` | результат |
+| Загрузить из *.cfe | `1c-platform-tools.cfe.loadFile` | `cfe_loadFile` | результат |
+| Загрузить из objlist.txt | `1c-platform-tools.cfe.loadByList` | `cfe_loadByList` | отказ |
+| Выгрузить в исходный код | `1c-platform-tools.cfe.dump` | `cfe_dump` | результат |
+| Выгрузить в *.cfe | `1c-platform-tools.cfe.unload` | `cfe_unload` | результат |
+| Собрать *.cfe | `1c-platform-tools.cfe.compile` | `cfe_compile` | результат |
+| Разобрать *.cfe | `1c-platform-tools.cfe.decompile` | `cfe_decompile` | результат |
+| Конвертировать исходный код | `1c-platform-tools.cfe.convert` | `cfe_convert` | результат |
+| Обновить расширения в базе | `1c-platform-tools.cfe.updateDb` | `cfe_updateDb` | результат |
+| Добавить объект в расширение | `1c-platform-tools.cfe.borrowObject` | `cfe_borrowObject` | пустой |
 
-Исходный код расширений расширение находит в проекте само: каталоги выгрузки конфигуратора или проекты 1С:EDT.
+`cfe_load` принимает `updateDb`. `cfe_compile` и `cfe_unload` принимают `outputDirectory` и `outputName`.
+
+`cfe_loadByList` при `wait: true` сразу отвечает «Частичная загрузка расширений по objlist — несколько шагов; wait: true недоступен» и ничего не загружает. Агенту не вызывай.
+
+`cfe_borrowObject` работает с выделенным узлом метаданных и окном выбора. Для агента его не вызывай: параметр `extensions` в схеме эту команду не заменяет.
+
+Версию расширения человек ставит командой `1c-platform-tools.cfe.setVersion`. Инструмента MCP нет, агентный вызов отклоняется.
 
 ## Тестовые расширения
 
-Расширения, нужные только для прогона тестов (YAxUnit и расширение с тестами), лежат под каталогом тестов
-(`tests`, имя задаёт настройка `test.directoryName`), собранные `*.cfe` — в каталоге сборки. Команды выше
-их не трогают, для них своя четвёрка (в дереве - группа «Тестовое окружение»):
+YAxUnit и расширение с тестами лежат под каталогом тестов (настройка `1c-platform-tools.test.directoryName`, по умолчанию `tests`), собранные `*.cfe` — в каталоге сборки. Команды таблицы выше их не трогают. Без параметра `extensions` порядок тот же: непустая настройка `1c-platform-tools.test.cfe.selected`, затем сохранённый выбор, иначе все. Параметр есть у четырёх команд с `Exts` в имени.
 
-| Задача                              | Command ID                                     |
-|-------------------------------------|------------------------------------------------|
-| Загрузить тестовые расширения       | `1c-platform-tools.test.loadExtensions`        |
-| Выгрузить тестовые расширения       | `1c-platform-tools.test.dumpExtensions`        |
-| Собрать тестовые *.cfe              | `1c-platform-tools.test.compileExtensions`       |
-| Разобрать тестовые *.cfe            | `1c-platform-tools.test.decompileExtensions`   |
-| Добавить YAxUnit                    | `1c-platform-tools.test.addYaxunit`            |
-
-Параметр `extensions` работает так же и отбирает тестовые расширения. Инструменты MCP:
-`test_loadExts`, `test_dumpExts`, `test_compileExts`, `test_decompileExts`.
-
-## MCP (mcp-1c-platform-tools)
-
-Если доступны инструменты MCP, используй их: `cfe_load`, `cfe_dump`, `cfe_loadByList`, `cfe_loadFile`, `cfe_unload`, `cfe_compile`, `cfe_decompile` и т.д.
-
-### Параметр projectPath
-
-Корень проекта 1С (каталог с `packagedef`). Передавай, только если пользователь назвал проект: без параметра команда выполняется в текущем проекте.
-
-### Выбор расширений
-
-В проекте может быть несколько расширений. Если пользователь назвал конкретные — передай их параметром `extensions` (имя каталога, путь от корня проекта или имя из метаданных): команда выполнится только для них и без окна выбора. Без параметра используется сохранённый выбор проекта (или все расширения); явный список сохранённый выбор не меняет. Постоянный отбор без окна выбора задаётся в settings.json: `1c-platform-tools.cfe.selected` для расширений решения, `1c-platform-tools.test.cfe.selected` для тестовых.
+| Задача | Command ID | MCP | wait: true |
+|---|---|---|---|
+| Загрузить тестовые расширения | `1c-platform-tools.test.loadExtensions` | `test_loadExts` | результат |
+| Выгрузить тестовые расширения | `1c-platform-tools.test.dumpExtensions` | `test_dumpExts` | результат |
+| Собрать тестовые расширения | `1c-platform-tools.test.compileExtensions` | `test_compileExts` | результат |
+| Разобрать тестовые расширения | `1c-platform-tools.test.decompileExtensions` | `test_decompileExts` | результат |
+| Добавить YAxUnit | `1c-platform-tools.test.addYaxunit` | `test_addYaxunit` | результат |
 
 ## Примеры
 
-- Загрузить расширение из исходников: MCP `cfe_load` или команда `1c-platform-tools.cfe.load`.
-- Выгрузить в cfe: `cfe_unload` (MCP) или `1c-platform-tools.cfe.unload` (команда).
-- Загрузить только одно расширение: `cfe_load` с `extensions: ["МоёРасширение"]`.
+- Загрузить одно расширение: `cfe_load` с `extensions: ["МоёРасширение"]`.
+- Выгрузить в cfe: `cfe_unload`.
+- Обновить уже установленные расширения: `cfe_updateDb`.

@@ -1,125 +1,71 @@
 ---
 name: 1c-platform-tools-test
-description: Тестирование 1С. Используй, когда пользователь просит запустить тесты, XUnit, Vanessa, синтаксический контроль, построить Allure-отчёт.
+description: Тестирование 1С. Используй, когда пользователь просит запустить тесты xUnit, Vanessa, YAxUnit, мутационное тестирование, синтаксический контроль, проверку проекта EDT, собрать тестовые обработки или построить отчёт Allure.
 ---
 
 # Тестирование: команды и MCP
 
-Выполняй запуск тестов и отчётов через команды расширения или инструменты MCP. **Выполняй команду сам** (Execute Command или MCP), не проси пользователя нажимать палитру.
+Выполняй прогон сам. `projectPath` передавай, только если пользователь назвал проект. `settingsFile` — файл настроек vanessa-runner на один вызов, без смены активного профиля.
 
-## Когда вызывать
+`wait: true` по умолчанию. Прогон с упавшими тестами приходит как ошибка вызова. Поле `tests`: `total`, `passed`, `failed`, `errors`, `skipped`, `reportPath`, `failedTests`.
 
-| Запрос пользователя (примеры)             | Действие                                  |
-|-------------------------------------------|-------------------------------------------|
-| Запусти тесты, XUnit, Vanessa             | `test_xunit` / `test_vanessa` или команда |
-| Синтаксический контроль                   | `test_syntaxCheck` или команда            |
-| Построй Allure-отчёт                      | `test_allure` или команда                 |
-| Собери/разбери unit-тесты (.epf)          | команда buildEpf / decompileEpf           |
+| Задача | Command ID | MCP | wait: true |
+|---|---|---|---|
+| xUnit | `1c-platform-tools.test.xunit` | `test_xunit` | результат |
+| Vanessa | `1c-platform-tools.test.vanessa` | `test_vanessa` | результат |
+| YAxUnit | `1c-platform-tools.test.yaxunit` | `test_yaxunit` | результат |
+| Мутационное тестирование | `1c-platform-tools.test.mutatos` | `test_mutatos` | результат |
+| Синтаксический контроль | `1c-platform-tools.syntaxCheck.run` | `syntaxCheck_run` | результат |
+| Обновить ошибки в Problems | `1c-platform-tools.syntaxCheck.refresh` | `syntaxCheck_refresh` | без исхода |
+| Очистить ошибки в Problems | `1c-platform-tools.syntaxCheck.clear` | `syntaxCheck_clear` | без исхода |
+| Отчёт Allure | `1c-platform-tools.test.allure` | `test_allure` | отказ |
+| Включить фреймворки | `1c-platform-tools.test.configure` | `test_configure` | результат |
+| Собрать unit-тесты | `1c-platform-tools.test.compileEpf` | `test_compileEpf` | результат |
+| Разобрать unit-тесты | `1c-platform-tools.test.decompileEpf` | `test_decompileEpf` | результат |
+| Проверить проект EDT | `1c-platform-tools.test.validateEdt` | `test_validateEdt` | результат |
+| Загрузить тестовые расширения | `1c-platform-tools.test.loadExtensions` | `test_loadExts` | результат |
+| Выгрузить тестовые расширения | `1c-platform-tools.test.dumpExtensions` | `test_dumpExts` | результат |
+| Собрать тестовые расширения | `1c-platform-tools.test.compileExtensions` | `test_compileExts` | результат |
+| Разобрать тестовые расширения | `1c-platform-tools.test.decompileExtensions` | `test_decompileExts` | результат |
+| Добавить YAxUnit | `1c-platform-tools.test.addYaxunit` | `test_addYaxunit` | результат |
+| Запустить EPF в Предприятии | `1c-platform-tools.epf.run` | `epf_run` | результат |
 
-## Команды расширения
+## Синтаксический контроль
 
-| Задача                        | Command ID                            |
-|-------------------------------|---------------------------------------|
-| XUnit тесты                   | `1c-platform-tools.test.xunit`        |
-| Синтаксический контроль       | `1c-platform-tools.syntaxCheck.run`  |
-| Vanessa тесты                 | `1c-platform-tools.test.vanessa`      |
-| YAxUnit тесты                 | `1c-platform-tools.test.yaxunit`      |
-| Allure отчёт                  | `1c-platform-tools.test.allure`       |
-| Собрать unit-тесты            | `1c-platform-tools.test.compileEpf`     |
-| Разобрать unit-тесты          | `1c-platform-tools.test.decompileEpf` |
-| Запустить EPF в Предприятии   | `1c-platform-tools.epf.run`    |
-| Настроить тестовые фреймворки | `1c-platform-tools.test.configure` |
-| Загрузить тестовые расширения | `1c-platform-tools.test.loadExtensions`  |
-| Выгрузить тестовые расширения | `1c-platform-tools.test.dumpExtensions`  |
-| Собрать тестовые расширения   | `1c-platform-tools.test.compileExtensions` |
-| Разобрать тестовые расширения | `1c-platform-tools.test.decompileExtensions` |
-| Добавить YAxUnit              | `1c-platform-tools.test.addYaxunit` |
+`syntaxCheck_run` добавляет `errors`: `filepath` (модуль от корня проекта), `metadataPath`, `severity` (`error` или `warning`), `message`. Правь код по этому списку. `syntaxCheck_refresh` и `syntaxCheck_clear` только меняют панель Problems и исход прогона не возвращают.
 
-Тестовые расширения (YAxUnit и расширение с тестами) живут под каталогом тестов, собранные `*.cfe` — в каталоге сборки; команды расширений решения их не трогают.
-Перед прогоном YAxUnit расширения должны быть в базе: `test.loadExtensions`. В дереве команд и они,
-и сборка/разборка unit тестов - в группе «Тестовое окружение», запуск тестов - в «Тестировании».
+## Allure и отчёт мутаций
 
-Сборка/разборка unit тестов (тестовых обработок 1С): исходный код под каталогом тестов (выгрузка конфигуратора или проекты 1С:EDT), собранные `.epf` — в каталоге сборки (артефакт, в git не попадает). В каталоге тестов — скриптовые `.os`-тесты OneScript; дымовые наборы Vanessa-ADD поставляются в пакете add (oscript_modules). Обе команды возвращают структурированный результат.
+`test_allure` при `wait: true` отвечает «Allure-отчёт открывается в браузере; wait: true недоступен» и отчёт не строит. С `wait: false` отчёт строится и открывается в браузере.
 
-## Панель тестирования VS Code
+`test_mutatos` возвращает итог прогона и пути отчётов. Команда `1c-platform-tools.test.mutatosReport` открывает HTML у человека и в MCP не публикуется. `1c-platform-tools.test.mutatosItem` — пункт меню узла панели, инструмента нет.
 
-Тесты также отображаются в нативной панели «Тестирование» (Test Explorer): Vanessa (.feature), xUnit (тестовые обработки), YAxUnit, OneScript (.os в каталоге тестов), 1bdd — с запуском отдельных тестов и статусами. Для интерактивной работы пользователя направляй туда; команды выше — для прогона «всего сразу» и агентных циклов.
+## Фреймворки и тестовое окружение
 
-## Запуск обработок в Предприятии (epf.run)
+`test_configure` с `frameworks`: `vanessa`, `xunit`, `yaxunit`, `onescript`, `onebdd`. Перечисленные включаются, остальные выключаются, недостающие каталоги создаются без вопроса. Без `frameworks` агентный вызов возвращает «Настройка тестов без параметра frameworks требует выбора в UI; передайте frameworks (vanessa, xunit, yaxunit, onescript, onebdd)», окно не открывается. Неизвестное имя возвращает список доступных ключей.
 
-Служебные шаги (загрузка фикстур, инициализация ИБ внешней обработкой) — MCP `epf_run` или Execute Command `1c-platform-tools.epf.run`:
+Тестовые расширения лежат под каталогом из настройки `1c-platform-tools.test.directoryName` (по умолчанию `tests`), собранные `*.cfe` — в каталоге сборки. Команды расширений решения их не трогают. Перед YAxUnit расширения должны быть в базе: `test_loadExts`. Параметр `extensions` есть у `test_loadExts`, `test_dumpExts`, `test_compileExts`, `test_decompileExts`. Явный список окно не открывает и сохранённый выбор не меняет. Без параметра сначала берётся непустая настройка `1c-platform-tools.test.cfe.selected`, иначе сохранённый выбор проекта, а если он пуст или уже не подходит составу — все тестовые расширения. У `test_addYaxunit` параметра `extensions` нет: команда скачивает релиз YAxUnit и разбирает его в исходники.
 
-```
-{ "projectPath": "...", "execute": "./build/out/epf/ЗагрузкаФикстур.epf",
-  "command": "Путь=./fixtures/Константы.xml;ЗавершитьРаботуСистемы" }
-```
+`test_compileEpf` и `test_decompileEpf` собирают и разбирают тестовые обработки. Исходники — выгрузка конфигуратора или проект 1С:EDT под каталогом тестов, собранные `.epf` лежат в каталоге сборки и в git не входят. Обе команды возвращают результат. Там же скриптовые `.os`-тесты OneScript. Дымовые наборы Vanessa-ADD приходят пакетом add в каталоге oscript_modules.
 
-`execute` — путь к EPF/ERF, `command` — строка параметров `/C`; нужен хотя бы один из них.
+В дереве «Инструменты 1С» сборка, разборка и тестовые расширения — группа «Тестовое окружение», прогон — группа «Тестирование».
 
-## Настройка фреймворков (test.configure)
+`test_validateEdt` проверяет проект EDT через vanessa-runner 3.x и возвращает результат. На формате конфигуратора и на vanessa-runner 2.x команда возвращает ошибку. Это другая команда, чем `edt_validate`.
 
-Неинтерактивно — MCP `test_configure` или Execute Command `1c-platform-tools.test.configure` с параметром `frameworks` (ключи: `vanessa`, `xunit`, `yaxunit`, `onescript`, `onebdd`; перечисленные включаются, остальные выключаются, недостающие каталоги создаются).
+## epf_run
 
-Агентный вызов без `frameworks` вернёт ошибку с подсказкой, окно не откроется. Интерактивный визард доступен только пользователю из палитры.
-
-## MCP (mcp-1c-platform-tools)
-
-Если доступны инструменты MCP, используй их: `test_xunit`, `test_syntaxCheck`, `test_vanessa`, `test_yaxunit`, `test_allure`, `epf_run`, `test_configure`, а для тестовых расширений - `test_loadExts`, `test_dumpExts`, `test_compileExts`, `test_decompileExts`.
-
-### Параметр projectPath
-
-Корень проекта 1С (каталог с `packagedef`). Передавай, только если пользователь назвал проект: без параметра команда выполняется в текущем проекте.
-
-### Параметр settingsFile
-
-Файл настроек vanessa-runner относительно `projectPath`; перекрывает активный профиль для конкретного вызова. Используй, когда нужен другой набор сценариев или другая ИБ без переключения профиля (например, init-профиль `tools/vrunner.init.json` вместо основного `env.json`).
-
-### Параметр wait
-
-`wait: true` — ждать завершения операции и получить структурированный результат:
+Служебный шаг (фикстуры, инициализация базы обработкой) — `epf_run`. `execute` — путь к `.epf` или `.erf`, `command` — строка `/C`. Нужен хотя бы один.
 
 ```
-{
-  success: boolean,   // прогон тестов: true только если тесты прошли
-  exitCode: number,
-  stdout: string,     // вывод vrunner и сводка прогона
-  stderr: string,
-  tests?: {           // прогоны тестов: сводка по отчёту
-    total, passed, failed, errors, skipped,
-    reportPath, failedTests
-  }
-}
+epf_run { "execute": "./build/out/epf/ЗагрузкаФикстур.epf", "command": "Путь=./fixtures/Константы.xml;ЗавершитьРаботуСистемы" }
 ```
 
-**`wait: true` — по умолчанию:** агент читает `success`, `exitCode`, счётчики тестов и решает, что делать дальше.
+## Панель «Тестирование»
 
-**`wait: false`:** команда уходит в терминал, результат прогона неизвестен — только когда пользователь смотрит выполнение сам.
-
-## Поддержка wait: true (тесты)
-
-| MCP-инструмент    | wait: true |
-|-------------------|:----------:|
-| `test_syntaxCheck`| ✅          |
-| `test_xunit`      | ✅          |
-| `test_vanessa`    | ✅          |
-| `test_yaxunit`    | ✅          |
-| `epf_run`  | ✅          |
-| `test_configure`| ✅ (с параметром `frameworks`) |
-| `test_allure`     | ❌ (открывает браузер) |
+В панели «Тестирование» человек запускает отдельные тесты: Vanessa (`.feature`), xUnit (обработки), YAxUnit, OneScript (`.os` в каталоге тестов), 1bdd. Команды этого навыка гоняют набор целиком.
 
 ## Примеры
 
-- Проверка синтаксиса (агентный цикл):
-  ```
-  test_syntaxCheck { projectPath: "C:/projects/MyProject" }
-  ```
-  → вернёт `{ success: false, exitCode: 1, stdout: "ОШИБКА - ...", stderr: "" }`
-
-- Прогон тестов под другим файлом настроек, без переключения профиля:
-  ```
-  test_vanessa { projectPath: "C:/projects/MyProject", settingsFile: "tools/vrunner.init.json" }
-  ```
-  → в ответе счётчики прогона и список упавших тестов
-
-- Выполни команду `1c-platform-tools.test.xunit` для запуска XUnit-тестов текущего проекта.
-- Вызови MCP `test_vanessa` с `projectPath` = корень проекта 1С.
+- Синтаксический контроль текущего проекта: `syntaxCheck_run`.
+- Vanessa на файле `tools/vrunner.init.json`: `test_vanessa` с `settingsFile: "tools/vrunner.init.json"`.
+- xUnit: `test_xunit`.

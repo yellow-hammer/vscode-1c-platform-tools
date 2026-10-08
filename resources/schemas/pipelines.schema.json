@@ -161,8 +161,6 @@
                     "1c-platform-tools.syntaxCheck.refresh",
                     "1c-platform-tools.syntaxCheck.run",
                     "1c-platform-tools.tasks.edit",
-                    "1c-platform-tools.tasks.run",
-                    "1c-platform-tools.tasks.runOscript",
                     "1c-platform-tools.tasks.view",
                     "1c-platform-tools.test.addYaxunit",
                     "1c-platform-tools.test.allure",

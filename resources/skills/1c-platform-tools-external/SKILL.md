@@ -1,31 +1,34 @@
 ---
 name: 1c-platform-tools-external
-description: Сборка и разборка внешних обработок и отчётов (EPF/ERF). Используй, когда пользователь просит собрать EPF/ERF, разобрать обработку или отчёт в исходники, удалить кэш внешних файлов.
+description: Сборка и разборка внешних обработок и отчётов (EPF/ERF). Используй, когда пользователь просит собрать EPF или ERF, разобрать обработку или отчёт в исходники, удалить кэш внешних файлов, запустить обработку в Предприятии.
 ---
 
 # Внешние обработки и отчёты: команды и MCP
 
-Выполняй сборку и разборку EPF и ERF через команды расширения или инструменты MCP. **Выполняй команду сам** (Execute Command или MCP), не проси пользователя нажимать палитру.
+Выполняй операции из таблицы сам, кроме `epf_addBspRegistration`. Каталоги исходников в вызов не передаются. `projectPath` передавай, только если пользователь назвал проект.
 
-## Команды расширения
+| Задача | Command ID | MCP | wait: true |
+|---|---|---|---|
+| Собрать обработки | `1c-platform-tools.epf.compileProcessor` | `epf_compileProc` | результат |
+| Разобрать обработки | `1c-platform-tools.epf.decompileProcessor` | `epf_decompileProc` | результат |
+| Собрать отчёты | `1c-platform-tools.epf.compileReport` | `epf_compileReport` | результат |
+| Разобрать отчёты | `1c-platform-tools.epf.decompileReport` | `epf_decompileReport` | результат |
+| Удалить кэш | `1c-platform-tools.epf.clearCache` | `epf_clearCache` | отказ |
+| Запустить обработку или отчёт в Предприятии | `1c-platform-tools.epf.run` | `epf_run` | результат |
+| Добавить регистрацию БСП | `1c-platform-tools.epf.addBspRegistration` | `epf_addBspRegistration` | пустой |
 
-| Задача                      | Command ID                                       |
-|-----------------------------|--------------------------------------------------|
-| Собрать обработки   | `1c-platform-tools.epf.compileProcessor`     |
-| Разобрать обработки | `1c-platform-tools.epf.decompileProcessor` |
-| Собрать отчёты      | `1c-platform-tools.epf.compileReport`        |
-| Разобрать отчёты    | `1c-platform-tools.epf.decompileReport`    |
-| Удалить кэш                 | `1c-platform-tools.epf.clearCache`     |
+`epf_compileProc` и `epf_compileReport` принимают `outputDirectory` и `outputName` (имя без расширения; переменные `${name}`, `${folder}`, `${version}`, `${gitBranch}`).
 
-## MCP (mcp-1c-platform-tools)
+`epf_clearCache` при `wait: true` сразу отказывается («Очистка кэша — файловая операция, не vrunner») и кэш не удаляет. Для очистки вызови с `wait: false`.
 
-Если доступны инструменты MCP, используй их: `epf_compileProc`, `epf_decompileProc`, `epf_compileReport`, `epf_decompileReport`, `epf_clearCache` и т.д.
+`epf_run`: `execute` — путь к `.epf` или `.erf`, `command` — строка `/C`. Нужен хотя бы один. Те же параметры есть у `run_enterprise`.
 
-### Параметр projectPath
+`epf_addBspRegistration` спрашивает представление в окне и пишет в выделенный объект метаданных. Для агента его не вызывай.
 
-Корень проекта 1С (каталог с `packagedef`). Передавай, только если пользователь назвал проект: без параметра команда выполняется в текущем проекте.
+Версию обработки или отчёта человек ставит командами `1c-platform-tools.epf.setVersionProcessor` и `1c-platform-tools.epf.setVersionReport`. Инструментов MCP нет.
 
 ## Примеры
 
-- Собрать обработки: MCP `epf_compileProc` или команда `1c-platform-tools.epf.compileProcessor`.
-- Разобрать отчёты в исходники: `epf_decompileReport` (MCP) или `1c-platform-tools.epf.decompileReport` (команда).
+- Собрать обработки: `epf_compileProc`.
+- Разобрать отчёты: `epf_decompileReport`.
+- Запустить обработку: `epf_run` с `execute` и при необходимости `command`.
