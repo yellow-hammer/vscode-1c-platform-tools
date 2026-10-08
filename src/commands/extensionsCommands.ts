@@ -707,6 +707,7 @@ export class ExtensionsCommands extends BaseCommand {
 			name: commandName.title,
 			appendOverrides: false,
 			settingsFile: opts?.settingsFile,
+			ibConnection: opts?.ibConnection,
 		});
 	}
 

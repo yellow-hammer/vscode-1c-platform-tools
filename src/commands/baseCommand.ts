@@ -988,22 +988,32 @@ export abstract class BaseCommand {
 	 */
 	protected async runPlanned(
 		intents: readonly VRunnerIntent[],
-		options: { cwd: string; name: string; appendOverrides?: boolean; settingsFile?: string }
+		options: {
+			cwd: string;
+			name: string;
+			appendOverrides?: boolean;
+			settingsFile?: string;
+			ibConnection?: string;
+		}
 	): Promise<void> {
 		const bridged = await this.bridgeEdt(intents);
 		if (bridged === 'blocked' || !('intents' in bridged)) {
 			return;
 		}
-		const argsList = await this.vrunner.planIntents(bridged.intents, options.settingsFile);
+		const { ibConnection, settingsFile, ...execution } = options;
+		const argsList = await this.vrunner.planIntents(bridged.intents, settingsFile, ibConnection);
 		if (argsList.length === 0) {
 			return;
 		}
-		const window = await this.openInfobaseWindow(bridged.intents, undefined);
+		const window = await this.openInfobaseWindow(
+			bridged.intents,
+			ibConnection || settingsFile ? { ibConnection, settingsFile } : undefined
+		);
 		if (window === 'blocked') {
 			return;
 		}
 		const onComplete = composeCompletion(window.restore, bridged.after);
-		const runOptions = { ...options, output: bridged.output };
+		const runOptions = { ...execution, output: bridged.output };
 		if (!onComplete) {
 			await this.vrunner.executeVRunnerCommandsInSequence(argsList, runOptions);
 			return;
