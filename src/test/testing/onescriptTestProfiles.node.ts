@@ -19,6 +19,11 @@ const FILE = `{
 }`;
 
 describe('parseOnescriptTestProfiles', () => {
+	test('пустой объект profiles не задаёт имён', () => {
+		const parsed = parseOnescriptTestProfiles('{"profiles":{}}');
+		assert.deepEqual(parsed, { profiles: {} });
+	});
+
 	test('разбирает именованные наборы строк', () => {
 		const parsed = parseOnescriptTestProfiles(FILE);
 		assert.ok(!('error' in parsed));

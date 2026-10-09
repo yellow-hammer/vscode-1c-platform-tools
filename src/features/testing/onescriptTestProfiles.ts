@@ -8,23 +8,9 @@
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 
-/** Текст файла, если профилей ещё нет: два профиля из задачи прогона entity. */
-export const ONESCRIPT_TEST_PROFILES_TEMPLATE = `{
-	"profiles": {
-		"sqlite": {
-			"TESTRUNNER_RUN_SQLITE_TESTS": "true",
-			"TESTRUNNER_RUN_POSTGRES_TESTS": "false"
-		},
-		"postgres": {
-			"TESTRUNNER_RUN_SQLITE_TESTS": "false",
-			"TESTRUNNER_RUN_POSTGRES_TESTS": "true",
-			"POSTGRES_HOST": "localhost",
-			"POSTGRES_PORT": "5432",
-			"POSTGRES_USERNAME": "postgres",
-			"POSTGRES_PASSWORD": "postgres",
-			"POSTGRES_DATABASE": "postgres"
-		}
-	}
+/** Пустой файл профилей. Имена и переменные пишет проект. */
+export const ONESCRIPT_TEST_PROFILES_EMPTY = `{
+	"profiles": {}
 }
 `;
 
@@ -71,28 +57,28 @@ export function parseOnescriptTestProfiles(text: string): OnescriptTestProfiles 
 		return { error: 'В файле профилей тестов OneScript нет объекта profiles' };
 	}
 
-		const result: Record<string, Record<string, string>> = {};
-		for (const [name, body] of Object.entries(profiles)) {
-			const profileName = name.trim();
-			if (profileName === '' || !isRecord(body)) {
-				return { error: `Профиль «${name}» должен быть объектом переменных` };
-			}
-			const env: Record<string, string> = {};
-			for (const [key, variable] of Object.entries(body)) {
-				const variableName = key.trim();
-				if (variableName === '') {
-					return { error: `У профиля «${profileName}» пустое имя переменной` };
-				}
-				if (variableName.toUpperCase() === 'PATH' || variableName.toUpperCase() === 'OVM_OSCRIPTBIN') {
-					return { error: `Профиль «${profileName}» не задаёт ${variableName}: каталог OneScript выбирает расширение` };
-				}
-				if (typeof variable !== 'string') {
-					return { error: `Переменная ${variableName} профиля «${profileName}» должна быть строкой` };
-				}
-				env[variableName] = variable;
-			}
-			result[profileName] = env;
+	const result: Record<string, Record<string, string>> = {};
+	for (const [name, body] of Object.entries(profiles)) {
+		const profileName = name.trim();
+		if (profileName === '' || !isRecord(body)) {
+			return { error: `Профиль «${name}» должен быть объектом переменных` };
 		}
+		const env: Record<string, string> = {};
+		for (const [key, variable] of Object.entries(body)) {
+			const variableName = key.trim();
+			if (variableName === '') {
+				return { error: `У профиля «${profileName}» пустое имя переменной` };
+			}
+			if (variableName.toUpperCase() === 'PATH' || variableName.toUpperCase() === 'OVM_OSCRIPTBIN') {
+				return { error: `Профиль «${profileName}» не задаёт ${variableName}: каталог OneScript выбирает расширение` };
+			}
+			if (typeof variable !== 'string') {
+				return { error: `Переменная ${variableName} профиля «${profileName}» должна быть строкой` };
+			}
+			env[variableName] = variable;
+		}
+		result[profileName] = env;
+	}
 	return { profiles: result };
 }
 

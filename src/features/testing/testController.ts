@@ -26,7 +26,7 @@ import { DEFAULT_TESTING } from '../../shared/pathDefaults';
 import { projectMemento, ONESCRIPT_TEST_PROFILE_STATE } from '../../shared/projectState';
 import {
 	onescriptProfileEnv,
-	ONESCRIPT_TEST_PROFILES_TEMPLATE,
+	ONESCRIPT_TEST_PROFILES_EMPTY,
 	onescriptTestProfilesPath,
 	readOnescriptTestProfiles,
 } from './onescriptTestProfiles';
@@ -1660,11 +1660,11 @@ export class TestingController implements vscode.Disposable {
 	}
 
 	/**
-	 * Открывает выбор профиля тестов OneScript и делает его профилем запуска по умолчанию.
+	 * Открывает файл профилей тестов OneScript. Если файла нет, создаёт пустой.
 	 */
 	public async selectOnescriptProfile(): Promise<void> {
 		const root = this.projectRoot;
-		if (!root) {
+		if (!root || (await detectProjectKind(root)) !== 'onescript') {
 			return;
 		}
 		const file = onescriptTestProfilesPath(root);
@@ -1672,7 +1672,7 @@ export class TestingController implements vscode.Disposable {
 			await fs.access(file);
 		} catch {
 			await fs.mkdir(path.dirname(file), { recursive: true });
-			await fs.writeFile(file, ONESCRIPT_TEST_PROFILES_TEMPLATE, 'utf8');
+			await fs.writeFile(file, ONESCRIPT_TEST_PROFILES_EMPTY, 'utf8');
 			await this.reloadOnescriptProfiles();
 		}
 		await vscode.window.showTextDocument(vscode.Uri.file(file));
@@ -1694,7 +1694,7 @@ export class TestingController implements vscode.Disposable {
 		await vscode.commands.executeCommand('setContext', '1c-platform-tools.test.onescriptProfiles', false);
 		const onescript = root !== undefined && (await detectProjectKind(root)) === 'onescript';
 		await vscode.commands.executeCommand('setContext', '1c-platform-tools.project.onescript', onescript);
-		if (!root || generation !== this.profilesGeneration) {
+		if (!root || !onescript || generation !== this.profilesGeneration) {
 			return;
 		}
 		const watcher = vscode.workspace.createFileSystemWatcher(
