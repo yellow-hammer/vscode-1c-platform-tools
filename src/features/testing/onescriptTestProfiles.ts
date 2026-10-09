@@ -8,6 +8,26 @@
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 
+/** Текст файла, если профилей ещё нет: два профиля из задачи прогона entity. */
+export const ONESCRIPT_TEST_PROFILES_TEMPLATE = `{
+	"profiles": {
+		"sqlite": {
+			"TESTRUNNER_RUN_SQLITE_TESTS": "true",
+			"TESTRUNNER_RUN_POSTGRES_TESTS": "false"
+		},
+		"postgres": {
+			"TESTRUNNER_RUN_SQLITE_TESTS": "false",
+			"TESTRUNNER_RUN_POSTGRES_TESTS": "true",
+			"POSTGRES_HOST": "localhost",
+			"POSTGRES_PORT": "5432",
+			"POSTGRES_USERNAME": "postgres",
+			"POSTGRES_PASSWORD": "postgres",
+			"POSTGRES_DATABASE": "postgres"
+		}
+	}
+}
+`;
+
 /** Файл профилей относительно корня проекта. */
 export const ONESCRIPT_TEST_PROFILES_FILE = path.join('.vscode', 'onescript-tests.json');
 
@@ -28,6 +48,12 @@ export interface OnescriptTestProfilesError {
  */
 export function onescriptTestProfilesPath(root: string): string {
 	return path.join(root, ONESCRIPT_TEST_PROFILES_FILE);
+}
+
+/** Профили sqlite и postgres, если в проекте ещё нет файла. */
+export function builtinOnescriptProfiles(): Record<string, Record<string, string>> | undefined {
+	const parsed = parseOnescriptTestProfiles(ONESCRIPT_TEST_PROFILES_TEMPLATE);
+	return 'error' in parsed ? undefined : parsed.profiles;
 }
 
 /**

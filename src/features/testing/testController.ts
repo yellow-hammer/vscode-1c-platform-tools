@@ -26,10 +26,13 @@ import { DEFAULT_TESTING } from '../../shared/pathDefaults';
 import { projectMemento, ONESCRIPT_TEST_PROFILE_STATE } from '../../shared/projectState';
 import {
 	onescriptProfileEnv,
+	ONESCRIPT_TEST_PROFILES_TEMPLATE,
 	onescriptTestProfilesPath,
+	builtinOnescriptProfiles,
 	readOnescriptTestProfiles,
 } from './onescriptTestProfiles';
 import { hasProjectFile } from '../../shared/projectLayout';
+import { detectProjectKind } from '../../shared/projectKind';
 import { projectConfiguration } from '../../shared/projectConfiguration';
 import {
 	currentRoot,
@@ -1665,18 +1668,16 @@ export class TestingController implements vscode.Disposable {
 		if (!root) {
 			return;
 		}
-		const loaded = await readOnescriptTestProfiles(root);
-		if (loaded === undefined) {
-			void vscode.window.showInformationMessage(
-				`Создайте ${onescriptTestProfilesPath(root)}`
-			);
+		if (this.namedRunProfiles.length === 0) {
+			await fs.mkdir(path.dirname(onescriptTestProfilesPath(root)), { recursive: true });
+			await fs.writeFile(onescriptTestProfilesPath(root), ONESCRIPT_TEST_PROFILES_TEMPLATE, 'utf8');
+			await this.reloadOnescriptProfiles();
+		}
+		const names = this.namedRunProfiles.map((profile) => profile.label);
+		if (names.length === 0) {
+			void vscode.window.showInformationMessage('В файле профилей тестов OneScript нет профилей');
 			return;
 		}
-		if ('error' in loaded) {
-			void vscode.window.showErrorMessage(loaded.error);
-			return;
-		}
-		const names = Object.keys(loaded.profiles);
 		if (names.length === 0) {
 			void vscode.window.showInformationMessage('В файле профилей тестов OneScript нет профилей');
 			return;
@@ -1710,6 +1711,8 @@ export class TestingController implements vscode.Disposable {
 		this.disposeNamedRunProfiles();
 		this.disposeProfilesWatcher();
 		await vscode.commands.executeCommand('setContext', '1c-platform-tools.test.onescriptProfiles', false);
+		const onescript = root !== undefined && (await detectProjectKind(root)) === 'onescript';
+		await vscode.commands.executeCommand('setContext', '1c-platform-tools.project.onescript', onescript);
 		if (!root || generation !== this.profilesGeneration) {
 			return;
 		}
@@ -1732,7 +1735,14 @@ export class TestingController implements vscode.Disposable {
 		if (!current()) {
 			return;
 		}
-		if (loaded === undefined) {
+		const fromFile = loaded !== undefined && !('error' in loaded) ? loaded.profiles : undefined;
+		const profiles = fromFile ?? (onescript ? builtinOnescriptProfiles() : undefined);
+		if (loaded !== undefined && 'error' in loaded) {
+			void vscode.window.showErrorMessage(loaded.error);
+			this.applyDefaultOnescriptProfile('');
+			return;
+		}
+		if (profiles === undefined) {
 			await this.rememberOnescriptProfile(undefined, root);
 			if (!current()) {
 				return;
@@ -1740,14 +1750,9 @@ export class TestingController implements vscode.Disposable {
 			this.applyDefaultOnescriptProfile('');
 			return;
 		}
-		if ('error' in loaded) {
-			void vscode.window.showErrorMessage(loaded.error);
-			this.applyDefaultOnescriptProfile('');
-			return;
-		}
 		const active = projectMemento(root).get<string>(ONESCRIPT_TEST_PROFILE_STATE);
-		const known = active !== undefined && loaded.profiles[active] !== undefined;
-		for (const [name, env] of Object.entries(loaded.profiles)) {
+		const known = active !== undefined && profiles[active] !== undefined;
+		for (const [name, env] of Object.entries(profiles)) {
 			const profile = this.controller.createRunProfile(
 				name,
 				vscode.TestRunProfileKind.Run,
