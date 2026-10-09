@@ -50,12 +50,6 @@ export function onescriptTestProfilesPath(root: string): string {
 	return path.join(root, ONESCRIPT_TEST_PROFILES_FILE);
 }
 
-/** Профили sqlite и postgres, если в проекте ещё нет файла. */
-export function builtinOnescriptProfiles(): Record<string, Record<string, string>> | undefined {
-	const parsed = parseOnescriptTestProfiles(ONESCRIPT_TEST_PROFILES_TEMPLATE);
-	return 'error' in parsed ? undefined : parsed.profiles;
-}
-
 /**
  * Разбирает текст файла профилей.
  *
