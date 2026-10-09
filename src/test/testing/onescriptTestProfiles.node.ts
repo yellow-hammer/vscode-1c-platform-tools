@@ -4,13 +4,14 @@
  */
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
+import * as path from 'node:path';
 import {
 	mergeOnescriptProfileFiles,
 	nextOnescriptProfilesLoad,
 	parseOnescriptProfileFile,
 	type OnescriptProfileFile,
 } from '../../features/testing/onescriptEnv/profilesFile';
-import { envForAdapter, resolveOnescriptLayers } from '../../features/testing/onescriptEnv/resolveEnv';
+import { envForAdapter, resolveOnescriptEnv } from '../../features/testing/onescriptEnv/resolveEnv';
 
 const COMMON = `{
   "env": { "TZ": "UTC" },
@@ -73,16 +74,31 @@ describe('parseOnescriptProfileFile', () => {
 	});
 });
 
-describe('resolveOnescriptLayers', () => {
+function resolve(
+	profileName: string,
+	common: OnescriptProfileFile | undefined,
+	local: OnescriptProfileFile | undefined,
+	options: {
+		processEnv?: NodeJS.ProcessEnv;
+		gitBranch?: string;
+		engineBinDir?: string;
+	} = {}
+) {
+	return resolveOnescriptEnv({
+		processEnv: options.processEnv ?? {},
+		file: mergeOnescriptProfileFiles(common, local),
+		profileName,
+		gitBranch: options.gitBranch,
+		engineBinDir: options.engineBinDir,
+	});
+}
+
+describe('resolveOnescriptEnv', () => {
 	test('личный файл перекрывает общий, null снимает переменную, число становится строкой', () => {
 		const { common, local } = files();
-		const sqlite = resolveOnescriptLayers({
+		const sqlite = resolve('sqlite', common, local, {
 			processEnv: { POSTGRES_HOST: 'global', TZ: 'local', PATH: 'C:\\bin' },
-			common,
-			local,
-			profileName: 'sqlite',
 			gitBranch: 'feature-x',
-			engineBinDir: undefined,
 		});
 		assert.ok(!('error' in sqlite));
 		if ('error' in sqlite) {
@@ -94,11 +110,8 @@ describe('resolveOnescriptLayers', () => {
 		assert.equal(sqlite.env.POSTGRES_HOST, undefined);
 		assert.equal(sqlite.env.PATH, 'C:\\bin');
 
-		const postgres = resolveOnescriptLayers({
+		const postgres = resolve('postgres', common, local, {
 			processEnv: { POSTGRES_HOST: 'global', PATH: 'C:\\bin' },
-			common,
-			local,
-			profileName: 'postgres',
 			gitBranch: 'feature-x',
 			engineBinDir: 'C:\\oscript\\bin',
 		});
@@ -112,7 +125,25 @@ describe('resolveOnescriptLayers', () => {
 		assert.equal(postgres.env.POSTGRES_USERNAME, 'vladimir');
 		assert.equal(postgres.env.POSTGRES_PASSWORD, 'secret');
 		assert.equal(postgres.env.TESTRUNNER_RUN_SQLITE_TESTS, 'false');
-		assert.ok(String(postgres.env.PATH).startsWith('C:\\oscript\\bin'));
+		assert.ok(String(postgres.env.PATH).startsWith(`C:\\oscript\\bin${path.delimiter}`));
+	});
+
+	test('каталог движка остаётся первым в PATH, когда профиль задаёт PATH', () => {
+		const parsed = parseOnescriptProfileFile('{"profiles":{"a":{"env":{"PATH":"C:\\\\lib"}}}}');
+		assert.ok(!('error' in parsed));
+		if ('error' in parsed) {
+			return;
+		}
+		const resolved = resolve('a', parsed, undefined, {
+			processEnv: { PATH: 'C:\\bin' },
+			engineBinDir: 'C:\\oscript\\bin',
+		});
+		assert.ok(!('error' in resolved));
+		if ('error' in resolved) {
+			return;
+		}
+		const pathKey = Object.keys(resolved.env).find((key) => key.toUpperCase() === 'PATH');
+		assert.equal(resolved.env[pathKey ?? 'PATH'], `C:\\oscript\\bin${path.delimiter}C:\\lib`);
 	});
 
 	test('на Windows имя в другом регистре не создаёт вторую переменную', () => {
@@ -121,13 +152,8 @@ describe('resolveOnescriptLayers', () => {
 		if ('error' in parsed) {
 			return;
 		}
-		const resolved = resolveOnescriptLayers({
+		const resolved = resolve('a', parsed, undefined, {
 			processEnv: { POSTGRES_HOST: 'global' },
-			common: parsed,
-			local: undefined,
-			profileName: 'a',
-			gitBranch: undefined,
-			engineBinDir: undefined,
 		});
 		assert.ok(!('error' in resolved));
 		if ('error' in resolved) {
@@ -147,26 +173,12 @@ describe('resolveOnescriptLayers', () => {
 		if ('error' in parsed) {
 			return;
 		}
-		const resolved = resolveOnescriptLayers({
-			processEnv: {},
-			common: parsed,
-			local: undefined,
-			profileName: 'a',
-			gitBranch: 'main',
-			engineBinDir: undefined,
-		});
+		const resolved = resolve('a', parsed, undefined, { gitBranch: 'main' });
 		assert.deepEqual(resolved, { error: 'Неизвестная подстановка ${foo}' });
 	});
 
 	test('выбранный профиль отсутствует — отказ', () => {
-		const resolved = resolveOnescriptLayers({
-			processEnv: {},
-			common: { env: {}, profiles: {} },
-			local: undefined,
-			profileName: 'postgres',
-			gitBranch: undefined,
-			engineBinDir: undefined,
-		});
+		const resolved = resolve('postgres', { env: {}, profiles: {} }, undefined);
 		assert.deepEqual(resolved, { error: 'Профиль postgres не найден' });
 	});
 });
@@ -206,5 +218,22 @@ describe('envForAdapter', () => {
 		const resolved = { A: '1' };
 		assert.deepEqual(envForAdapter('onescript', resolved, undefined), { env: resolved, complete: true });
 		assert.deepEqual(envForAdapter('onebdd', resolved, undefined), { env: resolved, complete: true });
+	});
+
+	test('переменные плана ложатся поверх профиля', () => {
+		const resolved = { A: '1', B: 'profile', PATH: 'C:\\profile' };
+		const plan = { B: 'plan', C: '2', Path: 'C:\\plan' };
+		const applied = envForAdapter('onescript', resolved, plan);
+		assert.equal(applied.complete, true);
+		assert.equal(applied.env?.A, '1');
+		assert.equal(applied.env?.B, 'plan');
+		assert.equal(applied.env?.C, '2');
+		if (process.platform === 'win32') {
+			assert.equal(applied.env?.PATH, 'C:\\plan');
+			assert.equal(applied.env?.Path, undefined);
+		} else {
+			assert.equal(applied.env?.PATH, 'C:\\profile');
+			assert.equal(applied.env?.Path, 'C:\\plan');
+		}
 	});
 });
