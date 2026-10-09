@@ -16,6 +16,7 @@ export function profileAppliesTo(adapterId: string): boolean {
 
 /**
  * Окружение плана. Тесты 1С и прогон без профиля получают тот же объект.
+ * С профилем переменные плана ложатся поверх окружения профиля.
  *
  * @param adapterId - Идентификатор адаптера
  * @param resolved - Окружение выбранного профиля; без профиля не задано
@@ -30,7 +31,14 @@ export function envForAdapter(
 	if (!profileAppliesTo(adapterId) || resolved === undefined) {
 		return { env: planEnv, complete: false };
 	}
-	return { env: resolved, complete: true };
+	if (planEnv === undefined) {
+		return { env: resolved, complete: true };
+	}
+	const env: NodeJS.ProcessEnv = { ...resolved };
+	for (const [name, value] of Object.entries(planEnv)) {
+		env[envName(env, name)] = value;
+	}
+	return { env, complete: true };
 }
 
 /** Успешный расчёт профиля. */
@@ -71,41 +79,6 @@ export function resolveOnescriptEnv(options: {
 	const env: NodeJS.ProcessEnv = { ...options.processEnv };
 	const variables = new Set<string>();
 	const layers = [options.file.env, profile.env];
-	for (const layer of layers) {
-		const applied = applyLayer(env, layer, options.gitBranch, variables);
-		if (applied !== undefined) {
-			return applied;
-		}
-	}
-	return { env: withSelectedEngine(env, options.engineBinDir), variables: [...variables] };
-}
-
-/**
- * Сливает слои до env профиля: общий корень, личный корень, общий профиль, личный профиль.
- * Личный файл уже лежит поверх общего в `file`, поэтому здесь два слоя.
- * Отдельный порядок до слияния нужен тестам слоёв — см. {@link resolveOnescriptLayers}.
- */
-export function resolveOnescriptLayers(options: {
-	processEnv: NodeJS.ProcessEnv;
-	common: OnescriptProfileFile | undefined;
-	local: OnescriptProfileFile | undefined;
-	profileName: string;
-	gitBranch: string | undefined;
-	engineBinDir: string | undefined;
-}): ResolvedOnescriptEnv | ResolvedOnescriptEnvError {
-	const commonProfile = options.common?.profiles[options.profileName];
-	const localProfile = options.local?.profiles[options.profileName];
-	if (commonProfile === undefined && localProfile === undefined) {
-		return { error: `Профиль ${options.profileName} не найден` };
-	}
-	const env: NodeJS.ProcessEnv = { ...options.processEnv };
-	const variables = new Set<string>();
-	const layers = [
-		options.common?.env,
-		options.local?.env,
-		commonProfile?.env,
-		localProfile?.env,
-	];
 	for (const layer of layers) {
 		const applied = applyLayer(env, layer, options.gitBranch, variables);
 		if (applied !== undefined) {

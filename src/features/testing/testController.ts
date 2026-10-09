@@ -825,6 +825,8 @@ export class TestingController implements vscode.Disposable {
 				return;
 			}
 
+			// «Запустить все» приходит с одним профилем из отмеченных по умолчанию:
+			// VS Code не вызывает обработчик отдельно на каждый. Остальные прогоняем здесь.
 			const remembered = this.onescriptProfiles?.store.names() ?? [];
 			const requested = this.onescriptProfiles?.nameOf(request.profile);
 			const profilesToRun = remembered.length > 1
