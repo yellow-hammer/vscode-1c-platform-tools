@@ -1955,11 +1955,12 @@
         "title": "Открыть отчёт мутаций",
         "category": "1С: Тестирование"
       },
-      {
-        "command": "1c-platform-tools.test.selectOnescriptProfile",
-        "title": "Профиль тестов OneScript",
-        "category": "1С: Тестирование"
-      },
+        {
+          "command": "1c-platform-tools.test.selectOnescriptProfile",
+          "title": "Профиль тестов OneScript",
+          "category": "1С: Тестирование",
+          "icon": "$(list-selection)"
+        },
       {
         "command": "1c-platform-tools.test.loadExtensions",
         "title": "Загрузить тестовые расширения",
@@ -2897,7 +2898,7 @@
         },
         {
           "command": "1c-platform-tools.test.selectOnescriptProfile",
-          "when": "controllerId == '1c-platform-tools-tests' && testId =~ /^onescript\\|file:/ && 1c-platform-tools.test.onescriptProfiles",
+          "when": "controllerId == '1c-platform-tools-tests' && testId =~ /^onescript\\|file:/",
           "group": "1c-platform-tools@2"
         }
       ],
@@ -2928,6 +2929,11 @@
         }
       ],
       "view/title": [
+        {
+          "command": "1c-platform-tools.test.selectOnescriptProfile",
+          "when": "view == workbench.view.testing && 1c-platform-tools.project.onescript",
+          "group": "navigation@50"
+        },
         {
           "command": "1c-platform-tools.infobaseList.openStartWindow",
           "when": "view == 1c-platform-tools-admin-infobases",
