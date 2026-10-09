@@ -28,7 +28,6 @@ import {
 	onescriptProfileEnv,
 	ONESCRIPT_TEST_PROFILES_TEMPLATE,
 	onescriptTestProfilesPath,
-	builtinOnescriptProfiles,
 	readOnescriptTestProfiles,
 } from './onescriptTestProfiles';
 import { hasProjectFile } from '../../shared/projectLayout';
@@ -1668,33 +1667,15 @@ export class TestingController implements vscode.Disposable {
 		if (!root) {
 			return;
 		}
-		if (this.namedRunProfiles.length === 0) {
-			await fs.mkdir(path.dirname(onescriptTestProfilesPath(root)), { recursive: true });
-			await fs.writeFile(onescriptTestProfilesPath(root), ONESCRIPT_TEST_PROFILES_TEMPLATE, 'utf8');
+		const file = onescriptTestProfilesPath(root);
+		try {
+			await fs.access(file);
+		} catch {
+			await fs.mkdir(path.dirname(file), { recursive: true });
+			await fs.writeFile(file, ONESCRIPT_TEST_PROFILES_TEMPLATE, 'utf8');
 			await this.reloadOnescriptProfiles();
 		}
-		const names = this.namedRunProfiles.map((profile) => profile.label);
-		if (names.length === 0) {
-			void vscode.window.showInformationMessage('В файле профилей тестов OneScript нет профилей');
-			return;
-		}
-		if (names.length === 0) {
-			void vscode.window.showInformationMessage('В файле профилей тестов OneScript нет профилей');
-			return;
-		}
-		const current = projectMemento(root).get<string>(ONESCRIPT_TEST_PROFILE_STATE);
-		const picked = await vscode.window.showQuickPick(
-			[
-				{ label: 'Без профиля', id: '' },
-				...names.map((name) => ({ label: name, id: name, description: name === current ? 'сейчас' : undefined })),
-			],
-			{ placeHolder: 'Профиль тестов OneScript' }
-		);
-		if (!picked) {
-			return;
-		}
-		await this.rememberOnescriptProfile(picked.id === '' ? undefined : picked.id);
-		this.applyDefaultOnescriptProfile(picked.id);
+		await vscode.window.showTextDocument(vscode.Uri.file(file));
 	}
 
 	private scheduleOnescriptProfilesReload(): void {
@@ -1735,8 +1716,7 @@ export class TestingController implements vscode.Disposable {
 		if (!current()) {
 			return;
 		}
-		const fromFile = loaded !== undefined && !('error' in loaded) ? loaded.profiles : undefined;
-		const profiles = fromFile ?? (onescript ? builtinOnescriptProfiles() : undefined);
+		const profiles = loaded !== undefined && !('error' in loaded) ? loaded.profiles : undefined;
 		if (loaded !== undefined && 'error' in loaded) {
 			void vscode.window.showErrorMessage(loaded.error);
 			this.applyDefaultOnescriptProfile('');
