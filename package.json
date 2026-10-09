@@ -103,6 +103,14 @@
       {
         "fileMatch": "**/.1cpt/pipelines.json",
         "url": "./resources/schemas/pipelines.schema.json"
+      },
+      {
+        "fileMatch": "**/.vscode/onescript-tests.json",
+        "url": "./resources/schemas/onescript-tests.schema.json"
+      },
+      {
+        "fileMatch": "**/.vscode/onescript-tests.local.json",
+        "url": "./resources/schemas/onescript-tests.schema.json"
       }
     ],
     "taskDefinitions": [
@@ -1957,9 +1965,15 @@
       },
         {
           "command": "1c-platform-tools.test.selectOnescriptProfile",
-          "title": "Профиль тестов",
+          "title": "Выбрать профиль тестов OneScript",
           "category": "1С: Тестирование",
           "icon": "$(symbol-variable)"
+        },
+        {
+          "command": "1c-platform-tools.test.openOnescriptProfiles",
+          "title": "Открыть файл профилей тестов OneScript",
+          "category": "1С: Тестирование",
+          "icon": "$(go-to-file)"
         },
       {
         "command": "1c-platform-tools.test.loadExtensions",
@@ -2475,6 +2489,10 @@
         },
         {
           "command": "1c-platform-tools.test.selectOnescriptProfile",
+          "when": "1c-platform-tools.project.onescript"
+        },
+        {
+          "command": "1c-platform-tools.test.openOnescriptProfiles",
           "when": "1c-platform-tools.project.onescript"
         },
         {

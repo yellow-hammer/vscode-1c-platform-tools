@@ -35,6 +35,7 @@ import {
 import { listFiles, parseMutationReport, summarizeReport, summaryData, summaryLine, type MutationSummary } from './mutatosReport';
 import { clearSurvivors, showSurvivors } from './mutatosDiagnostics';
 import { findSourceDirectories } from './mutatosSources';
+import { currentOnescriptProfiles } from '../onescriptEnv/profilesUi';
 
 const log = logger.scope('mutatos');
 
@@ -78,9 +79,21 @@ const running = new Map<string, Promise<RunOutcome>>();
 export async function runMutationTesting(
 	vrunner: VRunnerManager,
 	opts?: CommandExecutionOptions,
-	run: { output?: TaskOutputChain; selection?: TestSelection } = {}
+	run: { output?: TaskOutputChain; selection?: TestSelection; profileName?: string } = {}
 ): Promise<StructuredCommandResult | void> {
-	const { output, selection } = run;
+	const { output, selection, profileName } = run;
+	const profiles = currentOnescriptProfiles();
+	const selected = profiles?.store.names() ?? [];
+	if (profileName === undefined && selected.length > 1) {
+		let last: StructuredCommandResult | void = undefined;
+		for (const name of selected) {
+			last = await runMutationTesting(vrunner, opts, { output, selection, profileName: name });
+			if (last !== undefined && last.success === false) {
+				return last;
+			}
+		}
+		return last;
+	}
 	const root = vrunner.getWorkspaceRoot();
 	if (!root) {
 		return notStarted({ message: 'Откройте рабочую область с проектом OneScript.' }, opts);
@@ -124,8 +137,14 @@ export async function runMutationTesting(
 		hasTopLevel: (name) => fs.existsSync(path.join(root, name)),
 	});
 
-	const env = mutatosEnv(process.env, {
-		binDir: path.dirname(engine.oscript),
+	const profilesNow = currentOnescriptProfiles();
+	const requested = profileName ?? (profilesNow?.store.names().length === 1 ? profilesNow.store.names()[0] : undefined);
+	const decision = profilesNow ? await profilesNow.decide(requested) : { kind: 'unchanged' as const };
+	if (decision.kind === 'error') {
+		return notStarted({ message: decision.message }, opts);
+	}
+	const env = mutatosEnv(decision.kind === 'env' ? decision.env : process.env, {
+		binDir: decision.kind === 'env' ? '' : path.dirname(engine.oscript),
 		testsDirs: relativeTestsDirs(root, testsDirs),
 		excluded,
 	});

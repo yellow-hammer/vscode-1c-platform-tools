@@ -13,6 +13,9 @@ oscript_modules/
 # Локальный env-профиль запуска (не коммитится)
 env.local.json
 
+# Личные профили тестов OneScript
+.vscode/onescript-tests.local.json
+
 # Служебные файлы выгрузки конфигурации
 ConfigDumpInfo.xml
 src/cf/ConfigDumpInfo.xml

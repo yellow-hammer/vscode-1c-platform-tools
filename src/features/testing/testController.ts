@@ -23,16 +23,9 @@ import { ReportTarget } from './projectTestConfig';
 import { RunQueue } from './runQueue';
 import { routeReportCases, RoutableFile } from './batchRouter';
 import { DEFAULT_TESTING } from '../../shared/pathDefaults';
-import { projectMemento, ONESCRIPT_TEST_PROFILE_STATE } from '../../shared/projectState';
-import {
-	onescriptProfileEnv,
-	ONESCRIPT_TEST_PROFILES_EMPTY,
-	onescriptTestProfilesPath,
-	readOnescriptTestProfiles,
-	withOnescriptTestProfile,
-} from './onescriptTestProfiles';
+import { OnescriptProfiles } from './onescriptEnv/profilesUi';
+import { envForAdapter, profileAppliesTo } from './onescriptEnv/resolveEnv';
 import { hasProjectFile } from '../../shared/projectLayout';
-import { detectProjectKind } from '../../shared/projectKind';
 import { projectConfiguration } from '../../shared/projectConfiguration';
 import {
 	currentRoot,
@@ -191,11 +184,7 @@ async function runActionStep(step: AdapterRunStep): Promise<CancellableProcessRe
 	}
 }
 
-/** Пункт выбора профиля тестов OneScript. */
-interface OnescriptProfilePick extends vscode.QuickPickItem {
-	action: 'use' | 'clear' | 'create' | 'open';
-	profileName?: string;
-}
+type ProfiledPlan = AdapterRunPlan & { envComplete?: boolean };
 
 export class TestingController implements vscode.Disposable {
 	private readonly controller: vscode.TestController;
@@ -242,22 +231,11 @@ export class TestingController implements vscode.Disposable {
 	private readonly scanRootOf: (root: string) => Promise<ProjectScanRoot>;
 	/** Профиль запуска без переменных: прогон как раньше. */
 	private baseRunProfile: vscode.TestRunProfile | undefined;
-	/** Профили из файла проекта. */
-	private readonly namedRunProfiles: vscode.TestRunProfile[] = [];
-	/** Переменные профиля запуска. У базового профиля записи нет. */
-	private readonly profileEnvironments = new Map<vscode.TestRunProfile, Record<string, string>>();
-	private readonly profileSubscriptions: vscode.Disposable[] = [];
-	private profilesWatcher: vscode.FileSystemWatcher | undefined;
-	private profilesWatcherSubscriptions: vscode.Disposable[] = [];
-	/** Пока расставляем профили по умолчанию, их события в состояние не пишем. */
-	private syncingProfiles = false;
-	private profilesReloadPending = false;
-	/** Загрузки профилей идут по очереди: запись файла и наблюдатель не накладываются. */
-	private profilesReloadChain: Promise<void> = Promise.resolve();
-	/** Номер загрузки профилей: устаревшая загрузка не пишет состояние нового проекта. */
-	private profilesGeneration = 0;
-	/** Профиль текущего прогона OneScript. Прогоны идут по очереди. */
-	private onescriptProfile: { name: string; env: Record<string, string> } | undefined;
+	private onescriptProfiles: OnescriptProfiles | undefined;
+	/** Полное окружение выбранного профиля на время прогона. */
+	private shellEnv: NodeJS.ProcessEnv | undefined;
+	private shellProfileName: string | undefined;
+	private shellVariables: string[] | undefined;
 
 	constructor(
 		private readonly adapters: TestFrameworkAdapter[],
@@ -288,12 +266,14 @@ export class TestingController implements vscode.Disposable {
 			(request, token) => this.runHandler(request, token),
 			true
 		);
-		this.disposables.push(this.baseRunProfile.onDidChangeDefault((isDefault) => {
-			if (isDefault) {
-				void this.rememberOnescriptProfile(undefined);
-			}
-		}));
-		void this.reloadOnescriptProfiles();
+		this.onescriptProfiles = new OnescriptProfiles(
+			this.controller,
+			this.vrunner,
+			this.baseRunProfile,
+			() => this.activeRuns > 0
+		);
+		this.onescriptProfiles.run = (request, token) => this.runHandler(request, token);
+		this.onescriptProfiles.start(this.projectRoot);
 
 		this.disposables.push(this.controller);
 	}
@@ -338,7 +318,7 @@ export class TestingController implements vscode.Disposable {
 		}
 		this.projectRoot = root;
 		this.scheduleRebuild();
-		this.scheduleOnescriptProfilesReload();
+		this.onescriptProfiles?.setRoot(root);
 	}
 
 	/**
@@ -804,6 +784,9 @@ export class TestingController implements vscode.Disposable {
 			root.tags = [new vscode.TestTag(id)];
 			this.controller.items.add(root);
 		}
+		if (adapter.id === 'onescript') {
+			this.onescriptProfiles?.syncRoot();
+		}
 		return root;
 	}
 
@@ -842,36 +825,85 @@ export class TestingController implements vscode.Disposable {
 				return;
 			}
 
-			const run = this.controller.createTestRun(request);
-
-			for (const unit of units) {
-				for (const item of this.leafItems(unit.entry.item)) {
-					run.enqueued(item);
+			const remembered = this.onescriptProfiles?.store.names() ?? [];
+			const requested = this.onescriptProfiles?.nameOf(request.profile);
+			const profilesToRun = remembered.length > 1
+				&& requested !== undefined
+				&& remembered.includes(requested)
+				? remembered
+				: [requested];
+			let reportedError = false;
+			for (const profileName of profilesToRun) {
+				const decision = (await this.onescriptProfiles?.decide(profileName)) ?? { kind: 'unchanged' as const };
+				const blocked = decision.kind === 'error'
+					? units.filter((unit) => profileAppliesTo(unit.entry.adapter.id))
+					: [];
+				if (blocked.length > 0 && decision.kind === 'error' && !reportedError) {
+					reportedError = true;
+					const choice = await vscode.window.showErrorMessage(decision.message, 'Открыть файл');
+					if (choice === 'Открыть файл') {
+						await this.onescriptProfiles?.openFile();
+					}
 				}
-				const suite = this.suiteNode(unit.entry.item);
-				if (suite) {
-					run.enqueued(suite);
+				const runnable = units.filter((unit) => !blocked.includes(unit));
+				const run = this.controller.createTestRun(
+					request,
+					decision.kind === 'env' ? decision.profileName : undefined
+				);
+				if (blocked.length > 0 && decision.kind === 'error') {
+					for (const unit of blocked) {
+						const suite = this.suiteNode(unit.entry.item);
+						this.markAll(
+							run,
+							this.leafItems(unit.entry.item),
+							'errored',
+							decision.message,
+							suite ? [suite] : undefined
+						);
+					}
+					if (runnable.length === 0) {
+						run.end();
+						break;
+					}
+				}
+				if (runnable.length === 0) {
+					run.end();
+					continue;
+				}
+
+				for (const unit of runnable) {
+					for (const item of this.leafItems(unit.entry.item)) {
+						run.enqueued(item);
+					}
+					const suite = this.suiteNode(unit.entry.item);
+					if (suite) {
+						run.enqueued(suite);
+					}
+				}
+
+				await this.queue.enqueue(() =>
+					runWithProject(root, async () => {
+						this.shellEnv = decision.kind === 'env' ? decision.env : undefined;
+						this.shellProfileName = decision.kind === 'env' ? decision.profileName : undefined;
+						this.shellVariables = decision.kind === 'env' ? decision.variables : undefined;
+						try {
+							await this.runUnits(run, runnable, token, root);
+						} finally {
+							this.shellEnv = undefined;
+							this.shellProfileName = undefined;
+							this.shellVariables = undefined;
+							run.end();
+						}
+					})
+				);
+				if (decision.kind === 'error') {
+					break;
 				}
 			}
-
-			await this.queue.enqueue(() =>
-				runWithProject(root, async () => {
-					this.onescriptProfile = this.onescriptProfileOf(request.profile);
-					try {
-						await this.runUnits(run, units, token, root);
-					} finally {
-						this.onescriptProfile = undefined;
-						run.end();
-					}
-				})
-			);
 		} finally {
 			this.activeRuns -= 1;
 			this.flushPendingRebuild();
-			if (this.profilesReloadPending && this.activeRuns === 0) {
-				this.profilesReloadPending = false;
-				void this.reloadOnescriptProfiles();
-			}
+			this.onescriptProfiles?.flush();
 		}
 	}
 
@@ -893,8 +925,11 @@ export class TestingController implements vscode.Disposable {
 		token: vscode.CancellationToken,
 		root: string
 	): Promise<void> {
-		if (this.onescriptProfile && units.some((unit) => unit.entry.adapter.id === 'onescript')) {
-			run.appendOutput(`Профиль тестов: ${this.onescriptProfile.name}\r\n`);
+		if (this.shellProfileName && units.some((unit) => profileAppliesTo(unit.entry.adapter.id))) {
+			run.appendOutput(`Профиль тестов: ${this.shellProfileName}\r\n`);
+			if (this.shellVariables !== undefined && this.shellVariables.length > 0) {
+				run.appendOutput(`Переменные: ${this.shellVariables.join(', ')}\r\n`);
+			}
 		}
 		const batches = new Map<string, { entry: FileEntry; caseNames?: string[] }[]>();
 		const individual: { entry: FileEntry; caseNames?: string[] }[] = [];
@@ -990,7 +1025,7 @@ export class TestingController implements vscode.Disposable {
 			reportDir = created;
 		}
 
-		let plan: AdapterRunPlan | undefined;
+		let plan: ProfiledPlan | undefined;
 		let result: CancellableProcessResult;
 		try {
 			const discovered = this.discoveredFilesOf(adapter);
@@ -999,7 +1034,7 @@ export class TestingController implements vscode.Disposable {
 				await this.cleanupReportDir(reportDir);
 				return false;
 			}
-			plan = this.withOnescriptProfile(adapter, plan);
+			plan = this.applyProfileEnv(adapter, plan);
 
 			if (plan.reportTarget) {
 				await this.clearReportTarget(plan.reportTarget);
@@ -1024,7 +1059,7 @@ export class TestingController implements vscode.Disposable {
 				run.appendOutput(`\r\n--- ${step.title} ---\r\n`);
 				const stepResult = step.tool === 'action'
 					? await runActionStep(step)
-					: await this.executeStep(step.tool, step.args, plan.env, token, onOutput, root);
+					: await this.executeStep(step.tool, step.args, plan.env, token, onOutput, root, plan.envComplete === true);
 				if (stepResult.cancelled) {
 					await this.cleanupReportDir(reportDir);
 					return true;
@@ -1043,7 +1078,7 @@ export class TestingController implements vscode.Disposable {
 				}
 			}
 
-			result = await this.executeStep(plan.tool, plan.args, plan.env, token, onOutput, root);
+			result = await this.executeStep(plan.tool, plan.args, plan.env, token, onOutput, root, plan.envComplete === true);
 		} catch (error) {
 			this.markAll(run, allLeaves, 'errored', `Ошибка запуска: ${(error as Error).message}`, allSuites);
 			await this.cleanupReportDir(reportDir);
@@ -1255,11 +1290,11 @@ export class TestingController implements vscode.Disposable {
 		}
 
 		let result: CancellableProcessResult;
-		let plan: AdapterRunPlan;
+		let plan: ProfiledPlan;
 		try {
 			const runUnit: RunUnit = { fileUri, caseNames };
 			plan = await adapter.buildRunPlan(runUnit, reportDir);
-			plan = this.withOnescriptProfile(adapter, plan);
+			plan = this.applyProfileEnv(adapter, plan);
 
 			// Чистим прошлые отчёты в настроенной цели, чтобы не прочитать устаревшие
 			if (plan.reportTarget) {
@@ -1281,7 +1316,7 @@ export class TestingController implements vscode.Disposable {
 				run.appendOutput(`\r\n--- ${step.title} ---\r\n`, undefined, entry.item);
 				const stepResult = step.tool === 'action'
 					? await runActionStep(step)
-					: await this.executeStep(step.tool, step.args, plan.env, token, onOutput, root);
+					: await this.executeStep(step.tool, step.args, plan.env, token, onOutput, root, plan.envComplete === true);
 				if (stepResult.cancelled) {
 					await this.cleanupReportDir(reportDir);
 					return;
@@ -1300,7 +1335,7 @@ export class TestingController implements vscode.Disposable {
 				}
 			}
 
-			result = await this.executeStep(plan.tool, plan.args, plan.env, token, onOutput, root);
+			result = await this.executeStep(plan.tool, plan.args, plan.env, token, onOutput, root, plan.envComplete === true);
 		} catch (error) {
 			this.markAll(run, leaves, 'errored', `Ошибка запуска: ${(error as Error).message}`, suite ? [suite] : undefined);
 			await this.cleanupReportDir(reportDir);
@@ -1347,7 +1382,8 @@ export class TestingController implements vscode.Disposable {
 		env: NodeJS.ProcessEnv | undefined,
 		token: vscode.CancellationToken,
 		onOutput: (chunk: string) => void,
-		root: string
+		root: string,
+		envComplete = false
 	): Promise<CancellableProcessResult> {
 		if (tool === 'vrunner') {
 			// Планы адаптеров тестирования финальные (параметры профиля уже в них)
@@ -1355,8 +1391,11 @@ export class TestingController implements vscode.Disposable {
 				this.vrunner.executeVRunnerCancellable(args, { env, token, onOutput, appendOverrides: false })
 			);
 		}
-		// Обёртки раннеров запускают oscript по имени: движок задаёт PATH
-		const processEnv = await runWithProject(root, () => this.vrunner.oneScriptEnv(env));
+		// Полное окружение профиля уже содержит каталог движка. Повторное слияние
+		// вернуло бы снятые переменные из окружения процесса.
+		const processEnv = envComplete && env !== undefined
+			? env
+			: await runWithProject(root, () => this.vrunner.oneScriptEnv(env));
 		return runCancellableCommand(args[0], {
 			cwd: root,
 			env: processEnv,
@@ -1668,275 +1707,20 @@ export class TestingController implements vscode.Disposable {
 		this.watchers = [];
 	}
 
-	/**
-	 * Выбор профиля тестов OneScript: имена из файла проекта, новый пустой профиль или сам файл.
-	 */
-	public async selectOnescriptProfile(): Promise<void> {
-		const root = this.projectRoot;
-		if (!root || (await detectProjectKind(root)) !== 'onescript') {
-			return;
-		}
-		const loaded = await readOnescriptTestProfiles(root);
-		if (loaded !== undefined && 'error' in loaded) {
-			void vscode.window.showErrorMessage(loaded.error);
-			await this.openOnescriptProfilesFile();
-			return;
-		}
-		const profiles = loaded?.profiles ?? {};
-		const active = projectMemento(root).get<string>(ONESCRIPT_TEST_PROFILE_STATE);
-		const activeKnown = active !== undefined && profiles[active] !== undefined;
-		const items: OnescriptProfilePick[] = [
-			{
-				label: 'Без профиля',
-				description: activeKnown ? undefined : 'активный',
-				action: 'clear',
-			},
-			...Object.keys(profiles).map((name): OnescriptProfilePick => ({
-				label: name,
-				description: name === active ? 'активный' : undefined,
-				action: 'use',
-				profileName: name,
-			})),
-			{ label: '', kind: vscode.QuickPickItemKind.Separator, action: 'open' },
-			{ label: 'Создать профиль…', action: 'create', alwaysShow: true },
-			{ label: 'Открыть файл', action: 'open', alwaysShow: true },
-		];
-		const picked = await vscode.window.showQuickPick(items, {
-			title: 'Профиль тестов',
-			placeHolder: 'Выберите профиль',
-		});
-		if (!picked || picked.kind === vscode.QuickPickItemKind.Separator) {
-			return;
-		}
-		if (picked.action === 'create') {
-			await this.createOnescriptProfile(root, profiles);
-			return;
-		}
-		if (picked.action === 'open') {
-			await this.openOnescriptProfilesFile();
-			return;
-		}
-		await this.rememberOnescriptProfile(picked.action === 'use' ? picked.profileName : undefined, root);
-		await this.reloadOnescriptProfiles();
+
+	private applyProfileEnv(adapter: TestFrameworkAdapter, plan: AdapterRunPlan): ProfiledPlan {
+		const applied = envForAdapter(adapter.id, this.shellEnv, plan.env);
+		return applied.complete ? { ...plan, env: applied.env, envComplete: true } : plan;
 	}
 
-	private async createOnescriptProfile(
-		root: string,
-		existing: Record<string, Record<string, string>>
-	): Promise<void> {
-		const name = await vscode.window.showInputBox({
-			title: 'Новый профиль',
-			prompt: 'Имя профиля',
-			validateInput: (value) => {
-				const trimmed = value.trim();
-				if (trimmed === '') {
-					return 'Укажите имя';
-				}
-				if (existing[trimmed] !== undefined) {
-					return 'Такой профиль уже есть';
-				}
-				return undefined;
-			},
-		});
-		if (name === undefined) {
-			return;
-		}
-		const file = onescriptTestProfilesPath(root);
-		let text: string | undefined;
-		try {
-			text = await fs.readFile(file, 'utf8');
-		} catch (error) {
-			if ((error as NodeJS.ErrnoException).code !== 'ENOENT') {
-				void vscode.window.showErrorMessage('Не прочитан файл профилей тестов OneScript');
-				return;
-			}
-		}
-		const next = withOnescriptTestProfile(text, name);
-		if ('error' in next) {
-			void vscode.window.showErrorMessage(next.error);
-			return;
-		}
-		await fs.mkdir(path.dirname(file), { recursive: true });
-		await fs.writeFile(file, next.text, 'utf8');
-		await this.rememberOnescriptProfile(name.trim(), root);
-		await this.reloadOnescriptProfiles();
-		await vscode.window.showTextDocument(vscode.Uri.file(file));
+	public selectOnescriptProfile(): Promise<void> {
+		return this.onescriptProfiles?.select() ?? Promise.resolve();
 	}
 
-	private scheduleOnescriptProfilesReload(): void {
-		if (this.activeRuns > 0) {
-			this.profilesReloadPending = true;
-			return;
-		}
-		void this.reloadOnescriptProfiles();
+	public openOnescriptProfiles(): Promise<void> {
+		return this.onescriptProfiles?.openFile() ?? Promise.resolve();
 	}
 
-	private reloadOnescriptProfiles(): Promise<void> {
-		const task = this.profilesReloadChain.then(() => this.loadOnescriptProfiles());
-		this.profilesReloadChain = task.then(
-			() => undefined,
-			() => undefined
-		);
-		return task;
-	}
-
-	private async loadOnescriptProfiles(): Promise<void> {
-		const generation = ++this.profilesGeneration;
-		const root = this.projectRoot;
-		this.disposeNamedRunProfiles();
-		this.disposeProfilesWatcher();
-		await vscode.commands.executeCommand('setContext', '1c-platform-tools.test.onescriptProfiles', false);
-		const onescript = root !== undefined && (await detectProjectKind(root)) === 'onescript';
-		await vscode.commands.executeCommand('setContext', '1c-platform-tools.project.onescript', onescript);
-		if (!root || !onescript || generation !== this.profilesGeneration) {
-			return;
-		}
-		const watcher = vscode.workspace.createFileSystemWatcher(
-			new vscode.RelativePattern(root, '.vscode/onescript-tests.json')
-		);
-		this.profilesWatcher = watcher;
-		const reload = () => this.scheduleOnescriptProfilesReload();
-		this.profilesWatcherSubscriptions = [
-			watcher.onDidCreate(reload),
-			watcher.onDidChange(reload),
-			watcher.onDidDelete(reload),
-		];
-
-		const loaded = await readOnescriptTestProfiles(root);
-		const current = () =>
-			generation === this.profilesGeneration
-			&& sameRoot(this.projectRoot, root)
-			&& this.profilesWatcher === watcher;
-		if (!current()) {
-			return;
-		}
-		const profiles = loaded !== undefined && !('error' in loaded) ? loaded.profiles : undefined;
-		if (loaded !== undefined && 'error' in loaded) {
-			void vscode.window.showErrorMessage(loaded.error);
-			this.applyDefaultOnescriptProfile('');
-			return;
-		}
-		if (profiles === undefined) {
-			await this.rememberOnescriptProfile(undefined, root);
-			if (!current()) {
-				return;
-			}
-			this.applyDefaultOnescriptProfile('');
-			return;
-		}
-		const active = projectMemento(root).get<string>(ONESCRIPT_TEST_PROFILE_STATE);
-		const known = active !== undefined && profiles[active] !== undefined;
-		for (const [name, env] of Object.entries(profiles)) {
-			const profile = this.controller.createRunProfile(
-				name,
-				vscode.TestRunProfileKind.Run,
-				(request, token) => this.runHandler(request, token),
-				false
-			);
-			profile.configureHandler = () => {
-				void this.openOnescriptProfilesFile();
-			};
-			this.profileSubscriptions.push(profile.onDidChangeDefault((isDefault) => {
-				if (isDefault) {
-					void this.rememberOnescriptProfile(name, root);
-				}
-			}));
-			this.namedRunProfiles.push(profile);
-			this.profileEnvironments.set(profile, env);
-		}
-		await vscode.commands.executeCommand(
-			'setContext',
-			'1c-platform-tools.test.onescriptProfiles',
-			this.namedRunProfiles.length > 0
-		);
-		if (!current()) {
-			return;
-		}
-		if (!known && active !== undefined) {
-			await this.rememberOnescriptProfile(undefined, root);
-			if (!current()) {
-				return;
-			}
-		}
-		this.applyDefaultOnescriptProfile(known ? active : '');
-	}
-
-	private applyDefaultOnescriptProfile(name: string | undefined): void {
-		this.syncingProfiles = true;
-		try {
-			const selected = this.namedRunProfiles.find((profile) => profile.label === name);
-			if (this.baseRunProfile) {
-				this.baseRunProfile.isDefault = selected === undefined;
-			}
-			for (const profile of this.namedRunProfiles) {
-				profile.isDefault = profile === selected;
-			}
-		} finally {
-			this.syncingProfiles = false;
-		}
-	}
-
-	private async rememberOnescriptProfile(name: string | undefined, root = this.projectRoot): Promise<void> {
-		if (this.syncingProfiles) {
-			return;
-		}
-		if (!root) {
-			return;
-		}
-		await projectMemento(root).update(ONESCRIPT_TEST_PROFILE_STATE, name);
-	}
-
-	private onescriptProfileOf(
-		profile: vscode.TestRunProfile | undefined
-	): { name: string; env: Record<string, string> } | undefined {
-		if (!profile) {
-			return undefined;
-		}
-		const env = this.profileEnvironments.get(profile);
-		return env === undefined ? undefined : { name: profile.label, env: { ...env } };
-	}
-
-	private withOnescriptProfile(adapter: TestFrameworkAdapter, plan: AdapterRunPlan): AdapterRunPlan {
-		const env = onescriptProfileEnv(adapter.id, this.onescriptProfile?.env, plan.env);
-		return env === plan.env ? plan : { ...plan, env };
-	}
-
-	private async openOnescriptProfilesFile(): Promise<void> {
-		const root = this.projectRoot;
-		if (!root) {
-			return;
-		}
-		const file = onescriptTestProfilesPath(root);
-		try {
-			await fs.access(file);
-		} catch {
-			await fs.mkdir(path.dirname(file), { recursive: true });
-			await fs.writeFile(file, ONESCRIPT_TEST_PROFILES_EMPTY, 'utf8');
-			await this.reloadOnescriptProfiles();
-		}
-		await vscode.window.showTextDocument(vscode.Uri.file(file));
-	}
-
-	private disposeProfilesWatcher(): void {
-		this.profilesWatcher?.dispose();
-		this.profilesWatcher = undefined;
-		for (const subscription of this.profilesWatcherSubscriptions) {
-			subscription.dispose();
-		}
-		this.profilesWatcherSubscriptions = [];
-	}
-
-	private disposeNamedRunProfiles(): void {
-		for (const profile of this.namedRunProfiles) {
-			this.profileEnvironments.delete(profile);
-			profile.dispose();
-		}
-		this.namedRunProfiles.length = 0;
-		for (const subscription of this.profileSubscriptions) {
-			subscription.dispose();
-		}
-		this.profileSubscriptions.length = 0;
-	}
 
 	public dispose(): void {
 		if (this.rebuildTimer) {
@@ -1944,8 +1728,7 @@ export class TestingController implements vscode.Disposable {
 			this.rebuildTimer = undefined;
 		}
 		this.disposeWatchers();
-		this.disposeProfilesWatcher();
-		this.disposeNamedRunProfiles();
+		this.onescriptProfiles?.dispose();
 		for (const disposable of this.disposables) {
 			disposable.dispose();
 		}

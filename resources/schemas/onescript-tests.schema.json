@@ -1,0 +1,42 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://raw.githubusercontent.com/yellow-hammer/vscode-1c-platform-tools/main/resources/schemas/onescript-tests.schema.json",
+  "title": "Профили тестов OneScript",
+  "description": "Переменные среды прогона тестов OneScript. Личные значения — в onescript-tests.local.json.",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "env": {
+      "type": "object",
+      "description": "Переменные для всех профилей",
+      "additionalProperties": {
+        "$ref": "#/definitions/envValue"
+      }
+    },
+    "profiles": {
+      "type": "object",
+      "description": "Именованные профили",
+      "additionalProperties": {
+        "type": "object",
+        "properties": {
+          "description": {
+            "type": "string",
+            "description": "Подпись в списке профилей"
+          },
+          "env": {
+            "type": "object",
+            "description": "Переменные профиля. null снимает унаследованную переменную",
+            "additionalProperties": {
+              "$ref": "#/definitions/envValue"
+            }
+          }
+        }
+      }
+    }
+  },
+  "definitions": {
+    "envValue": {
+      "type": ["string", "number", "boolean", "null"]
+    }
+  }
+}
