@@ -29,6 +29,7 @@ import {
 	ONESCRIPT_TEST_PROFILES_EMPTY,
 	onescriptTestProfilesPath,
 	readOnescriptTestProfiles,
+	withOnescriptTestProfile,
 } from './onescriptTestProfiles';
 import { hasProjectFile } from '../../shared/projectLayout';
 import { detectProjectKind } from '../../shared/projectKind';
@@ -190,6 +191,12 @@ async function runActionStep(step: AdapterRunStep): Promise<CancellableProcessRe
 	}
 }
 
+/** Пункт выбора профиля тестов OneScript. */
+interface OnescriptProfilePick extends vscode.QuickPickItem {
+	action: 'use' | 'clear' | 'create' | 'open';
+	profileName?: string;
+}
+
 export class TestingController implements vscode.Disposable {
 	private readonly controller: vscode.TestController;
 	private readonly queue = new RunQueue();
@@ -245,6 +252,8 @@ export class TestingController implements vscode.Disposable {
 	/** Пока расставляем профили по умолчанию, их события в состояние не пишем. */
 	private syncingProfiles = false;
 	private profilesReloadPending = false;
+	/** Загрузки профилей идут по очереди: запись файла и наблюдатель не накладываются. */
+	private profilesReloadChain: Promise<void> = Promise.resolve();
 	/** Номер загрузки профилей: устаревшая загрузка не пишет состояние нового проекта. */
 	private profilesGeneration = 0;
 	/** Профиль текущего прогона OneScript. Прогоны идут по очереди. */
@@ -1660,21 +1669,97 @@ export class TestingController implements vscode.Disposable {
 	}
 
 	/**
-	 * Открывает файл профилей тестов OneScript. Если файла нет, создаёт пустой.
+	 * Выбор профиля тестов OneScript: имена из файла проекта, новый пустой профиль или сам файл.
 	 */
 	public async selectOnescriptProfile(): Promise<void> {
 		const root = this.projectRoot;
 		if (!root || (await detectProjectKind(root)) !== 'onescript') {
 			return;
 		}
-		const file = onescriptTestProfilesPath(root);
-		try {
-			await fs.access(file);
-		} catch {
-			await fs.mkdir(path.dirname(file), { recursive: true });
-			await fs.writeFile(file, ONESCRIPT_TEST_PROFILES_EMPTY, 'utf8');
-			await this.reloadOnescriptProfiles();
+		const loaded = await readOnescriptTestProfiles(root);
+		if (loaded !== undefined && 'error' in loaded) {
+			void vscode.window.showErrorMessage(loaded.error);
+			await this.openOnescriptProfilesFile();
+			return;
 		}
+		const profiles = loaded?.profiles ?? {};
+		const active = projectMemento(root).get<string>(ONESCRIPT_TEST_PROFILE_STATE);
+		const activeKnown = active !== undefined && profiles[active] !== undefined;
+		const items: OnescriptProfilePick[] = [
+			{
+				label: 'Без профиля',
+				description: activeKnown ? undefined : 'активный',
+				action: 'clear',
+			},
+			...Object.keys(profiles).map((name): OnescriptProfilePick => ({
+				label: name,
+				description: name === active ? 'активный' : undefined,
+				action: 'use',
+				profileName: name,
+			})),
+			{ label: '', kind: vscode.QuickPickItemKind.Separator, action: 'open' },
+			{ label: 'Создать профиль…', action: 'create', alwaysShow: true },
+			{ label: 'Открыть файл', action: 'open', alwaysShow: true },
+		];
+		const picked = await vscode.window.showQuickPick(items, {
+			title: 'Профиль тестов',
+			placeHolder: 'Выберите профиль',
+		});
+		if (!picked || picked.kind === vscode.QuickPickItemKind.Separator) {
+			return;
+		}
+		if (picked.action === 'create') {
+			await this.createOnescriptProfile(root, profiles);
+			return;
+		}
+		if (picked.action === 'open') {
+			await this.openOnescriptProfilesFile();
+			return;
+		}
+		await this.rememberOnescriptProfile(picked.action === 'use' ? picked.profileName : undefined, root);
+		await this.reloadOnescriptProfiles();
+	}
+
+	private async createOnescriptProfile(
+		root: string,
+		existing: Record<string, Record<string, string>>
+	): Promise<void> {
+		const name = await vscode.window.showInputBox({
+			title: 'Новый профиль',
+			prompt: 'Имя профиля',
+			validateInput: (value) => {
+				const trimmed = value.trim();
+				if (trimmed === '') {
+					return 'Укажите имя';
+				}
+				if (existing[trimmed] !== undefined) {
+					return 'Такой профиль уже есть';
+				}
+				return undefined;
+			},
+		});
+		if (name === undefined) {
+			return;
+		}
+		const file = onescriptTestProfilesPath(root);
+		let text: string | undefined;
+		try {
+			text = await fs.readFile(file, 'utf8');
+		} catch (error) {
+			if ((error as NodeJS.ErrnoException).code !== 'ENOENT') {
+				void vscode.window.showErrorMessage('Не прочитан файл профилей тестов OneScript');
+				return;
+			}
+		}
+		const next = withOnescriptTestProfile(text, name);
+		if ('error' in next) {
+			void vscode.window.showErrorMessage(next.error);
+			return;
+		}
+		await fs.mkdir(path.dirname(file), { recursive: true });
+		await fs.writeFile(file, next.text, 'utf8');
+		await this.rememberOnescriptProfile(name.trim(), root);
+		await this.reloadOnescriptProfiles();
 		await vscode.window.showTextDocument(vscode.Uri.file(file));
 	}
 
@@ -1686,7 +1771,16 @@ export class TestingController implements vscode.Disposable {
 		void this.reloadOnescriptProfiles();
 	}
 
-	private async reloadOnescriptProfiles(): Promise<void> {
+	private reloadOnescriptProfiles(): Promise<void> {
+		const task = this.profilesReloadChain.then(() => this.loadOnescriptProfiles());
+		this.profilesReloadChain = task.then(
+			() => undefined,
+			() => undefined
+		);
+		return task;
+	}
+
+	private async loadOnescriptProfiles(): Promise<void> {
 		const generation = ++this.profilesGeneration;
 		const root = this.projectRoot;
 		this.disposeNamedRunProfiles();
@@ -1812,14 +1906,15 @@ export class TestingController implements vscode.Disposable {
 		if (!root) {
 			return;
 		}
-		const uri = vscode.Uri.file(onescriptTestProfilesPath(root));
+		const file = onescriptTestProfilesPath(root);
 		try {
-			await vscode.workspace.fs.stat(uri);
+			await fs.access(file);
 		} catch {
-			void vscode.window.showInformationMessage(`Создайте ${onescriptTestProfilesPath(root)}`);
-			return;
+			await fs.mkdir(path.dirname(file), { recursive: true });
+			await fs.writeFile(file, ONESCRIPT_TEST_PROFILES_EMPTY, 'utf8');
+			await this.reloadOnescriptProfiles();
 		}
-		await vscode.window.showTextDocument(uri);
+		await vscode.window.showTextDocument(vscode.Uri.file(file));
 	}
 
 	private disposeProfilesWatcher(): void {

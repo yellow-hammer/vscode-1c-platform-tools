@@ -1957,9 +1957,9 @@
       },
         {
           "command": "1c-platform-tools.test.selectOnescriptProfile",
-          "title": "Файл профилей тестов",
+          "title": "Профиль тестов",
           "category": "1С: Тестирование",
-          "icon": "$(file-code)"
+          "icon": "$(symbol-variable)"
         },
       {
         "command": "1c-platform-tools.test.loadExtensions",

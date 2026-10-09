@@ -83,6 +83,48 @@ export function parseOnescriptTestProfiles(text: string): OnescriptTestProfiles 
 }
 
 /**
+ * Добавляет в файл пустой профиль. Переменные не заполняет.
+ *
+ * @param text - Текущий текст файла; нет файла — создаётся новый
+ * @param name - Имя профиля
+ * @returns Новый текст либо ошибка
+ */
+export function withOnescriptTestProfile(
+	text: string | undefined,
+	name: string
+): { text: string } | OnescriptTestProfilesError {
+	const profileName = name.trim();
+	if (profileName === '') {
+		return { error: 'Укажите имя профиля' };
+	}
+	let root: Record<string, unknown>;
+	if (text === undefined || text.trim() === '') {
+		root = { profiles: {} };
+	} else {
+		let value: unknown;
+		try {
+			value = JSON.parse(text) as unknown;
+		} catch {
+			return { error: 'Файл профилей тестов OneScript не разобран' };
+		}
+		if (!isRecord(value) || (value.profiles !== undefined && !isRecord(value.profiles))) {
+			return { error: 'В файле профилей тестов OneScript нет объекта profiles' };
+		}
+		const profiles = isRecord(value.profiles) ? { ...value.profiles } : {};
+		root = { ...value, profiles };
+	}
+	const profiles = root.profiles;
+	if (!isRecord(profiles)) {
+		return { error: 'В файле профилей тестов OneScript нет объекта profiles' };
+	}
+	if (Object.hasOwn(profiles, profileName)) {
+		return { error: 'Такой профиль уже есть' };
+	}
+	profiles[profileName] = {};
+	return { text: `${JSON.stringify(root, null, '\t')}\n` };
+}
+
+/**
  * Читает профили проекта. Отсутствие файла — не ошибка.
  *
  * @param root - Корень проекта
