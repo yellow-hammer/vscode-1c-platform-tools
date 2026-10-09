@@ -66,8 +66,13 @@ export function registerTestingFeature(params: {
 }
 
 function registerOnescriptTestProfileCommand(controller: TestingController): vscode.Disposable {
-	return vscode.commands.registerCommand('1c-platform-tools.test.selectOnescriptProfile', () =>
-		controller.selectOnescriptProfile()
+	return vscode.Disposable.from(
+		vscode.commands.registerCommand('1c-platform-tools.test.selectOnescriptProfile', () =>
+			controller.selectOnescriptProfile()
+		),
+		vscode.commands.registerCommand('1c-platform-tools.test.openOnescriptProfiles', () =>
+			controller.openOnescriptProfiles()
+		)
 	);
 }
 
