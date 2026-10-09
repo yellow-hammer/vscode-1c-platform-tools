@@ -2475,7 +2475,7 @@
         },
         {
           "command": "1c-platform-tools.test.selectOnescriptProfile",
-          "when": "1c-platform-tools.is1CProject"
+          "when": "1c-platform-tools.project.onescript"
         },
         {
           "command": "1c-platform-tools.tools.refresh",
@@ -2898,7 +2898,7 @@
         },
         {
           "command": "1c-platform-tools.test.selectOnescriptProfile",
-          "when": "controllerId == '1c-platform-tools-tests' && testId =~ /^onescript\\|file:/",
+          "when": "controllerId == '1c-platform-tools-tests' && testId =~ /^onescript\\|file:/ && 1c-platform-tools.project.onescript",
           "group": "1c-platform-tools@2"
         }
       ],
