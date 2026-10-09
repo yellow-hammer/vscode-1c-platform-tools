@@ -58,10 +58,17 @@ export function registerTestingFeature(params: {
 			...explorer.disposables,
 			configureCommand,
 			registerMutationTestingOfItem(explorer.controller, vrunner),
+			registerOnescriptTestProfileCommand(explorer.controller),
 			new vscode.Disposable(disposeMutatosDiagnostics)
 		],
 		rebuild: explorer.rebuild
 	};
+}
+
+function registerOnescriptTestProfileCommand(controller: TestingController): vscode.Disposable {
+	return vscode.commands.registerCommand('1c-platform-tools.test.selectOnescriptProfile', () =>
+		controller.selectOnescriptProfile()
+	);
 }
 
 /**
