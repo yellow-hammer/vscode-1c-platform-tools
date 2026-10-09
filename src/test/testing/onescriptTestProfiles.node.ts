@@ -4,7 +4,11 @@
  */
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
-import { onescriptProfileEnv, parseOnescriptTestProfiles } from '../../features/testing/onescriptTestProfiles';
+import {
+	onescriptProfileEnv,
+	parseOnescriptTestProfiles,
+	withOnescriptTestProfile,
+} from '../../features/testing/onescriptTestProfiles';
 
 const FILE = `{
   "profiles": {
@@ -19,6 +23,11 @@ const FILE = `{
 }`;
 
 describe('parseOnescriptTestProfiles', () => {
+	test('пустой профиль не задаёт переменных', () => {
+		const parsed = parseOnescriptTestProfiles('{"profiles":{"local":{}}}');
+		assert.deepEqual(parsed, { profiles: { local: {} } });
+	});
+
 	test('пустой объект profiles не задаёт имён', () => {
 		const parsed = parseOnescriptTestProfiles('{"profiles":{}}');
 		assert.deepEqual(parsed, { profiles: {} });
@@ -69,5 +78,33 @@ describe('onescriptProfileEnv', () => {
 	test('без профиля окружение плана не меняется', () => {
 		const plan = { PATH: 'C:\\oscript' };
 		assert.equal(onescriptProfileEnv('onescript', undefined, plan), plan);
+	});
+});
+
+describe('withOnescriptTestProfile', () => {
+	test('новый файл получает пустой профиль', () => {
+		const next = withOnescriptTestProfile(undefined, ' local ');
+		assert.ok(!('error' in next));
+		if ('error' in next) {
+			return;
+		}
+		assert.deepEqual(JSON.parse(next.text), { profiles: { local: {} } });
+	});
+
+	test('существующий профиль и чужие поля сохраняются', () => {
+		const next = withOnescriptTestProfile('{"note":1,"profiles":{"local":{"A":"1"}}}', 'other');
+		assert.ok(!('error' in next));
+		if ('error' in next) {
+			return;
+		}
+		assert.deepEqual(JSON.parse(next.text), {
+			note: 1,
+			profiles: { local: { A: '1' }, other: {} },
+		});
+	});
+
+	test('повторное имя — ошибка', () => {
+		const next = withOnescriptTestProfile('{"profiles":{"local":{}}}', 'local');
+		assert.deepEqual(next, { error: 'Такой профиль уже есть' });
 	});
 });
