@@ -67,7 +67,7 @@ project/
 
 Расширение использует служебные файлы проекта и не генерирует свои. Все прогоны идут под [активным профилем запуска](launch-profiles.md): его `--settings` подставляется централизованно, а пути отчётов и параметров читаются из файла профиля с учётом схемы (плоские секции в `env.json`, каскад `vrunner.test.*` в `autumn-properties.json`).
 
-- профиль — секции `vanessa` (`vanessasettings`), `xunit` (`reportsxunit` — отсюда берётся путь jUnit-отчёта) и `yaxunit` (см. [ниже](#yaxunit-и-профиль-запуска));
+- профиль — секции `vanessa` (`vanessasettings`; `bddrunner-path` уходит в команду флагом `--bddrunner-path` на vanessa-runner 3 и `--pathvanessa` на 2), `xunit` (`reportsxunit` — отсюда берётся путь jUnit-отчёта) и `yaxunit` (см. [ниже](#yaxunit-и-профиль-запуска));
 - `tools/VAParams.json` — какие отчёты пишет Vanessa Automation (jUnit или Cucumber JSON) и куда;
 - `tools/yaxunit.json` — базовый конфиг RunUnitTests; панель накладывает на него фильтр по выбранному модулю/тесту.
 

@@ -8,6 +8,7 @@ import {
 	syntaxCheckAllurePathsFromEnv,
 	vanessaReportTarget,
 	vanessaSettingsPathFromEnv,
+	bddRunnerPathFromSettings,
 	reportsXunitFromEnv,
 	syntaxCheckJUnitPathFromEnv,
 	syntaxCheckGroupByMetadataFromEnv,
@@ -190,6 +191,37 @@ suite('projectTestConfig', () => {
 		assert.strictEqual(reportsXunitFromEnv(envJson), 'ГенераторОтчетаJUnitXML{build/junit.xml}');
 		assert.strictEqual(vanessaSettingsPathFromEnv({}), undefined);
 		assert.strictEqual(reportsXunitFromEnv({}), undefined);
+	});
+
+	test('bddRunnerPathFromSettings: каскад 3.x и ключи мимо секции test', () => {
+		const cascade = {
+			vrunner: {
+				test: { vanessa: { 'bddrunner-path': './tools/VA_Tests/vanessa-automation-single.epf' } },
+			},
+		};
+		assert.strictEqual(
+			bddRunnerPathFromSettings(cascade, 'v3'),
+			'./tools/VA_Tests/vanessa-automation-single.epf'
+		);
+		assert.strictEqual(
+			bddRunnerPathFromSettings({
+				vrunner: { vanessa: { pathvanessa: './tools/VA_Tests/vanessa-automation-single.epf' } },
+			}, 'v3'),
+			'./tools/VA_Tests/vanessa-automation-single.epf'
+		);
+		assert.strictEqual(
+			bddRunnerPathFromSettings({ 'vanessa.bddrunner-path': './tools/runner.epf' }, 'v3'),
+			'./tools/runner.epf'
+		);
+		assert.strictEqual(
+			bddRunnerPathFromSettings({ vrunner: { 'vanessa.bddrunner-path': './tools/dotted.epf' } }, 'v3'),
+			'./tools/dotted.epf'
+		);
+		assert.strictEqual(bddRunnerPathFromSettings({ vrunner: { ibconnection: '/F./build/ib' } }, 'v3'), undefined);
+		assert.strictEqual(
+			bddRunnerPathFromSettings({ vanessa: { '--pathvanessa': './oscript_modules/va.epf' } }, 'v2'),
+			'./oscript_modules/va.epf'
+		);
 	});
 
 	test('схема v3: читатели берут значения из autumn-properties (vrunner.test/validate.*)', () => {

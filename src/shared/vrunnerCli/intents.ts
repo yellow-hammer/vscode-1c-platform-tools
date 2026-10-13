@@ -129,9 +129,16 @@ export type VRunnerIntent =
 	 * Прогнать BDD-сценарии Vanessa.
 	 *
 	 * `featurePath` — конкретный файл/каталог фич; `vanessaSettings` — путь к
-	 * файлу настроек Vanessa Automation (VAParams).
+	 * файлу настроек Vanessa Automation (VAParams); `bddrunnerPath` — путь к
+	 * обработке bddRunner.epf (`--bddrunner-path` в 3.x, `--pathvanessa` в 2.x).
 	 */
-	| { kind: 'test.vanessa'; featurePath?: string; vanessaSettings?: string; common?: CommonArgs }
+	| {
+		kind: 'test.vanessa';
+		featurePath?: string;
+		vanessaSettings?: string;
+		bddrunnerPath?: string;
+		common?: CommonArgs;
+	}
 	/**
 	 * Прогнать модульные тесты YAxUnit.
 	 *

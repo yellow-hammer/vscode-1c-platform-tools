@@ -314,6 +314,62 @@ export function vanessaSettingsPathFromEnv(
 	return typeof value === 'string' && value.length > 0 ? value : undefined;
 }
 
+/** Непустая строка настройки либо undefined. */
+function textSetting(value: unknown): string | undefined {
+	if (typeof value === 'number') {
+		return String(value);
+	}
+	return typeof value === 'string' && value.trim().length > 0 ? value.trim() : undefined;
+}
+
+/**
+ * Путь к bddRunner.epf из файла настроек.
+ *
+ * Сначала каскад vanessa-runner: `vrunner.test.vanessa.bddrunner-path`, затем
+ * уровни выше и старое имя `pathvanessa`. Если блок `test` не записан, читаются
+ * секция `vrunner.vanessa` и ключ `vanessa.bddrunner-path`: их раннер не видит,
+ * а команда без `--bddrunner-path` падает, когда рядом с OneScript нет vanessa-add.
+ *
+ * @param settings - Разобранное содержимое файла настроек
+ * @param schema - Схема файла (2.x или 3.x)
+ * @returns Путь как записан в файле или undefined
+ */
+export function bddRunnerPathFromSettings(
+	settings: Record<string, unknown>,
+	schema: SettingsSchema = 'v2'
+): string | undefined {
+	const fromCascade = textSetting(settingValue(settings, schema, 'vanessa', 'bddrunner-path'))
+		?? textSetting(settingValue(settings, schema, 'vanessa', 'pathvanessa'));
+	if (fromCascade) {
+		return fromCascade;
+	}
+	const extra = schema === 'v3'
+		? [
+			['vrunner', 'vanessa', 'bddrunner-path'],
+			['vrunner', 'vanessa', 'pathvanessa'],
+			['vrunner', 'vanessa.bddrunner-path'],
+			['vanessa.bddrunner-path'],
+			['vanessa', 'bddrunner-path'],
+			['vanessa', '--bddrunner-path'],
+			['vanessa', '--pathvanessa'],
+		]
+		: [
+			['vanessa', 'bddrunner-path'],
+			['vanessa.bddrunner-path'],
+		];
+	for (const segments of extra) {
+		let node: unknown = settings;
+		for (const segment of segments) {
+			node = jsonProperty(node, segment);
+		}
+		const value = textSetting(node);
+		if (value) {
+			return value;
+		}
+	}
+	return undefined;
+}
+
 /**
  * Извлекает значение --reportsxunit из env.json (секция xunit)
  *

@@ -27,6 +27,12 @@ export interface PlanContext {
 	settingsFile?: string;
 	/** Строка подключения к ИБ, заданная в вызове. */
 	explicitIbConnection?: string;
+	/**
+	 * Путь к bddRunner.epf из профиля. Ставится в `test.vanessa`, если команда
+	 * ещё не задала свой путь: без флага vanessa-runner ищет vanessa-add рядом
+	 * с OneScript и падает, когда каталога нет.
+	 */
+	bddrunnerPath?: string;
 	/** Формат файла настроек: нужен, чтобы не передавать файл чужой версии. */
 	settingsFormat: (settingsFile: string) => SettingsFileFormat;
 }
@@ -172,6 +178,27 @@ function stripV2SettingsOnCli3(
  * @param cli3 - Установлен vanessa-runner 3.x
  * @param notices - Замечания планирования (пополняются при снятии инкремента)
  */
+/**
+ * Подставляет путь к bddRunner из профиля, если команда его ещё не задала.
+ *
+ * Явный путь намерения и флаги `--bddrunner-path` / `--pathvanessa` в common
+ * не перекрываются.
+ *
+ * @param intent - Намерение после прочих правок плана
+ * @param path - Путь из профиля или undefined
+ * @returns Намерение с путём либо то же
+ */
+function applyBddRunnerPath(intent: VRunnerIntent, path: string | undefined): VRunnerIntent {
+	if (!path || intent.kind !== 'test.vanessa' || intent.bddrunnerPath) {
+		return intent;
+	}
+	const common = intent.common ?? [];
+	if (common.includes('--bddrunner-path') || common.includes('--pathvanessa')) {
+		return intent;
+	}
+	return { ...intent, bddrunnerPath: path };
+}
+
 function withoutIncrementOnCli2(intent: VRunnerIntent, cli3: boolean, notices: string[]): VRunnerIntent {
 	if (cli3 || intent.kind !== 'cf.loadFromSrc' || !intent.increment || intent.updateDb) {
 		return intent;
@@ -225,7 +252,7 @@ export function planIntents(intents: VRunnerIntent[], context: PlanContext): Pla
 
 	const steps: string[][] = [];
 	for (const raw of intents) {
-		const intent = withoutIncrementOnCli2(raw, cli3, notices);
+		const intent = applyBddRunnerPath(withoutIncrementOnCli2(raw, cli3, notices), context.bddrunnerPath);
 		const base = intent.common ?? [];
 		const extra = [
 			// не дублируем --settings, если он уже задан в намерении

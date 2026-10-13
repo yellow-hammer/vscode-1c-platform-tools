@@ -54,6 +54,41 @@ suite('vrunnerPlanner', () => {
 		assert.deepStrictEqual(notices, []);
 	});
 
+	test('путь bddRunner из профиля ставится флагом версии', () => {
+		const path = './tools/VA_Tests/vanessa-automation-single.epf';
+		const v3 = planOne({
+			version: V3,
+			overrideArgs: [],
+			bddrunnerPath: path,
+			settingsFormat: formatByName,
+		});
+		assert.ok(v3.args.includes('--bddrunner-path'));
+		assert.strictEqual(v3.args[v3.args.indexOf('--bddrunner-path') + 1], path);
+
+		const v2 = planOne({
+			version: V2,
+			overrideArgs: [],
+			bddrunnerPath: path,
+			settingsFormat: formatByName,
+		});
+		assert.ok(v2.args.includes('--pathvanessa'));
+		assert.ok(!v2.args.includes('--bddrunner-path'));
+	});
+
+	test('явный путь bddRunner в намерении не перекрывается профилем', () => {
+		const { steps } = planIntents(
+			[{ kind: 'test.vanessa', bddrunnerPath: './tools/own.epf' }],
+			{
+				version: V3,
+				overrideArgs: [],
+				bddrunnerPath: './tools/profile.epf',
+				settingsFormat: formatByName,
+			}
+		);
+		assert.ok(steps[0].includes('./tools/own.epf'));
+		assert.ok(!steps[0].includes('./tools/profile.epf'));
+	});
+
 	test('активный профиль подставляется как --settings', () => {
 		const { args } = planOne({
 			version: V2,

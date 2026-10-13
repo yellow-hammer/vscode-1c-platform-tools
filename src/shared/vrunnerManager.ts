@@ -70,6 +70,7 @@ import {
 } from './vrunnerVersion';
 import { VRunnerIntent } from './vrunnerCli';
 import { planIntents, SettingsFileFormat } from './vrunnerCli/planner';
+import { bddRunnerPathFromSettings } from '../features/testing/projectTestConfig';
 import { overlaySettings, parseSettingsJson, readSettingsJson, readSettingsJsonSync } from './settingsJson';
 import { translateArgsToV3 } from './vrunnerCommandMap';
 import { createVRunnerTask, type TaskOutputChain } from '../features/tasks/vrunnerTask';
@@ -963,6 +964,39 @@ export class VRunnerManager {
 	}
 
 	/**
+	 * Путь к bddRunner из настроек прогона, если среди намерений есть Vanessa
+	 * без своего пути.
+	 *
+	 * @param intents - Намерения плана
+	 * @param settingsFile - Явный файл настроек вызова; без него активный профиль
+	 * @returns Путь или undefined
+	 */
+	private async bddRunnerPathForPlan(
+		intents: readonly VRunnerIntent[],
+		settingsFile: string | undefined
+	): Promise<string | undefined> {
+		const needed = intents.some((intent) => {
+			if (intent.kind !== 'test.vanessa' || intent.bddrunnerPath) {
+				return false;
+			}
+			const common = intent.common ?? [];
+			return !common.includes('--bddrunner-path') && !common.includes('--pathvanessa');
+		});
+		if (!needed) {
+			return undefined;
+		}
+		try {
+			const loaded = settingsFile
+				? await this.readSettingsLayers(settingsFile)
+				: await this.readActiveSettings();
+			return bddRunnerPathFromSettings(loaded.settings, loaded.schema);
+		} catch (error) {
+			log.debug(`Путь bddRunner из профиля не прочитан: ${(error as Error).message}`);
+			return undefined;
+		}
+	}
+
+	/**
 	 * Строит план выполнения для семантических намерений.
 	 *
 	 * Единственная точка, где намерение превращается в аргументы CLI: адаптер
@@ -992,6 +1026,7 @@ export class VRunnerManager {
 			activeSettingsFile: this.getActiveSettingsParamIfExists()[1],
 			settingsFile,
 			explicitIbConnection,
+			bddrunnerPath: await this.bddRunnerPathForPlan(intents, settingsFile),
 			settingsFormat: (file) => this.settingsFileFormat(file),
 		});
 

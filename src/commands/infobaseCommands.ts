@@ -63,8 +63,8 @@ export class InfobaseCommands extends BaseCommand {
 
 	async initialize(opts?: CommandExecutionOptions): Promise<StructuredCommandResult | void> {
 		// Инициализация отличается от обычного прогона Vanessa только сценарием:
-		// его подставляем через --vanessasettings, а ИБ, путь к VA и остальное
-		// берутся из активного профиля (planIntents добавит его --settings). Так
+		// его подставляем через --vanessasettings. ИБ берётся из активного профиля,
+		// путь к bddRunner planIntents ставит флагом из того же профиля. Так
 		// работает и на v2, и на v3, где файл init формата 2.x не передаётся.
 		const vanessaSettings = this.vrunner.getInitVanessaSettingsPath();
 		const cmd = getInitializeCommandName();
