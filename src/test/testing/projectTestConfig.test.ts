@@ -2,7 +2,6 @@ import * as assert from 'node:assert';
 import * as path from 'node:path';
 import {
 	resolveConfigPath,
-	settingValue,
 	extractJUnitPathFromReportsXunit,
 	extractAllurePathFromReportsXunit,
 	syntaxCheckAllurePathsFromEnv,
@@ -14,6 +13,7 @@ import {
 	yaxunitSectionFromEnv,
 	yaxunitConfigPathFromCommand,
 } from '../../features/testing/projectTestConfig';
+import { settingValue } from '../../shared/vrunnerSettings';
 
 // Абсолютный корень на любой ОС: path.join('C:','proj') не абсолютен под Linux,
 // из-за чего проверка ветки «уже абсолютный путь» падала в CI.

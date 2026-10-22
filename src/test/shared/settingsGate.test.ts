@@ -89,4 +89,22 @@ suite('файл настроек профиля: команды видят то 
 			assert.strictEqual(await vrunner.ensureProfileSettingsFile(false), false);
 		});
 	});
+
+	test('явный settingsFile чужого формата блокирует так же, как активный профиль', async () => {
+		writeLocalRunner(root, '3.0.0');
+		useFixture('autumn-properties.bom.json', 'autumn-properties.json');
+		useFixture('autumn-properties.v2-format.json', 'env.wrong.json');
+		await vrunner.runWithProjectRoot(root, async () => {
+			await vrunner.getVRunnerVersion();
+			assert.strictEqual(await vrunner.ensureProfileSettingsFile(false), true);
+			const state = vrunner.describeSettingsState('env.wrong.json');
+			assert.strictEqual(state.formatMismatch, true);
+			assert.strictEqual(state.ready, false);
+			assert.strictEqual(await vrunner.ensureProfileSettingsFile(false, 'env.wrong.json'), false);
+			assert.match(
+				vrunner.settingsProblemMessage(state),
+				/env\.wrong\.json.*vanessa-runner 2\.x/
+			);
+		});
+	});
 });

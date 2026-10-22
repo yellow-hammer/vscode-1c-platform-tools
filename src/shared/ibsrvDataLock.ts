@@ -92,11 +92,34 @@ export async function readProcessCommandLine(pid: number): Promise<string | unde
 
 /**
  * Командная строка процесса на Windows через CIM.
+ * На CI Get-CimInstance иногда падает/таймаутит — до трёх попыток с паузой.
+ * Пустой CommandLine — штатный ответ (другой процесс), без ретрая.
  *
  * @param pid - Процесс
- * @returns CommandLine или undefined
+ * @returns Аргументы через пробел или undefined, если строку не прочитать
  */
-function readWindowsProcessCommandLine(pid: number): Promise<string | undefined> {
+async function readWindowsProcessCommandLine(pid: number): Promise<string | undefined> {
+	for (let attempt = 0; attempt < 3; attempt++) {
+		if (attempt > 0) {
+			await new Promise((r) => setTimeout(r, 200));
+		}
+		const result = await readWindowsProcessCommandLineOnce(pid);
+		if (result.ok) {
+			return result.line;
+		}
+	}
+	return undefined;
+}
+
+/**
+ * Один вызов Get-CimInstance для командной строки процесса.
+ *
+ * @param pid - Процесс
+ * @returns ok:true и строка (или undefined при пустом CommandLine); ok:false при ошибке/таймауте execFile
+ */
+function readWindowsProcessCommandLineOnce(
+	pid: number
+): Promise<{ ok: true; line: string | undefined } | { ok: false }> {
 	return new Promise((resolve) => {
 		execFile(
 			'powershell.exe',
@@ -106,10 +129,14 @@ function readWindowsProcessCommandLine(pid: number): Promise<string | undefined>
 				'-Command',
 				`(Get-CimInstance -ClassName Win32_Process -Filter "ProcessId = ${pid}").CommandLine`,
 			],
-			{ encoding: 'utf8', windowsHide: true, timeout: 5_000 },
+			{ encoding: 'utf8', windowsHide: true, timeout: 10_000 },
 			(error, stdout) => {
+				if (error) {
+					resolve({ ok: false });
+					return;
+				}
 				const line = stdout.trim();
-				resolve(error || line === '' ? undefined : line);
+				resolve({ ok: true, line: line === '' ? undefined : line });
 			}
 		);
 	});

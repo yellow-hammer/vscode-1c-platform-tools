@@ -295,6 +295,9 @@ export class V3CliAdapter implements VRunnerCliAdapter {
 				if (intent.vanessaSettings !== undefined) {
 					options.push('--vanessasettings', intent.vanessaSettings);
 				}
+				if (intent.bddrunnerPath) {
+					options.push('--bddrunner-path', intent.bddrunnerPath);
+				}
 				if (intent.featurePath !== undefined) {
 					options.push('--feature-path', intent.featurePath);
 				}
