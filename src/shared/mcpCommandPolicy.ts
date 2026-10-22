@@ -121,6 +121,9 @@ const HIDDEN_EXACT = [
 	`${COMMAND_PREFIX}test.mutatosReport`,
 	// Пункт меню узла панели тестирования: без узла команде нечего запускать
 	`${COMMAND_PREFIX}test.mutatosItem`,
+	// Выбор профиля тестов OneScript открывает список в окне VS Code
+	`${COMMAND_PREFIX}test.selectOnescriptProfile`,
+	`${COMMAND_PREFIX}test.openOnescriptProfiles`,
 	// Имя задачи в вызов не передаётся: агент получает объект опций и промахивается
 	`${COMMAND_PREFIX}tasks.run`,
 	`${COMMAND_PREFIX}tasks.runOscript`,

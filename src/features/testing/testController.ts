@@ -23,6 +23,8 @@ import { ReportTarget } from './projectTestConfig';
 import { RunQueue } from './runQueue';
 import { routeReportCases, RoutableFile } from './batchRouter';
 import { DEFAULT_TESTING } from '../../shared/pathDefaults';
+import { OnescriptProfiles } from './onescriptEnv/profilesUi';
+import { envForAdapter, profileAppliesTo } from './onescriptEnv/resolveEnv';
 import { hasProjectFile } from '../../shared/projectLayout';
 import { projectConfiguration } from '../../shared/projectConfiguration';
 import {
@@ -182,6 +184,8 @@ async function runActionStep(step: AdapterRunStep): Promise<CancellableProcessRe
 	}
 }
 
+type ProfiledPlan = AdapterRunPlan & { envComplete?: boolean };
+
 export class TestingController implements vscode.Disposable {
 	private readonly controller: vscode.TestController;
 	private readonly queue = new RunQueue();
@@ -225,6 +229,13 @@ export class TestingController implements vscode.Disposable {
 	/** Проект, чьи файлы сейчас в дереве */
 	private treeRoot: string | undefined;
 	private readonly scanRootOf: (root: string) => Promise<ProjectScanRoot>;
+	/** Профиль запуска без переменных: прогон как раньше. */
+	private baseRunProfile: vscode.TestRunProfile | undefined;
+	private onescriptProfiles: OnescriptProfiles | undefined;
+	/** Полное окружение выбранного профиля на время прогона. */
+	private shellEnv: NodeJS.ProcessEnv | undefined;
+	private shellProfileName: string | undefined;
+	private shellVariables: string[] | undefined;
 
 	constructor(
 		private readonly adapters: TestFrameworkAdapter[],
@@ -249,12 +260,20 @@ export class TestingController implements vscode.Disposable {
 			}
 		};
 
-		this.controller.createRunProfile(
+		this.baseRunProfile = this.controller.createRunProfile(
 			'Запуск',
 			vscode.TestRunProfileKind.Run,
 			(request, token) => this.runHandler(request, token),
 			true
 		);
+		this.onescriptProfiles = new OnescriptProfiles(
+			this.controller,
+			this.vrunner,
+			this.baseRunProfile,
+			() => this.activeRuns > 0
+		);
+		this.onescriptProfiles.run = (request, token) => this.runHandler(request, token);
+		this.onescriptProfiles.start(this.projectRoot);
 
 		this.disposables.push(this.controller);
 	}
@@ -299,6 +318,7 @@ export class TestingController implements vscode.Disposable {
 		}
 		this.projectRoot = root;
 		this.scheduleRebuild();
+		this.onescriptProfiles?.setRoot(root);
 	}
 
 	/**
@@ -764,6 +784,9 @@ export class TestingController implements vscode.Disposable {
 			root.tags = [new vscode.TestTag(id)];
 			this.controller.items.add(root);
 		}
+		if (adapter.id === 'onescript') {
+			this.onescriptProfiles?.syncRoot();
+		}
 		return root;
 	}
 
@@ -802,30 +825,87 @@ export class TestingController implements vscode.Disposable {
 				return;
 			}
 
-			const run = this.controller.createTestRun(request);
-
-			for (const unit of units) {
-				for (const item of this.leafItems(unit.entry.item)) {
-					run.enqueued(item);
+			// «Запустить все» приходит с одним профилем из отмеченных по умолчанию:
+			// VS Code не вызывает обработчик отдельно на каждый. Остальные прогоняем здесь.
+			const remembered = this.onescriptProfiles?.store.names() ?? [];
+			const requested = this.onescriptProfiles?.nameOf(request.profile);
+			const profilesToRun = remembered.length > 1
+				&& requested !== undefined
+				&& remembered.includes(requested)
+				? remembered
+				: [requested];
+			let reportedError = false;
+			for (const profileName of profilesToRun) {
+				const decision = (await this.onescriptProfiles?.decide(profileName)) ?? { kind: 'unchanged' as const };
+				const blocked = decision.kind === 'error'
+					? units.filter((unit) => profileAppliesTo(unit.entry.adapter.id))
+					: [];
+				if (blocked.length > 0 && decision.kind === 'error' && !reportedError) {
+					reportedError = true;
+					const choice = await vscode.window.showErrorMessage(decision.message, 'Открыть файл');
+					if (choice === 'Открыть файл') {
+						await this.onescriptProfiles?.openFile();
+					}
 				}
-				const suite = this.suiteNode(unit.entry.item);
-				if (suite) {
-					run.enqueued(suite);
+				const runnable = units.filter((unit) => !blocked.includes(unit));
+				const run = this.controller.createTestRun(
+					request,
+					decision.kind === 'env' ? decision.profileName : undefined
+				);
+				if (blocked.length > 0 && decision.kind === 'error') {
+					for (const unit of blocked) {
+						const suite = this.suiteNode(unit.entry.item);
+						this.markAll(
+							run,
+							this.leafItems(unit.entry.item),
+							'errored',
+							decision.message,
+							suite ? [suite] : undefined
+						);
+					}
+					if (runnable.length === 0) {
+						run.end();
+						break;
+					}
+				}
+				if (runnable.length === 0) {
+					run.end();
+					continue;
+				}
+
+				for (const unit of runnable) {
+					for (const item of this.leafItems(unit.entry.item)) {
+						run.enqueued(item);
+					}
+					const suite = this.suiteNode(unit.entry.item);
+					if (suite) {
+						run.enqueued(suite);
+					}
+				}
+
+				await this.queue.enqueue(() =>
+					runWithProject(root, async () => {
+						this.shellEnv = decision.kind === 'env' ? decision.env : undefined;
+						this.shellProfileName = decision.kind === 'env' ? decision.profileName : undefined;
+						this.shellVariables = decision.kind === 'env' ? decision.variables : undefined;
+						try {
+							await this.runUnits(run, runnable, token, root);
+						} finally {
+							this.shellEnv = undefined;
+							this.shellProfileName = undefined;
+							this.shellVariables = undefined;
+							run.end();
+						}
+					})
+				);
+				if (decision.kind === 'error') {
+					break;
 				}
 			}
-
-			await this.queue.enqueue(() =>
-				runWithProject(root, async () => {
-					try {
-						await this.runUnits(run, units, token, root);
-					} finally {
-						run.end();
-					}
-				})
-			);
 		} finally {
 			this.activeRuns -= 1;
 			this.flushPendingRebuild();
+			this.onescriptProfiles?.flush();
 		}
 	}
 
@@ -847,6 +927,12 @@ export class TestingController implements vscode.Disposable {
 		token: vscode.CancellationToken,
 		root: string
 	): Promise<void> {
+		if (this.shellProfileName && units.some((unit) => profileAppliesTo(unit.entry.adapter.id))) {
+			run.appendOutput(`Профиль тестов: ${this.shellProfileName}\r\n`);
+			if (this.shellVariables !== undefined && this.shellVariables.length > 0) {
+				run.appendOutput(`Переменные: ${this.shellVariables.join(', ')}\r\n`);
+			}
+		}
 		const batches = new Map<string, { entry: FileEntry; caseNames?: string[] }[]>();
 		const individual: { entry: FileEntry; caseNames?: string[] }[] = [];
 
@@ -941,7 +1027,7 @@ export class TestingController implements vscode.Disposable {
 			reportDir = created;
 		}
 
-		let plan: AdapterRunPlan | undefined;
+		let plan: ProfiledPlan | undefined;
 		let result: CancellableProcessResult;
 		try {
 			const discovered = this.discoveredFilesOf(adapter);
@@ -950,6 +1036,7 @@ export class TestingController implements vscode.Disposable {
 				await this.cleanupReportDir(reportDir);
 				return false;
 			}
+			plan = this.applyProfileEnv(adapter, plan);
 
 			if (plan.reportTarget) {
 				await this.clearReportTarget(plan.reportTarget);
@@ -974,7 +1061,7 @@ export class TestingController implements vscode.Disposable {
 				run.appendOutput(`\r\n--- ${step.title} ---\r\n`);
 				const stepResult = step.tool === 'action'
 					? await runActionStep(step)
-					: await this.executeStep(step.tool, step.args, plan.env, token, onOutput, root);
+					: await this.executeStep(step.tool, step.args, plan.env, token, onOutput, root, plan.envComplete === true);
 				if (stepResult.cancelled) {
 					await this.cleanupReportDir(reportDir);
 					return true;
@@ -993,7 +1080,7 @@ export class TestingController implements vscode.Disposable {
 				}
 			}
 
-			result = await this.executeStep(plan.tool, plan.args, plan.env, token, onOutput, root);
+			result = await this.executeStep(plan.tool, plan.args, plan.env, token, onOutput, root, plan.envComplete === true);
 		} catch (error) {
 			this.markAll(run, allLeaves, 'errored', `Ошибка запуска: ${(error as Error).message}`, allSuites);
 			await this.cleanupReportDir(reportDir);
@@ -1205,10 +1292,11 @@ export class TestingController implements vscode.Disposable {
 		}
 
 		let result: CancellableProcessResult;
-		let plan: AdapterRunPlan;
+		let plan: ProfiledPlan;
 		try {
 			const runUnit: RunUnit = { fileUri, caseNames };
 			plan = await adapter.buildRunPlan(runUnit, reportDir);
+			plan = this.applyProfileEnv(adapter, plan);
 
 			// Чистим прошлые отчёты в настроенной цели, чтобы не прочитать устаревшие
 			if (plan.reportTarget) {
@@ -1230,7 +1318,7 @@ export class TestingController implements vscode.Disposable {
 				run.appendOutput(`\r\n--- ${step.title} ---\r\n`, undefined, entry.item);
 				const stepResult = step.tool === 'action'
 					? await runActionStep(step)
-					: await this.executeStep(step.tool, step.args, plan.env, token, onOutput, root);
+					: await this.executeStep(step.tool, step.args, plan.env, token, onOutput, root, plan.envComplete === true);
 				if (stepResult.cancelled) {
 					await this.cleanupReportDir(reportDir);
 					return;
@@ -1249,7 +1337,7 @@ export class TestingController implements vscode.Disposable {
 				}
 			}
 
-			result = await this.executeStep(plan.tool, plan.args, plan.env, token, onOutput, root);
+			result = await this.executeStep(plan.tool, plan.args, plan.env, token, onOutput, root, plan.envComplete === true);
 		} catch (error) {
 			this.markAll(run, leaves, 'errored', `Ошибка запуска: ${(error as Error).message}`, suite ? [suite] : undefined);
 			await this.cleanupReportDir(reportDir);
@@ -1296,7 +1384,8 @@ export class TestingController implements vscode.Disposable {
 		env: NodeJS.ProcessEnv | undefined,
 		token: vscode.CancellationToken,
 		onOutput: (chunk: string) => void,
-		root: string
+		root: string,
+		envComplete = false
 	): Promise<CancellableProcessResult> {
 		if (tool === 'vrunner') {
 			// Планы адаптеров тестирования финальные (параметры профиля уже в них)
@@ -1304,8 +1393,11 @@ export class TestingController implements vscode.Disposable {
 				this.vrunner.executeVRunnerCancellable(args, { env, token, onOutput, appendOverrides: false })
 			);
 		}
-		// Обёртки раннеров запускают oscript по имени: движок задаёт PATH
-		const processEnv = await runWithProject(root, () => this.vrunner.oneScriptEnv(env));
+		// Полное окружение профиля уже содержит каталог движка. Повторное слияние
+		// вернуло бы снятые переменные из окружения процесса.
+		const processEnv = envComplete && env !== undefined
+			? env
+			: await runWithProject(root, () => this.vrunner.oneScriptEnv(env));
 		return runCancellableCommand(args[0], {
 			cwd: root,
 			env: processEnv,
@@ -1617,12 +1709,28 @@ export class TestingController implements vscode.Disposable {
 		this.watchers = [];
 	}
 
+
+	private applyProfileEnv(adapter: TestFrameworkAdapter, plan: AdapterRunPlan): ProfiledPlan {
+		const applied = envForAdapter(adapter.id, this.shellEnv, plan.env);
+		return applied.complete ? { ...plan, env: applied.env, envComplete: true } : plan;
+	}
+
+	public selectOnescriptProfile(): Promise<void> {
+		return this.onescriptProfiles?.select() ?? Promise.resolve();
+	}
+
+	public openOnescriptProfiles(): Promise<void> {
+		return this.onescriptProfiles?.openFile() ?? Promise.resolve();
+	}
+
+
 	public dispose(): void {
 		if (this.rebuildTimer) {
 			clearTimeout(this.rebuildTimer);
 			this.rebuildTimer = undefined;
 		}
 		this.disposeWatchers();
+		this.onescriptProfiles?.dispose();
 		for (const disposable of this.disposables) {
 			disposable.dispose();
 		}

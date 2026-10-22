@@ -18,6 +18,9 @@ export const ACTIVE_ENV_PROFILE_STATE = 'activeEnvProfile';
 /** Временные параметры активного профиля запуска. */
 export const ACTIVE_ENV_OVERRIDES_STATE = 'activeEnvOverrides';
 
+/** Id активного профиля прогона тестов OneScript. */
+export const ONESCRIPT_TEST_PROFILE_STATE = 'onescriptTestProfile';
+
 /** Выбор расширений. */
 export const EXTENSION_SELECTION_STATE = 'extensions.selection';
 

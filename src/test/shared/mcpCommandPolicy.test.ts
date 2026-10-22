@@ -130,6 +130,8 @@ suite('mcpCommandPolicy', () => {
 		assert.strictEqual(isCommandExposedToMcp('1c-platform-tools.test.mutatos'), true);
 		assert.strictEqual(commandSupportsWait('1c-platform-tools.test.mutatos'), true);
 		assert.strictEqual(isCommandExposedToMcp('1c-platform-tools.test.mutatosReport'), false);
+		assert.strictEqual(isCommandExposedToMcp('1c-platform-tools.test.selectOnescriptProfile'), false);
+		assert.strictEqual(isCommandExposedToMcp('1c-platform-tools.test.openOnescriptProfiles'), false);
 	});
 
 	test('обновление компонентов агенту не отдаётся: список выбирают галочками', () => {
