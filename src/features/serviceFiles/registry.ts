@@ -48,9 +48,9 @@ export const SERVICE_FILES: ServiceFileSpec[] = [
 	},
 	{
 		id: 'launchProfile',
-		relPath: BASE_ENV_FILE,
+		relPath: BASE_AUTUMN_FILE,
 		label: 'Осн. профиль запуска',
-		description: 'настройки vanessa-runner: env.json (2.x) или autumn-properties.json (3.x)',
+		description: 'настройки vanessa-runner: autumn-properties.json (3.x) или env.json (2.x)',
 		recommended: true,
 	},
 	{
@@ -138,8 +138,7 @@ export function getServiceFileSpec(id: string): ServiceFileSpec | undefined {
 /**
  * Спецификация «Профиля запуска» под схему установленного vanessa-runner.
  *
- * Пункт один, а файл зависит от версии: env.json для 2.x,
- * autumn-properties.json для 3.x (оба раннер читает из корня сам).
+ * Пункт один; файл — по схеме (3.x / 2.x). В реестре по умолчанию 3.x.
  *
  * @param schema - Схема настроек по версии vrunner
  * @returns Спецификация с фактическим файлом
