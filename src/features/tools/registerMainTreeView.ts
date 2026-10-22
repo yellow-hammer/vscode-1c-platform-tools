@@ -63,6 +63,7 @@ export function registerMainTreeView(
 
 	context.subscriptions.push(
 		treeView,
+		treeDataProvider,
 		bindProjectDescription(treeView),
 		launchProfileProvider,
 		profileTreeView,

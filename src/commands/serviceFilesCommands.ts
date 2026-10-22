@@ -16,10 +16,13 @@ import {
 	VRUNNER_INIT_DEFAULTS_V3,
 	HOOKS_DEFAULTS,
 	PIPELINES_DEFAULTS,
-	SETTINGS_MIGRATION_SCRIPT,
-	settingsMigrationCommand,
 } from '../features/serviceFiles/envDefaults';
-import { DEFAULT_PROFILE_ID } from '../shared/envProfiles';
+import {
+	BASE_AUTUMN_FILE,
+	BASE_ENV_FILE,
+	DEFAULT_PROFILE_ID,
+	baseSettingsFileName,
+} from '../shared/envProfiles';
 import { notifyQuiet } from '../shared/notify';
 
 const log = logger.scope('serviceFiles');
@@ -179,7 +182,7 @@ export class ServiceFilesCommands extends BaseCommand {
 		if (!workspaceRoot) {
 			return;
 		}
-		const fullPath = path.join(workspaceRoot, 'autumn-properties.json');
+		const fullPath = path.join(workspaceRoot, BASE_AUTUMN_FILE);
 		if (fsSync.existsSync(fullPath)) {
 			const doc = await vscode.workspace.openTextDocument(vscode.Uri.file(fullPath));
 			await vscode.window.showTextDocument(doc);
@@ -205,19 +208,8 @@ export class ServiceFilesCommands extends BaseCommand {
 			return false;
 		}
 		await fs.writeFile(fullPath, content, 'utf8');
-		const root = path.dirname(fullPath);
-		if (fsSync.existsSync(path.join(root, 'env.json'))) {
-			log.info('Создан autumn-properties.json');
-			const localPackage = 'oscript_modules/vanessa-runner';
-			const packageDir = fsSync.existsSync(path.join(root, localPackage, SETTINGS_MIGRATION_SCRIPT))
-				? localPackage
-				: undefined;
-			vscode.window.showInformationMessage(
-				`Создан autumn-properties.json. Перенести настройки из env.json: ${settingsMigrationCommand(packageDir)}`
-			);
-		} else {
-			notifyQuiet('Создан autumn-properties.json');
-		}
+		log.info(`Создан ${BASE_AUTUMN_FILE}`);
+		notifyQuiet(`Создан ${BASE_AUTUMN_FILE}`);
 		return true;
 	}
 
@@ -229,7 +221,7 @@ export class ServiceFilesCommands extends BaseCommand {
 		if (!workspaceRoot) {
 			return;
 		}
-		const fullPath = path.join(workspaceRoot, 'env.json');
+		const fullPath = path.join(workspaceRoot, BASE_ENV_FILE);
 		if (fsSync.existsSync(fullPath)) {
 			const doc = await vscode.workspace.openTextDocument(vscode.Uri.file(fullPath));
 			await vscode.window.showTextDocument(doc);
@@ -251,8 +243,9 @@ export class ServiceFilesCommands extends BaseCommand {
 	 */
 	private async createLaunchProfileDefault(workspaceRoot: string): Promise<string | undefined> {
 		await this.vrunner.getVRunnerVersion();
-		const fileName = this.vrunner.getActiveSettingsSchema() === 'v3' ? 'autumn-properties.json' : 'env.json';
-		const defaults = fileName === 'env.json' ? ENV_DEFAULTS : AUTUMN_DEFAULTS;
+		const schema = this.vrunner.getActiveSettingsSchema();
+		const fileName = baseSettingsFileName(schema);
+		const defaults = schema === 'v3' ? AUTUMN_DEFAULTS : ENV_DEFAULTS;
 		const fullPath = path.join(workspaceRoot, fileName);
 		if (fsSync.existsSync(fullPath)) {
 			return undefined;
@@ -274,8 +267,8 @@ export class ServiceFilesCommands extends BaseCommand {
 			return false;
 		}
 		await fs.writeFile(fullPath, content, 'utf8');
-		log.info('Создан env.json');
-		notifyQuiet('Создан env.json');
+		log.info(`Создан ${BASE_ENV_FILE}`);
+		notifyQuiet(`Создан ${BASE_ENV_FILE}`);
 		return true;
 	}
 

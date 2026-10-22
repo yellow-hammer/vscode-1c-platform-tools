@@ -5,7 +5,6 @@ import {
 	AUTUMN_OPTIONAL_SECTIONS,
 	mergeAutumnSections,
 } from '../../features/serviceFiles/envSections';
-import { settingsMigrationCommand } from '../../features/serviceFiles/envDefaults';
 import { syntaxCheckJUnitPathFromEnv } from '../../features/testing/projectTestConfig';
 
 suite('serviceFiles/envSections', () => {
@@ -48,17 +47,6 @@ suite('serviceFiles/envSections', () => {
 		assert.deepStrictEqual(
 			Object.keys(result.vrunner.test.yaxunit),
 			['yaxunit-config', 'report-format', 'report-path', 'additional']
-		);
-	});
-
-	test('перенос env.json запускает скрипт из пакета vanessa-runner и читает env.json', () => {
-		assert.strictEqual(
-			settingsMigrationCommand('oscript_modules/vanessa-runner'),
-			'oscript oscript_modules/vanessa-runner/tools/migrate26to30.os --input env.json'
-		);
-		assert.strictEqual(
-			settingsMigrationCommand(),
-			'oscript <каталог vanessa-runner>/tools/migrate26to30.os --input env.json'
 		);
 	});
 

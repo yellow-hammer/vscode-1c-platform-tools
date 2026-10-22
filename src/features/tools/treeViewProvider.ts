@@ -3,7 +3,7 @@ import * as path from 'node:path';
 import * as fsSync from 'node:fs';
 import { WorkspaceTasksCommands } from '../../commands/workspaceTasksCommands';
 import { OscriptTasksCommands } from '../../commands/oscriptTasksCommands';
-import { SERVICE_FILES, resolveLaunchProfileSpec } from '../serviceFiles/registry';
+import { SERVICE_FILES, resolveLaunchProfileSpec, serviceFilesWatchGlob } from '../serviceFiles/registry';
 import { VRunnerManager } from '../../shared/vrunnerManager';
 import {
 	getSetVersionReportCommandName,
@@ -173,7 +173,7 @@ export class PlatformTreeItem extends vscode.TreeItem {
 type TreeDataChangeEvent = PlatformTreeItem | undefined | null | void;
 
 /** Провайдер данных дерева команд */
-export class PlatformTreeDataProvider implements vscode.TreeDataProvider<PlatformTreeItem> {
+export class PlatformTreeDataProvider implements vscode.TreeDataProvider<PlatformTreeItem>, vscode.Disposable {
 	private readonly _onDidChangeTreeData: vscode.EventEmitter<TreeDataChangeEvent> =
 		new vscode.EventEmitter<TreeDataChangeEvent>();
 	readonly onDidChangeTreeData: vscode.Event<TreeDataChangeEvent> =
@@ -188,6 +188,8 @@ export class PlatformTreeDataProvider implements vscode.TreeDataProvider<Platfor
 	private sourceFormat: TreeSourceFormat | undefined;
 	private readonly formatSubscription: vscode.Disposable;
 	private readonly layoutSubscription: vscode.Disposable;
+	/** Create/delete служебных файлов → иконки check/add в группе. */
+	private serviceFilesWatcher: vscode.Disposable | undefined;
 
 	constructor(
 		extensionUri?: vscode.Uri,
@@ -199,8 +201,12 @@ export class PlatformTreeDataProvider implements vscode.TreeDataProvider<Platfor
 		this.setVersionCommands = setVersionCommands;
 		this.extensionUri = extensionUri;
 		this.extensionContext = extensionContext;
-		this.formatSubscription = onDidChangeCurrentProject(() => void this.refreshSourceFormat(true));
+		this.formatSubscription = onDidChangeCurrentProject((change) => {
+			this.watchServiceFiles(change.current);
+			void this.refreshSourceFormat(true);
+		});
 		this.layoutSubscription = onDidChangeProjectLayout(() => void this.refreshSourceFormat());
+		this.watchServiceFiles(currentRoot());
 		void this.refreshSourceFormat();
 	}
 
@@ -214,6 +220,28 @@ export class PlatformTreeDataProvider implements vscode.TreeDataProvider<Platfor
 	dispose(): void {
 		this.formatSubscription.dispose();
 		this.layoutSubscription.dispose();
+		this.serviceFilesWatcher?.dispose();
+		this.serviceFilesWatcher = undefined;
+	}
+
+	/** Как у плашки профиля: watcher на корень проекта, при смене корня — пересоздать. */
+	private watchServiceFiles(root: string | undefined): void {
+		this.serviceFilesWatcher?.dispose();
+		this.serviceFilesWatcher = undefined;
+		if (root === undefined) {
+			return;
+		}
+		const watcher = vscode.workspace.createFileSystemWatcher(
+			new vscode.RelativePattern(root, serviceFilesWatchGlob()),
+			false,
+			true,
+			false
+		);
+		this.serviceFilesWatcher = vscode.Disposable.from(
+			watcher,
+			watcher.onDidCreate(() => this.refresh()),
+			watcher.onDidDelete(() => this.refresh())
+		);
 	}
 
 	/**
