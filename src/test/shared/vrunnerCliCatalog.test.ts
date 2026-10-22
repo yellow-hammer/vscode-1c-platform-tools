@@ -2,7 +2,7 @@ import * as assert from 'node:assert';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { V3CliAdapter } from '../../shared/vrunnerCli/v3Adapter';
-import { planIntents, type SettingsFileFormat } from '../../shared/vrunnerCli/planner';
+import { planIntents } from '../../shared/vrunnerCli/planner';
 import type { VRunnerIntent } from '../../shared/vrunnerCli';
 import { parseVRunnerVersion } from '../../shared/vrunnerVersion';
 
@@ -139,7 +139,6 @@ suite('vrunnerCli: адаптер v3 и каталог опций', () => {
 				'--additional', '/L ru',
 			],
 			activeSettingsFile: 'autumn-properties.dev.json',
-			settingsFormat: (): SettingsFileFormat => 'v3',
 		};
 		const unknown: string[] = [];
 		const withoutSettings: string[] = [];

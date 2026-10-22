@@ -556,11 +556,14 @@ export abstract class BaseCommand {
 	protected async settingsGate(
 		opts: CommandExecutionOptions | undefined
 	): Promise<StructuredCommandResult | 'blocked' | undefined> {
-		if (await this.vrunner.ensureProfileSettingsFile(opts?.wait !== true)) {
+		const settingsFile = opts?.settingsFile?.trim() || undefined;
+		if (await this.vrunner.ensureProfileSettingsFile(opts?.wait !== true, settingsFile)) {
 			return undefined;
 		}
 		if (opts?.wait === true) {
-			return this.executionError(this.vrunner.settingsProblemMessage());
+			return this.executionError(this.vrunner.settingsProblemMessage(
+				this.vrunner.describeSettingsState(settingsFile)
+			));
 		}
 		return 'blocked';
 	}
@@ -1001,6 +1004,9 @@ export abstract class BaseCommand {
 			return;
 		}
 		const { ibConnection, settingsFile, ...execution } = options;
+		if (!(await this.vrunner.ensureProfileSettingsFile(true, settingsFile))) {
+			return;
+		}
 		const argsList = await this.vrunner.planIntents(bridged.intents, settingsFile, ibConnection);
 		if (argsList.length === 0) {
 			return;

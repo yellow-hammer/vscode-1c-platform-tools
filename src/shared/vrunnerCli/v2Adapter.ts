@@ -170,6 +170,9 @@ export class V2CliAdapter implements VRunnerCliAdapter {
 				if (intent.vanessaSettings !== undefined) {
 					args.push('--vanessasettings', intent.vanessaSettings);
 				}
+				if (intent.bddrunnerPath) {
+					args.push('--pathvanessa', intent.bddrunnerPath);
+				}
 				if (intent.featurePath !== undefined) {
 					args.push('--path', intent.featurePath);
 				}

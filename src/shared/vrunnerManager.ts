@@ -69,7 +69,7 @@ import {
 	withAssumedV3,
 } from './vrunnerVersion';
 import { VRunnerIntent } from './vrunnerCli';
-import { planIntents, SettingsFileFormat } from './vrunnerCli/planner';
+import { planIntents } from './vrunnerCli/planner';
 import { overlaySettings, parseSettingsJson, readSettingsJson, readSettingsJsonSync } from './settingsJson';
 import { translateArgsToV3 } from './vrunnerCommandMap';
 import { createVRunnerTask, type TaskOutputChain } from '../features/tasks/vrunnerTask';
@@ -190,9 +190,6 @@ export class VRunnerManager {
 
 	/** Идущий сейчас детект версии по корню: гасит параллельные запуски vrunner. */
 	private readonly vrunnerVersionInFlight = new Map<string, Promise<VRunnerVersion | undefined>>();
-
-	/** Показанные замечания о формате файла настроек: не повторяем за сессию. */
-	private readonly warnedV2SettingsFiles = new Set<string>();
 
 	/** Корни, где уже предупредили про `${gitBranch}` вне репозитория git. */
 	private readonly warnedGitBranchRoots = new Set<string>();
@@ -966,15 +963,11 @@ export class VRunnerManager {
 	 * Строит план выполнения для семантических намерений.
 	 *
 	 * Единственная точка, где намерение превращается в аргументы CLI: адаптер
-	 * выбирается по установленной версии vrunner (2.x/3.x), временные параметры
-	 * активного профиля добавляются в зону сквозных опций (в 3.x они обязаны
-	 * стоять перед позиционными аргументами), решение про `--ibcmd` принимает
-	 * адаптер по-шагово. Для 3.x файл `--settings` формата 2.x не передаётся —
-	 * пользователю подсвечивается, что vrunner 3 использует другой формат
-	 * настроек (см. handleV3SettingsArg).
+	 * выбирается по версии vrunner (2.x/3.x), временные параметры профиля
+	 * добавляются в сквозные опции (в 3.x — перед позиционными), `--ibcmd`
+	 * решает адаптер по-шагово.
 	 *
-	 * Полученные шаги — финальные аргументы: исполнительные методы вызываются
-	 * с `appendOverrides: false`, чтобы не дописывать параметры повторно.
+	 * Шаги — финальные аргументы: исполнение с `appendOverrides: false`.
 	 *
 	 * @param intents - Намерения (каждое может развернуться в несколько команд)
 	 * @param settingsFile - Явный файл настроек; без него берётся активный профиль
@@ -992,38 +985,13 @@ export class VRunnerManager {
 			activeSettingsFile: this.getActiveSettingsParamIfExists()[1],
 			settingsFile,
 			explicitIbConnection,
-			settingsFormat: (file) => this.settingsFileFormat(file),
 		});
 
 		this.planNotices = notices;
 		for (const notice of notices) {
 			log.info(`план: ${notice}`);
-			if (notice.startsWith('Файл настроек ')) {
-				this.notifySettingsFormatProblem(notice);
-			}
 		}
 		return steps;
-	}
-
-	/**
-	 * Формат файла настроек по его содержимому.
-	 *
-	 * @param settingsFile - Путь к файлу (абсолютный или от корня проекта)
-	 * @returns 'v3' (корневой ключ vrunner), 'v2' (плоские секции) либо 'unknown'
-	 */
-	private settingsFileFormat(settingsFile: string): SettingsFileFormat {
-		const root = this.getEffectiveRoot();
-		if (!root) {
-			return 'unknown';
-		}
-		const absolutePath = path.isAbsolute(settingsFile)
-			? settingsFile
-			: path.join(root, settingsFile);
-		try {
-			return detectSettingsFormat(readSettingsJsonSync(absolutePath));
-		} catch {
-			return 'unknown';
-		}
 	}
 
 	/**
@@ -1076,14 +1044,14 @@ export class VRunnerManager {
 	}
 
 	/**
-	 * Состояние файла настроек активного профиля: одно на панель, статус-бар и команды.
+	 * Состояние файла настроек: активный профиль или явный файл вызова.
 	 *
-	 * @returns Схема, имя файла и почему он не годится: не найден, не читается,
-	 *   другого формата; ready - файл пригоден для команд
+	 * @param settingsFile - Явный файл (MCP / вызов); без него — активный профиль
+	 * @returns Схема установленного runner, имя файла и почему он не годится
 	 */
-	public describeSettingsState(): SettingsFileState {
+	public describeSettingsState(settingsFile?: string): SettingsFileState {
 		const schema = this.activeSettingsSchema();
-		const fileName = this.getActiveEnvFile();
+		const fileName = settingsFile?.trim() || this.getActiveEnvFile();
 		const expectedFileName = baseSettingsFileName(schema);
 		const absolutePath = this.settingsAbsolutePath(fileName);
 		const exists = fsSync.existsSync(absolutePath);
@@ -1134,23 +1102,27 @@ export class VRunnerManager {
 	}
 
 	/**
-	 * Проверяет, что файл настроек активного профиля читается и соответствует
-	 * формату установленного vanessa-runner; иначе команда блокируется.
+	 * Проверяет, что файл настроек читается и соответствует формату
+	 * установленного vanessa-runner; иначе команда блокируется.
 	 *
 	 * Настройки — единственный источник параметров подключения и опций команд
-	 * (расширение их в CLI не дублирует), поэтому без файла настроек команды не
+	 * (расширение их в CLI не дублирует), поэтому без пригодного файла команды не
 	 * выполняются: в интерактивном режиме показывается предложение создать или
 	 * открыть файл.
 	 *
 	 * @param interactive - Показывать ли предложение поправить файл
+	 * @param settingsFile - Явный файл вызова; без него — активный профиль
 	 * @returns true, если файл настроек пригоден и команду можно выполнять
 	 */
-	public async ensureProfileSettingsFile(interactive: boolean): Promise<boolean> {
+	public async ensureProfileSettingsFile(
+		interactive: boolean,
+		settingsFile?: string
+	): Promise<boolean> {
 		await this.getVRunnerVersion();
 		if (!this.getEffectiveRoot()) {
 			return true;
 		}
-		const state = this.describeSettingsState();
+		const state = this.describeSettingsState(settingsFile);
 		if (state.ready) {
 			return true;
 		}
@@ -1191,33 +1163,6 @@ export class VRunnerManager {
 		const root = this.getEffectiveRoot();
 		return root && !path.isAbsolute(fileName) ? path.join(root, fileName) : fileName;
 	}
-
-	/**
-	 * Показывает замечание планирования о непригодном файле настроек.
-	 *
-	 * Одно и то же замечание показывается один раз за сессию; кнопка создаёт
-	 * файл настроек нужного формата через служебные файлы.
-	 *
-	 * @param notice - Текст замечания планирования
-	 */
-	private notifySettingsFormatProblem(notice: string): void {
-		if (this.warnedV2SettingsFiles.has(notice)) {
-			return;
-		}
-		this.warnedV2SettingsFiles.add(notice);
-		const createAction = 'Создать профиль запуска';
-		void vscode.window
-			.showWarningMessage(notice, createAction)
-			.then((action) => {
-				if (action === createAction) {
-					void vscode.commands.executeCommand(
-						'1c-platform-tools.serviceFiles.ensure',
-						this.settingsServiceFileId(this.activeSettingsSchema())
-					);
-				}
-			});
-	}
-
 
 	/**
 	 * Проверяет, доступен ли Docker для выполнения команд
@@ -2216,7 +2161,7 @@ export class VRunnerManager {
 	 *
 	 * Схема определяется по установленной версии vrunner: env.json (2.x) или
 	 * autumn-properties.json (3.x). Значения опций внутри читаются с учётом
-	 * схемы (см. settingValue в projectTestConfig).
+	 * схемы (см. settingValue в vrunnerSettings).
 	 *
 	 * @returns Настройки, как их видит vanessa-runner (см. {@link readSettingsLayers}), и схема
 	 */

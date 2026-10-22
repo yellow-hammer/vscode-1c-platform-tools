@@ -1,19 +1,14 @@
 /**
  * Планирование команд vrunner: намерения → аргументы CLI.
  *
- * Чистый модуль без vscode и файловой системы: всё, что зависит от среды
- * (версия vrunner, активный профиль, временные параметры, формат файлов
- * настроек), передаётся входными данными. Так правила приоритета параметров
- * проверяются юнит-тестами.
+ * Без vscode и файловой системы: версия runner, профиль и параметры вызова
+ * приходят во входных данных.
  */
 
 import { quoteFileIbConnection } from '../ibConnectionPath';
 import { VRunnerIntent } from './intents';
 import { selectCliAdapter } from './index';
 import { isV3Cli, VRunnerVersion } from '../vrunnerVersion';
-
-/** Формат файла настроек vanessa-runner. */
-export type SettingsFileFormat = 'v2' | 'v3' | 'unknown';
 
 /** Входные данные планирования. */
 export interface PlanContext {
@@ -27,8 +22,6 @@ export interface PlanContext {
 	settingsFile?: string;
 	/** Строка подключения к ИБ, заданная в вызове. */
 	explicitIbConnection?: string;
-	/** Формат файла настроек: нужен, чтобы не передавать файл чужой версии. */
-	settingsFormat: (settingsFile: string) => SettingsFileFormat;
 }
 
 /** Результат планирования. */
@@ -39,23 +32,53 @@ export interface PlanResult {
 	notices: string[];
 }
 
+/**
+ * Аргумент — именованный флаг: `--flag` или `--flag=value`.
+ *
+ * @param arg - Один токен argv
+ * @param flag - Имя с ведущими `--`, без `=`
+ */
+function isNamedFlag(arg: string, flag: string): boolean {
+	return arg === flag || arg.startsWith(`${flag}=`);
+}
+
+/**
+ * Есть ли в argv любой из перечисленных флагов (обе формы записи).
+ *
+ * @param args - Аргументы
+ * @param flags - Имена с ведущими `--`
+ */
+function hasAnyFlag(args: readonly string[], flags: readonly string[]): boolean {
+	return args.some((arg) => flags.some((flag) => isNamedFlag(arg, flag)));
+}
+
+/**
+ * Значение флага из argv: `--flag value` или `--flag=value`.
+ *
+ * @param args - Аргументы
+ * @param flag - Имя с ведущими `--`
+ */
+function valueOfFlag(args: readonly string[], flag: string): string | undefined {
+	for (let index = 0; index < args.length; index++) {
+		const arg = args[index];
+		if (arg === flag) {
+			return args[index + 1];
+		}
+		if (arg.startsWith(`${flag}=`)) {
+			return arg.slice(flag.length + 1);
+		}
+	}
+	return undefined;
+}
+
 /** В аргументах уже есть флаг подключения к информационной базе. */
 function hasIbConnectionFlag(args: readonly string[]): boolean {
-	return args.some((arg) => arg === '--ibconnection' || arg.startsWith('--ibconnection='));
+	return hasAnyFlag(args, ['--ibconnection']);
 }
 
 /** Значение `--ibconnection` в аргументах команды. */
 function ibConnectionFromArgs(args: readonly string[]): string | undefined {
-	for (let index = 0; index < args.length; index++) {
-		const arg = args[index];
-		if (arg === '--ibconnection') {
-			return args[index + 1];
-		}
-		if (arg.startsWith('--ibconnection=')) {
-			return arg.slice('--ibconnection='.length);
-		}
-	}
-	return undefined;
+	return valueOfFlag(args, '--ibconnection');
 }
 
 /**
@@ -89,18 +112,24 @@ export function stepsUseIbConnection(steps: readonly string[][], connection: str
 /**
  * Убирает из массива аргументов перечисленные флаги вместе со значениями.
  *
- * @param args - Аргументы вида ['--flag', 'value', ...]
- * @param flags - Имена исключаемых флагов
+ * Понимает обе формы: `--flag value` и `--flag=value`.
+ *
+ * @param args - Аргументы
+ * @param flags - Имена исключаемых флагов с ведущими `--`
  * @returns Аргументы без исключённых флагов
  */
 export function stripOverrideFlags(args: string[], flags: string[]): string[] {
 	const result: string[] = [];
 	for (let i = 0; i < args.length; i++) {
-		if (flags.includes(args[i])) {
-			i++; // пропускаем и значение флага
+		const arg = args[i];
+		const matched = flags.find((flag) => isNamedFlag(arg, flag));
+		if (matched !== undefined) {
+			if (arg === matched) {
+				i++; // `--flag value` — пропускаем следующий токен
+			}
 			continue;
 		}
-		result.push(args[i]);
+		result.push(arg);
 	}
 	return result;
 }
@@ -108,59 +137,32 @@ export function stripOverrideFlags(args: string[], flags: string[]): string[] {
 /**
  * Маскирует секреты в аргументах временных параметров для вывода.
  *
- * @param args - Аргументы вида ['--flag', 'value', ...]
+ * Понимает `--db-pwd value` и `--db-pwd=value`.
+ *
+ * @param args - Аргументы
  * @returns Копия с заменённым значением --db-pwd
  */
 export function maskOverrideSecrets(args: string[]): string[] {
-	return args.map((arg, index) => (index > 0 && args[index - 1] === '--db-pwd' ? '••••' : arg));
+	const result: string[] = [];
+	for (let i = 0; i < args.length; i++) {
+		const arg = args[i];
+		if (arg === '--db-pwd') {
+			result.push(arg);
+			if (i + 1 < args.length) {
+				result.push('••••');
+				i++;
+			}
+			continue;
+		}
+		if (arg.startsWith('--db-pwd=')) {
+			result.push('--db-pwd=••••');
+			continue;
+		}
+		result.push(arg);
+	}
+	return result;
 }
 
-/**
- * Убирает `--settings` с файлом формата 2.x из команды vanessa-runner 3.x.
- *
- * vanessa-runner 3 — другой инструмент с другим форматом настроек: файл 2.x он
- * не понимает, а расширение его не конвертирует.
- *
- * @param args - Аргументы команды
- * @param settingsFormat - Определение формата файла
- * @param notices - Список замечаний (пополняется при вырезании)
- * @returns Аргументы без `--settings` формата 2.x (или те же)
- */
-function stripV2SettingsOnCli3(
-	args: string[],
-	settingsFormat: PlanContext['settingsFormat'],
-	notices: string[]
-): string[] {
-	const idx = args.indexOf('--settings');
-	if (idx === -1 || idx + 1 >= args.length) {
-		return args;
-	}
-	const settingsFile = args[idx + 1];
-	if (settingsFormat(settingsFile) !== 'v2') {
-		return args;
-	}
-
-	notices.push(
-		`Файл настроек ${settingsFile} в формате vanessa-runner 2.x не передан: ` +
-		'установлен vanessa-runner 3.x, который читает autumn-properties.json.'
-	);
-	const copy = [...args];
-	copy.splice(idx, 2);
-	return copy;
-}
-
-/**
- * Строит команды vrunner из намерений.
- *
- * Правила приоритета: явный файл настроек вызова отменяет временные параметры
- * профиля; явная строка подключения исключает из них подключение к ИБ и сама
- * передаётся флагом `--ibconnection`; файл настроек чужого формата не
- * передаётся ни в одну сторону.
- *
- * @param intents - Намерения (каждое может развернуться в несколько команд)
- * @param context - Данные окружения (версия, профиль, параметры вызова)
- * @returns Команды и замечания планирования
- */
 /**
  * Снимает инкремент с загрузки без обновления БД на vanessa-runner 2.x.
  *
@@ -183,6 +185,17 @@ function withoutIncrementOnCli2(intent: VRunnerIntent, cli3: boolean, notices: s
 	return { ...intent, increment: false };
 }
 
+/**
+ * Строит команды vrunner из намерений.
+ *
+ * Явный файл настроек вызова отменяет временные параметры профиля; явная
+ * строка подключения исключает из них подключение к ИБ и уходит в
+ * `--ibconnection`.
+ *
+ * @param intents - Намерения (каждое может развернуться в несколько команд)
+ * @param context - Данные окружения (версия, профиль, параметры вызова)
+ * @returns Команды и замечания планирования
+ */
 export function planIntents(intents: VRunnerIntent[], context: PlanContext): PlanResult {
 	const notices: string[] = [];
 	const adapter = selectCliAdapter(context.version);
@@ -211,17 +224,7 @@ export function planIntents(intents: VRunnerIntent[], context: PlanContext): Pla
 	// Именованный профиль подставляется во ВСЕ команды через --settings; для
 	// базового профиля параметр пустой (vrunner читает файл настроек сам)
 	const settingsFileToUse = context.settingsFile ?? context.activeSettingsFile;
-	let settingsParam = settingsFileToUse ? ['--settings', settingsFileToUse] : [];
-
-	// Зеркально stripV2SettingsOnCli3: файл формата 3.x роняет vanessa-runner
-	// 2.x на командах, читающих секции настроек
-	if (!cli3 && settingsParam.length === 2 && context.settingsFormat(settingsParam[1]) === 'v3') {
-		notices.push(
-			`Файл настроек ${settingsParam[1]} в формате vanessa-runner 3.x не передан: ` +
-			'установлен vanessa-runner 2.x.'
-		);
-		settingsParam = [];
-	}
+	const settingsParam = settingsFileToUse ? ['--settings', settingsFileToUse] : [];
 
 	const steps: string[][] = [];
 	for (const raw of intents) {
@@ -229,7 +232,7 @@ export function planIntents(intents: VRunnerIntent[], context: PlanContext): Pla
 		const base = intent.common ?? [];
 		const extra = [
 			// не дублируем --settings, если он уже задан в намерении
-			...(settingsParam.length > 0 && !base.includes('--settings') ? settingsParam : []),
+			...(settingsParam.length > 0 && !hasAnyFlag(base, ['--settings']) ? settingsParam : []),
 			...overrides,
 		];
 		const commonArgs = withExplicitIbConnection([...base, ...extra], context.explicitIbConnection);
@@ -237,7 +240,7 @@ export function planIntents(intents: VRunnerIntent[], context: PlanContext): Pla
 			? { ...intent, common: commonArgs }
 			: intent;
 		for (const step of adapter.plan(merged)) {
-			steps.push(cli3 ? stripV2SettingsOnCli3(step, context.settingsFormat, notices) : step);
+			steps.push(step);
 		}
 	}
 

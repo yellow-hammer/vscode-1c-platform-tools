@@ -401,6 +401,18 @@ suite('vrunnerCli: адаптеры v2/v3', () => {
 		);
 	});
 
+	test('test.vanessa: путь к bddRunner — --pathvanessa в v2, --bddrunner-path в v3', () => {
+		check(
+			{
+				kind: 'test.vanessa',
+				bddrunnerPath: './tools/VA_Tests/vanessa-automation-single.epf',
+				common: conn,
+			},
+			[['vanessa', '--pathvanessa', './tools/VA_Tests/vanessa-automation-single.epf', ...conn]],
+			[['test', 'vanessa', '--bddrunner-path', './tools/VA_Tests/vanessa-automation-single.epf', ...conn]]
+		);
+	});
+
 	test('test.vanessa с фичей и настройками VA: --path в v2, --feature-path в v3', () => {
 		check(
 			{ kind: 'test.vanessa', featurePath: 'features/Смоук/x.feature', vanessaSettings: 'tools/VAParams.json', common: conn },

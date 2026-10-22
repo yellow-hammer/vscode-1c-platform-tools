@@ -57,7 +57,7 @@ export class RunCommands extends BaseCommand {
 		if (!(await this.ensureOscriptAvailable())) {
 			return;
 		}
-		if (!opts?.settingsFile && !opts?.ibConnection && !(await this.vrunner.ensureProfileSettingsFile(true))) {
+		if (!opts?.ibConnection && !(await this.vrunner.ensureProfileSettingsFile(true, opts?.settingsFile))) {
 			return;
 		}
 
@@ -103,7 +103,7 @@ export class RunCommands extends BaseCommand {
 		if (!(await this.ensureOscriptAvailable())) {
 			return;
 		}
-		if (!opts?.settingsFile && !opts?.ibConnection && !(await this.vrunner.ensureProfileSettingsFile(true))) {
+		if (!opts?.ibConnection && !(await this.vrunner.ensureProfileSettingsFile(true, opts?.settingsFile))) {
 			return;
 		}
 
