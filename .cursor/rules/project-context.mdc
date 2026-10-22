@@ -81,7 +81,7 @@ alwaysApply: true
 
 ## Ключевые соглашения
 
-- Коммиты: [Conventional Commits](https://www.conventionalcommits.org/ru/v1.0.0/), сообщения на русском
+- Коммиты: [Conventional Commits](https://www.conventionalcommits.org/ru/v1.0.0/), сообщения на русском; формулировка — `CONTRIBUTING.md` (прошедшее, множественное число)
 - Комментарии и сообщения пользователю: на русском
 - Типы: из `@types/vscode`, избегать `any`
 - Логирование: модуль `src/shared/logger.ts` поверх `LogOutputChannel`, не использовать `console.log`/`console.error` в продакшн-коде. Каждый модуль получает свой логгер через `logger.scope('компонент')` (скоупы: `app`, `dap`, `md-sparrow`, `metadata`, `er`, `ipc`, `vrunner`, `commands`, `tasks`, `releases` и др.); в текст добавляется только префикс компонента — `[компонент] сообщение`, таймстемп и уровень проставляет VS Code. Вывод — Output → «1C: Platform Tools»; уровень и фильтрацию задаёт сам VS Code (селектор уровня у канала / «Developer: Set Log Level…»); при `Debug` DAP-адаптер шлёт трассировку (`[dap]`). Уровни по смыслу: пользовательские события — `info`, диагностика — `debug`, проблема без потери функции — `warn`, отказ — `error`.
