@@ -1,5 +1,6 @@
 /**
- * Когда строка состояния показывает профиль запуска и автономный сервер.
+ * Когда строка состояния показывает профиль запуска и автономный сервер: профиль
+ * есть у проекта любого вида, сервер — только у проекта 1С.
  * @module launch/launchStatusScope
  */
 
@@ -17,7 +18,7 @@ interface KindOf {
 export type ActiveFilePlace = 'none' | 'outside' | KindOf;
 
 /**
- * Показывать ли профиль и сервер.
+ * Показывать ли автономный сервер.
  *
  * Выбранный проект должен работать с платформой: вид проекта 1С, а пока вид не
  * известен, годный файл настроек vanessa-runner. Открытый файл, если он есть,
@@ -37,6 +38,23 @@ export function showsLaunchStatus(current: KindOf | undefined, settingsReady: bo
 	return activeFile !== 'outside' && (activeFile.kind === undefined || isOneCProjectKind(activeFile.kind));
 }
 
+/**
+ * Показывать ли профиль запуска.
+ *
+ * Профиль есть у проекта любого вида; пока вид не известен, нужен годный файл
+ * настроек vanessa-runner. Открытый файл, если он есть, должен лежать в проекте.
+ *
+ * @param current - Выбранный проект
+ * @param settingsReady - Файл настроек выбранного проекта годен
+ * @param activeFile - Где открытый файл
+ */
+export function showsProfileStatus(current: KindOf | undefined, settingsReady: boolean, activeFile: ActiveFilePlace): boolean {
+	if (!current || (current.kind === undefined && !settingsReady)) {
+		return false;
+	}
+	return activeFile !== 'outside';
+}
+
 /** Где лежит файл открытого редактора. */
 function activeFilePlace(): ActiveFilePlace {
 	const uri = vscode.window.activeTextEditor?.document.uri;
@@ -49,7 +67,7 @@ function activeFilePlace(): ActiveFilePlace {
 }
 
 /**
- * Показывать ли профиль и сервер выбранного проекта при открытом сейчас файле.
+ * Показывать ли автономный сервер выбранного проекта при открытом сейчас файле.
  *
  * @param vrunner - Менеджер vrunner
  */
@@ -58,5 +76,18 @@ export function launchStatusVisible(vrunner: VRunnerManager): boolean {
 		const project = currentProject();
 		const settingsReady = project !== undefined && project.kind === undefined && vrunner.describeSettingsState().ready;
 		return showsLaunchStatus(project, settingsReady, activeFilePlace());
+	});
+}
+
+/**
+ * Показывать ли профиль запуска выбранного проекта при открытом сейчас файле.
+ *
+ * @param vrunner - Менеджер vrunner
+ */
+export function profileStatusVisible(vrunner: VRunnerManager): boolean {
+	return outsideProject(() => {
+		const project = currentProject();
+		const settingsReady = project !== undefined && project.kind === undefined && vrunner.describeSettingsState().ready;
+		return showsProfileStatus(project, settingsReady, activeFilePlace());
 	});
 }

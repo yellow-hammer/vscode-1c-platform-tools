@@ -1744,13 +1744,18 @@
       },
       {
         "command": "1c-platform-tools.env.selectProfile",
-        "title": "Выбрать env-профиль",
+        "title": "Выбрать профиль запуска",
         "category": "1С: Конфигурации запуска",
         "icon": "$(server-environment)"
       },
       {
         "command": "1c-platform-tools.env.createProfile",
-        "title": "Создать env-профиль",
+        "title": "Создать профиль запуска",
+        "category": "1С: Конфигурации запуска"
+      },
+      {
+        "command": "1c-platform-tools.env.openEnvironment",
+        "title": "Открыть окружение профиля",
         "category": "1С: Конфигурации запуска"
       },
       {

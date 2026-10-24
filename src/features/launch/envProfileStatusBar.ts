@@ -1,8 +1,8 @@
 /**
- * Status Bar — активный env-профиль запуска.
+ * Status Bar — активный профиль запуска.
  *
- * Показывает выбранный профиль и признак временных параметров; клик открывает
- * выбор профиля.
+ * Показывает выбранный профиль, его окружение и признак временных параметров;
+ * клик открывает выбор профиля.
  */
 
 import * as vscode from 'vscode';
@@ -33,7 +33,7 @@ export function ensureEnvProfileStatusBar(): vscode.StatusBarItem {
 /**
  * Обновляет содержимое статусной строки по текущему состоянию профиля
  *
- * @param visible - Показывать ли элемент: выбранный проект и открытый файл в проекте 1С
+ * @param visible - Показывать ли элемент: выбранный проект и открытый файл в проекте
  */
 export function refreshEnvProfileStatusBar(visible: boolean): void {
 	const item = ensureEnvProfileStatusBar();
@@ -41,6 +41,22 @@ export function refreshEnvProfileStatusBar(visible: boolean): void {
 
 	if (!visible || !vrunner.getWorkspaceRoot()) {
 		item.hide();
+		return;
+	}
+
+	const profile = vrunner.launchProfileSummary();
+	const environment = profile.environment.files.length > 0 ? `Окружение: ${profile.environment.files.join(', ')}` : '';
+
+	// У проекта OneScript нет файла настроек vanessa-runner: только профиль и его окружение
+	if (!vrunner.usesSettingsFiles()) {
+		item.text = `$(rocket) ${profile.label}`;
+		item.backgroundColor = profile.problem ? new vscode.ThemeColor('statusBarItem.warningBackground') : undefined;
+		item.tooltip = new vscode.MarkdownString(
+			[`**1С: Профиль запуска:** ${profile.label}`, environment, profile.problem ? `⚠ ${profile.problem}` : '']
+				.filter(Boolean)
+				.join('\n\n')
+		);
+		item.show();
 		return;
 	}
 
@@ -61,9 +77,10 @@ export function refreshEnvProfileStatusBar(visible: boolean): void {
 			`vanessa-runner: ${versionLabel ?? 'версия не определена'}`,
 			settings.ready
 				? `Файл настроек: ${settings.fileName}`
-				: settings.exists
+				: settings.exists || settings.profileProblem
 					? `⚠ Команды заблокированы. ${vrunner.settingsProblemMessage(settings)}`
 					: '⚠ Профиль запуска не создан, команды заблокированы',
+			environment,
 			overrides ? 'Заданы временные параметры' : '',
 			hasLocalOverrides ? `Действуют локальные перекрытия (${LOCAL_OVERRIDES_FILE})` : '',
 		].filter(Boolean).join('\n\n')

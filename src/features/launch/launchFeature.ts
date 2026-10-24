@@ -1,9 +1,11 @@
 /**
- * Профили запуска 1С и временные параметры.
+ * Профили запуска и временные параметры.
  *
  * Статус-бар активного профиля открывает выбор профиля. Временные параметры
  * (адрес ИБ, пользователь, пароль, версия платформы, доп. параметры) задаются
  * через QuickPick и применяются ко всем командам vanessa-runner поверх профиля.
+ * Окружение профиля лежит в файлах `.env.<id>`: у проекта OneScript профиль —
+ * только окружение.
  */
 
 import { resolveODataEndpoint } from '../../shared/odataEndpoint';
@@ -13,7 +15,17 @@ import * as fs from 'node:fs/promises';
 import * as fsSync from 'node:fs';
 import { spawn } from 'node:child_process';
 import { VRunnerManager } from '../../shared/vrunnerManager';
-import { EnvOverrides, DEFAULT_PROFILE_ID, LOCAL_OVERRIDES_FILE, SettingsSchema, baseSettingsFileName } from '../../shared/envProfiles';
+import {
+	BASE_DOTENV_FILE,
+	DEFAULT_PROFILE_ID,
+	EnvOverrides,
+	LOCAL_OVERRIDES_FILE,
+	SettingsSchema,
+	baseSettingsFileName,
+	ownDotEnvFiles,
+	parseDotEnvFileName,
+	type EnvProfile,
+} from '../../shared/envProfiles';
 import { logger } from '../../shared/logger';
 import { notifyQuiet } from '../../shared/notify';
 import { ENV_DEFAULTS, AUTUMN_DEFAULTS } from '../serviceFiles/envDefaults';
@@ -27,7 +39,7 @@ import {
 	runWithProject,
 } from '../../shared/workspaceProjects';
 import { inCurrentProject } from '../../commands/projectScope';
-import { launchStatusVisible } from './launchStatusScope';
+import { profileStatusVisible } from './launchStatusScope';
 import {
 	ensureEnvProfileStatusBar,
 	refreshEnvProfileStatusBar,
@@ -145,25 +157,19 @@ async function buildNewProfileContent(workspaceRoot: string, schema: SettingsSch
 }
 
 
-/**
- * Создаёт новый env-профиль (env.<id>.json) и делает его активным.
- *
- * @param vrunner - Менеджер vrunner
- * @param refresh - Колбэк обновления статус-бара
- */
-async function createProfile(vrunner: VRunnerManager, refresh: () => void): Promise<void> {
-	const workspaceRoot = vrunner.getWorkspaceRoot();
-	if (!workspaceRoot) {
-		vscode.window.showErrorMessage('Откройте рабочую область для работы с проектом');
-		return;
-	}
+/** Содержимое нового файла окружения: формат строки, остальное пишет пользователь */
+const NEW_DOTENV_CONTENT = '# ИМЯ=значение\n';
 
-	await vrunner.getVRunnerVersion();
-	const schema = vrunner.getActiveSettingsSchema();
-	const namedPattern = schema === 'v3' ? 'autumn-properties.<id>.json' : 'env.<id>.json';
+/**
+ * Спрашивает идентификатор нового профиля.
+ *
+ * @param namedPattern - Шаблон имени файла профиля для подсказки
+ * @returns Идентификатор или undefined при отмене
+ */
+async function askProfileId(namedPattern: string): Promise<string | undefined> {
 	const id = await vscode.window.showInputBox({
 		title: 'Новый профиль запуска',
-		prompt: `Идентификатор профиля → файл ${namedPattern} (например dev, prod, local)`,
+		prompt: `Идентификатор профиля → файл ${namedPattern} (например dev, ci, sqlite)`,
 		placeHolder: 'dev',
 		ignoreFocusOut: true,
 		validateInput: (value) => {
@@ -174,14 +180,98 @@ async function createProfile(vrunner: VRunnerManager, refresh: () => void): Prom
 			if (!/^[A-Za-z0-9_.-]+$/.test(trimmed)) {
 				return 'Допустимы латиница, цифры, точка, дефис и подчёркивание';
 			}
+			if (parseDotEnvFileName(`${BASE_DOTENV_FILE}.${trimmed}`) !== trimmed) {
+				return 'Это имя служебного файла, выберите другое';
+			}
 			return undefined;
 		},
 	});
-	if (id === undefined) {
+	return id?.trim();
+}
+
+/**
+ * Открывает файл в редакторе; файла нет — создаёт его с подсказкой формата.
+ *
+ * @param fullPath - Абсолютный путь файла окружения
+ * @returns true, если файл создан
+ */
+async function openDotEnvFile(fullPath: string): Promise<boolean> {
+	const created = !fsSync.existsSync(fullPath);
+	if (created) {
+		await fs.writeFile(fullPath, NEW_DOTENV_CONTENT, 'utf8');
+		log.info(`Создан файл окружения: ${path.basename(fullPath)}`);
+	}
+	await vscode.window.showTextDocument(await vscode.workspace.openTextDocument(vscode.Uri.file(fullPath)));
+	return created;
+}
+
+/**
+ * Открывает файл окружения активного профиля: личный, если он есть, иначе общий;
+ * файла нет — создаёт общий.
+ *
+ * @param vrunner - Менеджер vrunner
+ */
+async function openProfileEnvironment(vrunner: VRunnerManager): Promise<void> {
+	const workspaceRoot = vrunner.getWorkspaceRoot();
+	if (!workspaceRoot) {
+		vscode.window.showErrorMessage('Откройте рабочую область для работы с проектом');
+		return;
+	}
+	const own = ownDotEnvFiles(vrunner.getActiveEnvProfileId());
+	const existing = own.filter((file) => fsSync.existsSync(path.join(workspaceRoot, file))).at(-1);
+	if (await openDotEnvFile(path.join(workspaceRoot, existing ?? own[0]))) {
+		notifyQuiet(`Создан ${own[0]}`);
+	}
+}
+
+/**
+ * Создаёт профиль из файла окружения `.env.<id>` и делает его активным: так
+ * создаётся профиль проекта без vanessa-runner.
+ *
+ * @param vrunner - Менеджер vrunner
+ * @param refresh - Колбэк обновления статус-бара
+ */
+async function createEnvironmentProfile(vrunner: VRunnerManager, refresh: () => void): Promise<void> {
+	const workspaceRoot = vrunner.getWorkspaceRoot();
+	if (!workspaceRoot) {
+		vscode.window.showErrorMessage('Откройте рабочую область для работы с проектом');
+		return;
+	}
+	const profileId = await askProfileId(`${BASE_DOTENV_FILE}.<id>`);
+	if (profileId === undefined) {
+		return;
+	}
+	const created = await openDotEnvFile(path.join(workspaceRoot, `${BASE_DOTENV_FILE}.${profileId}`));
+	await vrunner.setActiveEnvProfileId(profileId);
+	refresh();
+	notifyQuiet(created ? `Профиль «${profileId}» создан и выбран активным` : `Профиль «${profileId}» выбран активным`);
+}
+
+/**
+ * Создаёт новый профиль и делает его активным: файл настроек vanessa-runner
+ * (env.<id>.json / autumn-properties.<id>.json), у проекта OneScript — файл окружения.
+ *
+ * @param vrunner - Менеджер vrunner
+ * @param refresh - Колбэк обновления статус-бара
+ */
+async function createProfile(vrunner: VRunnerManager, refresh: () => void): Promise<void> {
+	if (!vrunner.usesSettingsFiles()) {
+		await createEnvironmentProfile(vrunner, refresh);
+		return;
+	}
+	const workspaceRoot = vrunner.getWorkspaceRoot();
+	if (!workspaceRoot) {
+		vscode.window.showErrorMessage('Откройте рабочую область для работы с проектом');
 		return;
 	}
 
-	const profileId = id.trim();
+	await vrunner.getVRunnerVersion();
+	const schema = vrunner.getActiveSettingsSchema();
+	const profileId = await askProfileId(schema === 'v3' ? 'autumn-properties.<id>.json' : 'env.<id>.json');
+	if (profileId === undefined) {
+		return;
+	}
+
 	const fileName = schema === 'v3' ? `autumn-properties.${profileId}.json` : `env.${profileId}.json`;
 	const fullPath = path.join(workspaceRoot, fileName);
 	let created = false;
@@ -412,24 +502,39 @@ async function selectProfileById(
 	}
 	await vrunner.setActiveEnvProfileId(profile.id);
 	refresh();
+	const files = profileFiles(profile, vrunner.usesSettingsFiles());
 	return {
 		success: true,
 		exitCode: 0,
-		stdout: `Активирован профиль «${profile.id}» (файл ${profile.fileName}).`,
+		stdout: `Активирован профиль «${profile.id}»${files ? ` (${files})` : ''}.`,
 		stderr: '',
 		profileId: profile.id,
 	};
 }
 
 /**
- * Выбор активного env-профиля и доступ к временным параметрам (главное меню статус-бара).
+ * Свои файлы профиля для подписи в списке: файл настроек и файлы окружения.
+ *
+ * @param profile - Профиль
+ * @param usesSettings - Проект читает файлы настроек vanessa-runner
+ * @returns Имена файлов через запятую
+ */
+function profileFiles(profile: EnvProfile, usesSettings: boolean): string {
+	return [...(usesSettings && profile.ownSettings ? [profile.fileName] : []), ...profile.envFiles].join(', ');
+}
+
+/**
+ * Выбор активного профиля и доступ к временным параметрам (главное меню статус-бара).
+ *
+ * У проекта OneScript файлов настроек vanessa-runner нет: в меню только профили,
+ * их окружение и создание профиля.
  *
  * @param vrunner - Менеджер vrunner
  * @param refresh - Колбэк обновления статус-бара
  */
 async function selectProfile(vrunner: VRunnerManager, refresh: () => void): Promise<void> {
 	interface ProfileItem extends vscode.QuickPickItem {
-		action: 'select' | 'create' | 'ensure' | 'editor' | 'params' | 'clear' | 'redetect';
+		action: 'select' | 'create' | 'ensure' | 'editor' | 'environment' | 'params' | 'clear' | 'redetect';
 		profileId?: string;
 	}
 
@@ -437,19 +542,21 @@ async function selectProfile(vrunner: VRunnerManager, refresh: () => void): Prom
 	await vrunner.getVRunnerVersion();
 
 	for (;;) {
+		const usesSettings = vrunner.usesSettingsFiles();
 		const profiles = vrunner.discoverEnvProfiles();
 		const activeId = vrunner.getActiveEnvProfileId();
 		const hasOverrides = vrunner.hasActiveEnvOverrides();
 		const versionLabel = vrunner.getCachedVRunnerVersionLabel();
 		const hasBase = profiles.some((profile) => profile.isBase);
+		const environmentFiles = vrunner.profileEnvironment().files;
 
 		const items: ProfileItem[] = profiles.map((profile) => ({
 			label: `${profile.id === activeId ? '$(check)' : '$(blank)'} ${profile.label}`,
-			description: profile.fileName,
+			description: profileFiles(profile, usesSettings),
 			action: 'select' as const,
 			profileId: profile.id,
 		}));
-		if (!hasBase) {
+		if (usesSettings && !hasBase) {
 			items.unshift({
 				label: '$(warning) Создать профиль запуска',
 				description: 'не создан, команды заблокированы',
@@ -459,17 +566,24 @@ async function selectProfile(vrunner: VRunnerManager, refresh: () => void): Prom
 
 		items.push({ label: 'Действия', kind: vscode.QuickPickItemKind.Separator, action: 'params' });
 		const hasActiveFile = Boolean(activeId) && profiles.some((profile) => profile.id === activeId);
-		if (hasActiveFile) {
+		if (usesSettings && hasActiveFile) {
 			items.push({ label: '$(go-to-file) Открыть редактор профиля', description: vrunner.getActiveEnvFile(), action: 'editor' });
 		}
-		items.push({ label: '$(settings-gear) Временные параметры', description: hasOverrides ? 'заданы' : 'не заданы', action: 'params' });
-		if (hasOverrides) {
-			items.push({ label: '$(clear-all) Сбросить параметры', action: 'clear' });
+		items.push({
+			label: '$(symbol-variable) Окружение профиля',
+			description: environmentFiles.length > 0 ? environmentFiles.join(', ') : 'не задано',
+			action: 'environment',
+		});
+		if (usesSettings) {
+			items.push({ label: '$(settings-gear) Временные параметры', description: hasOverrides ? 'заданы' : 'не заданы', action: 'params' });
+			if (hasOverrides) {
+				items.push({ label: '$(clear-all) Сбросить параметры', action: 'clear' });
+			}
 		}
-		items.push(
-			{ label: '$(add) Создать профиль…', action: 'create' },
-			{ label: '$(refresh) Определить версию', description: versionLabel, action: 'redetect' }
-		);
+		items.push({ label: '$(add) Создать профиль…', action: 'create' });
+		if (usesSettings) {
+			items.push({ label: '$(refresh) Определить версию', description: versionLabel, action: 'redetect' });
+		}
 
 		const picked = await vscode.window.showQuickPick(items, {
 			title: '1С: Профиль запуска',
@@ -494,6 +608,9 @@ async function selectProfile(vrunner: VRunnerManager, refresh: () => void): Prom
 				return;
 			case 'editor':
 				await vscode.commands.executeCommand('1c-platform-tools.env.openProfileEditor');
+				return;
+			case 'environment':
+				await openProfileEnvironment(vrunner);
 				return;
 			case 'redetect':
 				await vscode.commands.executeCommand('1c-platform-tools.env.refreshVersion');
@@ -523,7 +640,7 @@ export function registerLaunchFeature(
 ): vscode.Disposable[] {
 	const vrunner = VRunnerManager.getInstance(context);
 	// Строка состояния показывает профиль выбранного проекта, а не проекта вызова
-	const refresh = () => outsideProject(() => refreshEnvProfileStatusBar(launchStatusVisible(vrunner)));
+	const refresh = () => outsideProject(() => refreshEnvProfileStatusBar(profileStatusVisible(vrunner)));
 
 	ensureEnvProfileStatusBar();
 	refresh();
@@ -587,16 +704,22 @@ export function registerLaunchFeature(
 			const effectiveOverrides = vrunner.getEffectiveEnvOverrides();
 			const maskPwd = (value: EnvOverrides | undefined) =>
 				value ? { ...value, dbPwd: value.dbPwd ? '••••' : undefined } : null;
+			const profile = vrunner.launchProfileSummary();
 			const status = {
 				vrunnerVersion: vrunner.getCachedVRunnerVersionLabel() ?? null,
 				settingsSchema: vrunner.getActiveSettingsSchema(),
-				activeProfileId: vrunner.getActiveEnvProfileId(),
+				activeProfileId: profile.id,
 				settingsFile,
 				settingsFileExists,
-				profiles: vrunner.discoverEnvProfiles().map((profile) => ({
-					id: profile.id,
-					fileName: profile.fileName,
-					label: profile.label,
+				settingsFiles: profile.settingsFiles ?? null,
+				// значения не отдаём: в файлах окружения бывают пароли
+				environment: { files: profile.environment.files, variables: Object.keys(profile.environment.variables) },
+				profileProblem: profile.problem ?? null,
+				profiles: vrunner.discoverEnvProfiles().map((candidate) => ({
+					id: candidate.id,
+					fileName: candidate.fileName,
+					label: candidate.label,
+					envFiles: candidate.envFiles,
 				})),
 				overrides: maskPwd(overrides),
 				localOverridesFile: localOverrides ? LOCAL_OVERRIDES_FILE : null,
@@ -618,8 +741,12 @@ export function registerLaunchFeature(
 			};
 		})),
 		vscode.commands.registerCommand('1c-platform-tools.env.createProfile', uiOnlyHandler(
-			'Имя профиля запрашивается в окне VS Code; профиль создаётся пользователем или файлом env.<id>.json.',
+			'Имя профиля запрашивается в окне VS Code; профиль создаётся файлом настроек (env.<id>.json, autumn-properties.<id>.json) или окружения (.env.<id>).',
 			inCurrentProject(() => createProfile(vrunner, refresh))
+		)),
+		vscode.commands.registerCommand('1c-platform-tools.env.openEnvironment', uiOnlyHandler(
+			'Окружение профиля открывается в редакторе VS Code: переменные лежат в .env и .env.<id> в корне проекта.',
+			inCurrentProject(() => openProfileEnvironment(vrunner))
 		)),
 		vscode.commands.registerCommand('1c-platform-tools.env.setOverrides', uiOnlyHandler(
 			'Временные параметры задаются в окнах VS Code; для агента передавайте settingsFile или ibConnection в вызове.',
@@ -697,7 +824,7 @@ function watchProjectFiles(
 	const watcher = vscode.workspace.createFileSystemWatcher(
 		new vscode.RelativePattern(
 			root,
-			'{env*.json,autumn-properties*.json,.gitignore,.gitattributes,tools/**,.1cpt/**,.git/HEAD}'
+			'{env*.json,autumn-properties*.json,.env,.env.*,.gitignore,.gitattributes,tools/**,.1cpt/**,.git/HEAD}'
 		)
 	);
 	const onFsChange = () => {

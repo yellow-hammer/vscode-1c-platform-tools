@@ -1,18 +1,20 @@
 /**
  * TreeDataProvider плашки «Профиль запуска» в панели «1С: Инструменты».
  *
- * Показывает, с чем реально работают команды vrunner: активный профиль,
+ * Показывает, с чем реально работают команды: активный профиль, его окружение,
  * версию vanessa-runner, файл настроек её схемы, строку подключения к ИБ и
- * временные параметры. Каждый пункт кликабелен: выбор профиля, создание или
- * открытие файла настроек, задание временных параметров.
+ * временные параметры. У проекта OneScript — профиль, окружение и файл настроек
+ * Осени. Каждый пункт кликабелен: выбор профиля, открытие файлов, задание
+ * временных параметров.
  */
 
 import * as vscode from 'vscode';
 import * as path from 'node:path';
-import { VRunnerManager, type SettingsFileState } from '../../shared/vrunnerManager';
-import { activeProfileLabel, LOCAL_OVERRIDES_FILE } from '../../shared/envProfiles';
+import * as fs from 'node:fs';
+import { VRunnerManager, type LaunchProfileSummary, type SettingsFileState } from '../../shared/vrunnerManager';
+import { activeProfileLabel, BASE_AUTUMN_FILE, LOCAL_OVERRIDES_FILE } from '../../shared/envProfiles';
 import { configurationScope } from '../../shared/activeConfiguration';
-import { onDidChangeCurrentProject } from '../../shared/workspaceProjects';
+import { onDidChangeCurrentProject, onDidChangeProjects } from '../../shared/workspaceProjects';
 import { edtProjectName, readEdtSettings, resolveEdt } from '../edt/edtRunner';
 
 /** Элемент плашки профиля. */
@@ -56,6 +58,8 @@ export class LaunchProfileViewProvider implements vscode.TreeDataProvider<vscode
 			this.vrunner.onDidChangeActiveEnvProfile(() => this.refresh()),
 			this.vrunner.onDidChangeEnvOverrides(() => this.refresh()),
 			this.vrunner.onDidChangeVRunnerVersion(() => this.refresh()),
+			// Вид проекта, от которого зависит состав плашки, известен после обнаружения
+			onDidChangeProjects(() => this.refresh()),
 			onDidChangeCurrentProject((change) => {
 				this.watchProject(change.current);
 				this.refresh();
@@ -78,7 +82,7 @@ export class LaunchProfileViewProvider implements vscode.TreeDataProvider<vscode
 			return;
 		}
 		const watcher = vscode.workspace.createFileSystemWatcher(
-			new vscode.RelativePattern(root, '{env*.json,autumn-properties*.json,.git/HEAD}')
+			new vscode.RelativePattern(root, '{env*.json,autumn-properties*.json,.env,.env.*,.git/HEAD}')
 		);
 		this.projectWatcher = vscode.Disposable.from(
 			watcher,
@@ -129,8 +133,48 @@ export class LaunchProfileViewProvider implements vscode.TreeDataProvider<vscode
 		return element;
 	}
 
+	/** Окружение профиля: файлы `.env` и имена переменных без значений. */
+	private environmentItem(profile: LaunchProfileSummary): vscode.TreeItem {
+		const { files, variables, error } = profile.environment;
+		const names = Object.keys(variables);
+		return item(
+			`Окружение: ${files.length > 0 ? files.join(', ') : 'нет'}`,
+			error ? 'warning' : 'symbol-variable',
+			error ?? (names.length > 0 ? `Переменные: ${names.join(', ')}` : 'Переменные среды профиля для всех запусков. Нажмите, чтобы создать файл.'),
+			{ command: '1c-platform-tools.env.openEnvironment', title: 'Окружение профиля' }
+		);
+	}
+
+	/** Плашка проекта OneScript: профиль, его окружение и файл настроек Осени, если он есть. */
+	private oneScriptItems(workspaceRoot: string | undefined, profile: LaunchProfileSummary): vscode.TreeItem[] {
+		const items = [
+			item(
+				`Профиль: ${profile.label}`,
+				profile.problem ? 'warning' : 'rocket',
+				profile.problem ?? 'Выбрать или создать профиль запуска',
+				{ command: '1c-platform-tools.env.selectProfile', title: 'Выбрать профиль запуска' }
+			),
+			this.environmentItem(profile),
+		];
+		const settings = workspaceRoot === undefined ? undefined : path.join(workspaceRoot, BASE_AUTUMN_FILE);
+		if (settings !== undefined && fs.existsSync(settings)) {
+			items.push(
+				item(`Файл настроек: ${BASE_AUTUMN_FILE}`, 'settings', 'Настройки приложения на Осени', {
+					command: 'vscode.open',
+					title: 'Открыть файл настроек',
+					arguments: [vscode.Uri.file(settings)],
+				})
+			);
+		}
+		return items;
+	}
+
 	getChildren(): vscode.TreeItem[] {
 		const workspaceRoot = this.vrunner.getWorkspaceRoot();
+		const profile = this.vrunner.launchProfileSummary();
+		if (!this.vrunner.usesSettingsFiles()) {
+			return this.oneScriptItems(workspaceRoot, profile);
+		}
 		const schema = this.vrunner.getActiveSettingsSchema();
 		const versionLabel = this.vrunner.getCachedVRunnerVersionLabel();
 		const profileLabel = activeProfileLabel(
@@ -167,6 +211,7 @@ export class LaunchProfileViewProvider implements vscode.TreeDataProvider<vscode
 					? { command: '1c-platform-tools.env.openProfileEditor', title: 'Редактор профиля' }
 					: { command: '1c-platform-tools.serviceFiles.ensure', title: 'Файл настроек', arguments: ['launchProfile'] }
 			),
+			this.environmentItem(profile),
 			item(
 				`ИБ: ${ibConnection ?? '/F./build/ib'}`,
 				'database',
