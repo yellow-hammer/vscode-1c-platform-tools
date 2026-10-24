@@ -115,6 +115,11 @@ export class PipelineCommands extends BaseCommand {
 			return this.rejectIfWait(opts, message) ?? this.showWarning(message);
 		}
 
+		const profileProblem = this.vrunner.launchProfileProblem();
+		if (profileProblem) {
+			return this.rejectIfWait(opts, profileProblem) ?? this.showWarning(profileProblem);
+		}
+
 		if (this.running.has(pipeline.id)) {
 			const message = `Пайплайн «${pipeline.name}» уже выполняется`;
 			return this.rejectIfWait(opts, message) ?? this.showInfo(message);
@@ -430,6 +435,7 @@ ${result.stderr ?? ''}`
 				command,
 				{
 					cwd,
+					env: this.vrunner.launchEnv(),
 					windowsHide: true,
 					maxBuffer: 10 * 1024 * 1024,
 					...(node.timeout !== undefined ? { timeout: node.timeout * 1000 } : {}),

@@ -1,5 +1,7 @@
-# Окружение
+# Окружение: личные файлы профилей запуска
 .env
+.env.local
+.env.*.local
 
 # Результаты сборки и отчёты
 build/
@@ -10,8 +12,9 @@ allure-report/
 # Зависимости OneScript
 oscript_modules/
 
-# Локальный env-профиль запуска (не коммитится)
+# Локальные перекрытия профиля запуска (не коммитятся)
 env.local.json
+autumn-properties.local.json
 
 # Служебные файлы выгрузки конфигурации
 ConfigDumpInfo.xml

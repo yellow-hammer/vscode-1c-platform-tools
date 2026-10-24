@@ -125,7 +125,12 @@ export async function runMutationTesting(
 		hasTopLevel: (name) => fs.existsSync(path.join(root, name)),
 	});
 
-	const env = mutatosEnv(process.env, {
+	const profileProblem = vrunner.launchProfileProblem();
+	if (profileProblem) {
+		return notStarted({ message: profileProblem }, opts);
+	}
+
+	const env = mutatosEnv(vrunner.launchEnv(), {
 		binDir: path.dirname(engine.oscript),
 		testsDirs: relativeTestsDirs(root, testsDirs),
 		excluded,

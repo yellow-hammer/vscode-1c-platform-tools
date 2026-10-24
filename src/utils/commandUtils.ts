@@ -311,6 +311,8 @@ export interface DockerRunOptions {
 	mounts?: readonly DockerMount[];
 	/** Параметры `docker run` из настройки docker.runArgs */
 	runArgs?: readonly string[];
+	/** Переменные профиля запуска: `-e ИМЯ` берёт значение из окружения процесса `docker` */
+	envNames?: readonly string[];
 }
 
 /**
@@ -347,6 +349,7 @@ function dockerRunPrefix(workspaceRoot: string, options: DockerRunOptions, hostP
 		'-v',
 		`${hostPath(workspaceRoot)}:${CONTAINER_WORKSPACE}`,
 		...(options.mounts ?? []).flatMap((mount) => ['-v', `${hostPath(mount.host)}:${mount.container}`]),
+		...(options.envNames ?? []).flatMap((name) => ['-e', name]),
 		'-w',
 		CONTAINER_WORKSPACE,
 		...(options.runArgs ?? []),

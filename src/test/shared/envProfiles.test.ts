@@ -13,6 +13,8 @@ import {
 	mergeEnvOverrides,
 	parseLocalOverrides,
 	detectSettingsFormat,
+	dotEnvFilesOf,
+	parseDotEnvFileName,
 } from '../../shared/envProfiles';
 
 suite('envProfiles', () => {
@@ -146,6 +148,58 @@ suite('envProfiles', () => {
 		assert.strictEqual(hasOverrides({}), false);
 		assert.strictEqual(hasOverrides({ ibConnection: '' }), false);
 		assert.strictEqual(hasOverrides({ v8version: '8.3.27' }), true);
+	});
+});
+
+suite('envProfiles: окружение профиля', () => {
+	test('parseDotEnvFileName: .env.<id> и .env.<id>.local — профиль <id>, база и образцы — нет', () => {
+		assert.strictEqual(parseDotEnvFileName('.env.sqlite'), 'sqlite');
+		assert.strictEqual(parseDotEnvFileName('.env.sqlite.local'), 'sqlite');
+		assert.strictEqual(parseDotEnvFileName('.env.ci.linux'), 'ci.linux');
+		for (const name of ['.env', '.env.local', '.env.example', '.env.sample.local', '.env.', 'env.ci', '.envrc']) {
+			assert.strictEqual(parseDotEnvFileName(name), undefined, name);
+		}
+	});
+
+	test('dotEnvFilesOf: файлы «По умолчанию» действуют в каждом профиле, личный поверх общего', () => {
+		assert.deepStrictEqual(dotEnvFilesOf(DEFAULT_PROFILE_ID), ['.env', '.env.local']);
+		assert.deepStrictEqual(dotEnvFilesOf('ci'), ['.env', '.env.local', '.env.ci', '.env.ci.local']);
+	});
+
+	test('buildEnvProfiles: профиль появляется по файлу настроек или окружения', () => {
+		const profiles = buildEnvProfiles(
+			[
+				'autumn-properties.json',
+				'autumn-properties.ci.json',
+				'autumn-properties.local.json',
+				'.env',
+				'.env.local',
+				'.env.ci',
+				'.env.sqlite',
+				'.env.sqlite.local',
+				'.env.example',
+			],
+			'v3'
+		);
+		assert.deepStrictEqual(
+			profiles.map(({ id, fileName, ownSettings, envFiles }) => ({ id, fileName, ownSettings, envFiles })),
+			[
+				{ id: DEFAULT_PROFILE_ID, fileName: 'autumn-properties.json', ownSettings: true, envFiles: ['.env', '.env.local'] },
+				{ id: 'ci', fileName: 'autumn-properties.ci.json', ownSettings: true, envFiles: ['.env.ci'] },
+				{ id: 'sqlite', fileName: 'autumn-properties.json', ownSettings: false, envFiles: ['.env.sqlite', '.env.sqlite.local'] },
+			]
+		);
+	});
+
+	test('buildEnvProfiles: проект без vanessa-runner файлы настроек не читает, «По умолчанию» есть всегда', () => {
+		const profiles = buildEnvProfiles(['autumn-properties.json', 'autumn-properties.ci.json', '.env.postgres'], 'v3', false);
+		assert.deepStrictEqual(
+			profiles.map(({ id, isBase, ownSettings }) => ({ id, isBase, ownSettings })),
+			[
+				{ id: DEFAULT_PROFILE_ID, isBase: true, ownSettings: false },
+				{ id: 'postgres', isBase: false, ownSettings: false },
+			]
+		);
 	});
 });
 

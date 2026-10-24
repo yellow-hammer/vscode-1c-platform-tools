@@ -1,10 +1,13 @@
 /**
- * Модель env-профилей запуска.
+ * Модель профилей запуска.
  *
- * Профиль — самодостаточный файл настроек vanessa-runner в корне проекта:
- * `env.json` (базовый) и `env.<id>.json` (именованные, например env.dev.json).
- * Активный профиль подставляется в команды vrunner через `--settings`; поверх
- * него можно задать временные параметры отдельными флагами.
+ * У профиля две половины, обе в корне проекта и обе необязательные:
+ * - настройки vanessa-runner: `env.json` / `autumn-properties.json` (базовый) и
+ *   `env.<id>.json` / `autumn-properties.<id>.json` (именованные). Именованный
+ *   подставляется в команды vrunner через `--settings`; поверх можно задать
+ *   временные параметры отдельными флагами;
+ * - окружение: `.env` и `.env.<id>` с личными `.local`-парами. Переменные
+ *   получает каждый процесс, который запускает расширение.
  *
  * Модуль чистый (без vscode/fs).
  */
@@ -33,6 +36,23 @@ export const LOCAL_OVERRIDES_FILE = 'env.local.json';
 export const BASE_AUTUMN_FILE = 'autumn-properties.json';
 
 /**
+ * Личный файл настроек vanessa-runner 3: проектный autumn-properties.json
+ * подключает его ключом `vrunner.settings`, профилем запуска он не считается.
+ */
+export const LOCAL_AUTUMN_FILE = 'autumn-properties.local.json';
+
+/** Файл окружения профиля «По умолчанию»: его переменные действуют во всех профилях */
+export const BASE_DOTENV_FILE = '.env';
+
+/** Суффикс личного файла окружения (`.env.local`, `.env.<id>.local`) */
+const LOCAL_DOTENV_SUFFIX = '.local';
+
+/** Образцы вроде `.env.example`: их кладут в репозиторий для справки, профилями они не считаются */
+const DOTENV_TEMPLATES = new Set(['example', 'sample', 'template', 'dist']);
+
+const DOTENV_FILE_RE = /^\.env\.([A-Za-z0-9_.-]+)$/;
+
+/**
  * Имя базового файла настроек для схемы.
  *
  * @param schema - Схема настроек (по версии vrunner)
@@ -52,17 +72,21 @@ export const DEFAULT_PROFILE_LABEL = 'По умолчанию';
 export const NO_SETTINGS_LABEL = 'Нет файла настроек';
 
 /**
- * Env-профиль запуска
+ * Профиль запуска
  */
 export interface EnvProfile {
 	/** Идентификатор профиля ('default' — env.json, 'dev' — env.dev.json и т.п.) */
 	id: string;
-	/** Имя файла относительно корня проекта (например `env.dev.json`) */
+	/** Файл настроек, который читает vrunner: свой файл профиля или базовый */
 	fileName: string;
 	/** Подпись для UI */
 	label: string;
 	/** Признак базового профиля (env.json) */
 	isBase: boolean;
+	/** У профиля свой файл настроек; без него vrunner читает базовый */
+	ownSettings: boolean;
+	/** Свои файлы окружения профиля, от слабого к сильному */
+	envFiles: string[];
 }
 
 /**
@@ -98,8 +122,8 @@ const AUTUMN_FILE_RE = /^autumn-properties(?:\.([A-Za-z0-9_.-]+))?\.json$/;
  */
 export function parseEnvFileName(fileName: string, schema: SettingsSchema = 'v2'): EnvProfile | undefined {
 	const trimmed = fileName.trim();
-	// env.local.json — файл локальных перекрытий, а не профиль запуска
-	if (trimmed === LOCAL_OVERRIDES_FILE) {
+	// личные файлы перекрытий, а не профили запуска
+	if (trimmed === LOCAL_OVERRIDES_FILE || trimmed === LOCAL_AUTUMN_FILE) {
 		return undefined;
 	}
 	const pattern = schema === 'v3' ? AUTUMN_FILE_RE : ENV_FILE_RE;
@@ -109,28 +133,94 @@ export function parseEnvFileName(fileName: string, schema: SettingsSchema = 'v2'
 	}
 	const id = match[1];
 	if (id === undefined) {
-		return { id: DEFAULT_PROFILE_ID, fileName: baseSettingsFileName(schema), label: DEFAULT_PROFILE_LABEL, isBase: true };
+		return baseProfile(schema, true);
 	}
-	return { id, fileName: trimmed, label: id, isBase: false };
+	return { id, fileName: trimmed, label: id, isBase: false, ownSettings: true, envFiles: [] };
+}
+
+function baseProfile(schema: SettingsSchema, ownSettings: boolean): EnvProfile {
+	return {
+		id: DEFAULT_PROFILE_ID,
+		fileName: baseSettingsFileName(schema),
+		label: DEFAULT_PROFILE_LABEL,
+		isBase: true,
+		ownSettings,
+		envFiles: [],
+	};
+}
+
+/**
+ * Профиль, к которому относится файл окружения: `.env.ci` и `.env.ci.local` — профиль ci.
+ *
+ * @param fileName - Имя файла в корне проекта
+ * @returns id именованного профиля; undefined для `.env`, `.env.local`, образцов и прочих файлов
+ */
+export function parseDotEnvFileName(fileName: string): string | undefined {
+	const match = DOTENV_FILE_RE.exec(fileName.trim());
+	if (!match || match[1] === LOCAL_DOTENV_SUFFIX.slice(1)) {
+		return undefined;
+	}
+	const id = match[1].endsWith(LOCAL_DOTENV_SUFFIX) ? match[1].slice(0, -LOCAL_DOTENV_SUFFIX.length) : match[1];
+	return id === '' || DOTENV_TEMPLATES.has(id.toLowerCase()) ? undefined : id;
+}
+
+/**
+ * Свои файлы окружения профиля, от слабого к сильному: личный файл перекрывает общий.
+ *
+ * @param profileId - id профиля
+ * @returns Имена файлов в корне проекта
+ */
+export function ownDotEnvFiles(profileId: string): string[] {
+	const name = profileId === DEFAULT_PROFILE_ID ? BASE_DOTENV_FILE : `${BASE_DOTENV_FILE}.${profileId}`;
+	return [name, `${name}${LOCAL_DOTENV_SUFFIX}`];
+}
+
+/**
+ * Файлы окружения, которые действуют в профиле, от слабого к сильному:
+ * сначала файлы профиля «По умолчанию», затем свои файлы профиля.
+ *
+ * @param profileId - id профиля
+ * @returns Имена файлов в корне проекта (существование не проверяется)
+ */
+export function dotEnvFilesOf(profileId: string): string[] {
+	const base = ownDotEnvFiles(DEFAULT_PROFILE_ID);
+	return profileId === DEFAULT_PROFILE_ID ? base : [...base, ...ownDotEnvFiles(profileId)];
 }
 
 /**
  * Строит список профилей из имён файлов корня проекта
  *
- * Возвращаются только профили для реально существующих файлов (env.json → «По
- * умолчанию», env.<id>.json → <id>). Дубликаты по id отбрасываются, сортировка:
- * env.json первым, далее по алфавиту.
+ * Профиль появляется по своему файлу настроек (env.json → «По умолчанию»,
+ * env.<id>.json → <id>) или по файлу окружения (`.env.<id>` → <id>). Проект без
+ * vanessa-runner файлов настроек не читает: у него профиль «По умолчанию» есть
+ * всегда. Дубликаты по id сливаются, сортировка: базовый первым, далее по алфавиту.
  *
  * @param fileNames - Имена файлов в корне проекта
+ * @param schema - Схема настроек установленного vrunner
+ * @param usesSettings - Проект работает с vanessa-runner и читает его файлы настроек
  * @returns Отсортированный список профилей
  */
-export function buildEnvProfiles(fileNames: string[], schema: SettingsSchema = 'v2'): EnvProfile[] {
+export function buildEnvProfiles(fileNames: string[], schema: SettingsSchema = 'v2', usesSettings = true): EnvProfile[] {
 	const byId = new Map<string, EnvProfile>();
-	for (const name of fileNames) {
-		const profile = parseEnvFileName(name, schema);
-		if (profile && !byId.has(profile.id)) {
-			byId.set(profile.id, profile);
+	if (usesSettings) {
+		for (const name of fileNames) {
+			const profile = parseEnvFileName(name, schema);
+			if (profile && !byId.has(profile.id)) {
+				byId.set(profile.id, profile);
+			}
 		}
+	} else {
+		byId.set(DEFAULT_PROFILE_ID, baseProfile(schema, false));
+	}
+	for (const name of fileNames) {
+		const id = parseDotEnvFileName(name);
+		if (id !== undefined && !byId.has(id)) {
+			byId.set(id, { id, fileName: baseSettingsFileName(schema), label: id, isBase: false, ownSettings: false, envFiles: [] });
+		}
+	}
+	const present = new Set(fileNames);
+	for (const profile of byId.values()) {
+		profile.envFiles = ownDotEnvFiles(profile.id).filter((file) => present.has(file));
 	}
 	return [...byId.values()].sort((a, b) => {
 		if (a.isBase) {
