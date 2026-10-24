@@ -6,7 +6,8 @@ import * as vscode from 'vscode';
 import type { AdapterRunPlan, FileTreeLocation, TestFrameworkAdapter } from '../../features/testing/frameworkAdapter';
 import { findProjectFiles } from '../../features/artifacts/projectScan';
 import { TestingController } from '../../features/testing/testController';
-import type { VRunnerManager } from '../../shared/vrunnerManager';
+import { VRunnerManager } from '../../shared/vrunnerManager';
+import { testingVRunner } from '../fixtures/helpers/testingVRunner';
 import { buildProcessCommand } from '../../utils/commandUtils';
 import { currentRoot, sameProjectRoot, type ProjectScanRoot } from '../../shared/workspaceProjects';
 
@@ -96,7 +97,7 @@ suite('тестирование: дерево текущего проекта', 
 	test('смена проекта пересобирает дерево, адаптеры видят корень проекта', async function () {
 		this.timeout(60_000);
 		const adapter = new RecordingAdapter();
-		const testing = new TestingController([adapter], {} as VRunnerManager, { current: true }, {
+		const testing = new TestingController([adapter], testingVRunner(), { current: true }, {
 			id: '1c-platform-tools-tests-project-switch',
 			scanRootOf,
 		});
@@ -119,7 +120,7 @@ suite('тестирование: дерево текущего проекта', 
 	test('прогон идёт в проекте, чьи файлы в дереве', async function () {
 		this.timeout(60_000);
 		const adapter = new RecordingAdapter();
-		const testing = new TestingController([adapter], {} as VRunnerManager, { current: true }, {
+		const testing = new TestingController([adapter], testingVRunner(), { current: true }, {
 			id: '1c-platform-tools-tests-run-root',
 			scanRootOf,
 		});
@@ -146,12 +147,12 @@ suite('тестирование: дерево текущего проекта', 
 		this.timeout(60_000);
 		const output = path.join(os.tmpdir(), `1cpt-onescript-env-${process.pid}.txt`);
 		const envRoots: (string | undefined)[] = [];
-		const vrunner = {
+		const vrunner = testingVRunner({
 			oneScriptEnv: async (extra?: NodeJS.ProcessEnv) => {
 				envRoots.push(currentRoot());
 				return { ...process.env, ...extra, ONESCRIPT_ENGINE: 'выбранный' };
 			},
-		} as unknown as VRunnerManager;
+		});
 		const adapter = new ShellAdapter(
 			buildProcessCommand('node', ['-e', `require('fs').writeFileSync(${JSON.stringify(output)}, process.env.ONESCRIPT_ENGINE ?? '')`]),
 			`${output}.xml`
@@ -177,5 +178,60 @@ suite('тестирование: дерево текущего проекта', 
 			cancellation.dispose();
 			testing.dispose();
 		}
+	});
+});
+
+suite('тестирование: окружение профиля запуска', () => {
+	const vrunner = VRunnerManager.getInstance();
+	let root: string;
+	let output: string;
+	let testing: TestingController;
+	let internals: ControllerInternals;
+	let cancellation: vscode.CancellationTokenSource;
+
+	setup(async function () {
+		this.timeout(60_000);
+		root = fs.mkdtempSync(path.join(os.tmpdir(), 'profile-run-'));
+		output = path.join(root, 'вывод.txt');
+		fs.mkdirSync(path.join(root, 'tests'));
+		fs.writeFileSync(path.join(root, 'tests', 'Проверка.os'), '', 'utf8');
+		fs.writeFileSync(path.join(root, '.env.sqlite'), 'TESTRUNNER_RUN_SQLITE_TESTS=true\n', 'utf8');
+		const adapter = new ShellAdapter(
+			buildProcessCommand('node', ['-e', `require('fs').writeFileSync(${JSON.stringify(output)}, process.env.TESTRUNNER_RUN_SQLITE_TESTS ?? 'нет')`]),
+			path.join(root, 'junit.xml')
+		);
+		testing = new TestingController([adapter], vrunner, { current: true }, {
+			id: '1c-platform-tools-tests-profile-env',
+			scanRootOf: async (scanned: string): Promise<ProjectScanRoot> => ({ root: scanned, excludeDirs: [] }),
+		});
+		internals = testing as unknown as ControllerInternals;
+		cancellation = new vscode.CancellationTokenSource();
+		testing.setProject(root);
+		await testing.enqueueRebuild();
+	});
+
+	teardown(() => {
+		cancellation.dispose();
+		testing.dispose();
+		fs.rmSync(root, { recursive: true, force: true, maxRetries: 3 });
+	});
+
+	async function run(profileId: string): Promise<void> {
+		await vrunner.runWithProjectRoot(root, () => vrunner.setActiveEnvProfileId(profileId));
+		const [item] = fileItems(internals.controller);
+		assert.ok(item, 'дерево должно найти тестовый файл');
+		await internals.runHandler(new vscode.TestRunRequest([item]), cancellation.token);
+	}
+
+	test('раннер получает переменные активного профиля', async function () {
+		this.timeout(60_000);
+		await run('sqlite');
+		assert.strictEqual(fs.readFileSync(output, 'utf8'), 'true');
+	});
+
+	test('выбранного профиля нет: прогон не начинается', async function () {
+		this.timeout(60_000);
+		await run('postgres');
+		assert.strictEqual(fs.existsSync(output), false);
 	});
 });

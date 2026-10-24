@@ -35,6 +35,7 @@ import {
 } from '../../shared/workspaceProjects';
 import { findProjectFiles, isOutsideScanRoot } from '../artifacts/projectScan';
 import { ensureWorkspaceTrusted } from '../../shared/workspaceTrust';
+import { DEFAULT_PROFILE_ID } from '../../shared/envProfiles';
 import { resolveOneScriptRunner, type OneScriptRunner } from './adapters/onescriptAdapter';
 
 const log = logger.scope('testing');
@@ -256,7 +257,48 @@ export class TestingController implements vscode.Disposable {
 			true
 		);
 
-		this.disposables.push(this.controller);
+		this.disposables.push(this.controller, this.vrunner.onDidChangeActiveEnvProfile(() => this.showProfile()));
+	}
+
+	/** Подпись корней дерева: именованный профиль запуска проекта дерева; у «По умолчанию» подписи нет. */
+	private profileDescription(): string | undefined {
+		const root = this.treeRoot ?? this.projectRoot;
+		if (root === undefined) {
+			return undefined;
+		}
+		const profile = runWithProject(root, () => this.vrunner.launchProfileSummary());
+		return profile.id === DEFAULT_PROFILE_ID ? undefined : `профиль: ${profile.label}`;
+	}
+
+	/** Обновляет подпись профиля у корней дерева. */
+	private showProfile(): void {
+		const description = this.profileDescription();
+		this.controller.items.forEach((item) => {
+			item.description = description;
+		});
+	}
+
+	/**
+	 * Профиль запуска проекта для прогона: строка в начало вывода либо причина,
+	 * по которой прогон не начинается.
+	 *
+	 * @param root - Корень проекта прогона
+	 * @returns Строка вывода или причина отказа
+	 */
+	private profileForRun(root: string): { header: string } | { problem: string } {
+		const profile = runWithProject(root, () => this.vrunner.launchProfileSummary());
+		if (profile.problem) {
+			return { problem: profile.problem };
+		}
+		const parts = [`Профиль запуска: ${profile.label}`];
+		if (profile.settingsFiles) {
+			parts.push(`настройки: ${profile.settingsFiles.join(', ')}`);
+		}
+		const { files, variables } = profile.environment;
+		if (files.length > 0) {
+			parts.push(`окружение: ${files.join(', ')} (${Object.keys(variables).join(', ')})`);
+		}
+		return { header: `${parts.join('; ')}\r\n` };
 	}
 
 	/** Корень проекта, для которого строится дерево */
@@ -762,6 +804,7 @@ export class TestingController implements vscode.Disposable {
 		if (!root) {
 			root = this.controller.createTestItem(id, adapter.label);
 			root.tags = [new vscode.TestTag(id)];
+			root.description = this.profileDescription();
 			this.controller.items.add(root);
 		}
 		return root;
@@ -803,6 +846,17 @@ export class TestingController implements vscode.Disposable {
 			}
 
 			const run = this.controller.createTestRun(request);
+
+			const profile = this.profileForRun(root);
+			if ('problem' in profile) {
+				for (const unit of units) {
+					const suite = this.suiteNode(unit.entry.item);
+					this.markAll(run, this.leafItems(unit.entry.item), 'errored', profile.problem, suite ? [suite] : undefined);
+				}
+				run.end();
+				return;
+			}
+			run.appendOutput(profile.header);
 
 			for (const unit of units) {
 				for (const item of this.leafItems(unit.entry.item)) {

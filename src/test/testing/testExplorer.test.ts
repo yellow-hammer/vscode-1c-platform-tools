@@ -3,7 +3,7 @@ import * as path from 'node:path';
 import * as vscode from 'vscode';
 import type { AdapterRunPlan, FileTreeLocation, TestFrameworkAdapter } from '../../features/testing/frameworkAdapter';
 import { registerTestExplorer } from '../../features/testing/registerTestingFeature';
-import type { VRunnerManager } from '../../shared/vrunnerManager';
+import { testingVRunner } from '../fixtures/helpers/testingVRunner';
 import { sameProjectRoot, type ProjectScanRoot } from '../../shared/workspaceProjects';
 
 /** Проект с подпроектом и зависимостями. */
@@ -76,7 +76,7 @@ suite('тестирование: панель тестов', () => {
 		const explorer = registerTestExplorer({
 			isProjectRef: { current: true },
 			adapters: [new OneScriptFilesAdapter()],
-			vrunner: {} as VRunnerManager,
+			vrunner: testingVRunner(),
 			controllerOptions: { id: '1c-platform-tools-tests-panel-enabled', scanRootOf },
 		});
 		const tree = (explorer.controller as unknown as ControllerInternals).controller;
