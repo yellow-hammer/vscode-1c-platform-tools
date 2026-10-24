@@ -74,6 +74,9 @@ export class OscriptTasksCommands extends BaseCommand {
 		if (!this.ensureWorkspace()) {
 			return;
 		}
+		if (!this.vrunner.ensureEnvironmentReady()) {
+			return;
+		}
 		if (!(await this.ensureLocalOscriptAvailable())) {
 			return;
 		}

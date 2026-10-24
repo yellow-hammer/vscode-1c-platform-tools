@@ -57,7 +57,7 @@ export class RunCommands extends BaseCommand {
 		if (!(await this.ensureOscriptAvailable())) {
 			return;
 		}
-		if (!opts?.ibConnection && !(await this.vrunner.ensureProfileSettingsFile(true, opts?.settingsFile))) {
+		if (!(await this.ensureConnectionReady(opts))) {
 			return;
 		}
 
@@ -103,7 +103,7 @@ export class RunCommands extends BaseCommand {
 		if (!(await this.ensureOscriptAvailable())) {
 			return;
 		}
-		if (!opts?.ibConnection && !(await this.vrunner.ensureProfileSettingsFile(true, opts?.settingsFile))) {
+		if (!(await this.ensureConnectionReady(opts))) {
 			return;
 		}
 
@@ -136,6 +136,17 @@ export class RunCommands extends BaseCommand {
 			return this.vrunner.runWithWindow(start);
 		}
 		return this.vrunner.runOnThisMachine(start);
+	}
+
+	/**
+	 * Готов ли запуск клиента: явная строка подключения заменяет профиль, но не окружение.
+	 *
+	 * @param opts - Параметры вызова
+	 */
+	private async ensureConnectionReady(opts: CommandExecutionOptions | undefined): Promise<boolean> {
+		return opts?.ibConnection
+			? this.vrunner.ensureEnvironmentReady()
+			: this.vrunner.ensureProfileSettingsFile(true, opts?.settingsFile);
 	}
 
 	/** Установлена ли платформа, которую запросит активный профиль запуска. */

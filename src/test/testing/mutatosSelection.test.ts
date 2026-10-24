@@ -6,7 +6,7 @@ import { selectionFilters } from '../../features/testing/mutatos/mutatosRun';
 import { parseBslTestModule } from '../../features/testing/parsers/bslTestParser';
 import type { DiscoveredFile } from '../../features/testing/parsers/parserTypes';
 import { TestingController } from '../../features/testing/testController';
-import type { VRunnerManager } from '../../shared/vrunnerManager';
+import { testingVRunner } from '../fixtures/helpers/testingVRunner';
 
 /** Проект с тестовым набором OneUnit: обычный тест с отображаемым именем и параметризованный. */
 const PANEL = path.resolve(__dirname, '../../../src/test/fixtures/mutatos/panel');
@@ -16,6 +16,7 @@ const SUITE_FILE = path.join(PANEL, 'tests', '1Проверка.калькуля
 class OneScriptTests implements TestFrameworkAdapter {
 	public readonly id = 'onescript' as const;
 	public readonly label = 'OneScript';
+	public readonly usesVanessaRunner = false;
 	public readonly usesReportDir = false;
 
 	public async isEnabled(): Promise<boolean> {
@@ -42,7 +43,7 @@ class OneScriptTests implements TestFrameworkAdapter {
 suite('mutatos: отбор по узлу панели тестирования', () => {
 	test('файл отбирает набор, кейс ещё и метод, параметризованный кейс свою процедуру', async function () {
 		this.timeout(60_000);
-		const testing = new TestingController([new OneScriptTests()], {} as VRunnerManager, { current: true }, {
+		const testing = new TestingController([new OneScriptTests()], testingVRunner(), { current: true }, {
 			id: '1c-platform-tools-tests-mutatos-selection',
 			scanRootOf: async (root) => ({ root, excludeDirs: [] }),
 		});

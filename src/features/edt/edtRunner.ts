@@ -26,6 +26,7 @@ import { edtTemporaryDir } from '../../shared/edtStaging';
 import { projectConfiguration } from '../../shared/projectConfiguration';
 import { currentRoot } from '../../shared/workspaceProjects';
 import { ensureWorkspaceTrusted, WORKSPACE_TRUST_REQUIRED } from '../../shared/workspaceTrust';
+import { VRunnerManager } from '../../shared/vrunnerManager';
 
 const log = logger.scope('edt');
 
@@ -442,6 +443,16 @@ export async function runEdtCommand(request: EdtCommand): Promise<EdtRunResult> 
 		return { exitCode: 1, error: WORKSPACE_TRUST_REQUIRED };
 	}
 
+	const vrunner = VRunnerManager.getInstance();
+	const environmentProblem = vrunner.environmentProblem();
+	if (environmentProblem) {
+		if (!background) {
+			vrunner.offerLaunchFix(environmentProblem);
+		}
+		log.warn(environmentProblem);
+		return { exitCode: 1, error: environmentProblem };
+	}
+
 	const settings = readEdtSettings();
 	const installation = resolveEdt(settings);
 	if (!installation) {
@@ -470,8 +481,9 @@ export async function runEdtCommand(request: EdtCommand): Promise<EdtRunResult> 
 	const onOutput = (chunk: string): void => {
 		output = outputTail(output + chunk);
 	};
+	const env = vrunner.launchEnv();
 	if (background) {
-		running = runInBackground(command, request.cwd, onOutput);
+		running = runInBackground(command, request.cwd, env, onOutput);
 	} else {
 		running = new Promise<number>((resolve) => {
 			const task = createVRunnerTask({
@@ -483,6 +495,7 @@ export async function runEdtCommand(request: EdtCommand): Promise<EdtRunResult> 
 					},
 				}),
 				cwd: request.cwd,
+				env,
 				definition: { type: EDT_TASK_TYPE, command: request.command },
 				exitCallback: resolve,
 				appendOutput: request.output?.append(),
@@ -512,8 +525,8 @@ export async function runEdtCommand(request: EdtCommand): Promise<EdtRunResult> 
  * Запускает 1cedtcli процессом без терминала. Процесс, который не запустился,
  * получает код 1, как у задачи.
  */
-async function runInBackground(command: string, cwd: string, onOutput: (chunk: string) => void): Promise<number> {
-	const { exitCode } = await runCancellableCommand(command, { cwd, onOutput });
+async function runInBackground(command: string, cwd: string, env: NodeJS.ProcessEnv, onOutput: (chunk: string) => void): Promise<number> {
+	const { exitCode } = await runCancellableCommand(command, { cwd, env, onOutput });
 	return exitCode >= 0 ? exitCode : 1;
 }
 

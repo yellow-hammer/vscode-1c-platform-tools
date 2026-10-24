@@ -1,18 +1,20 @@
 /**
  * TreeDataProvider плашки «Профиль запуска» в панели «1С: Инструменты».
  *
- * Показывает, с чем реально работают команды vrunner: активный профиль,
- * версию vanessa-runner, файл настроек её схемы, строку подключения к ИБ и
- * временные параметры. Каждый пункт кликабелен: выбор профиля, создание или
- * открытие файла настроек, задание временных параметров.
+ * Показывает, с чем реально работают команды: активный профиль, версию
+ * vanessa-runner, файл настроек её схемы, окружение, строку подключения к ИБ и
+ * временные параметры. У проекта OneScript — профиль, файл настроек Осени и
+ * окружение. Каждый пункт кликабелен: выбор профиля и окружения, открытие
+ * файлов, задание временных параметров.
  */
 
 import * as vscode from 'vscode';
 import * as path from 'node:path';
 import { VRunnerManager, type SettingsFileState } from '../../shared/vrunnerManager';
-import { activeProfileLabel, LOCAL_OVERRIDES_FILE } from '../../shared/envProfiles';
+import { LOCAL_OVERRIDES_FILE } from '../../shared/envProfiles';
+import { environmentLabel } from '../../shared/environments';
 import { configurationScope } from '../../shared/activeConfiguration';
-import { onDidChangeCurrentProject } from '../../shared/workspaceProjects';
+import { onDidChangeCurrentProject, onDidChangeProjects } from '../../shared/workspaceProjects';
 import { edtProjectName, readEdtSettings, resolveEdt } from '../edt/edtRunner';
 
 /** Элемент плашки профиля. */
@@ -29,15 +31,15 @@ function item(
 	return treeItem;
 }
 
-/** Подсказка к строке файла настроек: почему команды заблокированы. */
+/** Подсказка к строке файла настроек: почему файл не годится. */
 function settingsHint(state: SettingsFileState, vrunner: VRunnerManager): string {
-	if (state.ready) {
+	if (state.fileReady) {
 		return 'Открыть в редакторе профиля';
 	}
 	if (!state.exists) {
 		return 'Профиль запуска не создан, команды заблокированы. Нажмите, чтобы создать.';
 	}
-	return `Команды заблокированы. ${vrunner.settingsProblemMessage(state)}`;
+	return `Команды заблокированы. ${vrunner.settingsFileProblemMessage(state)}`;
 }
 
 export class LaunchProfileViewProvider implements vscode.TreeDataProvider<vscode.TreeItem>, vscode.Disposable {
@@ -54,8 +56,11 @@ export class LaunchProfileViewProvider implements vscode.TreeDataProvider<vscode
 		// файлов настроек в корне проекта (создание, правка, удаление).
 		this.disposables.push(
 			this.vrunner.onDidChangeActiveEnvProfile(() => this.refresh()),
+			this.vrunner.onDidChangeActiveEnvironment(() => this.refresh()),
 			this.vrunner.onDidChangeEnvOverrides(() => this.refresh()),
 			this.vrunner.onDidChangeVRunnerVersion(() => this.refresh()),
+			// Вид проекта, от которого зависит состав плашки, известен после обнаружения
+			onDidChangeProjects(() => this.refresh()),
 			onDidChangeCurrentProject((change) => {
 				this.watchProject(change.current);
 				this.refresh();
@@ -78,7 +83,7 @@ export class LaunchProfileViewProvider implements vscode.TreeDataProvider<vscode
 			return;
 		}
 		const watcher = vscode.workspace.createFileSystemWatcher(
-			new vscode.RelativePattern(root, '{env*.json,autumn-properties*.json,.git/HEAD}')
+			new vscode.RelativePattern(root, '{env*.json,autumn-properties*.json,.env,.env.*,.git/HEAD}')
 		);
 		this.projectWatcher = vscode.Disposable.from(
 			watcher,
@@ -129,14 +134,51 @@ export class LaunchProfileViewProvider implements vscode.TreeDataProvider<vscode
 		return element;
 	}
 
+	/** Окружение: выбранное окружение, его файлы и имена переменных без значений. */
+	private environmentItem(): vscode.TreeItem {
+		const { id, files, variables } = this.vrunner.activeEnvironment();
+		const problem = this.vrunner.environmentProblem();
+		const names = Object.keys(variables);
+		return item(
+			`Окружение: ${environmentLabel(id, files)}`,
+			problem ? 'warning' : 'variable-group',
+			problem ?? (files.length > 0
+				? `${files.join(', ')}${names.length > 0 ? `: ${names.join(', ')}` : ''}`
+				: 'Переменные среды для всех запусков: файлы .env и .env.<имя>'),
+			{ command: '1c-platform-tools.env.selectEnvironment', title: 'Выбрать окружение' }
+		);
+	}
+
+	/** Файлы настроек приложения на Осени: их проект OneScript читает сам. */
+	private appSettingsItems(workspaceRoot: string | undefined, settingsFiles: string[]): vscode.TreeItem[] {
+		if (workspaceRoot === undefined) {
+			return [];
+		}
+		return settingsFiles.map((settingsFile) =>
+			item(`Файл настроек: ${settingsFile}`, 'settings', 'Настройки приложения на Осени', {
+				command: 'vscode.open',
+				title: 'Открыть файл настроек',
+				arguments: [vscode.Uri.file(path.join(workspaceRoot, settingsFile))],
+			})
+		);
+	}
+
 	getChildren(): vscode.TreeItem[] {
 		const workspaceRoot = this.vrunner.getWorkspaceRoot();
+		const { profile } = this.vrunner.launchSummary();
+		const profileProblem = this.vrunner.profileProblem();
+		const profileItem = item(
+			`Профиль: ${profile.label}`,
+			profileProblem ? 'warning' : 'rocket',
+			profileProblem ?? 'Выбрать профиль запуска',
+			{ command: '1c-platform-tools.env.selectProfile', title: 'Выбрать профиль запуска' }
+		);
+		// У проекта OneScript нет vanessa-runner: строк его версии, базы и параметров нет
+		if (!this.vrunner.usesVanessaRunner()) {
+			return [profileItem, ...this.appSettingsItems(workspaceRoot, profile.settingsFiles), this.environmentItem()];
+		}
 		const schema = this.vrunner.getActiveSettingsSchema();
 		const versionLabel = this.vrunner.getCachedVRunnerVersionLabel();
-		const profileLabel = activeProfileLabel(
-			this.vrunner.getActiveEnvProfileId(),
-			this.vrunner.discoverEnvProfiles()
-		);
 		const settings = this.vrunner.describeSettingsState();
 		// эффективная строка подключения: временные параметры > env.local.json >
 		// профиль (в том числе значения с подставленным ${gitBranch})
@@ -146,12 +188,7 @@ export class LaunchProfileViewProvider implements vscode.TreeDataProvider<vscode
 		const hasLocalOverrides = this.vrunner.hasLocalEnvOverrides();
 
 		const items = [
-			item(
-				`Профиль: ${profileLabel}`,
-				'rocket',
-				'Выбрать или создать профиль запуска',
-				{ command: '1c-platform-tools.env.selectProfile', title: 'Выбрать профиль запуска' }
-			),
+			profileItem,
 			item(
 				`vanessa-runner: ${versionLabel ?? 'не определён'}`,
 				versionLabel ? 'verified' : 'question',
@@ -161,12 +198,13 @@ export class LaunchProfileViewProvider implements vscode.TreeDataProvider<vscode
 			...(this.edtProject ? [this.edtItem(this.edtProject)] : []),
 			item(
 				`Файл настроек: ${settings.fileName}`,
-				settings.ready ? 'check' : 'warning',
+				settings.fileReady ? 'check' : 'warning',
 				settingsHint(settings, this.vrunner),
-				settings.ready || settings.readError
+				settings.fileReady || settings.readError
 					? { command: '1c-platform-tools.env.openProfileEditor', title: 'Редактор профиля' }
 					: { command: '1c-platform-tools.serviceFiles.ensure', title: 'Файл настроек', arguments: ['launchProfile'] }
 			),
+			this.environmentItem(),
 			item(
 				`ИБ: ${ibConnection ?? '/F./build/ib'}`,
 				'database',

@@ -83,17 +83,41 @@ function creationCwd(terminal: vscode.Terminal): string | undefined {
 	return typeof options.cwd === 'string' ? options.cwd : options.cwd.fsPath;
 }
 
+type TerminalEnv = Readonly<Record<string, string | null | undefined>>;
+
+/** Переменные, с которыми создан терминал. */
+function creationEnv(terminal: vscode.Terminal): TerminalEnv | undefined {
+	const options = terminal.creationOptions;
+	return 'env' in options ? options.env : undefined;
+}
+
+/** Те же переменные с теми же значениями. */
+function sameEnv(created: TerminalEnv | undefined, env: TerminalEnv | undefined): boolean {
+	const defined = (vars: TerminalEnv | undefined): [string, string][] =>
+		Object.entries(vars ?? {}).filter((entry): entry is [string, string] => typeof entry[1] === 'string');
+	const left = defined(created);
+	const right = new Map(defined(env));
+	return left.length === right.size && left.every(([name, value]) => right.get(name) === value);
+}
+
 /**
- * Терминал с тем же именем, созданный в том же каталоге.
+ * Терминал с тем же именем, созданный в том же каталоге с теми же переменными:
+ * после смены окружения проекта команда идёт в новом терминале.
  *
  * @param terminals - Открытые терминалы
  * @param name - Имя терминала
  * @param cwd - Рабочий каталог команды
+ * @param env - Переменные терминала команды
  */
-export function reusableTerminal(terminals: readonly vscode.Terminal[], name: string, cwd: string): vscode.Terminal | undefined {
+export function reusableTerminal(
+	terminals: readonly vscode.Terminal[],
+	name: string,
+	cwd: string,
+	env?: NodeJS.ProcessEnv
+): vscode.Terminal | undefined {
 	return terminals.find((terminal) => {
 		const created = creationCwd(terminal);
-		return terminal.name === name && created !== undefined && sameProjectRoot(created, cwd);
+		return terminal.name === name && created !== undefined && sameProjectRoot(created, cwd) && sameEnv(creationEnv(terminal), env);
 	});
 }
 
@@ -117,14 +141,11 @@ export function projectTerminal(options: ProjectTerminalOptions): vscode.Termina
 	if (untrustedWorkspaceBlocks(`терминал ${options.name}`)) {
 		return undefined;
 	}
+	const env = options.env ? { ...process.env, ...options.env } : undefined;
 	const terminal =
-		reusableTerminal(vscode.window.terminals, options.name, options.cwd) ??
+		reusableTerminal(vscode.window.terminals, options.name, options.cwd, env) ??
 		// eslint-disable-next-line no-restricted-syntax -- execution.useTasks === false: терминал выбран пользователем
-		vscode.window.createTerminal({
-			name: options.name,
-			cwd: options.cwd,
-			env: options.env ? { ...process.env, ...options.env } : undefined,
-		});
+		vscode.window.createTerminal({ name: options.name, cwd: options.cwd, env });
 	if (options.root !== undefined) {
 		rememberTerminalProject(terminal, options.root);
 	}

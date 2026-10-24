@@ -4,7 +4,7 @@
  */
 
 import * as vscode from 'vscode';
-import { readActiveProfileName } from '../../shared/projectState';
+import { readProjectLaunch, type ProjectLaunch } from '../../shared/projectState';
 import {
 	isFolderRootProject,
 	projectDisplayName,
@@ -77,18 +77,18 @@ export class WorkspaceProjectsTreeProvider implements vscode.TreeDataProvider<Wo
 
 	/**
 	 * @param source - Проекты окна
-	 * @param profileOf - Имя активного профиля проекта
-	 * @param onDidChangeProfile - Смена активного профиля в любом проекте
+	 * @param launchOf - Именованный профиль и окружение проекта
+	 * @param onDidChangeLaunch - Смена профиля или окружения в любом проекте
 	 */
 	constructor(
 		private readonly source: WorkspaceProjectsSource,
-		private readonly profileOf: (root: string) => string | undefined = readActiveProfileName,
-		onDidChangeProfile?: vscode.Event<void>
+		private readonly launchOf: (root: string) => ProjectLaunch = readProjectLaunch,
+		onDidChangeLaunch?: vscode.Event<void>
 	) {
 		this.subscriptions = [
 			source.onDidChangeProjects(() => this.refresh()),
 			source.onDidChangeCurrentProject(() => this.refresh()),
-			...(onDidChangeProfile ? [onDidChangeProfile(() => this.refresh())] : []),
+			...(onDidChangeLaunch ? [onDidChangeLaunch(() => this.refresh())] : []),
 		];
 	}
 
@@ -195,7 +195,7 @@ export class WorkspaceProjectsTreeProvider implements vscode.TreeDataProvider<Wo
 		item.id = `project:${projectRootKey(project.root)}`;
 		item.description = projectDescription(project, current, {
 			location: nestedProjectLocation(project),
-			profile: this.profileOf(project.root),
+			...this.launchOf(project.root),
 		});
 		item.tooltip = projectTooltip(project);
 		item.iconPath = !isFolderRootProject(project)

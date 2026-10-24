@@ -8,6 +8,7 @@ import { YaxunitAdapter } from '../../features/testing/adapters/yaxunitAdapter';
 import { TestingController } from '../../features/testing/testController';
 import { invalidateProjectLayout } from '../../shared/projectLayout';
 import type { VRunnerManager } from '../../shared/vrunnerManager';
+import { testingVRunner } from '../fixtures/helpers/testingVRunner';
 import type { ProjectScanRoot } from '../../shared/workspaceProjects';
 import { buildProcessCommand } from '../../utils/commandUtils';
 import { fixturePath } from '../fixtures/helpers/fixturePath';
@@ -99,10 +100,10 @@ suite('YAxUnit: результаты прогона в дереве', () => {
 		this.timeout(60_000);
 		target = fs.mkdtempSync(path.join(os.tmpdir(), '1cpt-yaxunit-run-'));
 		invalidateProjectLayout();
-		const vrunner = {
+		const vrunner = testingVRunner({
 			getWorkspaceRoot: () => PROJECT,
 			oneScriptEnv: async (extra?: NodeJS.ProcessEnv) => ({ ...process.env, ...extra }),
-		} as unknown as VRunnerManager;
+		});
 		adapter = new ReplayedYaxunitAdapter(vrunner, path.join(target, 'junit.xml'));
 		testing = new TestingController([adapter], vrunner, { current: true }, {
 			id: '1c-platform-tools-tests-yaxunit-results',

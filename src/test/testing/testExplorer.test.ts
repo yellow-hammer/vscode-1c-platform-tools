@@ -3,7 +3,7 @@ import * as path from 'node:path';
 import * as vscode from 'vscode';
 import type { AdapterRunPlan, FileTreeLocation, TestFrameworkAdapter } from '../../features/testing/frameworkAdapter';
 import { registerTestExplorer } from '../../features/testing/registerTestingFeature';
-import type { VRunnerManager } from '../../shared/vrunnerManager';
+import { testingVRunner } from '../fixtures/helpers/testingVRunner';
 import { sameProjectRoot, type ProjectScanRoot } from '../../shared/workspaceProjects';
 
 /** Проект с подпроектом и зависимостями. */
@@ -13,6 +13,7 @@ const SUB_PROJECT = path.join(PROJECT, 'подпроект');
 class OneScriptFilesAdapter implements TestFrameworkAdapter {
 	public readonly id = 'onescript' as const;
 	public readonly label = 'OneScript';
+	public readonly usesVanessaRunner = false;
 	public readonly usesReportDir = false;
 
 	public async isEnabled(): Promise<boolean> {
@@ -76,7 +77,7 @@ suite('тестирование: панель тестов', () => {
 		const explorer = registerTestExplorer({
 			isProjectRef: { current: true },
 			adapters: [new OneScriptFilesAdapter()],
-			vrunner: {} as VRunnerManager,
+			vrunner: testingVRunner(),
 			controllerOptions: { id: '1c-platform-tools-tests-panel-enabled', scanRootOf },
 		});
 		const tree = (explorer.controller as unknown as ControllerInternals).controller;

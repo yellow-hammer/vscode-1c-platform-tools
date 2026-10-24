@@ -27,14 +27,14 @@ import { hasProjectFile } from '../../shared/projectLayout';
 import { projectConfiguration } from '../../shared/projectConfiguration';
 import {
 	currentRoot,
-	listProjects,
-	projectScanRoots,
 	runWithProject,
 	sameProjectRoot,
 	type ProjectScanRoot
 } from '../../shared/workspaceProjects';
-import { findProjectFiles, isOutsideScanRoot } from '../artifacts/projectScan';
+import { findProjectFiles, isOutsideScanRoot, projectScanRootOf } from '../artifacts/projectScan';
 import { ensureWorkspaceTrusted } from '../../shared/workspaceTrust';
+import { DEFAULT_PROFILE_ID } from '../../shared/envProfiles';
+import { environmentLabel } from '../../shared/environments';
 import { resolveOneScriptRunner, type OneScriptRunner } from './adapters/onescriptAdapter';
 
 const log = logger.scope('testing');
@@ -69,16 +69,6 @@ function getExcludeSegments(root: string): string[] {
 
 function sameRoot(left: string | undefined, right: string | undefined): boolean {
 	return left === undefined || right === undefined ? left === right : sameProjectRoot(left, right);
-}
-
-/**
- * Проект с каталогами, которые ему не принадлежат, после полного обнаружения.
- *
- * @param root - Корень проекта
- */
-export async function projectScanRootOf(root: string): Promise<ProjectScanRoot> {
-	await listProjects();
-	return projectScanRoots().find((scanRoot) => sameProjectRoot(scanRoot.root, root)) ?? { root, excludeDirs: [] };
 }
 
 /** Параметры {@link TestingController}. */
@@ -256,7 +246,87 @@ export class TestingController implements vscode.Disposable {
 			true
 		);
 
-		this.disposables.push(this.controller);
+		this.disposables.push(
+			this.controller,
+			this.vrunner.onDidChangeActiveEnvProfile(() => this.showLaunch()),
+			this.vrunner.onDidChangeActiveEnvironment(() => this.showLaunch())
+		);
+	}
+
+	/**
+	 * Подпись корня фреймворка: именованный профиль у тестов через vanessa-runner и
+	 * выбранное окружение проекта дерева.
+	 *
+	 * @param adapter - Фреймворк корня
+	 */
+	private launchDescription(adapter: TestFrameworkAdapter): string | undefined {
+		const root = this.treeRoot ?? this.projectRoot;
+		if (root === undefined) {
+			return undefined;
+		}
+		return runWithProject(root, () => {
+			const { profile, environment } = this.vrunner.launchSummary();
+			const parts = [
+				profile.id === DEFAULT_PROFILE_ID || !adapter.usesVanessaRunner ? '' : `профиль: ${profile.label}`,
+				environment.id === undefined ? '' : `окружение: ${environment.id}`,
+			].filter(Boolean);
+			return parts.length > 0 ? parts.join(', ') : undefined;
+		});
+	}
+
+	/** Обновляет подпись профиля и окружения у корней дерева. */
+	private showLaunch(): void {
+		for (const adapter of this.adapters) {
+			const item = this.controller.items.get(frameworkRootId(adapter.id));
+			if (item) {
+				item.description = this.launchDescription(adapter);
+			}
+		}
+	}
+
+	/**
+	 * Профиль и окружение проекта для прогона: строка в начало вывода и тесты,
+	 * которые не начинаются, с причиной. Окружение нужно всем тестам, профиль —
+	 * тестам через vanessa-runner.
+	 *
+	 * @param root - Корень проекта прогона
+	 * @param units - Единицы прогона
+	 * @returns Строка вывода (её нет, когда сообщать нечего), единицы к прогону и отказы
+	 */
+	private launchForRun<T extends { entry: FileEntry }>(
+		root: string,
+		units: T[]
+	): { header?: string; units: T[]; refused: { unit: T; problem: string }[] } {
+		return runWithProject(root, () => {
+			const profileProblem = this.vrunner.profileProblem();
+			const environmentProblem = this.vrunner.environmentProblem();
+			const allowed: T[] = [];
+			const refused: { unit: T; problem: string }[] = [];
+			for (const unit of units) {
+				const problem = (unit.entry.adapter.usesVanessaRunner ? profileProblem : undefined) ?? environmentProblem;
+				if (problem === undefined) {
+					allowed.push(unit);
+				} else {
+					refused.push({ unit, problem });
+				}
+			}
+			const { profile, environment } = this.vrunner.launchSummary();
+			const parts: string[] = [];
+			if (profile.settingsFiles.length > 0 && allowed.some((unit) => unit.entry.adapter.usesVanessaRunner)) {
+				parts.push(`Профиль запуска: ${profile.label} (${profile.settingsFiles.join(', ')})`);
+			}
+			if (environment.files.length > 0) {
+				const names = Object.keys(environment.variables);
+				const label = environmentLabel(environment.id, environment.files);
+				parts.push(`окружение: ${label} (${environment.files.join(', ')}${names.length > 0 ? `: ${names.join(', ')}` : ''})`);
+			}
+			const text = parts.join('; ');
+			return {
+				header: text === '' ? undefined : `${text.charAt(0).toUpperCase()}${text.slice(1)}\r\n`,
+				units: allowed,
+				refused,
+			};
+		});
 	}
 
 	/** Корень проекта, для которого строится дерево */
@@ -762,6 +832,7 @@ export class TestingController implements vscode.Disposable {
 		if (!root) {
 			root = this.controller.createTestItem(id, adapter.label);
 			root.tags = [new vscode.TestTag(id)];
+			root.description = this.launchDescription(adapter);
 			this.controller.items.add(root);
 		}
 		return root;
@@ -804,7 +875,20 @@ export class TestingController implements vscode.Disposable {
 
 			const run = this.controller.createTestRun(request);
 
-			for (const unit of units) {
+			const launch = this.launchForRun(root, units);
+			for (const { unit, problem } of launch.refused) {
+				const suite = this.suiteNode(unit.entry.item);
+				this.markAll(run, this.leafItems(unit.entry.item), 'errored', problem, suite ? [suite] : undefined);
+			}
+			if (launch.units.length === 0) {
+				run.end();
+				return;
+			}
+			if (launch.header) {
+				run.appendOutput(launch.header);
+			}
+
+			for (const unit of launch.units) {
 				for (const item of this.leafItems(unit.entry.item)) {
 					run.enqueued(item);
 				}
@@ -817,7 +901,7 @@ export class TestingController implements vscode.Disposable {
 			await this.queue.enqueue(() =>
 				runWithProject(root, async () => {
 					try {
-						await this.runUnits(run, units, token, root);
+						await this.runUnits(run, launch.units, token, root);
 					} finally {
 						run.end();
 					}

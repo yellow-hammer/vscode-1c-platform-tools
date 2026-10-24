@@ -196,6 +196,7 @@ description: "Операции с платформой 1С в этом прое�
 |---|---|---|
 | Состояние окружения | `1c-platform-tools.env.status` | `env_status` |
 | Выбрать профиль | `1c-platform-tools.env.selectProfile` | `env_selectProfile` |
+| Выбрать окружение | `1c-platform-tools.env.selectEnvironment` | `env_selectEnvironment` |
 | Сбросить временные параметры | `1c-platform-tools.env.clearOverrides` | `env_clearOverrides` |
 | Определить версию vanessa-runner | `1c-platform-tools.env.refreshVersion` | `env_refreshVersion` |
 | Открыть env.json | `1c-platform-tools.env.editSettingsFile` | `env_editSettingsFile` |

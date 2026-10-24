@@ -275,6 +275,9 @@ export class OnecDebugConfigurationProvoider implements vscode.DebugConfiguratio
 		// (env.json/env.<id>.json для vrunner 2 или autumn-properties.* для vrunner 3),
 		// а не напрямую из env.json — иначе смена профиля не влияла бы на отладку.
 		await this.vrunner.getVRunnerVersion();
+		if (!this.vrunner.ensureLaunchReady()) {
+			return undefined;
+		}
 		const connectionString = this.vrunner.readActiveProfileSettingSync('ibconnection');
 		if (typeof connectionString !== 'string' || connectionString.trim() === '') {
 			void vscode.window.showErrorMessage(

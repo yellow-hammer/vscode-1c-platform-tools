@@ -16,6 +16,7 @@ import { DEBUG_TYPE } from './debugConstants';
 import { registerMeasureFeature } from './measure';
 import { VRunnerManager } from '../../shared/vrunnerManager';
 import { offerGithubTokenOnRateLimit } from '../../shared/githubToken';
+import { runWithProject } from '../../shared/workspaceProjects';
 
 const log = logger.scope('dap');
 
@@ -27,12 +28,10 @@ class OnecDebugAdapterDescriptorFactory implements vscode.DebugAdapterDescriptor
 	constructor(private readonly context: vscode.ExtensionContext) {}
 
 	async createDebugAdapterDescriptor(session: vscode.DebugSession): Promise<vscode.DebugAdapterDescriptor> {
+		const root = debugConfigurationRoot(session.workspaceFolder, session.configuration);
 		let runtime;
 		try {
-			runtime = await ensureOnecDebugAdapter(
-				this.context,
-				debugConfigurationRoot(session.workspaceFolder, session.configuration)
-			);
+			runtime = await ensureOnecDebugAdapter(this.context, root);
 		} catch (error) {
 			const message = error instanceof Error ? error.message : String(error);
 			log.error(`не удалось подготовить адаптер отладки: ${message}`);
@@ -42,7 +41,9 @@ class OnecDebugAdapterDescriptorFactory implements vscode.DebugAdapterDescriptor
 		const cwd = runtime.args[0]
 			? path.dirname(runtime.args[0])
 			: path.dirname(runtime.command);
-		return new vscode.DebugAdapterExecutable(runtime.command, runtime.args, { cwd });
+		// Платформу запускает адаптер: окружение проекта она наследует от него
+		const env = runWithProject(root, () => VRunnerManager.getInstance(this.context).activeEnvironment().variables);
+		return new vscode.DebugAdapterExecutable(runtime.command, runtime.args, { cwd, env });
 	}
 }
 

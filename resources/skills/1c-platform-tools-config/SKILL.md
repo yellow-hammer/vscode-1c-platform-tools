@@ -15,16 +15,19 @@ description: Конфигурации запуска и служебные фа�
 
 ## Смена профиля
 
-Перед операцией, которая зависит от окружения, вызови `env_status`. В ответе: `activeProfileId`, `settingsFile`, `settingsFileExists`, `settingsSchema` (`v2` или `v3`), `profiles` (`id`, `fileName`, `label`), `overrides`, `localOverrides`, `localOverridesFile`, `gitBranch`, `effectiveIbConnection` (уже с подстановкой ветки и перекрытиями), `vrunnerVersion`, `odata`. Пароль замаскирован.
+Перед операцией, которая зависит от окружения, вызови `env_status`. В ответе: `activeProfileId`, `settingsFile`, `settingsFileExists`, `settingsFiles` (найденные файлы настроек профиля), `settingsSchema` (`v2` или `v3`), `profiles` (`id`, `fileName`, `label`), `activeEnvironment`, `environment` (`files`, `variables` — имена без значений), `environments` (`id`, `files`), `launchProblem` (почему запуск не начнётся), `overrides`, `localOverrides`, `localOverridesFile`, `gitBranch`, `effectiveIbConnection` (уже с подстановкой ветки, перекрытиями и переменными окружения), `vrunnerVersion`, `odata`. Пароль замаскирован. У проекта OneScript профиль один — `autumn-properties.json`, если он есть.
 
 Если пользователь назвал профиль («запусти тесты под test», «переключись на storage») — переключи его и дальше работай уже с ним. Если не назвал — не переключай, оставайся на активном. Разовый прогон под другим файлом настроек, без смены активного профиля, — параметр `settingsFile` у команды vanessa-runner.
 
 `env_selectProfile` и Execute Command `1c-platform-tools.env.selectProfile` принимают id (`dev`), имя файла (`env.dev.json`, `autumn-properties.ci.json`) или подпись (`По умолчанию`). У MCP это параметр `profile`, у Execute Command — строка-аргумент. Без имени агентный вызов окно не открывает и возвращает ошибку со списком `available`. Успех: «Активирован профиль «id» (файл fileName).» Неизвестный профиль: «Профиль запуска «…» не найден. Доступные профили: …».
 
+Окружение — переменные среды из `.env` и `.env.<имя>` для всех запусков проекта — выбирается отдельно от профиля, у проекта любого вида. `env_selectEnvironment` (параметр `environment`) и Execute Command `1c-platform-tools.env.selectEnvironment` (строка-аргумент) принимают имя (`ci`) или имя файла (`.env.ci`); пустая строка — «По умолчанию», только общие `.env` и `.env.local`. Какие окружения есть и какое выбрано — `environments` и `activeEnvironment` в `env_status` (`null` — по умолчанию), переменные там только именами, без значений. Окружение из запроса пользователя («прогони в окружении ci») переключай, неназванное не трогай.
+
 | Задача | Command ID | MCP | wait: true |
 |---|---|---|---|
 | Состояние окружения | `1c-platform-tools.env.status` | `env_status` | результат |
 | Выбрать профиль | `1c-platform-tools.env.selectProfile` | `env_selectProfile` | результат |
+| Выбрать окружение | `1c-platform-tools.env.selectEnvironment` | `env_selectEnvironment` | результат |
 | Сбросить временные параметры | `1c-platform-tools.env.clearOverrides` | `env_clearOverrides` | результат |
 | Определить версию vanessa-runner заново | `1c-platform-tools.env.refreshVersion` | `env_refreshVersion` | результат |
 | Открыть env.json | `1c-platform-tools.env.editSettingsFile` | `env_editSettingsFile` | пустой |

@@ -62,6 +62,7 @@
           "1c-platform-tools.env.clearOverrides",
           "1c-platform-tools.env.editSettingsFile",
           "1c-platform-tools.env.openProfileEditor",
+          "1c-platform-tools.env.selectEnvironment",
           "1c-platform-tools.env.selectProfile",
           "1c-platform-tools.epf.addBspRegistration",
           "1c-platform-tools.epf.clearCache",

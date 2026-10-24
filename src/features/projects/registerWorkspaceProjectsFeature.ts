@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import { readActiveProfileName } from '../../shared/projectState';
+import { readProjectLaunch } from '../../shared/projectState';
 import { VRunnerManager } from '../../shared/vrunnerManager';
 import { registerWorkspaceProjectCommands } from './workspaceProjectCommands';
 import { WORKSPACE_PROJECTS_VIEW_ID, WorkspaceProjectsTreeProvider } from './workspaceProjectsView';
@@ -16,14 +16,19 @@ export function registerWorkspaceProjectsFeature(
 	showNoProjects: () => void
 ): void {
 	const source = workspaceProjectsSource();
-	const provider = new WorkspaceProjectsTreeProvider(
-		source,
-		readActiveProfileName,
-		VRunnerManager.getInstance(context).onDidChangeActiveEnvProfile
-	);
+	const vrunner = VRunnerManager.getInstance(context);
+	const launchChanged = new vscode.EventEmitter<void>();
+	const provider = new WorkspaceProjectsTreeProvider(source, readProjectLaunch, launchChanged.event);
 	const treeView = vscode.window.createTreeView(WORKSPACE_PROJECTS_VIEW_ID, {
 		treeDataProvider: provider,
 		showCollapseAll: false,
 	});
-	context.subscriptions.push(provider, treeView, ...registerWorkspaceProjectCommands(source, showNoProjects));
+	context.subscriptions.push(
+		launchChanged,
+		vrunner.onDidChangeActiveEnvProfile(() => launchChanged.fire()),
+		vrunner.onDidChangeActiveEnvironment(() => launchChanged.fire()),
+		provider,
+		treeView,
+		...registerWorkspaceProjectCommands(source, showNoProjects)
+	);
 }

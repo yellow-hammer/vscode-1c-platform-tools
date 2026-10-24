@@ -3,10 +3,12 @@ import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import * as vscode from 'vscode';
-import type { AdapterRunPlan, FileTreeLocation, TestFrameworkAdapter } from '../../features/testing/frameworkAdapter';
+import type { AdapterRunPlan, FileTreeLocation, TestFrameworkAdapter, TestFrameworkId } from '../../features/testing/frameworkAdapter';
 import { findProjectFiles } from '../../features/artifacts/projectScan';
 import { TestingController } from '../../features/testing/testController';
-import type { VRunnerManager } from '../../shared/vrunnerManager';
+import { DEFAULT_PROFILE_ID } from '../../shared/envProfiles';
+import { VRunnerManager } from '../../shared/vrunnerManager';
+import { testingVRunner } from '../fixtures/helpers/testingVRunner';
 import { buildProcessCommand } from '../../utils/commandUtils';
 import { currentRoot, sameProjectRoot, type ProjectScanRoot } from '../../shared/workspaceProjects';
 
@@ -16,8 +18,9 @@ const SUB_PROJECT = path.join(PROJECT, 'подпроект');
 
 /** Адаптер, который запоминает корень, видимый при обнаружении и прогоне. */
 class RecordingAdapter implements TestFrameworkAdapter {
-	public readonly id = 'onescript' as const;
-	public readonly label = 'OneScript';
+	public readonly id: TestFrameworkId = 'onescript';
+	public readonly label: string = 'OneScript';
+	public readonly usesVanessaRunner: boolean = false;
 	public readonly usesReportDir = false;
 	public readonly discoveryRoots: (string | undefined)[] = [];
 	public readonly runRoots: (string | undefined)[] = [];
@@ -53,6 +56,17 @@ class ShellAdapter extends RecordingAdapter {
 
 	public override async buildRunPlan(): Promise<AdapterRunPlan> {
 		return { tool: 'shell', args: [this.command], reportTarget: { format: 'junit', path: this.report } };
+	}
+}
+
+/** Адаптер тестов 1С: прогон идёт через vanessa-runner, файлы — в каталоге features. */
+class VRunnerShellAdapter extends ShellAdapter {
+	public override readonly id: TestFrameworkId = 'xunit';
+	public override readonly label: string = 'xUnit';
+	public override readonly usesVanessaRunner: boolean = true;
+
+	public override getIncludeGlobs(): string[] {
+		return ['features/**/*.os'];
 	}
 }
 
@@ -96,7 +110,7 @@ suite('тестирование: дерево текущего проекта', 
 	test('смена проекта пересобирает дерево, адаптеры видят корень проекта', async function () {
 		this.timeout(60_000);
 		const adapter = new RecordingAdapter();
-		const testing = new TestingController([adapter], {} as VRunnerManager, { current: true }, {
+		const testing = new TestingController([adapter], testingVRunner(), { current: true }, {
 			id: '1c-platform-tools-tests-project-switch',
 			scanRootOf,
 		});
@@ -119,7 +133,7 @@ suite('тестирование: дерево текущего проекта', 
 	test('прогон идёт в проекте, чьи файлы в дереве', async function () {
 		this.timeout(60_000);
 		const adapter = new RecordingAdapter();
-		const testing = new TestingController([adapter], {} as VRunnerManager, { current: true }, {
+		const testing = new TestingController([adapter], testingVRunner(), { current: true }, {
 			id: '1c-platform-tools-tests-run-root',
 			scanRootOf,
 		});
@@ -146,12 +160,12 @@ suite('тестирование: дерево текущего проекта', 
 		this.timeout(60_000);
 		const output = path.join(os.tmpdir(), `1cpt-onescript-env-${process.pid}.txt`);
 		const envRoots: (string | undefined)[] = [];
-		const vrunner = {
+		const vrunner = testingVRunner({
 			oneScriptEnv: async (extra?: NodeJS.ProcessEnv) => {
 				envRoots.push(currentRoot());
 				return { ...process.env, ...extra, ONESCRIPT_ENGINE: 'выбранный' };
 			},
-		} as unknown as VRunnerManager;
+		});
 		const adapter = new ShellAdapter(
 			buildProcessCommand('node', ['-e', `require('fs').writeFileSync(${JSON.stringify(output)}, process.env.ONESCRIPT_ENGINE ?? '')`]),
 			`${output}.xml`
@@ -176,6 +190,95 @@ suite('тестирование: дерево текущего проекта', 
 			fs.rmSync(output, { force: true });
 			cancellation.dispose();
 			testing.dispose();
+		}
+	});
+});
+
+suite('тестирование: окружение запуска', () => {
+	const vrunner = VRunnerManager.getInstance();
+	let root: string;
+	let output: string;
+	let adapter: ShellAdapter;
+	let testing: TestingController;
+	let internals: ControllerInternals;
+	let cancellation: vscode.CancellationTokenSource;
+
+	setup(async function () {
+		this.timeout(60_000);
+		root = fs.mkdtempSync(path.join(os.tmpdir(), 'environment-run-'));
+		output = path.join(root, 'вывод.txt');
+		fs.mkdirSync(path.join(root, 'tests'));
+		fs.writeFileSync(path.join(root, 'tests', 'Проверка.os'), '', 'utf8');
+		fs.writeFileSync(path.join(root, '.env.dev'), 'RUN_INTEGRATION=true\n', 'utf8');
+		adapter = new ShellAdapter(
+			buildProcessCommand('node', ['-e', `require('fs').writeFileSync(${JSON.stringify(output)}, process.env.RUN_INTEGRATION ?? 'нет')`]),
+			path.join(root, 'junit.xml')
+		);
+		testing = new TestingController([adapter], vrunner, { current: true }, {
+			id: '1c-platform-tools-tests-environment',
+			scanRootOf: async (scanned: string): Promise<ProjectScanRoot> => ({ root: scanned, excludeDirs: [] }),
+		});
+		internals = testing as unknown as ControllerInternals;
+		cancellation = new vscode.CancellationTokenSource();
+		testing.setProject(root);
+		await testing.enqueueRebuild();
+	});
+
+	teardown(() => {
+		cancellation.dispose();
+		testing.dispose();
+		fs.rmSync(root, { recursive: true, force: true, maxRetries: 3 });
+	});
+
+	async function run(environmentId: string | undefined): Promise<void> {
+		await vrunner.runWithProjectRoot(root, () => vrunner.setActiveEnvironmentId(environmentId));
+		const [item] = fileItems(internals.controller);
+		assert.ok(item, 'дерево должно найти тестовый файл');
+		await internals.runHandler(new vscode.TestRunRequest([item]), cancellation.token);
+	}
+
+	test('раннер получает переменные выбранного окружения, по умолчанию их нет', async function () {
+		this.timeout(60_000);
+		await run('dev');
+		assert.strictEqual(fs.readFileSync(output, 'utf8'), 'true');
+		await run(undefined);
+		assert.strictEqual(fs.readFileSync(output, 'utf8'), 'нет');
+	});
+
+	test('выбранного окружения нет: прогон не начинается', async function () {
+		this.timeout(60_000);
+		await run('stage');
+		assert.strictEqual(fs.existsSync(output), false);
+	});
+
+	test('выбранного профиля нет: тест OneScript идёт, тест через vanessa-runner не начинается', async function () {
+		this.timeout(60_000);
+		const oneCOutput = path.join(root, 'тест-1с.txt');
+		fs.mkdirSync(path.join(root, 'features'));
+		fs.writeFileSync(path.join(root, 'features', 'Сценарий.os'), '', 'utf8');
+		const oneC = new VRunnerShellAdapter(
+			buildProcessCommand('node', ['-e', `require('fs').writeFileSync(${JSON.stringify(oneCOutput)}, 'запущен')`]),
+			path.join(root, 'junit-1c.xml')
+		);
+		const mixed = new TestingController([adapter, oneC], vrunner, { current: true }, {
+			id: '1c-platform-tools-tests-missing-profile',
+			scanRootOf: async (scanned: string): Promise<ProjectScanRoot> => ({ root: scanned, excludeDirs: [] }),
+		});
+		const mixedInternals = mixed as unknown as ControllerInternals;
+		try {
+			mixed.setProject(root);
+			await mixed.enqueueRebuild();
+			await vrunner.runWithProjectRoot(root, () => vrunner.setActiveEnvProfileId('dev'));
+			const items = fileItems(mixedInternals.controller);
+			assert.strictEqual(items.length, 2, 'дерево должно найти оба тестовых файла');
+
+			await mixedInternals.runHandler(new vscode.TestRunRequest(items), cancellation.token);
+
+			assert.strictEqual(fs.readFileSync(output, 'utf8'), 'нет', 'тест OneScript прошёл без профиля');
+			assert.strictEqual(fs.existsSync(oneCOutput), false, 'тест через vanessa-runner не начался');
+		} finally {
+			await vrunner.runWithProjectRoot(root, () => vrunner.setActiveEnvProfileId(DEFAULT_PROFILE_ID));
+			mixed.dispose();
 		}
 	});
 });

@@ -38,13 +38,13 @@ description: Инструменты MCP сервера mcp-1c-platform-tools. И
 
 ## Общие параметры
 
-`settingsFile` и `ibConnection` есть у команд vanessa-runner. Их нет у `env_status`, `env_selectProfile`, `env_clearOverrides`, `env_refreshVersion`, `env_editSettingsFile`, `env_openProfileEditor`, `deps_initPackagedef`, `deps_initProjStruct`, `deps_install`, `deps_installOscript`, `deps_updateOpm`, `deps_remove`, `pipelines_run`, `project_list`, `project_select` и `project_init`. У `odata_query` есть `settingsFile` и нет `ibConnection`.
+`settingsFile` и `ibConnection` есть у команд vanessa-runner. Их нет у `env_status`, `env_selectProfile`, `env_selectEnvironment`, `env_clearOverrides`, `env_refreshVersion`, `env_editSettingsFile`, `env_openProfileEditor`, `deps_initPackagedef`, `deps_initProjStruct`, `deps_install`, `deps_installOscript`, `deps_updateOpm`, `deps_remove`, `pipelines_run`, `project_list`, `project_select` и `project_init`. У `odata_query` есть `settingsFile` и нет `ibConnection`.
 
 Каталоги исходников инструменты не принимают: конфигурацию, расширения и внешние файлы расширение находит в проекте само.
 
 Явный `settingsFile` отменяет перекрытия активного профиля и не отменяет `ibConnection`. Явный `ibConnection` убирает из перекрытий подключение, пользователя и пароль и передаётся в команду. Замечания приходят в stdout строками `[контекст]`, в том числе «Подключение из вызова: …». Длинный вывод в ответе обрезается до хвоста: первая строка `[начало вывода пропущено: N символов]`.
 
-Отдельные параметры есть только у своих команд: `sha` у `cf_loadInc`, `updateDb` у `cf_load`, `cf_loadInc`, `cf_loadFile`, `cf_loadByList` и `cfe_load`, `extensions` у `cfe_load`, `cfe_loadFile`, `cfe_loadByList`, `cfe_dump`, `cfe_unload`, `cfe_compile`, `cfe_decompile`, `cfe_convert`, `cfe_updateDb`, `cfe_borrowObject`, `test_loadExts`, `test_dumpExts`, `test_compileExts` и `test_decompileExts`, `outputDirectory` и `outputName` у `cf_unload`, `cf_compile`, `cf_makeDist`, `cfe_unload`, `cfe_compile`, `epf_compileProc` и `epf_compileReport`, `profile` у `env_selectProfile`, `frameworks` у `test_configure`, `execute` и `command` у `run_enterprise` и `epf_run`, `pipeline` у `pipelines_run`. Параметры сеанса — в разделе «Сеансы», параметры OData — у `odata_query` и `odata_setup`.
+Отдельные параметры есть только у своих команд: `sha` у `cf_loadInc`, `updateDb` у `cf_load`, `cf_loadInc`, `cf_loadFile`, `cf_loadByList` и `cfe_load`, `extensions` у `cfe_load`, `cfe_loadFile`, `cfe_loadByList`, `cfe_dump`, `cfe_unload`, `cfe_compile`, `cfe_decompile`, `cfe_convert`, `cfe_updateDb`, `cfe_borrowObject`, `test_loadExts`, `test_dumpExts`, `test_compileExts` и `test_decompileExts`, `outputDirectory` и `outputName` у `cf_unload`, `cf_compile`, `cf_makeDist`, `cfe_unload`, `cfe_compile`, `epf_compileProc` и `epf_compileReport`, `profile` у `env_selectProfile`, `environment` у `env_selectEnvironment`, `frameworks` у `test_configure`, `execute` и `command` у `run_enterprise` и `epf_run`, `pipeline` у `pipelines_run`. Параметры сеанса — в разделе «Сеансы», параметры OData — у `odata_query` и `odata_setup`.
 
 `outputName` — имя файла без расширения. Переменные: `${name}`, `${folder}`, `${version}`, `${gitBranch}`. Одно имя без переменных на несколько объектов команду не запускает.
 
@@ -162,12 +162,13 @@ description: Инструменты MCP сервера mcp-1c-platform-tools. И
 
 ## Окружение и служебные файлы
 
-`env_status` возвращает JSON: `activeProfileId`, `settingsFile`, `settingsFileExists`, `settingsSchema`, `profiles`, `overrides`, `localOverrides`, `gitBranch`, `effectiveIbConnection`, `vrunnerVersion`, `odata`. Пароль замаскирован. Перед операцией, которая зависит от окружения, смотри этот ответ.
+`env_status` возвращает JSON: `activeProfileId`, `settingsFile`, `settingsFileExists`, `settingsFiles`, `settingsSchema`, `profiles`, `activeEnvironment`, `environment` (файлы и имена переменных без значений), `environments`, `launchProblem`, `overrides`, `localOverrides`, `gitBranch`, `effectiveIbConnection`, `vrunnerVersion`, `odata`. Пароль замаскирован. Перед операцией, которая зависит от окружения, смотри этот ответ.
 
 | Инструмент | Command ID | wait: true |
 |---|---|---|
 | `env_status` | `1c-platform-tools.env.status` | результат |
 | `env_selectProfile` | `1c-platform-tools.env.selectProfile` | результат |
+| `env_selectEnvironment` | `1c-platform-tools.env.selectEnvironment` | результат |
 | `env_clearOverrides` | `1c-platform-tools.env.clearOverrides` | результат |
 | `env_refreshVersion` | `1c-platform-tools.env.refreshVersion` | результат |
 | `env_editSettingsFile` | `1c-platform-tools.env.editSettingsFile` | пустой |
@@ -178,6 +179,8 @@ description: Инструменты MCP сервера mcp-1c-platform-tools. И
 | `serviceFiles_createEnvJson` | `1c-platform-tools.serviceFiles.createEnvJson` | пустой |
 
 `env_selectProfile`: параметр `profile` — id (`dev`), имя файла (`env.dev.json`, `autumn-properties.ci.json`) или подпись (`По умолчанию`). Профиль из запроса пользователя («под test», «переключись на storage») переключай этой командой. Неназванный не переключай. Разовый прогон без смены активного профиля — `settingsFile` у команды vanessa-runner. Без `profile` вызов возвращает ошибку и список доступных id, окно не открывает.
+
+`env_selectEnvironment`: параметр `environment` — имя окружения (`ci`) или файла (`.env.ci`), пустая строка — «По умолчанию», только общие `.env` и `.env.local`. Без `environment` вызов возвращает ошибку и список доступных имён.
 
 ## Тестирование
 

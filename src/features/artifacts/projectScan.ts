@@ -29,6 +29,15 @@ export async function detectedScanRoots(): Promise<ProjectScanRoot[]> {
 }
 
 /**
+ * Проект с каталогами, которые ему не принадлежат, после полного обнаружения.
+ *
+ * @param root - Корень проекта
+ */
+export async function projectScanRootOf(root: string): Promise<ProjectScanRoot> {
+	return (await detectedScanRoots()).find((scanRoot) => sameProjectRoot(scanRoot.root, root)) ?? { root, excludeDirs: [] };
+}
+
+/**
  * Не относится ли файл к проекту: лежит вне его корня, в подпроекте, во вложенной
  * папке рабочей области или под исключённым сегментом пути внутри проекта.
  *

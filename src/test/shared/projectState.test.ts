@@ -4,11 +4,12 @@ import * as vscode from 'vscode';
 import {
 	ACTIVE_ENV_OVERRIDES_STATE,
 	ACTIVE_ENV_PROFILE_STATE,
+	ACTIVE_ENVIRONMENT_STATE,
 	PROJECT_STATE_PREFIX,
 	WINDOW_STATE_PREFIX,
 	projectMemento,
 	projectStateKey,
-	readActiveProfileName,
+	readProjectLaunch,
 	windowMemento,
 } from '../../shared/projectState';
 import { VRunnerManager } from '../../shared/vrunnerManager';
@@ -83,13 +84,17 @@ suite('состояние проекта', () => {
 		assert.deepStrictEqual(projectMemento(root, base).keys(), [ACTIVE_ENV_PROFILE_STATE]);
 	});
 
-	test('профиль другого проекта читается без кода запуска', async () => {
+	test('профиль и окружение другого проекта читаются без кода запуска, «По умолчанию» не именованный', async () => {
 		const root = path.resolve('/w/профили');
+		const nothing = { profile: undefined, environment: undefined };
 
-		assert.strictEqual(readActiveProfileName(root), undefined);
+		assert.deepStrictEqual(readProjectLaunch(root), nothing);
 		await projectMemento(root).update(ACTIVE_ENV_PROFILE_STATE, 'dev');
-		assert.strictEqual(readActiveProfileName(root), 'dev');
-		assert.strictEqual(readActiveProfileName(path.resolve('/w/другой')), undefined);
+		await projectMemento(root).update(ACTIVE_ENVIRONMENT_STATE, 'ci');
+		assert.deepStrictEqual(readProjectLaunch(root), { profile: 'dev', environment: 'ci' });
+		await projectMemento(root).update(ACTIVE_ENV_PROFILE_STATE, 'default');
+		assert.strictEqual(readProjectLaunch(root).profile, undefined);
+		assert.deepStrictEqual(readProjectLaunch(path.resolve('/w/другой')), nothing);
 	});
 
 	test('профиль и временные параметры, выбранные запуском, принадлежат проекту', async () => {
@@ -103,8 +108,8 @@ suite('состояние проекта', () => {
 			await vrunner.setActiveEnvOverrides({ dbUser: 'admin' });
 		});
 
-		assert.strictEqual(readActiveProfileName(first), 'env.dev.json');
-		assert.strictEqual(readActiveProfileName(second), undefined);
+		assert.strictEqual(readProjectLaunch(first).profile, 'env.dev.json');
+		assert.strictEqual(readProjectLaunch(second).profile, undefined);
 		assert.deepStrictEqual(projectMemento(first).get(ACTIVE_ENV_OVERRIDES_STATE), { dbUser: 'admin' });
 		assert.deepStrictEqual(
 			await vrunner.runWithProjectRoot(first, async () => [vrunner.getActiveEnvProfileId(), vrunner.hasActiveEnvOverrides()]),

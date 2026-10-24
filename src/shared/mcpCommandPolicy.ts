@@ -39,6 +39,8 @@ const HIDDEN_PREFIXES = [
 	`${COMMAND_PREFIX}mcp.`,
 	`${COMMAND_PREFIX}refresh`,
 	`${COMMAND_PREFIX}env.createProfile`,
+	`${COMMAND_PREFIX}env.createEnvironment`,
+	`${COMMAND_PREFIX}env.openEnvironment`,
 	`${COMMAND_PREFIX}env.setOverrides`,
 	`${COMMAND_PREFIX}env.statusBarRefresh`,
 	`${COMMAND_PREFIX}dependencies.setupGit`,

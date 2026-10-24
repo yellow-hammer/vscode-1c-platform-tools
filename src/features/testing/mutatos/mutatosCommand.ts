@@ -125,7 +125,17 @@ export async function runMutationTesting(
 		hasTopLevel: (name) => fs.existsSync(path.join(root, name)),
 	});
 
-	const env = mutatosEnv(process.env, {
+	// Тесты OneUnit запускает движок OneScript: профиль vanessa-runner им не нужен
+	const environmentProblem = vrunner.environmentProblem();
+	if (environmentProblem) {
+		const fix = vrunner.launchFix(environmentProblem);
+		return notStarted(
+			{ message: environmentProblem, actions: [{ title: fix.title, run: () => vscode.commands.executeCommand(fix.command) }] },
+			opts
+		);
+	}
+
+	const env = mutatosEnv(vrunner.launchEnv(), {
 		binDir: path.dirname(engine.oscript),
 		testsDirs: relativeTestsDirs(root, testsDirs),
 		excluded,

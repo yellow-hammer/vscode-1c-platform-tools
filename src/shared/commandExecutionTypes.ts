@@ -30,6 +30,8 @@ export interface CommandExecutionOptions {
 	extensions?: string[];
 	/** Имя env-профиля для env.selectProfile (id, имя файла или подпись). */
 	profile?: string;
+	/** Имя окружения для env.selectEnvironment; пустая строка — по умолчанию. */
+	environment?: string;
 	/** Ключи включаемых тестовых фреймворков (test.configure). */
 	frameworks?: string[];
 	/** Путь к внешней обработке/отчёту для запуска в Предприятии (vrunner run --execute). */

@@ -51,9 +51,10 @@ export class SyntaxCheckDiagnostics implements vscode.Disposable {
 		this.collection = vscode.languages.createDiagnosticCollection('1c-syntax-check');
 		this.disposables.push(this.collection);
 
-		// Смена активного профиля запуска меняет читаемый env-файл и путь к отчёту
+		// Профиль и окружение (VRUNNER_SETTINGS) меняют читаемый файл настроек и путь к отчёту
 		this.disposables.push(
-			this.vrunner.onDidChangeActiveEnvProfile(() => void this.reconfigure())
+			this.vrunner.onDidChangeActiveEnvProfile(() => void this.reconfigure()),
+			this.vrunner.onDidChangeActiveEnvironment(() => void this.reconfigure())
 		);
 		// Находки прежнего проекта к новому не относятся
 		this.disposables.push(

@@ -36,6 +36,7 @@ const log = logger.scope('testing');
 export class VanessaAdapter implements TestFrameworkAdapter {
 	public readonly id = 'vanessa' as const;
 	public readonly label = 'Vanessa Automation';
+	public readonly usesVanessaRunner = true;
 
 	constructor(private readonly vrunner: VRunnerManager) {}
 

@@ -9,6 +9,7 @@ import { runHookPhaseDry } from '../../shared/commandHooks';
 import { handleExecuteCommand, openIpcChannel } from '../../shared/ipcServer';
 import { runCommandFromFile } from '../../shared/runCommandFromFileWatcher';
 import { VRunnerManager } from '../../shared/vrunnerManager';
+import { testingVRunner } from '../fixtures/helpers/testingVRunner';
 import { setWorkspaceTrustProbe, withWorkspaceTrust, WORKSPACE_TRUST_REQUIRED } from '../../shared/workspaceTrust';
 import { RacClient } from '../../features/clusters/racClient';
 import { launchInfobase, launchStartWindow } from '../../features/ibases/cestart';
@@ -146,6 +147,7 @@ suite('недоверенная папка: панель тестировани�
 	class RecordingAdapter implements TestFrameworkAdapter {
 		public readonly id = 'onescript' as const;
 		public readonly label = 'OneScript';
+		public readonly usesVanessaRunner = false;
 		public readonly usesReportDir = false;
 		public runPlansRequested = 0;
 
@@ -183,7 +185,7 @@ suite('недоверенная папка: панель тестировани�
 	test('прогон из дерева тестов не начинается', async function () {
 		this.timeout(60_000);
 		const adapter = new RecordingAdapter();
-		const testing = new TestingController([adapter], {} as VRunnerManager, { current: true }, {
+		const testing = new TestingController([adapter], testingVRunner(), { current: true }, {
 			id: '1c-platform-tools-tests-trust',
 			scanRootOf,
 		});

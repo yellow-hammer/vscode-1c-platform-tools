@@ -11,8 +11,8 @@ import {
 	terminalProjectRoot,
 } from '../../features/tasks/terminalProjects';
 
-function fakeTerminal(name: string, cwd?: string): vscode.Terminal {
-	return { name, creationOptions: cwd === undefined ? {} : { cwd } } as unknown as vscode.Terminal;
+function fakeTerminal(name: string, cwd?: string, env?: Record<string, string>): vscode.Terminal {
+	return { name, creationOptions: cwd === undefined ? {} : { cwd, env } } as unknown as vscode.Terminal;
 }
 
 /** Запускает задачу и ждёт её завершения. */
@@ -50,6 +50,20 @@ suite('проект команды в терминале', () => {
 		assert.strictEqual(reusableTerminal(terminals, 'Сборка', second), terminals[1]);
 		assert.strictEqual(reusableTerminal(terminals, 'Сборка', process.platform === 'win32' ? first.toUpperCase() : first), terminals[0]);
 		assert.strictEqual(reusableTerminal(terminals, 'Сборка', path.resolve('/w/третий')), undefined);
+	});
+
+	test('терминал режима без задач переиспользуется только с теми же переменными окружения', () => {
+		const root = path.resolve('/w/проект');
+		const terminal = fakeTerminal('Сборка', root, { DB_HOST: 'localhost' });
+
+		assert.strictEqual(reusableTerminal([terminal], 'Сборка', root, { DB_HOST: 'localhost' }), terminal);
+		assert.strictEqual(reusableTerminal([terminal], 'Сборка', root, { DB_HOST: 'db' }), undefined);
+		assert.strictEqual(reusableTerminal([terminal], 'Сборка', root, {}), undefined, 'окружение сброшено');
+		assert.strictEqual(
+			reusableTerminal([terminal], 'Сборка', root, { DB_HOST: 'localhost', DB_PORT: '5432' }),
+			undefined,
+			'в окружении новая переменная'
+		);
 	});
 
 	test('терминал, созданный командой, помнит свой проект', () => {

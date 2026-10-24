@@ -85,6 +85,11 @@ export interface TestFrameworkAdapter {
 	/** Отображаемое имя корневого узла в Test Explorer */
 	readonly label: string;
 	/**
+	 * Прогон идёт через vanessa-runner с файлом настроек активного профиля.
+	 * Тесты OneScript и 1bdd запускает движок OneScript, профиль vanessa-runner им не нужен.
+	 */
+	readonly usesVanessaRunner: boolean;
+	/**
 	 * Нужен ли адаптеру временный scratch-каталог прогона (reportDir в buildRunPlan)
 	 *
 	 * true/undefined (по умолчанию) — туда стейджатся конфиги (yaxunit-config.json,

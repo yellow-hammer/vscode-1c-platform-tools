@@ -4,6 +4,7 @@
  */
 
 import * as vscode from 'vscode';
+import { DEFAULT_PROFILE_ID } from './envProfiles';
 import { currentRoot, projectRootKey, workspaceMemento } from './workspaceProjects';
 
 /** Начало ключей состояния проекта. */
@@ -17,6 +18,9 @@ export const ACTIVE_ENV_PROFILE_STATE = 'activeEnvProfile';
 
 /** Временные параметры активного профиля запуска. */
 export const ACTIVE_ENV_OVERRIDES_STATE = 'activeEnvOverrides';
+
+/** Выбранное окружение запуска. */
+export const ACTIVE_ENVIRONMENT_STATE = 'activeEnvironment';
 
 /** Выбор расширений. */
 export const EXTENSION_SELECTION_STATE = 'extensions.selection';
@@ -120,13 +124,28 @@ export function projectMemento(
 	return root === undefined ? windowMemento(base) : new PrefixedMemento(base, projectStateKey(root, ''));
 }
 
+/** Выбор проекта для запусков, как он сохранён. */
+export interface ProjectLaunch {
+	/** Именованный профиль; у «По умолчанию» его нет */
+	profile?: string;
+	/** Выбранное окружение */
+	environment?: string;
+}
+
 /**
- * Id активного профиля запуска проекта, как он сохранён; undefined, если профиль
- * в проекте не выбирали.
+ * Именованный профиль и окружение проекта, как они сохранены.
  *
  * @param root - Корень проекта
  */
-export function readActiveProfileName(root: string): string | undefined {
-	const value = projectMemento(root).get<unknown>(ACTIVE_ENV_PROFILE_STATE);
-	return typeof value === 'string' && value.length > 0 ? value : undefined;
+export function readProjectLaunch(root: string): ProjectLaunch {
+	const memento = projectMemento(root);
+	const named = (key: string): string | undefined => {
+		const value = memento.get<unknown>(key);
+		return typeof value === 'string' && value.length > 0 ? value : undefined;
+	};
+	const profile = named(ACTIVE_ENV_PROFILE_STATE);
+	return {
+		profile: profile === DEFAULT_PROFILE_ID ? undefined : profile,
+		environment: named(ACTIVE_ENVIRONMENT_STATE),
+	};
 }

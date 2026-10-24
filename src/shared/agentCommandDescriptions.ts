@@ -36,7 +36,7 @@ const ODATA = '1С: OData';
 export const AGENT_COMMAND_DESCRIPTIONS: Record<string, AgentCommandDescription> = {
 	// Команды, которых нет в палитре: заголовка у них нет вовсе
 	'1c-platform-tools.env.status': {
-		title: 'Показать состояние окружения запуска: версия vanessa-runner, активный профиль, файл настроек, строка подключения к ИБ',
+		title: 'Показать состояние запуска: версия vanessa-runner, активный профиль, файл настроек, строка подключения к ИБ, выбранное окружение (.env-файлы и имена переменных без значений)',
 		category: ENVIRONMENT,
 	},
 	'1c-platform-tools.epf.run': {
@@ -344,6 +344,10 @@ export const AGENT_COMMAND_DESCRIPTIONS: Record<string, AgentCommandDescription>
 		title: 'Переключить активный профиль запуска (параметр profile)',
 		category: ENVIRONMENT,
 	},
+	'1c-platform-tools.env.selectEnvironment': {
+		title: 'Выбрать окружение запуска — переменные среды из .env.<имя> для всех запусков проекта (параметр environment; пустая строка — по умолчанию, только общие .env и .env.local)',
+		category: ENVIRONMENT,
+	},
 	'1c-platform-tools.env.clearOverrides': {
 		title: 'Сбросить временные параметры запуска активного профиля',
 		category: ENVIRONMENT,
@@ -351,7 +355,7 @@ export const AGENT_COMMAND_DESCRIPTIONS: Record<string, AgentCommandDescription>
 
 	// Проекты окна: команды без projectPath выполняются в текущем проекте
 	'1c-platform-tools.project.list': {
-		title: 'Показать проекты 1С в окне VS Code (каталоги с packagedef и подпроекты): корень, имя, вид проекта (kind: designer или edt по формату исходного кода 1С, onec без исходного кода, onescript), формат и имя конфигурации, какой проект текущий; отдельно папки и конфигурации без packagedef. Команды без projectPath выполняются в текущем проекте',
+		title: 'Показать проекты 1С в окне VS Code (каталоги с packagedef и подпроекты): корень, имя, вид проекта (kind: designer или edt по формату исходного кода 1С, onec без исходного кода, onescript), формат и имя конфигурации, именованный профиль и окружение, какой проект текущий; отдельно папки и конфигурации без packagedef. Команды без projectPath выполняются в текущем проекте',
 		category: PROJECT,
 	},
 	'1c-platform-tools.project.select': {

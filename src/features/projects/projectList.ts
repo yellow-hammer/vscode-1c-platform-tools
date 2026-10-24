@@ -6,7 +6,7 @@
 import type { StructuredCommandResult } from '../../shared/commandExecutionTypes';
 import type { ProjectKind } from '../../shared/projectKind';
 import type { SourceFormat } from '../../shared/projectLayout';
-import { readActiveProfileName } from '../../shared/projectState';
+import { readProjectLaunch, type ProjectLaunch } from '../../shared/projectState';
 import {
 	projectDisplayName,
 	type ProjectCandidateKind,
@@ -27,7 +27,10 @@ export interface ProjectListEntry {
 	format?: SourceFormat;
 	configuration?: string;
 	current: boolean;
+	/** Именованный профиль запуска */
 	profile?: string;
+	/** Выбранное окружение */
+	environment?: string;
 }
 
 /** Не проект в списке. */
@@ -61,12 +64,12 @@ export interface ProjectCommandResult<T> extends StructuredCommandResult {
  *
  * @param snapshot - Найденное
  * @param selectedRoot - Выбранный корень
- * @param profileOf - Имя активного профиля проекта
+ * @param launchOf - Именованный профиль и окружение проекта
  */
 export function buildProjectList(
 	snapshot: WorkspaceProjectsSnapshot,
 	selectedRoot: string | undefined,
-	profileOf: (root: string) => string | undefined = readActiveProfileName
+	launchOf: (root: string) => ProjectLaunch = readProjectLaunch
 ): ProjectListData {
 	const projects = snapshot.projects.map((project): ProjectListEntry => {
 		const entry: ProjectListEntry = {
@@ -87,9 +90,12 @@ export function buildProjectList(
 				entry.configuration = project.configuration.name;
 			}
 		}
-		const profile = profileOf(project.root);
+		const { profile, environment } = launchOf(project.root);
 		if (profile) {
 			entry.profile = profile;
+		}
+		if (environment) {
+			entry.environment = environment;
 		}
 		return entry;
 	});
@@ -116,14 +122,14 @@ export function failure<T>(message: string, data: T): ProjectCommandResult<T> {
  * Список проектов после полного обнаружения.
  *
  * @param source - Проекты окна
- * @param profileOf - Имя активного профиля проекта
+ * @param launchOf - Именованный профиль и окружение проекта
  */
 export async function listProjectsResult(
 	source: WorkspaceProjectsSource,
-	profileOf?: (root: string) => string | undefined
+	launchOf?: (root: string) => ProjectLaunch
 ): Promise<ProjectCommandResult<ProjectListData>> {
 	await Promise.all([source.listProjects(), source.listCandidates()]);
-	return success(buildProjectList(source.snapshotNow(), source.selectedRoot(), profileOf));
+	return success(buildProjectList(source.snapshotNow(), source.selectedRoot(), launchOf));
 }
 
 function projectsText(projects: readonly WorkspaceProject[]): string {

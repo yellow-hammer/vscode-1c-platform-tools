@@ -64,24 +64,27 @@ function projectKindParts(project: WorkspaceProject): string[] {
 export interface ProjectDescriptionDetails {
 	/** Путь подпроекта от корневого проекта или {@link nestedProjectLocation}. */
 	location?: string;
-	/** Имя активного профиля. */
+	/** Именованный профиль запуска. */
 	profile?: string;
+	/** Выбранное окружение. */
+	environment?: string;
 }
 
 /**
  * Описание строки проекта: «текущий», путь от корневого проекта, формат и
- * конфигурация или вид проекта, профиль.
+ * конфигурация или вид проекта, именованный профиль и окружение.
  *
  * @param project - Проект
  * @param current - Проект текущий
- * @param details - Путь и профиль
+ * @param details - Путь, профиль и окружение
  */
 export function projectDescription(project: WorkspaceProject, current: boolean, details: ProjectDescriptionDetails = {}): string {
 	return [
 		...(current ? ['текущий'] : []),
 		...(details.location ? [details.location] : []),
 		...projectKindParts(project),
-		...(details.profile ? [details.profile] : []),
+		...(details.profile ? [`профиль: ${details.profile}`] : []),
+		...(details.environment ? [`окружение: ${details.environment}`] : []),
 	].join(SEPARATOR);
 }
 

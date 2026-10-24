@@ -366,6 +366,13 @@ suite('commandUtils', () => {
 		);
 	});
 
+	test('dockerRunArgs: переменные профиля передаются по имени, без значений в командной строке', () => {
+		assert.deepStrictEqual(
+			dockerRunArgs('vrunner:8.3.27', ['load'], '/home/ws', { envNames: ['VRUNNER_DBPWD', 'DB_HOST'] }),
+			['run', '--rm', '-v', '/home/ws:/workspace', '-e', 'VRUNNER_DBPWD', '-e', 'DB_HOST', '-w', '/workspace', 'vrunner:8.3.27', 'load']
+		);
+	});
+
 	test('buildDockerCommandSequence: параметры docker.runArgs стоят до точки входа', () => {
 		const result = buildDockerCommandSequence('vrunner:8.3.27', [['compile']], '/home/ws', 'sh', { runArgs: ['--network', 'host'] });
 		assert.ok(result.includes('-w /workspace --network host --init -e TINI_KILL_PROCESS_GROUP=1 --entrypoint /bin/sh vrunner:8.3.27'), result);

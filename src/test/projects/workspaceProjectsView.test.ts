@@ -11,6 +11,7 @@ import { bindProjectDescription } from '../../features/projects/projectViewDescr
 import { projectPickItems } from '../../features/projects/workspaceProjectPicker';
 import { initializeChoices } from '../../features/projects/projectInitialization';
 import { listProjectsResult } from '../../features/projects/projectList';
+import type { ProjectLaunch } from '../../shared/projectState';
 import {
 	ACCOUNTING,
 	at,
@@ -28,7 +29,7 @@ import {
 
 const ROOTS = [PROJECT, NOT_PROJECT, TWO_CONFIGURATIONS];
 
-const profileOf = (root: string): string | undefined => (sameProjectRoot(root, PROJECT) ? 'dev' : undefined);
+const launchOf = (root: string): ProjectLaunch => (sameProjectRoot(root, PROJECT) ? { profile: 'dev' } : {});
 
 function rootOfNode(node: WorkspaceProjectsNode): string | undefined {
 	switch (node.kind) {
@@ -54,7 +55,7 @@ suite('проекты: вид «Рабочая область»', () => {
 	setup(async () => {
 		resetLayout();
 		fixture = await detectedProjects(ROOTS);
-		provider = new WorkspaceProjectsTreeProvider(fixture.source, profileOf);
+		provider = new WorkspaceProjectsTreeProvider(fixture.source, launchOf);
 	});
 
 	teardown(() => {
@@ -68,7 +69,7 @@ suite('проекты: вид «Рабочая область»', () => {
 		assert.deepStrictEqual(
 			top.map((node) => row(provider, node)),
 			[
-				['проект', 'текущий · Конфигуратор · Основная · dev', 'workspaceProjectCurrent', PROJECT],
+				['проект', 'текущий · Конфигуратор · Основная · профиль: dev', 'workspaceProjectCurrent', PROJECT],
 				['две-конфигурации', 'Конфигуратор · Первая', 'workspaceProject', TWO_CONFIGURATIONS],
 				['Не проекты', undefined, 'workspaceCandidates', undefined],
 			]
@@ -113,7 +114,7 @@ suite('проекты: вид «Рабочая область»', () => {
 	test('вложенные строки без имени родителя, одинаковые имена на одном уровне различаются', async () => {
 		const copy = copyFixtures('проект');
 		const local = await detectedProjects([PROJECT, ...copy.roots]);
-		const localProvider = new WorkspaceProjectsTreeProvider(local.source, () => undefined);
+		const localProvider = new WorkspaceProjectsTreeProvider(local.source, () => ({}));
 		try {
 			const [copyRoot] = copy.roots;
 			const top = localProvider.getChildren();
@@ -133,7 +134,7 @@ suite('проекты: вид «Рабочая область»', () => {
 
 	test('проекты из папки без packagedef: после проектов в корне папок, значок подмодуля и путь, текущий по умолчанию в корне папки', async () => {
 		const local = await detectedProjects([at('монорепозиторий'), PROJECT]);
-		const localProvider = new WorkspaceProjectsTreeProvider(local.source, profileOf);
+		const localProvider = new WorkspaceProjectsTreeProvider(local.source, launchOf);
 		try {
 			const top = localProvider.getChildren();
 			const icon = (node: WorkspaceProjectsNode) => localProvider.getTreeItem(node).iconPath as vscode.ThemeIcon;
@@ -141,7 +142,7 @@ suite('проекты: вид «Рабочая область»', () => {
 			assert.deepStrictEqual(
 				top.map((node) => row(localProvider, node)),
 				[
-					['проект', 'текущий · Конфигуратор · Основная · dev', 'workspaceProjectCurrent', PROJECT],
+					['проект', 'текущий · Конфигуратор · Основная · профиль: dev', 'workspaceProjectCurrent', PROJECT],
 					['библиотека', 'монорепозиторий · Конфигуратор · Библиотека', 'workspaceProject', at('монорепозиторий', 'библиотека')],
 					['приложение', 'монорепозиторий · Конфигуратор · Приложение', 'workspaceProject', at('монорепозиторий', 'приложение')],
 				]
@@ -169,7 +170,7 @@ suite('проекты: вид «Рабочая область»', () => {
 	test('проект без конфигурации подписан видом', async () => {
 		const scripts = at('инструменты', 'tools', 'deploy');
 		const local = await detectedProjects([scripts]);
-		const localProvider = new WorkspaceProjectsTreeProvider(local.source, () => undefined);
+		const localProvider = new WorkspaceProjectsTreeProvider(local.source, () => ({}));
 		try {
 			const [project] = localProvider.getChildren();
 			assert.deepStrictEqual(row(localProvider, project), ['deploy', 'текущий · OneScript', 'workspaceProjectCurrent', scripts]);
@@ -202,23 +203,23 @@ suite('проекты: вид «Рабочая область»', () => {
 		assert.strictEqual(provider.getParent(group), undefined);
 	});
 
-	test('смена активного профиля перерисовывает профиль в строках', () => {
-		const profiles = new Map<string, string>([[PROJECT, 'dev']]);
+	test('смена профиля или окружения перерисовывает их в строках', () => {
+		const launches = new Map<string, ProjectLaunch>([[PROJECT, { profile: 'dev' }]]);
 		const profileChanged = new vscode.EventEmitter<void>();
-		const local = new WorkspaceProjectsTreeProvider(fixture.source, (root) => profiles.get(root), profileChanged.event);
+		const local = new WorkspaceProjectsTreeProvider(fixture.source, (root) => launches.get(root) ?? {}, profileChanged.event);
 		let changes = 0;
 		const subscription = local.onDidChangeTreeData(() => {
 			changes += 1;
 		});
 		try {
-			profiles.set(PROJECT, 'test');
-			profiles.set(TWO_CONFIGURATIONS, 'prod');
+			launches.set(PROJECT, { profile: 'test', environment: 'ci' });
+			launches.set(TWO_CONFIGURATIONS, { profile: 'prod' });
 			profileChanged.fire();
 
 			const [project, twoConfigurations] = local.getChildren();
 			assert.strictEqual(changes, 1);
-			assert.strictEqual(local.getTreeItem(project).description, 'текущий · Конфигуратор · Основная · test');
-			assert.strictEqual(local.getTreeItem(twoConfigurations).description, 'Конфигуратор · Первая · prod');
+			assert.strictEqual(local.getTreeItem(project).description, 'текущий · Конфигуратор · Основная · профиль: test · окружение: ci');
+			assert.strictEqual(local.getTreeItem(twoConfigurations).description, 'Конфигуратор · Первая · профиль: prod');
 		} finally {
 			subscription.dispose();
 			local.dispose();
@@ -237,7 +238,7 @@ suite('проекты: вид «Рабочая область»', () => {
 
 		const [project, twoConfigurations] = provider.getChildren();
 		assert.ok(changes > 0);
-		assert.strictEqual(provider.getTreeItem(project).description, 'Конфигуратор · Основная · dev');
+		assert.strictEqual(provider.getTreeItem(project).description, 'Конфигуратор · Основная · профиль: dev');
 		assert.strictEqual(provider.getTreeItem(twoConfigurations).description, 'текущий · Конфигуратор · Первая');
 		assert.strictEqual(provider.getTreeItem(twoConfigurations).contextValue, 'workspaceProjectCurrent');
 	});
@@ -307,7 +308,7 @@ suite('проекты: окно выбора и описание видов', ()
 	test('совпадающие имена не проектов различаются в виде, окне выбора, вариантах инициализации и списке', async () => {
 		const copy = sameNamedCandidates();
 		const local = await detectedProjects(copy.roots);
-		const provider = new WorkspaceProjectsTreeProvider(local.source, () => undefined);
+		const provider = new WorkspaceProjectsTreeProvider(local.source, () => ({}));
 		try {
 			const [first, , x, y] = copy.roots;
 			const group = provider.getChildren().find((node) => node.kind === 'candidates');
@@ -334,7 +335,7 @@ suite('проекты: окно выбора и описание видов', ()
 				.map((choice) => choice.label);
 			assert.deepStrictEqual(extraChoices, ['поставка (первая)', 'учёт (первая)', 'поставка (вторая)', 'учёт (вторая)']);
 
-			const list = await listProjectsResult(local.source, () => undefined);
+			const list = await listProjectsResult(local.source, () => ({}));
 			assert.deepStrictEqual(
 				list.data.candidates.map((candidate) => candidate.name),
 				candidates

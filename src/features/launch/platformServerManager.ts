@@ -355,6 +355,9 @@ export class PlatformServerManager {
 	 * @param workspaceRoot - Корень проекта
 	 */
 	private async startIn(workspaceRoot: string): Promise<void> {
+		if (!this.vrunner.ensureLaunchReady()) {
+			return;
+		}
 		const settings = this.readSettings(workspaceRoot);
 
 		// Версия платформы: настройка сервера → --v8version активного профиля → наибольшая.
@@ -409,7 +412,7 @@ export class PlatformServerManager {
 		const args = buildServerArgs(dataDir, configPath, settings);
 		this.output.appendLine(`Аргументы: ${args.join(' ')}`);
 
-		const child = spawn(binary, args, { windowsHide: true });
+		const child = spawn(binary, args, { windowsHide: true, env: this.vrunner.launchEnv() });
 		this.child = child;
 
 		const stdoutDecoder = new ProcessOutputDecoder();

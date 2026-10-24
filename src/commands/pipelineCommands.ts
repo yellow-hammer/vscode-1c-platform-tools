@@ -115,6 +115,12 @@ export class PipelineCommands extends BaseCommand {
 			return this.rejectIfWait(opts, message) ?? this.showWarning(message);
 		}
 
+		// Профиль проверяет каждый шаг vanessa-runner сам, окружение нужно всем шагам
+		const environmentProblem = this.vrunner.environmentProblem();
+		if (environmentProblem) {
+			return this.rejectIfWait(opts, environmentProblem) ?? this.offerLaunchFix(environmentProblem);
+		}
+
 		if (this.running.has(pipeline.id)) {
 			const message = `Пайплайн «${pipeline.name}» уже выполняется`;
 			return this.rejectIfWait(opts, message) ?? this.showInfo(message);
@@ -430,6 +436,7 @@ ${result.stderr ?? ''}`
 				command,
 				{
 					cwd,
+					env: this.vrunner.launchEnv(),
 					windowsHide: true,
 					maxBuffer: 10 * 1024 * 1024,
 					...(node.timeout !== undefined ? { timeout: node.timeout * 1000 } : {}),
@@ -554,6 +561,11 @@ ${result.stderr ?? ''}`
 
 	private showWarning(message: string): undefined {
 		void vscode.window.showWarningMessage(message);
+		return undefined;
+	}
+
+	private offerLaunchFix(problem: string): undefined {
+		this.vrunner.offerLaunchFix(problem);
 		return undefined;
 	}
 }

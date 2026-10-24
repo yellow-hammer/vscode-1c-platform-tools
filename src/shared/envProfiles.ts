@@ -1,10 +1,11 @@
 /**
- * Модель env-профилей запуска.
+ * Модель профилей запуска.
  *
- * Профиль — самодостаточный файл настроек vanessa-runner в корне проекта:
- * `env.json` (базовый) и `env.<id>.json` (именованные, например env.dev.json).
- * Активный профиль подставляется в команды vrunner через `--settings`; поверх
- * него можно задать временные параметры отдельными флагами.
+ * Профиль — файл настроек vanessa-runner в корне проекта: `env.json` /
+ * `autumn-properties.json` (базовый) и `env.<id>.json` /
+ * `autumn-properties.<id>.json` (именованные). Именованный подставляется в
+ * команды vrunner через `--settings`; поверх него можно задать временные
+ * параметры отдельными флагами.
  *
  * Модуль чистый (без vscode/fs).
  */
@@ -33,6 +34,12 @@ export const LOCAL_OVERRIDES_FILE = 'env.local.json';
 export const BASE_AUTUMN_FILE = 'autumn-properties.json';
 
 /**
+ * Личный файл настроек vanessa-runner 3: проектный autumn-properties.json
+ * подключает его ключом `vrunner.settings`, профилем запуска он не считается.
+ */
+export const LOCAL_AUTUMN_FILE = 'autumn-properties.local.json';
+
+/**
  * Имя базового файла настроек для схемы.
  *
  * @param schema - Схема настроек (по версии vrunner)
@@ -52,7 +59,7 @@ export const DEFAULT_PROFILE_LABEL = 'По умолчанию';
 export const NO_SETTINGS_LABEL = 'Нет файла настроек';
 
 /**
- * Env-профиль запуска
+ * Профиль запуска
  */
 export interface EnvProfile {
 	/** Идентификатор профиля ('default' — env.json, 'dev' — env.dev.json и т.п.) */
@@ -98,8 +105,8 @@ const AUTUMN_FILE_RE = /^autumn-properties(?:\.([A-Za-z0-9_.-]+))?\.json$/;
  */
 export function parseEnvFileName(fileName: string, schema: SettingsSchema = 'v2'): EnvProfile | undefined {
 	const trimmed = fileName.trim();
-	// env.local.json — файл локальных перекрытий, а не профиль запуска
-	if (trimmed === LOCAL_OVERRIDES_FILE) {
+	// личные файлы перекрытий, а не профили запуска
+	if (trimmed === LOCAL_OVERRIDES_FILE || trimmed === LOCAL_AUTUMN_FILE) {
 		return undefined;
 	}
 	const pattern = schema === 'v3' ? AUTUMN_FILE_RE : ENV_FILE_RE;
@@ -141,6 +148,21 @@ export function buildEnvProfiles(fileNames: string[], schema: SettingsSchema = '
 		}
 		return a.id.localeCompare(b.id);
 	});
+}
+
+/**
+ * Профили запуска проекта. У проекта OneScript профиль один — autumn-properties.json,
+ * который приложение на Осени читает само: другой файл ему не подставить.
+ *
+ * @param fileNames - Имена файлов в корне проекта
+ * @param schema - Схема настроек установленного vanessa-runner
+ * @param vanessaRunner - Проект запускает команды vanessa-runner
+ * @returns Отсортированный список профилей
+ */
+export function projectProfiles(fileNames: string[], schema: SettingsSchema, vanessaRunner: boolean): EnvProfile[] {
+	return vanessaRunner
+		? buildEnvProfiles(fileNames, schema)
+		: buildEnvProfiles(fileNames, 'v3').filter((profile) => profile.isBase);
 }
 
 /**

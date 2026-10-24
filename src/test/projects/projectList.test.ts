@@ -31,14 +31,14 @@ suite('проекты: список и выбор текущего проект�
 	});
 
 	test('список: текущий корень, проекты с видом, форматом и конфигурацией, не проекты с видом', async () => {
-		const result = await listProjectsResult(fixture.source, (root) => (sameProjectRoot(root, PROJECT) ? 'dev' : undefined));
+		const result = await listProjectsResult(fixture.source, (root) => (sameProjectRoot(root, PROJECT) ? { profile: 'dev', environment: 'ci' } : {}));
 
 		assert.strictEqual(result.success, true);
 		assert.strictEqual(result.stdout, '');
 		assert.deepStrictEqual(result.data, {
 			current: PROJECT,
 			projects: [
-				{ root: PROJECT, name: 'проект', subProject: false, kind: 'designer', format: 'designer', configuration: 'Основная', current: true, profile: 'dev' },
+				{ root: PROJECT, name: 'проект', subProject: false, kind: 'designer', format: 'designer', configuration: 'Основная', current: true, profile: 'dev', environment: 'ci' },
 				{ root: SUB_PROJECT, name: 'подпроект', parent: PROJECT, subProject: true, kind: 'designer', format: 'designer', configuration: 'Подпроект', current: false },
 				{ root: TWO_CONFIGURATIONS, name: 'две-конфигурации', subProject: false, kind: 'designer', format: 'designer', configuration: 'Первая', current: false },
 			],

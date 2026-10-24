@@ -1,9 +1,11 @@
 /**
- * Профили запуска 1С и временные параметры.
+ * Профили запуска 1С, временные параметры и окружение запуска.
  *
  * Статус-бар активного профиля открывает выбор профиля. Временные параметры
  * (адрес ИБ, пользователь, пароль, версия платформы, доп. параметры) задаются
  * через QuickPick и применяются ко всем командам vanessa-runner поверх профиля.
+ * Окружение — переменные среды из файлов `.env` — выбирается отдельно, своим
+ * элементом статус-бара (см. environmentFeature).
  */
 
 import { resolveODataEndpoint } from '../../shared/odataEndpoint';
@@ -13,7 +15,14 @@ import * as fs from 'node:fs/promises';
 import * as fsSync from 'node:fs';
 import { spawn } from 'node:child_process';
 import { VRunnerManager } from '../../shared/vrunnerManager';
-import { EnvOverrides, DEFAULT_PROFILE_ID, LOCAL_OVERRIDES_FILE, SettingsSchema, baseSettingsFileName } from '../../shared/envProfiles';
+import {
+	EnvOverrides,
+	DEFAULT_PROFILE_ID,
+	LOCAL_OVERRIDES_FILE,
+	NO_SETTINGS_LABEL,
+	SettingsSchema,
+	baseSettingsFileName,
+} from '../../shared/envProfiles';
 import { logger } from '../../shared/logger';
 import { notifyQuiet } from '../../shared/notify';
 import { ENV_DEFAULTS, AUTUMN_DEFAULTS } from '../serviceFiles/envDefaults';
@@ -27,15 +36,24 @@ import {
 	runWithProject,
 } from '../../shared/workspaceProjects';
 import { inCurrentProject } from '../../commands/projectScope';
-import { launchStatusVisible } from './launchStatusScope';
+import { projectStatusVisible } from './launchStatusScope';
 import {
 	ensureEnvProfileStatusBar,
 	refreshEnvProfileStatusBar,
 	disposeEnvProfileStatusBar,
 } from './envProfileStatusBar';
+import {
+	disposeEnvironmentStatusBar,
+	ensureEnvironmentStatusBar,
+	refreshEnvironmentStatusBar,
+} from './environmentStatusBar';
+import { registerEnvironmentCommands } from './environmentFeature';
 import type { StructuredCommandResult } from '../../shared/commandExecutionTypes';
 
 const log = logger.scope('launch');
+
+/** Приложение на Осени читает свой autumn-properties.json само: другой файл ему не подставить */
+const ONE_PROFILE_MESSAGE = 'У проекта OneScript профиль один — autumn-properties.json приложения на Осени.';
 
 /** Изменяемая ссылка на признак проекта 1С */
 interface ProjectRef {
@@ -155,6 +173,10 @@ async function createProfile(vrunner: VRunnerManager, refresh: () => void): Prom
 	const workspaceRoot = vrunner.getWorkspaceRoot();
 	if (!workspaceRoot) {
 		vscode.window.showErrorMessage('Откройте рабочую область для работы с проектом');
+		return;
+	}
+	if (!vrunner.usesVanessaRunner()) {
+		void vscode.window.showInformationMessage(ONE_PROFILE_MESSAGE);
 		return;
 	}
 
@@ -396,9 +418,9 @@ async function selectProfileById(
 	refresh: () => void,
 	requested: string
 ): Promise<SelectProfileResult> {
+	const query = requested.trim().toLowerCase();
 	await vrunner.getVRunnerVersion();
 	const profiles = vrunner.discoverEnvProfiles();
-	const query = requested.trim().toLowerCase();
 	const profile = profiles.find((candidate) =>
 		candidate.id.toLowerCase() === query ||
 		candidate.fileName.toLowerCase() === query ||
@@ -429,7 +451,7 @@ async function selectProfileById(
  */
 async function selectProfile(vrunner: VRunnerManager, refresh: () => void): Promise<void> {
 	interface ProfileItem extends vscode.QuickPickItem {
-		action: 'select' | 'create' | 'ensure' | 'editor' | 'params' | 'clear' | 'redetect';
+		action: 'none' | 'select' | 'create' | 'ensure' | 'editor' | 'open' | 'params' | 'clear' | 'redetect';
 		profileId?: string;
 	}
 
@@ -437,6 +459,8 @@ async function selectProfile(vrunner: VRunnerManager, refresh: () => void): Prom
 	await vrunner.getVRunnerVersion();
 
 	for (;;) {
+		// У проекта OneScript один профиль и нет vanessa-runner: создание профиля и его параметры скрыты
+		const vanessaRunner = vrunner.usesVanessaRunner();
 		const profiles = vrunner.discoverEnvProfiles();
 		const activeId = vrunner.getActiveEnvProfileId();
 		const hasOverrides = vrunner.hasActiveEnvOverrides();
@@ -450,26 +474,35 @@ async function selectProfile(vrunner: VRunnerManager, refresh: () => void): Prom
 			profileId: profile.id,
 		}));
 		if (!hasBase) {
-			items.unshift({
-				label: '$(warning) Создать профиль запуска',
-				description: 'не создан, команды заблокированы',
-				action: 'ensure',
-			});
+			items.unshift(
+				vanessaRunner
+					? { label: '$(warning) Создать профиль запуска', description: 'не создан, команды заблокированы', action: 'ensure' }
+					: { label: `$(check) ${NO_SETTINGS_LABEL}`, action: 'none' }
+			);
 		}
 
-		items.push({ label: 'Действия', kind: vscode.QuickPickItemKind.Separator, action: 'params' });
-		const hasActiveFile = Boolean(activeId) && profiles.some((profile) => profile.id === activeId);
-		if (hasActiveFile) {
-			items.push({ label: '$(go-to-file) Открыть редактор профиля', description: vrunner.getActiveEnvFile(), action: 'editor' });
+		const actions: ProfileItem[] = [];
+		const activeFile = profiles.some((profile) => profile.id === activeId) ? vrunner.getActiveEnvFile() : undefined;
+		if (activeFile !== undefined) {
+			actions.push(
+				vanessaRunner
+					? { label: '$(go-to-file) Открыть редактор профиля', description: activeFile, action: 'editor' }
+					: { label: `$(go-to-file) Открыть ${activeFile}`, action: 'open' }
+			);
 		}
-		items.push({ label: '$(settings-gear) Временные параметры', description: hasOverrides ? 'заданы' : 'не заданы', action: 'params' });
-		if (hasOverrides) {
-			items.push({ label: '$(clear-all) Сбросить параметры', action: 'clear' });
+		if (vanessaRunner) {
+			actions.push({ label: '$(settings-gear) Временные параметры', description: hasOverrides ? 'заданы' : 'не заданы', action: 'params' });
+			if (hasOverrides) {
+				actions.push({ label: '$(clear-all) Сбросить параметры', action: 'clear' });
+			}
+			actions.push(
+				{ label: '$(add) Создать профиль…', action: 'create' },
+				{ label: '$(refresh) Определить версию', description: versionLabel, action: 'redetect' }
+			);
 		}
-		items.push(
-			{ label: '$(add) Создать профиль…', action: 'create' },
-			{ label: '$(refresh) Определить версию', description: versionLabel, action: 'redetect' }
-		);
+		if (actions.length > 0) {
+			items.push({ label: 'Действия', kind: vscode.QuickPickItemKind.Separator, action: 'none' }, ...actions);
+		}
 
 		const picked = await vscode.window.showQuickPick(items, {
 			title: '1С: Профиль запуска',
@@ -481,6 +514,15 @@ async function selectProfile(vrunner: VRunnerManager, refresh: () => void): Prom
 		}
 
 		switch (picked.action) {
+			case 'none':
+				return;
+			case 'open': {
+				const root = vrunner.getWorkspaceRoot();
+				if (root !== undefined && activeFile !== undefined) {
+					await vscode.window.showTextDocument(vscode.Uri.file(path.join(root, activeFile)));
+				}
+				return;
+			}
 			case 'select':
 				await vrunner.setActiveEnvProfileId(picked.profileId ?? '');
 				refresh();
@@ -506,6 +548,10 @@ async function selectProfile(vrunner: VRunnerManager, refresh: () => void): Prom
 			case 'clear':
 				await clearOverrides(vrunner, refresh);
 				continue;
+			default: {
+				const unknown: never = picked.action;
+				throw new Error(`Неизвестное действие меню профиля: ${String(unknown)}`);
+			}
 		}
 	}
 }
@@ -522,10 +568,15 @@ export function registerLaunchFeature(
 	isProjectRef: ProjectRef
 ): vscode.Disposable[] {
 	const vrunner = VRunnerManager.getInstance(context);
-	// Строка состояния показывает профиль выбранного проекта, а не проекта вызова
-	const refresh = () => outsideProject(() => refreshEnvProfileStatusBar(launchStatusVisible(vrunner)));
+	// Строка состояния показывает профиль и окружение выбранного проекта, а не проекта вызова
+	const refresh = () => outsideProject(() => {
+		const visible = projectStatusVisible();
+		refreshEnvProfileStatusBar(visible);
+		refreshEnvironmentStatusBar(visible);
+	});
 
 	ensureEnvProfileStatusBar();
+	ensureEnvironmentStatusBar();
 	refresh();
 
 	const disposables: vscode.Disposable[] = [
@@ -587,17 +638,24 @@ export function registerLaunchFeature(
 			const effectiveOverrides = vrunner.getEffectiveEnvOverrides();
 			const maskPwd = (value: EnvOverrides | undefined) =>
 				value ? { ...value, dbPwd: value.dbPwd ? '••••' : undefined } : null;
+			const launch = vrunner.launchSummary();
 			const status = {
 				vrunnerVersion: vrunner.getCachedVRunnerVersionLabel() ?? null,
 				settingsSchema: vrunner.getActiveSettingsSchema(),
-				activeProfileId: vrunner.getActiveEnvProfileId(),
+				activeProfileId: launch.profile.id,
 				settingsFile,
 				settingsFileExists,
+				settingsFiles: launch.profile.settingsFiles,
 				profiles: vrunner.discoverEnvProfiles().map((profile) => ({
 					id: profile.id,
 					fileName: profile.fileName,
 					label: profile.label,
 				})),
+				activeEnvironment: launch.environment.id ?? null,
+				// значения не отдаём: в файлах окружения бывают пароли
+				environment: { files: launch.environment.files, variables: Object.keys(launch.environment.variables) },
+				environments: vrunner.discoverEnvironments(),
+				launchProblem: launch.problem ?? null,
 				overrides: maskPwd(overrides),
 				localOverridesFile: localOverrides ? LOCAL_OVERRIDES_FILE : null,
 				localOverrides: maskPwd(localOverrides),
@@ -645,6 +703,7 @@ export function registerLaunchFeature(
 				stderr: version ? '' : message,
 			};
 		})),
+		...registerEnvironmentCommands(vrunner, refresh),
 		vrunner.onDidChangeVRunnerVersion(() => refresh()),
 		// Вид проекта известен после обнаружения
 		onDidChangeProjects(() => refresh()),
@@ -656,6 +715,7 @@ export function registerLaunchFeature(
 			}
 		}),
 		{ dispose: disposeEnvProfileStatusBar },
+		{ dispose: disposeEnvironmentStatusBar },
 	];
 
 	// Наблюдатель файлов смотрит в текущий проект и пересоздаётся при его смене
@@ -680,8 +740,8 @@ export function registerLaunchFeature(
 }
 
 /**
- * Следит за профилями и служебными файлами проекта: создание и удаление обновляют
- * строку состояния и дерево, `.git/HEAD` обновляет значения с `${gitBranch}`.
+ * Следит за профилями, окружениями и служебными файлами проекта: создание и удаление
+ * обновляют строку состояния и дерево, `.git/HEAD` обновляет значения с `${gitBranch}`.
  *
  * @param root - Корень проекта
  * @param vrunner - Менеджер vrunner
@@ -697,7 +757,7 @@ function watchProjectFiles(
 	const watcher = vscode.workspace.createFileSystemWatcher(
 		new vscode.RelativePattern(
 			root,
-			'{env*.json,autumn-properties*.json,.gitignore,.gitattributes,tools/**,.1cpt/**,.git/HEAD}'
+			'{env*.json,autumn-properties*.json,.env,.env.*,.gitignore,.gitattributes,tools/**,.1cpt/**,.git/HEAD}'
 		)
 	);
 	const onFsChange = () => {
@@ -707,11 +767,15 @@ function watchProjectFiles(
 			void vscode.commands.executeCommand('1c-platform-tools.tools.refresh', { silent: true }).then(undefined, () => undefined);
 		}
 	};
-	// Удалили файл активного именованного профиля — возвращаемся к базовому
+	// Удалили файлы активного именованного профиля или выбранного окружения — возвращаемся к базовым
 	const onFsDelete = () => runWithProject(root, async () => {
 		const activeId = vrunner.getActiveEnvProfileId();
 		if (activeId !== DEFAULT_PROFILE_ID && !vrunner.discoverEnvProfiles().some((profile) => profile.id === activeId)) {
 			await vrunner.setActiveEnvProfileId(DEFAULT_PROFILE_ID);
+		}
+		const environmentId = vrunner.getActiveEnvironmentId();
+		if (environmentId !== undefined && !vrunner.discoverEnvironments().some((environment) => environment.id === environmentId)) {
+			await vrunner.setActiveEnvironmentId(undefined);
 		}
 		onFsChange();
 	});

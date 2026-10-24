@@ -38,24 +38,27 @@ import { setTerminalOscriptBinDir } from './terminalEnv';
 import { dockerCommandRun, dockerContainerName } from './dockerRun';
 import { runCancellableCommand, CancellableProcessResult, type CommandRun } from './cancellableProcess';
 import { DEFAULT_PATHS, DEFAULT_VRUNNER, DEFAULT_ENV } from './pathDefaults';
-import { getOvmBinaryPath, getOvmBinDir, getOvmRootDir, getOpmBinaryCandidates, getOpmScriptPath, withSelectedEngine } from './ovmPaths';
+import { envName, getOvmBinaryPath, getOvmBinDir, getOvmRootDir, getOpmBinaryCandidates, getOpmScriptPath, withSelectedEngine } from './ovmPaths';
 import {
 	BASE_AUTUMN_FILE,
 	BASE_ENV_FILE,
 	LOCAL_OVERRIDES_FILE,
 	SettingsSchema,
+	activeProfileLabel,
 	baseSettingsFileName,
 	DEFAULT_PROFILE_ID,
 	EnvProfile,
 	EnvOverrides,
-	buildEnvProfiles,
 	buildOverrideArgs,
 	hasOverrides,
 	mergeEnvOverrides,
 	parseLocalOverrides,
+	projectProfiles,
 	resolveActiveEnvFileName,
 	detectSettingsFormat,
 } from './envProfiles';
+import { parseDotEnv } from './dotEnv';
+import { buildEnvironments, environmentFiles, type Environment } from './environments';
 import { DEFAULT_IB_CONNECTION, quoteFileIbConnection } from './ibConnectionPath';
 import { containsGitBranchVariable, GIT_BRANCH_VARIABLE, substituteGitBranch } from './launchVariables';
 import { readGitBranchDirName } from './gitHead';
@@ -74,8 +77,8 @@ import { overlaySettings, parseSettingsJson, readSettingsJson, readSettingsJsonS
 import { translateArgsToV3 } from './vrunnerCommandMap';
 import { createVRunnerTask, type TaskOutputChain } from '../features/tasks/vrunnerTask';
 import { decodeProcessOutput } from './processOutput';
-import { ACTIVE_ENV_OVERRIDES_STATE, ACTIVE_ENV_PROFILE_STATE, projectMemento } from './projectState';
-import { currentRoot, projectRootKey, runWithProject } from './workspaceProjects';
+import { ACTIVE_ENV_OVERRIDES_STATE, ACTIVE_ENV_PROFILE_STATE, ACTIVE_ENVIRONMENT_STATE, projectMemento } from './projectState';
+import { currentRoot, projectByRoot, projectRootKey, runWithProject } from './workspaceProjects';
 import { projectConfiguration } from './projectConfiguration';
 import { projectTerminal } from '../features/tasks/terminalProjects';
 import { untrustedWorkspaceBlocks, WORKSPACE_TRUST_REQUIRED } from './workspaceTrust';
@@ -93,6 +96,15 @@ const EDT_STAGING_IN_CONTAINER = '/edt-staging';
 
 /** Команды, которым база не нужна. */
 const NO_INFOBASE_COMMANDS = new Set(['version', '--version', 'help', '--help']);
+
+/**
+ * Переменные окружения, которые vanessa-runner читает вместо опций файла
+ * настроек: сильнее файла, слабее командной строки.
+ */
+const SETTINGS_ENV_VARIABLES: Record<SettingsSchema, Readonly<Record<string, string>>> = {
+	v2: { ibconnection: 'RUNNER_IBCONNECTION', 'db-user': 'RUNNER_DBUSER', 'db-pwd': 'RUNNER_DBPWD', v8version: 'RUNNER_V8VERSION' },
+	v3: { ibconnection: 'VRUNNER_IBCONNECTION', 'db-user': 'VRUNNER_DBUSER', 'db-pwd': 'VRUNNER_DBPWD', v8version: 'VRUNNER_V8VERSION' },
+};
 
 /**
  * Значения аргументов команды: строка `--additional` разбирается на пути и слова.
@@ -156,8 +168,39 @@ export interface SettingsFileState {
 	formatMismatch: boolean;
 	/** Причина, по которой файл не разобран */
 	readError?: string;
-	/** Файл найден, разобран и нужного формата: команды выполняются */
+	/** Выбранных профиля или окружения нет в проекте, либо окружение не читается */
+	launchProblem?: string;
+	/** Файл найден, разобран и нужного формата */
+	fileReady: boolean;
+	/** Файл годен и запуск возможен: команды выполняются */
 	ready: boolean;
+}
+
+/** Выбранное окружение запуска. */
+export interface LaunchEnvironment {
+	/** Имя выбранного окружения; без него действуют только общие файлы */
+	id?: string;
+	/** Переменные файлов окружения после наложения */
+	variables: Record<string, string>;
+	/** Прочитанные файлы от слабого к сильному */
+	files: string[];
+	/** Файл окружения есть, но не прочитан */
+	error?: string;
+}
+
+/** Что уйдёт в запуск: профиль, окружение и причина отказа. */
+export interface LaunchSummary {
+	/** Профиль запуска; у проекта OneScript — файл настроек его приложения */
+	profile: {
+		id: string;
+		/** «По умолчанию», id или «Нет файла настроек» */
+		label: string;
+		/** Найденные файлы настроек от важного к общему */
+		settingsFiles: string[];
+	};
+	environment: LaunchEnvironment;
+	/** Почему запуск невозможен */
+	problem?: string;
 }
 
 /** Разобранный файл настроек: секции произвольной вложенности. */
@@ -216,6 +259,11 @@ export class VRunnerManager {
 	private readonly _onDidChangeActiveEnvProfile = new vscode.EventEmitter<void>();
 	/** Срабатывает при выборе другого env-профиля запуска */
 	public readonly onDidChangeActiveEnvProfile = this._onDidChangeActiveEnvProfile.event;
+
+	/** Событие выбора окружения запуска */
+	private readonly _onDidChangeActiveEnvironment = new vscode.EventEmitter<void>();
+	/** Срабатывает при выборе другого окружения запуска */
+	public readonly onDidChangeActiveEnvironment = this._onDidChangeActiveEnvironment.event;
 
 	/** Событие смены временных параметров активного профиля */
 	private readonly _onDidChangeEnvOverrides = new vscode.EventEmitter<void>();
@@ -889,9 +937,10 @@ export class VRunnerManager {
 	}
 
 	/**
-	 * Значение опции общего уровня из настроек с подстановкой `${gitBranch}`:
-	 * `default["--<опция>"]` в env.json (2.x) или `vrunner.<опция>` в
-	 * autumn-properties.json (3.x).
+	 * Значение опции общего уровня, которое увидит vanessa-runner: переменная
+	 * окружения запуска (см. {@link SETTINGS_ENV_VARIABLES}), иначе значение из
+	 * настроек с подстановкой `${gitBranch}` — `default["--<опция>"]` в env.json
+	 * (2.x) или `vrunner.<опция>` в autumn-properties.json (3.x).
 	 *
 	 * @param settings - Настройки профиля
 	 * @param schema - Схема настроек
@@ -899,6 +948,14 @@ export class VRunnerManager {
 	 * @returns Значение опции или undefined
 	 */
 	private profileOptionValue(settings: SettingsDocument, schema: SettingsSchema, option: string): string | undefined {
+		const variable = SETTINGS_ENV_VARIABLES[schema][option];
+		if (variable !== undefined) {
+			const env = this.launchEnv();
+			const fromEnv = env[envName(env, variable)]?.trim();
+			if (fromEnv) {
+				return fromEnv;
+			}
+		}
 		const value = schema === 'v3' ? settings.vrunner?.[option] : settings.default?.[`--${option}`];
 		return typeof value === 'string' && value.trim() ? this.substituteLaunchValue(value.trim()) : undefined;
 	}
@@ -906,11 +963,12 @@ export class VRunnerManager {
 	/**
 	 * Файлы, из которых vanessa-runner складывает настройки при запуске с этим
 	 * файлом, от важного к общему: 3.x накладывает его на autumn-properties.json
-	 * проекта, 2.x читает только его.
+	 * проекта, 2.x читает только его. Без своего файла 3.x накладывает на
+	 * autumn-properties.json файл из `settings` (см. {@link settingsOverlay}).
 	 *
 	 * @param settingsFile - Файл настроек: абсолютный путь или путь от корня проекта
 	 * @param schema - Схема настроек
-	 * @returns Сам файл и, для 3.x, файл проекта, в том виде, как их передавать от корня
+	 * @returns Файлы от важного к общему в том виде, как их передавать от корня
 	 */
 	public settingsLayerFiles(settingsFile: string, schema: SettingsSchema = this.activeSettingsSchema()): string[] {
 		const root = this.getEffectiveRoot();
@@ -918,9 +976,33 @@ export class VRunnerManager {
 			return [settingsFile];
 		}
 		const own = path.resolve(root, settingsFile);
-		return path.relative(own, path.join(root, BASE_AUTUMN_FILE)) === ''
-			? [settingsFile]
-			: [settingsFile, BASE_AUTUMN_FILE];
+		if (path.relative(own, path.join(root, BASE_AUTUMN_FILE)) !== '') {
+			return [settingsFile, BASE_AUTUMN_FILE];
+		}
+		const overlay = this.settingsOverlay(root);
+		return overlay === undefined ? [settingsFile] : [overlay, settingsFile];
+	}
+
+	/**
+	 * Файл, который vanessa-runner 3 накладывает на autumn-properties.json, когда
+	 * `--settings` не передан: переменная `VRUNNER_SETTINGS` окружения запуска,
+	 * иначе ключ `vrunner.settings` самого autumn-properties.json.
+	 *
+	 * @param root - Корень проекта
+	 * @returns Путь от корня или undefined
+	 */
+	private settingsOverlay(root: string): string | undefined {
+		const env = this.launchEnv();
+		const fromEnv = env[envName(env, 'VRUNNER_SETTINGS')]?.trim();
+		if (fromEnv) {
+			return fromEnv;
+		}
+		try {
+			const key = (readSettingsJsonSync(path.join(root, BASE_AUTUMN_FILE)) as SettingsDocument)?.vrunner?.settings;
+			return typeof key === 'string' && key.trim() !== '' ? key.trim() : undefined;
+		} catch {
+			return undefined;
+		}
 	}
 
 	private readSettingsLayersSync(root: string, settingsFile: string, schema: SettingsSchema): SettingsDocument {
@@ -955,8 +1037,10 @@ export class VRunnerManager {
 		const read = (file: string) => readSettingsJson(path.resolve(root, file)).catch(() => undefined);
 		const own = await read(settingsFile);
 		const fileSchema: SettingsSchema = schema ?? (detectSettingsFormat(own) === 'v3' ? 'v3' : 'v2');
-		const lower = await Promise.all(this.settingsLayerFiles(settingsFile, fileSchema).slice(1).map(read));
-		return { settings: overlaySettings([own, ...lower]), schema: fileSchema };
+		const layers = await Promise.all(
+			this.settingsLayerFiles(settingsFile, fileSchema).map((file) => (file === settingsFile ? own : read(file)))
+		);
+		return { settings: overlaySettings(layers), schema: fileSchema };
 	}
 
 	/**
@@ -1064,6 +1148,9 @@ export class VRunnerManager {
 				readError = error instanceof Error ? error.message : String(error);
 			}
 		}
+		// Явный файл вызова заменяет профиль, но не окружение
+		const launchProblem = settingsFile?.trim() ? this.environmentProblem() : this.launchProblem();
+		const fileReady = exists && !formatMismatch && readError === undefined;
 		return {
 			schema,
 			fileName,
@@ -1071,17 +1158,30 @@ export class VRunnerManager {
 			exists,
 			formatMismatch,
 			readError,
-			ready: exists && !formatMismatch && readError === undefined,
+			launchProblem,
+			fileReady,
+			ready: fileReady && launchProblem === undefined,
 		};
+	}
+
+	/**
+	 * Почему команды заблокированы: выбранных профиля или окружения нет, иначе
+	 * что не так с файлом настроек.
+	 *
+	 * @param state - Состояние файла; по умолчанию текущее
+	 * @returns Текст причины
+	 */
+	public settingsProblemMessage(state: SettingsFileState = this.describeSettingsState()): string {
+		return state.launchProblem ?? this.settingsFileProblemMessage(state);
 	}
 
 	/**
 	 * Сообщение о непригодном файле настроек: что нашли и что ожидалось.
 	 *
-	 * @param state - Состояние файла; по умолчанию текущее
+	 * @param state - Состояние файла
 	 * @returns Текст с именем файла, причиной и версией vanessa-runner
 	 */
-	public settingsProblemMessage(state: SettingsFileState = this.describeSettingsState()): string {
+	public settingsFileProblemMessage(state: SettingsFileState): string {
 		const version = this.getCachedVRunnerVersionLabel() ?? 'версия не определена';
 		if (state.readError) {
 			return `Файл настроек ${state.fileName} не прочитан: ${state.readError}. Исправьте файл и повторите команду.`;
@@ -1127,8 +1227,10 @@ export class VRunnerManager {
 			return true;
 		}
 		log.warn(
-			`Файл настроек ${state.fileName} не годится: ` +
-			(state.readError ?? (state.formatMismatch ? 'формат другой версии vanessa-runner' : 'не найден'))
+			state.launchProblem ?? (
+				`Файл настроек ${state.fileName} не годится: ` +
+				(state.readError ?? (state.formatMismatch ? 'формат другой версии vanessa-runner' : 'не найден'))
+			)
 		);
 		if (interactive) {
 			this.offerSettingsFix(state);
@@ -1136,8 +1238,12 @@ export class VRunnerManager {
 		return false;
 	}
 
-	/** Предлагает открыть нечитаемый файл настроек либо создать файл нужного формата. */
+	/** Предлагает выбрать профиль или окружение, открыть нечитаемый файл настроек либо создать файл нужного формата. */
 	private offerSettingsFix(state: SettingsFileState): void {
+		if (state.launchProblem) {
+			this.offerLaunchFix(state.launchProblem);
+			return;
+		}
 		if (state.readError) {
 			const openAction = 'Открыть файл';
 			void vscode.window.showWarningMessage(this.settingsProblemMessage(state), openAction).then((action) => {
@@ -1337,6 +1443,7 @@ export class VRunnerManager {
 			options: {
 				mounts: extra.filter(used),
 				runArgs: withWindow.getStore() === true ? runArgs : withoutPublishedPorts(runArgs),
+				envNames: Object.keys(this.activeEnvironment().variables),
 			},
 		};
 	}
@@ -1460,7 +1567,194 @@ export class VRunnerManager {
 	 * @returns Окружение для exec, spawn и задач
 	 */
 	private childEnv(extra?: NodeJS.ProcessEnv, binDir = this.oscriptBinDir()): NodeJS.ProcessEnv {
-		return withSelectedEngine({ ...process.env, ...extra }, binDir);
+		return withSelectedEngine(this.launchEnv(extra), binDir);
+	}
+
+	/**
+	 * Окружение процесса проекта: окружение VS Code, поверх него переменные
+	 * выбранного окружения запуска и переменные вызова.
+	 *
+	 * Переменная из файлов окружения перекрывает унаследованную с тем же именем; на
+	 * Windows имя сравнивается без учёта регистра, чтобы у процесса не оказалось двух `Path`.
+	 *
+	 * @param extra - Переменные вызова
+	 * @returns Окружение для spawn и задач
+	 */
+	public launchEnv(extra?: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
+		const env: NodeJS.ProcessEnv = { ...process.env };
+		for (const [name, value] of Object.entries(this.activeEnvironment().variables)) {
+			env[envName(env, name)] = value;
+		}
+		return { ...env, ...extra };
+	}
+
+	/**
+	 * Переменные терминала проекта: окружение VS Code терминал наследует сам,
+	 * ему нужны переменные выбранного окружения и вызова.
+	 *
+	 * @param extra - Переменные вызова
+	 * @returns Переменные для `env` терминала
+	 */
+	private terminalEnv(extra?: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
+		return { ...this.activeEnvironment().variables, ...extra };
+	}
+
+	/**
+	 * Выбранное окружение запуска: его файлы `.env` поверх общих, личные `.local`
+	 * поверх общих.
+	 *
+	 * @returns Переменные и прочитанные файлы; без корня проекта — пусто
+	 */
+	public activeEnvironment(): LaunchEnvironment {
+		const id = this.getActiveEnvironmentId();
+		const variables: Record<string, string> = {};
+		const files: string[] = [];
+		const root = this.getEffectiveRoot();
+		if (!root) {
+			return { id, variables, files };
+		}
+		const lookup = (name: string): string | undefined => variables[name] ?? process.env[name];
+		for (const file of environmentFiles(id)) {
+			let text: string;
+			try {
+				text = fsSync.readFileSync(path.join(root, file), 'utf8');
+			} catch (error) {
+				if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
+					continue;
+				}
+				return { id, variables, files, error: `Файл окружения ${file} не прочитан: ${(error as Error).message}` };
+			}
+			files.push(file);
+			for (const [name, value] of parseDotEnv(text, lookup)) {
+				variables[name] = value;
+			}
+		}
+		return { id, variables, files };
+	}
+
+	/**
+	 * Выбранного профиля запуска нет в проекте: запуск с базовым файлом настроек
+	 * пошёл бы над чужой базой.
+	 *
+	 * @returns Причина или undefined
+	 */
+	public profileProblem(): string | undefined {
+		const activeId = this.getActiveEnvProfileId();
+		if (activeId !== DEFAULT_PROFILE_ID && !this.discoverEnvProfiles().some((profile) => profile.id === activeId)) {
+			return `Профиль запуска «${activeId}» не найден в проекте. Выберите другой профиль.`;
+		}
+		return undefined;
+	}
+
+	/**
+	 * Выбранного окружения нет в проекте или его файл не читается: запуск пошёл
+	 * бы с чужими переменными.
+	 *
+	 * @returns Причина или undefined
+	 */
+	public environmentProblem(): string | undefined {
+		const environment = this.activeEnvironment();
+		if (environment.id !== undefined && !this.discoverEnvironments().some((candidate) => candidate.id === environment.id)) {
+			return `Окружение «${environment.id}» не найдено в проекте. Выберите другое окружение.`;
+		}
+		return environment.error;
+	}
+
+	/**
+	 * Почему запуск невозможен: см. {@link profileProblem} и {@link environmentProblem}.
+	 * Такой запуск не начинается.
+	 *
+	 * @returns Причина или undefined
+	 */
+	public launchProblem(): string | undefined {
+		return this.profileProblem() ?? this.environmentProblem();
+	}
+
+	/**
+	 * Проверяет, что выбранные профиль и окружение есть в проекте; иначе
+	 * предлагает выбрать другие.
+	 *
+	 * @returns true, если запуск можно начинать
+	 */
+	public ensureLaunchReady(): boolean {
+		return this.acceptLaunch(this.launchProblem());
+	}
+
+	/**
+	 * Проверяет, что выбранное окружение есть в проекте, у запуска без профиля;
+	 * иначе предлагает выбрать другое.
+	 *
+	 * @returns true, если запуск можно начинать
+	 */
+	public ensureEnvironmentReady(): boolean {
+		return this.acceptLaunch(this.environmentProblem());
+	}
+
+	private acceptLaunch(problem: string | undefined): boolean {
+		if (problem === undefined) {
+			return true;
+		}
+		log.warn(problem);
+		this.offerLaunchFix(problem);
+		return false;
+	}
+
+	/**
+	 * Как снять отказ запуска: выбрать профиль или окружение.
+	 *
+	 * @param problem - Причина из {@link launchProblem}
+	 * @returns Подпись кнопки и команда выбора
+	 */
+	public launchFix(problem: string): { title: string; command: string } {
+		return problem === this.profileProblem()
+			? { title: 'Выбрать профиль', command: '1c-platform-tools.env.selectProfile' }
+			: { title: 'Выбрать окружение', command: '1c-platform-tools.env.selectEnvironment' };
+	}
+
+	/**
+	 * Показывает причину отказа запуска с кнопкой выбора профиля или окружения.
+	 *
+	 * @param problem - Причина из {@link launchProblem}
+	 */
+	public offerLaunchFix(problem: string): void {
+		const fix = this.launchFix(problem);
+		void vscode.window.showWarningMessage(problem, fix.title).then((action) => {
+			if (action === fix.title) {
+				void vscode.commands.executeCommand(fix.command);
+			}
+		});
+	}
+
+	/**
+	 * Что уйдёт в запуск: профиль с файлами настроек, окружение и причина отказа.
+	 *
+	 * @returns Сводка текущего проекта
+	 */
+	public launchSummary(): LaunchSummary {
+		return { profile: this.launchProfile(), environment: this.activeEnvironment(), problem: this.launchProblem() };
+	}
+
+	/** Активный профиль запуска и его найденные файлы настроек. */
+	private launchProfile(): LaunchSummary['profile'] {
+		const root = this.getEffectiveRoot();
+		const id = this.getActiveEnvProfileId();
+		const files = this.settingsLayerFiles(this.getActiveEnvFile());
+		return {
+			id,
+			label: activeProfileLabel(id, this.discoverEnvProfiles()),
+			settingsFiles: root === undefined ? [] : files.filter((file) => fsSync.existsSync(path.resolve(root, file))),
+		};
+	}
+
+	/**
+	 * Проект запускает команды vanessa-runner: у проекта OneScript их нет, свой
+	 * файл настроек его приложение читает само.
+	 *
+	 * @returns false для проекта OneScript, иначе true
+	 */
+	public usesVanessaRunner(): boolean {
+		const root = this.getEffectiveRoot();
+		return (root === undefined ? undefined : projectByRoot(root)?.kind) !== 'onescript';
 	}
 
 	/**
@@ -1757,7 +2051,7 @@ export class VRunnerManager {
 			command = buildCommand(vrunnerPath, processedArgs, shellType);
 		}
 
-		const terminal = projectTerminal({ name: options?.name || '1C: Platform Tools', cwd, env: options?.env, root: this.getEffectiveRoot() });
+		const terminal = projectTerminal({ name: options?.name || '1C: Platform Tools', cwd, env: this.terminalEnv(options?.env), root: this.getEffectiveRoot() });
 		if (!terminal) {
 			return;
 		}
@@ -1810,7 +2104,7 @@ export class VRunnerManager {
 			}
 			command = buildDockerCommandSequence(plan.image, plan.argsArray, plan.root, shellType, plan.options);
 			log.debug(`Docker (последовательно): образ=${plan.image}, команд=${plan.argsArray.length}`);
-			const dockerTerminal = projectTerminal({ name: options?.name || '1C: Platform Tools', cwd, env: options?.env, root: this.getEffectiveRoot() });
+			const dockerTerminal = projectTerminal({ name: options?.name || '1C: Platform Tools', cwd, env: this.terminalEnv(options?.env), root: this.getEffectiveRoot() });
 			if (!dockerTerminal) {
 				return;
 			}
@@ -1827,7 +2121,7 @@ export class VRunnerManager {
 		});
 		const fullCommand = joinCommands(commands, shellType);
 
-		const seqTerminal = projectTerminal({ name: options?.name || '1C: Platform Tools', cwd, env: options?.env, root: this.getEffectiveRoot() });
+		const seqTerminal = projectTerminal({ name: options?.name || '1C: Platform Tools', cwd, env: this.terminalEnv(options?.env), root: this.getEffectiveRoot() });
 		if (!seqTerminal) {
 			return;
 		}
@@ -2045,6 +2339,9 @@ export class VRunnerManager {
 		args: string[],
 		options?: { cwd?: string; name?: string; shellType?: ShellType }
 	): void {
+		if (!this.ensureEnvironmentReady()) {
+			return;
+		}
 		// По умолчанию команды идут как задачи VS Code; сырой терминал остаётся опцией.
 		if (this.shouldUseTasks()) {
 			void this.executeOpmTask(args, options);
@@ -2056,7 +2353,7 @@ export class VRunnerManager {
 		const processedArgs = this.processCommandArgs([...leadingArgs, ...args], cwd, shellType);
 		const command = buildCommand(opmPath, processedArgs, shellType);
 
-		const opmTerminal = projectTerminal({ name: options?.name || '1C: Platform Tools', cwd, root: this.getEffectiveRoot() });
+		const opmTerminal = projectTerminal({ name: options?.name || '1C: Platform Tools', cwd, env: this.terminalEnv(), root: this.getEffectiveRoot() });
 		if (!opmTerminal) {
 			return;
 		}
@@ -2216,6 +2513,10 @@ export class VRunnerManager {
 	 * @returns Идентификатор профиля (никогда не пустой)
 	 */
 	public getActiveEnvProfileId(): string {
+		// У проекта OneScript один профиль, см. projectProfiles
+		if (!this.usesVanessaRunner()) {
+			return DEFAULT_PROFILE_ID;
+		}
 		const fromState = projectMemento().get<string>(ACTIVE_ENV_PROFILE_STATE);
 		if (typeof fromState === 'string' && fromState) {
 			return fromState;
@@ -2239,26 +2540,57 @@ export class VRunnerManager {
 	}
 
 	/**
-	 * Находит доступные env-профили в корне workspace
+	 * Профили запуска в корне проекта, только с существующими файлами.
 	 *
-	 * Базовый профиль (`env.json`) присутствует всегда, даже если файл ещё не создан.
-	 *
-	 * @returns Список профилей (см. {@link EnvProfile})
+	 * @returns Список профилей (см. {@link projectProfiles})
 	 */
 	public discoverEnvProfiles(): EnvProfile[] {
-		let fileNames: string[] = [];
+		return projectProfiles(this.rootFileNames(), this.activeSettingsSchema(), this.usesVanessaRunner());
+	}
+
+	/**
+	 * Выбранное окружение запуска проекта.
+	 *
+	 * @returns Имя окружения или undefined — окружение по умолчанию
+	 */
+	public getActiveEnvironmentId(): string | undefined {
+		const value = projectMemento().get<unknown>(ACTIVE_ENVIRONMENT_STATE);
+		return typeof value === 'string' && value !== '' ? value : undefined;
+	}
+
+	/**
+	 * Сохраняет выбранное окружение в состоянии текущего проекта (локально, не коммитится).
+	 *
+	 * @param id - Имя окружения; undefined — по умолчанию, только общие файлы
+	 */
+	public async setActiveEnvironmentId(id: string | undefined): Promise<void> {
+		await projectMemento().update(ACTIVE_ENVIRONMENT_STATE, id);
+		this._onDidChangeActiveEnvironment.fire();
+	}
+
+	/**
+	 * Окружения в корне проекта: `.env.<id>` и `.env.<id>.local`.
+	 *
+	 * @returns Окружения по алфавиту
+	 */
+	public discoverEnvironments(): Environment[] {
+		return buildEnvironments(this.rootFileNames());
+	}
+
+	/** Имена файлов в корне проекта; без корня или при ошибке чтения — пусто. */
+	private rootFileNames(): string[] {
 		const root = this.getEffectiveRoot();
-		if (root) {
-			try {
-				fileNames = fsSync
-					.readdirSync(root, { withFileTypes: true })
-					.filter((entry) => entry.isFile())
-					.map((entry) => entry.name);
-			} catch {
-				fileNames = [];
-			}
+		if (!root) {
+			return [];
 		}
-		return buildEnvProfiles(fileNames, this.activeSettingsSchema());
+		try {
+			return fsSync
+				.readdirSync(root, { withFileTypes: true })
+				.filter((entry) => entry.isFile())
+				.map((entry) => entry.name);
+		} catch {
+			return [];
+		}
 	}
 
 	/**
@@ -2490,14 +2822,17 @@ export class VRunnerManager {
 	}
 
 	/**
-	 * Возвращает имя файла активного env-профиля (относительно workspace)
+	 * Возвращает имя файла активного профиля (относительно корня проекта)
 	 *
-	 * Если выбранный профиль не найден среди файлов — возвращается базовый
-	 * `env.json` (полная обратная совместимость).
+	 * Если выбранный профиль не найден среди файлов — возвращается базовый файл
+	 * схемы. У проекта OneScript файл один — autumn-properties.json.
 	 *
-	 * @returns Имя файла env-профиля (например 'env.json' или 'env.dev.json')
+	 * @returns Имя файла профиля (например 'env.json' или 'env.dev.json')
 	 */
 	public getActiveEnvFile(): string {
+		if (!this.usesVanessaRunner()) {
+			return BASE_AUTUMN_FILE;
+		}
 		const schema = this.activeSettingsSchema();
 		const activeId = this.getActiveEnvProfileId();
 		if (!activeId) {
@@ -2565,9 +2900,8 @@ export class VRunnerManager {
 	}
 
 	/**
-	 * Читает значение опции из настроек активного профиля с учётом схемы:
-	 * `default["--<опция>"]` в env.json (2.x) или `vrunner.<опция>` в
-	 * autumn-properties.json (3.x).
+	 * Значение опции активного профиля, которое увидит vanessa-runner (см.
+	 * {@link profileOptionValue}).
 	 *
 	 * Для собственных нужд расширения (автономный сервер, подбор платформы) —
 	 * в команды vrunner эти значения не пробрасываются.

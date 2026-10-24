@@ -2,6 +2,7 @@ import * as assert from 'node:assert';
 import {
 	BASE_ENV_FILE,
 	DEFAULT_PROFILE_ID,
+	LOCAL_AUTUMN_FILE,
 	LOCAL_OVERRIDES_FILE,
 	NO_SETTINGS_LABEL,
 	parseEnvFileName,
@@ -13,6 +14,7 @@ import {
 	mergeEnvOverrides,
 	parseLocalOverrides,
 	detectSettingsFormat,
+	projectProfiles,
 } from '../../shared/envProfiles';
 
 suite('envProfiles', () => {
@@ -40,6 +42,15 @@ suite('envProfiles', () => {
 		assert.deepStrictEqual(profiles.map((p) => p.fileName), ['autumn-properties.json', 'autumn-properties.ci.json']);
 	});
 
+	test('projectProfiles: у проекта OneScript один профиль — autumn-properties.json, без него профилей нет', () => {
+		const files = ['env.json', 'env.dev.json', 'autumn-properties.json', 'autumn-properties.ci.json', LOCAL_AUTUMN_FILE];
+
+		assert.deepStrictEqual(projectProfiles(files, 'v2', true).map((p) => p.fileName), ['env.json', 'env.dev.json']);
+		assert.deepStrictEqual(projectProfiles(files, 'v2', false).map((p) => p.fileName), ['autumn-properties.json']);
+		assert.deepStrictEqual(projectProfiles(files, 'v3', false).map((p) => p.id), [DEFAULT_PROFILE_ID]);
+		assert.deepStrictEqual(projectProfiles(['env.json', 'env.dev.json'], 'v2', false), []);
+	});
+
 	test('parseEnvFileName: env.json → профиль «По умолчанию»', () => {
 		const profile = parseEnvFileName('env.json');
 		assert.ok(profile);
@@ -62,9 +73,10 @@ suite('envProfiles', () => {
 		assert.strictEqual(profile.id, 'prod.local');
 	});
 
-	test('parseEnvFileName: env.local.json — файл перекрытий, а не профиль', () => {
+	test('parseEnvFileName: env.local.json и autumn-properties.local.json — файлы перекрытий, а не профили', () => {
 		assert.strictEqual(parseEnvFileName(LOCAL_OVERRIDES_FILE), undefined);
 		assert.strictEqual(parseEnvFileName(LOCAL_OVERRIDES_FILE, 'v3'), undefined);
+		assert.strictEqual(parseEnvFileName(LOCAL_AUTUMN_FILE, 'v3'), undefined);
 		assert.deepStrictEqual(
 			buildEnvProfiles(['env.json', LOCAL_OVERRIDES_FILE, 'env.dev.json']).map((p) => p.id),
 			[DEFAULT_PROFILE_ID, 'dev']

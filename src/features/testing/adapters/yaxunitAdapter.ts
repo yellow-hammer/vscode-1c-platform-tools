@@ -41,6 +41,7 @@ const NO_REPORT_HINT =
 export class YaxunitAdapter implements TestFrameworkAdapter {
 	public readonly id = 'yaxunit' as const;
 	public readonly label = 'YAxUnit';
+	public readonly usesVanessaRunner = true;
 
 	constructor(private readonly vrunner: VRunnerManager) {}
 

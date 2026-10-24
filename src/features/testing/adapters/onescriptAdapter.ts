@@ -41,6 +41,7 @@ export type OneScriptRunner = '1testrunner' | 'oneunit';
 export class OneScriptAdapter implements TestFrameworkAdapter {
 	public readonly id = 'onescript' as const;
 	public readonly label = 'OneScript';
+	public readonly usesVanessaRunner = false;
 	/** Отчёты пишутся в build/out/onescript, временный каталог не нужен */
 	public readonly usesReportDir = false;
 

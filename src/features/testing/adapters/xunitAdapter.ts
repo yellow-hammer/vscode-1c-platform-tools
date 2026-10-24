@@ -62,6 +62,7 @@ export interface EpfTestSourceInfo {
 export class XUnitAdapter implements TestFrameworkAdapter {
 	public readonly id = 'xunit' as const;
 	public readonly label = 'xUnit (Vanessa-ADD)';
+	public readonly usesVanessaRunner = true;
 
 	constructor(private readonly vrunner: VRunnerManager) {}
 

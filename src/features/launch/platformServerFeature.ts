@@ -29,7 +29,7 @@ import {
 import { inCurrentProject, projectLabel } from '../../commands/projectScope';
 import { ensureWorkspaceTrusted } from '../../shared/workspaceTrust';
 import type { StructuredCommandResult } from '../../shared/commandExecutionTypes';
-import { launchStatusVisible } from './launchStatusScope';
+import { serverStatusVisible } from './launchStatusScope';
 
 /**
  * Открывает один из адресов публикации во внешнем браузере.
@@ -420,7 +420,7 @@ export function registerPlatformServerFeature(context: vscode.ExtensionContext):
 	statusItem.command = '1c-platform-tools.server.menu';
 
 	const refresh = (): void => {
-		if (manager.ownerRoot === undefined && !launchStatusVisible(vrunner)) {
+		if (manager.ownerRoot === undefined && !serverStatusVisible(vrunner)) {
 			statusItem.hide();
 			return;
 		}
@@ -445,9 +445,10 @@ export function registerPlatformServerFeature(context: vscode.ExtensionContext):
 		statusItem,
 		manager.onDidChangeState(() => refresh()),
 		debugSessions.onDidChange(() => refresh()),
-		// Профиль задаёт адрес ИБ — при его смене сервер перегенерирует конфиг
-		// публикации и предложит перезапуск, если работает на другой базе
+		// Профиль и окружение задают адрес ИБ — при их смене сервер перегенерирует
+		// конфиг публикации и предложит перезапуск, если работает на другой базе
 		vrunner.onDidChangeActiveEnvProfile(() => void manager.onActiveProfileChanged()),
+		vrunner.onDidChangeActiveEnvironment(() => void manager.onActiveProfileChanged()),
 		vrunner.onDidChangeVRunnerVersion(() => void manager.onActiveProfileChanged()),
 		// Сервер при смене проекта продолжает работать для своего проекта
 		onDidChangeCurrentProject(() => refresh()),

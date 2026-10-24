@@ -31,6 +31,7 @@ import { projectConfiguration } from '../../../shared/projectConfiguration';
 export class OneBddAdapter implements TestFrameworkAdapter {
 	public readonly id = 'onebdd' as const;
 	public readonly label = '1bdd (OneScript)';
+	public readonly usesVanessaRunner = false;
 	/** Отчёты пишутся в build/out/1bdd, временный каталог не нужен */
 	public readonly usesReportDir = false;
 
