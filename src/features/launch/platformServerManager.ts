@@ -554,7 +554,7 @@ export class PlatformServerManager {
 
 	/** Показывает журнал сервера. */
 	public showLogs(): void {
-		revealOutputChannel(this.output);
+		void revealOutputChannel(this.output);
 	}
 
 	/**

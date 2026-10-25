@@ -1,6 +1,10 @@
 import * as vscode from 'vscode';
 
 const OUTPUT_CHANNEL_NAME = '1C: Platform Tools';
+const EXTENSION_ID = 'yellow-hammer.1c-platform-tools';
+
+/** Команда окна, показывающая канал Output: к префиксу дописывается идентификатор канала. */
+const SHOW_CHANNEL_COMMAND = 'workbench.action.output.show.';
 
 let outputChannel: vscode.LogOutputChannel | undefined;
 
@@ -17,15 +21,24 @@ function getChannel(): vscode.LogOutputChannel {
 /**
  * Раскрывает панель Output на заданном канале.
  *
- * Панель раскрывается штатной командой до выбора канала: у части сборок (в том числе Cursor)
- * один только `show()` канал переключает, но панель не открывает, а панель, открываясь
- * после него, показывает канал, выбранный в ней прежде, а не наш.
+ * Журнал (`{ log: true }`) Cursor регистрирует в окне под идентификатором с суффиксом рабочей
+ * области, и `show()` его не находит. Поэтому канал показывается командой окна из списка каналов
+ * панели: её идентификатор начинается с идентификатора расширения и имени канала без символов,
+ * запрещённых в имени файла, а продолжение у VS Code и Cursor своё. Если такой команды нет
+ * или их несколько, остаётся `show()`.
  *
  * @param channel - Канал расширения
  */
-export function revealOutputChannel(channel: vscode.OutputChannel): void {
-	const show = () => channel.show(true);
-	void vscode.commands.executeCommand('workbench.panel.output.focus').then(show, show);
+export async function revealOutputChannel(channel: vscode.OutputChannel): Promise<void> {
+	const command = `${SHOW_CHANNEL_COMMAND}${EXTENSION_ID}.${channel.name.replace(/[\\/:*?"<>|]/g, '')}`;
+	const found = (await vscode.commands.getCommands(true)).filter(
+		(id) => id === command || id.startsWith(`${command}.`)
+	);
+	if (found.length === 1) {
+		await vscode.commands.executeCommand(found[0]);
+		return;
+	}
+	channel.show(true);
 }
 
 /** Добавляет к сообщению префикс компонента: `[компонент] сообщение`. */
@@ -99,7 +112,7 @@ export const logger = {
 
 	/** Показать панель Output с журналом расширения. */
 	show(): void {
-		revealOutputChannel(getChannel());
+		void revealOutputChannel(getChannel());
 	},
 
 	/** Освободить канал (вызывать при деактивации расширения) */
