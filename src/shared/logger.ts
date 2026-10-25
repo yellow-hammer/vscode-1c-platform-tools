@@ -17,15 +17,16 @@ function getChannel(): vscode.LogOutputChannel {
 /**
  * Раскрывает панель Output на заданном канале.
  *
- * Панель раскрывается штатной командой до выбора канала: у части сборок (в том числе Cursor)
- * один только `show()` канал переключает, но панель не открывает, а панель, открываясь
- * после него, показывает канал, выбранный в ней прежде, а не наш.
+ * Панель при раскрытии показывает канал, активный в этот момент, поэтому канал выбирается
+ * первым. `show()` доходит до окна не сразу, а после обещания канала: панель раскрывается
+ * следующей задачей, иначе она открывается на прежнем канале и лишь потом переключается.
+ * Штатная команда раскрытия нужна сборкам (в том числе Cursor), где `show()` панель не открывает.
  *
  * @param channel - Канал расширения
  */
 export function revealOutputChannel(channel: vscode.OutputChannel): void {
-	const show = () => channel.show(true);
-	void vscode.commands.executeCommand('workbench.panel.output.focus').then(show, show);
+	channel.show(true);
+	setTimeout(() => void vscode.commands.executeCommand('workbench.panel.output.focus'), 0);
 }
 
 /** Добавляет к сообщению префикс компонента: `[компонент] сообщение`. */
