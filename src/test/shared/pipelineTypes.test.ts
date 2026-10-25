@@ -1,5 +1,13 @@
 import * as assert from 'node:assert';
-import { normalizePipelines, startNodes, stepsWord } from '../../shared/pipelines/pipelineTypes';
+import {
+	EDITOR_SELECTION,
+	editorLaunchUse,
+	missingLaunchReferences,
+	nodeLaunchSelection,
+	normalizePipelines,
+	startNodes,
+	stepsWord,
+} from '../../shared/pipelines/pipelineTypes';
 import { serializePipelines } from '../../shared/pipelines/pipelineFile';
 
 suite('разбор файла пайплайнов', () => {
@@ -151,5 +159,77 @@ suite('запись файла пайплайнов', () => {
 		const back = normalizePipelines(JSON.parse(text));
 		assert.deepStrictEqual(back[0].nodes.map((node) => node.id), ['a', 'b']);
 		assert.strictEqual(back[0].nodes[0].script, '');
+	});
+});
+
+suite('профиль и окружение пайплайна', () => {
+	const [pipeline] = normalizePipelines({
+		pipelines: [
+			{
+				id: 'ci',
+				name: 'CI',
+				profile: 'ci',
+				environment: null,
+				nodes: [
+					{ id: 'inherit', command: '1c-platform-tools.cf.load' },
+					{ id: 'own', command: '1c-platform-tools.cf.load', profile: 'dev', environment: 'test' },
+					{ id: 'editor', command: '1c-platform-tools.cf.load', profile: EDITOR_SELECTION, environment: EDITOR_SELECTION },
+					{ id: 'off', command: '1c-platform-tools.cf.load', profile: 'missing', enabled: false },
+				],
+				edges: [],
+			},
+		],
+	});
+	const node = (id: string) => {
+		const found = pipeline.nodes.find((candidate) => candidate.id === id);
+		assert.ok(found, id);
+		return found;
+	};
+
+	test('шаг берёт свои профиль и окружение, иначе пайплайна, а «как в редакторе» не подменяет выбор', () => {
+		assert.deepStrictEqual(nodeLaunchSelection(pipeline, node('inherit')), { profile: 'ci', environment: null });
+		assert.deepStrictEqual(nodeLaunchSelection(pipeline, node('own')), { profile: 'dev', environment: 'test' });
+		assert.deepStrictEqual(nodeLaunchSelection(pipeline, node('editor')), {});
+	});
+
+	test('у пайплайна «как в редакторе» сохраняется в файле и значит то же, что без поля', () => {
+		const [explicit] = normalizePipelines({
+			pipelines: [{ id: 'p', name: 'P', profile: EDITOR_SELECTION, environment: EDITOR_SELECTION, nodes: [{ id: 'a' }] }],
+		});
+		assert.strictEqual(explicit.profile, EDITOR_SELECTION);
+		assert.strictEqual(explicit.environment, EDITOR_SELECTION);
+		assert.deepStrictEqual(nodeLaunchSelection(explicit, explicit.nodes[0]), {});
+		assert.ok(serializePipelines([pipeline]).includes('"environment": null'), 'окружение по умолчанию сохраняется как null');
+	});
+
+	test('выбор при запуске заменяет выбор редактора, свои значения пайплайна и шагов остаются', () => {
+		const run = { profile: 'nightly', environment: 'stage' };
+		assert.deepStrictEqual(nodeLaunchSelection(pipeline, node('editor'), run), run);
+		assert.deepStrictEqual(nodeLaunchSelection(pipeline, node('own'), run), { profile: 'dev', environment: 'test' });
+		assert.deepStrictEqual(nodeLaunchSelection(pipeline, node('inherit'), run), { profile: 'ci', environment: null });
+	});
+
+	test('при запуске спрашивается только то, что шаги берут из редактора', () => {
+		assert.deepStrictEqual(editorLaunchUse(pipeline), { profile: true, environment: true });
+		const [fixed] = normalizePipelines({
+			pipelines: [{
+				id: 'f',
+				name: 'F',
+				profile: 'ci',
+				nodes: [{ id: 'load', command: '1c-platform-tools.cf.load' }, { id: 'sh', type: 'shell', script: 'echo', profile: EDITOR_SELECTION }],
+			}],
+		});
+		assert.deepStrictEqual(editorLaunchUse(fixed), { profile: false, environment: true }, 'профиль шагу оболочки не нужен');
+	});
+
+	test('ссылки на профили и окружения, которых нет в проекте; «По умолчанию» и выключенные шаги не проверяются', () => {
+		assert.deepStrictEqual(missingLaunchReferences(pipeline, ['default', 'ci', 'dev'], ['test']), []);
+		assert.deepStrictEqual(missingLaunchReferences(pipeline, ['default'], []), [
+			'профиля «ci» нет в проекте',
+			'профиля «dev» нет в проекте',
+			'окружения «test» нет в проекте',
+		]);
+		const [onDefault] = normalizePipelines({ pipelines: [{ id: 'd', name: 'D', profile: 'default', nodes: [] }] });
+		assert.deepStrictEqual(missingLaunchReferences(onDefault, [], []), []);
 	});
 });

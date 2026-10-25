@@ -4,6 +4,8 @@ import * as os from 'node:os';
 import * as path from 'node:path';
 import { VRunnerManager } from '../../shared/vrunnerManager';
 import { DEFAULT_PROFILE_ID } from '../../shared/envProfiles';
+import { runWithLaunchSelection } from '../../shared/launchSelection';
+import { outsideProject } from '../../shared/workspaceProjects';
 import { writeLocalRunner } from '../fixtures/helpers/vrunnerStub';
 
 const INHERITED = 'ONECPT_ENVIRONMENT_TEST_INHERITED';
@@ -150,6 +152,35 @@ suite('окружение запуска', () => {
 			await vrunner.setActiveEnvironmentId('ci');
 			assert.strictEqual(await vrunner.getActiveIbConnectionValue(), '/F./build/ci');
 			assert.deepStrictEqual(await vrunner.getIbCredentials(), { user: 'Админ', password: '' });
+		});
+	});
+
+	test('шаг со своими профилем и окружением не меняет выбор редактора, явный профиль — без временных параметров', async () => {
+		write('autumn-properties.json', '{"vrunner": {}}');
+		write('autumn-properties.ci.json', '{"vrunner": {}}');
+		write('.env.dev', 'DB=dev\n');
+		write('.env.test', 'DB=test\n');
+		write('env.local.json', '{"--db-user": "локальный"}');
+		await vrunner.runWithProjectRoot(root, async () => {
+			await vrunner.getVRunnerVersion();
+			await vrunner.setActiveEnvironmentId('dev');
+			await vrunner.setActiveEnvOverrides({ ibConnection: '/F./build/temp' });
+
+			await runWithLaunchSelection({ profile: 'ci', environment: 'test' }, async () => {
+				assert.strictEqual(vrunner.getActiveEnvProfileId(), 'ci');
+				assert.deepStrictEqual(vrunner.getActiveSettingsParamIfExists(), ['--settings', 'autumn-properties.ci.json']);
+				assert.strictEqual(vrunner.launchEnv().DB, 'test');
+				assert.strictEqual(vrunner.getEffectiveEnvOverrides(), undefined, 'временные параметры и env.local.json — к профилю редактора');
+				assert.strictEqual(outsideProject(() => vrunner.getActiveEnvironmentId()), undefined, 'вне вызова — выбранный проект и его выбор');
+			});
+			await runWithLaunchSelection({ environment: null }, async () => {
+				assert.strictEqual(vrunner.getActiveEnvironmentId(), undefined);
+				assert.strictEqual(vrunner.launchEnv().DB, undefined);
+				assert.strictEqual(vrunner.getEffectiveEnvOverrides()?.ibConnection, '/F./build/temp', 'профиль редактора — с его временными параметрами');
+			});
+			assert.strictEqual(vrunner.getActiveEnvProfileId(), DEFAULT_PROFILE_ID);
+			assert.strictEqual(vrunner.getActiveEnvironmentId(), 'dev');
+			await vrunner.setActiveEnvOverrides(undefined);
 		});
 	});
 });

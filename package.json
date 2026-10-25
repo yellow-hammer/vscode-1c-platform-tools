@@ -139,6 +139,14 @@
             "type": "string",
             "description": "Идентификатор или название цепочки из .1cpt/pipelines.json"
           },
+          "profile": {
+            "type": "string",
+            "description": "Профиль запуска на этот прогон вместо выбранного в редакторе"
+          },
+          "environment": {
+            "type": "string",
+            "description": "Окружение на этот прогон вместо выбранного в редакторе; пустая строка — по умолчанию"
+          },
           "project": {
             "type": "string",
             "description": "Корень проекта: абсолютный путь или путь от папки рабочей области задачи"
@@ -2309,6 +2317,12 @@
         "icon": "$(play)"
       },
       {
+        "command": "1c-platform-tools.pipelines.runWith",
+        "title": "Запустить с профилем и окружением…",
+        "category": "1С: Пайплайны",
+        "icon": "$(rocket)"
+      },
+      {
         "command": "1c-platform-tools.pipelines.addTemplates",
         "title": "Добавить типовые",
         "category": "1С: Пайплайны",
@@ -3801,7 +3815,12 @@
         {
           "command": "1c-platform-tools.pipelines.run",
           "when": "view == 1c-platform-tools-tools-commands && viewItem == pipelineEntry",
-          "group": "inline"
+          "group": "inline@1"
+        },
+        {
+          "command": "1c-platform-tools.pipelines.runWith",
+          "when": "view == 1c-platform-tools-tools-commands && viewItem == pipelineEntry",
+          "group": "inline@2"
         },
         {
           "command": "1c-platform-tools.metadata.supportSetObjectMode",

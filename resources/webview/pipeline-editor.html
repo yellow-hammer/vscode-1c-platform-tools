@@ -212,6 +212,9 @@ function accentOf(node) {
 }
 
 let catalog = [];
+/** Профили и окружения проекта для выбора у пайплайна и шага */
+let profiles = [];
+let environments = [];
 let modelError;
 let baseline = [];
 let draft = [];
@@ -236,6 +239,8 @@ window.addEventListener('message', (event) => {
 	const data = event.data;
 	if (data.type === 'model') {
 		catalog = data.model.catalog;
+		profiles = data.model.profiles;
+		environments = data.model.environments;
 		modelError = data.model.error;
 		const dirty = isDirty();
 		baseline = data.model.pipelines;
@@ -928,7 +933,92 @@ function pipelineProblems(pipeline) {
 	if (blank.length > 0) {
 		problems.push('не задано действие: ' + blank.map((node) => nodeTitle(node)).join(', '));
 	}
-	return problems;
+	return problems.concat(missingLaunchReferences(pipeline));
+}
+
+/** Значение «как выбрано в редакторе» у шага */
+const EDITOR_SELECTION = '@editor';
+/** Пункт «По умолчанию» у окружения: в файле это null */
+const DEFAULT_ENVIRONMENT = '@default';
+
+/** Профили и окружения, на которые ссылается цепочка, но которых нет в проекте */
+function missingLaunchReferences(pipeline) {
+	const profileIds = new Set(profiles.map((profile) => profile.id));
+	const missingProfiles = new Set();
+	const missingEnvironments = new Set();
+	for (const owner of [pipeline].concat(pipeline.nodes.filter((node) => node.enabled !== false))) {
+		const { profile, environment } = owner;
+		if (typeof profile === 'string' && profile !== EDITOR_SELECTION && profile !== 'default' && !profileIds.has(profile)) {
+			missingProfiles.add(profile);
+		}
+		if (typeof environment === 'string' && environment !== EDITOR_SELECTION && !environments.includes(environment)) {
+			missingEnvironments.add(environment);
+		}
+	}
+	return [...missingProfiles].map((id) => 'профиля «' + id + '» нет в проекте')
+		.concat([...missingEnvironments].map((id) => 'окружения «' + id + '» нет в проекте'));
+}
+
+/** Список выбора профиля или окружения; значение, которого нет в проекте, остаётся в списке */
+function launchSelect(labelText, value, options) {
+	const row = document.createElement('div');
+	row.className = 'field';
+	const label = document.createElement('label');
+	label.textContent = labelText;
+	const select = document.createElement('select');
+	const known = options.some(([optionValue]) => optionValue === value);
+	for (const [optionValue, text] of known ? options : options.concat([[value, value + ' (нет в проекте)']])) {
+		const option = document.createElement('option');
+		option.value = optionValue;
+		option.textContent = text;
+		option.selected = optionValue === value;
+		select.appendChild(option);
+	}
+	row.appendChild(label);
+	row.appendChild(select);
+	return { row, select };
+}
+
+/** Первые пункты выбора: у шага — как у пайплайна или как выбрано в редакторе */
+function inheritedOptions(forNode) {
+	return forNode
+		? [['', 'Как у пайплайна'], [EDITOR_SELECTION, 'Как выбрано в редакторе']]
+		: [[EDITOR_SELECTION, 'Как выбрано в редакторе']];
+}
+
+/** Незаданное значение: у шага — как у пайплайна, у пайплайна — как выбрано в редакторе */
+function unsetValue(forNode) {
+	return forNode ? '' : EDITOR_SELECTION;
+}
+
+/** Профиль пайплайна или шага; «По умолчанию» — базовый файл настроек */
+function profileField(owner, forNode) {
+	const options = inheritedOptions(forNode).concat([['default', 'По умолчанию']]);
+	for (const profile of profiles) {
+		if (profile.id !== 'default') { options.push([profile.id, profile.label]); }
+	}
+	const { row, select } = launchSelect('Профиль запуска', owner.profile === undefined ? unsetValue(forNode) : owner.profile, options);
+	select.addEventListener('change', () => {
+		if (select.value === '') { delete owner.profile; } else { owner.profile = select.value; }
+		commit();
+	});
+	return row;
+}
+
+/** Окружение пайплайна или шага */
+function environmentField(owner, forNode) {
+	const options = inheritedOptions(forNode).concat([[DEFAULT_ENVIRONMENT, 'По умолчанию']], environments.map((id) => [id, id]));
+	const value = owner.environment === undefined ? unsetValue(forNode) : owner.environment === null ? DEFAULT_ENVIRONMENT : owner.environment;
+	const { row, select } = launchSelect('Окружение', value, options);
+	select.addEventListener('change', () => {
+		if (select.value === '') {
+			delete owner.environment;
+		} else {
+			owner.environment = select.value === DEFAULT_ENVIRONMENT ? null : select.value;
+		}
+		commit();
+	});
+	return row;
 }
 
 function renderInspector() {
@@ -976,6 +1066,8 @@ function renderInspector() {
 			if (next) { pipeline.description = next; } else { delete pipeline.description; }
 			fieldEdited();
 		}, 'textarea'));
+		host.appendChild(profileField(pipeline, false));
+		host.appendChild(environmentField(pipeline, false));
 		host.appendChild(liveField('Параметры (имя=значение, по одному в строке)', paramsToText(pipeline.params), (value) => {
 			const parsed = textToParams(value);
 			if (Object.keys(parsed).length > 0) { pipeline.params = parsed; } else { delete pipeline.params; }
@@ -1004,6 +1096,7 @@ function renderInspector() {
 			node.script = value;
 			fieldEdited();
 		}, 'textarea'));
+		host.appendChild(environmentField(node, true));
 
 	} else if (node.type === 'confirm') {
 		host.appendChild(liveField('Вопрос', node.message, (value) => {
@@ -1026,6 +1119,8 @@ function renderInspector() {
 		if (entry && !entry.supportsWait) {
 			host.appendChild(hint('Команда не возвращает исход: для цепочки такой блок всегда успешен.'));
 		}
+		host.appendChild(profileField(node, true));
+		host.appendChild(environmentField(node, true));
 	}
 
 	host.appendChild(liveField('Ограничение времени, с', node.timeout === undefined ? '' : String(node.timeout), (value) => {

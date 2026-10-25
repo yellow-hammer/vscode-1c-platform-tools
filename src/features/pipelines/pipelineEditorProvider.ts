@@ -17,6 +17,7 @@ import * as vscode from 'vscode';
 import { logger } from '../../shared/logger';
 import { fillWebviewTemplate, loadWebviewTemplate } from '../../shared/webviewTemplate';
 import { runWithProject } from '../../shared/workspaceProjects';
+import { VRunnerManager } from '../../shared/vrunnerManager';
 import { readCommandCatalog, CommandCatalogEntry } from '../../shared/commandCatalog';
 import { serializePipelines } from '../../shared/pipelines/pipelineFile';
 import { normalizePipelines, Pipeline } from '../../shared/pipelines/pipelineTypes';
@@ -39,7 +40,15 @@ type WebviewMessage =
 interface EditorModel {
 	pipelines: Pipeline[];
 	catalog: CommandCatalogEntry[];
+	/** Профили и окружения проекта: из них выбирают у пайплайна и шага */
+	profiles: { id: string; label: string }[];
+	environments: string[];
 	error?: string;
+}
+
+/** Корень проекта файла `<корень>/.1cpt/pipelines.json` */
+function projectRootOf(document: vscode.TextDocument): string {
+	return path.dirname(path.dirname(document.uri.fsPath));
 }
 
 export class PipelineEditorProvider implements vscode.CustomTextEditorProvider {
@@ -95,11 +104,17 @@ export class PipelineEditorProvider implements vscode.CustomTextEditorProvider {
 	): Promise<void> {
 		webviewPanel.webview.options = { enableScripts: true };
 		webviewPanel.webview.html = await buildHtml(this.extensionUri);
+		const root = projectRootOf(document);
+		// Профили проекта зависят от версии vanessa-runner
+		await runWithProject(root, () => VRunnerManager.getInstance().getVRunnerVersion());
 
 		const post = (): void => {
 			void webviewPanel.webview.postMessage({ type: 'model', model: this.buildModel(document) });
 		};
 
+		const launchFiles = vscode.workspace.createFileSystemWatcher(
+			new vscode.RelativePattern(root, '{env*.json,autumn-properties*.json,.env,.env.*}')
+		);
 		const subscriptions = [
 			vscode.workspace.onDidChangeTextDocument((event) => {
 				if (event.document.uri.toString() === document.uri.toString()) {
@@ -109,6 +124,9 @@ export class PipelineEditorProvider implements vscode.CustomTextEditorProvider {
 			onPipelineRunEvent((event) => {
 				void webviewPanel.webview.postMessage({ type: 'run', event });
 			}),
+			launchFiles,
+			launchFiles.onDidCreate(post),
+			launchFiles.onDidDelete(post),
 		];
 		PipelineEditorProvider.panels.add(webviewPanel);
 		registerFormPanel(webviewPanel);
@@ -127,8 +145,8 @@ export class PipelineEditorProvider implements vscode.CustomTextEditorProvider {
 				return;
 			}
 			if (message.type === 'run') {
-				// Цепочка идёт в проекте своего файла `<корень>/.1cpt/pipelines.json`
-				await runWithProject(path.dirname(path.dirname(document.uri.fsPath)), () =>
+				// Цепочка идёт в проекте своего файла
+				await runWithProject(root, () =>
 					vscode.commands.executeCommand('1c-platform-tools.pipelines.run', {
 						pipeline: message.pipelineId,
 					})
@@ -159,17 +177,22 @@ export class PipelineEditorProvider implements vscode.CustomTextEditorProvider {
 	 * @returns Модель с цепочками и каталогом команд
 	 */
 	private buildModel(document: vscode.TextDocument): EditorModel {
-		const catalog = readCommandCatalog();
+		const vrunner = VRunnerManager.getInstance();
+		const base = runWithProject(projectRootOf(document), () => ({
+			catalog: readCommandCatalog(),
+			profiles: vrunner.discoverEnvProfiles().map(({ id, label }) => ({ id, label })),
+			environments: vrunner.discoverEnvironments().map(({ id }) => id),
+		}));
 		const text = document.getText().trim();
 		if (text === '') {
-			return { pipelines: [], catalog };
+			return { ...base, pipelines: [] };
 		}
 		try {
-			return { pipelines: normalizePipelines(JSON.parse(text)), catalog };
+			return { ...base, pipelines: normalizePipelines(JSON.parse(text)) };
 		} catch (error) {
 			return {
+				...base,
 				pipelines: [],
-				catalog,
 				error: `Файл не разбирается как JSON: ${error instanceof Error ? error.message : String(error)}`,
 			};
 		}

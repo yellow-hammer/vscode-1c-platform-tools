@@ -20,6 +20,10 @@ export interface PipelineTaskDefinition extends vscode.TaskDefinition {
 	type: typeof PIPELINE_TASK_TYPE;
 	/** Идентификатор или название цепочки */
 	pipeline: string;
+	/** Профиль запуска на этот прогон вместо выбранного в редакторе */
+	profile?: string;
+	/** Окружение на этот прогон вместо выбранного в редакторе; пустая строка — по умолчанию */
+	environment?: string;
 	/** Корень проекта: абсолютный путь или путь от папки рабочей области задачи */
 	project?: string;
 }
@@ -46,7 +50,7 @@ export function buildPipelineTask(
 		workspaceFolderOf(root) ?? vscode.TaskScope.Workspace,
 		label,
 		'1C: Platform Tools',
-		new vscode.CustomExecution(async () => new PipelineTaskTerminal(pipelineId, root))
+		new vscode.CustomExecution(async () => new PipelineTaskTerminal(pipelineId, root, definition))
 	);
 	task.detail = detail;
 	return task;
@@ -67,7 +71,8 @@ class PipelineTaskTerminal implements vscode.Pseudoterminal {
 
 	constructor(
 		private readonly pipelineId: string,
-		private readonly root: string
+		private readonly root: string,
+		private readonly definition?: PipelineTaskDefinition
 	) {}
 
 	/**
@@ -78,6 +83,8 @@ class PipelineTaskTerminal implements vscode.Pseudoterminal {
 		const result = (await runWithProject(this.root, () =>
 			vscode.commands.executeCommand('1c-platform-tools.pipelines.run', {
 				pipeline: this.pipelineId,
+				profile: this.definition?.profile,
+				environment: this.definition?.environment,
 				wait: true,
 			})
 		)) as { success?: boolean; stdout?: string; stderr?: string } | undefined;

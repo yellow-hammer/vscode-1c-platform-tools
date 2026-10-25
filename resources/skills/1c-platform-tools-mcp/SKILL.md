@@ -44,7 +44,7 @@ description: Инструменты MCP сервера mcp-1c-platform-tools. И
 
 Явный `settingsFile` отменяет перекрытия активного профиля и не отменяет `ibConnection`. Явный `ibConnection` убирает из перекрытий подключение, пользователя и пароль и передаётся в команду. Замечания приходят в stdout строками `[контекст]`, в том числе «Подключение из вызова: …». Длинный вывод в ответе обрезается до хвоста: первая строка `[начало вывода пропущено: N символов]`.
 
-Отдельные параметры есть только у своих команд: `sha` у `cf_loadInc`, `updateDb` у `cf_load`, `cf_loadInc`, `cf_loadFile`, `cf_loadByList` и `cfe_load`, `extensions` у `cfe_load`, `cfe_loadFile`, `cfe_loadByList`, `cfe_dump`, `cfe_unload`, `cfe_compile`, `cfe_decompile`, `cfe_convert`, `cfe_updateDb`, `cfe_borrowObject`, `test_loadExts`, `test_dumpExts`, `test_compileExts` и `test_decompileExts`, `outputDirectory` и `outputName` у `cf_unload`, `cf_compile`, `cf_makeDist`, `cfe_unload`, `cfe_compile`, `epf_compileProc` и `epf_compileReport`, `profile` у `env_selectProfile`, `environment` у `env_selectEnvironment`, `frameworks` у `test_configure`, `execute` и `command` у `run_enterprise` и `epf_run`, `pipeline` у `pipelines_run`. Параметры сеанса — в разделе «Сеансы», параметры OData — у `odata_query` и `odata_setup`.
+Отдельные параметры есть только у своих команд: `sha` у `cf_loadInc`, `updateDb` у `cf_load`, `cf_loadInc`, `cf_loadFile`, `cf_loadByList` и `cfe_load`, `extensions` у `cfe_load`, `cfe_loadFile`, `cfe_loadByList`, `cfe_dump`, `cfe_unload`, `cfe_compile`, `cfe_decompile`, `cfe_convert`, `cfe_updateDb`, `cfe_borrowObject`, `test_loadExts`, `test_dumpExts`, `test_compileExts` и `test_decompileExts`, `outputDirectory` и `outputName` у `cf_unload`, `cf_compile`, `cf_makeDist`, `cfe_unload`, `cfe_compile`, `epf_compileProc` и `epf_compileReport`, `profile` у `env_selectProfile` и `pipelines_run`, `environment` у `env_selectEnvironment` и `pipelines_run`, `frameworks` у `test_configure`, `execute` и `command` у `run_enterprise` и `epf_run`, `pipeline` у `pipelines_run`. Параметры сеанса — в разделе «Сеансы», параметры OData — у `odata_query` и `odata_setup`.
 
 `outputName` — имя файла без расширения. Переменные: `${name}`, `${folder}`, `${version}`, `${gitBranch}`. Одно имя без переменных на несколько объектов команду не запускает.
 
@@ -243,7 +243,7 @@ description: Инструменты MCP сервера mcp-1c-platform-tools. И
 | `tasks_view` | `1c-platform-tools.tasks.view` | без исхода |
 | `properties_show` | `1c-platform-tools.properties.show` | пустой |
 
-`pipelines_run`: параметр `pipeline` обязателен (id или название из `.1cpt/pipelines.json`). Без него команда не выбирает цепочку сама.
+`pipelines_run`: параметр `pipeline` обязателен (id или название из `.1cpt/pipelines.json`). Без него команда не выбирает цепочку сама. `profile` и `environment` — профиль и окружение на этот прогон вместо выбранных в редакторе; свои у цепочки и шагов в файле остаются.
 
 `tasks_edit` открывает `tasks.json`. `tasks_view` обновляет дерево задач. Запуск задачи по имени в MCP нет: `1c-platform-tools.tasks.run` и `1c-platform-tools.tasks.runOscript` выполняет человек из палитры. `properties_show` только показывает панель свойств.
 

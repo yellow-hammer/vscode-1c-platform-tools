@@ -257,6 +257,10 @@ export function registerCommands(
 		registerVRunnerCommand('1c-platform-tools.pipelines.run', (opts) =>
 			commands.pipelines.run(opts)
 		),
+		registerRunningCommand('1c-platform-tools.pipelines.runWith', uiOnlyHandler(
+			'Профиль и окружение прогона выбираются в окне VS Code; агенту — pipelines.run с параметрами profile и environment.',
+			(source?: unknown) => commands.pipelines.runWith(source as { pipelineId?: string } | undefined)
+		)),
 		registerProjectCommand('1c-platform-tools.pipelines.openEditor', (pipelineId?: string) =>
 			commands.pipelines.openEditor(typeof pipelineId === 'string' ? pipelineId : undefined)
 		),

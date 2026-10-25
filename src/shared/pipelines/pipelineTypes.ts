@@ -7,6 +7,12 @@
  * файл остаётся источником истины и правится и визуальным редактором, и руками.
  */
 
+import { DEFAULT_PROFILE_ID } from '../envProfiles';
+import type { LaunchSelection } from '../launchSelection';
+
+/** Профиль или окружение шага: как выбрано в редакторе в момент шага */
+export const EDITOR_SELECTION = '@editor';
+
 /** Что делает узел */
 export type PipelineNodeType = 'command' | 'shell' | 'confirm';
 
@@ -24,6 +30,10 @@ export interface PipelineNode {
 	options?: Record<string, unknown>;
 	/** Командная строка (type: shell) */
 	script?: string;
+	/** Профиль запуска шага; нет — как у пайплайна, {@link EDITOR_SELECTION} — как выбрано в редакторе */
+	profile?: string;
+	/** Окружение шага; null — по умолчанию, нет — как у пайплайна, {@link EDITOR_SELECTION} — как выбрано в редакторе */
+	environment?: string | null;
 	/** Текст вопроса (type: confirm) */
 	message?: string;
 	/** Ограничение времени в секундах */
@@ -60,6 +70,10 @@ export interface Pipeline {
 	description?: string;
 	/** Параметры цепочки: подставляются в шаги как {{имя}} */
 	params?: Record<string, string>;
+	/** Профиль запуска шагов; нет или {@link EDITOR_SELECTION} — как выбрано в редакторе */
+	profile?: string;
+	/** Окружение шагов; null — по умолчанию, нет или {@link EDITOR_SELECTION} — как выбрано в редакторе */
+	environment?: string | null;
 	/** Узлы графа */
 	nodes: PipelineNode[];
 	/** Связи между узлами */
@@ -90,6 +104,11 @@ function readNumber(value: unknown): number | undefined {
 	return typeof value === 'number' && Number.isFinite(value) ? value : undefined;
 }
 
+/** Окружение из файла: null — по умолчанию */
+function readEnvironment(value: unknown): string | null | undefined {
+	return value === null ? null : readString(value);
+}
+
 function normalizeNode(raw: unknown, index: number): PipelineNode | undefined {
 	if (!isRecord(raw)) {
 		return undefined;
@@ -117,6 +136,14 @@ function normalizeNode(raw: unknown, index: number): PipelineNode | undefined {
 	}
 	if (type === 'shell') {
 		node.script = script ?? '';
+	}
+	const profile = readString(raw.profile);
+	if (profile !== undefined) {
+		node.profile = profile;
+	}
+	const environment = readEnvironment(raw.environment);
+	if (environment !== undefined) {
+		node.environment = environment;
 	}
 	const timeout = readNumber(raw.timeout);
 	if (timeout !== undefined && timeout > 0) {
@@ -222,6 +249,14 @@ function normalizePipeline(raw: unknown, index: number): Pipeline | undefined {
 			pipeline.params = params;
 		}
 	}
+	const profile = readString(raw.profile);
+	if (profile !== undefined) {
+		pipeline.profile = profile;
+	}
+	const environment = readEnvironment(raw.environment);
+	if (environment !== undefined) {
+		pipeline.environment = environment;
+	}
 	return pipeline;
 }
 
@@ -264,6 +299,74 @@ export function normalizePipelines(raw: unknown): Pipeline[] {
 export function startNodes(pipeline: Pipeline): PipelineNode[] {
 	const targets = new Set(pipeline.edges.map((edge) => edge.to));
 	return pipeline.nodes.filter((node) => !targets.has(node.id));
+}
+
+/**
+ * Профиль и окружение, с которыми идёт шаг: свои, иначе пайплайна, иначе
+ * выбранные при запуске. Незаданное берётся из редактора в момент шага.
+ *
+ * @param pipeline - Пайплайн
+ * @param node - Шаг
+ * @param run - Выбор при запуске вместо выбранного в редакторе
+ * @returns Выбор запуска шага
+ */
+export function nodeLaunchSelection(pipeline: Pipeline, node: PipelineNode, run: LaunchSelection = {}): LaunchSelection {
+	const profile = node.profile ?? pipeline.profile;
+	const environment = node.environment !== undefined ? node.environment : pipeline.environment;
+	const selection: LaunchSelection = { ...run };
+	if (profile !== undefined && profile !== EDITOR_SELECTION) {
+		selection.profile = profile;
+	}
+	if (environment !== undefined && environment !== EDITOR_SELECTION) {
+		selection.environment = environment;
+	}
+	return selection;
+}
+
+/**
+ * Берёт ли хоть один шаг профиль или окружение из редактора: только их можно
+ * выбрать при запуске. Профиль нужен шагам-командам, окружение — ещё и шагам оболочки.
+ *
+ * @param pipeline - Пайплайн
+ * @returns Что из редактора берут шаги
+ */
+export function editorLaunchUse(pipeline: Pipeline): { profile: boolean; environment: boolean } {
+	const enabled = pipeline.nodes.filter((node) => node.enabled !== false);
+	return {
+		profile: enabled.some((node) => node.type === 'command' && nodeLaunchSelection(pipeline, node).profile === undefined),
+		environment: enabled.some((node) => node.type !== 'confirm' && nodeLaunchSelection(pipeline, node).environment === undefined),
+	};
+}
+
+/**
+ * Профили и окружения, на которые ссылается пайплайн, но которых нет в проекте.
+ * «По умолчанию» есть всегда: без его файла шаг откажет сам.
+ *
+ * @param pipeline - Пайплайн
+ * @param profiles - Профили проекта
+ * @param environments - Окружения проекта
+ * @returns Замечания для сообщения
+ */
+export function missingLaunchReferences(
+	pipeline: Pipeline,
+	profiles: readonly string[],
+	environments: readonly string[]
+): string[] {
+	const missingProfiles = new Set<string>();
+	const missingEnvironments = new Set<string>();
+	for (const owner of [pipeline, ...pipeline.nodes.filter((node) => node.enabled !== false)]) {
+		const { profile, environment } = owner;
+		if (profile !== undefined && profile !== EDITOR_SELECTION && profile !== DEFAULT_PROFILE_ID && !profiles.includes(profile)) {
+			missingProfiles.add(profile);
+		}
+		if (typeof environment === 'string' && environment !== EDITOR_SELECTION && !environments.includes(environment)) {
+			missingEnvironments.add(environment);
+		}
+	}
+	return [
+		...[...missingProfiles].map((id) => `профиля «${id}» нет в проекте`),
+		...[...missingEnvironments].map((id) => `окружения «${id}» нет в проекте`),
+	];
 }
 
 /**

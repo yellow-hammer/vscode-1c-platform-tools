@@ -22,12 +22,18 @@ import {
 	readPipelineTemplates,
 } from '../shared/pipelines/pipelineTemplates';
 import {
+	editorLaunchUse,
+	missingLaunchReferences,
 	nodeLabel,
+	nodeLaunchSelection,
 	stepsWord,
 	Pipeline,
 	PipelineNode,
 	PIPELINES_FILE_REL_PATH,
 } from '../shared/pipelines/pipelineTypes';
+import { runWithLaunchSelection, type LaunchSelection } from '../shared/launchSelection';
+import { DEFAULT_PROFILE_ID } from '../shared/envProfiles';
+import { BASE_DOTENV_FILE, environmentLabel } from '../shared/environments';
 import {
 	formatRunSummary,
 	stepErrorLine,
@@ -109,14 +115,29 @@ export class PipelineCommands extends BaseCommand {
 			);
 		}
 
-		const problems = validatePipeline(pipeline);
+		// Профили проекта зависят от версии vanessa-runner
+		await this.vrunner.getVRunnerVersion();
+		const problems = [
+			...validatePipeline(pipeline),
+			...missingLaunchReferences(
+				pipeline,
+				this.vrunner.discoverEnvProfiles().map((profile) => profile.id),
+				this.vrunner.discoverEnvironments().map((environment) => environment.id)
+			),
+		];
 		if (problems.length > 0) {
 			const message = `Пайплайн «${pipeline.name}»: ${problems.join('; ')}`;
 			return this.rejectIfWait(opts, message) ?? this.showWarning(message);
 		}
 
-		// Профиль проверяет каждый шаг vanessa-runner сам, окружение нужно всем шагам
-		const environmentProblem = this.vrunner.environmentProblem();
+		const run = this.runSelection(opts);
+		if ('problem' in run) {
+			return this.rejectIfWait(opts, run.problem) ?? this.showWarning(run.problem);
+		}
+
+		// Профиль проверяет каждый шаг vanessa-runner сам, окружение редактора — до старта шагов, которые его берут
+		const editorEnvironment = editorLaunchUse(pipeline).environment && run.environment === undefined;
+		const environmentProblem = editorEnvironment ? this.vrunner.environmentProblem() : undefined;
 		if (environmentProblem) {
 			return this.rejectIfWait(opts, environmentProblem) ?? this.offerLaunchFix(environmentProblem);
 		}
@@ -130,7 +151,7 @@ export class PipelineCommands extends BaseCommand {
 		let result: PipelineRunResult;
 		try {
 			emitPipelineRunEvent({ kind: 'start', pipelineId: pipeline.id });
-			result = await this.execute(pipeline, workspaceRoot, opts);
+			result = await this.execute(pipeline, workspaceRoot, run, opts);
 		} finally {
 			this.running.delete(pipeline.id);
 		}
@@ -153,6 +174,73 @@ export class PipelineCommands extends BaseCommand {
 		}
 		this.reportResult(result);
 		return undefined;
+	}
+
+	/**
+	 * Запускает пайплайн с профилем и окружением, выбранными на этот прогон: они
+	 * заменяют выбранные в редакторе у шагов, которые их берут.
+	 *
+	 * @param source - Строка цепочки в дереве; без неё цепочка выбирается из списка
+	 * @returns Ничего
+	 */
+	async runWith(source?: { pipelineId?: string }): Promise<void> {
+		const workspaceRoot = this.getExecutionCwd();
+		if (!workspaceRoot) {
+			this.warnNoWorkspace();
+			return;
+		}
+		const pipelines = await readPipelines(workspaceRoot);
+		if (pipelines.length === 0) {
+			this.showInfo(`Пайплайнов нет: ${PIPELINES_FILE_REL_PATH} пуст или отсутствует`);
+			return;
+		}
+		const pipeline = await this.resolvePipeline(pipelines, { pipeline: source?.pipelineId });
+		if (!pipeline) {
+			return;
+		}
+		await this.vrunner.getVRunnerVersion();
+		const use = editorLaunchUse(pipeline);
+		if (!use.profile && !use.environment) {
+			void vscode.window.showInformationMessage(`Профиль и окружение шагов заданы в пайплайне «${pipeline.name}»`);
+		}
+		const title = `Запустить «${pipeline.name}»`;
+		const profile = use.profile ? await this.pickRunProfile(title) : {};
+		const environment = profile && use.environment ? await this.pickRunEnvironment(title) : {};
+		if (!profile || !environment) {
+			return;
+		}
+		await this.run({ pipeline: pipeline.id, profile: profile.value, environment: environment.value });
+	}
+
+	/** Профиль на прогон; undefined — выбор отменён. */
+	private async pickRunProfile(title: string): Promise<{ value?: string } | undefined> {
+		const items: (vscode.QuickPickItem & { choice: { value?: string } })[] = [
+			{ label: 'Как выбрано в редакторе', description: this.vrunner.launchSummary().profile.label, choice: {} },
+			...this.vrunner.discoverEnvProfiles().map((profile) => ({
+				label: profile.label,
+				description: profile.fileName,
+				choice: { value: profile.id },
+			})),
+		];
+		const picked = await vscode.window.showQuickPick(items, { title: `${title}: профиль`, placeHolder: 'Профиль запуска', ignoreFocusOut: true });
+		return picked?.choice;
+	}
+
+	/** Окружение на прогон; пустая строка — по умолчанию, undefined — выбор отменён. */
+	private async pickRunEnvironment(title: string): Promise<{ value?: string } | undefined> {
+		const editor = this.vrunner.activeEnvironment();
+		const baseFiles = runWithLaunchSelection({ environment: null }, () => this.vrunner.activeEnvironment().files);
+		const items: (vscode.QuickPickItem & { choice: { value?: string } })[] = [
+			{ label: 'Как выбрано в редакторе', description: environmentLabel(editor.id, editor.files), choice: {} },
+			{ label: environmentLabel(undefined, baseFiles), description: baseFiles.join(', '), choice: { value: '' } },
+			...this.vrunner.discoverEnvironments().map((environment) => ({
+				label: environment.id,
+				description: environment.files.join(', '),
+				choice: { value: environment.id },
+			})),
+		];
+		const picked = await vscode.window.showQuickPick(items, { title: `${title}: окружение`, placeHolder: 'Окружение', ignoreFocusOut: true });
+		return picked?.choice;
 	}
 
 	/**
@@ -277,28 +365,68 @@ export class PipelineCommands extends BaseCommand {
 	}
 
 	/**
+	 * Профиль и окружение на этот прогон из параметров вызова.
+	 *
+	 * @param opts - Опции выполнения: profile, environment (пустая строка — по умолчанию)
+	 * @returns Выбор прогона или причина отказа
+	 */
+	private runSelection(opts: CommandExecutionOptions | undefined): LaunchSelection | { problem: string } {
+		const selection: LaunchSelection = {};
+		const profile = opts?.profile?.trim();
+		if (profile) {
+			const query = profile.toLowerCase();
+			const profiles = this.vrunner.discoverEnvProfiles();
+			const found = profiles.find((candidate) =>
+				[candidate.id, candidate.fileName, candidate.label].some((name) => name.toLowerCase() === query)
+			);
+			if (!found && query !== DEFAULT_PROFILE_ID) {
+				const available = profiles.map((candidate) => candidate.id).join(', ') || 'нет ни одного';
+				return { problem: `Профиль запуска «${profile}» не найден. Доступные профили: ${available}.` };
+			}
+			selection.profile = found?.id ?? DEFAULT_PROFILE_ID;
+		}
+		if (opts?.environment !== undefined) {
+			const query = opts.environment.trim().toLowerCase();
+			const environments = this.vrunner.discoverEnvironments();
+			const found = environments.find((candidate) =>
+				candidate.id.toLowerCase() === query || `${BASE_DOTENV_FILE}.${candidate.id}`.toLowerCase() === query
+			);
+			if (query !== '' && !found) {
+				const available = environments.map((candidate) => candidate.id).join(', ') || 'нет ни одного';
+				return { problem: `Окружение «${opts.environment}» не найдено. Доступные окружения: ${available}.` };
+			}
+			selection.environment = found?.id ?? null;
+		}
+		return selection;
+	}
+
+	/**
 	 * Прогоняет граф, показывая ход в панели прогресса и на полотне редактора.
 	 *
 	 * @param pipeline - Пайплайн
 	 * @param workspaceRoot - Корень проекта для команд оболочки
+	 * @param run - Профиль и окружение на этот прогон вместо выбранных в редакторе
 	 * @param opts - Опции выполнения, общие для узлов
 	 * @returns Результат прогона
 	 */
 	private async execute(
 		pipeline: Pipeline,
 		workspaceRoot: string,
+		run: LaunchSelection,
 		opts?: CommandExecutionOptions
 	): Promise<PipelineRunResult> {
 		log.info(`Пайплайн «${pipeline.name}»: старт, шагов ${pipeline.nodes.length}`);
-		const execute = async (node: PipelineNode): Promise<NodeExecutionResult> => {
-			if (node.type === 'shell') {
-				return this.runShell(node, workspaceRoot);
-			}
-			if (node.type === 'confirm') {
-				return this.runConfirm(node, opts);
-			}
-			return this.runExtensionCommand(node, opts);
-		};
+		// Шаг идёт со своими профилем и окружением, выбор в редакторе не меняется
+		const execute = async (node: PipelineNode): Promise<NodeExecutionResult> =>
+			runWithLaunchSelection(nodeLaunchSelection(pipeline, node, run), () => {
+				if (node.type === 'shell') {
+					return this.runShell(node, workspaceRoot);
+				}
+				if (node.type === 'confirm') {
+					return this.runConfirm(node, opts);
+				}
+				return this.runExtensionCommand(node, opts);
+			});
 
 		const observer = {
 			onNodeStart: (node: PipelineNode, number: number): void => {

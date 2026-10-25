@@ -5,6 +5,8 @@
 			"id": "template-infobase-deploy",
 			"name": "Развёртывание информационной базы",
 			"description": "Пустая база из исходников проекта: конфигурация, расширения, обработчики обновления и первый запуск",
+			"profile": "@editor",
+			"environment": "@editor",
 			"nodes": [
 				{
 					"id": "create",
@@ -71,6 +73,8 @@
 			"id": "template-production-update",
 			"name": "Обновление рабочей базы",
 			"description": "Обновление с закрытием сеансов; при ошибке загрузки сеансы разрешаются обратно",
+			"profile": "@editor",
+			"environment": "@editor",
 			"nodes": [
 				{
 					"id": "lock",
@@ -155,6 +159,8 @@
 			"id": "template-test-run",
 			"name": "Прогон тестов",
 			"description": "Тестовые расширения и обработки, юнит-тесты, сценарные тесты, синтаксический контроль и отчёт",
+			"profile": "@editor",
+			"environment": "@editor",
 			"nodes": [
 				{
 					"id": "loadExt",
@@ -229,6 +235,8 @@
 			"id": "template-delivery-build",
 			"name": "Сборка поставки",
 			"description": "Файлы поставки из исходников: конфигурация, расширения, внешние обработки и отчёты",
+			"profile": "@editor",
+			"environment": "@editor",
 			"nodes": [
 				{
 					"id": "buildCf",
@@ -278,6 +286,8 @@
 			"id": "template-source-dump",
 			"name": "Выгрузка в исходники",
 			"description": "Исходники проекта: конфигурация, расширения, тестовые расширения, внешние обработки и отчёты",
+			"profile": "@editor",
+			"environment": "@editor",
 			"nodes": [
 				{
 					"id": "dumpCf",

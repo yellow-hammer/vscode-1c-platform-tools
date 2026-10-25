@@ -28,9 +28,9 @@ export interface CommandExecutionOptions {
 	updateDb?: boolean;
 	/** Явный список имён расширений; без него — сохранённый выбор проекта. */
 	extensions?: string[];
-	/** Имя env-профиля для env.selectProfile (id, имя файла или подпись). */
+	/** Профиль: для env.selectProfile — какой выбрать, для pipelines.run — на этот прогон (id, имя файла или подпись). */
 	profile?: string;
-	/** Имя окружения для env.selectEnvironment; пустая строка — по умолчанию. */
+	/** Окружение: для env.selectEnvironment — какое выбрать, для pipelines.run — на этот прогон; пустая строка — по умолчанию. */
 	environment?: string;
 	/** Ключи включаемых тестовых фреймворков (test.configure). */
 	frameworks?: string[];

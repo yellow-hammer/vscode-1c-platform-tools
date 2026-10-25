@@ -33,6 +33,7 @@ import {
 	type SourceRoot,
 } from './projectLayout';
 import { logger } from './logger';
+import { outsideLaunchSelection } from './launchSelection';
 import { projectKindOf, type ProjectKind } from './projectKind';
 import { notifyProjectLayoutChanged, onDidChangeProjectLayout, type ProjectLayoutChange } from './projectLayoutWatch';
 
@@ -516,10 +517,11 @@ export function projectOverride(): string | undefined {
 
 /**
  * Выполняет fn без корня вызова: всё, что fn запускает асинхронно (таймеры,
- * обещания, события), видит выбранный проект, а не проект вызывающего.
+ * обещания, события), видит выбранный проект, а не проект вызывающего, и
+ * профиль с окружением, выбранные в редакторе.
  */
 export function outsideProject<T>(fn: () => T): T {
-	return projectStorage.exit(fn);
+	return projectStorage.exit(() => outsideLaunchSelection(fn));
 }
 
 /** Источники состояния для {@link WorkspaceProjects}. */

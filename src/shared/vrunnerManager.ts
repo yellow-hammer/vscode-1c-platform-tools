@@ -59,6 +59,7 @@ import {
 } from './envProfiles';
 import { parseDotEnv } from './dotEnv';
 import { buildEnvironments, environmentFiles, type Environment } from './environments';
+import { launchSelectionOverride, outsideLaunchSelection } from './launchSelection';
 import { DEFAULT_IB_CONNECTION, quoteFileIbConnection } from './ibConnectionPath';
 import { containsGitBranchVariable, GIT_BRANCH_VARIABLE, substituteGitBranch } from './launchVariables';
 import { readGitBranchDirName } from './gitHead';
@@ -2517,6 +2518,10 @@ export class VRunnerManager {
 		if (!this.usesVanessaRunner()) {
 			return DEFAULT_PROFILE_ID;
 		}
+		const selected = launchSelectionOverride()?.profile;
+		if (selected !== undefined) {
+			return selected;
+		}
 		const fromState = projectMemento().get<string>(ACTIVE_ENV_PROFILE_STATE);
 		if (typeof fromState === 'string' && fromState) {
 			return fromState;
@@ -2536,7 +2541,8 @@ export class VRunnerManager {
 	 */
 	public async setActiveEnvProfileId(profileId: string): Promise<void> {
 		await projectMemento().update(ACTIVE_ENV_PROFILE_STATE, profileId);
-		this._onDidChangeActiveEnvProfile.fire();
+		// Панели показывают выбор редактора, даже если выбирает шаг пайплайна со своим профилем
+		outsideLaunchSelection(() => this._onDidChangeActiveEnvProfile.fire());
 	}
 
 	/**
@@ -2554,6 +2560,10 @@ export class VRunnerManager {
 	 * @returns Имя окружения или undefined — окружение по умолчанию
 	 */
 	public getActiveEnvironmentId(): string | undefined {
+		const selected = launchSelectionOverride()?.environment;
+		if (selected !== undefined) {
+			return selected ?? undefined;
+		}
 		const value = projectMemento().get<unknown>(ACTIVE_ENVIRONMENT_STATE);
 		return typeof value === 'string' && value !== '' ? value : undefined;
 	}
@@ -2565,7 +2575,7 @@ export class VRunnerManager {
 	 */
 	public async setActiveEnvironmentId(id: string | undefined): Promise<void> {
 		await projectMemento().update(ACTIVE_ENVIRONMENT_STATE, id);
-		this._onDidChangeActiveEnvironment.fire();
+		outsideLaunchSelection(() => this._onDidChangeActiveEnvironment.fire());
 	}
 
 	/**
@@ -2599,6 +2609,10 @@ export class VRunnerManager {
 	 * @returns Временные параметры из состояния текущего проекта или undefined
 	 */
 	public getActiveEnvOverrides(): EnvOverrides | undefined {
+		// Временные параметры — к профилю редактора: шаг с явным профилем идёт ровно с ним
+		if (launchSelectionOverride()?.profile !== undefined) {
+			return undefined;
+		}
 		const raw = projectMemento().get<EnvOverrides>(ACTIVE_ENV_OVERRIDES_STATE);
 		return raw && hasOverrides(raw) ? raw : undefined;
 	}
@@ -2708,7 +2722,7 @@ export class VRunnerManager {
 	 */
 	public readLocalEnvOverrides(): EnvOverrides | undefined {
 		const root = this.getEffectiveRoot();
-		if (!root) {
+		if (!root || launchSelectionOverride()?.profile !== undefined) {
 			return undefined;
 		}
 		const localPath = path.join(root, LOCAL_OVERRIDES_FILE);
