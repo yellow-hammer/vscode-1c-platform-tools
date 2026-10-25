@@ -1,24 +1,21 @@
 # Проверка команд OData на настоящей платформе 1С.
 #
-# Платформа нужной версии скачивается yard с releases.1c.ru и ставится так же,
-# как в namespace-forest. ibcmd создаёт файловую базу из тестовой конфигурации,
-# ibsrv публикует стандартный интерфейс OData и HTTP-сервис с серверным кодом
-# служебной обработки состава. Лицензия для этого не нужна.
+# Задача идёт в образе клиента 1С из yellow-hammer/1c-nest. ibcmd создаёт файловую
+# базу из тестовой конфигурации, ibsrv публикует стандартный интерфейс OData и
+# HTTP-сервис с серверным кодом служебной обработки состава. Лицензия для этого
+# не нужна.
 #
 # Отдельными шагами без влияния на итог пробуются сборка служебной обработки
 # конфигуратором и её запуск тонким клиентом: им может понадобиться лицензия.
-#
-# Секреты (Settings → Secrets → Actions): ONEC_LOGIN, ONEC_PASSWORD - учётные
-# данные releases.1c.ru.
 name: Проверка OData на платформе
 
 on:
   workflow_dispatch:
     inputs:
       platform_version:
-        description: 'Версия платформы, например 8.3.27.1936'
+        description: 'Платформа: тег образа yellow-hammer/1c-nest, линейка ("8.3.27") или сборка ("8.3.27.2342")'
         required: false
-        default: '8.3.27.1936'
+        default: '8.3.27'
   push:
     branches:
       - 'feat/479-odata'
@@ -30,6 +27,7 @@ on:
 
 permissions:
   contents: read
+  packages: read
 
 concurrency:
   group: platform-odata-${{ github.ref }}
@@ -37,25 +35,23 @@ concurrency:
 
 jobs:
   odata:
-    name: OData на платформе ${{ inputs.platform_version || '8.3.27.1936' }}
-    runs-on: ubuntu-22.04
-    timeout-minutes: 60
+    name: OData на платформе ${{ inputs.platform_version || '8.3.27' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    container:
+      image: ghcr.io/yellow-hammer/1c-nest/client:${{ inputs.platform_version || '8.3.27' }}
+      credentials:
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
 
     env:
-      PLATFORM_VERSION: ${{ inputs.platform_version || '8.3.27.1936' }}
       PORT: 8314
+      IBCMD: /opt/1cv8/current/ibcmd
+      IBSRV: /opt/1cv8/current/ibsrv
+      V8_DESIGNER: /opt/1cv8/current/1cv8
+      V8_THIN: /opt/1cv8/current/1cv8c
 
     steps:
-      - name: Проверить секреты releases.1c.ru
-        env:
-          ONEC_LOGIN: ${{ secrets.ONEC_LOGIN }}
-          ONEC_PASSWORD: ${{ secrets.ONEC_PASSWORD }}
-        run: |
-          if [ -z "$ONEC_LOGIN" ] || [ -z "$ONEC_PASSWORD" ]; then
-            echo "::error::Нет секретов ONEC_LOGIN и ONEC_PASSWORD: без них платформу не скачать с releases.1c.ru"
-            exit 1
-          fi
-
       - name: Получить код
         uses: actions/checkout@v7
 
@@ -69,97 +65,6 @@ jobs:
         run: |
           npm ci
           npm run compile
-
-      - name: Установить OneScript
-        uses: otymko/setup-onescript@v1.5.1
-        with:
-          version: stable
-
-      - name: Установить yard
-        run: |
-          opm install opm
-          opm install yard
-          YARD_OS=$(find "$HOME/.local/share/ovm" -path '*/yard/src/yard.os' 2>/dev/null | head -1)
-          if [ -z "$YARD_OS" ]; then echo "::error::yard.os не найден"; exit 1; fi
-          echo "YARD_OS=$YARD_OS" >> "$GITHUB_ENV"
-
-      - name: Установить зависимости платформы 1С
-        run: |
-          sudo apt-get update
-          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
-            fontconfig libgsf-1-114 libglib2.0-0 libodbc1 libwebkit2gtk-4.0-37 \
-            xvfb unzip curl
-          LE_BASE=http://archive.ubuntu.com/ubuntu/pool/universe/e/enchant/
-          LE_FILE=$(curl -s "$LE_BASE" | grep -oE 'libenchant1c2a_[^"]*_amd64\.deb' | head -1)
-          curl -sL "$LE_BASE$LE_FILE" -o /tmp/libenchant.deb
-          sudo apt-get install -y /tmp/libenchant.deb
-
-      - name: Скачать и установить платформу ${{ env.PLATFORM_VERSION }}
-        env:
-          YARD_RELEASES_USER: ${{ secrets.ONEC_LOGIN }}
-          YARD_RELEASES_PWD: ${{ secrets.ONEC_PASSWORD }}
-        run: |
-          DISTR_DIR=$(mktemp -d); chmod 777 "$DISTR_DIR"
-          # Фильтры yard - регулярные выражения: точки экранируются
-          ESCAPED_VERSION=$(echo "$PLATFORM_VERSION" | sed 's/\./\\./g')
-          APP_MAJOR=$(echo "$PLATFORM_VERSION" | cut -d. -f1,2 | sed 's/\./\\./g')
-          # Сначала полная платформа: в ней есть конфигуратор и тонкий клиент для пробных шагов
-          DISTR_FILTERS=(
-            "Технологическая платформа.+\(64-bit\) для Linux$"
-            "[CС]ервер.+\(64-bit\) для DEB-based Linux-систем$"
-          )
-          STEP_OK=0
-          for ATTEMPT in 1 2 3; do
-            for DF in "${DISTR_FILTERS[@]}"; do
-              timeout 900 oscript "$YARD_OS" releases get \
-                --app-filter "Технологическая платформа $APP_MAJOR\$" \
-                --version-filter "$ESCAPED_VERSION" \
-                --distr-filter "$DF" \
-                --path "$DISTR_DIR" --download-limit 1 --extract || true
-              if find "$DISTR_DIR" -type f \( -name 'setup-full*.run' -o -name '*.deb' \) | grep -q .; then
-                STEP_OK=1; break
-              fi
-            done
-            [ "$STEP_OK" -eq 1 ] && break
-            echo "Попытка $ATTEMPT: дистрибутив не получен, пауза 20 с"; sleep 20
-          done
-          if [ "$STEP_OK" -ne 1 ]; then
-            echo "::error::Дистрибутив $PLATFORM_VERSION не скачан"; exit 1
-          fi
-
-          echo "Содержимое дистрибутива:"
-          find "$DISTR_DIR" -type f \( -name '*.run' -o -name '*.deb' \) | sed "s#$DISTR_DIR/##"
-          RUN_INSTALLER=$(find "$DISTR_DIR" -name 'setup-full*.run' | head -1)
-          if [ -n "$RUN_INSTALLER" ]; then
-            chmod +x "$RUN_INSTALLER"
-            for COMPONENTS in server,client_full,v8_install_deps server,client_full; do
-              if timeout 900 xvfb-run -a sudo "$RUN_INSTALLER" --mode unattended \
-                --enable-components "$COMPONENTS" > /tmp/install.log 2>&1; then
-                break
-              fi
-              echo "Набор компонентов [$COMPONENTS] отклонён, пробую следующий"
-            done
-          else
-            DEBS=$(find "$DISTR_DIR" -name '*.deb' | sort)
-            timeout 600 sudo dpkg -i $DEBS > /tmp/install.log 2>&1 \
-              || timeout 600 sudo apt-get install -f -y >> /tmp/install.log 2>&1 \
-              || { echo "Ошибка установки .deb:"; tail -30 /tmp/install.log; }
-          fi
-          rm -rf "$DISTR_DIR"
-
-          find_bin() { find /opt/1cv8 /opt/1C -name "$1" -type f 2>/dev/null | sort -V | tail -1; }
-          IBCMD=$(find_bin ibcmd); IBSRV=$(find_bin ibsrv)
-          if [ -z "$IBCMD" ] || [ -z "$IBSRV" ]; then
-            echo "::error::ibcmd/ibsrv не найдены после установки $PLATFORM_VERSION"
-            tail -30 /tmp/install.log; exit 1
-          fi
-          {
-            echo "IBCMD=$IBCMD"
-            echo "IBSRV=$IBSRV"
-            echo "V8_DESIGNER=$(find_bin 1cv8)"
-            echo "V8_THIN=$(find_bin 1cv8c)"
-          } >> "$GITHUB_ENV"
-          echo "ibcmd: $IBCMD"; echo "ibsrv: $IBSRV"
 
       - name: Подготовить конфигурацию, исходники обработки и конфиг публикации
         run: |
@@ -202,6 +107,7 @@ jobs:
       - name: Методы изменения, которые принимает сервер (при неудаче проверки)
         if: failure()
         run: |
+          apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends python3
           ROOT="$ONEC_PUBLICATION_URL/odata/standard.odata"
           SET=$(python3 -c "import urllib.parse;print(urllib.parse.quote('Catalog_Товары'))")
           curl -s -X POST "$ONEC_PUBLICATION_URL/hs/odata-composition/run" \
@@ -271,7 +177,7 @@ jobs:
         if: always()
         run: |
           {
-            echo "### OData на платформе $PLATFORM_VERSION"
+            echo "### OData на платформе $ONEC_VERSION"
             echo ""
             echo "| Шаг | Итог |"
             echo "|---|---|"
