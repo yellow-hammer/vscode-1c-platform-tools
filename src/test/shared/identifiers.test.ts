@@ -38,6 +38,7 @@ const DOMAINS = new Set([
 	'mcp',
 	'metadata',
 	'odata',
+	'package',
 	'pipelines',
 	'project',
 	'projects',

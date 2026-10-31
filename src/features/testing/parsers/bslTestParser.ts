@@ -64,6 +64,12 @@ const VALUE_SOURCE_ANNOTATION_REGEX =
 const DISPLAY_NAME_ANNOTATION_REGEX =
 	/^\s*&(?:ОтображаемоеИмя|DisplayName)\s*\(\s*"((?:[^"]|"")*)"\s*\)\s*(?:\/\/.*)?$/i;
 
+/** Тег теста или набора (OneUnit, повторяемый): &Тег("тег") */
+const TAG_ANNOTATION_REGEX = /^\s*&Тег\s*\(\s*"((?:[^"]|"")*)"\s*\)\s*(?:\/\/.*)?$/i;
+
+/** Конструктор тестового набора (OneUnit): &ТестовыйНабор над ПриСозданииОбъекта */
+const SUITE_ANNOTATION_REGEX = /^\s*&ТестовыйНабор\s*(?:\(.*\))?\s*(?:\/\/.*)?$/i;
+
 /** Любая аннотация (строка, начинающаяся с &) — для обхода блока аннотаций над процедурой */
 const ANY_ANNOTATION_REGEX = /^\s*&/;
 
@@ -273,6 +279,10 @@ interface AnnotationBlock {
 	displayName?: string;
 	/** Наборы значений из каждой &ИсточникЗначение (по одному кейсу на набор) */
 	valueSets: string[][];
+	/** Теги из &Тег */
+	tags: string[];
+	/** Конструктор тестового набора: &ТестовыйНабор */
+	isSuite: boolean;
 }
 
 /**
@@ -289,7 +299,9 @@ function collectAnnotationBlock(lines: string[], declLine: number): AnnotationBl
 		isTest: false,
 		isParameterized: false,
 		template: DEFAULT_PARAM_NAME_TEMPLATE,
-		valueSets: []
+		valueSets: [],
+		tags: [],
+		isSuite: false
 	};
 
 	for (let i = declLine - 1; i >= 0; i--) {
@@ -322,11 +334,33 @@ function collectAnnotationBlock(lines: string[], declLine: number): AnnotationBl
 		const display = DISPLAY_NAME_ANNOTATION_REGEX.exec(lines[i]);
 		if (display) {
 			block.displayName = display[1].replaceAll('""', '"');
+			continue;
+		}
+		const tag = TAG_ANNOTATION_REGEX.exec(lines[i]);
+		if (tag) {
+			block.tags.push(tag[1].replaceAll('""', '"'));
+			continue;
+		}
+		if (SUITE_ANNOTATION_REGEX.test(lines[i])) {
+			block.isSuite = true;
 		}
 	}
 
 	block.valueSets.reverse();
+	block.tags.reverse();
 	return block;
+}
+
+/**
+ * Теги кейса: теги метода и набора без повторов, как их объединяет OneUnit.
+ *
+ * @param own - Теги метода
+ * @param suite - Теги набора
+ * @returns Теги или undefined, если их нет
+ */
+function caseTags(own: readonly string[], suite: readonly string[]): string[] | undefined {
+	const tags = [...new Set([...own, ...suite].filter((tag) => tag.length > 0))];
+	return tags.length > 0 ? tags : undefined;
 }
 
 /**
@@ -344,20 +378,23 @@ function collectAnnotationBlock(lines: string[], declLine: number): AnnotationBl
  */
 function collectAnnotatedTests(lines: string[]): DiscoveredCase[] {
 	const cases: DiscoveredCase[] = [];
-
+	const declarations: { line: number; methodName: string; block: AnnotationBlock }[] = [];
 	for (let i = 0; i < lines.length; i++) {
 		const decl = METHOD_DECLARATION_REGEX.exec(lines[i]);
-		if (!decl) {
-			continue;
+		if (decl) {
+			declarations.push({ line: i, methodName: decl[1], block: collectAnnotationBlock(lines, i) });
 		}
+	}
+	// Тег набора OneUnit ставится над его конструктором и достаётся всем тестам набора
+	const suiteTags = declarations.find((item) => item.block.isSuite)?.block.tags ?? [];
 
-		const methodName = decl[1];
-		const block = collectAnnotationBlock(lines, i);
+	for (const { line: i, methodName, block } of declarations) {
 		if (!block.isTest && !block.isParameterized) {
 			continue;
 		}
 
 		const displayName = block.displayName ?? methodName;
+		const tags = caseTags(block.tags, suiteTags);
 
 		if (block.isParameterized && block.valueSets.length > 0) {
 			for (const valueSet of block.valueSets) {
@@ -367,14 +404,15 @@ function collectAnnotatedTests(lines: string[]): DiscoveredCase[] {
 					methodName,
 					// Контейнер параметризованного теста — отображаемое имя процедуры;
 					// различает одноимённые «[ibcmd]» разных процедур и поясняет их в дереве
-					groupName: displayName
+					groupName: displayName,
+					...(tags ? { tags } : {})
 				});
 			}
 			continue;
 		}
 
 		// Обычный &Тест либо параметризованный без статических источников значений
-		cases.push({ name: displayName, line: i, methodName });
+		cases.push({ name: displayName, line: i, methodName, ...(tags ? { tags } : {}) });
 	}
 
 	return cases;

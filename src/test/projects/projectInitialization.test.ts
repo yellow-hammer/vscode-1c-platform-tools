@@ -16,18 +16,23 @@ import {
 	DELIVERY,
 	ACCOUNTING,
 	detectedProjects,
+	ONESCRIPT_TEMPLATE,
 	resetLayout,
 	TEMPLATE,
 	TWO_CONFIGURATIONS,
 } from './workspaceProjectsFixture';
 
 /** Ответы пользователя и что у него спрашивали. */
-function recordingUi(answers: { pick?: string; overwrite?: boolean } = {}) {
-	const asked = { choices: [] as InitializeChoice[][], overwrite: [] as string[], opened: [] as string[], noFolder: 0 };
+function recordingUi(answers: { pick?: string; overwrite?: boolean; oneScript?: boolean } = {}) {
+	const asked = { choices: [] as InitializeChoice[][], kinds: [] as boolean[], overwrite: [] as string[], opened: [] as string[], noFolder: 0 };
 	const ui: InitializeProjectUi = {
 		pickDirectory: async (choices) => {
 			asked.choices.push([...choices]);
 			return answers.pick;
+		},
+		pickKind: async (suggested) => {
+			asked.kinds.push(suggested);
+			return answers.oneScript ?? false;
 		},
 		confirmOverwrite: async (file) => {
 			asked.overwrite.push(file);
@@ -106,6 +111,24 @@ suite('проекты: инициализация', () => {
 			);
 			assert.strictEqual(hasProjectFile(source), false);
 			assert.strictEqual(hasProjectFile(empty), false);
+		} finally {
+			fixture.instance.dispose();
+			copy.dispose();
+		}
+	});
+
+	test('каталог без исходного кода 1С: вид проекта спрашивается, у проекта OneScript свой шаблон', async () => {
+		const copy = copyFixtures('пустая');
+		const [empty] = copy.roots;
+		const fixture = await detectedProjects([empty]);
+		const { ui, asked } = recordingUi({ oneScript: true });
+		try {
+			assert.strictEqual(await initializeProject(fixture.source, undefined, ui), empty);
+
+			const expected = fs.readFileSync(ONESCRIPT_TEMPLATE, 'utf8').replaceAll('{{name}}', path.basename(empty));
+			assert.strictEqual(fs.readFileSync(path.join(empty, 'packagedef'), 'utf8'), expected);
+			assert.deepStrictEqual(asked.kinds, [false], 'пустой каталог на пакет OneScript не похож');
+			assert.strictEqual((await fixture.source.listProjects())[0].kind, 'onescript');
 		} finally {
 			fixture.instance.dispose();
 			copy.dispose();

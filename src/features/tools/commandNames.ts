@@ -256,6 +256,39 @@ export function getInstallOneScriptCommandName(): CommandNameAndTitle {
 }
 
 /**
+ * Получить название и заголовок для команды выбора версии OneScript проекта
+ */
+export function getSelectOneScriptCommandName(): CommandNameAndTitle {
+	return {
+		id: '1c-platform-tools.dependencies.selectOscript',
+		name: 'Выбрать версию OneScript',
+		title: 'Выбрать версию OneScript'
+	};
+}
+
+/**
+ * Получить название и заголовок для команды сборки пакета OneScript (opm build)
+ */
+export function getBuildPackageCommandName(): CommandNameAndTitle {
+	return {
+		id: '1c-platform-tools.package.build',
+		name: 'Собрать пакет',
+		title: 'Собрать пакет'
+	};
+}
+
+/**
+ * Получить название и заголовок для команды установки собранного пакета OneScript (opm install -f)
+ */
+export function getInstallPackageCommandName(): CommandNameAndTitle {
+	return {
+		id: '1c-platform-tools.package.install',
+		name: 'Установить пакет',
+		title: 'Установить пакет'
+	};
+}
+
+/**
  * Получить название и заголовок для команды настройки Git
  */
 export function getSetupGitCommandName(): CommandNameAndTitle {
@@ -497,6 +530,17 @@ export function getMutationTestingCommandName(): CommandNameAndTitle {
 		id: '1c-platform-tools.test.mutatos',
 		name: 'Мутационное тестирование',
 		title: 'Мутационное тестирование'
+	};
+}
+
+/**
+ * Получить название и заголовок для команды прогона тестов OneScript (OneUnit или 1testrunner)
+ */
+export function getOneScriptTestsCommandName(): CommandNameAndTitle {
+	return {
+		id: '1c-platform-tools.test.onescript',
+		name: 'Тесты OneScript',
+		title: 'Тесты OneScript'
 	};
 }
 

@@ -18,6 +18,7 @@ import { ArtifactCommands } from './artifactCommands';
 import { SkillsCommands } from './skillsCommands';
 import { ServiceFilesCommands } from './serviceFilesCommands';
 import { ODataCommands } from './odataCommands';
+import { PackageCommands, packageFileArgument, packageProjectArgument } from './packageCommands';
 import { VRunnerManager } from '../shared/vrunnerManager';
 import type { CommandExecutionOptions, StructuredCommandResult } from '../shared/commandExecutionTypes';
 import { isAgentOptions, agentInteractiveError, uiOnlyHandler } from '../shared/agentGate';
@@ -81,6 +82,7 @@ interface Commands {
 	pipelines: PipelineCommands;
 	hooks: HooksCommands;
 	odata: ODataCommands;
+	package: PackageCommands;
 }
 
 function getActiveEditorResourceUri(): vscode.Uri | undefined {
@@ -412,6 +414,10 @@ export function registerCommands(
 		registerProjectCommand('1c-platform-tools.dependencies.installOscript', () => {
 			commands.dependencies.installOscript();
 		}),
+		registerProjectCommand('1c-platform-tools.dependencies.selectOscript', uiOnlyHandler(
+			'Версию OneScript проекта выбирает пользователь. Движок по пути задаёт настройка components.path.oscript.',
+			() => commands.dependencies.selectOscript()
+		)),
 		registerProjectCommand('1c-platform-tools.dependencies.updateOpm', () => {
 			commands.dependencies.updateOpm();
 		}),
@@ -463,6 +469,9 @@ export function registerCommands(
 		),
 		registerVRunnerCommand('1c-platform-tools.test.mutatos', (opts) =>
 			commands.test.runMutationTesting(opts)
+		),
+		registerVRunnerCommand('1c-platform-tools.test.onescript', (opts) =>
+			commands.test.runOneScriptTests(opts)
 		),
 		registerVRunnerCommand('1c-platform-tools.test.mutatosReport', () =>
 			commands.test.openMutationReport()
@@ -575,6 +584,21 @@ export function registerCommands(
 		await vscode.window.showTextDocument(doc);
 	});
 
+	// Пакет OneScript: сборка и установка собранного. Раздел и узел дерева артефактов
+	// идут в проекте своего пути, вызов агента — в проекте вызова
+	const agentOptionsOf = (target: unknown) => (isAgentOptions(target) ? (target as CommandExecutionOptions) : undefined);
+	const packageCommands = [
+		vscode.commands.registerCommand('1c-platform-tools.package.build', (target?: unknown) => {
+			const opts = agentOptionsOf(target);
+			return inProjectOf(opts ? undefined : packageProjectArgument(target), () => commands.package.buildPackage(opts));
+		}),
+		vscode.commands.registerCommand('1c-platform-tools.package.install', (target?: unknown) => {
+			const opts = agentOptionsOf(target);
+			const file = opts ? undefined : packageFileArgument(target);
+			return inProjectOf(file, () => commands.package.installPackage(file, opts));
+		}),
+	];
+
 	disposables.push(
 		...infobaseCommands,
 		...sessionCommands,
@@ -589,6 +613,7 @@ export function registerCommands(
 		...testCommands,
 		...setVersionCommands,
 		...artifactCommands,
+		...packageCommands,
 		envEditCommand
 	);
 

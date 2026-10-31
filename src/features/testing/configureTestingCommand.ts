@@ -7,10 +7,11 @@ import { VRunnerManager } from '../../shared/vrunnerManager';
 import { logger } from '../../shared/logger';
 import { notifyQuiet } from '../../shared/notify';
 import { DEFAULT_TESTING } from '../../shared/pathDefaults';
-import { resolveOnescriptTestsPath } from './onescriptTestsPath';
+import { oneScriptTestsPath } from '../../shared/oneScriptLayout';
 import type { StructuredCommandResult } from '../../shared/commandExecutionTypes';
 import { configurationWriteTarget } from '../../shared/configurationWriteTarget';
 import { projectConfiguration } from '../../shared/projectConfiguration';
+import { isOneScriptProject } from '../../shared/workspaceProjects';
 
 const log = logger.scope('testing');
 
@@ -76,12 +77,12 @@ export function registerConfigureTestingCommand(vrunner: VRunnerManager): vscode
 			? configurationWriteTarget(workspaceRoot)
 			: vscode.ConfigurationTarget.Workspace;
 		const featuresPath = config.get<string>('test.path.features', DEFAULT_TESTING.featuresPath);
-		const onescriptPath = resolveOnescriptTestsPath(workspaceRoot);
+		const onescriptPath = oneScriptTestsPath(workspaceRoot);
 		const paths = workspaceRoot ? await projectPaths(workspaceRoot) : undefined;
 		const testsEpf = paths?.testProcessorsContainer ?? CONVENTIONAL_PATHS.testsEpf;
 		const testsCfe = paths?.testExtensionsContainer ?? CONVENTIONAL_PATHS.testsCfe;
 
-		const frameworks: FrameworkPick[] = [
+		const allFrameworks: FrameworkPick[] = [
 			{
 				key: 'vanessa',
 				label: 'Vanessa Automation',
@@ -117,6 +118,10 @@ export function registerConfigureTestingCommand(vrunner: VRunnerManager): vscode
 				defaultEnabled: true
 			}
 		];
+		// Проекту OneScript фреймворки платформы 1С не нужны
+		const frameworks = isOneScriptProject(workspaceRoot)
+			? allFrameworks.filter((framework) => framework.key === 'onescript' || framework.key === 'onebdd')
+			: allFrameworks;
 
 		// объект опций — агентный вызов (MCP передаёт его всегда); визард в
 		// этом контексте открывать нельзя: пользователь может быть не за экраном

@@ -11,6 +11,7 @@ import { instanceProjectsSource, type WorkspaceProjectsSource } from '../../feat
 
 export const FIXTURES = path.resolve(__dirname, '../../../src/test/fixtures/workspaceProjects');
 export const TEMPLATE = path.resolve(__dirname, '../../../resources/templates/packagedef.template');
+export const ONESCRIPT_TEMPLATE = path.resolve(__dirname, '../../../resources/templates/packagedef-onescript.template');
 
 export const at = (...parts: string[]): string => normalizeProjectRoot(path.join(FIXTURES, ...parts));
 
@@ -44,7 +45,7 @@ export interface ProjectsFixture {
  */
 export async function detectedProjects(roots: readonly string[]): Promise<ProjectsFixture> {
 	const folders = roots.map(folder);
-	const instance = new WorkspaceProjects({ folders: () => folders, templateFile: TEMPLATE });
+	const instance = new WorkspaceProjects({ folders: () => folders, templateFile: TEMPLATE, oneScriptTemplateFile: ONESCRIPT_TEMPLATE });
 	await instance.refresh();
 	return { instance, source: instanceProjectsSource(instance, () => folders), folders };
 }

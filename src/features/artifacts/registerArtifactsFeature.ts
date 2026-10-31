@@ -5,6 +5,7 @@ import {
 	type ArtifactsViewMode,
 } from './projectArtifactsView';
 import { notifyQuiet } from '../../shared/notify';
+import { PACKAGE_EXTENSION } from '../../shared/packagedef';
 import { onDidChangeProjectLayout } from '../../shared/projectLayoutWatch';
 import { onDidChangeCurrentProject, onDidChangeProjects } from '../../shared/workspaceProjects';
 
@@ -45,7 +46,7 @@ export function registerArtifactsFeature(
 		}, 1000);
 	};
 
-	const artifactPatterns = ['**/*.cf', '**/*.cfe', '**/*.epf', '**/*.erf'];
+	const artifactPatterns = ['**/*.cf', '**/*.cfe', '**/*.epf', '**/*.erf', `**/*${PACKAGE_EXTENSION}`];
 	const artifactWatchers = artifactPatterns.flatMap((pattern) => {
 		const watcher = vscode.workspace.createFileSystemWatcher(pattern);
 		return [

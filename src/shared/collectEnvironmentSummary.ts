@@ -10,9 +10,13 @@ import { findRac } from '../features/clusters/racLocator';
 import { findCestart } from '../features/ibases/cestart';
 import { readComponentStates } from './componentsRegistry';
 import {
+	type EnvironmentEngineInfo,
 	type EnvironmentSummary,
 	type EnvironmentToolInfo,
 } from './environmentSummary';
+import { ENGINE_SOURCE_LABELS } from './oneScriptEngine';
+import { readPackageManifest } from './oneScriptLayout';
+import { currentRoot } from './workspaceProjects';
 import { decodeProcessOutput } from './processOutput';
 import { VRunnerManager } from './vrunnerManager';
 import { findEdtInstallations, pickEdtInstallation } from './edtLocator';
@@ -92,23 +96,22 @@ function fallbackExtensionVersion(context: vscode.ExtensionContext): string {
 }
 
 /**
- * Путь и версия OneScript.
+ * Движок OneScript текущего проекта: путь, версия, откуда взят и ВерсияСреды проекта.
  *
- * @returns Сведения или пустой объект, если oscript не найден
+ * @returns Сведения; без найденного движка только ВерсияСреды
  */
-async function readOscriptInfo(): Promise<EnvironmentToolInfo> {
-	const vrunner = VRunnerManager.getInstance();
-	const available = await vrunner.checkOscriptAvailable();
-	if (!available) {
-		return {};
-	}
-	const oscriptPath = vrunner.getResolvedOscriptPath();
-	if (oscriptPath === undefined) {
-		return {};
+async function readOscriptInfo(): Promise<EnvironmentEngineInfo> {
+	const engine = await VRunnerManager.getInstance().projectEngine();
+	if (engine === undefined) {
+		const root = currentRoot();
+		const required = root === undefined ? undefined : readPackageManifest(root)?.engineVersion;
+		return required ? { required } : {};
 	}
 	return {
-		path: oscriptPath,
-		version: await readCliVersion(oscriptPath, ['-version']),
+		path: engine.oscript,
+		version: engine.version?.text ?? (await readCliVersion(engine.oscript, ['-version'])),
+		source: ENGINE_SOURCE_LABELS[engine.source],
+		...(engine.required ? { required: engine.required } : {}),
 	};
 }
 

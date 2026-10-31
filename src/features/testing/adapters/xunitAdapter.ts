@@ -12,7 +12,7 @@ import { resolveProjectLayout, type SourceFormat } from '../../../shared/project
 import { CONVENTIONAL_PATHS, projectPaths } from '../../../shared/projectPaths';
 import type { VRunnerIntent } from '../../../shared/vrunnerCli/intents';
 import { planEdtExternalBuild, runEdtBuildExports, type EdtBuildBridge } from '../../edt/edtBridgeService';
-import { resolveOnescriptTestsPath } from '../onescriptTestsPath';
+import { oneScriptTestsPath } from '../../../shared/oneScriptLayout';
 import { projectConfiguration } from '../../../shared/projectConfiguration';
 import {
 	extractJUnitPathFromReportsXunit,
@@ -116,7 +116,7 @@ export class XUnitAdapter implements TestFrameworkAdapter {
 			return { segments, label: epfInfo.processorName };
 		}
 
-		return { segments: directorySegments(fileUri.fsPath, resolveOnescriptTestsPath(workspaceRoot), workspaceRoot) };
+		return { segments: directorySegments(fileUri.fsPath, oneScriptTestsPath(workspaceRoot), workspaceRoot) };
 	}
 
 	public async buildRunPlan(unit: RunUnit, reportDir: string): Promise<AdapterRunPlan> {

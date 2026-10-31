@@ -34,6 +34,7 @@ import {
 } from './projectLayout';
 import { logger } from './logger';
 import { outsideLaunchSelection } from './launchSelection';
+import { declaresPackageApi, parsePackagedef } from './packagedef';
 import { projectKindOf, type ProjectKind } from './projectKind';
 import { notifyProjectLayoutChanged, onDidChangeProjectLayout, type ProjectLayoutChange } from './projectLayoutWatch';
 
@@ -57,8 +58,17 @@ export const HAS_CANDIDATES_CONTEXT = '1c-platform-tools.project.hasCandidates';
 /** Ключ контекста: первое полное обнаружение проектов ещё не закончено. */
 export const DETECTING_CONTEXT = '1c-platform-tools.project.detecting';
 
+/** Ключ контекста: вид текущего проекта, пусто, пока он не известен. */
+export const PROJECT_KIND_CONTEXT = '1c-platform-tools.project.kind';
+
 /** Шаблон `packagedef` относительно каталога расширения. */
 export const PROJECT_FILE_TEMPLATE = path.join('resources', 'templates', 'packagedef.template');
+
+/** Шаблон `packagedef` проекта OneScript относительно каталога расширения. */
+export const ONESCRIPT_PROJECT_FILE_TEMPLATE = path.join('resources', 'templates', 'packagedef-onescript.template');
+
+/** Место имени пакета в шаблоне `packagedef`: туда ставится имя каталога проекта. */
+const TEMPLATE_NAME = '{{name}}';
 
 /** Пачка изменений файлов даёт одно обнаружение. */
 const REFRESH_DELAY_MS = 200;
@@ -86,6 +96,8 @@ export interface WorkspaceProject {
 	configuration?: SourceRoot;
 	/** Вид проекта, см. {@link projectKindOf}; нет до полного обнаружения. */
 	kind?: ProjectKind;
+	/** `packagedef` объявляет классы, модули или исполняемый файл: проект собирается пакетом OneScript. */
+	package?: boolean;
 }
 
 /** Откуда взялся не проект. */
@@ -140,6 +152,8 @@ export interface CreateProjectFileOptions {
 	select?: boolean;
 	/** Шаблон вместо шаблона расширения. */
 	templateFile?: string;
+	/** Проект OneScript: шаблон пакета OneScript вместо шаблона проекта 1С. */
+	oneScript?: boolean;
 }
 
 /** `packagedef` уже есть, а перезапись не запрошена. */
@@ -255,11 +269,12 @@ export async function detectWorkspaceProjects(folders: readonly WorkspaceFolderR
 		}
 		seen.add(key);
 		const layout = await layoutOf(project.root);
-		const packagedef = await fs.readFile(path.join(project.root, PROJECT_FILE), 'utf-8').catch(() => '');
+		const manifest = parsePackagedef(await fs.readFile(path.join(project.root, PROJECT_FILE), 'utf-8').catch(() => ''));
 		projects.push({
 			...project,
 			configuration: layout?.configuration,
-			kind: layout ? projectKindOf(layout, packagedef) : undefined,
+			kind: layout ? projectKindOf(layout, manifest) : undefined,
+			package: declaresPackageApi(manifest),
 		});
 		for (const other of layout?.others ?? []) {
 			const root = normalizeProjectRoot(packagedefTargetDir(other, project.root));
@@ -460,7 +475,16 @@ export function scanRootsOf(
 }
 
 /**
- * Пишет `packagedef` из шаблона.
+ * Имя пакета нового проекта: имя каталога без пробелов.
+ *
+ * @param dir - Каталог проекта
+ */
+export function packageNameOf(dir: string): string {
+	return path.basename(path.resolve(dir)).trim().replace(/\s+/g, '-');
+}
+
+/**
+ * Пишет `packagedef` из шаблона; `{{name}}` в шаблоне заменяется именем каталога.
  *
  * @param dir - Каталог проекта; создаётся, если его нет
  * @param templateFile - Шаблон
@@ -470,7 +494,7 @@ export function scanRootsOf(
  */
 export async function writeProjectFile(dir: string, templateFile: string, overwrite = false): Promise<string> {
 	const file = path.join(path.resolve(dir), PROJECT_FILE);
-	const content = await fs.readFile(templateFile, 'utf-8');
+	const content = (await fs.readFile(templateFile, 'utf-8')).replaceAll(TEMPLATE_NAME, packageNameOf(dir));
 	await fs.mkdir(path.dirname(file), { recursive: true });
 	try {
 		await fs.writeFile(file, content, { encoding: 'utf-8', flag: overwrite ? 'w' : 'wx' });
@@ -495,6 +519,7 @@ function snapshotSignature(snapshot: WorkspaceProjectsSnapshot): string {
 			project.configuration?.format,
 			project.configuration?.name,
 			project.kind,
+			project.package,
 		]),
 		snapshot.candidates.map((candidate) => [candidate.root, candidate.kind, candidate.parent, candidate.configuration.dir]),
 	]);
@@ -529,15 +554,20 @@ export interface WorkspaceProjectsOptions {
 	folders: () => readonly WorkspaceFolderRef[];
 	memento?: vscode.Memento;
 	defaultSetting?: () => string | undefined;
-	setContext?: (key: string, value: boolean) => void;
+	setContext?: (key: string, value: boolean | string) => void;
 	/** Шаблон `packagedef` для {@link WorkspaceProjects.createProjectFile}. */
 	templateFile?: string;
+	/** Шаблон `packagedef` проекта OneScript. */
+	oneScriptTemplateFile?: string;
 	/** Сообщает потребителям раскладки об изменении; без него проекты ищутся заново сами. */
 	notifyLayout?: (change: ProjectLayoutChange) => void;
 }
 
 /** Что подключается при активации. */
-export type WorkspaceProjectsBindings = Pick<WorkspaceProjectsOptions, 'memento' | 'setContext' | 'templateFile' | 'notifyLayout'>;
+export type WorkspaceProjectsBindings = Pick<
+	WorkspaceProjectsOptions,
+	'memento' | 'setContext' | 'templateFile' | 'oneScriptTemplateFile' | 'notifyLayout'
+>;
 
 /** Сколько после {@link WorkspaceProjects.createProjectFile} событие о созданном файле не в счёт. */
 const OWN_PROJECT_FILE_EVENT_MS = 5000;
@@ -645,7 +675,8 @@ export class WorkspaceProjects implements vscode.Disposable {
 	 * @throws {ProjectFileExistsError} файл есть, перезапись не запрошена
 	 */
 	async createProjectFile(dir: string, options: CreateProjectFileOptions = {}): Promise<string> {
-		const templateFile = options.templateFile ?? this.bindings.templateFile;
+		const templateFile =
+			options.templateFile ?? (options.oneScript ? this.bindings.oneScriptTemplateFile : this.bindings.templateFile);
 		if (templateFile === undefined) {
 			throw new Error(`Не задан шаблон ${PROJECT_FILE}`);
 		}
@@ -785,6 +816,7 @@ export class WorkspaceProjects implements vscode.Disposable {
 	updateCurrent(): void {
 		const change = this.recomputeCurrent();
 		if (change) {
+			this.publishKindContext();
 			outsideProject(() => this.currentChanged.fire(change));
 		}
 	}
@@ -934,6 +966,13 @@ export class WorkspaceProjects implements vscode.Disposable {
 		setContext(MULTIPLE_PROJECTS_CONTEXT, snapshot.projects.length > 1);
 		setContext(HAS_CANDIDATES_CONTEXT, snapshot.candidates.length > 0);
 		setContext(DETECTING_CONTEXT, !this.detected);
+		this.publishKindContext();
+	}
+
+	/** Вид текущего проекта для условий видимости в манифесте. */
+	private publishKindContext(): void {
+		const root = this.current;
+		this.bindings.setContext?.(PROJECT_KIND_CONTEXT, (root === undefined ? undefined : this.projectByRoot(root)?.kind) ?? '');
 	}
 
 	private detect(): Promise<WorkspaceProjectsSnapshot> {
@@ -986,6 +1025,8 @@ export class WorkspaceProjects implements vscode.Disposable {
 		const listChanged = !previous || snapshotSignature(previous) !== snapshotSignature(next);
 		if (listChanged || firstComplete) {
 			this.publishContext();
+		} else if (change) {
+			this.publishKindContext();
 		}
 		if (next.complete && (listChanged || firstComplete)) {
 			this.logProjects(firstComplete ? undefined : previous, next);
@@ -1039,6 +1080,16 @@ export function currentProject(): WorkspaceProject | undefined {
 /** Известный проект с этим корнем. */
 export function projectByRoot(root: string): WorkspaceProject | undefined {
 	return projects().projectByRoot(root);
+}
+
+/**
+ * Проект OneScript: платформа 1С ему не нужна, метаданных и артефактов 1С у него нет.
+ *
+ * @param root - Корень проекта; по умолчанию текущий
+ * @returns false и тогда, когда вид проекта ещё не известен
+ */
+export function isOneScriptProject(root: string | undefined = currentRoot()): boolean {
+	return root !== undefined && projectByRoot(root)?.kind === 'onescript';
 }
 
 /**
@@ -1145,6 +1196,7 @@ export function initWorkspaceProjects(context: vscode.ExtensionContext): vscode.
 		memento: context.workspaceState,
 		setContext: (key, value) => void vscode.commands.executeCommand('setContext', key, value),
 		templateFile: path.join(context.extensionPath, PROJECT_FILE_TEMPLATE),
+		oneScriptTemplateFile: path.join(context.extensionPath, ONESCRIPT_PROJECT_FILE_TEMPLATE),
 		notifyLayout: notifyProjectLayoutChanged,
 	});
 

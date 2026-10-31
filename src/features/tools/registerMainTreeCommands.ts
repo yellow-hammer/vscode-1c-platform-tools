@@ -7,6 +7,7 @@ import { OscriptTasksCommands } from '../../commands/oscriptTasksCommands';
 import { SetVersionCommands } from '../../commands/setVersionCommands';
 import { WorkspaceTasksCommands } from '../../commands/workspaceTasksCommands';
 import { PlatformTreeDataProvider } from './treeViewProvider';
+import { favoriteKey, favoritesFromElsewhere, mergeFavorites, type TreeProjectTrait } from './treeStructure';
 import {
 	getPickableCommandsByGroup,
 	getFavorites,
@@ -191,9 +192,10 @@ function appendStaticGroupCommands(
 async function buildFavoritesQuickPickItems(
 	favoriteKeys: Set<string>,
 	setVersionCommands: SetVersionCommands,
-	oscriptTasksCommands: OscriptTasksCommands
+	oscriptTasksCommands: OscriptTasksCommands,
+	traits: ReadonlySet<TreeProjectTrait>
 ): Promise<vscode.QuickPickItem[]> {
-	const groups = getPickableCommandsByGroup();
+	const groups = getPickableCommandsByGroup(traits);
 	const items: vscode.QuickPickItem[] = [];
 
 	for (const group of groups) {
@@ -360,14 +362,36 @@ export function registerMainTreeCommands(
 				return;
 			}
 			const currentFavorites = getFavorites(context);
-			const favoriteKeys = new Set(
-				currentFavorites.map((favorite) => `${favorite.command}|${JSON.stringify(favorite.arguments ?? [])}`)
-			);
+			const favoriteKeys = new Set(currentFavorites.map(favoriteKey));
+			const traits = treeDataProvider.projectTraits();
 			const items = await buildFavoritesQuickPickItems(
 				favoriteKeys,
 				setVersionCommands,
-				oscriptTasksCommands
+				oscriptTasksCommands,
+				traits
 			);
+			const offered = new Set(
+				(items as FavoritesSelectableItem[]).filter((item) => item.command !== undefined).map(favoriteKey)
+			);
+			const elsewhere = favoritesFromElsewhere(currentFavorites, offered, traits);
+			if (elsewhere.length > 0) {
+				items.push(
+					{ label: 'Из других проектов', kind: vscode.QuickPickItemKind.Separator },
+					...elsewhere.map((favorite) => ({
+						label: favorite.title,
+						description: favorite.groupLabel ?? favorite.command,
+						picked: true,
+						command: favorite.command,
+						title: favorite.title,
+						groupLabel: favorite.groupLabel,
+						sectionType: favorite.sectionType,
+						arguments: favorite.arguments,
+					}) as FavoritesSelectableItem)
+				);
+				for (const favorite of elsewhere) {
+					offered.add(favoriteKey(favorite));
+				}
+			}
 
 			const selected = await vscode.window.showQuickPick(items, {
 				canPickMany: true,
@@ -377,12 +401,12 @@ export function registerMainTreeCommands(
 			if (selected === undefined) {
 				return;
 			}
-			const newFavorites = toFavoriteEntries(selected);
-			await setFavorites(context, newFavorites);
+			const chosen = toFavoriteEntries(selected);
+			await setFavorites(context, mergeFavorites(currentFavorites, chosen, offered));
 			treeDataProvider.refresh();
-			log.info(`Избранное обновлено: ${newFavorites.length} команд`);
+			log.info(`Избранное обновлено: ${chosen.length} команд`);
 			notifyQuiet(
-				`Избранное обновлено: ${newFavorites.length} команд`
+				`Избранное обновлено: ${chosen.length} команд`
 			);
 		})
 	);
@@ -392,7 +416,7 @@ export function registerMainTreeCommands(
 			showNot1CProjectMessage();
 			return;
 		}
-		const groups = getHideableToolGroups();
+		const groups = getHideableToolGroups(treeDataProvider.projectTraits());
 		const hidden = getHiddenToolGroups(context);
 		const items: GroupVisibilityItem[] = groups.map((group) => ({
 			label: group.label,
@@ -408,9 +432,12 @@ export function registerMainTreeCommands(
 			return;
 		}
 		const visible = new Set((selected as GroupVisibilityItem[]).map((item) => item.sectionType));
-		const newHidden = groups
-			.map((group) => group.sectionType)
-			.filter((sectionType) => !visible.has(sectionType));
+		const offered = new Set(groups.map((group) => group.sectionType));
+		// Группы, которых у проекта этого вида нет, остаются скрытыми, как были
+		const newHidden = [
+			...[...hidden].filter((sectionType) => !offered.has(sectionType)),
+			...groups.map((group) => group.sectionType).filter((sectionType) => !visible.has(sectionType)),
+		];
 		await setHiddenToolGroups(context, newHidden);
 		await syncHiddenToolGroupsContext(context);
 		treeDataProvider.refresh();

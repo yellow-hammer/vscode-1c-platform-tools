@@ -1,15 +1,36 @@
+import * as fs from 'node:fs';
 import * as path from 'node:path';
 import * as os from 'node:os';
 
 /**
  * Пути к инструментам OneScript, установленным через OVM (OneScript Version Manager).
  *
- * OVM ставит активную версию в каталог `current/bin`, где `current` — симлинк на
- * выбранную версию (меняется командой `ovm use`). Расположение детерминировано и
- * не зависит от PATH, поэтому используется как запасной источник, когда бинарь не
- * найден в PATH (типично для VS Code, запущенного из GUI, который не наследует
- * PATH интерактивной оболочки).
+ * OVM ставит версии рядом, каждую в свой каталог `<каталог OVM>/<версия>`, а
+ * `current` — симлинк на выбранную для всей машины (меняется командой `ovm use`).
+ * Расположение детерминировано и не зависит от PATH, поэтому используется как
+ * запасной источник, когда бинарь не найден в PATH (типично для VS Code,
+ * запущенного из GUI, который не наследует PATH интерактивной оболочки).
  */
+
+/** Каталог выбранной для машины версии внутри каталога OVM. */
+export const OVM_CURRENT = 'current';
+
+/**
+ * Каталог установок OVM: переменная `OVM_INSTALL_PATH`, как у самого OVM, иначе
+ * каталог данных пользователя.
+ *
+ * @param env - Окружение
+ * @returns Абсолютный путь
+ */
+export function getOvmBaseDir(env: NodeJS.ProcessEnv = process.env): string {
+	const configured = env.OVM_INSTALL_PATH?.trim();
+	if (configured) {
+		return configured;
+	}
+	return process.platform === 'win32'
+		? path.join(env.LOCALAPPDATA || '', 'ovm')
+		: path.join(os.homedir(), '.local', 'share', 'ovm');
+}
 
 /**
  * Корневой каталог активной версии OneScript из установки OVM.
@@ -17,9 +38,55 @@ import * as os from 'node:os';
  * @returns Абсолютный путь к каталогу current OVM
  */
 export function getOvmRootDir(): string {
+	return path.join(getOvmBaseDir(), OVM_CURRENT);
+}
+
+/**
+ * Каталог установки, на который сейчас указывает `current`: `ovm use` меняет
+ * его в обход расширения.
+ *
+ * @returns Настоящий путь каталога или пустая строка, если `current` нет
+ */
+export function getOvmCurrentTarget(): string {
+	try {
+		return fs.realpathSync(getOvmRootDir());
+	} catch {
+		return '';
+	}
+}
+
+/**
+ * Настоящий путь исполняемого файла движка: у движка из `current` после
+ * `ovm use` за тем же путём другая версия.
+ *
+ * @param oscript - Абсолютный путь или имя для PATH
+ * @returns Путь без ссылок; имя для PATH и ненайденный файл как есть
+ */
+export function engineFileKey(oscript: string): string {
+	if (!path.isAbsolute(oscript)) {
+		return oscript;
+	}
+	try {
+		return fs.realpathSync(oscript);
+	} catch {
+		return oscript;
+	}
+}
+
+/**
+ * Возможные исполняемые файлы движка в каталоге установки.
+ *
+ * Сборка со своим рантаймом даёт `oscript.exe`, сборка под dotnet на Windows —
+ * `oscript.bat`; на остальных ОС OVM кладёт в bin сценарий `oscript`.
+ *
+ * @param installDir - Каталог установки (с bin и lib)
+ * @returns Пути в порядке приоритета
+ */
+export function getEngineBinaryCandidates(installDir: string): string[] {
+	const bin = path.join(installDir, 'bin');
 	return process.platform === 'win32'
-		? path.join(process.env.LOCALAPPDATA || '', 'ovm', 'current')
-		: path.join(os.homedir(), '.local', 'share', 'ovm', 'current');
+		? [path.join(bin, 'oscript.exe'), path.join(bin, 'oscript.bat')]
+		: [path.join(bin, 'oscript')];
 }
 
 /**
@@ -29,18 +96,6 @@ export function getOvmRootDir(): string {
  */
 export function getOvmBinDir(): string {
 	return path.join(getOvmRootDir(), 'bin');
-}
-
-/**
- * Полный путь к бинарю инструмента OneScript (oscript и т. п.) в установке OVM.
- * На Windows добавляется расширение `.exe`.
- *
- * @param name - Имя инструмента без расширения (например, 'oscript')
- * @returns Абсолютный путь к исполняемому файлу в каталоге bin OVM
- */
-export function getOvmBinaryPath(name: string): string {
-	const binary = process.platform === 'win32' ? `${name}.exe` : name;
-	return path.join(getOvmBinDir(), binary);
 }
 
 /**
@@ -114,6 +169,9 @@ export function envName(env: NodeJS.ProcessEnv, name: string): string {
 	return existing ?? name;
 }
 
+/** Переменные с каталогом bin выбранной установки OneScript, см. {@link withSelectedEngine}. */
+export const ENGINE_BIN_VARIABLES = ['OVM_OSCRIPTBIN', 'OSCRIPTBIN'] as const;
+
 /**
  * Окружение дочернего процесса с выбранной установкой OneScript.
  *
@@ -121,6 +179,9 @@ export function envName(env: NodeJS.ProcessEnv, name: string): string {
  * `set PATH=%OVM_OSCRIPTBIN%;%PATH%`, и вложенный `cmd /c oscript`, которым
  * обёртки раннеров и vrunner запускают движок, взял бы установку из OVM. Та же
  * переменная, указывающая на выбранный каталог, автозапуск обезвреживает.
+ * `OSCRIPTBIN` opm берёт каталогом команд приложений при установке пакета не в
+ * проект: команда ложится рядом с движком, а не в `/usr/bin`, куда без прав не
+ * пишется, как после `ovm use` на Linux и macOS.
  *
  * @param env - Исходное окружение
  * @param binDir - Каталог bin выбранной установки (undefined — не менять)
@@ -131,6 +192,8 @@ export function withSelectedEngine(env: NodeJS.ProcessEnv, binDir: string | unde
 		return env;
 	}
 	const result = withBinDirFirst(env, binDir);
-	result[envName(result, 'OVM_OSCRIPTBIN')] = binDir;
+	for (const name of ENGINE_BIN_VARIABLES) {
+		result[envName(result, name)] = binDir;
+	}
 	return result;
 }

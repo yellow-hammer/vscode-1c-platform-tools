@@ -20,7 +20,8 @@ import { runMdSparrowParamsRead, supportEnabled } from './mdSparrowParams';
 import { mdSparrowSchemaFlagFromConfigurationXml } from './mdSparrowSchemaVersion';
 import { offerGithubTokenOnRateLimit } from '../../shared/githubToken';
 import { configurationScope, type ConfigurationScope } from '../../shared/activeConfiguration';
-import { currentRoot, outsideProject, sameProjectRoot } from '../../shared/workspaceProjects';
+import { detectProjectKind } from '../../shared/projectKind';
+import { currentRoot, outsideProject, projectByRoot, sameProjectRoot } from '../../shared/workspaceProjects';
 import { METADATA_EXPANDED_SOURCES_STATE, projectMemento } from '../../shared/projectState';
 import { ADOPTED_HINT, SUPPORT_HINTS, adoptedIcon, initAdoptedIcons, isAdopted, supportIcon } from './objectBelonging';
 import {
@@ -1456,6 +1457,17 @@ export function metadataCommandRoot(
 	return undefined;
 }
 
+/**
+ * Проект OneScript: метаданных 1С у него нет. Пока обнаружение проектов не
+ * закончено, вид берётся по `packagedef` и раскладке: иначе при открытии окна
+ * дерево запустило бы md-sparrow и загрузку Java у проекта без 1С.
+ *
+ * @param root - Корень проекта
+ */
+async function isOneScriptRoot(root: string): Promise<boolean> {
+	return (projectByRoot(root)?.kind ?? (await detectProjectKind(root).catch(() => undefined))) === 'onescript';
+}
+
 /** Каталоги расширений раскладки в стабильном порядке: ими дерево сверяет состав. */
 export function extensionDirsOf(scope: ConfigurationScope): readonly string[] {
 	return [...scope.extensions, ...scope.testExtensions]
@@ -1509,6 +1521,8 @@ export class MetadataTreeDataProvider implements vscode.TreeDataProvider<vscode.
 	private _contentConfigurationDir: string | undefined;
 	/** Расширения, чей состав прочитан в дерево. Пусто, пока дерево ещё не читали. */
 	private _contentExtensionDirs: readonly string[] | undefined;
+	/** Дерево показывает проект OneScript: метаданных у него нет, md-sparrow не запускается. */
+	private _contentOneScript = false;
 	constructor(private readonly _context: vscode.ExtensionContext) {
 		initAdoptedIcons(path.join(_context.globalStorageUri.fsPath, 'metadata-tree-icons'));
 	}
@@ -1533,7 +1547,8 @@ export class MetadataTreeDataProvider implements vscode.TreeDataProvider<vscode.
 		try {
 			const scope = await configurationScope(root);
 			if (
-				scope.configuration?.dir !== this._contentConfigurationDir
+				(await isOneScriptRoot(root)) !== this._contentOneScript
+				|| scope.configuration?.dir !== this._contentConfigurationDir
 				|| !sameExtensionDirs(this._contentExtensionDirs ?? [], extensionDirsOf(scope))
 			) {
 				await this.refresh();
@@ -1680,7 +1695,20 @@ export class MetadataTreeDataProvider implements vscode.TreeDataProvider<vscode.
 		const root = this.selectedRoot();
 		this._workspaceRoot = root;
 		if (!root) {
+			this._contentOneScript = false;
 			this._notice = 'Нет открытой папки workspace';
+			this._onDidChange.fire(undefined);
+			return;
+		}
+		const oneScript = await isOneScriptRoot(root);
+		if (generation !== this._refreshGeneration) {
+			return;
+		}
+		this._contentOneScript = oneScript;
+		if (oneScript) {
+			this._contentConfigurationDir = undefined;
+			this._contentExtensionDirs = [];
+			this._notice = 'У проекта OneScript нет метаданных 1С';
 			this._onDidChange.fire(undefined);
 			return;
 		}

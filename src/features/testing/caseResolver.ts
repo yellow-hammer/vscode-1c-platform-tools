@@ -24,7 +24,7 @@ export interface CaseDescriptor {
 	line: number;
 	/** Ключ сортировки: кейсы идут по порядку следования в файле, а не по алфавиту */
 	sortText: string;
-	/** Теги Gherkin без символа @ */
+	/** Теги: Gherkin без символа @, OneUnit из &Тег */
 	tags?: string[];
 	/** Имя метода-процедуры для точечного запуска, если отличается от name (параметризованные тесты) */
 	methodName?: string;

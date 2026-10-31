@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import { TREE_GROUPS } from './treeStructure';
+import { TREE_GROUPS, groupVisibleFor, type TreeProjectTrait } from './treeStructure';
 
 /** Ключ хранения скрытых групп дерева команд в globalState */
 const HIDDEN_GROUPS_STORAGE_KEY = '1c-platform-tools.hiddenToolGroups';
@@ -19,12 +19,13 @@ export interface HideableToolGroup {
  * Возвращает список групп дерева команд, доступных для скрытия: статические из
  * TREE_GROUPS (кроме «Помощь и поддержка», вынесенной в отдельную плашку) плюс
  * динамические группы задач.
+ * @param traits - Черты проекта: группы, которых у проекта нет, не предлагаются
  * @returns Массив групп с идентификатором и названием
  */
-export function getHideableToolGroups(): HideableToolGroup[] {
-	const staticGroups = TREE_GROUPS.filter((group) => group.sectionType !== 'helpAndSupport').map(
-		(group) => ({ sectionType: group.sectionType, label: group.groupLabel })
-	);
+export function getHideableToolGroups(traits?: ReadonlySet<TreeProjectTrait>): HideableToolGroup[] {
+	const staticGroups = TREE_GROUPS.filter(
+		(group) => group.sectionType !== 'helpAndSupport' && groupVisibleFor(group, traits)
+	).map((group) => ({ sectionType: group.sectionType, label: group.groupLabel }));
 	return [
 		...staticGroups,
 		{ sectionType: 'pipelines', label: 'Автоматизация' },

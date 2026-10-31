@@ -22,6 +22,7 @@ import {
 	HAS_CANDIDATES_CONTEXT,
 	IS_1C_PROJECT_CONTEXT,
 	MULTIPLE_PROJECTS_CONTEXT,
+	PROJECT_KIND_CONTEXT,
 	ProjectFileExistsError,
 	WorkspaceProjects,
 	deepestProject,
@@ -586,7 +587,7 @@ suite('текущий проект: порядок выбора', () => {
 
 suite('текущий проект: выбор и события', () => {
 	let memento: vscode.Memento;
-	let contexts: Map<string, boolean>;
+	let contexts: Map<string, boolean | string>;
 	let service: WorkspaceProjects;
 	const disposables: vscode.Disposable[] = [];
 
@@ -759,6 +760,25 @@ suite('текущий проект: выбор и события', () => {
 		assert.strictEqual(contexts.get(MULTIPLE_PROJECTS_CONTEXT), true);
 		assert.strictEqual(contexts.get(HAS_CANDIDATES_CONTEXT), true);
 		assert.strictEqual(contexts.get(DETECTING_CONTEXT), false);
+		assert.strictEqual(contexts.get(PROJECT_KIND_CONTEXT), 'designer');
+	});
+
+	test('проект OneScript: вид в ключе контекста и признак пакета', async () => {
+		const oneScriptRoot = normalizeProjectRoot(path.resolve(__dirname, '../../../src/test/fixtures/workspaceScan/пакет'));
+		const library = at('инструменты', 'tools', 'deploy');
+		const oneScript = track(
+			new WorkspaceProjects({
+				folders: () => [folder(oneScriptRoot), folder(library)],
+				setContext: (key, value) => contexts.set(key, value),
+			})
+		);
+
+		const projects = (await oneScript.refresh()).projects;
+		assert.deepStrictEqual(
+			projects.map((project) => [path.basename(project.root), project.kind, project.package]),
+			[['пакет', 'onescript', false], ['deploy', 'onescript', false]]
+		);
+		assert.strictEqual(contexts.get(PROJECT_KIND_CONTEXT), 'onescript');
 	});
 
 	test('без проектов корня нет, папка с исходным кодом в не проектах', async () => {

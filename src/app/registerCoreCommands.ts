@@ -18,6 +18,7 @@ import { OscriptTasksCommands } from '../commands/oscriptTasksCommands';
 import { SkillsCommands } from '../commands/skillsCommands';
 import { ServiceFilesCommands } from '../commands/serviceFilesCommands';
 import { ODataCommands } from '../commands/odataCommands';
+import { PackageCommands } from '../commands/packageCommands';
 
 export interface CoreCommands {
 	dependencies: DependenciesCommands;
@@ -56,6 +57,7 @@ export function registerCoreCommands(
 		skills: new SkillsCommands(),
 		serviceFiles: new ServiceFilesCommands(),
 		odata: new ODataCommands(context),
+		package: new PackageCommands(),
 	};
 	const commandDisposables = registerCommands(context, commandObjects);
 

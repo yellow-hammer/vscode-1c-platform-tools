@@ -2,6 +2,9 @@
  * Артефакты проектов: исходный код из раскладки проекта, собранные файлы
  * поиском по маске с исключениями `artifacts.exclude`.
  *
+ * Проект OneScript конфигурацией 1С не сканируется: у него только собранные
+ * пакеты. Пакеты проекта 1С показываются, если они есть.
+ *
  * @module artifactsScanner
  */
 
@@ -17,13 +20,18 @@ import {
 	type SourceFormat,
 	type SourceRoot,
 } from '../../shared/projectLayout';
-import type { ProjectScanRoot } from '../../shared/workspaceProjects';
+import { PACKAGE_EXTENSION } from '../../shared/packagedef';
+import type { ProjectKind } from '../../shared/projectKind';
+import { projectByRoot, type ProjectScanRoot } from '../../shared/workspaceProjects';
 import { detectedScanRoots, findProjectFiles, isOutsideScanRoot, projectRelativePath } from './projectScan';
 
-export type ArtifactType = 'configuration' | 'extension' | 'processor' | 'report';
+export type ArtifactType = 'configuration' | 'extension' | 'processor' | 'report' | 'package';
 
-/** Собранные файлы: маска поиска и вид по расширению. */
-const BINARY_GLOB = '**/*.{cf,cfe,epf,erf}';
+/** Собранные файлы проекта 1С вместе с пакетами OneScript: маска поиска и вид по расширению. */
+const BINARY_GLOB = '**/*.{cf,cfe,epf,erf,ospx}';
+
+/** Собранные пакеты OneScript. */
+const PACKAGE_GLOB = `**/*${PACKAGE_EXTENSION}`;
 
 /** Каталоги, где собранных файлов не бывает: рабочая область EDT держит в `.metadata` свой индекс с расширением `.cfe`. */
 const ALWAYS_EXCLUDED = ['.git', '.metadata', 'node_modules', 'oscript_modules'];
@@ -32,6 +40,7 @@ const BINARY_TYPES: ReadonlyMap<string, ArtifactType> = new Map([
 	['.cfe', 'extension'],
 	['.epf', 'processor'],
 	['.erf', 'report'],
+	[PACKAGE_EXTENSION, 'package'],
 ]);
 
 /** Каталог исходного кода или собранный файл. */
@@ -55,12 +64,16 @@ export interface ArtifactsScanResult {
 	extensions: Artifact[];
 	processors: Artifact[];
 	reports: Artifact[];
+	/** Собранные пакеты OneScript. */
+	packages: Artifact[];
 }
 
 /** Результат {@link scanArtifacts} для одного проекта. */
 export interface ProjectArtifacts extends ArtifactsScanResult {
 	/** Корень проекта. */
 	root: string;
+	/** Проект OneScript: артефактов 1С у него не бывает. */
+	oneScript: boolean;
 }
 
 function excludeSegments(root: string): string[] {
@@ -117,10 +130,11 @@ function sourcesOf(scanRoot: ProjectScanRoot, layout: ProjectLayout): Artifact[]
 
 async function binariesIn(
 	scanRoot: ProjectScanRoot,
+	glob: string,
 	exclude: readonly string[],
 	token: vscode.CancellationToken | undefined
 ): Promise<Artifact[]> {
-	const files = await findProjectFiles(scanRoot, BINARY_GLOB, exclude, token);
+	const files = await findProjectFiles(scanRoot, glob, exclude, token);
 	const found: Artifact[] = [];
 	for (const uri of files) {
 		const type = BINARY_TYPES.get(path.extname(uri.fsPath).toLowerCase());
@@ -143,22 +157,28 @@ async function binariesIn(
  *
  * @param scanRoot - Проект и каталоги, которые ему не принадлежат
  * @param token - Отмена при повторном обновлении
+ * @param kind - Вид проекта; по умолчанию из найденных проектов окна
  */
 export async function scanProjectArtifacts(
 	scanRoot: ProjectScanRoot,
-	token?: vscode.CancellationToken
+	token?: vscode.CancellationToken,
+	kind: ProjectKind | undefined = projectByRoot(scanRoot.root)?.kind
 ): Promise<ProjectArtifacts> {
+	const oneScript = kind === 'onescript';
+	const exclude = excludeSegments(scanRoot.root);
 	const found = [
-		...sourcesOf(scanRoot, await resolveProjectLayout(scanRoot.root)),
-		...(await binariesIn(scanRoot, excludeSegments(scanRoot.root), token)),
+		...(oneScript ? [] : sourcesOf(scanRoot, await resolveProjectLayout(scanRoot.root))),
+		...(await binariesIn(scanRoot, oneScript ? PACKAGE_GLOB : BINARY_GLOB, exclude, token)),
 	];
 	const of = (type: ArtifactType) => found.filter((artifact) => artifact.type === type);
 	return {
 		root: scanRoot.root,
+		oneScript,
 		configurations: of('configuration'),
 		extensions: of('extension'),
 		processors: of('processor'),
 		reports: of('report'),
+		packages: of('package'),
 	};
 }
 

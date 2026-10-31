@@ -194,6 +194,59 @@ suite('тестирование: дерево текущего проекта', 
 	});
 });
 
+suite('тестирование: предупреждение о движке OneScript', () => {
+	test('тесты через vanessa-runner в Docker движок машины не проверяют, тесты OneScript проверяют', async function () {
+		this.timeout(60_000);
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), 'engine-warning-'));
+		fs.mkdirSync(path.join(root, 'tests'));
+		fs.mkdirSync(path.join(root, 'features'));
+		fs.writeFileSync(path.join(root, 'tests', 'Проверка.os'), '', 'utf8');
+		fs.writeFileSync(path.join(root, 'features', 'Сценарий.os'), '', 'utf8');
+		let warnings = 0;
+		const vrunner = testingVRunner({
+			shouldUseDocker: async () => true,
+			warnIfEngineUnfit: async () => {
+				warnings += 1;
+			},
+			oneScriptEnv: async (extra?: NodeJS.ProcessEnv) => ({ ...process.env, ...extra }),
+		});
+		const noop = buildProcessCommand('node', ['-e', '']);
+		const testing = new TestingController(
+			[new ShellAdapter(noop, path.join(root, 'onescript.xml')), new VRunnerShellAdapter(noop, path.join(root, 'xunit.xml'))],
+			vrunner,
+			{ current: true },
+			{
+				id: '1c-platform-tools-tests-engine-warning',
+				scanRootOf: async (scanned: string): Promise<ProjectScanRoot> => ({ root: scanned, excludeDirs: [] }),
+			}
+		);
+		const internals = testing as unknown as ControllerInternals;
+		const cancellation = new vscode.CancellationTokenSource();
+		// Предупреждение идёт мимо прогона: даём ему завершиться
+		const settled = () => new Promise((resolve) => setTimeout(resolve, 50));
+		try {
+			testing.setProject(root);
+			await testing.enqueueRebuild();
+			const file = (label: string) => fileItems(internals.controller).find((item) => item.label === label);
+			const scenario = file('Сценарий.os');
+			const check = file('Проверка.os');
+			assert.ok(scenario && check, 'дерево должно найти оба файла');
+
+			await internals.runHandler(new vscode.TestRunRequest([scenario]), cancellation.token);
+			await settled();
+			assert.strictEqual(warnings, 0, 'vanessa-runner в Docker работает движком образа');
+
+			await internals.runHandler(new vscode.TestRunRequest([check]), cancellation.token);
+			await settled();
+			assert.strictEqual(warnings, 1, 'тесты OneScript идут движком этой машины');
+		} finally {
+			cancellation.dispose();
+			testing.dispose();
+			fs.rmSync(root, { recursive: true, force: true, maxRetries: 3 });
+		}
+	});
+});
+
 suite('тестирование: окружение запуска', () => {
 	const vrunner = VRunnerManager.getInstance();
 	let root: string;

@@ -4,6 +4,7 @@ import * as fs from 'node:fs/promises';
 import { BaseCommand } from './baseCommand';
 import { logger } from '../shared/logger';
 import { notifyQuiet } from '../shared/notify';
+import { oneScriptTasksDirectory } from '../shared/oneScriptLayout';
 
 const log = logger.scope('commands');
 
@@ -19,20 +20,19 @@ export interface OscriptTask {
 const DEFAULT_TASK_CONTENT = '//Вставить содержимое скрипта ';
 
 /**
- * Команды для работы с задачами oscript из каталога tasks в корне проекта
+ * Команды для работы с задачами oscript: каталог задач `opm run`, по умолчанию tasks в корне проекта
  */
 export class OscriptTasksCommands extends BaseCommand {
-	private static readonly TASKS_DIR = 'tasks';
 	private static readonly OS_EXTENSION = '.os';
 
 	/**
-	 * Получает список задач oscript из каталога tasks
+	 * Получает список задач oscript из каталога задач
 	 *
-	 * Читает каталог tasks в корне workspace и возвращает имена файлов *.os
+	 * Читает каталог задач opm run (Задачи из packagedef, по умолчанию tasks) и возвращает имена файлов *.os
 	 * без расширения (для выполнения через opm run &lt;имя&gt;).
 	 *
 	 * @returns Промис, который разрешается массивом задач.
-	 *          Возвращает пустой массив, если workspace не открыт, каталог tasks
+	 *          Возвращает пустой массив, если workspace не открыт, каталог задач
 	 *          не существует или не содержит файлов *.os
 	 */
 	async getOscriptTasks(): Promise<OscriptTask[]> {
@@ -41,7 +41,7 @@ export class OscriptTasksCommands extends BaseCommand {
 			return [];
 		}
 
-		const tasksPath = path.join(workspaceRoot, OscriptTasksCommands.TASKS_DIR);
+		const tasksPath = oneScriptTasksDirectory(workspaceRoot);
 		try {
 			const entries = await fs.readdir(tasksPath, { withFileTypes: true });
 			const files = entries
@@ -85,8 +85,8 @@ export class OscriptTasksCommands extends BaseCommand {
 		if (nameToRun === undefined) {
 			const tasks = await this.getOscriptTasks();
 			if (tasks.length === 0) {
-				log.warn('Нет задач oscript в каталоге tasks');
-				vscode.window.showWarningMessage('Нет задач oscript в каталоге tasks');
+				log.warn('Нет задач oscript в каталоге задач');
+				vscode.window.showWarningMessage('Нет задач oscript в каталоге задач');
 				return;
 			}
 			const chosen = await vscode.window.showQuickPick(
@@ -107,7 +107,7 @@ export class OscriptTasksCommands extends BaseCommand {
 	/**
 	 * Добавляет новую задачу oscript
 	 *
-	 * Показывает диалог ввода имени файла, создаёт каталог tasks в корне проекта
+	 * Показывает диалог ввода имени файла, создаёт каталог задач проекта
 	 * (если его нет), создаёт в нём файл с введённым именем в формате *.os
 	 * и содержимым по умолчанию.
 	 *
@@ -124,7 +124,7 @@ export class OscriptTasksCommands extends BaseCommand {
 		}
 
 		const fileName = await vscode.window.showInputBox({
-			prompt: 'Имя файла задачи (будет создан в каталоге tasks с расширением .os)',
+			prompt: 'Имя файла задачи (будет создан в каталоге задач с расширением .os)',
 			placeHolder: 'имя_задачи',
 			validateInput: (value: string) => {
 				const trimmed = value.trim();
@@ -148,7 +148,7 @@ export class OscriptTasksCommands extends BaseCommand {
 			? baseName
 			: `${baseName}${OscriptTasksCommands.OS_EXTENSION}`;
 
-		const tasksPath = path.join(workspaceRoot, OscriptTasksCommands.TASKS_DIR);
+		const tasksPath = oneScriptTasksDirectory(workspaceRoot);
 		const filePath = path.join(tasksPath, nameWithExt);
 
 		try {

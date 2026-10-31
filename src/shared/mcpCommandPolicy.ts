@@ -113,6 +113,8 @@ const HIDDEN_EXACT = [
 	// Обновление внешних компонентов: спрашивает список галочками и загружает
 	// выбранное. Ответить на такой вопрос агент не может
 	`${COMMAND_PREFIX}components.update`,
+	// Выбор версии OneScript из установок OVM списком: движок по пути агент задаёт настройкой components.path.oscript
+	`${COMMAND_PREFIX}dependencies.selectOscript`,
 	// Действия над строкой вида проектов; packagedef агент создаёт командой project.initialize
 	`${COMMAND_PREFIX}project.makeCurrent`,
 	`${COMMAND_PREFIX}project.separateConfiguration`,

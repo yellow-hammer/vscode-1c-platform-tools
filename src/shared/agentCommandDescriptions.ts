@@ -31,6 +31,7 @@ const PIPELINES = '1С: Пайплайны';
 const SERVER = '1С: Автономный сервер';
 const PROJECT = '1С: Проект';
 const ODATA = '1С: OData';
+const ONESCRIPT = '1С: OneScript';
 
 /** Описания команд, чей заголовок вне интерфейса непонятен. */
 export const AGENT_COMMAND_DESCRIPTIONS: Record<string, AgentCommandDescription> = {
@@ -63,6 +64,10 @@ export const AGENT_COMMAND_DESCRIPTIONS: Record<string, AgentCommandDescription>
 	},
 	'1c-platform-tools.test.mutatos': {
 		title: 'Запустить мутационное тестирование OneScript: mutatos из зависимостей проекта правит исходники проекта по одной мутации и гоняет тесты OneUnit; в ответе индекс мутаций, число мутантов по исходам и выжившие мутанты с позициями, отчёты JSON, HTML и XML ложатся в каталог результатов сборки',
+		category: TESTING,
+	},
+	'1c-platform-tools.test.onescript': {
+		title: 'Запустить все тесты OneScript проекта (OneUnit или 1testrunner, как в панели тестирования) движком проекта; результат берётся из jUnit-отчёта в build/out/onescript',
 		category: TESTING,
 	},
 	'1c-platform-tools.syntaxCheck.run': {
@@ -289,6 +294,14 @@ export const AGENT_COMMAND_DESCRIPTIONS: Record<string, AgentCommandDescription>
 	'1c-platform-tools.dependencies.installOscript': {
 		title: 'Установить OneScript',
 		category: DEPENDENCIES,
+	},
+	'1c-platform-tools.package.build': {
+		title: 'Собрать пакет OneScript проекта по packagedef (opm build) в каталог сборки build/out/ospx; путь к собранному пакету возвращается в artifact',
+		category: ONESCRIPT,
+	},
+	'1c-platform-tools.package.install': {
+		title: 'Установить собранный пакет OneScript (.ospx) в движок проекта (opm install -f): пакет версии из packagedef, иначе самый новый из каталога сборки; путь к пакету возвращается в artifact',
+		category: ONESCRIPT,
 	},
 
 	// Запуск платформы: vrunner отдаёт управление сразу после старта

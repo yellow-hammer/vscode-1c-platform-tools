@@ -52,6 +52,12 @@ describe('withSelectedEngine', () => {
 		assert.equal(env.OVM_OSCRIPTBIN, SYSTEM_BIN);
 	});
 
+	test('команды пакетов, поставленных не в проект, ложатся рядом с выбранным движком', () => {
+		const env = withSelectedEngine({ Path: OVM_BIN, OSCRIPTBIN: OVM_BIN }, SYSTEM_BIN);
+
+		assert.equal(env.OSCRIPTBIN, SYSTEM_BIN);
+	});
+
 	test('без каталога установки окружение остаётся прежним', () => {
 		const source = { Path: SYSTEM_BIN, OVM_OSCRIPTBIN: OVM_BIN };
 

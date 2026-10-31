@@ -173,8 +173,10 @@ description: Инструменты MCP сервера mcp-1c-platform-tools. И
 | `deps_installOscript` | `1c-platform-tools.dependencies.installOscript` | без исхода |
 | `deps_updateOpm` | `1c-platform-tools.dependencies.updateOpm` | без исхода |
 | `deps_remove` | `1c-platform-tools.dependencies.remove` | без исхода |
+| `package_build` | `1c-platform-tools.package.build` | результат |
+| `package_install` | `1c-platform-tools.package.install` | результат |
 
-`deps_initPackagedef` совпадает с `project_init`: обязательный `projectPath`, создаёт `packagedef`. `deps_install` ставит зависимости по `packagedef`, `deps_installOscript` ставит OneScript. К `opm install` в терминале переходи, когда этих инструментов нет.
+`deps_initPackagedef` совпадает с `project_init`: обязательный `projectPath`, создаёт `packagedef`. `deps_install` ставит зависимости по `packagedef`, `deps_installOscript` ставит OneScript рядом с другими версиями. К `opm install` в терминале переходи, когда этих инструментов нет. `package_build` собирает пакет OneScript проекта в `build/out/ospx` и возвращает путь к нему в `artifact`. `package_install` ставит собранный пакет в движок проекта: пакет версии из `packagedef`, иначе самый новый. Ставь пакет после того, как `package_build` с `wait: true` вернул результат.
 
 ## Окружение и служебные файлы
 
@@ -206,6 +208,7 @@ description: Инструменты MCP сервера mcp-1c-platform-tools. И
 | `test_vanessa` | `1c-platform-tools.test.vanessa` | результат |
 | `test_yaxunit` | `1c-platform-tools.test.yaxunit` | результат |
 | `test_mutatos` | `1c-platform-tools.test.mutatos` | результат |
+| `test_onescript` | `1c-platform-tools.test.onescript` | результат |
 | `syntaxCheck_run` | `1c-platform-tools.syntaxCheck.run` | результат |
 | `syntaxCheck_refresh` | `1c-platform-tools.syntaxCheck.refresh` | без исхода |
 | `syntaxCheck_clear` | `1c-platform-tools.syntaxCheck.clear` | без исхода |

@@ -12,6 +12,7 @@
 
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
+import { declaresPackageApi, dependsOn, parsePackagedef, type PackageManifest } from './packagedef';
 import { PROJECT_FILE, resolveProjectLayout, type ProjectLayout, type SourceFormat } from './projectLayout';
 
 /** Вид проекта: формат исходного кода 1С, `onec` без исходного кода, `onescript`. */
@@ -33,20 +34,16 @@ export function isOneCProjectKind(kind: ProjectKind): boolean {
 	return kind !== 'onescript';
 }
 
-/** Что пакет OneScript даёт наружу. */
-const ONESCRIPT_PACKAGE_API = /\.\s*(?:ОпределяетКласс|ОпределяетМодуль|ИсполняемыйФайл|DefinesClass|DefinesModule|ExecutableFile)\s*\(/iu;
-
-/** Зависимость от инструментов разработки на платформе 1С. */
-const PLATFORM_TOOLS =
-	/\.\s*(?:ЗависитОт|РазработкаЗависитОт|DependsOn|DevelopmentDependsOn)\s*\(\s*["'](?:vanessa-runner|vanessa-automation(?:-single)?|add)["']/iu;
+/** Инструменты разработки на платформе 1С: зависимость от них делает проект проектом 1С. */
+const PLATFORM_TOOLS = ['vanessa-runner', 'vanessa-automation', 'vanessa-automation-single', 'add'];
 
 /**
- * Вид проекта по его раскладке и тексту `packagedef`.
+ * Вид проекта по его раскладке и описанию пакета.
  *
  * @param layout - Раскладка корня проекта
- * @param packagedef - Текст `packagedef`
+ * @param packagedef - Текст `packagedef` или прочитанное описание
  */
-export function projectKindOf(layout: ProjectLayout, packagedef: string): ProjectKind {
+export function projectKindOf(layout: ProjectLayout, packagedef: string | PackageManifest): ProjectKind {
 	const sources = [
 		...(layout.configuration ? [layout.configuration] : []),
 		...layout.extensions,
@@ -58,11 +55,11 @@ export function projectKindOf(layout: ProjectLayout, packagedef: string): Projec
 	if (sources.length > 0) {
 		return sources[0].format;
 	}
-	const manifest = packagedef.replace(/^\s*\/\/.*$/gmu, '');
-	if (ONESCRIPT_PACKAGE_API.test(manifest)) {
+	const manifest = typeof packagedef === 'string' ? parsePackagedef(packagedef) : packagedef;
+	if (declaresPackageApi(manifest)) {
 		return 'onescript';
 	}
-	return PLATFORM_TOOLS.test(manifest) ? 'onec' : 'onescript';
+	return PLATFORM_TOOLS.some((tool) => dependsOn(manifest, tool)) ? 'onec' : 'onescript';
 }
 
 /**

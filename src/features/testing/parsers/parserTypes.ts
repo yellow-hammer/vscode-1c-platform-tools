@@ -13,7 +13,7 @@ export interface DiscoveredCase {
 	name: string;
 	/** Строка объявления, 0-based — для TestItem.range и гуттер-кнопки */
 	line: number;
-	/** Теги Gherkin (@...) без символа @ */
+	/** Теги: Gherkin (@...) без символа @, OneUnit из &Тег у теста и набора */
 	tags?: string[];
 	/**
 	 * Имя метода-процедуры для точечного запуска, если оно отличается от name.

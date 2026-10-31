@@ -206,6 +206,15 @@ export class ProjectArtifactsTreeDataProvider
 	}
 
 	private getSectionItems(result: ProjectArtifacts): ArtifactTreeItem[] {
+		const packages: SectionMeta = {
+			id: 'packages',
+			label: 'Пакеты',
+			icon: 'package',
+			count: result.packages.length,
+		};
+		if (result.oneScript) {
+			return [new SectionItem(packages.label, packages.count, packages.icon, packages.id, result)];
+		}
 		const sections: SectionMeta[] = [
 			{
 				id: 'configurations',
@@ -231,6 +240,8 @@ export class ProjectArtifactsTreeDataProvider
 				icon: 'file-text',
 				count: result.reports.length,
 			},
+			// У проекта 1С пакет бывает, когда он ещё и библиотека OneScript
+			...(packages.count > 0 ? [packages] : []),
 		];
 
 		return sections.map(
@@ -253,6 +264,8 @@ export class ProjectArtifactsTreeDataProvider
 				return this.buildArtifactItems(result.processors, viewMode, result.root);
 			case 'reports':
 				return this.buildArtifactItems(result.reports, viewMode, result.root);
+			case 'packages':
+				return this.buildArtifactItems(result.packages, viewMode, result.root);
 			default:
 				return [];
 		}
@@ -408,7 +421,7 @@ export class ProjectArtifactsTreeDataProvider
 		parentDirDescription?: string
 	): ArtifactTreeItem {
 		const label = a.name;
-		const icon = a.kind === 'source' ? 'folder' : 'file';
+		const icon = a.kind === 'source' ? 'folder' : a.type === 'package' ? 'package' : 'file';
 		const isBinary = a.kind === 'binary';
 		const openTargetUri = a.sourceEntryUri ?? a.uri;
 		return new ArtifactItem(
@@ -456,6 +469,9 @@ class ProjectItem extends vscode.TreeItem {
 }
 
 class SectionItem extends vscode.TreeItem {
+	/** Корень проекта раздела: сборка пакета из раздела идёт в нём. */
+	readonly projectRoot: string;
+
 	constructor(
 		label: string,
 		count: number,
@@ -469,9 +485,11 @@ class SectionItem extends vscode.TreeItem {
 				? vscode.TreeItemCollapsibleState.Expanded
 				: vscode.TreeItemCollapsibleState.None
 		);
+		this.projectRoot = result.root;
 		this.description = count > 0 ? String(count) : undefined;
 		this.iconPath = new vscode.ThemeIcon(icon);
-		this.contextValue = 'artifactsSection';
+		// У раздела пакетов в строке кнопка сборки
+		this.contextValue = sectionId === 'packages' ? 'artifactsPackagesSection' : 'artifactsSection';
 	}
 }
 
@@ -522,10 +540,13 @@ class ArtifactItem extends vscode.TreeItem {
 		const marks = [parentDirDescription, format === 'edt' ? 'EDT' : undefined].filter((mark) => mark);
 		this.description = marks.length > 0 ? marks.join(' · ') : undefined;
 		this.contextValue = `artifacts${artifactType.charAt(0).toUpperCase()}${artifactType.slice(1)}${_isBinary ? 'Binary' : 'Source'}`;
-		this.command = {
-			command: 'vscode.open',
-			title: 'Открыть',
-			arguments: [openTargetUri],
-		};
+		// Пакет это архив: в редакторе открывать нечего, действия в меню строки
+		if (artifactType !== 'package') {
+			this.command = {
+				command: 'vscode.open',
+				title: 'Открыть',
+				arguments: [openTargetUri],
+			};
+		}
 	}
 }

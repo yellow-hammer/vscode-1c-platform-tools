@@ -1,6 +1,6 @@
 import * as assert from 'node:assert';
 import * as path from 'node:path';
-import { scanArtifacts, type Artifact } from '../features/artifacts/artifactsScanner';
+import { scanArtifacts, scanProjectArtifacts, type Artifact } from '../features/artifacts/artifactsScanner';
 import { isOutsideScanRoot, projectRelativePath } from '../features/artifacts/projectScan';
 import { invalidateProjectLayout, setLayoutExclusions } from '../shared/projectLayout';
 import { detectWorkspaceProjects, scanRootsOf } from '../shared/workspaceProjects';
@@ -13,6 +13,9 @@ const EDT_WORKSPACE = path.join(FIXTURES, 'edt-workspace');
 /** Проект с подпроектом, собранными файлами и зависимостями. */
 const PROJECT = path.resolve(__dirname, '../../src/test/fixtures/workspaceScan/проект');
 const SUB_PROJECT = path.join(PROJECT, 'подпроект');
+
+/** Проект OneScript: собранный пакет в корне, как его кладёт opm build, и обработка 1С в тестах. */
+const ONESCRIPT_PROJECT = path.resolve(__dirname, '../../src/test/fixtures/workspaceScan/пакет');
 
 const names = (artifacts: Artifact[]) => artifacts.map((artifact) => `${artifact.kind}:${artifact.name}`).sort();
 const paths = (artifacts: Artifact[]) => artifacts.map((artifact) => artifact.relativePath).sort();
@@ -71,6 +74,24 @@ suite('артефакты: скан проектов', () => {
 		assert.strictEqual(subProject.root, SUB_PROJECT);
 		assert.deepStrictEqual(names(subProject.configurations), ['binary:Подпроект.cf', 'source:Подпроект']);
 		assert.deepStrictEqual(paths(subProject.configurations), ['release/Подпроект.cf', 'src/cf']);
+	});
+
+	test('проект OneScript: только собранные пакеты, конфигурацией 1С не сканируется', async function () {
+		this.timeout(60_000);
+		const result = await scanProjectArtifacts({ root: ONESCRIPT_PROJECT, excludeDirs: [] }, undefined, 'onescript');
+
+		assert.strictEqual(result.oneScript, true);
+		assert.deepStrictEqual(names(result.packages), ['binary:пакет-0.1.0.ospx']);
+		assert.deepStrictEqual([...result.configurations, ...result.extensions, ...result.processors, ...result.reports], []);
+	});
+
+	test('проект 1С: пакеты OneScript рядом с файлами 1С', async function () {
+		this.timeout(60_000);
+		const result = await scanProjectArtifacts({ root: ONESCRIPT_PROJECT, excludeDirs: [] }, undefined, 'onec');
+
+		assert.strictEqual(result.oneScript, false);
+		assert.deepStrictEqual(names(result.packages), ['binary:пакет-0.1.0.ospx']);
+		assert.deepStrictEqual(names(result.processors), ['binary:Печать.epf']);
 	});
 
 	test('расширения подпроектов показываются один раз, у подпроекта; репозиторий расширения у проекта', async function () {

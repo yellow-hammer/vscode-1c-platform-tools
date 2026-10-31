@@ -8,10 +8,12 @@ import { BaseCommand } from './baseCommand';
 import {
 	getInstallDependenciesCommandName,
 	getInstallOneScriptCommandName,
+	getSelectOneScriptCommandName,
 	getUpdateOpmCommandName
 } from '../features/tools/commandNames';
 import { logger } from '../shared/logger';
 import {
+	ONESCRIPT_PROJECT_FILE_TEMPLATE,
 	PROJECT_FILE_TEMPLATE,
 	ProjectFileExistsError,
 	writeProjectFile,
@@ -19,8 +21,10 @@ import {
 import { initializeProjectCommand } from '../features/projects/workspaceProjectCommands';
 import { workspaceProjectsSource } from '../features/projects/workspaceProjectsSource';
 import type { StructuredCommandResult } from '../shared/commandExecutionTypes';
-import { PROJECT_STRUCTURE } from '../shared/projectStructure';
-import { getOvmBinaryPath } from '../shared/ovmPaths';
+import { ONESCRIPT_PROJECT_DIRECTORIES, ONESCRIPT_PROJECT_FILES, PROJECT_STRUCTURE } from '../shared/projectStructure';
+import { getEngineBinaryCandidates, getOvmBaseDir, getOvmRootDir } from '../shared/ovmPaths';
+import { listOvmInstallations, parseEngineVersion, engineVersionSupported, type EngineVersion } from '../shared/oneScriptEngine';
+import { MODULES_DIRECTORY, readPackageManifest } from '../shared/oneScriptLayout';
 import { notifyBusy, notifyQuiet, notifyQuietFailure } from '../shared/notify';
 import { buildProcessCommand, joinCommands, PROCESS_HOST_SHELL } from '../utils/commandUtils';
 import { createVRunnerTask } from '../features/tasks/vrunnerTask';
@@ -28,12 +32,6 @@ import { showComponentError } from '../shared/githubToken';
 import { ensureWorkspaceTrusted } from '../shared/workspaceTrust';
 
 const log = logger.scope('commands');
-
-/** URL для скачивания OVM (OneScript Version Manager) */
-
-
-/** Регулярное выражение для извлечения ВерсияСреды из packagedef (например .ВерсияСреды("2.0.0")) */
-const PACKAGEDEF_VERSIYA_SREDY = /\.ВерсияСреды\s*\(\s*["']([^"']+)["']\s*\)/;
 
 /** Интервал опроса появления OVM после установки (мс) */
 const OVM_POLL_INTERVAL_MS = 3000;
@@ -114,30 +112,23 @@ interface OscriptVersionFromPackagedef {
 }
 
 /**
- * Читает версию OneScript из packagedef (ВерсияСреды). При отсутствии или ошибке возвращает stable.
+ * Версия OneScript из packagedef (ВерсияСреды); без неё stable.
  *
- * @param workspaceRoot - Корень workspace
+ * @param workspaceRoot - Корень проекта
  * @returns Версия и признак «из packagedef»
  */
-async function getOscriptVersionFromPackagedef(workspaceRoot: string): Promise<OscriptVersionFromPackagedef> {
-	try {
-		const content = await fs.readFile(path.join(workspaceRoot, 'packagedef'), 'utf-8');
-		const match = PACKAGEDEF_VERSIYA_SREDY.exec(content);
-		const version = match?.[1]?.trim();
-		if (version) {
-			return { version, fromPackagedef: true };
-		}
-	} catch {
-		// Файл отсутствует или не прочитался — используем stable
-	}
-	return { version: 'stable', fromPackagedef: false };
+function getOscriptVersionFromPackagedef(workspaceRoot: string): OscriptVersionFromPackagedef {
+	const version = readPackageManifest(workspaceRoot)?.engineVersion;
+	return version ? { version, fromPackagedef: true } : { version: 'stable', fromPackagedef: false };
 }
 
 /**
- * Возвращает путь к oscript в каталоге OVM и его текущее время модификации (или 0, если файла нет).
+ * Исполняемый файл движка, который поставит `ovm install`, и его время изменения (0, если файла нет).
+ *
+ * @param version - Версия или метка, с которой ставится OneScript
  */
-function getOvmOscriptPathAndMtime(): { path: string; mtimeMs: number } {
-	const oscriptPath = getOvmBinaryPath('oscript');
+function installedEngineMtime(version: string): { path: string; mtimeMs: number } {
+	const oscriptPath = getEngineBinaryCandidates(path.join(getOvmBaseDir(), version))[0];
 	let mtimeMs = 0;
 	try {
 		const stat = fsSync.statSync(oscriptPath);
@@ -154,11 +145,12 @@ function getOvmOscriptPathAndMtime(): { path: string; mtimeMs: number } {
  * Ожидает завершения установки OVM: файл oscript появился или обновился (mtime вырос).
  * Перед первым опросом ждёт OVM_POLL_INTERVAL_MS, чтобы не сработать на старый файл.
  *
+ * @param version - Версия или метка, с которой ставится OneScript
  * @param initialMtimeMs - Время модификации oscript до запуска установки (0, если файла не было)
  * @returns true, если установка зафиксирована (файл создан/обновлён); false при таймауте
  */
-async function waitForOvmInstallComplete(initialMtimeMs: number): Promise<boolean> {
-	const { path: oscriptPath } = getOvmOscriptPathAndMtime();
+async function waitForOvmInstallComplete(version: string, initialMtimeMs: number): Promise<boolean> {
+	const { path: oscriptPath } = installedEngineMtime(version);
 	await new Promise((r) => setTimeout(r, OVM_POLL_INTERVAL_MS));
 
 	const deadline = Date.now() + OVM_POLL_TIMEOUT_MS;
@@ -273,7 +265,7 @@ export class DependenciesCommands extends BaseCommand {
 			return;
 		}
 
-		const oscriptModulesPath = path.join(workspaceRoot, 'oscript_modules');
+		const oscriptModulesPath = path.join(workspaceRoot, MODULES_DIRECTORY);
 		
 		try {
 			const stats = await fs.stat(oscriptModulesPath);
@@ -475,6 +467,30 @@ export class DependenciesCommands extends BaseCommand {
 	/** Вариант создания проекта в приветственном экране */
 	private static readonly CREATE_PROJECT_KIND_WITH_STRUCTURE = 'withStructure';
 	private static readonly CREATE_PROJECT_KIND_PACKAGEDEF_ONLY = 'packagedefOnly';
+	private static readonly CREATE_PROJECT_KIND_ONESCRIPT = 'oneScript';
+
+	/**
+	 * Создаёт каталоги и файлы нового проекта OneScript; существующие файлы не трогает.
+	 * @param targetRoot — корень проекта (полный путь)
+	 * @returns количество созданных каталогов и файлов
+	 */
+	private async createOneScriptStructureInFolder(targetRoot: string): Promise<{ createdDirs: number; createdFiles: number }> {
+		let createdFiles = 0;
+		for (const dir of ONESCRIPT_PROJECT_DIRECTORIES) {
+			await fs.mkdir(path.join(targetRoot, dir), { recursive: true });
+		}
+		for (const file of ONESCRIPT_PROJECT_FILES) {
+			try {
+				await fs.writeFile(path.join(targetRoot, file.path), file.content, { encoding: 'utf-8', flag: 'wx' });
+				createdFiles += 1;
+			} catch (error) {
+				if ((error as NodeJS.ErrnoException).code !== 'EEXIST') {
+					throw error;
+				}
+			}
+		}
+		return { createdDirs: ONESCRIPT_PROJECT_DIRECTORIES.length, createdFiles };
+	}
 
 	/**
 	 * Создаёт структуру каталогов по шаблону vanessa-bootstrap в указанной папке.
@@ -503,7 +519,7 @@ export class DependenciesCommands extends BaseCommand {
 	static readonly INSTALL_DEPS_AFTER_CREATE_KEY = '1c-platform-tools.installDepsAfterCreate';
 
 	/**
-	 * Создаёт новый проект 1С из приветственного экрана проводника (без открытой папки).
+	 * Создаёт новый проект из приветственного экрана проводника (без открытой папки).
 	 * Спрашивает тип проекта, установку зависимостей, затем папку; создаёт packagedef и при выборе — структуру каталогов; при выборе — откладывает установку зависимостей до открытия папки.
 	 */
 	async createProjectFromWelcome(context?: vscode.ExtensionContext): Promise<void> {
@@ -512,19 +528,25 @@ export class DependenciesCommands extends BaseCommand {
 				{
 					label: '$(folder-opened) С каталогами (vanessa-bootstrap)',
 					description: 'Каталоги doc, src/cf, features, tests и др. с README',
-					detail: 'Рекомендуется для новых проектов',
+					detail: 'Рекомендуется для новых проектов 1С',
 					picked: true,
 					kindChoice: DependenciesCommands.CREATE_PROJECT_KIND_WITH_STRUCTURE
 				},
 				{
 					label: '$(file) Только packagedef',
 					description: 'Без создания каталогов',
-					detail: 'Минимальный проект',
+					detail: 'Минимальный проект 1С',
 					kindChoice: DependenciesCommands.CREATE_PROJECT_KIND_PACKAGEDEF_ONLY
+				},
+				{
+					label: '$(package) Проект OneScript',
+					description: 'packagedef пакета, src/Классы, src/Модули и tests',
+					detail: 'Библиотека или приложение без платформы 1С',
+					kindChoice: DependenciesCommands.CREATE_PROJECT_KIND_ONESCRIPT
 				}
 			] as (vscode.QuickPickItem & { kindChoice: string })[],
 			{
-				title: 'Тип нового проекта 1С',
+				title: 'Тип нового проекта',
 				placeHolder: 'Выберите, как создать проект',
 				ignoreFocusOut: true
 			}
@@ -532,7 +554,9 @@ export class DependenciesCommands extends BaseCommand {
 		if (!kindChoice?.kindChoice) {
 			return;
 		}
+		const oneScript = kindChoice.kindChoice === DependenciesCommands.CREATE_PROJECT_KIND_ONESCRIPT;
 		const withStructure = kindChoice.kindChoice === DependenciesCommands.CREATE_PROJECT_KIND_WITH_STRUCTURE;
+		const projectLabel = oneScript ? 'Проект OneScript' : 'Проект 1С';
 
 		const installDepsChoice = await vscode.window.showQuickPick(
 			[
@@ -563,7 +587,7 @@ export class DependenciesCommands extends BaseCommand {
 		const selected = await vscode.window.showOpenDialog({
 			canSelectFolders: true,
 			canSelectMany: false,
-			title: 'Выберите папку для нового проекта 1С',
+			title: 'Выберите папку для нового проекта',
 			openLabel: 'Выбрать папку'
 		});
 		if (!selected?.length) {
@@ -580,7 +604,7 @@ export class DependenciesCommands extends BaseCommand {
 			return;
 		}
 
-		const templatePath = path.join(extensionPath, PROJECT_FILE_TEMPLATE);
+		const templatePath = path.join(extensionPath, oneScript ? ONESCRIPT_PROJECT_FILE_TEMPLATE : PROJECT_FILE_TEMPLATE);
 		const packagedefPath = path.join(targetDir, 'packagedef');
 
 		try {
@@ -602,22 +626,21 @@ export class DependenciesCommands extends BaseCommand {
 			}
 			log.info(`Файл packagedef создан: ${packagedefPath}`);
 
-			if (withStructure) {
+			if (withStructure || oneScript) {
 				try {
-					const { createdDirs, createdReadmes } = await this.createProjectStructureInFolder(targetDir);
-					log.info(
-						`Структура проекта создана: каталогов=${createdDirs}, новых README=${createdReadmes}. Путь: ${targetDir}`
-					);
-					notifyQuiet(
-						`Проект 1С создан: packagedef и структура (${createdDirs} каталогов, ${createdReadmes} README). Открываю папку…`
-					);
+					const created = oneScript
+						? await this.createOneScriptStructureInFolder(targetDir)
+						: await this.createProjectStructureInFolder(targetDir);
+					const files = 'createdFiles' in created ? created.createdFiles : created.createdReadmes;
+					log.info(`Структура проекта создана: каталогов=${created.createdDirs}, новых файлов=${files}. Путь: ${targetDir}`);
+					notifyQuiet(`${projectLabel} создан: packagedef и ${created.createdDirs} каталогов. Открываю папку…`);
 				} catch (error) {
 					const errMsg = (error as Error).message;
 					log.error(`Не удалось создать структуру проекта: ${errMsg}. Путь: ${targetDir}`);
 					await vscode.window.showWarningMessage(`packagedef создан, каталоги не созданы: ${errMsg}`, { modal: true });
 				}
 			} else {
-				notifyQuiet('Проект 1С создан. Открываю папку…');
+				notifyQuiet(`${projectLabel} создан. Открываю папку…`);
 			}
 			if (installDependencies && context) {
 				await context.globalState.update(DependenciesCommands.INSTALL_DEPS_AFTER_CREATE_KEY, targetDir);
@@ -684,12 +707,14 @@ export class DependenciesCommands extends BaseCommand {
 	}
 
 	/**
-	 * Устанавливает OneScript (oscript) через OVM при отсутствии в системе.
+	 * Ставит версию OneScript через OVM рядом с уже установленными.
 	 *
-	 * Проверяет наличие oscript. Если доступен — сообщает и предлагает перезапуск при повторном запуске.
-	 * Если нет — запускает в терминале установку через OVM: на Windows — PowerShell (ovm.exe),
-	 * на Linux/macOS — загрузка ovm.exe и запуск через Mono (`mono ovm.exe install` и `use`).
-	 * Ожидание завершения — по появлению/обновлению файла oscript в каталоге OVM.
+	 * Версию для всей машины (`ovm use`) команда меняет только при первой установке:
+	 * других версий ещё нет, и ломать нечего. Проект, из которого её поставили,
+	 * работает поставленной версией: сам или, если сам он выбрал бы другую
+	 * установку, через выбор версии проекта.
+	 * На Windows ovm запускается сам, на Linux и macOS через Mono. Конец установки
+	 * узнаётся по коду возврата задачи, в терминале — по появлению движка в каталоге версии.
 	 *
 	 * @returns Промис, который разрешается по завершении
 	 */
@@ -702,15 +727,14 @@ export class DependenciesCommands extends BaseCommand {
 			return;
 		}
 
-		const oscriptOk = await this.vrunner.checkOscriptAvailable();
-		const alreadyInstalled = oscriptOk;
+		const alreadyInstalled = await this.vrunner.checkOscriptAvailable();
 
-		const packagedefVersion = await getOscriptVersionFromPackagedef(workspaceRoot);
+		const packagedefVersion = getOscriptVersionFromPackagedef(workspaceRoot);
 		const versionHint = packagedefVersion.fromPackagedef
 			? ` packagedef: ${packagedefVersion.version}.`
 			: ' В packagedef не указана.';
 		const confirmMessage = alreadyInstalled
-			? `OneScript установлен. Всё равно установить/обновить через OVM?${versionHint}`
+			? `OneScript установлен. Поставить через OVM ещё одну версию?${versionHint}`
 			: `OneScript не найден. Установить через OVM? Нужен интернет.${versionHint}`;
 		const confirm = await vscode.window.showWarningMessage(
 			confirmMessage,
@@ -727,7 +751,10 @@ export class DependenciesCommands extends BaseCommand {
 		}
 
 		const commandName = getInstallOneScriptCommandName();
-		const { mtimeMs: ovmOscriptMtimeBefore } = getOvmOscriptPathAndMtime();
+		const { mtimeMs: installedBefore } = installedEngineMtime(ovmVersion);
+		// Первая установка становится версией машины: терминалы и другие проекты без неё движка не найдут
+		const makeDefault = !fsSync.existsSync(getOvmRootDir());
+		const steps = [['install', ovmVersion], ...(makeDefault ? [['use', ovmVersion]] : [])];
 
 		// OVM берём из кэша компонентов: качаем средствами Node, а не оболочкой.
 		// Связку «скачать .exe в оболочке и запустить» антивирусы метят как trojan-downloader.
@@ -752,7 +779,7 @@ export class DependenciesCommands extends BaseCommand {
 			});
 			await vscode.tasks.executeTask(createVRunnerTask({
 				name: commandName.title,
-				command: joinCommands([ovmCall(['install', ovmVersion]), ovmCall(['use', ovmVersion])], PROCESS_HOST_SHELL),
+				command: joinCommands(steps.map(ovmCall), PROCESS_HOST_SHELL),
 				cwd: workspaceRoot,
 				exitCallback: resolveExit,
 			}));
@@ -763,19 +790,16 @@ export class DependenciesCommands extends BaseCommand {
 				notifyQuietFailure('Установка OneScript завершилась с ошибкой');
 				return;
 			}
-			await this.vrunner.refreshOneScriptResolution();
-			notifyQuiet('OneScript установлен');
+			await this.useInstalledVersion(workspaceRoot, ovmVersion);
 			return;
 			/* eslint-disable no-restricted-syntax -- execution.useTasks === false: терминал выбран пользователем */
 		} else if (process.platform === 'win32') {
-			const ovmBinHint = String.raw`$env:LOCALAPPDATA\ovm\current\bin`;
 			const ovmQuoted = `'${ovmPath.replaceAll("'", "''")}'`;
 			const psScript = [
 				'$ErrorActionPreference = "Stop"',
 				`Write-Host "Установка OneScript (${ovmVersion})..."`,
-				`& ${ovmQuoted} install ${ovmVersion}`,
-				`& ${ovmQuoted} use ${ovmVersion}`,
-				`Write-Host "Готово. Путь OVM: ${ovmBinHint}" -ForegroundColor Green`
+				...steps.map((args) => `& ${ovmQuoted} ${args.join(' ')}`),
+				'Write-Host "Готово" -ForegroundColor Green'
 			].join('; ');
 
 			const terminal = vscode.window.createTerminal({
@@ -788,9 +812,8 @@ export class DependenciesCommands extends BaseCommand {
 		} else {
 			const shScript = [
 				`echo "Установка OneScript (${ovmVersion})..."`,
-				`mono ${JSON.stringify(ovmPath)} install ${ovmVersion}`,
-				`mono ${JSON.stringify(ovmPath)} use ${ovmVersion}`,
-				`echo "Готово. Путь OVM: $HOME/.local/share/ovm/current/bin"`
+				...steps.map((args) => `mono ${JSON.stringify(ovmPath)} ${args.join(' ')}`),
+				'echo "Готово"'
 			].join(' && ');
 
 			const terminal = vscode.window.createTerminal({
@@ -807,7 +830,7 @@ export class DependenciesCommands extends BaseCommand {
 		const busy = notifyBusy('Ожидание установки OneScript…');
 		let installed: boolean;
 		try {
-			installed = await waitForOvmInstallComplete(ovmOscriptMtimeBefore);
+			installed = await waitForOvmInstallComplete(ovmVersion, installedBefore);
 		} finally {
 			busy.dispose();
 		}
@@ -821,9 +844,112 @@ export class DependenciesCommands extends BaseCommand {
 			return;
 		}
 
-		// Иначе до конца сессии работала бы установка, найденная при активации:
-		// PATH процесса VS Code задан при его запуске и новую установку не видит.
-		await this.vrunner.refreshOneScriptResolution();
-		notifyQuiet('OneScript установлен');
+		await this.useInstalledVersion(workspaceRoot, ovmVersion);
 	}
+
+	/**
+	 * Проект берёт поставленную версию: сам, а если сам он нашёл другую
+	 * установку, через выбор версии проекта.
+	 *
+	 * Движок ищется заново: иначе до конца сессии работала бы установка, найденная
+	 * при активации, ведь PATH процесса VS Code задан при его запуске.
+	 *
+	 * @param root - Корень проекта
+	 * @param version - Версия или метка, с которой поставлен OneScript
+	 */
+	private async useInstalledVersion(root: string, version: string): Promise<void> {
+		await this.vrunner.refreshOneScriptResolution();
+		const installed = listOvmInstallations().find((item) => item.name === version);
+		const engine = await this.vrunner.projectEngine();
+		if (installed !== undefined && !sameFile(engine?.oscript, installed.oscript)) {
+			await this.vrunner.setProjectOscriptVersion(version);
+			log.info(`OneScript проекта ${root}: установка OVM ${version}`);
+		}
+		notifyQuiet(`OneScript ${version} установлен`);
+	}
+
+	/**
+	 * Выбирает версию OneScript проекта из установок OVM.
+	 *
+	 * Выбор хранится у проекта; без выбора движок проекта находится сам: движок
+	 * машины, если он не ниже ВерсияСреды из packagedef, иначе установка по ней.
+	 *
+	 * @returns Промис, который разрешается после выбора
+	 */
+	async selectOscript(): Promise<void> {
+		const root = this.ensureWorkspace();
+		if (!root) {
+			return;
+		}
+		const installations = listOvmInstallations();
+		const required = readPackageManifest(root)?.engineVersion;
+		const requiredVersion = required === undefined ? undefined : parseEngineVersion(required);
+		const configured = this.vrunner.projectOscriptVersion();
+		const versions = await Promise.all(installations.map((item) => item.version ?? this.vrunner.engineVersion(item.oscript)));
+		const describe = (version: EngineVersion | undefined, name: string): string | undefined => {
+			const parts = [
+				version && version.text !== name ? version.text : undefined,
+				version && requiredVersion && !engineVersionSupported(version.parts, requiredVersion.parts) ? `ниже ${required}` : undefined,
+			].filter((part): part is string => part !== undefined);
+			return parts.length > 0 ? parts.join(' · ') : undefined;
+		};
+
+		type VersionItem = vscode.QuickPickItem & { value?: string; install?: boolean };
+		const items: VersionItem[] = [
+			{
+				label: 'Автоматически',
+				description: required === undefined ? 'текущая установка OVM' : `не ниже ВерсияСреды ${required}`,
+				value: '',
+			},
+			...(installations.length > 0 ? [{ label: 'Установки OVM', kind: vscode.QuickPickItemKind.Separator }] : []),
+			...installations.map((item, index) => ({
+				label: item.name,
+				description: describe(versions[index], item.name),
+				value: item.name,
+			})),
+			{ label: '', kind: vscode.QuickPickItemKind.Separator },
+			{ label: '$(cloud-download) Установить другую версию', install: true },
+		];
+		for (const item of items) {
+			if (item.value !== undefined && item.value === configured) {
+				item.label = `$(check) ${item.label}`;
+			}
+		}
+
+		const chosen = await vscode.window.showQuickPick(items, {
+			title: getSelectOneScriptCommandName().title,
+			placeHolder: 'Версия OneScript проекта',
+		});
+		if (!chosen) {
+			return;
+		}
+		if (chosen.install) {
+			await this.installOscript();
+			return;
+		}
+		await this.vrunner.setProjectOscriptVersion(chosen.value === '' ? undefined : chosen.value);
+		const engine = await this.vrunner.projectEngine();
+		notifyQuiet(engine?.version ? `OneScript проекта: ${engine.version.text}` : 'Версия OneScript проекта выбрана');
+	}
+}
+
+/**
+ * Один ли это исполняемый файл: движок из `current` OVM — тот же файл каталога версии.
+ *
+ * @param left - Файл найденного движка; undefined, если движка нет
+ * @param right - Файл установки
+ */
+function sameFile(left: string | undefined, right: string): boolean {
+	if (left === undefined) {
+		return false;
+	}
+	const real = (file: string): string => {
+		try {
+			return fsSync.realpathSync(file);
+		} catch {
+			return path.resolve(file);
+		}
+	};
+	const [a, b] = [real(left), real(right)];
+	return process.platform === 'win32' ? a.toLowerCase() === b.toLowerCase() : a === b;
 }

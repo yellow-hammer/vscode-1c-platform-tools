@@ -8,8 +8,10 @@ import { DiscoveredFile } from '../parsers/parserTypes';
 import { parseBslTestModule } from '../parsers/bslTestParser';
 import { resolveConfigPath } from '../projectTestConfig';
 import { normalizeGlobBase, directorySegments } from './adapterUtils';
-import { resolveOnescriptTestsPath } from '../onescriptTestsPath';
+import { MODULES_DIRECTORY, oneScriptTestsPath, readPackageManifest } from '../../../shared/oneScriptLayout';
+import { dependsOn, parsePackagedef } from '../../../shared/packagedef';
 import { projectConfiguration } from '../../../shared/projectConfiguration';
+import { BUILD_SUBDIRS } from '../../../shared/pathDefaults';
 
 /** Раннер тестов OneScript */
 export type OneScriptRunner = '1testrunner' | 'oneunit';
@@ -27,8 +29,8 @@ export type OneScriptRunner = '1testrunner' | 'oneunit';
  *   отчёта раннер выбирает сам по набору тестов, поэтому точечный фильтр не
  *   передаём (при одном тесте имя расходится с <файл>.os.xml и отчёт не находится)
  *   — гоняем весь файл, панель раскладывает результаты по кейсам;
- * - OneUnit: `execute -f <файл> [-m <метод>] --junit <отчёт>` — точечный запуск
- *   надёжен, отчёт пишется в явный файл.
+ * - OneUnit: `execute -f <файл> [-m <метод>] [-t <теги>] --junit <отчёт>` — точечный
+ *   запуск надёжен, отчёт пишется в явный файл, теги отбирают тесты с `&Тег`.
  *
  * Отчёты складываются в build/out/onescript — их подхватывает команда
  * «Allure отчёт». Для старых версий 1testrunner без поддержки xddReportPath
@@ -55,7 +57,7 @@ export class OneScriptAdapter implements TestFrameworkAdapter {
 	}
 
 	public getIncludeGlobs(): string[] {
-		const base = normalizeGlobBase(resolveOnescriptTestsPath(this.vrunner.getWorkspaceRoot()));
+		const base = normalizeGlobBase(oneScriptTestsPath(this.vrunner.getWorkspaceRoot()));
 		return [`${base}/**/*.os`];
 	}
 
@@ -73,7 +75,7 @@ export class OneScriptAdapter implements TestFrameworkAdapter {
 	}
 
 	public describeFileLocation(fileUri: vscode.Uri, workspaceRoot: string) {
-		return { segments: directorySegments(fileUri.fsPath, resolveOnescriptTestsPath(workspaceRoot), workspaceRoot) };
+		return { segments: directorySegments(fileUri.fsPath, oneScriptTestsPath(workspaceRoot), workspaceRoot) };
 	}
 
 	public async buildRunPlan(unit: RunUnit, _reportDir: string): Promise<AdapterRunPlan> {
@@ -91,7 +93,7 @@ export class OneScriptAdapter implements TestFrameworkAdapter {
 			if (singleCase) {
 				args.push('-m', `"${singleCase}"`);
 			}
-			args.push('--junit', `"${reportFile}"`);
+			args.push(...tagsFilter(unit.tags), '--junit', `"${reportFile}"`);
 			return {
 				tool: 'shell',
 				args: [args.join(' ')],
@@ -143,7 +145,7 @@ export class OneScriptAdapter implements TestFrameworkAdapter {
 			for (const unit of units) {
 				args.push('-f', `"${unit.fileUri.fsPath}"`);
 			}
-			args.push('--junit', `"${reportFile}"`);
+			args.push(...tagsFilter(units[0]?.tags), '--junit', `"${reportFile}"`);
 
 			return {
 				tool: 'shell',
@@ -214,7 +216,7 @@ export class OneScriptAdapter implements TestFrameworkAdapter {
 	 */
 	private async ensureReportsDir(): Promise<string> {
 		const workspaceRoot = this.vrunner.getWorkspaceRoot() ?? '';
-		const reportsDir = path.join(workspaceRoot, this.vrunner.getOutPath(), 'onescript');
+		const reportsDir = path.join(workspaceRoot, this.vrunner.getOutPath(), BUILD_SUBDIRS.onescript);
 		await fs.mkdir(reportsDir, { recursive: true });
 		return reportsDir;
 	}
@@ -228,14 +230,24 @@ export class OneScriptAdapter implements TestFrameworkAdapter {
 }
 
 /**
- * Раннер тестов OneScript проекта и команда его запуска
+ * Отбор тестов OneUnit по тегам: тесты, у которых есть хотя бы один из них.
+ *
+ * @param tags - Теги `&Тег`; без них отбора нет
+ */
+function tagsFilter(tags: readonly string[] | undefined): string[] {
+	return tags && tags.length > 0 ? ['-t', `"${tags.join(',')}"`] : [];
+}
+
+/**
+ * Раннер тестов OneScript проекта: вид и исполняемый файл
  *
  * Порядок: test.path.onescriptRunner (относительные пути — от корня
  * проекта) → локальная установка в oscript_modules/bin → PATH.
  *
  * @param workspaceRoot - Корень проекта, чьи настройки читаются
+ * @returns Вид раннера и путь к нему либо имя для поиска в PATH
  */
-export function resolveOneScriptRunner(workspaceRoot: string | undefined): { kind: OneScriptRunner; command: string } {
+export function oneScriptRunnerProgram(workspaceRoot: string | undefined): { kind: OneScriptRunner; file: string } {
 	const config = projectConfiguration(workspaceRoot);
 	const runnerSetting = config.get<string>('test.onescriptRunner', 'auto');
 	const customPath = config.get<string>('test.path.onescriptRunner', '').trim();
@@ -249,12 +261,21 @@ export function resolveOneScriptRunner(workspaceRoot: string | undefined): { kin
 			.includes('oneunit')
 			? 'oneunit'
 			: '1testrunner';
-		return { kind, command: `"${resolved}"` };
+		return { kind, file: resolved };
 	}
 
 	const kind = resolveRunnerKind(runnerSetting, workspaceRoot);
-	const localPath = findLocalRunner(kind, workspaceRoot);
-	return { kind, command: localPath ? `"${localPath}"` : kind };
+	return { kind, file: findLocalRunner(kind, workspaceRoot) ?? kind };
+}
+
+/**
+ * Раннер тестов OneScript проекта и команда его запуска для строки оболочки
+ *
+ * @param workspaceRoot - Корень проекта, чьи настройки читаются
+ */
+export function resolveOneScriptRunner(workspaceRoot: string | undefined): { kind: OneScriptRunner; command: string } {
+	const { kind, file } = oneScriptRunnerProgram(workspaceRoot);
+	return { kind, command: file === kind ? kind : `"${file}"` };
 }
 
 /**
@@ -286,16 +307,8 @@ function resolveRunnerKind(setting: string, workspaceRoot: string | undefined): 
  * синхронно (как и проверку локального бинарника).
  */
 function packagedefDependsOn(packageName: string, workspaceRoot: string | undefined): boolean {
-	if (!workspaceRoot) {
-		return false;
-	}
-	try {
-		const content = fsSync.readFileSync(path.join(workspaceRoot, 'packagedef'), 'utf8');
-		return packagedefDeclaresDependency(content, packageName);
-	} catch {
-		// packagedef нет (не oscript-пакет) или не прочитан — признак отсутствует
-		return false;
-	}
+	const manifest = workspaceRoot === undefined ? undefined : readPackageManifest(workspaceRoot);
+	return manifest !== undefined && dependsOn(manifest, packageName);
 }
 
 /**
@@ -306,21 +319,17 @@ function findLocalRunner(kind: OneScriptRunner, workspaceRoot: string | undefine
 		return undefined;
 	}
 	const name = process.platform === 'win32' ? `${kind}.bat` : kind;
-	const localPath = path.join(workspaceRoot, 'oscript_modules', 'bin', name);
+	const localPath = path.join(workspaceRoot, MODULES_DIRECTORY, 'bin', name);
 	return fsSync.existsSync(localPath) ? localPath : undefined;
 }
 
 /**
- * Объявляет ли содержимое packagedef зависимость от пакета
- *
- * Совпадает и с `.ЗависитОт("имя", ...)`, и с `.РазработкаЗависитОт("имя", ...)` —
- * во втором случае искомое `ЗависитОт("имя"` входит подстрокой. Чистая функция
- * без vscode/fs — покрыта юнит-тестами.
+ * Объявляет ли содержимое packagedef зависимость от пакета: `.ЗависитОт("имя", ...)`
+ * или `.РазработкаЗависитОт("имя", ...)`.
  *
  * @param packagedef - Содержимое файла packagedef
  * @param packageName - Имя пакета (например, 'oneunit')
  */
 export function packagedefDeclaresDependency(packagedef: string, packageName: string): boolean {
-	const escaped = packageName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-	return new RegExp(`ЗависитОт\\s*\\(\\s*"${escaped}"`, 'i').test(packagedef);
+	return dependsOn(parsePackagedef(packagedef), packageName);
 }

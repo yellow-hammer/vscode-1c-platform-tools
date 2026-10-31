@@ -1,9 +1,12 @@
 import * as assert from 'node:assert';
+import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { detectProjectKind, isOneCProjectKind, projectKindOf } from '../../shared/projectKind';
 import type { ProjectLayout, SourceRoot } from '../../shared/projectLayout';
 
 const FIXTURES = path.resolve(__dirname, '../../../src/test/fixtures/workspaceProjects');
+const PACKAGEDEFS = path.resolve(__dirname, '../../../src/test/fixtures/packagedefs');
+const TEMPLATES = path.resolve(__dirname, '../../../resources/templates');
 
 function layout(parts: Partial<ProjectLayout> = {}): ProjectLayout {
 	return {
@@ -58,6 +61,19 @@ suite('вид проекта', () => {
 		assert.strictEqual(projectKindOf(layout(), 'Описание.Имя("x").ЗАВИСИТОТ("Vanessa-Runner");'), 'onec');
 		assert.strictEqual(projectKindOf(layout(), 'Описание.Имя("deploy");'), 'onescript');
 		assert.strictEqual(projectKindOf(layout(), 'Описание.Имя("x").ЗависитОт("addins");'), 'onescript');
+	});
+
+	test('настоящие пакеты без исходного кода 1С — OneScript, даже без ОпределяетКласс', () => {
+		for (const name of ['fs', 'json', '1testrunner', 'mutatos', 'autumn', 'oneunit', 'gitsync']) {
+			const packagedef = fs.readFileSync(path.join(PACKAGEDEFS, `${name}.packagedef`), 'utf8');
+			assert.strictEqual(projectKindOf(layout(), packagedef), 'onescript', name);
+		}
+	});
+
+	test('шаблоны нового проекта: 1С и OneScript', () => {
+		const read = (name: string) => fs.readFileSync(path.join(TEMPLATES, name), 'utf8');
+		assert.strictEqual(projectKindOf(layout(), read('packagedef.template')), 'onec');
+		assert.strictEqual(projectKindOf(layout(), read('packagedef-onescript.template')), 'onescript');
 	});
 
 	test('закомментированные строки packagedef не в счёт', () => {

@@ -34,6 +34,9 @@ export const METADATA_EXPANDED_SOURCES_STATE = 'metadata.expandedSources';
 /** Выбор публикации автономного сервера. */
 export const SERVER_PUBLICATION_STATE = 'server.publicationSelection';
 
+/** Установка OVM, выбранная для движка проекта. */
+export const ONESCRIPT_VERSION_STATE = 'oscript.version';
+
 /**
  * Полный ключ состояния проекта в workspaceState.
  *

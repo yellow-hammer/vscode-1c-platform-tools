@@ -6,6 +6,7 @@
 import * as path from 'node:path';
 import * as vscode from 'vscode';
 import { logger } from '../../shared/logger';
+import { looksLikeOneScriptPackage } from '../../shared/oneScriptLayout';
 import { hasProjectFile, PROJECT_FILE } from '../../shared/projectLayout';
 import {
 	normalizeProjectRoot,
@@ -31,6 +32,13 @@ export interface InitializeChoice {
 /** Вопросы пользователю при инициализации. */
 export interface InitializeProjectUi {
 	pickDirectory(choices: readonly InitializeChoice[]): Promise<string | undefined>;
+	/**
+	 * Вид проекта в каталоге без исходного кода 1С.
+	 *
+	 * @param suggested - Каталог похож на пакет OneScript: этот вариант первый
+	 * @returns true — проект OneScript, false — проект 1С, undefined — отказ
+	 */
+	pickKind(suggested: boolean): Promise<boolean | undefined>;
 	confirmOverwrite(file: string): Promise<boolean>;
 	openProjectFile(file: string): Promise<void>;
 	noFolder(): void;
@@ -85,9 +93,34 @@ export function initializeChoices(
 }
 
 /**
+ * Нужен ли каталогу шаблон пакета OneScript.
+ *
+ * У проекта вид уже известен, у каталога с исходным кодом 1С это проект 1С.
+ * Остальные каталоги спрашиваются; без вопросов решает похожесть на пакет OneScript.
+ *
+ * @param source - Проекты окна
+ * @param dir - Каталог проекта
+ * @param ui - Вопросы пользователю; без них решение без вопросов
+ * @returns true — шаблон OneScript, undefined — пользователь отказался
+ */
+async function wantsOneScript(source: WorkspaceProjectsSource, dir: string, ui?: InitializeProjectUi): Promise<boolean | undefined> {
+	const key = projectRootKey(dir);
+	const existing = (await source.listProjects()).find((project) => projectRootKey(project.root) === key);
+	if (existing) {
+		return existing.kind === 'onescript';
+	}
+	if ((await source.listCandidates()).some((candidate) => projectRootKey(candidate.root) === key)) {
+		return false;
+	}
+	const suggested = looksLikeOneScriptPackage(dir);
+	return ui ? ui.pickKind(suggested) : suggested;
+}
+
+/**
  * Создаёт `packagedef` и делает проект текущим.
  *
- * Без каталога берёт единственный вариант или спрашивает каталог.
+ * Без каталога берёт единственный вариант или спрашивает каталог. В каталоге
+ * без исходного кода 1С спрашивает, какой проект создать.
  *
  * @param source - Проекты окна
  * @param target - Каталог проекта
@@ -111,9 +144,13 @@ export async function initializeProject(
 			return undefined;
 		}
 	}
+	const oneScript = await wantsOneScript(source, dir, ui);
+	if (oneScript === undefined) {
+		return undefined;
+	}
 	let root: string;
 	try {
-		root = await source.createProjectFile(dir);
+		root = await source.createProjectFile(dir, { oneScript });
 	} catch (error) {
 		if (!(error instanceof ProjectFileExistsError)) {
 			throw error;
@@ -121,7 +158,7 @@ export async function initializeProject(
 		if (!(await ui.confirmOverwrite(error.file))) {
 			return undefined;
 		}
-		root = await source.createProjectFile(dir, { overwrite: true });
+		root = await source.createProjectFile(dir, { overwrite: true, oneScript });
 	}
 	const file = path.join(normalizeProjectRoot(dir), PROJECT_FILE);
 	log.info(`создан ${file}`);
@@ -138,6 +175,17 @@ const interactiveUi: InitializeProjectUi = {
 			{ title: INITIALIZE_TITLE, placeHolder: 'Каталог, в котором создать packagedef', matchOnDetail: true }
 		);
 		return picked?.dir;
+	},
+	async pickKind(suggested) {
+		const kinds = [
+			{ label: 'Проект 1С', description: 'vanessa-runner, Vanessa Automation и тесты 1С', oneScript: false },
+			{ label: 'Проект OneScript', description: 'пакет или приложение без платформы 1С', oneScript: true },
+		];
+		const picked = await vscode.window.showQuickPick(suggested ? [...kinds].reverse() : kinds, {
+			title: INITIALIZE_TITLE,
+			placeHolder: 'Какой проект создать',
+		});
+		return picked?.oneScript;
 	},
 	async confirmOverwrite(file) {
 		const answer = await vscode.window.showWarningMessage(
@@ -199,7 +247,7 @@ export async function initializeProjectResult(
 		dir = choices[0].dir;
 	}
 	try {
-		const root = await source.createProjectFile(dir);
+		const root = await source.createProjectFile(dir, { oneScript: await wantsOneScript(source, dir) });
 		log.info(`создан ${path.join(normalizeProjectRoot(dir), PROJECT_FILE)}`);
 		return { success: true, exitCode: 0, stdout: '', stderr: '', data: { root, current: source.selectedRoot() } };
 	} catch (error) {

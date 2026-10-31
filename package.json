@@ -1642,6 +1642,11 @@
         "category": "1С: Зависимости"
       },
       {
+        "command": "1c-platform-tools.dependencies.selectOscript",
+        "title": "Выбрать версию OneScript",
+        "category": "1С: Зависимости"
+      },
+      {
         "command": "1c-platform-tools.dependencies.updateOpm",
         "title": "Обновить пакетный менеджер opm",
         "category": "1С: Зависимости"
@@ -1655,6 +1660,18 @@
         "command": "1c-platform-tools.dependencies.remove",
         "title": "Удалить зависимости",
         "category": "1С: Зависимости"
+      },
+      {
+        "command": "1c-platform-tools.package.build",
+        "title": "Собрать пакет",
+        "icon": "$(package)",
+        "category": "1С: OneScript"
+      },
+      {
+        "command": "1c-platform-tools.package.install",
+        "title": "Установить пакет",
+        "icon": "$(desktop-download)",
+        "category": "1С: OneScript"
       },
       {
         "command": "1c-platform-tools.mcp.configureCursor",
@@ -1979,6 +1996,11 @@
       {
         "command": "1c-platform-tools.test.mutatos",
         "title": "Мутационное тестирование",
+        "category": "1С: Тестирование"
+      },
+      {
+        "command": "1c-platform-tools.test.onescript",
+        "title": "Тесты OneScript",
         "category": "1С: Тестирование"
       },
       {
@@ -2366,7 +2388,12 @@
       {
         "view": "testing",
         "contents": "Настройте тестовые фреймворки 1С (Vanessa, xUnit, YAxUnit, OneScript, 1bdd), чтобы тесты появились в этой панели.\n[Настроить тесты 1С](command:1c-platform-tools.test.configure)",
-        "when": "1c-platform-tools.is1CProject == true"
+        "when": "1c-platform-tools.is1CProject == true && 1c-platform-tools.project.kind != onescript"
+      },
+      {
+        "view": "testing",
+        "contents": "Тесты OneScript (OneUnit, 1testrunner) и сценарии 1bdd появятся здесь, когда они будут в каталоге тестов проекта.\n[Настроить тесты](command:1c-platform-tools.test.configure)",
+        "when": "1c-platform-tools.is1CProject == true && 1c-platform-tools.project.kind == onescript"
       },
       {
         "view": "1c-platform-tools-projects-workspace",
@@ -3138,12 +3165,12 @@
         },
         {
           "submenu": "1c-platform-tools.metadata.createMenu",
-          "when": "view == 1c-platform-tools-metadata-tree",
+          "when": "view == 1c-platform-tools-metadata-tree && 1c-platform-tools.project.kind != onescript",
           "group": "navigation@0"
         },
         {
           "command": "1c-platform-tools.metadata.validateDump",
-          "when": "view == 1c-platform-tools-metadata-tree",
+          "when": "view == 1c-platform-tools-metadata-tree && 1c-platform-tools.project.kind != onescript",
           "group": "navigation@1"
         },
         {
@@ -3153,7 +3180,7 @@
         },
         {
           "command": "1c-platform-tools.metadata.er.openCanvas",
-          "when": "view == 1c-platform-tools-metadata-tree",
+          "when": "view == 1c-platform-tools-metadata-tree && 1c-platform-tools.project.kind != onescript",
           "group": "navigation@4"
         },
         {
@@ -3549,6 +3576,16 @@
           "group": "inline"
         },
         {
+          "command": "1c-platform-tools.package.install",
+          "when": "view == 1c-platform-tools-artifacts && viewItem == 'artifactsPackageBinary'",
+          "group": "inline"
+        },
+        {
+          "command": "1c-platform-tools.package.build",
+          "when": "view == 1c-platform-tools-artifacts && viewItem == 'artifactsPackagesSection'",
+          "group": "inline"
+        },
+        {
           "command": "1c-platform-tools.artifacts.open",
           "when": "view == 1c-platform-tools-artifacts && viewItem == 'artifactsConfigurationSource'",
           "group": "navigation"
@@ -3626,6 +3663,16 @@
         {
           "command": "1c-platform-tools.artifacts.decompileReport",
           "when": "view == 1c-platform-tools-artifacts && viewItem == 'artifactsReportBinary'",
+          "group": "navigation"
+        },
+        {
+          "command": "1c-platform-tools.package.install",
+          "when": "view == 1c-platform-tools-artifacts && viewItem == 'artifactsPackageBinary'",
+          "group": "navigation"
+        },
+        {
+          "command": "1c-platform-tools.package.build",
+          "when": "view == 1c-platform-tools-artifacts && viewItem == 'artifactsPackagesSection'",
           "group": "navigation"
         },
         {
@@ -4626,7 +4673,7 @@
             "type": "string",
             "default": "",
             "scope": "resource",
-            "description": "OneScript: полный путь к oscript.exe. Пусто: сначала берётся установка OVM, затем oscript из PATH. Задайте явно, если установок несколько и нужна конкретная."
+            "description": "OneScript: полный путь к oscript.exe. Пусто: версия, выбранная командой «Выбрать версию OneScript», иначе текущая установка OVM или oscript из PATH, а если они ниже ВерсияСреды в packagedef, установка OVM этой версии."
           }
         }
       },
@@ -4958,7 +5005,7 @@
     "typecheck": "tsc --noEmit",
     "lint": "eslint src --max-warnings 0",
     "test": "vscode-test && npm run test:node",
-    "test:node": "node --test out/test/shared/skillMcpNames.node.js out/test/shared/gitHead.node.js out/test/shared/launchConfigurations.node.js out/test/shared/workspaceScope.node.js out/test/shared/dotEnv.node.js out/test/shared/environments.node.js out/test/shared/codeEnvironmentVariables.node.js out/test/shared/ovmPaths.node.js out/test/shared/processOutput.node.js out/test/shared/processTermination.node.js out/test/shared/ibsrvDataLock.node.js out/test/shared/channelLocation.node.js out/test/shared/windowRegistry.node.js out/test/utils/shellArgvRoundtrip.node.js out/test/shared/executableLookup.node.js out/test/testing/mutatosRun.node.js out/test/testing/mutatosSources.node.js out/test/testing/mutatosReport.node.js out/test/spreadsheet/spreadsheetHtml.node.js out/test/features/odata.node.js out/test/metadata/erTheme.node.js out/test/metadata/jarJavaVersion.node.js out/test/testing/yaxunitReleases.node.js out/test/metadata/erExport.node.js",
+    "test:node": "node --test out/test/shared/skillMcpNames.node.js out/test/shared/gitHead.node.js out/test/shared/launchConfigurations.node.js out/test/shared/workspaceScope.node.js out/test/shared/dotEnv.node.js out/test/shared/environments.node.js out/test/shared/codeEnvironmentVariables.node.js out/test/shared/ovmPaths.node.js out/test/shared/packagedef.node.js out/test/shared/oneScriptEngine.node.js out/test/shared/processOutput.node.js out/test/shared/processTermination.node.js out/test/shared/ibsrvDataLock.node.js out/test/shared/channelLocation.node.js out/test/shared/windowRegistry.node.js out/test/utils/shellArgvRoundtrip.node.js out/test/shared/executableLookup.node.js out/test/testing/mutatosRun.node.js out/test/testing/mutatosSources.node.js out/test/testing/mutatosReport.node.js out/test/spreadsheet/spreadsheetHtml.node.js out/test/features/odata.node.js out/test/metadata/erTheme.node.js out/test/metadata/jarJavaVersion.node.js out/test/testing/yaxunitReleases.node.js out/test/metadata/erExport.node.js",
     "package": "vsce package",
     "changelog": "git-cliff --config cliff.toml --output CHANGELOG.md",
     "docs:dev": "vitepress dev docs",

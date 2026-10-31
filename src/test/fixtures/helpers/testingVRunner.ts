@@ -17,6 +17,8 @@ export function testingVRunner(members: Record<string, unknown> = {}): VRunnerMa
 		}),
 		profileProblem: () => undefined,
 		environmentProblem: () => undefined,
+		shouldUseDocker: async () => false,
+		warnIfEngineUnfit: async () => undefined,
 		...members,
 	} as unknown as VRunnerManager;
 }
