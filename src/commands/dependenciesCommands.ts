@@ -8,7 +8,6 @@ import { BaseCommand } from './baseCommand';
 import {
 	getInstallDependenciesCommandName,
 	getInstallOneScriptCommandName,
-	getSelectOneScriptCommandName,
 	getUpdateOpmCommandName
 } from '../features/tools/commandNames';
 import { logger } from '../shared/logger';
@@ -21,9 +20,9 @@ import {
 import { initializeProjectCommand } from '../features/projects/workspaceProjectCommands';
 import { workspaceProjectsSource } from '../features/projects/workspaceProjectsSource';
 import type { StructuredCommandResult } from '../shared/commandExecutionTypes';
-import { ONESCRIPT_PROJECT_DIRECTORIES, ONESCRIPT_PROJECT_FILES, PROJECT_STRUCTURE } from '../shared/projectStructure';
+import { ONESCRIPT_PROJECT_DIRECTORIES, ONESCRIPT_PROJECT_FILES, projectStructureItems } from '../shared/projectStructure';
+import { detectProjectKind } from '../shared/projectKind';
 import { getEngineBinaryCandidates, getOvmBaseDir, getOvmRootDir } from '../shared/ovmPaths';
-import { listOvmInstallations, parseEngineVersion, engineVersionSupported, type EngineVersion } from '../shared/oneScriptEngine';
 import { MODULES_DIRECTORY, readPackageManifest } from '../shared/oneScriptLayout';
 import { notifyBusy, notifyQuiet, notifyQuietFailure } from '../shared/notify';
 import { buildProcessCommand, joinCommands, PROCESS_HOST_SHELL } from '../utils/commandUtils';
@@ -464,10 +463,11 @@ export class DependenciesCommands extends BaseCommand {
 		return initializeProjectCommand(workspaceProjectsSource(), arg, opts);
 	}
 
-	/** Вариант создания проекта в приветственном экране */
-	private static readonly CREATE_PROJECT_KIND_WITH_STRUCTURE = 'withStructure';
-	private static readonly CREATE_PROJECT_KIND_PACKAGEDEF_ONLY = 'packagedefOnly';
-	private static readonly CREATE_PROJECT_KIND_ONESCRIPT = 'oneScript';
+	/** Вид нового проекта: те же подписи, что у «Инициализировать проект». */
+	private static readonly NEW_PROJECT_KINDS = [
+		{ label: 'Проект 1С', description: 'Конфигурация на платформе 1С:Предприятие 8', oneScript: false },
+		{ label: 'Проект OneScript', description: 'Библиотека или программа, файлы .os', oneScript: true },
+	] as const;
 
 	/**
 	 * Создаёт каталоги и файлы нового проекта OneScript; существующие файлы не трогает.
@@ -494,13 +494,18 @@ export class DependenciesCommands extends BaseCommand {
 
 	/**
 	 * Создаёт структуру каталогов по шаблону vanessa-bootstrap в указанной папке.
-	 * @param targetRoot — корень проекта (полный путь)
+	 * У проекта 1С:EDT нет каталога src и выгрузки тестов конфигуратора.
+	 * @param targetRoot - корень проекта
+	 * @param format - проект в формате 1С:Конфигуратор или 1С:EDT
 	 * @returns количество созданных каталогов и новых README
 	 */
-	private async createProjectStructureInFolder(targetRoot: string): Promise<{ createdDirs: number; createdReadmes: number }> {
+	private async createProjectStructureInFolder(
+		targetRoot: string,
+		format: 'designer' | 'edt'
+	): Promise<{ createdDirs: number; createdReadmes: number }> {
 		let createdDirs = 0;
 		let createdReadmes = 0;
-		for (const item of PROJECT_STRUCTURE) {
+		for (const item of projectStructureItems(format)) {
 			const dirPath = path.join(targetRoot, item.path);
 			const readmePath = path.join(dirPath, 'README.md');
 			await fs.mkdir(dirPath, { recursive: true });
@@ -519,44 +524,58 @@ export class DependenciesCommands extends BaseCommand {
 	static readonly INSTALL_DEPS_AFTER_CREATE_KEY = '1c-platform-tools.installDepsAfterCreate';
 
 	/**
-	 * Создаёт новый проект из приветственного экрана проводника (без открытой папки).
-	 * Спрашивает тип проекта, установку зависимостей, затем папку; создаёт packagedef и при выборе — структуру каталогов; при выборе — откладывает установку зависимостей до открытия папки.
+	 * Формат каталогов проекта 1С.
+	 *
+	 * Проект в формате 1С:Конфигуратор получает каталоги src и tests. Проект в формате 1С:EDT создаётся без них.
+	 * При создании проекта есть ещё пункт без каталогов.
+	 *
+	 * @param includePackagedefOnly - добавить «Только packagedef»
+	 */
+	private async pickOneCStructure(
+		includePackagedefOnly: boolean
+	): Promise<'designer' | 'edt' | 'packagedefOnly' | undefined> {
+		const items: { label: string; description: string; choice: 'designer' | 'edt' | 'packagedefOnly' }[] = [
+			{ label: 'Проект в формате 1С:Конфигуратор', description: 'каталоги src и tests', choice: 'designer' },
+			{ label: 'Проект в формате 1С:EDT', description: 'без каталогов src и tests', choice: 'edt' },
+		];
+		if (includePackagedefOnly) {
+			items.push({ label: 'Только packagedef', description: 'без каталогов', choice: 'packagedefOnly' });
+		}
+		const picked = await vscode.window.showQuickPick(items, {
+			title: 'Проект 1С',
+			placeHolder: 'Формат исходников',
+			ignoreFocusOut: true,
+		});
+		return picked?.choice;
+	}
+
+	/**
+	 * Создаёт новый проект из пустого окна.
+	 *
+	 * Сначала вид: проект 1С или проект OneScript. У проекта 1С дальше формат исходников.
+	 * Затем установка зависимостей и папка.
 	 */
 	async createProjectFromWelcome(context?: vscode.ExtensionContext): Promise<void> {
-		const kindChoice = await vscode.window.showQuickPick(
-			[
-				{
-					label: '$(folder-opened) С каталогами (vanessa-bootstrap)',
-					description: 'Каталоги doc, src/cf, features, tests и др. с README',
-					detail: 'Рекомендуется для новых проектов 1С',
-					picked: true,
-					kindChoice: DependenciesCommands.CREATE_PROJECT_KIND_WITH_STRUCTURE
-				},
-				{
-					label: '$(file) Только packagedef',
-					description: 'Без создания каталогов',
-					detail: 'Минимальный проект 1С',
-					kindChoice: DependenciesCommands.CREATE_PROJECT_KIND_PACKAGEDEF_ONLY
-				},
-				{
-					label: '$(package) Проект OneScript',
-					description: 'packagedef пакета, src/Классы, src/Модули и tests',
-					detail: 'Библиотека или приложение без платформы 1С',
-					kindChoice: DependenciesCommands.CREATE_PROJECT_KIND_ONESCRIPT
-				}
-			] as (vscode.QuickPickItem & { kindChoice: string })[],
-			{
-				title: 'Тип нового проекта',
-				placeHolder: 'Выберите, как создать проект',
-				ignoreFocusOut: true
-			}
-		);
-		if (!kindChoice?.kindChoice) {
+		const kindChoice = await vscode.window.showQuickPick([...DependenciesCommands.NEW_PROJECT_KINDS], {
+			title: 'Новый проект',
+			placeHolder: 'Какой проект создать',
+			ignoreFocusOut: true
+		});
+		if (!kindChoice) {
 			return;
 		}
-		const oneScript = kindChoice.kindChoice === DependenciesCommands.CREATE_PROJECT_KIND_ONESCRIPT;
-		const withStructure = kindChoice.kindChoice === DependenciesCommands.CREATE_PROJECT_KIND_WITH_STRUCTURE;
-		const projectLabel = oneScript ? 'Проект OneScript' : 'Проект 1С';
+		const oneScript = kindChoice.oneScript;
+		let format: 'designer' | 'edt' | undefined;
+		if (!oneScript) {
+			const layout = await this.pickOneCStructure(true);
+			if (!layout) {
+				return;
+			}
+			if (layout !== 'packagedefOnly') {
+				format = layout;
+			}
+		}
+		const projectLabel = kindChoice.label;
 
 		const installDepsChoice = await vscode.window.showQuickPick(
 			[
@@ -626,11 +645,11 @@ export class DependenciesCommands extends BaseCommand {
 			}
 			log.info(`Файл packagedef создан: ${packagedefPath}`);
 
-			if (withStructure || oneScript) {
+			if (oneScript || format) {
 				try {
 					const created = oneScript
 						? await this.createOneScriptStructureInFolder(targetDir)
-						: await this.createProjectStructureInFolder(targetDir);
+						: await this.createProjectStructureInFolder(targetDir, format ?? 'designer');
 					const files = 'createdFiles' in created ? created.createdFiles : created.createdReadmes;
 					log.info(`Структура проекта создана: каталогов=${created.createdDirs}, новых файлов=${files}. Путь: ${targetDir}`);
 					notifyQuiet(`${projectLabel} создан: packagedef и ${created.createdDirs} каталогов. Открываю папку…`);
@@ -659,10 +678,8 @@ export class DependenciesCommands extends BaseCommand {
 	}
 
 	/**
-	 * Инициализирует структуру каталогов проекта по шаблону vanessa-bootstrap.
-	 *
-	 * Создаёт каталоги и помещает в каждый README.md с кратким описанием.
-	 * Существующие каталоги и файлы README не перезаписываются.
+	 * Создаёт каталоги проекта. У OneScript это каталоги пакета, у проекта 1С каталоги шаблона.
+	 * Существующие файлы не перезаписываются.
 	 *
 	 * @returns Промис, который разрешается после создания структуры
 	 */
@@ -672,25 +689,32 @@ export class DependenciesCommands extends BaseCommand {
 			return;
 		}
 
-		let createdDirs = 0;
-		let createdReadmes = 0;
+		const kind = await detectProjectKind(workspaceRoot);
 
 		try {
-			for (const item of PROJECT_STRUCTURE) {
-				const dirPath = path.join(workspaceRoot, item.path);
-				const readmePath = path.join(dirPath, 'README.md');
-
-				await fs.mkdir(dirPath, { recursive: true });
-				createdDirs += 1;
-
-				try {
-					await fs.access(readmePath);
-					// README уже есть — не перезаписываем
-				} catch {
-					await fs.writeFile(readmePath, item.readmeContent, 'utf-8');
-					createdReadmes += 1;
-				}
+			if (kind === 'onescript') {
+				const { createdDirs, createdFiles } = await this.createOneScriptStructureInFolder(workspaceRoot);
+				log.info(
+					`Структура проекта создана: каталогов=${createdDirs}, новых файлов=${createdFiles}. Workspace: ${workspaceRoot}`
+				);
+				notifyQuiet(`Структура проекта создана: ${createdDirs} каталогов, ${createdFiles} файлов`);
+				return;
 			}
+
+			let format: 'designer' | 'edt';
+			if (kind === 'edt') {
+				format = 'edt';
+			} else if (kind === 'designer') {
+				format = 'designer';
+			} else {
+				const choice = await this.pickOneCStructure(false);
+				if (choice !== 'designer' && choice !== 'edt') {
+					return;
+				}
+				format = choice;
+			}
+
+			const { createdDirs, createdReadmes } = await this.createProjectStructureInFolder(workspaceRoot, format);
 
 			log.info(
 				`Структура проекта создана: каталогов=${createdDirs}, новых README=${createdReadmes}. Workspace: ${workspaceRoot}`
@@ -790,7 +814,7 @@ export class DependenciesCommands extends BaseCommand {
 				notifyQuietFailure('Установка OneScript завершилась с ошибкой');
 				return;
 			}
-			await this.useInstalledVersion(workspaceRoot, ovmVersion);
+			await this.useInstalledVersion(ovmVersion);
 			return;
 			/* eslint-disable no-restricted-syntax -- execution.useTasks === false: терминал выбран пользователем */
 		} else if (process.platform === 'win32') {
@@ -844,112 +868,18 @@ export class DependenciesCommands extends BaseCommand {
 			return;
 		}
 
-		await this.useInstalledVersion(workspaceRoot, ovmVersion);
+		await this.useInstalledVersion(ovmVersion);
 	}
 
 	/**
-	 * Проект берёт поставленную версию: сам, а если сам он нашёл другую
-	 * установку, через выбор версии проекта.
-	 *
 	 * Движок ищется заново: иначе до конца сессии работала бы установка, найденная
 	 * при активации, ведь PATH процесса VS Code задан при его запуске.
+	 * Версию берёт `ВерсияСреды` из packagedef.
 	 *
-	 * @param root - Корень проекта
 	 * @param version - Версия или метка, с которой поставлен OneScript
 	 */
-	private async useInstalledVersion(root: string, version: string): Promise<void> {
+	private async useInstalledVersion(version: string): Promise<void> {
 		await this.vrunner.refreshOneScriptResolution();
-		const installed = listOvmInstallations().find((item) => item.name === version);
-		const engine = await this.vrunner.projectEngine();
-		if (installed !== undefined && !sameFile(engine?.oscript, installed.oscript)) {
-			await this.vrunner.setProjectOscriptVersion(version);
-			log.info(`OneScript проекта ${root}: установка OVM ${version}`);
-		}
 		notifyQuiet(`OneScript ${version} установлен`);
 	}
-
-	/**
-	 * Выбирает версию OneScript проекта из установок OVM.
-	 *
-	 * Выбор хранится у проекта; без выбора движок проекта находится сам: движок
-	 * машины, если он не ниже ВерсияСреды из packagedef, иначе установка по ней.
-	 *
-	 * @returns Промис, который разрешается после выбора
-	 */
-	async selectOscript(): Promise<void> {
-		const root = this.ensureWorkspace();
-		if (!root) {
-			return;
-		}
-		const installations = listOvmInstallations();
-		const required = readPackageManifest(root)?.engineVersion;
-		const requiredVersion = required === undefined ? undefined : parseEngineVersion(required);
-		const configured = this.vrunner.projectOscriptVersion();
-		const versions = await Promise.all(installations.map((item) => item.version ?? this.vrunner.engineVersion(item.oscript)));
-		const describe = (version: EngineVersion | undefined, name: string): string | undefined => {
-			const parts = [
-				version && version.text !== name ? version.text : undefined,
-				version && requiredVersion && !engineVersionSupported(version.parts, requiredVersion.parts) ? `ниже ${required}` : undefined,
-			].filter((part): part is string => part !== undefined);
-			return parts.length > 0 ? parts.join(' · ') : undefined;
-		};
-
-		type VersionItem = vscode.QuickPickItem & { value?: string; install?: boolean };
-		const items: VersionItem[] = [
-			{
-				label: 'Автоматически',
-				description: required === undefined ? 'текущая установка OVM' : `не ниже ВерсияСреды ${required}`,
-				value: '',
-			},
-			...(installations.length > 0 ? [{ label: 'Установки OVM', kind: vscode.QuickPickItemKind.Separator }] : []),
-			...installations.map((item, index) => ({
-				label: item.name,
-				description: describe(versions[index], item.name),
-				value: item.name,
-			})),
-			{ label: '', kind: vscode.QuickPickItemKind.Separator },
-			{ label: '$(cloud-download) Установить другую версию', install: true },
-		];
-		for (const item of items) {
-			if (item.value !== undefined && item.value === configured) {
-				item.label = `$(check) ${item.label}`;
-			}
-		}
-
-		const chosen = await vscode.window.showQuickPick(items, {
-			title: getSelectOneScriptCommandName().title,
-			placeHolder: 'Версия OneScript проекта',
-		});
-		if (!chosen) {
-			return;
-		}
-		if (chosen.install) {
-			await this.installOscript();
-			return;
-		}
-		await this.vrunner.setProjectOscriptVersion(chosen.value === '' ? undefined : chosen.value);
-		const engine = await this.vrunner.projectEngine();
-		notifyQuiet(engine?.version ? `OneScript проекта: ${engine.version.text}` : 'Версия OneScript проекта выбрана');
-	}
-}
-
-/**
- * Один ли это исполняемый файл: движок из `current` OVM — тот же файл каталога версии.
- *
- * @param left - Файл найденного движка; undefined, если движка нет
- * @param right - Файл установки
- */
-function sameFile(left: string | undefined, right: string): boolean {
-	if (left === undefined) {
-		return false;
-	}
-	const real = (file: string): string => {
-		try {
-			return fsSync.realpathSync(file);
-		} catch {
-			return path.resolve(file);
-		}
-	};
-	const [a, b] = [real(left), real(right)];
-	return process.platform === 'win32' ? a.toLowerCase() === b.toLowerCase() : a === b;
 }

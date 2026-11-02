@@ -280,10 +280,9 @@ export function registerMainTreeCommands(
 
 	const oscriptRunCommand = vscode.commands.registerCommand(
 		'1c-platform-tools.tasks.runOscript',
-		// Файл задачи лежит в tasks/ проекта и исполняется oscript
 		withWorkspaceTrust('1c-platform-tools.tasks.runOscript', inCurrentProject(async (taskName?: unknown) => {
 			if (isAgentOptions(taskName)) {
-				return agentInteractiveError('Передайте имя задачи строкой (см. tasks/*.os).');
+				return agentInteractiveError('Передайте имя задачи строкой.');
 			}
 			if (!isProjectRef.current) {
 				showNot1CProjectMessage();
@@ -303,8 +302,12 @@ export function registerMainTreeCommands(
 				showNot1CProjectMessage();
 				return;
 			}
-			await oscriptTasksCommands.addOscriptTask();
+			const created = await oscriptTasksCommands.addOscriptTask();
+			if (!created) {
+				return;
+			}
 			treeDataProvider.refresh();
+			void vscode.commands.executeCommand('1c-platform-tools.metadata.refresh');
 		})
 	);
 

@@ -133,6 +133,7 @@
                     "1c-platform-tools.odata.setup",
                     "1c-platform-tools.package.build",
                     "1c-platform-tools.package.install",
+                    "1c-platform-tools.package.push",
                     "1c-platform-tools.pipelines.run",
                     "1c-platform-tools.project.initialize",
                     "1c-platform-tools.project.list",

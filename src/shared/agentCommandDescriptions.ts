@@ -67,7 +67,7 @@ export const AGENT_COMMAND_DESCRIPTIONS: Record<string, AgentCommandDescription>
 		category: TESTING,
 	},
 	'1c-platform-tools.test.onescript': {
-		title: 'Запустить все тесты OneScript проекта (OneUnit или 1testrunner, как в панели тестирования) движком проекта; результат берётся из jUnit-отчёта в build/out/onescript',
+		title: 'Запустить тесты OneScript',
 		category: TESTING,
 	},
 	'1c-platform-tools.syntaxCheck.run': {
@@ -276,7 +276,7 @@ export const AGENT_COMMAND_DESCRIPTIONS: Record<string, AgentCommandDescription>
 		category: DEPENDENCIES,
 	},
 	'1c-platform-tools.dependencies.initializeProjectStructure': {
-		title: 'Создать стандартные каталоги проекта 1С',
+		title: 'Создать каталоги проекта',
 		category: DEPENDENCIES,
 	},
 	'1c-platform-tools.dependencies.install': {
@@ -288,7 +288,7 @@ export const AGENT_COMMAND_DESCRIPTIONS: Record<string, AgentCommandDescription>
 		category: DEPENDENCIES,
 	},
 	'1c-platform-tools.dependencies.updateOpm': {
-		title: 'Обновить пакетный менеджер opm',
+		title: 'Обновить пакетный менеджер',
 		category: DEPENDENCIES,
 	},
 	'1c-platform-tools.dependencies.installOscript': {
@@ -296,11 +296,15 @@ export const AGENT_COMMAND_DESCRIPTIONS: Record<string, AgentCommandDescription>
 		category: DEPENDENCIES,
 	},
 	'1c-platform-tools.package.build': {
-		title: 'Собрать пакет OneScript проекта по packagedef (opm build) в каталог сборки build/out/ospx; путь к собранному пакету возвращается в artifact',
+		title: 'Собрать пакет OneScript',
 		category: ONESCRIPT,
 	},
 	'1c-platform-tools.package.install': {
-		title: 'Установить собранный пакет OneScript (.ospx) в движок проекта (opm install -f): пакет версии из packagedef, иначе самый новый из каталога сборки; путь к пакету возвращается в artifact',
+		title: 'Установить собранный пакет OneScript',
+		category: ONESCRIPT,
+	},
+	'1c-platform-tools.package.push': {
+		title: 'Опубликовать пакет OneScript',
 		category: ONESCRIPT,
 	},
 
@@ -376,7 +380,7 @@ export const AGENT_COMMAND_DESCRIPTIONS: Record<string, AgentCommandDescription>
 		category: PROJECT,
 	},
 	'1c-platform-tools.project.initialize': {
-		title: 'Сделать каталог проектом 1С: создать packagedef в каталоге projectPath и сделать проект текущим. projectPath обязателен: папка рабочей области или каталог из candidates списка проектов, в том числе внутри проекта; существующий packagedef не перезаписывается',
+		title: 'Создать packagedef в каталоге projectPath и сделать проект текущим. Пустой каталог получает описание проекта 1С, каталог с файлами .os или каталогами классов и модулей — описание пакета OneScript. Существующий packagedef не перезаписывается. projectPath обязателен: папка рабочей области или каталог из candidates списка проектов, в том числе внутри проекта',
 		category: PROJECT,
 	},
 };

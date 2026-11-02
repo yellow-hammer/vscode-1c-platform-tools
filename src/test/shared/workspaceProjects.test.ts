@@ -44,7 +44,7 @@ import {
 } from '../../shared/workspaceProjects';
 
 const FIXTURES = path.resolve(__dirname, '../../../src/test/fixtures/workspaceProjects');
-const TEMPLATE = path.resolve(__dirname, '../../../resources/templates/packagedef.template');
+const TEMPLATE = path.resolve(__dirname, '../../../resources/templates/packagedef-1c.template');
 const at = (...parts: string[]) => normalizeProjectRoot(path.join(FIXTURES, ...parts));
 
 const PROJECT = at('проект');

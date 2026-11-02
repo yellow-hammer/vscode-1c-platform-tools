@@ -6,7 +6,16 @@ import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-import { declaresPackageApi, dependsOn, packageFileName, parsePackagedef } from '../../shared/packagedef';
+import {
+	appendPackageMember,
+	autumnPropertiesOf,
+	declaresPackageApi,
+	dependsOn,
+	packageFileName,
+	packageMembers,
+	parsePackagedef,
+	removePackageMember,
+} from '../../shared/packagedef';
 
 /** Корень репозитория: тесты собираются в out, путь от __dirname другой. */
 function repositoryRoot(): string {
@@ -111,11 +120,11 @@ describe('packagedef: правила opm', () => {
 		]);
 	});
 
-	test('комментарии и каталог задач', () => {
-		const manifest = parsePackagedef('Описание.Имя("x")\n// .ЗависитОт("закомментирован")\n.Задачи("./build/tasks");');
+	test('комментарий не объявляет зависимость', () => {
+		const manifest = parsePackagedef('Описание.Имя("x")\n// .ЗависитОт("закомментирован")\n.Версия("1");');
 
 		assert.deepEqual(manifest.dependencies, []);
-		assert.equal(manifest.tasks, 'build/tasks');
+		assert.equal(manifest.version, '1');
 	});
 
 	test('английских имён методов у opm нет', () => {
@@ -137,13 +146,54 @@ describe('шаблоны packagedef расширения', () => {
 			manifest.dependencies.map((item) => [item.name, item.dev]),
 			[['oneunit', true], ['asserts', true], ['mutatos', true]]
 		);
-		assert.deepEqual(manifest.includes, ['src']);
+		assert.deepEqual(manifest.includes, ['src', 'tests']);
+		assert.deepEqual(manifest.executables, [{ file: 'src/main.os', name: 'пакет' }]);
+		assert.deepEqual(autumnPropertiesOf(manifest), {
+			пакет: {
+				ИмяПриложения: 'пакет',
+				ПолноеИмяПриложения: 'пакет v%{пакет.ВерсияПриложения}',
+				ВерсияПриложения: '1.0.0',
+			},
+		});
 	});
 
 	test('шаблон проекта 1С: инструменты 1С зависимостями', () => {
-		const manifest = parsePackagedef(template('packagedef.template'));
+		const manifest = parsePackagedef(template('packagedef-1c.template'));
 
 		assert.equal(dependsOn(manifest, 'vanessa-runner'), true);
 		assert.equal(declaresPackageApi(manifest), false);
+	});
+});
+
+describe('состав пакета из packagedef', () => {
+	const autumn = `
+		Описание.Имя("autumn")
+			.ОпределяетКласс("Поделка", "src/Классы/Поделка.os")
+			.ОпределяетМодуль("СостоянияПриложения", "src/Модули/СостоянияПриложения.os")
+			.ИсполняемыйФайл("src/main.os", "autumn");
+	`;
+
+	test('классы, модули и программы читаются из объявлений', () => {
+		assert.deepEqual(packageMembers(parsePackagedef(autumn)), [
+			{ kind: 'class', name: 'Поделка', file: 'src/Классы/Поделка.os' },
+			{ kind: 'module', name: 'СостоянияПриложения', file: 'src/Модули/СостоянияПриложения.os' },
+			{ kind: 'executable', name: 'autumn', file: 'src/main.os' },
+		]);
+	});
+
+	test('объявление класса убирается, остальная цепочка остаётся', () => {
+		const source = 'Описание.Имя("autumn").ОпределяетКласс("Поделка", "src/Классы/Поделка.os").Версия("1.0.0");\n';
+		const next = removePackageMember(source, 'class', 'Поделка');
+		assert.equal(next.includes('Поделка'), false);
+		assert.equal(parsePackagedef(next).name, 'autumn');
+		assert.equal(parsePackagedef(next).version, '1.0.0');
+	});
+
+	test('новое объявление дописывается отдельной строкой', () => {
+		const next = appendPackageMember(autumn, 'class', 'Завязь', 'src/Классы/Завязь.os');
+		assert.equal(
+			packageMembers(parsePackagedef(next)).some((member) => member.name === 'Завязь'),
+			true
+		);
 	});
 });

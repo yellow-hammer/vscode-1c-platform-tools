@@ -1,11 +1,7 @@
 /**
- * Описание пакета OneScript из `packagedef`.
- *
- * `packagedef` это сценарий OneScript: opm выполняет его, и текучие вызовы
- * `Описание.Имя(...).Версия(...)` заполняют описание пакета. Здесь сценарий не
- * выполняется, а читается по лексемам: значение берётся только из строкового
- * литерала, вычисленное (`.Версия(ПараметрыСистемы.ВерсияПродукта())`) остаётся
- * неизвестным. Методы описания у opm только русские.
+ * Описание пакета из текста `packagedef`: строковые литералы методов
+ * `Имя`, `Версия`, `ВерсияСреды`, `ЗависитОт`, `РазработкаЗависитОт`,
+ * `ОпределяетКласс`, `ОпределяетМодуль`, `ИсполняемыйФайл`, `ВключитьФайл`.
  *
  * Модуль чистый (без vscode/fs).
  * @module packagedef
@@ -47,8 +43,6 @@ export interface PackageManifest {
 	version?: string;
 	/** Наименьшая версия движка, на которой пакет ставится: `ВерсияСреды`. */
 	engineVersion?: string;
-	/** Каталог задач `opm run` от корня пакета: `Задачи`; без него `tasks`. */
-	tasks?: string;
 	dependencies: PackageDependency[];
 	classes: PackageExport[];
 	modules: PackageExport[];
@@ -62,7 +56,6 @@ type ManifestField =
 	| 'name'
 	| 'version'
 	| 'engineVersion'
-	| 'tasks'
 	| 'dependency'
 	| 'devDependency'
 	| 'class'
@@ -75,7 +68,6 @@ const METHODS: ReadonlyMap<string, ManifestField> = new Map([
 	['имя', 'name'],
 	['версия', 'version'],
 	['версиясреды', 'engineVersion'],
-	['задачи', 'tasks'],
 	['зависитот', 'dependency'],
 	['разработказависитот', 'devDependency'],
 	['определяеткласс', 'class'],
@@ -116,8 +108,7 @@ function addDependency(manifest: PackageManifest, dependency: PackageDependency)
  * Описание пакета из текста `packagedef`.
  *
  * Метод описания узнаётся по вызову через точку: `Описание.Имя("…")` и
- * продолжение цепочки `.Версия("…")`. Повторный вызов того же свойства
- * заменяет прежнее значение, как у opm.
+ * продолжение цепочки `.Версия("…")`. Повторный вызов заменяет прежнее значение.
  *
  * @param text - Текст `packagedef`
  */
@@ -140,9 +131,6 @@ export function parsePackagedef(text: string): PackageManifest {
 				break;
 			case 'engineVersion':
 				manifest.engineVersion = literal(first);
-				break;
-			case 'tasks':
-				manifest.tasks = packagePath(literal(first));
 				break;
 			case 'dependency':
 			case 'devDependency': {
@@ -198,6 +186,101 @@ export function dependsOn(manifest: PackageManifest, name: string): boolean {
  */
 export function declaresPackageApi(manifest: PackageManifest): boolean {
 	return manifest.classes.length + manifest.modules.length + manifest.executables.length > 0;
+}
+
+/**
+ * Файл настроек приложения на Осени из описания пакета.
+ *
+ * Ключ — имя команды, иначе имя пакета. Имя и версия берутся из `packagedef`.
+ *
+ * @param manifest - Описание пакета
+ */
+export function autumnPropertiesOf(manifest: PackageManifest): Record<string, unknown> {
+	const appName = manifest.name?.trim();
+	const command = manifest.executables.find((item) => item.name?.trim())?.name?.trim();
+	const key = command || appName;
+	if (!key) {
+		return {};
+	}
+	const name = appName || key;
+	const version = manifest.version?.trim();
+	const properties: Record<string, string> = { ИмяПриложения: name };
+	if (version) {
+		properties.ПолноеИмяПриложения = `${name} v%{${key}.ВерсияПриложения}`;
+		properties.ВерсияПриложения = version;
+	}
+	return { [key]: properties };
+}
+
+/** Что пакет отдаёт наружу и откуда это читается. */
+export type PackageMemberKind = 'class' | 'module' | 'executable';
+
+/** Класс, модуль или программа с известными именем и файлом. */
+export interface PackageMember {
+	kind: PackageMemberKind;
+	name: string;
+	file: string;
+}
+
+/**
+ * Классы, модули и программы из `packagedef`.
+ *
+ * Запись без строкового имени или пути не попадает в список: её значение
+ * вычисляет сценарий, и из текста файла оно неизвестно.
+ *
+ * @param manifest - Описание пакета
+ */
+export function packageMembers(manifest: PackageManifest): PackageMember[] {
+	const members: PackageMember[] = [];
+	const add = (kind: PackageMemberKind, name: string | undefined, file: string | undefined): void => {
+		if (name && file) {
+			members.push({ kind, name, file });
+		}
+	};
+	for (const item of manifest.classes) {
+		add('class', item.name, item.file);
+	}
+	for (const item of manifest.modules) {
+		add('module', item.name, item.file);
+	}
+	for (const item of manifest.executables) {
+		add('executable', item.name ?? manifest.name, item.file);
+	}
+	return members;
+}
+
+/**
+ * Дописывает в `packagedef` объявление класса или модуля.
+ *
+ * @param source - Текст `packagedef`
+ * @param kind - Класс или модуль
+ * @param name - Имя
+ * @param file - Путь от корня пакета
+ */
+export function appendPackageMember(source: string, kind: 'class' | 'module', name: string, file: string): string {
+	const method = kind === 'class' ? 'ОпределяетКласс' : 'ОпределяетМодуль';
+	const newline = source.includes('\r\n') ? '\r\n' : '\n';
+	const line = `Описание.${method}("${name}", "${file}");`;
+	return `${source.replace(/\s*$/, '')}${newline}${line}${newline}`;
+}
+
+/**
+ * Убирает из `packagedef` объявление класса или модуля с этим именем.
+ *
+ * @param source - Текст `packagedef`
+ * @param kind - Класс или модуль
+ * @param name - Имя
+ */
+export function removePackageMember(source: string, kind: 'class' | 'module', name: string): string {
+	const method = kind === 'class' ? 'ОпределяетКласс' : 'ОпределяетМодуль';
+	const escaped = name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+	const call = new RegExp(String.raw`\.${method}\(\s*"${escaped}"\s*,\s*"[^"]*"\s*\)`, 'g');
+	const newline = source.includes('\r\n') ? '\r\n' : '\n';
+	return source
+		.replace(call, '')
+		.split(/\r?\n/)
+		.filter((line) => !/^\s*Описание\s*;\s*$/.test(line))
+		.join(newline);
 }
 
 /** Расширение файла собранного пакета. */

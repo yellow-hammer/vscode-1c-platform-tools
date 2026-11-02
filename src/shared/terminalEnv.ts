@@ -29,9 +29,8 @@ const log = logger.scope('vrunner');
 let collection: vscode.EnvironmentVariableCollection | undefined = undefined;
 
 /**
- * Каталог, добавленный в PATH последним: чтобы не писать в журнал одно и то же.
- * null — после подключения ничего не применялось: коллекция хранится между
- * сеансами, и первый вызов её обязательно обновляет или очищает.
+ * Каталог, уже записанный в PATH. null — после подключения ещё не применяли:
+ * коллекция хранится между сеансами.
  */
 let appliedBinDir: string | undefined | null = null;
 

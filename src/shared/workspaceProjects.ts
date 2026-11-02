@@ -61,8 +61,8 @@ export const DETECTING_CONTEXT = '1c-platform-tools.project.detecting';
 /** Ключ контекста: вид текущего проекта, пусто, пока он не известен. */
 export const PROJECT_KIND_CONTEXT = '1c-platform-tools.project.kind';
 
-/** Шаблон `packagedef` относительно каталога расширения. */
-export const PROJECT_FILE_TEMPLATE = path.join('resources', 'templates', 'packagedef.template');
+/** Шаблон `packagedef` проекта 1С относительно каталога расширения. */
+export const PROJECT_FILE_TEMPLATE = path.join('resources', 'templates', 'packagedef-1c.template');
 
 /** Шаблон `packagedef` проекта OneScript относительно каталога расширения. */
 export const ONESCRIPT_PROJECT_FILE_TEMPLATE = path.join('resources', 'templates', 'packagedef-onescript.template');

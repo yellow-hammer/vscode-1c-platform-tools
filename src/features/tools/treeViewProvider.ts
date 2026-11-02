@@ -3,7 +3,7 @@ import * as path from 'node:path';
 import * as fsSync from 'node:fs';
 import { WorkspaceTasksCommands } from '../../commands/workspaceTasksCommands';
 import { OscriptTasksCommands } from '../../commands/oscriptTasksCommands';
-import { SERVICE_FILES, resolveLaunchProfileSpec, serviceFilesWatchGlob } from '../serviceFiles/registry';
+import { resolveLaunchProfileSpec, serviceFilesFor, serviceFilesWatchGlob } from '../serviceFiles/registry';
 import { VRunnerManager } from '../../shared/vrunnerManager';
 import {
 	getSetVersionReportCommandName,
@@ -511,9 +511,12 @@ export class PlatformTreeDataProvider implements vscode.TreeDataProvider<Platfor
 		];
 
 		const schema = VRunnerManager.getInstance().getActiveSettingsSchema();
-		for (const staticSpec of SERVICE_FILES) {
+		const specs = serviceFilesFor(this.traits.has('onescript'));
+		for (const staticSpec of specs) {
 			// «Профиль запуска» указывает на файл схемы установленного vrunner
-			const spec = staticSpec.id === 'launchProfile' ? resolveLaunchProfileSpec(schema) : staticSpec;
+			const spec = staticSpec.id === 'launchProfile'
+				? resolveLaunchProfileSpec(schema, this.traits.has('onescript'))
+				: staticSpec;
 			const exists = workspaceRoot
 				? fsSync.existsSync(path.join(workspaceRoot, spec.relPath))
 				: false;
@@ -534,7 +537,7 @@ export class PlatformTreeDataProvider implements vscode.TreeDataProvider<Platfor
 			item.tooltip = exists ? `Открыть ${spec.relPath}` : `Создать ${spec.relPath}`;
 			items.push(item);
 			// Типовые цепочки наполняют .1cpt/pipelines.json, поэтому стоят сразу за ним
-			if (spec.id === 'pipelines') {
+			if (spec.id === 'pipelines' && !this.traits.has('onescript')) {
 				items.push(await this.createPipelineTemplatesItem(workspaceRoot));
 			}
 		}
@@ -564,9 +567,7 @@ export class PlatformTreeDataProvider implements vscode.TreeDataProvider<Platfor
 			undefined,
 			installed ? 'check' : 'add'
 		);
-		item.tooltip = installed
-			? 'Обновить типовые цепочки до поставляемых с расширением'
-			: 'Добавить в проект типовые цепочки шагов';
+		item.tooltip = installed ? 'Обновить типовые цепочки' : 'Добавить типовые цепочки';
 		return item;
 	}
 

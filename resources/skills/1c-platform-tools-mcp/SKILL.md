@@ -17,7 +17,7 @@ description: Инструменты MCP сервера mcp-1c-platform-tools. И
 |---|---|---|
 | `project_list` | `wait` | Проекты окна: корень, имя, `kind` (`designer`, `edt`, `onec`, `onescript`), текущий проект и `candidates` без `packagedef`. `projectPath` нет |
 | `project_select` | `root`, `wait` | Делает проект текущим, в том числе у пользователя. `root` — корень из `project_list`. `projectPath` нет |
-| `project_init` | `projectPath`, `wait` | Создаёт `packagedef` в каталоге `projectPath` и делает проект текущим. `projectPath` обязателен. Существующий `packagedef` не перезаписывается |
+| `project_init` | `projectPath`, `wait` | Создаёт `packagedef` в каталоге `projectPath` и делает проект текущим. Пустой каталог — описание проекта 1С, каталог с файлами `.os` или каталогами классов и модулей — описание пакета OneScript. `projectPath` обязателен. Существующий `packagedef` не перезаписывается |
 
 У остальных инструментов `projectPath` необязателен: без него вызов идёт в текущем проекте и текущий проект не меняет. Относительный путь считается от текущего. Тот же `packagedef` создаёт `deps_initPackagedef`.
 
@@ -175,8 +175,9 @@ description: Инструменты MCP сервера mcp-1c-platform-tools. И
 | `deps_remove` | `1c-platform-tools.dependencies.remove` | без исхода |
 | `package_build` | `1c-platform-tools.package.build` | результат |
 | `package_install` | `1c-platform-tools.package.install` | результат |
+| `package_push` | `1c-platform-tools.package.push` | результат |
 
-`deps_initPackagedef` совпадает с `project_init`: обязательный `projectPath`, создаёт `packagedef`. `deps_install` ставит зависимости по `packagedef`, `deps_installOscript` ставит OneScript рядом с другими версиями. К `opm install` в терминале переходи, когда этих инструментов нет. `package_build` собирает пакет OneScript проекта в `build/out/ospx` и возвращает путь к нему в `artifact`. `package_install` ставит собранный пакет в движок проекта: пакет версии из `packagedef`, иначе самый новый. Ставь пакет после того, как `package_build` с `wait: true` вернул результат.
+`deps_initPackagedef` совпадает с `project_init`: обязательный `projectPath`, создаёт `packagedef`. Пустой каталог получает описание проекта 1С, каталог с файлами `.os` или каталогами классов и модулей — описание пакета OneScript. `deps_install` ставит зависимости по `packagedef`, `deps_installOscript` ставит OneScript рядом с другими версиями. К `opm install` в терминале переходи, когда этих инструментов нет. `deps_initProjStruct` у проекта OneScript создаёт `src/Классы`, `src/Модули`, `tests`, `src/main.os` и `tests/oscript.cfg`; у проекта 1С — каталоги шаблона. Класс клади в `src/Классы`, модуль в `src/Модули`. `package_build` собирает пакет OneScript проекта в `build/out/ospx` и возвращает путь к нему в `artifact`. `package_install` ставит собранный пакет в движок проекта: пакет версии из `packagedef`, иначе самый новый. Ставь пакет после того, как `package_build` с `wait: true` вернул результат. `package_push` публикует пакет: токен `GITHUB_OAUTH_TOKEN` и канал `OPM_HUB_CHANNEL` берутся из окружения запуска.
 
 ## Окружение и служебные файлы
 

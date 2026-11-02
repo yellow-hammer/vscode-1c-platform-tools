@@ -14,6 +14,8 @@ import {
 	MetadataTreeDataProvider,
 	defaultMetadataLeafOpenCommand,
 	extensionDirsOf,
+	externalSignature,
+	externalSourcesFromLayout,
 	isMetadataCommonForm,
 	objectModuleFilePath,
 	objectModuleKindsForType,
@@ -26,6 +28,7 @@ import { resolveMetadataOpen, type ProjectMetadataTreeDto } from '../../features
 import { metadataLeafReadsObjectProperties } from '../../features/properties/metadataPaletteSource';
 import { createMockExtensionContext } from '../fixtures/mocks/vscodeMocks';
 import { configurationScope } from '../../shared/activeConfiguration';
+import { resolveProjectLayout } from '../../shared/projectLayout';
 import { invalidateProjectLayout } from '../../shared/projectLayout';
 
 suite('metadataTreeView subsystem filter', () => {
@@ -794,15 +797,42 @@ suite('metadataTreeView: раскладка проекта', () => {
 		const internals = provider as unknown as {
 			_contentConfigurationDir?: string;
 			_contentExtensionDirs?: readonly string[];
+			_contentExternalKey?: string;
 		};
 		internals._contentConfigurationDir = scope.configuration?.dir;
 		internals._contentExtensionDirs = extensionDirsOf(scope);
+		internals._contentExternalKey = externalSignature(await resolveProjectLayout(workspace));
 		let fired = 0;
 		provider.onDidChangeTreeData(() => fired++);
 
 		await provider.syncWithProjectLayout();
 
 		assert.strictEqual(fired, 0);
+	});
+
+	test('внешние отчёты и обработки без конфигурации становятся источниками дерева', async () => {
+		const mixed = externalSourcesFromLayout(
+			path.join(LAYOUTS, 'mixed-externals'),
+			await resolveProjectLayout(path.join(LAYOUTS, 'mixed-externals'))
+		);
+		assert.deepStrictEqual(mixed.sources.map((source) => source.kind), ['externalEpf']);
+		assert.deepStrictEqual(
+			mixed.sources[0].groups[0].items.map((item) => `${item.name} ${item.relativePath}`),
+			[
+				'Загрузка src/epf/Загрузка/src/ExternalDataProcessors/Загрузка/Загрузка.mdo',
+				'Печать src/epf/Печать/Печать.xml',
+			]
+		);
+
+		const designer = externalSourcesFromLayout(
+			path.join(LAYOUTS, 'designer'),
+			await resolveProjectLayout(path.join(LAYOUTS, 'designer'))
+		);
+		assert.deepStrictEqual(designer.sources.map((source) => source.label), ['Внешние отчёты', 'Внешние обработки']);
+		assert.deepStrictEqual(
+			designer.sources.flatMap((source) => source.groups.flatMap((group) => group.items.map((item) => item.name))),
+			['ОстаткиТоваров', 'ОтчётПоОстаткам', 'ПечатьСчёта', 'Тесты_Арифметика']
+		);
 	});
 
 	test('раскладка с новым расширением дерево перерисовывает', async () => {

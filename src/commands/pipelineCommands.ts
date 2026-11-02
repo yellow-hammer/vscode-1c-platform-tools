@@ -16,6 +16,7 @@ import { logger } from '../shared/logger';
 import { commandSupportsWait } from '../shared/mcpCommandPolicy';
 import { commandTitle } from '../shared/commandCatalog';
 import { readPipelines, writePipelines, pipelinesFilePath } from '../shared/pipelines/pipelineFile';
+import { isOneScriptProject } from '../shared/workspaceProjects';
 import {
 	mergePipelineTemplates,
 	mergeSummary,
@@ -272,6 +273,10 @@ export class PipelineCommands extends BaseCommand {
 	async addTemplates(): Promise<void> {
 		const workspaceRoot = this.ensureWorkspace();
 		if (!workspaceRoot) {
+			return;
+		}
+		if (isOneScriptProject(workspaceRoot)) {
+			void vscode.window.showInformationMessage('Эти цепочки для проекта 1С.');
 			return;
 		}
 		const extensionPath = this.vrunner.getExtensionPath();

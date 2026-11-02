@@ -19,7 +19,7 @@ description: "Операции с платформой 1С в этом прое�
 
 Проект — каталог с `packagedef`. `project_list` возвращает проекты, вид `kind` (`designer`, `edt`, `onec`, `onescript`) и текущий. `project_select` с `root` делает проект текущим, в том числе у пользователя. `project_list` и `project_select` параметра `projectPath` не имеют. Без `wait` команда списка открывает окно выбора у человека; у MCP `wait: true` по умолчанию, список приходит в ответ.
 
-`project_init` и `deps_initPackagedef` создают `packagedef` в обязательном `projectPath` и делают проект текущим. Для Execute Command каталог можно передать и полем `root`. Существующий `packagedef` не перезаписывается.
+`project_init` и `deps_initPackagedef` создают `packagedef` в обязательном `projectPath` и делают проект текущим. Пустой каталог получает описание проекта 1С, каталог с файлами `.os` или каталогами классов и модулей — описание пакета OneScript. Для Execute Command каталог можно передать и полем `root`. Существующий `packagedef` не перезаписывается.
 
 | Задача | Command ID | MCP |
 |---|---|---|
@@ -115,19 +115,23 @@ description: "Операции с платформой 1С в этом прое�
 | Создать packagedef | `1c-platform-tools.dependencies.initializePackagedef` | `deps_initPackagedef` |
 | Создать каталоги проекта | `1c-platform-tools.dependencies.initializeProjectStructure` | `deps_initProjStruct` |
 | Установить OneScript | `1c-platform-tools.dependencies.installOscript` | `deps_installOscript` |
-| Выбрать версию OneScript проекта | `1c-platform-tools.dependencies.selectOscript` | нет |
-| Обновить opm | `1c-platform-tools.dependencies.updateOpm` | `deps_updateOpm` |
+| Обновить пакетный менеджер | `1c-platform-tools.dependencies.updateOpm` | `deps_updateOpm` |
 | Установить зависимости | `1c-platform-tools.dependencies.install` | `deps_install` |
 | Удалить зависимости | `1c-platform-tools.dependencies.remove` | `deps_remove` |
 | Настроить Git | `1c-platform-tools.dependencies.setupGit` | нет |
 | Собрать пакет OneScript | `1c-platform-tools.package.build` | `package_build` |
 | Установить собранный пакет | `1c-platform-tools.package.install` | `package_install` |
+| Опубликовать пакет | `1c-platform-tools.package.push` | `package_push` |
+
+`project_init` и `deps_initPackagedef` создают `packagedef` в обязательном `projectPath` и делают проект текущим. Пустой каталог получает описание проекта 1С, каталог с файлами `.os` или каталогами классов и модулей — описание пакета OneScript. Существующий `packagedef` не перезаписывается. Для Execute Command каталог можно передать и полем `root`.
+
+`deps_initProjStruct` у проекта OneScript создаёт `src/Классы`, `src/Модули`, `tests`, `src/main.os` и `tests/oscript.cfg`. У проекта 1С — каталоги шаблона и README. Существующие файлы не перезаписываются. Класс клади в `src/Классы`, модуль в `src/Модули`: объявление в `packagedef` дописывает инициализация каталогов. Исход в ответ не входит.
 
 Зависимости ставь через `deps_install`. Если oscript уже есть, `deps_installOscript` не вызывай: он ставит интерпретатор. К `opm install` в терминале переходи, когда MCP недоступен. Git-мастер агенту недоступен: настраивай git командами git.
 
 Движок OneScript у каждого проекта свой: `components.path.oscript`; установка OVM, выбранная для проекта; движок машины (текущая установка OVM, иначе `oscript` из PATH), если он не ниже `ВерсияСреды` в `packagedef`; иначе установка по `ВерсияСреды`. Если подходящей установки нет, остаётся движок машины, и opm откажется ставить пакет: скажи человеку, что нужна версия не ниже `ВерсияСреды`. Версию проекта выбирает человек в палитре; `deps_installOscript` ставит версию рядом с остальными, а машину переключает только первая установка, когда `current` OVM ещё нет. Движок по пути агент задаёт настройкой `components.path.oscript`.
 
-`package_build` собирает `<Имя>-<Версия>.ospx` в `build/out/ospx`, `package_install` ставит собранный пакет в движок проекта. Публикацию `opm push` делает CI.
+`package_build` собирает `<Имя>-<Версия>.ospx` в `build/out/ospx`, `package_install` ставит собранный пакет в движок проекта. `package_push` публикует пакет: токен `GITHUB_OAUTH_TOKEN` и канал `OPM_HUB_CHANNEL` берутся из окружения запуска.
 
 ## Запуск, сервер, отладка
 

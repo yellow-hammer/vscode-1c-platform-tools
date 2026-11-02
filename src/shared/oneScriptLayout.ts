@@ -1,8 +1,8 @@
 /**
  * Раскладка проекта OneScript: описание пакета, каталоги тестов, задач и зависимостей.
  *
- * Задачи и зависимости лежат там, где их ищет opm: каталог из `.Задачи(...)`,
- * иначе `tasks`, и `oscript_modules` в корне проекта. Скриптовые тесты маркеров
+ * Задачи лежат в каталоге из настройки `path.onescriptTasks`, по умолчанию `tasks`.
+ * Зависимости — в `oscript_modules` в корне проекта. Скриптовые тесты маркеров
  * не имеют, их каталог задаёт настройка, по умолчанию это каталог тестов проекта.
  *
  * Описание читается без ожидания и запоминается до изменения файла: его
@@ -21,7 +21,7 @@ import { currentRoot } from './workspaceProjects';
 /** Каталог зависимостей проекта: сюда их ставит `opm install -l`. */
 export const MODULES_DIRECTORY = 'oscript_modules';
 
-/** Каталог задач `opm run`. */
+/** Каталог задач OneScript, если настройка пустая. */
 export const TASKS_DIRECTORY = 'tasks';
 
 /** Каталог исходного кода пакета по соглашению. */
@@ -75,13 +75,13 @@ export function oneScriptTestsPath(root: string | undefined = currentRoot()): st
 }
 
 /**
- * Каталог задач `opm run`: `Задачи` из packagedef, иначе `tasks`.
+ * Каталог задач OneScript: настройка `path.onescriptTasks`, пустое значение — `tasks`.
  *
  * @param root - Корень проекта
- * @param manifest - Описание пакета; по умолчанию читается из packagedef
  */
-export function oneScriptTasksDirectory(root: string, manifest: PackageManifest | undefined = readPackageManifest(root)): string {
-	return path.resolve(root, manifest?.tasks ?? TASKS_DIRECTORY);
+export function oneScriptTasksDirectory(root: string): string {
+	const configured = projectConfiguration(root).get<string>('path.onescriptTasks', TASKS_DIRECTORY).trim();
+	return path.resolve(root, configured.length > 0 ? configured : TASKS_DIRECTORY);
 }
 
 /** Каталоги, по которым загрузчик библиотек OneScript находит классы и модули пакета. */

@@ -9,7 +9,7 @@ const INITIALIZE_ACTION = 'Инициализировать проект';
 const OPEN_LIST_ACTION = 'Открыть проект из списка';
 
 /**
- * Создаёт handler с пользовательским уведомлением, если в окне нет проекта 1С.
+ * Создаёт handler с уведомлением, если в окне нет packagedef.
  */
 export function createShowNot1CProjectMessage(): () => void {
 	return (): void => {

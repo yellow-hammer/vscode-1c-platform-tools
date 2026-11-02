@@ -24,9 +24,9 @@ import {
 	getInitializePackagedefCommandName,
 	getInitializeProjectStructureCommandName,
 	getInstallOneScriptCommandName,
-	getSelectOneScriptCommandName,
 	getBuildPackageCommandName,
 	getInstallPackageCommandName,
+	getPushPackageCommandName,
 	getOneScriptTestsCommandName,
 	getSetupGitCommandName,
 	getUpdateOpmCommandName,
@@ -147,6 +147,17 @@ export interface TreeGroup {
  */
 export const TREE_GROUPS: TreeGroup[] = [
 	{
+		groupLabel: 'Пакет',
+		sectionType: 'package',
+		defaultCollapsibleState: 'collapsed',
+		projects: PACKAGE,
+		commands: [
+			{ command: '1c-platform-tools.package.build', title: getBuildPackageCommandName().title, treeLabel: '📦 Собрать пакет' },
+			{ command: '1c-platform-tools.package.install', title: getInstallPackageCommandName().title, treeLabel: '📥 Установить собранный пакет' },
+			{ command: '1c-platform-tools.package.push', title: getPushPackageCommandName().title, treeLabel: '📤 Опубликовать пакет' },
+		],
+	},
+	{
 		groupLabel: 'Информационная база',
 		sectionType: 'infobase',
 		defaultCollapsibleState: 'collapsed',
@@ -252,26 +263,15 @@ export const TREE_GROUPS: TreeGroup[] = [
 		projects: ANY,
 		commands: [
 			{ command: '1c-platform-tools.dependencies.initializePackagedef', title: getInitializePackagedefCommandName().title, treeLabel: '📝 Инициализировать проект' },
-			{ command: '1c-platform-tools.dependencies.initializeProjectStructure', title: getInitializeProjectStructureCommandName().title, treeLabel: '📁 Инициализировать структуру проекта', projects: ONEC },
+			{ command: '1c-platform-tools.dependencies.initializeProjectStructure', title: getInitializeProjectStructureCommandName().title, treeLabel: '📁 Инициализировать структуру проекта' },
 			{ command: '1c-platform-tools.dependencies.setupGit', title: getSetupGitCommandName().title, treeLabel: '🔧 Настроить Git' },
 			{ command: '1c-platform-tools.components.setGithubToken', title: 'Указать токен GitHub', treeLabel: '🔑 Указать токен GitHub' },
 			{ command: '1c-platform-tools.components.forgetGithubToken', title: 'Забыть токен GitHub', treeLabel: '🔓 Забыть токен GitHub' },
 			{ command: '1c-platform-tools.components.update', title: 'Обновить внешние компоненты', treeLabel: '🔄 Обновить внешние компоненты' },
 			{ command: '1c-platform-tools.dependencies.installOscript', title: getInstallOneScriptCommandName().title, treeLabel: '📦 Установить OneScript' },
-			{ command: '1c-platform-tools.dependencies.selectOscript', title: getSelectOneScriptCommandName().title, treeLabel: '🔀 Выбрать версию OneScript' },
-			{ command: '1c-platform-tools.dependencies.updateOpm', title: getUpdateOpmCommandName().title, treeLabel: '📦 Обновить пакетный менеджер opm' },
+			{ command: '1c-platform-tools.dependencies.updateOpm', title: getUpdateOpmCommandName().title, treeLabel: '📦 Обновить пакетный менеджер' },
 			{ command: '1c-platform-tools.dependencies.install', title: getInstallDependenciesCommandName().title, treeLabel: '📦 Установить зависимости' },
 			{ command: '1c-platform-tools.dependencies.remove', title: getRemoveDependenciesCommandName().title, treeLabel: '🗑️ Удалить зависимости' },
-		],
-	},
-	{
-		groupLabel: 'Пакет',
-		sectionType: 'package',
-		defaultCollapsibleState: 'collapsed',
-		projects: PACKAGE,
-		commands: [
-			{ command: '1c-platform-tools.package.build', title: getBuildPackageCommandName().title, treeLabel: '📦 Собрать пакет' },
-			{ command: '1c-platform-tools.package.install', title: getInstallPackageCommandName().title, treeLabel: '📥 Установить собранный пакет' },
 		],
 	},
 	{
@@ -345,13 +345,13 @@ export const TREE_GROUPS: TreeGroup[] = [
 		groupLabel: 'Служебные файлы',
 		sectionType: 'serviceFiles',
 		defaultCollapsibleState: 'collapsed',
-		projects: ONEC,
+		projects: ANY,
 		commands: [
 			{ command: '1c-platform-tools.serviceFiles.create', title: 'Создать служебные файлы', treeLabel: 'Создать служебные файлы' },
 			{ command: '1c-platform-tools.serviceFiles.createRecommendedSet', title: 'Создать базовый набор служебных файлов', treeLabel: 'Базовый набор' },
 			{ command: '1c-platform-tools.serviceFiles.createGitignore', title: 'Создать .gitignore', treeLabel: '.gitignore' },
 			{ command: '1c-platform-tools.serviceFiles.createGitattributes', title: 'Создать .gitattributes', treeLabel: '.gitattributes' },
-			{ command: '1c-platform-tools.serviceFiles.createEnvJson', title: 'Создать env.json', treeLabel: 'env.json' },
+			{ command: '1c-platform-tools.serviceFiles.createEnvJson', title: 'Создать env.json', treeLabel: 'env.json', projects: ONEC },
 		],
 	},
 	{

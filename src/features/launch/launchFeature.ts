@@ -55,7 +55,7 @@ import type { StructuredCommandResult } from '../../shared/commandExecutionTypes
 const log = logger.scope('launch');
 
 /** Приложение на Осени читает свой autumn-properties.json само: другой файл ему не подставить */
-const ONE_PROFILE_MESSAGE = 'У проекта OneScript профиль один — autumn-properties.json приложения на Осени.';
+const ONE_PROFILE_MESSAGE = 'У проекта OneScript профиль один — autumn-properties.json.';
 
 /** Изменяемая ссылка на признак проекта 1С */
 interface ProjectRef {

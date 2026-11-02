@@ -15,7 +15,7 @@ import { fillWebviewTemplate, loadWebviewTemplate } from '../../shared/webviewTe
 export const ARTIFACT_PREVIEW_VIEW_TYPE = '1c-platform-tools.artifactPreview';
 
 /** Сообщения из карточки в расширение */
-type WebviewMessage = { type: 'decompile' } | { type: 'reveal' };
+type WebviewMessage = { type: 'decompile' } | { type: 'install' } | { type: 'reveal' };
 
 export class ArtifactPreviewProvider implements vscode.CustomReadonlyEditorProvider {
 	private constructor(
@@ -65,8 +65,12 @@ export class ArtifactPreviewProvider implements vscode.CustomReadonlyEditorProvi
 		webviewPanel.onDidDispose(() => watcher.dispose());
 
 		webview.onDidReceiveMessage(async (message: WebviewMessage) => {
-			if (message.type === 'decompile' && kind) {
+			if (message.type === 'decompile' && kind?.decompileCommand) {
 				await vscode.commands.executeCommand(kind.decompileCommand, { resourceUri: uri });
+				return;
+			}
+			if (message.type === 'install' && kind?.install) {
+				await vscode.commands.executeCommand('1c-platform-tools.package.install', { resourceUri: uri });
 				return;
 			}
 			if (message.type === 'reveal') {
@@ -93,7 +97,7 @@ async function buildHtml(
 ): Promise<string> {
 	const nonce = Math.random().toString(36).slice(2);
 	const icon = (theme: string[]): string =>
-		kind ? webview.asWebviewUri(vscode.Uri.joinPath(iconsRoot, ...theme, kind.icon)).toString() : '';
+		kind?.icon ? webview.asWebviewUri(vscode.Uri.joinPath(iconsRoot, ...theme, kind.icon)).toString() : '';
 	const rows: Array<[string, string]> = stat
 		? [
 				['Размер', formatBytes(String(stat.size))],
@@ -101,7 +105,7 @@ async function buildHtml(
 				['Путь', vscode.workspace.asRelativePath(uri, false)],
 			]
 		: [['Путь', vscode.workspace.asRelativePath(uri, false)]];
-	const icons = kind
+	const icons = kind?.icon
 		? `<img class="light" src="${icon([])}" alt=""><img class="dark" src="${icon(['dark'])}" alt="">`
 		: '';
 	const template = await loadWebviewTemplate(extensionUri, 'artifact-preview.html');
@@ -113,6 +117,7 @@ async function buildHtml(
 		KIND: escapeHtml(kind?.label ?? 'Файл 1С'),
 		MISSING: stat ? '' : '<div class="missing">Файл не найден</div>',
 		ROWS: rows.map(([name, value]) => `<dt>${name}</dt><dd>${escapeHtml(value)}</dd>`).join(''),
-		DECOMPILE: kind && stat ? '<button data-message="decompile">Разобрать</button>' : '',
+		DECOMPILE: kind?.decompileCommand && stat ? '<button data-message="decompile">Разобрать</button>' : '',
+		INSTALL: kind?.install && stat ? '<button data-message="install">Установить</button>' : '',
 	});
 }

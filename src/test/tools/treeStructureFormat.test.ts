@@ -77,7 +77,7 @@ suite('дерево команд под вид проекта', () => {
 		TREE_GROUPS.filter((item) => item.sectionType !== 'helpAndSupport' && groupVisibleFor(item, traits)).map((item) => item.sectionType);
 
 	test('у проекта OneScript зависимости, пакет, тесты и навыки, групп платформы нет', () => {
-		assert.deepStrictEqual(visibleGroups(oneScript), ['dependency', 'package', 'test', 'skills']);
+		assert.deepStrictEqual(visibleGroups(oneScript), ['package', 'dependency', 'test', 'serviceFiles', 'skills']);
 	});
 
 	test('у проекта 1С группы платформы, пакет только у пакета OneScript', () => {
@@ -98,8 +98,9 @@ suite('дерево команд под вид проекта', () => {
 			'1c-platform-tools.test.mutatos',
 			'1c-platform-tools.test.allure',
 		]);
-		assert.ok(!commands('dependency').includes('1c-platform-tools.dependencies.initializeProjectStructure'));
-		assert.ok(commands('dependency').includes('1c-platform-tools.dependencies.selectOscript'));
+		assert.ok(commands('dependency').includes('1c-platform-tools.dependencies.initializeProjectStructure'));
+		assert.ok(!commands('serviceFiles').includes('1c-platform-tools.serviceFiles.createEnvJson'));
+		assert.ok(!commands('dependency').includes('1c-platform-tools.dependencies.selectOscript'));
 		assert.deepStrictEqual(commands('skills').sort(), [
 			'1c-platform-tools.mcp.configureCursor',
 			'1c-platform-tools.skills.add1cpt',

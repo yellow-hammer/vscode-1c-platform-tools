@@ -1,6 +1,6 @@
 ---
 name: 1c-platform-tools-tasks
-description: Задачи VS Code и задачи OneScript проекта 1С. Используй, когда пользователь просит открыть tasks.json или обновить список задач. Запуск задачи по имени этими инструментами агенту недоступен.
+description: Задачи VS Code и задачи OneScript. Используй, когда пользователь просит открыть tasks.json, обновить список задач или добавить файл задачи OneScript. Запуск задачи по имени этими инструментами агенту недоступен.
 ---
 
 # Задачи проекта
@@ -14,9 +14,9 @@ description: Задачи VS Code и задачи OneScript проекта 1С. 
 
 `tasks_edit` открывает `tasks.json`. `tasks_view` обновляет дерево.
 
-`1c-platform-tools.tasks.run` и `1c-platform-tools.tasks.runOscript` в MCP нет: имя задачи в вызов не передаётся. Человек запускает их из палитры. Файл задачи OneScript — `tasks/<имя>.os`.
+`1c-platform-tools.tasks.run` и `1c-platform-tools.tasks.runOscript` в MCP нет. Человек запускает их из палитры. Файл задачи OneScript лежит в каталоге из `path.onescriptTasks`, по умолчанию `tasks/<имя>.os`.
 
-Команда `1c-platform-tools.tasks.addOscript` спрашивает имя файла в окне и в MCP не публикуется. Новый файл создавай в каталоге `tasks` сам.
+Команда `1c-platform-tools.tasks.addOscript` спрашивает имя файла в окне и в MCP не публикуется. Новый файл создавай в этом каталоге сам.
 
 ## Примеры
 

@@ -206,15 +206,6 @@ export class ProjectArtifactsTreeDataProvider
 	}
 
 	private getSectionItems(result: ProjectArtifacts): ArtifactTreeItem[] {
-		const packages: SectionMeta = {
-			id: 'packages',
-			label: 'Пакеты',
-			icon: 'package',
-			count: result.packages.length,
-		};
-		if (result.oneScript) {
-			return [new SectionItem(packages.label, packages.count, packages.icon, packages.id, result)];
-		}
 		const sections: SectionMeta[] = [
 			{
 				id: 'configurations',
@@ -229,6 +220,12 @@ export class ProjectArtifactsTreeDataProvider
 				count: result.extensions.length,
 			},
 			{
+				id: 'packages',
+				label: 'Пакеты',
+				icon: 'package',
+				count: result.packages.length,
+			},
+			{
 				id: 'processors',
 				label: 'Внешние обработки',
 				icon: 'tools',
@@ -240,11 +237,15 @@ export class ProjectArtifactsTreeDataProvider
 				icon: 'file-text',
 				count: result.reports.length,
 			},
-			// У проекта 1С пакет бывает, когда он ещё и библиотека OneScript
-			...(packages.count > 0 ? [packages] : []),
 		];
-
-		return sections.map(
+		// У OneScript нет конфигурации и расширений. Пакеты есть, когда есть исходник или собранный файл.
+		// Обработки и отчёты те же разделы, что у проекта 1С, и стоят в конце.
+		const visible = result.oneScript
+			? sections.filter((section) =>
+				(section.id === 'packages' && section.count > 0) ||
+				((section.id === 'processors' || section.id === 'reports') && section.count > 0))
+			: sections.filter((section) => section.id !== 'packages' || section.count > 0);
+		return visible.map(
 			(s) => new SectionItem(s.label, s.count, s.icon, s.id, result)
 		);
 	}
@@ -265,7 +266,10 @@ export class ProjectArtifactsTreeDataProvider
 			case 'reports':
 				return this.buildArtifactItems(result.reports, viewMode, result.root);
 			case 'packages':
-				return this.buildArtifactItems(result.packages, viewMode, result.root);
+				return [
+					...this.buildArtifactItems(result.packages.filter((artifact) => artifact.kind === 'source'), viewMode, result.root),
+					...this.buildArtifactItems(result.packages.filter((artifact) => artifact.kind === 'binary'), viewMode, result.root),
+				];
 			default:
 				return [];
 		}
@@ -421,7 +425,11 @@ export class ProjectArtifactsTreeDataProvider
 		parentDirDescription?: string
 	): ArtifactTreeItem {
 		const label = a.name;
-		const icon = a.kind === 'source' ? 'folder' : a.type === 'package' ? 'package' : 'file';
+		const icon = a.type === 'package' && a.kind === 'binary'
+			? 'package'
+			: a.kind === 'source' && a.type !== 'package'
+				? 'folder'
+				: 'file';
 		const isBinary = a.kind === 'binary';
 		const openTargetUri = a.sourceEntryUri ?? a.uri;
 		return new ArtifactItem(
@@ -469,7 +477,7 @@ class ProjectItem extends vscode.TreeItem {
 }
 
 class SectionItem extends vscode.TreeItem {
-	/** Корень проекта раздела: сборка пакета из раздела идёт в нём. */
+	/** Корень проекта раздела. */
 	readonly projectRoot: string;
 
 	constructor(
@@ -488,8 +496,7 @@ class SectionItem extends vscode.TreeItem {
 		this.projectRoot = result.root;
 		this.description = count > 0 ? String(count) : undefined;
 		this.iconPath = new vscode.ThemeIcon(icon);
-		// У раздела пакетов в строке кнопка сборки
-		this.contextValue = sectionId === 'packages' ? 'artifactsPackagesSection' : 'artifactsSection';
+		this.contextValue = 'artifactsSection';
 	}
 }
 
@@ -540,13 +547,10 @@ class ArtifactItem extends vscode.TreeItem {
 		const marks = [parentDirDescription, format === 'edt' ? 'EDT' : undefined].filter((mark) => mark);
 		this.description = marks.length > 0 ? marks.join(' · ') : undefined;
 		this.contextValue = `artifacts${artifactType.charAt(0).toUpperCase()}${artifactType.slice(1)}${_isBinary ? 'Binary' : 'Source'}`;
-		// Пакет это архив: в редакторе открывать нечего, действия в меню строки
-		if (artifactType !== 'package') {
-			this.command = {
-				command: 'vscode.open',
-				title: 'Открыть',
-				arguments: [openTargetUri],
-			};
-		}
+		this.command = {
+			command: 'vscode.open',
+			title: 'Открыть',
+			arguments: [openTargetUri],
+		};
 	}
 }

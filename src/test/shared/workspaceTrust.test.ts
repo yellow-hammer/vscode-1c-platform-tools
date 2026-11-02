@@ -449,6 +449,7 @@ suite('настройки, которые задают программу или
 		'vrunner.path.initSettings': 'файл настроек инициализации, не программа',
 		'path.out': 'каталог сборки',
 		'path.dist': 'каталог поставки',
+		'path.onescriptTasks': 'каталог задач',
 		'projects.path.baseFolders': 'каталоги поиска проектов',
 		'projects.path.storage': 'файл списка проектов',
 		'projects.filterOnFullPath': 'поиск по списку проектов',

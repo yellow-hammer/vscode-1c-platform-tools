@@ -414,10 +414,6 @@ export function registerCommands(
 		registerProjectCommand('1c-platform-tools.dependencies.installOscript', () => {
 			commands.dependencies.installOscript();
 		}),
-		registerProjectCommand('1c-platform-tools.dependencies.selectOscript', uiOnlyHandler(
-			'Версию OneScript проекта выбирает пользователь. Движок по пути задаёт настройка components.path.oscript.',
-			() => commands.dependencies.selectOscript()
-		)),
 		registerProjectCommand('1c-platform-tools.dependencies.updateOpm', () => {
 			commands.dependencies.updateOpm();
 		}),
@@ -596,6 +592,11 @@ export function registerCommands(
 			const opts = agentOptionsOf(target);
 			const file = opts ? undefined : packageFileArgument(target);
 			return inProjectOf(file, () => commands.package.installPackage(file, opts));
+		}),
+		vscode.commands.registerCommand('1c-platform-tools.package.push', (target?: unknown) => {
+			const opts = agentOptionsOf(target);
+			const file = opts ? undefined : packageFileArgument(target);
+			return inProjectOf(file, () => commands.package.pushPackage(file, opts));
 		}),
 	];
 

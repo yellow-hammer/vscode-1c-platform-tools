@@ -239,8 +239,8 @@ export function getAddXunitSkillsCommandName(): CommandNameAndTitle {
 export function getUpdateOpmCommandName(): CommandNameAndTitle {
 	return {
 		id: '1c-platform-tools.dependencies.updateOpm',
-		name: 'Обновить пакетный менеджер opm',
-		title: 'Обновить пакетный менеджер opm'
+		name: 'Обновить пакетный менеджер',
+		title: 'Обновить пакетный менеджер'
 	};
 }
 
@@ -252,17 +252,6 @@ export function getInstallOneScriptCommandName(): CommandNameAndTitle {
 		id: '1c-platform-tools.dependencies.installOscript',
 		name: 'Установить OneScript',
 		title: 'Установить OneScript'
-	};
-}
-
-/**
- * Получить название и заголовок для команды выбора версии OneScript проекта
- */
-export function getSelectOneScriptCommandName(): CommandNameAndTitle {
-	return {
-		id: '1c-platform-tools.dependencies.selectOscript',
-		name: 'Выбрать версию OneScript',
-		title: 'Выбрать версию OneScript'
 	};
 }
 
@@ -285,6 +274,17 @@ export function getInstallPackageCommandName(): CommandNameAndTitle {
 		id: '1c-platform-tools.package.install',
 		name: 'Установить пакет',
 		title: 'Установить пакет'
+	};
+}
+
+/**
+ * Получить название и заголовок для команды публикации пакета OneScript (opm push)
+ */
+export function getPushPackageCommandName(): CommandNameAndTitle {
+	return {
+		id: '1c-platform-tools.package.push',
+		name: 'Опубликовать пакет',
+		title: 'Опубликовать пакет'
 	};
 }
 

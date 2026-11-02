@@ -1,4 +1,6 @@
 import * as assert from 'node:assert';
+import * as fs from 'node:fs';
+import * as os from 'node:os';
 import * as path from 'node:path';
 import { scanArtifacts, scanProjectArtifacts, type Artifact } from '../features/artifacts/artifactsScanner';
 import { isOutsideScanRoot, projectRelativePath } from '../features/artifacts/projectScan';
@@ -82,7 +84,28 @@ suite('артефакты: скан проектов', () => {
 
 		assert.strictEqual(result.oneScript, true);
 		assert.deepStrictEqual(names(result.packages), ['binary:пакет-0.1.0.ospx']);
-		assert.deepStrictEqual([...result.configurations, ...result.extensions, ...result.processors, ...result.reports], []);
+		assert.deepStrictEqual([...result.configurations, ...result.extensions], []);
+		assert.deepStrictEqual(names(result.processors), ['binary:Печать.epf']);
+	});
+
+	test('исполняемый файл пакета стоит исходником рядом с собранным пакетом', async () => {
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), 'ospx-'));
+		try {
+			fs.mkdirSync(path.join(root, 'src'));
+			fs.writeFileSync(path.join(root, 'src', 'main.os'), '');
+			fs.writeFileSync(
+				path.join(root, 'packagedef'),
+				'Описание.Имя("os").ИсполняемыйФайл("src/main.os", "os");'
+			);
+			fs.writeFileSync(path.join(root, 'os-0.1.0.ospx'), '');
+
+			const result = await scanProjectArtifacts({ root, excludeDirs: [] }, undefined, 'onescript');
+
+			assert.deepStrictEqual(names(result.packages), ['binary:os-0.1.0.ospx', 'source:main.os']);
+			assert.strictEqual(result.packages.find((artifact) => artifact.kind === 'source')?.relativePath, 'src/main.os');
+		} finally {
+			fs.rmSync(root, { recursive: true, force: true });
+		}
 	});
 
 	test('проект 1С: пакеты OneScript рядом с файлами 1С', async function () {

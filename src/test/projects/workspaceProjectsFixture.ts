@@ -10,7 +10,7 @@ import {
 import { instanceProjectsSource, type WorkspaceProjectsSource } from '../../features/projects/workspaceProjectsSource';
 
 export const FIXTURES = path.resolve(__dirname, '../../../src/test/fixtures/workspaceProjects');
-export const TEMPLATE = path.resolve(__dirname, '../../../resources/templates/packagedef.template');
+export const TEMPLATE = path.resolve(__dirname, '../../../resources/templates/packagedef-1c.template');
 export const ONESCRIPT_TEMPLATE = path.resolve(__dirname, '../../../resources/templates/packagedef-onescript.template');
 
 export const at = (...parts: string[]): string => normalizeProjectRoot(path.join(FIXTURES, ...parts));

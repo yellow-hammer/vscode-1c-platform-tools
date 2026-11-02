@@ -13,6 +13,7 @@ import {
 	resolveMetadataOpen,
 	type MetadataItemDto,
 	type MetadataObjectOpen,
+	type MetadataSourceDto,
 	type ProjectMetadataTreeDto,
 } from './metadataTreeService';
 import { ensureMdSparrowRuntime } from './mdSparrowBootstrap';
@@ -21,6 +22,15 @@ import { mdSparrowSchemaFlagFromConfigurationXml } from './mdSparrowSchemaVersio
 import { offerGithubTokenOnRateLimit } from '../../shared/githubToken';
 import { configurationScope, type ConfigurationScope } from '../../shared/activeConfiguration';
 import { detectProjectKind } from '../../shared/projectKind';
+import { externalEntry, resolveProjectLayout, type ExternalRoot, type ProjectLayout } from '../../shared/projectLayout';
+import {
+	OneScriptGroupTreeItem,
+	OneScriptMemberTreeItem,
+	OneScriptTaskTreeItem,
+	OneScriptTasksGroupTreeItem,
+	oneScriptPackageRoot,
+	oneScriptTasksGroup,
+} from './oneScriptPackageTree';
 import { currentRoot, outsideProject, projectByRoot, sameProjectRoot } from '../../shared/workspaceProjects';
 import { METADATA_EXPANDED_SOURCES_STATE, projectMemento } from '../../shared/projectState';
 import { ADOPTED_HINT, SUPPORT_HINTS, adoptedIcon, initAdoptedIcons, isAdopted, supportIcon } from './objectBelonging';
@@ -1395,7 +1405,7 @@ function themeIconFromGroupHint(hint: string): vscode.ThemeIcon {
 		question: 'question',
 	};
 	const id = map[hint] ?? 'folder';
-	return new vscode.ThemeIcon(id);
+	return new vscode.ThemeIcon(id, new vscode.ThemeColor('icon.foreground'));
 }
 
 /**
@@ -1458,9 +1468,7 @@ export function metadataCommandRoot(
 }
 
 /**
- * Проект OneScript: метаданных 1С у него нет. Пока обнаружение проектов не
- * закончено, вид берётся по `packagedef` и раскладке: иначе при открытии окна
- * дерево запустило бы md-sparrow и загрузку Java у проекта без 1С.
+ * Проект OneScript. Пока список проектов не готов, вид берётся по `packagedef` и раскладке.
  *
  * @param root - Корень проекта
  */
@@ -1477,6 +1485,71 @@ export function extensionDirsOf(scope: ConfigurationScope): readonly string[] {
 
 function sameExtensionDirs(left: readonly string[], right: readonly string[]): boolean {
 	return left.length === right.length && left.every((dir, index) => dir === right[index]);
+}
+
+/** Состав внешних отчётов и обработок: дерево перечитывается, когда он меняется. */
+export function externalSignature(layout: ProjectLayout): string {
+	return [...layout.processors, ...layout.reports, ...layout.testProcessors]
+		.map((item) => `${item.kind}:${item.format}:${item.name}:${item.dir}`)
+		.sort((left, right) => left.localeCompare(right))
+		.join('\n');
+}
+
+/**
+ * Внешние отчёты и обработки из раскладки, в том виде, в каком их отдаёт дерево.
+ *
+ * Выпущенный разбор без конфигурации до этих объектов не доходит. Раскладка их уже нашла.
+ */
+export function externalSourcesFromLayout(root: string, layout: ProjectLayout): ProjectMetadataTreeDto {
+	const objects = [...layout.processors, ...layout.reports, ...layout.testProcessors];
+	const reports = objects.filter((item) => item.kind === 'report').sort(byExternalName);
+	const processors = objects.filter((item) => item.kind === 'processor').sort(byExternalName);
+	const sources = [
+		externalSource(root, 'externalErf', 'external-erf', 'Внешние отчёты', 'report', 'ExternalReport', reports),
+		externalSource(root, 'externalEpf', 'external-epf', 'Внешние обработки', 'run-below', 'ExternalDataProcessor', processors),
+	].filter((source): source is MetadataSourceDto => source !== undefined);
+	return { projectRoot: root, mainSchemaVersion: '', mainSchemaVersionFlag: '', sources };
+}
+
+/** Разбор без конфигурации отказывает этой фразой и состав не отдаёт. */
+function sparrowRefusedWithoutConfiguration(message: string): boolean {
+	return message.split(/\r?\n/)[0].startsWith('Нет ни выгрузки конфигуратора');
+}
+
+function byExternalName(left: ExternalRoot, right: ExternalRoot): number {
+	return left.name.localeCompare(right.name, undefined, { sensitivity: 'base' });
+}
+
+function externalSource(
+	root: string,
+	kind: string,
+	id: string,
+	label: string,
+	iconHint: string,
+	objectType: string,
+	items: readonly ExternalRoot[]
+): MetadataSourceDto | undefined {
+	if (items.length === 0) {
+		return undefined;
+	}
+	return {
+		kind,
+		id,
+		label,
+		configurationXmlRelativePath: '',
+		metadataRootRelativePath: '',
+		schemaSupported: true,
+		groups: [{
+			id: 'content',
+			label: '',
+			iconHint,
+			items: items.map((item) => ({
+				objectType,
+				name: item.name,
+				relativePath: path.relative(root, externalEntry(item)).split(path.sep).join('/'),
+			})),
+		}],
+	};
 }
 
 export class MetadataTreeDataProvider implements vscode.TreeDataProvider<vscode.TreeItem> {
@@ -1521,8 +1594,10 @@ export class MetadataTreeDataProvider implements vscode.TreeDataProvider<vscode.
 	private _contentConfigurationDir: string | undefined;
 	/** Расширения, чей состав прочитан в дерево. Пусто, пока дерево ещё не читали. */
 	private _contentExtensionDirs: readonly string[] | undefined;
-	/** Дерево показывает проект OneScript: метаданных у него нет, md-sparrow не запускается. */
+	/** Дерево показывает пакет OneScript: состав пакета и внешние объекты. */
 	private _contentOneScript = false;
+	/** Внешние отчёты и обработки, уже показанные в дереве. */
+	private _contentExternalKey = '';
 	constructor(private readonly _context: vscode.ExtensionContext) {
 		initAdoptedIcons(path.join(_context.globalStorageUri.fsPath, 'metadata-tree-icons'));
 	}
@@ -1538,7 +1613,7 @@ export class MetadataTreeDataProvider implements vscode.TreeDataProvider<vscode.
 		await refreshing;
 	}
 
-	/** Раскладка проекта изменилась: дерево перечитывается, когда сменились конфигурация или расширения. */
+	/** Раскладка проекта изменилась: дерево перечитывается, когда сменились конфигурация, расширения или внешние объекты. */
 	async syncWithProjectLayout(): Promise<void> {
 		const root = this._workspaceRoot;
 		if (!root) {
@@ -1546,10 +1621,12 @@ export class MetadataTreeDataProvider implements vscode.TreeDataProvider<vscode.
 		}
 		try {
 			const scope = await configurationScope(root);
+			const externalKey = externalSignature(await resolveProjectLayout(root));
 			if (
 				(await isOneScriptRoot(root)) !== this._contentOneScript
 				|| scope.configuration?.dir !== this._contentConfigurationDir
 				|| !sameExtensionDirs(this._contentExtensionDirs ?? [], extensionDirsOf(scope))
+				|| externalKey !== this._contentExternalKey
 			) {
 				await this.refresh();
 			}
@@ -1569,10 +1646,10 @@ export class MetadataTreeDataProvider implements vscode.TreeDataProvider<vscode.
 	}
 
 	/**
-	 * Запоминает, раскрыт ли источник. Хранится только верхний уровень: глубже узлы создаются
+	 * Запоминает, раскрыт ли узел верхнего уровня. Хранится только он: глубже узлы создаются
 	 * по мере раскрытия, и восстанавливать их всё равно нечем.
 	 *
-	 * @param sourceId Идентификатор источника: основная конфигурация, расширение, внешние файлы.
+	 * @param sourceId Идентификатор: конфигурация, расширение, внешние файлы или группа OneScript.
 	 */
 	rememberSourceExpanded(sourceId: string, expanded: boolean): void {
 		const current = this.expandedSources() ?? new Set(
@@ -1674,6 +1751,47 @@ export class MetadataTreeDataProvider implements vscode.TreeDataProvider<vscode.
 		return this._sourceItems.find((item) => item.sourceKind === 'main');
 	}
 
+	/**
+	 * Тот же `project-metadata-tree`, что у проекта 1С: каталоги берёт раскладка.
+	 * В дереве OneScript остаются только внешние отчёты и обработки.
+	 * Конфигурации в таком проекте нет, и отказ из-за её отсутствия в дерево не попадает:
+	 * объекты берутся из раскладки.
+	 */
+	private async readOneScriptExternals(root: string, generation: number): Promise<void> {
+		let layout: ProjectLayout;
+		try {
+			layout = await resolveProjectLayout(root);
+			this._contentExternalKey = externalSignature(layout);
+		} catch (error) {
+			log.warn(`раскладка: ${error instanceof Error ? error.message : String(error)}`);
+			return;
+		}
+		if (generation !== this._refreshGeneration) {
+			return;
+		}
+		try {
+			const dto = await loadProjectMetadataTree(this._context, root);
+			if (generation !== this._refreshGeneration) {
+				return;
+			}
+			this.applyExternalSources(root, dto);
+		} catch (error) {
+			if (generation !== this._refreshGeneration) {
+				return;
+			}
+			log.warn(`внешние объекты: ${error instanceof Error ? error.message : String(error)}`);
+			this.applyExternalSources(root, externalSourcesFromLayout(root, layout));
+		}
+	}
+
+	/** Оставляет в дереве OneScript только внешние отчёты и обработки. */
+	private applyExternalSources(root: string, dto: ProjectMetadataTreeDto): void {
+		const sources = dto.sources.filter((source) => source.kind === 'externalErf' || source.kind === 'externalEpf');
+		const external = { ...dto, sources };
+		this._dto = external;
+		this.rebuildItemCache(root, external);
+	}
+
 	async refresh(): Promise<void> {
 		const generation = ++this._refreshGeneration;
 		this._lastError = undefined;
@@ -1691,11 +1809,18 @@ export class MetadataTreeDataProvider implements vscode.TreeDataProvider<vscode.
 		this._tabularAttrsByNode.clear();
 		this._nestedSubsystemChildrenByLeaf.clear();
 		this._subsystemsBySource.clear();
+		this._osGeneration++;
+		this._osGroups = [];
+		this._osTasks = undefined;
+		this._osNotice = undefined;
+		this._osCacheRoot = undefined;
+		this._osLoaded = false;
 
 		const root = this.selectedRoot();
 		this._workspaceRoot = root;
 		if (!root) {
 			this._contentOneScript = false;
+			this._contentExternalKey = '';
 			this._notice = 'Нет открытой папки workspace';
 			this._onDidChange.fire(undefined);
 			return;
@@ -1708,7 +1833,10 @@ export class MetadataTreeDataProvider implements vscode.TreeDataProvider<vscode.
 		if (oneScript) {
 			this._contentConfigurationDir = undefined;
 			this._contentExtensionDirs = [];
-			this._notice = 'У проекта OneScript нет метаданных 1С';
+			await this.readOneScriptExternals(root, generation);
+			if (generation !== this._refreshGeneration) {
+				return;
+			}
 			this._onDidChange.fire(undefined);
 			return;
 		}
@@ -1721,6 +1849,7 @@ export class MetadataTreeDataProvider implements vscode.TreeDataProvider<vscode.
 			}
 			this._contentConfigurationDir = scope.configuration?.dir;
 			this._contentExtensionDirs = extensionDirsOf(scope);
+			this._contentExternalKey = externalSignature(await resolveProjectLayout(root));
 			this._dto = dto;
 			this.rebuildItemCache(root, dto);
 			if (this._sourceItems.length === 0) {
@@ -1738,9 +1867,21 @@ export class MetadataTreeDataProvider implements vscode.TreeDataProvider<vscode.
 				return;
 			}
 			const msg = e instanceof Error ? e.message : String(e);
-			log.error(`дерево: ${msg}`);
-			this._lastError = msg;
-			void offerGithubTokenOnRateLimit(msg);
+			if (sparrowRefusedWithoutConfiguration(msg)) {
+				log.warn(`дерево: ${msg}`);
+				const layout = await resolveProjectLayout(root);
+				this._contentExternalKey = externalSignature(layout);
+				const fromLayout = externalSourcesFromLayout(root, layout);
+				if (fromLayout.sources.length > 0) {
+					this.applyExternalSources(root, fromLayout);
+				} else {
+					this._notice = 'Исходный код не найден';
+				}
+			} else {
+				log.error(`дерево: ${msg}`);
+				this._lastError = msg;
+				void offerGithubTokenOnRateLimit(msg);
+			}
 		}
 		this._onDidChange.fire(undefined);
 	}
@@ -1998,26 +2139,157 @@ export class MetadataTreeDataProvider implements vscode.TreeDataProvider<vscode.
 		return undefined;
 	}
 
+	private _osGroups: OneScriptGroupTreeItem[] = [];
+	private _osTasks: OneScriptTasksGroupTreeItem | undefined;
+	private _osNotice: string | undefined;
+	private _osCacheRoot: string | undefined;
+	private _osLoaded = false;
+	private _osLoad: Promise<void> | undefined;
+	private _osGeneration = 0;
+	private savedTopLevelExpanded(id: string): boolean | undefined {
+		const saved = this.expandedSources();
+		return saved === undefined ? undefined : saved.has(id);
+	}
+
+	private tasksMatchSearch(): boolean {
+		return this._osTasks !== undefined && this.matchingTasks(this._osTasks).length > 0;
+	}
+
+	private searchMiss(): vscode.TreeItem {
+		const empty = new vscode.TreeItem(
+			`Ничего не найдено: «${this._textFilter?.query ?? ''}»`,
+			vscode.TreeItemCollapsibleState.None
+		);
+		empty.iconPath = new vscode.ThemeIcon('search');
+		return empty;
+	}
+
+	/** Состав пакета и задачи текущего корня. Повторный вызов отдаёт те же узлы, чтобы «Показать в дереве» раскрыло родителей. */
+	private async ensureOsTree(): Promise<void> {
+		const root = this._workspaceRoot;
+		if (!root) {
+			return;
+		}
+		if (this._osCacheRoot === root && this._osLoaded) {
+			return;
+		}
+		if (!this._osLoad) {
+			const generation = this._osGeneration;
+			this._osLoad = this.loadOsTree(root, generation).finally(() => {
+				this._osLoad = undefined;
+			});
+		}
+		await this._osLoad;
+	}
+
+	private async loadOsTree(root: string, generation: number): Promise<void> {
+		const expanded = (id: string) => this.savedTopLevelExpanded(id);
+		const packageTree = this._contentOneScript ? await oneScriptPackageRoot(root, expanded) : [];
+		const tasks = await oneScriptTasksGroup(root, expanded);
+		if (generation !== this._osGeneration || this._workspaceRoot !== root) {
+			return;
+		}
+		this._osGroups = Array.isArray(packageTree) ? packageTree : [];
+		this._osNotice = typeof packageTree === 'string' ? packageTree : undefined;
+		this._osTasks = tasks;
+		this._osCacheRoot = root;
+		this._osLoaded = true;
+	}
+
+	private textMatches(value: string): boolean {
+		if (!this._textFilter) {
+			return true;
+		}
+		const haystack = value.toLowerCase();
+		return this._textFilter.terms.every((term) => haystack.includes(term));
+	}
+
+	private matchingMembers(group: OneScriptGroupTreeItem): OneScriptMemberTreeItem[] {
+		if (!this._textFilter) {
+			return [...group.members];
+		}
+		return group.members.filter((member) => this.textMatches(`${member.label ?? ''} ${member.description ?? ''}`));
+	}
+
+	private matchingTasks(group: OneScriptTasksGroupTreeItem): OneScriptTaskTreeItem[] {
+		if (!this._textFilter) {
+			return [...group.tasks];
+		}
+		return group.tasks.filter((task) => this.textMatches(String(task.label ?? '')));
+	}
+
+	private sourceShown(source: MetadataSourceTreeItem): boolean {
+		if (!this._textFilter && !this._subsystemFilter) {
+			return true;
+		}
+		const flat = this._flatLeavesBySource.get(source.sourceId);
+		if (flat) {
+			return this.filterLeaves(flat).length > 0;
+		}
+		return this.filterGroups(this._groupsBySource.get(source.sourceId) ?? []).length > 0;
+	}
+
+	/** Задачи OneScript внизу дерева, если в каталоге есть файлы. */
+	private async withTasks(rows: vscode.TreeItem[]): Promise<vscode.TreeItem[]> {
+		if (!this._workspaceRoot) {
+			return rows;
+		}
+		await this.ensureOsTree();
+		const tasks = this._osTasks;
+		if (!tasks || tasks.tasks.length === 0) {
+			return rows;
+		}
+		const matched = this.matchingTasks(tasks);
+		if (this._textFilter) {
+			if (matched.length === 0) {
+				return rows;
+			}
+			this.expandWhenSearching(tasks);
+		}
+		return [...rows, tasks];
+	}
+
 	async getChildren(element?: vscode.TreeItem): Promise<vscode.TreeItem[]> {
 		if (!this._workspaceRoot) {
 			return [];
 		}
 		if (!element) {
+			if (this._contentOneScript && this._workspaceRoot) {
+				await this.ensureOsTree();
+				const packageItems = this._textFilter
+					? this._osGroups.filter((group) => this.matchingMembers(group).length > 0)
+					: this._osGroups;
+				for (const group of packageItems) {
+					if (this._textFilter) {
+						this.expandWhenSearching(group);
+					}
+				}
+				const sources = this._sourceItems.filter((source) => this.sourceShown(source));
+				const notice = this._osNotice && this._sourceItems.length === 0 && !this._textFilter
+					? [new MetadataNoticeTreeItem(this._osNotice)]
+					: [];
+				if (this._textFilter && packageItems.length === 0 && sources.length === 0 && !this.tasksMatchSearch()) {
+					return [this.searchMiss()];
+				}
+				return this.withTasks([...notice, ...packageItems, ...sources]);
+			}
 			if (this._notice) {
-				return [new MetadataNoticeTreeItem(this._notice)];
+				return this.withTasks([new MetadataNoticeTreeItem(this._notice)]);
 			}
 			if (this._lastError) {
-				return [new MetadataErrorTreeItem(this._lastError.trim())];
+				return this.withTasks([new MetadataErrorTreeItem(this._lastError.trim())]);
 			}
-			if (this._textFilter && !this.anySourceHasMatches()) {
-				const empty = new vscode.TreeItem(
-					`Ничего не найдено: «${this._textFilter.query}»`,
-					vscode.TreeItemCollapsibleState.None
-				);
-				empty.iconPath = new vscode.ThemeIcon('search');
-				return [empty];
+			await this.ensureOsTree();
+			if (this._textFilter && !this.anySourceHasMatches() && !this.tasksMatchSearch()) {
+				return [this.searchMiss()];
 			}
-			return [...this._sourceItems];
+			return this.withTasks(this._sourceItems.filter((source) => this.sourceShown(source)));
+		}
+		if (element instanceof OneScriptTasksGroupTreeItem) {
+			return this.matchingTasks(element);
+		}
+		if (element instanceof OneScriptGroupTreeItem) {
+			return this.matchingMembers(element);
 		}
 		if (element instanceof MetadataSourceTreeItem) {
 			const note = this._notesBySource.get(element.sourceId);
@@ -2118,6 +2390,12 @@ export class MetadataTreeDataProvider implements vscode.TreeDataProvider<vscode.
 		if (!this._subsystemFilter && !this._textFilter) {
 			return false;
 		}
+		if (item instanceof OneScriptMemberTreeItem) {
+			return !this.textMatches(`${item.label ?? ''} ${item.description ?? ''}`);
+		}
+		if (item instanceof OneScriptTaskTreeItem) {
+			return !this.textMatches(String(item.label ?? ''));
+		}
 		const leaf = item instanceof MetadataObjectNodeTreeItem || item instanceof MetadataObjectSectionTreeItem
 			? item.owner
 			: item;
@@ -2212,7 +2490,7 @@ export class MetadataTreeDataProvider implements vscode.TreeDataProvider<vscode.
 	async findNodeForFile(fileAbs: string): Promise<vscode.TreeItem | undefined> {
 		const leaf = this.findLeafForFile(fileAbs);
 		if (!leaf?.resourceUri) {
-			return leaf ?? this.findSourceForFile(fileAbs);
+			return leaf ?? this.findSourceForFile(fileAbs) ?? this.findOsFile(fileAbs);
 		}
 		const child = objectChildFromFilePath(leaf.resourceUri.fsPath, fileAbs);
 		if (!child) {
@@ -2234,6 +2512,21 @@ export class MetadataTreeDataProvider implements vscode.TreeDataProvider<vscode.
 		return node ?? leaf;
 	}
 
+	/** Класс, модуль, программа или задача по пути файла. */
+	private async findOsFile(fileAbs: string): Promise<vscode.TreeItem | undefined> {
+		await this.ensureOsTree();
+		const file = path.normalize(fileAbs).toLowerCase();
+		const same = (uri: vscode.Uri | undefined) =>
+			uri !== undefined && path.normalize(uri.fsPath).toLowerCase() === file;
+		for (const group of this._osGroups) {
+			const member = group.members.find((item) => same(item.resourceUri));
+			if (member) {
+				return member;
+			}
+		}
+		return this._osTasks?.tasks.find((item) => same(item.resourceUri));
+	}
+
 	/** Корень выгрузки: `Configuration.xml` объектом метаданных не является, но в дереве у него свой узел. */
 	private findSourceForFile(fileAbs: string): MetadataSourceTreeItem | undefined {
 		const file = path.normalize(fileAbs).toLowerCase();
@@ -2245,6 +2538,12 @@ export class MetadataTreeDataProvider implements vscode.TreeDataProvider<vscode.
 	}
 
 	getParent(element: vscode.TreeItem): vscode.TreeItem | undefined {
+		if (element instanceof OneScriptMemberTreeItem) {
+			return this._osGroups.find((group) => group.members.includes(element));
+		}
+		if (element instanceof OneScriptTaskTreeItem) {
+			return this._osTasks?.tasks.includes(element) ? this._osTasks : undefined;
+		}
 		if (element instanceof MetadataObjectSectionTreeItem) {
 			return element.owner;
 		}

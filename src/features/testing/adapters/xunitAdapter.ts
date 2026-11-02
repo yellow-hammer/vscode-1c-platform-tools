@@ -71,10 +71,7 @@ export class XUnitAdapter implements TestFrameworkAdapter {
 
 	public async isEnabled(): Promise<boolean> {
 		const config = projectConfiguration(this.vrunner.getWorkspaceRoot());
-		if (!config.get<boolean>('test.frameworks.xunit', true)) {
-			return false;
-		}
-		return hasConfigurationSources(this.vrunner);
+		return config.get<boolean>('test.frameworks.xunit', true);
 	}
 
 	public async getIncludeGlobs(): Promise<string[]> {

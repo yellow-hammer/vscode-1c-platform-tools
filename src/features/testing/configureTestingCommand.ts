@@ -11,7 +11,6 @@ import { oneScriptTestsPath } from '../../shared/oneScriptLayout';
 import type { StructuredCommandResult } from '../../shared/commandExecutionTypes';
 import { configurationWriteTarget } from '../../shared/configurationWriteTarget';
 import { projectConfiguration } from '../../shared/projectConfiguration';
-import { isOneScriptProject } from '../../shared/workspaceProjects';
 
 const log = logger.scope('testing');
 
@@ -114,14 +113,11 @@ export function registerConfigureTestingCommand(vrunner: VRunnerManager): vscode
 			{
 				key: 'onebdd',
 				label: '1bdd',
-				description: `сценарии .feature в ${featuresPath} (OneScript-проекты без конфигурации)`,
+				description: `сценарии .feature в ${featuresPath}`,
 				defaultEnabled: true
 			}
 		];
-		// Проекту OneScript фреймворки платформы 1С не нужны
-		const frameworks = isOneScriptProject(workspaceRoot)
-			? allFrameworks.filter((framework) => framework.key === 'onescript' || framework.key === 'onebdd')
-			: allFrameworks;
+		const frameworks = allFrameworks;
 
 		// объект опций — агентный вызов (MCP передаёт его всегда); визард в
 		// этом контексте открывать нельзя: пользователь может быть не за экраном

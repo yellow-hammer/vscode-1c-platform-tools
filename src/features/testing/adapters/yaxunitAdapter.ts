@@ -13,7 +13,6 @@ import type { JUnitCase } from '../parsers/junitParser';
 import { resolveConfigPath, yaxunitSectionFromEnv, type YaxunitProfileSection } from '../projectTestConfig';
 import { DEFAULT_TESTING } from '../../../shared/pathDefaults';
 import { projectConfiguration } from '../../../shared/projectConfiguration';
-import { isOneScriptProject } from '../../../shared/workspaceProjects';
 import type { SettingsSchema } from '../../../shared/envProfiles';
 import type { YaxunitFilter } from '../../../shared/vrunnerCli';
 
@@ -51,8 +50,7 @@ export class YaxunitAdapter implements TestFrameworkAdapter {
 
 	public async isEnabled(): Promise<boolean> {
 		const root = this.vrunner.getWorkspaceRoot();
-		// Тесты YAxUnit выполняет платформа: у проекта OneScript их нет
-		return !isOneScriptProject(root) && projectConfiguration(root).get<boolean>('test.frameworks.yaxunit', true);
+		return projectConfiguration(root).get<boolean>('test.frameworks.yaxunit', true);
 	}
 
 	public async getIncludeGlobs(): Promise<string[]> {

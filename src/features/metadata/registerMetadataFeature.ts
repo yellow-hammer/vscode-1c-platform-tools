@@ -1,5 +1,5 @@
 import { CONVENTIONAL_PATHS, projectPaths } from '../../shared/projectPaths';
-import { directoryKey, invalidateProjectLayout, resolveProjectLayout, sameOrUnder } from '../../shared/projectLayout';
+import { directoryKey, invalidateProjectLayout, PROJECT_FILE, resolveProjectLayout, sameOrUnder } from '../../shared/projectLayout';
 import {
 	currentRoot,
 	onDidChangeCurrentProject,
@@ -13,6 +13,10 @@ import { onDidChangeProjectLayout } from '../../shared/projectLayoutWatch';
 import { logger } from '../../shared/logger';
 import * as fs from 'node:fs';
 import { createEdtProject, validateEdtProject } from '../edt/edtCommands';
+import { createOneScriptTask } from '../../commands/oscriptTasksCommands';
+import { OneScriptGroupTreeItem, OneScriptMemberTreeItem, OneScriptTaskTreeItem, OneScriptTasksGroupTreeItem } from './oneScriptPackageTree';
+import { removePackageMember } from '../../shared/packagedef';
+import { createOneScriptPackageMember } from './oneScriptPackageCreate';
 import { edtProjectName } from '../edt/edtRunner';
 import * as path from 'node:path';
 import * as vscode from 'vscode';
@@ -1339,6 +1343,53 @@ export function registerMetadataFeature(
 		await metadataTreeProvider.refresh();
 	}
 
+	/** Группа OneScript, с которой вызвано «Добавить объект». */
+	function oneScriptGroupToAdd(args: readonly unknown[]): 'class' | 'module' | 'task' | undefined {
+		for (const arg of args) {
+			if (arg instanceof OneScriptTasksGroupTreeItem) {
+				return 'task';
+			}
+			if (!(arg instanceof OneScriptGroupTreeItem)) {
+				continue;
+			}
+			if (arg.expansionId === 'oscript:class') {
+				return 'class';
+			}
+			if (arg.expansionId === 'oscript:module') {
+				return 'module';
+			}
+		}
+		return undefined;
+	}
+
+	/** Задача OneScript: файл в каталоге задач, обновление дерева. */
+	async function createTask(): Promise<void> {
+		const root = currentRoot();
+		if (!root) {
+			return;
+		}
+		const file = await createOneScriptTask(root);
+		if (!file) {
+			return;
+		}
+		await metadataTreeProvider.refresh();
+		await vscode.window.showTextDocument(vscode.Uri.file(file));
+	}
+
+	/** Класс или модуль пакета: файл, строка в packagedef, обновление дерева. */
+	async function createOneScriptMember(kind: 'class' | 'module'): Promise<void> {
+		const root = currentRoot();
+		if (!root) {
+			return;
+		}
+		const file = await createOneScriptPackageMember(root, kind);
+		if (!file) {
+			return;
+		}
+		await metadataTreeProvider.refresh();
+		await vscode.window.showTextDocument(vscode.Uri.file(file));
+	}
+
 	/** Флаг `-v` для init-empty-cf: из существующего Configuration.xml или выбор, если файла нет. */
 	async function pickSchemaFlagInitEmptyCf(configurationXmlPath: string): Promise<string | undefined> {
 		try {
@@ -1430,6 +1481,58 @@ export function registerMetadataFeature(
 		registerMetadataCommand('1c-platform-tools.metadata.refresh', () => {
 			void metadataTreeProvider.refresh();
 		}),
+		registerMetadataCommand('1c-platform-tools.metadata.createOneScriptClass', () =>
+			createOneScriptMember('class')
+		),
+		registerMetadataCommand('1c-platform-tools.metadata.createOneScriptModule', () =>
+			createOneScriptMember('module')
+		),
+		registerMetadataCommand('1c-platform-tools.metadata.createOneScriptTask', () => createTask()),
+		registerMetadataCommand('1c-platform-tools.metadata.deleteOneScriptMember', async (item?: unknown) => {
+			const member = item instanceof OneScriptMemberTreeItem && (item.kind === 'class' || item.kind === 'module')
+				? item
+				: undefined;
+			const task = item instanceof OneScriptTaskTreeItem ? item : undefined;
+			const target = member ?? task;
+			if (!target || typeof target.label !== 'string') {
+				return;
+			}
+			const answer = await vscode.window.showWarningMessage(`Удалить «${target.label}»?`, { modal: true }, 'Удалить');
+			if (answer !== 'Удалить') {
+				return;
+			}
+			const root = currentRoot();
+			if (!root) {
+				return;
+			}
+			if (target.resourceUri) {
+				await fs.promises.unlink(target.resourceUri.fsPath).catch(() => undefined);
+			}
+			if (member && (member.kind === 'class' || member.kind === 'module')) {
+				const packagedefPath = path.join(root, PROJECT_FILE);
+				try {
+					const source = await fs.promises.readFile(packagedefPath, 'utf8');
+					const next = removePackageMember(source, member.kind, target.label);
+					if (next !== source) {
+						await fs.promises.writeFile(packagedefPath, next, 'utf8');
+					}
+				} catch {
+					void vscode.window.showErrorMessage('Нет файла packagedef.');
+					return;
+				}
+			}
+			await metadataTreeProvider.refresh();
+			if (task) {
+				await vscode.commands.executeCommand('1c-platform-tools.tools.refresh', { silent: true });
+			}
+			notifyQuiet(`«${target.label}» удалён`);
+		}),
+		registerMetadataCommand('1c-platform-tools.metadata.runTask', (item?: unknown) => {
+			if (!(item instanceof OneScriptTaskTreeItem) || typeof item.label !== 'string') {
+				return;
+			}
+			return vscode.commands.executeCommand('1c-platform-tools.tasks.runOscript', item.label);
+		}),
 		registerMetadataCommand('1c-platform-tools.metadata.revealInTree', async (uri?: vscode.Uri) => {
 			await revealMetadataObjectInTree(uri ?? vscode.window.activeTextEditor?.document.uri);
 		}),
@@ -1442,6 +1545,15 @@ export function registerMetadataFeature(
 		registerMetadataCommand(
 			'1c-platform-tools.metadata.addObject',
 			async (...commandArgs: unknown[]) => {
+				const oneScript = oneScriptGroupToAdd(commandArgs);
+				if (oneScript === 'class' || oneScript === 'module') {
+					await createOneScriptMember(oneScript);
+					return;
+				}
+				if (oneScript === 'task') {
+					await createTask();
+					return;
+				}
 				const sourceKind = parseExternalArtifactSourceKindFromArgs(commandArgs);
 				if (sourceKind) {
 					await runMdSparrowMutation(async () => {

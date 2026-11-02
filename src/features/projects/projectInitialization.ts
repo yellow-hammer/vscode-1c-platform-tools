@@ -178,8 +178,8 @@ const interactiveUi: InitializeProjectUi = {
 	},
 	async pickKind(suggested) {
 		const kinds = [
-			{ label: 'Проект 1С', description: 'vanessa-runner, Vanessa Automation и тесты 1С', oneScript: false },
-			{ label: 'Проект OneScript', description: 'пакет или приложение без платформы 1С', oneScript: true },
+			{ label: 'Проект 1С', description: 'Конфигурация на платформе 1С:Предприятие 8', oneScript: false },
+			{ label: 'Проект OneScript', description: 'Библиотека или программа, файлы .os', oneScript: true },
 		];
 		const picked = await vscode.window.showQuickPick(suggested ? [...kinds].reverse() : kinds, {
 			title: INITIALIZE_TITLE,

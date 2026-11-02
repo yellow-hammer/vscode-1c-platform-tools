@@ -136,6 +136,7 @@ suite('mcpCommandPolicy', () => {
 		for (const id of [
 			'1c-platform-tools.package.build',
 			'1c-platform-tools.package.install',
+			'1c-platform-tools.package.push',
 			'1c-platform-tools.test.onescript',
 		]) {
 			assert.strictEqual(isCommandExposedToMcp(id), true, id);

@@ -38,14 +38,18 @@ const NEW_ONEC_PROJECT = `
 ;`;
 
 suite('вид проекта', () => {
-	test('исходный код 1С решает формат, даже если пакет объявляет классы', () => {
+	test('конфигурация и расширение решают формат, даже если пакет объявляет классы', () => {
 		assert.strictEqual(projectKindOf(layout({ configuration: root('designer') }), LIBRARY), 'designer');
 		assert.strictEqual(projectKindOf(layout({ configuration: root('edt') }), ''), 'edt');
 		assert.strictEqual(projectKindOf(layout({ extensions: [root('edt', true)] }), ''), 'edt');
-		assert.strictEqual(
-			projectKindOf(layout({ processors: [{ dir: '/p/src/epf/Печать', format: 'designer', kind: 'processor', name: 'Печать', file: 'Печать' }] }), ''),
-			'designer'
-		);
+	});
+
+	test('внешний объект не делает проект OneScript проектом 1С', () => {
+		const processor = { dir: '/p/src/epf/Печать', format: 'designer' as const, kind: 'processor' as const, name: 'Печать', file: 'Печать' };
+		const report = { dir: '/p/Отчет', format: 'edt' as const, kind: 'report' as const, name: 'Отчет', file: 'Отчет' };
+		assert.strictEqual(projectKindOf(layout({ processors: [processor] }), LIBRARY), 'onescript');
+		assert.strictEqual(projectKindOf(layout({ reports: [report] }), LIBRARY), 'onescript');
+		assert.strictEqual(projectKindOf(layout({ processors: [processor] }), NEW_ONEC_PROJECT), 'designer');
 	});
 
 	test('без исходного кода: объявленные классы, модули и исполняемый файл это OneScript', () => {
@@ -72,7 +76,7 @@ suite('вид проекта', () => {
 
 	test('шаблоны нового проекта: 1С и OneScript', () => {
 		const read = (name: string) => fs.readFileSync(path.join(TEMPLATES, name), 'utf8');
-		assert.strictEqual(projectKindOf(layout(), read('packagedef.template')), 'onec');
+		assert.strictEqual(projectKindOf(layout(), read('packagedef-1c.template')), 'onec');
 		assert.strictEqual(projectKindOf(layout(), read('packagedef-onescript.template')), 'onescript');
 	});
 

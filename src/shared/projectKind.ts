@@ -2,11 +2,13 @@
  * Вид проекта: проект 1С в формате конфигуратора или EDT, проект 1С без исходного
  * кода или проект OneScript.
  *
- * Исходный код 1С в раскладке делает проект проектом 1С, даже если в нём есть свои
- * скрипты OneScript. Без исходного кода решает `packagedef`: пакет, который
- * объявляет классы, модули или исполняемый файл, это OneScript; зависимость от
- * vanessa-runner, vanessa-automation или add, как у шаблона нового проекта, это
- * проект 1С; остальное OneScript.
+ * Конфигурация или расширение делают проект проектом 1С в своём формате, даже если
+ * `packagedef` объявляет классы. Внешний отчёт и обработка вид не меняют: проект
+ * OneScript их держит и в выгрузке конфигуратора, и в 1С:EDT. Без конфигурации
+ * решает `packagedef`: пакет с классами, модулями или исполняемым файлом это
+ * OneScript; зависимость от vanessa-runner, vanessa-automation или add — проект 1С.
+ * Остальное — OneScript. У такого проекта 1С
+ * внешний объект задаёт формат, пока своей конфигурации нет.
  * @module projectKind
  */
 
@@ -43,23 +45,29 @@ const PLATFORM_TOOLS = ['vanessa-runner', 'vanessa-automation', 'vanessa-automat
  * @param layout - Раскладка корня проекта
  * @param packagedef - Текст `packagedef` или прочитанное описание
  */
-export function projectKindOf(layout: ProjectLayout, packagedef: string | PackageManifest): ProjectKind {
-	const sources = [
-		...(layout.configuration ? [layout.configuration] : []),
-		...layout.extensions,
-		...layout.testExtensions,
-		...layout.processors,
-		...layout.reports,
-		...layout.testProcessors,
-	];
-	if (sources.length > 0) {
-		return sources[0].format;
-	}
-	const manifest = typeof packagedef === 'string' ? parsePackagedef(packagedef) : packagedef;
+function packagedefKind(manifest: PackageManifest): 'onec' | 'onescript' {
 	if (declaresPackageApi(manifest)) {
 		return 'onescript';
 	}
 	return PLATFORM_TOOLS.some((tool) => dependsOn(manifest, tool)) ? 'onec' : 'onescript';
+}
+
+export function projectKindOf(layout: ProjectLayout, packagedef: string | PackageManifest): ProjectKind {
+	const manifest = typeof packagedef === 'string' ? parsePackagedef(packagedef) : packagedef;
+	const kind = packagedefKind(manifest);
+	const main = [
+		...(layout.configuration ? [layout.configuration] : []),
+		...layout.extensions,
+		...layout.testExtensions,
+	];
+	if (main.length > 0) {
+		return main[0].format;
+	}
+	const externals = [...layout.processors, ...layout.reports, ...layout.testProcessors];
+	if (externals.length > 0 && kind === 'onec') {
+		return externals[0].format;
+	}
+	return kind;
 }
 
 /**
