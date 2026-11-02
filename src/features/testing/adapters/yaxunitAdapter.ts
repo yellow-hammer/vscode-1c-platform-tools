@@ -49,8 +49,8 @@ export class YaxunitAdapter implements TestFrameworkAdapter {
 	private roots: SourceRoot[] = [];
 
 	public async isEnabled(): Promise<boolean> {
-		const config = projectConfiguration(this.vrunner.getWorkspaceRoot());
-		return config.get<boolean>('test.frameworks.yaxunit', true);
+		const root = this.vrunner.getWorkspaceRoot();
+		return projectConfiguration(root).get<boolean>('test.frameworks.yaxunit', true);
 	}
 
 	public async getIncludeGlobs(): Promise<string[]> {

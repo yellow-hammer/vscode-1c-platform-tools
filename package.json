@@ -267,7 +267,7 @@
           "id": "1c-platform-tools-metadata-filters",
           "name": "Фильтры",
           "contextualTitle": "Фильтры метаданных",
-          "when": "1c-platform-tools.is1CProject == true",
+          "when": "1c-platform-tools.is1CProject == true && 1c-platform-tools.project.kind != onescript",
           "visibility": "collapsed",
           "initialSize": 6,
           "type": "webview"
@@ -625,6 +625,19 @@
           "light": "resources/metadata-tree-icons/report.svg",
           "dark": "resources/metadata-tree-icons/dark/report.svg"
         }
+      },
+      {
+        "id": "onescript-package-file",
+        "aliases": [
+          "Пакет OneScript"
+        ],
+        "extensions": [
+          ".ospx"
+        ],
+        "icon": {
+          "light": "resources/metadata-tree-icons/package.svg",
+          "dark": "resources/metadata-tree-icons/dark/package.svg"
+        }
       }
     ],
     "customEditors": [
@@ -643,6 +656,9 @@
           },
           {
             "filenamePattern": "*.erf"
+          },
+          {
+            "filenamePattern": "*.ospx"
           }
         ],
         "priority": "default"
@@ -893,6 +909,33 @@
         "category": "1С: Метаданные"
       },
       {
+        "command": "1c-platform-tools.metadata.createOneScriptClass",
+        "title": "Добавить класс",
+        "shortTitle": "Класс",
+        "icon": "$(add)",
+        "category": "1С: Метаданные"
+      },
+      {
+        "command": "1c-platform-tools.metadata.createOneScriptModule",
+        "title": "Добавить модуль",
+        "shortTitle": "Модуль",
+        "icon": "$(add)",
+        "category": "1С: Метаданные"
+      },
+      {
+        "command": "1c-platform-tools.metadata.createOneScriptTask",
+        "title": "Добавить задачу",
+        "shortTitle": "Задача",
+        "icon": "$(add)",
+        "category": "1С: Метаданные"
+      },
+      {
+        "command": "1c-platform-tools.metadata.runTask",
+        "title": "Запустить",
+        "icon": "$(play)",
+        "category": "1С: Метаданные"
+      },
+      {
         "command": "1c-platform-tools.metadata.revealInTree",
         "title": "Показать в дереве",
         "category": "1С: Метаданные",
@@ -1073,6 +1116,12 @@
       },
       {
         "command": "1c-platform-tools.metadata.deleteObject",
+        "title": "Удалить",
+        "icon": "$(trash)",
+        "category": "1С: Метаданные"
+      },
+      {
+        "command": "1c-platform-tools.metadata.deleteOneScriptMember",
         "title": "Удалить",
         "icon": "$(trash)",
         "category": "1С: Метаданные"
@@ -1643,7 +1692,7 @@
       },
       {
         "command": "1c-platform-tools.dependencies.updateOpm",
-        "title": "Обновить пакетный менеджер opm",
+        "title": "Обновить пакетный менеджер",
         "category": "1С: Зависимости"
       },
       {
@@ -1655,6 +1704,24 @@
         "command": "1c-platform-tools.dependencies.remove",
         "title": "Удалить зависимости",
         "category": "1С: Зависимости"
+      },
+      {
+        "command": "1c-platform-tools.package.build",
+        "title": "Собрать пакет",
+        "icon": "$(play)",
+        "category": "1С: OneScript"
+      },
+      {
+        "command": "1c-platform-tools.package.install",
+        "title": "Установить пакет",
+        "icon": "$(play)",
+        "category": "1С: OneScript"
+      },
+      {
+        "command": "1c-platform-tools.package.push",
+        "title": "Опубликовать пакет",
+        "icon": "$(cloud-upload)",
+        "category": "1С: OneScript"
       },
       {
         "command": "1c-platform-tools.mcp.configureCursor",
@@ -1891,6 +1958,11 @@
         "category": "1С: Служебные файлы"
       },
       {
+        "command": "1c-platform-tools.serviceFiles.ensure",
+        "title": "Создать служебный файл",
+        "category": "1С: Служебные файлы"
+      },
+      {
         "command": "1c-platform-tools.test.xunit",
         "title": "XUnit тесты",
         "category": "1С: Тестирование"
@@ -1979,6 +2051,11 @@
       {
         "command": "1c-platform-tools.test.mutatos",
         "title": "Мутационное тестирование",
+        "category": "1С: Тестирование"
+      },
+      {
+        "command": "1c-platform-tools.test.onescript",
+        "title": "Тесты OneScript",
         "category": "1С: Тестирование"
       },
       {
@@ -2360,22 +2437,22 @@
     "viewsWelcome": [
       {
         "view": "explorer",
-        "contents": "Вы также можете [открыть папку проекта 1С](command:vscode.openFolder), или создать новый проект 1С, нажав кнопку ниже.\n[Создать проект 1С](command:1c-platform-tools.projects.create)",
+        "contents": "Вы также можете [открыть папку с проектом 1С или OneScript](command:vscode.openFolder) или создать его кнопкой ниже.\n[Создать проект](command:1c-platform-tools.projects.create)",
         "when": "workspaceFolderCount == 0"
       },
       {
         "view": "testing",
-        "contents": "Настройте тестовые фреймворки 1С (Vanessa, xUnit, YAxUnit, OneScript, 1bdd), чтобы тесты появились в этой панели.\n[Настроить тесты 1С](command:1c-platform-tools.test.configure)",
+        "contents": "Настройте тесты (Vanessa, xUnit, YAxUnit, OneScript, 1bdd), чтобы они появились в этой панели.\n[Настроить тесты](command:1c-platform-tools.test.configure)",
         "when": "1c-platform-tools.is1CProject == true"
       },
       {
         "view": "1c-platform-tools-projects-workspace",
-        "contents": "В рабочей области нет проекта 1С: ни в одной папке нет файла packagedef.\n[Инициализировать проект](command:1c-platform-tools.project.initialize)\n[Открыть проект из списка](command:1c-platform-tools.projects.listOpen)",
+        "contents": "В папке нет packagedef.\n[Инициализировать проект](command:1c-platform-tools.project.initialize)\n[Открыть проект из списка](command:1c-platform-tools.projects.listOpen)",
         "when": "workspaceFolderCount != 0 && 1c-platform-tools.project.detecting == false && !1c-platform-tools.is1CProject && !1c-platform-tools.project.hasCandidates"
       },
       {
         "view": "1c-platform-tools-projects-workspace",
-        "contents": "Откройте папку проекта 1С или создайте новый проект.\n[Открыть папку](command:vscode.openFolder)\n[Создать проект 1С](command:1c-platform-tools.projects.create)\n[Открыть проект из списка](command:1c-platform-tools.projects.listOpen)",
+        "contents": "Откройте папку или создайте проект.\n[Открыть папку](command:vscode.openFolder)\n[Создать проект](command:1c-platform-tools.projects.create)\n[Открыть проект из списка](command:1c-platform-tools.projects.listOpen)",
         "when": "workspaceFolderCount == 0"
       },
       {
@@ -2527,6 +2604,30 @@
         },
         {
           "command": "1c-platform-tools.metadata.addObject",
+          "when": "false"
+        },
+        {
+          "command": "1c-platform-tools.metadata.createOneScriptClass",
+          "when": "false"
+        },
+        {
+          "command": "1c-platform-tools.metadata.createOneScriptModule",
+          "when": "false"
+        },
+        {
+          "command": "1c-platform-tools.metadata.createOneScriptTask",
+          "when": "false"
+        },
+        {
+          "command": "1c-platform-tools.metadata.deleteOneScriptMember",
+          "when": "false"
+        },
+        {
+          "command": "1c-platform-tools.serviceFiles.ensure",
+          "when": "false"
+        },
+        {
+          "command": "1c-platform-tools.metadata.runTask",
           "when": "false"
         },
         {
@@ -3143,7 +3244,7 @@
         },
         {
           "command": "1c-platform-tools.metadata.validateDump",
-          "when": "view == 1c-platform-tools-metadata-tree",
+          "when": "view == 1c-platform-tools-metadata-tree && 1c-platform-tools.project.kind != onescript",
           "group": "navigation@1"
         },
         {
@@ -3153,7 +3254,7 @@
         },
         {
           "command": "1c-platform-tools.metadata.er.openCanvas",
-          "when": "view == 1c-platform-tools-metadata-tree",
+          "when": "view == 1c-platform-tools-metadata-tree && 1c-platform-tools.project.kind != onescript",
           "group": "navigation@4"
         },
         {
@@ -3550,6 +3651,26 @@
         },
         {
           "command": "1c-platform-tools.artifacts.open",
+          "when": "view == 1c-platform-tools-artifacts && viewItem == 'artifactsPackageBinary'",
+          "group": "inline"
+        },
+        {
+          "command": "1c-platform-tools.package.install",
+          "when": "view == 1c-platform-tools-artifacts && viewItem == 'artifactsPackageBinary'",
+          "group": "inline"
+        },
+        {
+          "command": "1c-platform-tools.artifacts.open",
+          "when": "view == 1c-platform-tools-artifacts && viewItem == 'artifactsPackageSource'",
+          "group": "inline"
+        },
+        {
+          "command": "1c-platform-tools.package.build",
+          "when": "view == 1c-platform-tools-artifacts && viewItem == 'artifactsPackageSource'",
+          "group": "inline"
+        },
+        {
+          "command": "1c-platform-tools.artifacts.open",
           "when": "view == 1c-platform-tools-artifacts && viewItem == 'artifactsConfigurationSource'",
           "group": "navigation"
         },
@@ -3629,6 +3750,26 @@
           "group": "navigation"
         },
         {
+          "command": "1c-platform-tools.artifacts.open",
+          "when": "view == 1c-platform-tools-artifacts && viewItem == 'artifactsPackageBinary'",
+          "group": "navigation"
+        },
+        {
+          "command": "1c-platform-tools.package.install",
+          "when": "view == 1c-platform-tools-artifacts && viewItem == 'artifactsPackageBinary'",
+          "group": "navigation"
+        },
+        {
+          "command": "1c-platform-tools.artifacts.open",
+          "when": "view == 1c-platform-tools-artifacts && viewItem == 'artifactsPackageSource'",
+          "group": "navigation"
+        },
+        {
+          "command": "1c-platform-tools.package.build",
+          "when": "view == 1c-platform-tools-artifacts && viewItem == 'artifactsPackageSource'",
+          "group": "navigation"
+        },
+        {
           "command": "1c-platform-tools.artifacts.delete",
           "when": "view == 1c-platform-tools-artifacts",
           "group": "9_cutcopypaste"
@@ -3641,6 +3782,16 @@
         {
           "command": "1c-platform-tools.metadata.addObject",
           "when": "view == 1c-platform-tools-metadata-tree && viewItem =~ /(^| )metadataSourceExternalArtifact( |$)/",
+          "group": "inline"
+        },
+        {
+          "command": "1c-platform-tools.metadata.addObject",
+          "when": "view == 1c-platform-tools-metadata-tree && (viewItem == oneScriptPackageGroupClass || viewItem == oneScriptPackageGroupModule || viewItem == oneScriptTasksGroup)",
+          "group": "inline"
+        },
+        {
+          "command": "1c-platform-tools.metadata.runTask",
+          "when": "view == 1c-platform-tools-metadata-tree && viewItem == oneScriptTask",
           "group": "inline"
         },
         {
@@ -3724,6 +3875,16 @@
           "group": "3_create@1"
         },
         {
+          "command": "1c-platform-tools.metadata.addObject",
+          "when": "view == 1c-platform-tools-metadata-tree && (viewItem == oneScriptPackageGroupClass || viewItem == oneScriptPackageGroupModule || viewItem == oneScriptTasksGroup)",
+          "group": "3_create@1"
+        },
+        {
+          "command": "1c-platform-tools.metadata.runTask",
+          "when": "view == 1c-platform-tools-metadata-tree && viewItem == oneScriptTask",
+          "group": "1_run@1"
+        },
+        {
           "command": "1c-platform-tools.metadata.addChildNode",
           "when": "view == 1c-platform-tools-metadata-tree && viewItem =~ /(^| )(mdSectionAdd|mdChildAdd)( |$)/",
           "group": "inline"
@@ -3776,6 +3937,11 @@
         {
           "command": "1c-platform-tools.metadata.deleteObject",
           "when": "view == 1c-platform-tools-metadata-tree && viewItem =~ /(^| )(metadataObjectProperties(Subsystem)?|metadataLeafFile)( |$)/",
+          "group": "7_delete@1"
+        },
+        {
+          "command": "1c-platform-tools.metadata.deleteOneScriptMember",
+          "when": "view == 1c-platform-tools-metadata-tree && (viewItem == oneScriptPackageMemberDeletable || viewItem == oneScriptTask)",
           "group": "7_delete@1"
         },
         {
@@ -3954,19 +4120,35 @@
       "1c-platform-tools.metadata.createMenu": [
         {
           "command": "1c-platform-tools.metadata.initEmptyCf",
+          "when": "1c-platform-tools.project.kind != onescript",
           "group": "navigation@0"
         },
         {
           "command": "1c-platform-tools.metadata.initEmptyCfe",
+          "when": "1c-platform-tools.project.kind != onescript",
           "group": "navigation@1"
         },
         {
-          "command": "1c-platform-tools.metadata.addExternalReport",
+          "command": "1c-platform-tools.metadata.createOneScriptClass",
+          "when": "1c-platform-tools.project.kind == onescript",
           "group": "navigation@2"
         },
         {
-          "command": "1c-platform-tools.metadata.addExternalProcessor",
+          "command": "1c-platform-tools.metadata.createOneScriptModule",
+          "when": "1c-platform-tools.project.kind == onescript",
           "group": "navigation@3"
+        },
+        {
+          "command": "1c-platform-tools.metadata.addExternalReport",
+          "group": "navigation@4"
+        },
+        {
+          "command": "1c-platform-tools.metadata.addExternalProcessor",
+          "group": "navigation@5"
+        },
+        {
+          "command": "1c-platform-tools.metadata.createOneScriptTask",
+          "group": "navigation@6"
         }
       ],
       "editor/title/context": [
@@ -4223,6 +4405,14 @@
             "media": {
               "markdown": "walkthrough/step16-edt.md"
             }
+          },
+          {
+            "id": "step17-onescript",
+            "title": "Проект OneScript",
+            "description": "В дереве метаданных классы, модули и задачи, в командах группа «Пакет».\n\n[Открыть панель «1С: Метаданные»](command:workbench.view.extension.1c-platform-tools-metadata)",
+            "media": {
+              "markdown": "walkthrough/step17-onescript.md"
+            }
           }
         ]
       }
@@ -4281,6 +4471,12 @@
             "default": "build/out",
             "scope": "resource",
             "description": "Путь к результатам сборки"
+          },
+          "1c-platform-tools.path.onescriptTasks": {
+            "type": "string",
+            "default": "tasks",
+            "scope": "resource",
+            "markdownDescription": "Каталог задач OneScript относительно корня проекта. Файлы `.os` из него показываются в дереве метаданных и запускаются как задачи. По умолчанию `tasks`."
           },
           "1c-platform-tools.path.dist": {
             "type": "string",
@@ -4626,7 +4822,7 @@
             "type": "string",
             "default": "",
             "scope": "resource",
-            "description": "OneScript: полный путь к oscript.exe. Пусто: сначала берётся установка OVM, затем oscript из PATH. Задайте явно, если установок несколько и нужна конкретная."
+            "description": "OneScript: полный путь к oscript.exe. Пусто: установка OVM по ВерсияСреды в packagedef, иначе текущая установка OVM, затем oscript из PATH."
           }
         }
       },
@@ -4958,7 +5154,7 @@
     "typecheck": "tsc --noEmit",
     "lint": "eslint src --max-warnings 0",
     "test": "vscode-test && npm run test:node",
-    "test:node": "node --test out/test/shared/skillMcpNames.node.js out/test/shared/gitHead.node.js out/test/shared/launchConfigurations.node.js out/test/shared/workspaceScope.node.js out/test/shared/dotEnv.node.js out/test/shared/environments.node.js out/test/shared/codeEnvironmentVariables.node.js out/test/shared/ovmPaths.node.js out/test/shared/processOutput.node.js out/test/shared/processTermination.node.js out/test/shared/ibsrvDataLock.node.js out/test/shared/channelLocation.node.js out/test/shared/windowRegistry.node.js out/test/utils/shellArgvRoundtrip.node.js out/test/shared/executableLookup.node.js out/test/testing/mutatosRun.node.js out/test/testing/mutatosSources.node.js out/test/testing/mutatosReport.node.js out/test/spreadsheet/spreadsheetHtml.node.js out/test/features/odata.node.js out/test/metadata/erTheme.node.js out/test/metadata/jarJavaVersion.node.js out/test/testing/yaxunitReleases.node.js out/test/metadata/erExport.node.js",
+    "test:node": "node --test out/test/shared/skillMcpNames.node.js out/test/shared/gitHead.node.js out/test/shared/launchConfigurations.node.js out/test/shared/workspaceScope.node.js out/test/shared/dotEnv.node.js out/test/shared/environments.node.js out/test/shared/codeEnvironmentVariables.node.js out/test/shared/ovmPaths.node.js out/test/shared/packagedef.node.js out/test/shared/oneScriptEngine.node.js out/test/shared/processOutput.node.js out/test/shared/processTermination.node.js out/test/shared/ibsrvDataLock.node.js out/test/shared/channelLocation.node.js out/test/shared/windowRegistry.node.js out/test/utils/shellArgvRoundtrip.node.js out/test/shared/executableLookup.node.js out/test/testing/mutatosRun.node.js out/test/testing/mutatosSources.node.js out/test/testing/mutatosReport.node.js out/test/spreadsheet/spreadsheetHtml.node.js out/test/features/odata.node.js out/test/metadata/erTheme.node.js out/test/metadata/jarJavaVersion.node.js out/test/testing/yaxunitReleases.node.js out/test/metadata/erExport.node.js",
     "package": "vsce package",
     "changelog": "git-cliff --config cliff.toml --output CHANGELOG.md",
     "docs:dev": "vitepress dev docs",

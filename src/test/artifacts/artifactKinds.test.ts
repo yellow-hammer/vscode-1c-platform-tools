@@ -10,6 +10,9 @@ suite('artifactKinds: вид бинарного файла 1С', () => {
 			'1c-platform-tools.artifacts.decompileProcessor'
 		);
 		assert.strictEqual(binaryArtifactKind('build/erf/Отчёт.erf')?.label, 'Внешний отчёт');
+		assert.strictEqual(binaryArtifactKind('build/out/ospx/пакет-0.1.0.ospx')?.icon, 'package.svg');
+		assert.strictEqual(binaryArtifactKind('build/out/ospx/пакет-0.1.0.ospx')?.install, true);
+		assert.strictEqual(binaryArtifactKind('build/out/ospx/пакет-0.1.0.ospx')?.decompileCommand, undefined);
 	});
 
 	test('чужие файлы не считаются файлами 1С', () => {

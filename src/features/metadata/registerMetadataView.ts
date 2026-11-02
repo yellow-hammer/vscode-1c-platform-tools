@@ -4,6 +4,7 @@ import {
 	MetadataSourceTreeItem,
 	MetadataTreeDataProvider,
 } from './metadataTreeView';
+import { OneScriptGroupTreeItem, OneScriptTasksGroupTreeItem } from './oneScriptPackageTree';
 import { METADATA_SEARCH_VIEW_ID, MetadataSearchViewProvider } from './metadataSearchView';
 import { METADATA_FILTERS_VIEW_ID, MetadataFilterViewProvider, type FilterSelection } from './metadataFilterView';
 import { computeSubsystemFilter } from './metadataSubsystemFilter';
@@ -50,6 +51,17 @@ export interface MetadataViewRegistration {
 	metadataFilterProvider: MetadataFilterViewProvider;
 }
 
+/** Идентификатор узла верхнего уровня, чьё раскрытие запоминается. */
+function expandedNodeId(element: unknown): string | undefined {
+	if (element instanceof MetadataSourceTreeItem) {
+		return element.sourceId;
+	}
+	if (element instanceof OneScriptGroupTreeItem || element instanceof OneScriptTasksGroupTreeItem) {
+		return element.expansionId;
+	}
+	return undefined;
+}
+
 /**
  * Регистрирует tree view панели «1С: Метаданные» и базовые UI-контексты выбора.
  */
@@ -69,13 +81,15 @@ export function registerMetadataView(
 	// Раскрытие верхнего уровня переживает обновление дерева: оно перестраивается целиком.
 	context.subscriptions.push(
 		metadataTreeView.onDidExpandElement((e) => {
-			if (e.element instanceof MetadataSourceTreeItem) {
-				metadataTreeProvider.rememberSourceExpanded(e.element.sourceId, true);
+			const id = expandedNodeId(e.element);
+			if (id !== undefined) {
+				metadataTreeProvider.rememberSourceExpanded(id, true);
 			}
 		}),
 		metadataTreeView.onDidCollapseElement((e) => {
-			if (e.element instanceof MetadataSourceTreeItem) {
-				metadataTreeProvider.rememberSourceExpanded(e.element.sourceId, false);
+			const id = expandedNodeId(e.element);
+			if (id !== undefined) {
+				metadataTreeProvider.rememberSourceExpanded(id, false);
 			}
 		})
 	);

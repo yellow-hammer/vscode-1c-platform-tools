@@ -10,9 +10,11 @@ export interface BinaryArtifactKind {
 	/** Подпись вида файла */
 	label: string;
 	/** Значок из resources/metadata-tree-icons */
-	icon: string;
+	icon?: string;
 	/** Команда разбора; принимает элемент с resourceUri */
-	decompileCommand: string;
+	decompileCommand?: string;
+	/** Пакет OneScript ставится, а не разбирается */
+	install?: boolean;
 }
 
 const KINDS: Record<string, BinaryArtifactKind> = {
@@ -35,6 +37,11 @@ const KINDS: Record<string, BinaryArtifactKind> = {
 		label: 'Внешний отчёт',
 		icon: 'report.svg',
 		decompileCommand: '1c-platform-tools.artifacts.decompileReport',
+	},
+	'.ospx': {
+		label: 'Пакет',
+		icon: 'package.svg',
+		install: true,
 	},
 };
 

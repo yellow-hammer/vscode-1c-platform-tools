@@ -30,3 +30,49 @@ export const PROJECT_STRUCTURE: ProjectStructureItem[] = [
 	{ path: 'tools', readmeContent: '# Инструменты\n\nПредназначен для хранения любых сторонних утилит, необходимых для настройки проекта или для дополнительной установки.\n\n* `*.json` — файлы настроек запуска vanessa-runner, vanessa-automation, xunit и yaxunit\n* `*.cmd` / `*.sh` — скрипты настройки git для Windows и Unix\n* `syntax-check-excludes.txt` — файл настроек исключений для синтаксического контроля\n\nЗначение параметров для JSON-файлов смотрите по схеме в каждом из файлов или в справке соответствующего продукта.\n' },
 	{ path: 'vendor', readmeContent: '# Сторонние компоненты\n\nПредназначен для хранения внешних зависимостей - библиотек, конфигураций и т.д.\n' },
 ];
+
+/**
+ * Каталоги выгрузки конфигуратора. У проекта 1С:EDT их нет:
+ * конфигурация и тесты живут своими проектами, а не в src и tests.
+ */
+const DESIGNER_DUMP_PATHS = new Set([
+	'src',
+	'src/cf',
+	'src/cfe',
+	'src/epf',
+	'src/erf',
+	'tests',
+	'tests/cfe',
+	'tests/epf',
+]);
+
+/**
+ * Каталоги шаблона для формата исходников.
+ *
+ * @param format - Выгрузка конфигуратора или проект 1С:EDT
+ */
+export function projectStructureItems(format: 'designer' | 'edt'): readonly ProjectStructureItem[] {
+	if (format === 'designer') {
+		return PROJECT_STRUCTURE;
+	}
+	return PROJECT_STRUCTURE.filter((item) => !DESIGNER_DUMP_PATHS.has(item.path));
+}
+
+/** Файл, который создаётся вместе с каталогами проекта, если его ещё нет. */
+export interface ProjectStructureFile {
+	/** Путь относительно корня проекта */
+	path: string;
+	content: string;
+}
+
+/** Каталоги нового проекта OneScript: классы, модули и тесты. */
+export const ONESCRIPT_PROJECT_DIRECTORIES: readonly string[] = ['src/Классы', 'src/Модули', 'tests'];
+
+/** Файлы нового проекта OneScript: `src/main.os` и `tests/oscript.cfg`. */
+export const ONESCRIPT_PROJECT_FILES: readonly ProjectStructureFile[] = [
+	{
+		path: 'src/main.os',
+		content: 'Процедура ВыполнитьПриложение()\n\tСообщить("Приложение запущено");\nКонецПроцедуры\n\nВыполнитьПриложение();\n',
+	},
+	{ path: 'tests/oscript.cfg', content: 'lib.additional=../oscript_modules\n' },
+];

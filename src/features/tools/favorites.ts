@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import { TREE_GROUPS, type TreeGroup, type TreeCommandEntry } from './treeStructure';
+import { TREE_GROUPS, groupCommandsFor, groupVisibleFor, type TreeGroup, type TreeCommandEntry, type TreeProjectTrait } from './treeStructure';
 
 /** Ключ хранения избранных команд в globalState */
 const FAVORITES_STORAGE_KEY = '1c-platform-tools.favorites';
@@ -36,10 +36,14 @@ export interface PickableCommand {
 
 /**
  * Возвращает список команд по группам для окна настройки избранного (из единой структуры дерева)
+ * @param traits - Черты проекта: команды, которых у проекта нет, не предлагаются
  * @returns Массив групп с командами
  */
-export function getPickableCommandsByGroup(): PickableCommandGroup[] {
-	return TREE_GROUPS;
+export function getPickableCommandsByGroup(traits?: ReadonlySet<TreeProjectTrait>): PickableCommandGroup[] {
+	return TREE_GROUPS.filter((group) => groupVisibleFor(group, traits)).map((group) => ({
+		...group,
+		commands: groupCommandsFor(group, undefined, traits),
+	}));
 }
 
 /**

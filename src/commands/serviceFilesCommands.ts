@@ -5,7 +5,10 @@ import * as vscode from 'vscode';
 import { BaseCommand } from './baseCommand';
 import { logger } from '../shared/logger';
 import { readTemplate } from '../features/serviceFiles/templates';
-import { SERVICE_FILES, getServiceFileSpec, resolveLaunchProfileSpec, type ServiceFileSpec } from '../features/serviceFiles/registry';
+import { serviceFilesFor, getServiceFileSpec, resolveLaunchProfileSpec, type ServiceFileSpec } from '../features/serviceFiles/registry';
+import { autumnPropertiesOf } from '../shared/packagedef';
+import { readPackageManifest } from '../shared/oneScriptLayout';
+import { isOneScriptProject } from '../shared/workspaceProjects';
 import { buildEnvJsonWithSections, buildAutumnPropertiesWithSections } from '../features/serviceFiles/envJsonBuilder';
 import {
 	ENV_DEFAULTS,
@@ -101,6 +104,11 @@ export class ServiceFilesCommands extends BaseCommand {
 		// файл зависит от схемы установленного vanessa-runner.
 		if (specId === 'launchProfile') {
 			await this.vrunner.getVRunnerVersion();
+			const workspaceRoot = this.ensureWorkspace();
+			if (workspaceRoot && isOneScriptProject(workspaceRoot)) {
+				await this.ensureOneScriptLaunchProfile(workspaceRoot);
+				return;
+			}
 			if (this.vrunner.getActiveSettingsSchema() === 'v3') {
 				await this.ensureAutumnProperties(nonInteractive);
 			} else {
@@ -235,6 +243,34 @@ export class ServiceFilesCommands extends BaseCommand {
 	}
 
 	/**
+	 * Профиль приложения на Осени.
+	 *
+	 * Имя и версия читаются из `packagedef` и записываются в `autumn-properties.json`.
+	 *
+	 * @param workspaceRoot - Корень проекта
+	 */
+	private async ensureOneScriptLaunchProfile(workspaceRoot: string): Promise<void> {
+		const fullPath = path.join(workspaceRoot, BASE_AUTUMN_FILE);
+		if (!fsSync.existsSync(fullPath)) {
+			const properties = autumnPropertiesOf(readPackageManifest(workspaceRoot) ?? {
+				dependencies: [],
+				classes: [],
+				modules: [],
+				executables: [],
+				includes: [],
+			});
+			await fs.writeFile(fullPath, `${JSON.stringify(properties, null, 4)}\n`, 'utf8');
+			log.info(`Создан ${BASE_AUTUMN_FILE}`);
+			await this.vrunner.setActiveEnvProfileId(DEFAULT_PROFILE_ID);
+			this.refreshTree();
+			this.refreshProfileStatusBar();
+			notifyQuiet(`Создан ${BASE_AUTUMN_FILE}`);
+		}
+		const doc = await vscode.workspace.openTextDocument(vscode.Uri.file(fullPath));
+		await vscode.window.showTextDocument(doc);
+	}
+
+	/**
 	 * Создаёт файл настроек профиля запуска по схеме установленного vanessa-runner
 	 * (без диалогов): env.json для 2.x, autumn-properties.json для 3.x.
 	 *
@@ -303,7 +339,7 @@ export class ServiceFilesCommands extends BaseCommand {
 		}
 		const created: string[] = [];
 		let envCreated = false;
-		for (const spec of SERVICE_FILES.filter((s) => s.recommended)) {
+		for (const spec of serviceFilesFor(isOneScriptProject(workspaceRoot)).filter((s) => s.recommended)) {
 			if (spec.id === 'launchProfile') {
 				const fileName = await this.createLaunchProfileDefault(workspaceRoot);
 				if (fileName) {
@@ -340,11 +376,16 @@ export class ServiceFilesCommands extends BaseCommand {
 		// «Осн. профиль запуска» зависит от версии vrunner (env.json / autumn-properties.json)
 		await this.vrunner.getVRunnerVersion();
 		const schema = this.vrunner.getActiveSettingsSchema();
+		const oneScript = isOneScriptProject(workspaceRoot);
 		const items: FileItem[] = [
-			{ label: '$(checklist) Базовый набор', description: '.gitignore, .gitattributes, профиль запуска', action: 'recommended' },
+			{
+				label: '$(checklist) Базовый набор',
+				description: oneScript ? '.gitignore, .gitattributes' : '.gitignore, .gitattributes, профиль запуска',
+				action: 'recommended',
+			},
 		];
-		for (const staticSpec of SERVICE_FILES) {
-			const spec = staticSpec.id === 'launchProfile' ? resolveLaunchProfileSpec(schema) : staticSpec;
+		for (const staticSpec of serviceFilesFor(oneScript)) {
+			const spec = staticSpec.id === 'launchProfile' ? resolveLaunchProfileSpec(schema, oneScript) : staticSpec;
 			const exists = fsSync.existsSync(path.join(workspaceRoot, spec.relPath));
 			items.push({
 				label: `${exists ? '$(check)' : '$(add)'} ${spec.label}`,
@@ -353,7 +394,7 @@ export class ServiceFilesCommands extends BaseCommand {
 			});
 		}
 		const picked = await vscode.window.showQuickPick(items, {
-			title: 'Служебные файлы 1С',
+			title: 'Служебные файлы',
 			placeHolder: 'Выберите служебный файл',
 			ignoreFocusOut: true,
 		});

@@ -2,9 +2,13 @@
  * Артефакты проектов: исходный код из раскладки проекта, собранные файлы
  * поиском по маске с исключениями `artifacts.exclude`.
  *
+ * Проект OneScript не сканируется как конфигурация: у него пакеты и внешние
+ * отчёты с обработками. Пакеты проекта 1С показываются, если они есть.
+ *
  * @module artifactsScanner
  */
 
+import * as fs from 'node:fs';
 import * as path from 'node:path';
 import * as vscode from 'vscode';
 import { projectConfiguration } from '../../shared/projectConfiguration';
@@ -17,13 +21,19 @@ import {
 	type SourceFormat,
 	type SourceRoot,
 } from '../../shared/projectLayout';
-import type { ProjectScanRoot } from '../../shared/workspaceProjects';
+import { PACKAGE_EXTENSION } from '../../shared/packagedef';
+import { readPackageManifest } from '../../shared/oneScriptLayout';
+import type { ProjectKind } from '../../shared/projectKind';
+import { projectByRoot, type ProjectScanRoot } from '../../shared/workspaceProjects';
 import { detectedScanRoots, findProjectFiles, isOutsideScanRoot, projectRelativePath } from './projectScan';
 
-export type ArtifactType = 'configuration' | 'extension' | 'processor' | 'report';
+export type ArtifactType = 'configuration' | 'extension' | 'processor' | 'report' | 'package';
 
-/** Собранные файлы: маска поиска и вид по расширению. */
-const BINARY_GLOB = '**/*.{cf,cfe,epf,erf}';
+/** Собранные файлы проекта 1С вместе с пакетами OneScript: маска поиска и вид по расширению. */
+const BINARY_GLOB = '**/*.{cf,cfe,epf,erf,ospx}';
+
+/** Собранные пакеты OneScript и его внешние отчёты с обработками. */
+const PACKAGE_GLOB = `**/*.{epf,erf,${PACKAGE_EXTENSION.slice(1)}}`;
 
 /** Каталоги, где собранных файлов не бывает: рабочая область EDT держит в `.metadata` свой индекс с расширением `.cfe`. */
 const ALWAYS_EXCLUDED = ['.git', '.metadata', 'node_modules', 'oscript_modules'];
@@ -32,6 +42,7 @@ const BINARY_TYPES: ReadonlyMap<string, ArtifactType> = new Map([
 	['.cfe', 'extension'],
 	['.epf', 'processor'],
 	['.erf', 'report'],
+	[PACKAGE_EXTENSION, 'package'],
 ]);
 
 /** Каталог исходного кода или собранный файл. */
@@ -55,12 +66,16 @@ export interface ArtifactsScanResult {
 	extensions: Artifact[];
 	processors: Artifact[];
 	reports: Artifact[];
+	/** Собранные пакеты OneScript. */
+	packages: Artifact[];
 }
 
 /** Результат {@link scanArtifacts} для одного проекта. */
 export interface ProjectArtifacts extends ArtifactsScanResult {
 	/** Корень проекта. */
 	root: string;
+	/** Проект OneScript: конфигурация и расширения не ищутся. */
+	oneScript: boolean;
 }
 
 function excludeSegments(root: string): string[] {
@@ -117,10 +132,11 @@ function sourcesOf(scanRoot: ProjectScanRoot, layout: ProjectLayout): Artifact[]
 
 async function binariesIn(
 	scanRoot: ProjectScanRoot,
+	glob: string,
 	exclude: readonly string[],
 	token: vscode.CancellationToken | undefined
 ): Promise<Artifact[]> {
-	const files = await findProjectFiles(scanRoot, BINARY_GLOB, exclude, token);
+	const files = await findProjectFiles(scanRoot, glob, exclude, token);
 	const found: Artifact[] = [];
 	for (const uri of files) {
 		const type = BINARY_TYPES.get(path.extname(uri.fsPath).toLowerCase());
@@ -139,26 +155,67 @@ async function binariesIn(
 }
 
 /**
+ * Исходник сборки пакета: исполняемый файл из `packagedef`, обычно `src/main.os`.
+ *
+ * Рядом с собранным `.ospx`, как каталог исходников конфигурации стоит рядом с `.cf`.
+ */
+function packageSources(root: string): Artifact[] {
+	const manifest = readPackageManifest(root);
+	if (!manifest) {
+		return [];
+	}
+	const found: Artifact[] = [];
+	for (const executable of manifest.executables) {
+		if (!executable.file) {
+			continue;
+		}
+		const relative = executable.file.replaceAll('\\', '/');
+		const file = path.join(root, ...relative.split('/'));
+		if (!fs.existsSync(file) || !fs.statSync(file).isFile()) {
+			continue;
+		}
+		const uri = vscode.Uri.file(file);
+		found.push({
+			type: 'package',
+			uri,
+			name: path.basename(file),
+			relativePath: relative,
+			kind: 'source',
+			sourceEntryUri: uri,
+		});
+	}
+	return found;
+}
+
+/**
  * Артефакты одного проекта.
  *
  * @param scanRoot - Проект и каталоги, которые ему не принадлежат
  * @param token - Отмена при повторном обновлении
+ * @param kind - Вид проекта; по умолчанию из найденных проектов окна
  */
 export async function scanProjectArtifacts(
 	scanRoot: ProjectScanRoot,
-	token?: vscode.CancellationToken
+	token?: vscode.CancellationToken,
+	kind: ProjectKind | undefined = projectByRoot(scanRoot.root)?.kind
 ): Promise<ProjectArtifacts> {
+	const oneScript = kind === 'onescript';
+	const exclude = excludeSegments(scanRoot.root);
+	const sources = sourcesOf(scanRoot, await resolveProjectLayout(scanRoot.root));
 	const found = [
-		...sourcesOf(scanRoot, await resolveProjectLayout(scanRoot.root)),
-		...(await binariesIn(scanRoot, excludeSegments(scanRoot.root), token)),
+		...(oneScript ? sources.filter((artifact) => artifact.type === 'processor' || artifact.type === 'report') : sources),
+		...packageSources(scanRoot.root),
+		...(await binariesIn(scanRoot, oneScript ? PACKAGE_GLOB : BINARY_GLOB, exclude, token)),
 	];
 	const of = (type: ArtifactType) => found.filter((artifact) => artifact.type === type);
 	return {
 		root: scanRoot.root,
+		oneScript,
 		configurations: of('configuration'),
 		extensions: of('extension'),
 		processors: of('processor'),
 		reports: of('report'),
+		packages: of('package'),
 	};
 }
 

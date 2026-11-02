@@ -13,6 +13,14 @@ export interface EnvironmentToolInfo {
 	version?: string;
 }
 
+/** Движок OneScript проекта. */
+export interface EnvironmentEngineInfo extends EnvironmentToolInfo {
+	/** Откуда взят движок. */
+	source?: string;
+	/** ВерсияСреды из packagedef проекта. */
+	required?: string;
+}
+
 /** Состояние одного загружаемого компонента. */
 export interface EnvironmentComponentInfo {
 	/** Название в сводке. */
@@ -55,8 +63,8 @@ export interface EnvironmentSummary {
 	mcpVersion?: string;
 	/** Версия Node.js процесса редактора. */
 	nodeVersion: string;
-	/** OneScript. */
-	oscript: EnvironmentToolInfo;
+	/** Движок OneScript проекта. */
+	oscript: EnvironmentEngineInfo;
 	/** vrunner. */
 	vrunner: EnvironmentToolInfo;
 	/** Загруженные компоненты. */
@@ -95,7 +103,7 @@ export function formatEnvironmentSummary(summary: EnvironmentSummary): string {
 	lines.push(`- Расширение: ${summary.extensionVersion}`);
 	lines.push(`- MCP: ${summary.mcpVersion ?? 'не установлено'}`);
 	lines.push(`- Node: ${summary.nodeVersion}`);
-	lines.push(formatToolLine('OneScript', summary.oscript));
+	lines.push(formatEngineLine(summary.oscript));
 	lines.push(formatToolLine('vrunner', summary.vrunner));
 	lines.push('- Компоненты:');
 	if (summary.components.length === 0) {
@@ -145,6 +153,21 @@ export function formatToolLine(label: string, tool: EnvironmentToolInfo): string
 		return `- ${label}: не найден`;
 	}
 	return `- ${label}: ${parts.join(', ')}`;
+}
+
+/**
+ * Строка про движок OneScript: как у инструмента, и откуда он взят и что требует проект.
+ *
+ * @param engine - Сведения о движке
+ * @returns Строка списка
+ */
+export function formatEngineLine(engine: EnvironmentEngineInfo): string {
+	const notes = [
+		engine.source ? `выбран: ${engine.source}` : undefined,
+		engine.required ? `ВерсияСреды: ${engine.required}` : undefined,
+	].filter((note): note is string => note !== undefined);
+	const line = formatToolLine('OneScript', engine);
+	return notes.length > 0 ? `${line} (${notes.join('; ')})` : line;
 }
 
 /**

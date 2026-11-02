@@ -3,15 +3,14 @@
  *
  * Показывает, с чем реально работают команды: активный профиль, версию
  * vanessa-runner, файл настроек её схемы, окружение, строку подключения к ИБ и
- * временные параметры. У проекта OneScript — профиль, файл настроек Осени и
- * окружение. Каждый пункт кликабелен: выбор профиля и окружения, открытие
- * файлов, задание временных параметров.
+ * временные параметры. У проекта OneScript профиль один, это файл
+ * `autumn-properties.json`, и отдельно окружение. Каждый пункт кликабелен.
  */
 
 import * as vscode from 'vscode';
 import * as path from 'node:path';
 import { VRunnerManager, type SettingsFileState } from '../../shared/vrunnerManager';
-import { LOCAL_OVERRIDES_FILE } from '../../shared/envProfiles';
+import { BASE_AUTUMN_FILE, LOCAL_OVERRIDES_FILE } from '../../shared/envProfiles';
 import { environmentLabel } from '../../shared/environments';
 import { configurationScope } from '../../shared/activeConfiguration';
 import { onDidChangeCurrentProject, onDidChangeProjects } from '../../shared/workspaceProjects';
@@ -154,17 +153,20 @@ export class LaunchProfileViewProvider implements vscode.TreeDataProvider<vscode
 		);
 	}
 
-	/** Файлы настроек приложения на Осени: их проект OneScript читает сам. */
-	private appSettingsItems(workspaceRoot: string | undefined, settingsFiles: string[]): vscode.TreeItem[] {
-		if (workspaceRoot === undefined) {
-			return [];
-		}
-		return settingsFiles.map((settingsFile) =>
-			item(`Файл настроек: ${settingsFile}`, 'settings', 'Настройки приложения на Осени', {
+	/** Профиль проекта OneScript: один файл, его читает само приложение. */
+	private oneScriptProfileItem(workspaceRoot: string | undefined, exists: boolean): vscode.TreeItem {
+		if (workspaceRoot !== undefined && exists) {
+			return item(`Профиль: ${BASE_AUTUMN_FILE}`, 'rocket', 'Открыть профиль', {
 				command: 'vscode.open',
-				title: 'Открыть файл настроек',
-				arguments: [vscode.Uri.file(path.join(workspaceRoot, settingsFile))],
-			})
+				title: 'Открыть профиль',
+				arguments: [vscode.Uri.file(path.join(workspaceRoot, BASE_AUTUMN_FILE))],
+			});
+		}
+		return item(
+			'Профиль: не создан',
+			'warning',
+			'Профиль не создан. Нажмите, чтобы создать.',
+			{ command: '1c-platform-tools.serviceFiles.ensure', title: 'Профиль', arguments: ['launchProfile'] }
 		);
 	}
 
@@ -172,16 +174,19 @@ export class LaunchProfileViewProvider implements vscode.TreeDataProvider<vscode
 		const workspaceRoot = this.vrunner.getWorkspaceRoot();
 		const { profile } = this.vrunner.launchSummary();
 		const profileProblem = this.vrunner.profileProblem();
+		// У проекта OneScript профиль один: сам файл, без отдельной строки настроек
+		if (!this.vrunner.usesVanessaRunner()) {
+			return [
+				this.oneScriptProfileItem(workspaceRoot, profile.settingsFiles.length > 0),
+				this.environmentItem(),
+			];
+		}
 		const profileItem = item(
 			`Профиль: ${profile.label}`,
 			profileProblem ? 'warning' : 'rocket',
 			profileProblem ?? 'Выбрать профиль запуска',
 			{ command: '1c-platform-tools.env.selectProfile', title: 'Выбрать профиль запуска' }
 		);
-		// У проекта OneScript нет vanessa-runner: строк его версии, базы и параметров нет
-		if (!this.vrunner.usesVanessaRunner()) {
-			return [profileItem, ...this.appSettingsItems(workspaceRoot, profile.settingsFiles), this.environmentItem()];
-		}
 		const schema = this.vrunner.getActiveSettingsSchema();
 		const versionLabel = this.vrunner.getCachedVRunnerVersionLabel();
 		const settings = this.vrunner.describeSettingsState();

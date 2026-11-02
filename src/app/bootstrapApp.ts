@@ -39,7 +39,7 @@ import { initGithubToken } from '../shared/githubToken';
 import { initTerminalEnv } from '../shared/terminalEnv';
 import { onWorkspaceTrustGranted } from '../shared/workspaceTrust';
 import { registerProjectLayoutWatch } from '../shared/projectLayoutWatch';
-import { hasProjects, initWorkspaceProjects } from '../shared/workspaceProjects';
+import { hasProjects, initWorkspaceProjects, onDidChangeCurrentProject } from '../shared/workspaceProjects';
 
 /**
  * Выполняет полную инициализацию расширения.
@@ -77,6 +77,16 @@ export async function bootstrapApp(context: vscode.ExtensionContext): Promise<Pl
 
 	// Инициализируем VRunnerManager с контекстом расширения для доступа к extensionPath
 	VRunnerManager.getInstance(context);
+	// Новые терминалы получают движок OneScript выбранного проекта: он свой у каждого проекта
+	const showProjectEngine = (): void => void VRunnerManager.getInstance().checkOscriptAvailable();
+	context.subscriptions.push(
+		onDidChangeCurrentProject(showProjectEngine),
+		vscode.workspace.onDidChangeConfiguration((event) => {
+			if (event.affectsConfiguration('1c-platform-tools.components.path.oscript')) {
+				showProjectEngine();
+			}
+		})
+	);
 
 	const { commands, commandDisposables } = registerCoreCommands(context);
 

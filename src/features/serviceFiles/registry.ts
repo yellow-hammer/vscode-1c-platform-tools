@@ -135,6 +135,27 @@ export function getServiceFileSpec(id: string): ServiceFileSpec | undefined {
 	return SERVICE_FILES.find((spec) => spec.id === id);
 }
 
+/** Служебные файлы проекта OneScript. */
+const ONESCRIPT_SERVICE_IDS = new Set(['gitignore', 'gitattributes', 'launchProfile', 'hooks', 'pipelines']);
+
+/** Базовый набор служебных файлов проекта OneScript. */
+const ONESCRIPT_RECOMMENDED_IDS = new Set(['gitignore', 'gitattributes']);
+
+/**
+ * Список служебных файлов для вида проекта.
+ *
+ * @param oneScript - Проект OneScript
+ */
+export function serviceFilesFor(oneScript: boolean): ServiceFileSpec[] {
+	if (!oneScript) {
+		return SERVICE_FILES;
+	}
+	return SERVICE_FILES.filter((spec) => ONESCRIPT_SERVICE_IDS.has(spec.id)).map((spec) => ({
+		...spec,
+		recommended: ONESCRIPT_RECOMMENDED_IDS.has(spec.id),
+	}));
+}
+
 /**
  * Спецификация «Профиля запуска» под схему установленного vanessa-runner.
  *
@@ -143,7 +164,16 @@ export function getServiceFileSpec(id: string): ServiceFileSpec | undefined {
  * @param schema - Схема настроек по версии vrunner
  * @returns Спецификация с фактическим файлом
  */
-export function resolveLaunchProfileSpec(schema: SettingsSchema): ServiceFileSpec {
+export function resolveLaunchProfileSpec(schema: SettingsSchema, oneScript = false): ServiceFileSpec {
+	if (oneScript) {
+		return {
+			id: 'launchProfile',
+			relPath: BASE_AUTUMN_FILE,
+			label: 'Осн. профиль запуска',
+			description: 'autumn-properties.json — настройки приложения на Осени',
+			recommended: false,
+		};
+	}
 	const fileName = baseSettingsFileName(schema);
 	return {
 		id: 'launchProfile',

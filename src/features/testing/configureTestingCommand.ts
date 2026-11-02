@@ -7,7 +7,7 @@ import { VRunnerManager } from '../../shared/vrunnerManager';
 import { logger } from '../../shared/logger';
 import { notifyQuiet } from '../../shared/notify';
 import { DEFAULT_TESTING } from '../../shared/pathDefaults';
-import { resolveOnescriptTestsPath } from './onescriptTestsPath';
+import { oneScriptTestsPath } from '../../shared/oneScriptLayout';
 import type { StructuredCommandResult } from '../../shared/commandExecutionTypes';
 import { configurationWriteTarget } from '../../shared/configurationWriteTarget';
 import { projectConfiguration } from '../../shared/projectConfiguration';
@@ -76,12 +76,12 @@ export function registerConfigureTestingCommand(vrunner: VRunnerManager): vscode
 			? configurationWriteTarget(workspaceRoot)
 			: vscode.ConfigurationTarget.Workspace;
 		const featuresPath = config.get<string>('test.path.features', DEFAULT_TESTING.featuresPath);
-		const onescriptPath = resolveOnescriptTestsPath(workspaceRoot);
+		const onescriptPath = oneScriptTestsPath(workspaceRoot);
 		const paths = workspaceRoot ? await projectPaths(workspaceRoot) : undefined;
 		const testsEpf = paths?.testProcessorsContainer ?? CONVENTIONAL_PATHS.testsEpf;
 		const testsCfe = paths?.testExtensionsContainer ?? CONVENTIONAL_PATHS.testsCfe;
 
-		const frameworks: FrameworkPick[] = [
+		const allFrameworks: FrameworkPick[] = [
 			{
 				key: 'vanessa',
 				label: 'Vanessa Automation',
@@ -113,10 +113,11 @@ export function registerConfigureTestingCommand(vrunner: VRunnerManager): vscode
 			{
 				key: 'onebdd',
 				label: '1bdd',
-				description: `сценарии .feature в ${featuresPath} (OneScript-проекты без конфигурации)`,
+				description: `сценарии .feature в ${featuresPath}`,
 				defaultEnabled: true
 			}
 		];
+		const frameworks = allFrameworks;
 
 		// объект опций — агентный вызов (MCP передаёт его всегда); визард в
 		// этом контексте открывать нельзя: пользователь может быть не за экраном

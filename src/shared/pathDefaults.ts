@@ -83,7 +83,11 @@ export const BUILD_SUBDIRS = {
 	/** Промежуточный каталог: собранное здесь получает имена, заданные вызовом */
 	staging: 'staging',
 	/** Отчёты мутационного тестирования: build/out/mutatos */
-	mutatos: 'mutatos'
+	mutatos: 'mutatos',
+	/** jUnit-отчёты тестов OneScript: build/out/onescript */
+	onescript: 'onescript',
+	/** Собранные пакеты OneScript: build/out/ospx */
+	packages: 'ospx'
 } as const;
 
 /** Дефолты путей группы 1c-platform-tools.test.* */

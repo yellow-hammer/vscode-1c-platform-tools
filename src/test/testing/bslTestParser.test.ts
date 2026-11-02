@@ -269,6 +269,39 @@ suite('bslTestParser', () => {
 	});
 });
 
+suite('bslTestParser: теги OneUnit', () => {
+	const ONEUNIT_FIXTURES = path.resolve(__dirname, '../../../src/test/fixtures/oneunit');
+	const suiteModule = () => fs.readFileSync(path.join(ONEUNIT_FIXTURES, 'ТегиНабора.os'), 'utf8');
+
+	test('у теста свои теги и теги набора, повторов нет', () => {
+		const result = parseBslTestModule(suiteModule(), 'xunit');
+		assert.ok(result, 'набор OneUnit — тестовый модуль');
+		const tags = Object.fromEntries(result.cases.map((testCase) => [testCase.name, testCase.tags]));
+
+		assert.deepStrictEqual(tags['Сложение'], ['Быстрый', 'Арифметика']);
+		assert.deepStrictEqual(tags['ЗагрузкаИзСети'], ['Медленный', 'Сеть', 'Арифметика'], 'теги до &Тест тоже его');
+		assert.deepStrictEqual(tags['БезСвоихТегов'], ['Арифметика'], 'тег набора у всех тестов набора');
+	});
+
+	test('параметризованный тест: теги у каждого набора значений', () => {
+		const result = parseBslTestModule(suiteModule(), 'xunit');
+		const parameterized = result?.cases.filter((testCase) => testCase.methodName === 'Чётность') ?? [];
+
+		assert.deepStrictEqual(parameterized.map((testCase) => testCase.name), ['[1]', '[2]']);
+		assert.ok(parameterized.every((testCase) => testCase.tags?.join() === 'Быстрый,Арифметика'));
+	});
+
+	test('конструктор набора тестом не считается', () => {
+		const result = parseBslTestModule(suiteModule(), 'xunit');
+		assert.ok(result && !result.cases.some((testCase) => testCase.methodName === 'ПриСозданииОбъекта'));
+	});
+
+	test('без тегов у теста их нет вовсе', () => {
+		const result = parseBslTestModule('&Тест\nПроцедура Т() Экспорт\nКонецПроцедуры', 'xunit');
+		assert.strictEqual(result?.cases[0].tags, undefined);
+	});
+});
+
 suite('bslTestParser: регистрация тестов YAxUnit', () => {
 	/** Модуль тестового расширения из фикстур. */
 	const module = (name: string): string =>

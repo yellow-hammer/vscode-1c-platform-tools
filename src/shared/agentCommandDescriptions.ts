@@ -31,6 +31,7 @@ const PIPELINES = '1С: Пайплайны';
 const SERVER = '1С: Автономный сервер';
 const PROJECT = '1С: Проект';
 const ODATA = '1С: OData';
+const ONESCRIPT = '1С: OneScript';
 
 /** Описания команд, чей заголовок вне интерфейса непонятен. */
 export const AGENT_COMMAND_DESCRIPTIONS: Record<string, AgentCommandDescription> = {
@@ -63,6 +64,10 @@ export const AGENT_COMMAND_DESCRIPTIONS: Record<string, AgentCommandDescription>
 	},
 	'1c-platform-tools.test.mutatos': {
 		title: 'Запустить мутационное тестирование OneScript: mutatos из зависимостей проекта правит исходники проекта по одной мутации и гоняет тесты OneUnit; в ответе индекс мутаций, число мутантов по исходам и выжившие мутанты с позициями, отчёты JSON, HTML и XML ложатся в каталог результатов сборки',
+		category: TESTING,
+	},
+	'1c-platform-tools.test.onescript': {
+		title: 'Запустить тесты OneScript',
 		category: TESTING,
 	},
 	'1c-platform-tools.syntaxCheck.run': {
@@ -271,7 +276,7 @@ export const AGENT_COMMAND_DESCRIPTIONS: Record<string, AgentCommandDescription>
 		category: DEPENDENCIES,
 	},
 	'1c-platform-tools.dependencies.initializeProjectStructure': {
-		title: 'Создать стандартные каталоги проекта 1С',
+		title: 'Создать каталоги проекта',
 		category: DEPENDENCIES,
 	},
 	'1c-platform-tools.dependencies.install': {
@@ -283,12 +288,24 @@ export const AGENT_COMMAND_DESCRIPTIONS: Record<string, AgentCommandDescription>
 		category: DEPENDENCIES,
 	},
 	'1c-platform-tools.dependencies.updateOpm': {
-		title: 'Обновить пакетный менеджер opm',
+		title: 'Обновить пакетный менеджер',
 		category: DEPENDENCIES,
 	},
 	'1c-platform-tools.dependencies.installOscript': {
 		title: 'Установить OneScript',
 		category: DEPENDENCIES,
+	},
+	'1c-platform-tools.package.build': {
+		title: 'Собрать пакет OneScript',
+		category: ONESCRIPT,
+	},
+	'1c-platform-tools.package.install': {
+		title: 'Установить собранный пакет OneScript',
+		category: ONESCRIPT,
+	},
+	'1c-platform-tools.package.push': {
+		title: 'Опубликовать пакет OneScript',
+		category: ONESCRIPT,
 	},
 
 	// Запуск платформы: vrunner отдаёт управление сразу после старта
@@ -363,7 +380,7 @@ export const AGENT_COMMAND_DESCRIPTIONS: Record<string, AgentCommandDescription>
 		category: PROJECT,
 	},
 	'1c-platform-tools.project.initialize': {
-		title: 'Сделать каталог проектом 1С: создать packagedef в каталоге projectPath и сделать проект текущим. projectPath обязателен: папка рабочей области или каталог из candidates списка проектов, в том числе внутри проекта; существующий packagedef не перезаписывается',
+		title: 'Создать packagedef в каталоге projectPath и сделать проект текущим. Пустой каталог получает описание проекта 1С, каталог с файлами .os или каталогами классов и модулей — описание пакета OneScript. Существующий packagedef не перезаписывается. projectPath обязателен: папка рабочей области или каталог из candidates списка проектов, в том числе внутри проекта',
 		category: PROJECT,
 	},
 };

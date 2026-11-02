@@ -30,7 +30,7 @@ const DESCRIPTION: Readonly<Record<SourceFormatSubject, Readonly<Record<SourceFo
 export function sourceFormatPicks(subject: SourceFormatSubject): [SourceFormatPick, SourceFormatPick] {
 	const text = DESCRIPTION[subject];
 	return [
-		{ label: 'Выгрузка конфигуратора', description: text.designer, format: 'designer' },
-		{ label: 'Проект 1С:EDT', description: text.edt, format: 'edt' },
+		{ label: 'Проект в формате 1С:Конфигуратор', description: text.designer, format: 'designer' },
+		{ label: 'Проект в формате 1С:EDT', description: text.edt, format: 'edt' },
 	];
 }

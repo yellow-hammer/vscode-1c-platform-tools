@@ -37,6 +37,13 @@ class OneScriptFilesAdapter implements TestFrameworkAdapter {
 	}
 }
 
+/** Файлы в каталоге: в дереве есть узел каталога. */
+class NestedOneScriptAdapter extends OneScriptFilesAdapter {
+	public describeFileLocation(): FileTreeLocation {
+		return { segments: ['tests'] };
+	}
+}
+
 interface ControllerInternals {
 	controller: vscode.TestController;
 }
@@ -94,6 +101,37 @@ suite('тестирование: панель тестов', () => {
 				disposable.dispose();
 			}
 			await config.update('test.panelEnabled', undefined, vscode.ConfigurationTarget.Workspace);
+		}
+	});
+
+	test('тег фреймворка на каждом узле OneScript: профиль тегов виден во всём дереве', async function () {
+		this.timeout(60_000);
+		const explorer = registerTestExplorer({
+			isProjectRef: { current: true },
+			adapters: [new NestedOneScriptAdapter()],
+			vrunner: testingVRunner(),
+			controllerOptions: { id: '1c-platform-tools-tests-framework-tag', scanRootOf },
+		});
+		const tree = (explorer.controller as unknown as ControllerInternals).controller;
+		try {
+			explorer.controller.setProject(PROJECT);
+			await explorer.controller.enqueueRebuild();
+			assert.ok(await waitFor(() => fileLabels(tree).length > 0, 30_000), 'дерево не построено');
+
+			// VS Code не наследует теги: без своего тега узел профилю тегов недоступен
+			const untagged: string[] = [];
+			const visit = (item: vscode.TestItem) => {
+				if (!item.tags.some((tag) => tag.id === 'framework:onescript')) {
+					untagged.push(item.label);
+				}
+				item.children.forEach(visit);
+			};
+			tree.items.forEach(visit);
+			assert.deepStrictEqual(untagged, []);
+		} finally {
+			for (const disposable of explorer.disposables) {
+				disposable.dispose();
+			}
 		}
 	});
 });

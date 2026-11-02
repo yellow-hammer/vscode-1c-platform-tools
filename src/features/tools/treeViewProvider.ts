@@ -3,7 +3,7 @@ import * as path from 'node:path';
 import * as fsSync from 'node:fs';
 import { WorkspaceTasksCommands } from '../../commands/workspaceTasksCommands';
 import { OscriptTasksCommands } from '../../commands/oscriptTasksCommands';
-import { SERVICE_FILES, resolveLaunchProfileSpec, serviceFilesWatchGlob } from '../serviceFiles/registry';
+import { resolveLaunchProfileSpec, serviceFilesFor, serviceFilesWatchGlob } from '../serviceFiles/registry';
 import { VRunnerManager } from '../../shared/vrunnerManager';
 import {
 	getSetVersionReportCommandName,
@@ -19,10 +19,19 @@ import { commandTitle } from '../../shared/commandCatalog';
 import type { SetVersionCommands } from '../../commands/setVersionCommands';
 import { getFavorites, type FavoriteEntry } from './favorites';
 import { getHiddenToolGroups } from './toolsGroupVisibility';
-import { TREE_GROUPS, groupCommandsFor, treeCommandLabel, type TreeSourceFormat } from './treeStructure';
+import {
+	TREE_GROUPS,
+	favoriteVisibleFor,
+	groupCommandsFor,
+	groupVisibleFor,
+	treeCommandLabel,
+	treeTraitsOf,
+	type TreeProjectTrait,
+	type TreeSourceFormat,
+} from './treeStructure';
 import { configurationScope } from '../../shared/activeConfiguration';
 import { onDidChangeProjectLayout } from '../../shared/projectLayoutWatch';
-import { currentRoot, onDidChangeCurrentProject } from '../../shared/workspaceProjects';
+import { currentRoot, onDidChangeCurrentProject, onDidChangeProjects, projectByRoot } from '../../shared/workspaceProjects';
 
 /** Ключ в globalState для сохранения состояния раскрытия групп дерева */
 export const TREE_GROUP_EXPANDED_STATE_KEY = '1c-platform-tools.treeGroupExpanded';
@@ -186,8 +195,11 @@ export class PlatformTreeDataProvider implements vscode.TreeDataProvider<Platfor
 	private readonly extensionContext: vscode.ExtensionContext | undefined;
 	/** Формат конфигурации проекта: от него зависят подписи и состав команд. */
 	private sourceFormat: TreeSourceFormat | undefined;
+	/** Черты проекта: у проекта OneScript в дереве только его группы. */
+	private traits: ReadonlySet<TreeProjectTrait> = treeTraitsOf(undefined, false);
 	private readonly formatSubscription: vscode.Disposable;
 	private readonly layoutSubscription: vscode.Disposable;
+	private readonly projectsSubscription: vscode.Disposable;
 	/** Create/delete служебных файлов → иконки check/add в группе. */
 	private serviceFilesWatcher: vscode.Disposable | undefined;
 
@@ -206,8 +218,14 @@ export class PlatformTreeDataProvider implements vscode.TreeDataProvider<Platfor
 			void this.refreshSourceFormat(true);
 		});
 		this.layoutSubscription = onDidChangeProjectLayout(() => void this.refreshSourceFormat());
+		this.projectsSubscription = onDidChangeProjects(() => void this.refreshSourceFormat());
 		this.watchServiceFiles(currentRoot());
 		void this.refreshSourceFormat();
+	}
+
+	/** Черты текущего проекта, по которым собрано дерево. */
+	projectTraits(): ReadonlySet<TreeProjectTrait> {
+		return this.traits;
 	}
 
 	/**
@@ -220,6 +238,7 @@ export class PlatformTreeDataProvider implements vscode.TreeDataProvider<Platfor
 	dispose(): void {
 		this.formatSubscription.dispose();
 		this.layoutSubscription.dispose();
+		this.projectsSubscription.dispose();
 		this.serviceFilesWatcher?.dispose();
 		this.serviceFilesWatcher = undefined;
 	}
@@ -245,23 +264,27 @@ export class PlatformTreeDataProvider implements vscode.TreeDataProvider<Platfor
 	}
 
 	/**
-	 * Формат конфигурации проекта; дерево перестраивается, когда он меняется.
+	 * Формат конфигурации и черты проекта; дерево перестраивается, когда они меняются.
 	 *
 	 * @param rebuild - Перестроить дерево и без смены формата: сменился проект
 	 */
 	private async refreshSourceFormat(rebuild = false): Promise<void> {
 		const vrunner = VRunnerManager.getInstance();
 		const workspaceRoot = vrunner.getWorkspaceRoot();
+		const project = workspaceRoot === undefined ? undefined : projectByRoot(workspaceRoot);
+		const traits = treeTraitsOf(project?.kind, project?.package === true);
 		let format: TreeSourceFormat | undefined;
-		if (workspaceRoot) {
+		if (workspaceRoot && project?.kind !== 'onescript') {
 			try {
 				format = (await configurationScope(workspaceRoot)).configuration?.format;
 			} catch {
 				format = undefined;
 			}
 		}
-		if (rebuild || format !== this.sourceFormat) {
+		const traitsChanged = [...traits].sort().join() !== [...this.traits].sort().join();
+		if (rebuild || traitsChanged || format !== this.sourceFormat) {
 			this.sourceFormat = format;
+			this.traits = traits;
 			this.refresh();
 		}
 	}
@@ -326,6 +349,7 @@ export class PlatformTreeDataProvider implements vscode.TreeDataProvider<Platfor
 			support: TreeItemType.Dependency,
 			delivery: TreeItemType.Dependency,
 			dependency: TreeItemType.Dependency,
+			package: TreeItemType.Dependency,
 			run: TreeItemType.Run,
 			session: TreeItemType.Run,
 			test: TreeItemType.Test,
@@ -388,10 +412,11 @@ export class PlatformTreeDataProvider implements vscode.TreeDataProvider<Platfor
 	 * @returns Элемент дерева «Избранное» или undefined, если избранных нет
 	 */
 	private createFavoritesRootItem(favorites: FavoriteEntry[]): PlatformTreeItem | undefined {
-		if (favorites.length === 0) {
+		const visible = favorites.filter((entry) => favoriteVisibleFor(entry.command, entry.sectionType, this.traits));
+		if (visible.length === 0) {
 			return undefined;
 		}
-		const favoriteItems = favorites.map((entry) => {
+		const favoriteItems = visible.map((entry) => {
 			// Подпись берётся из структуры дерева: у команды с параметрами её нет,
 			// там заголовок записи и есть имя выбранного объекта
 			const title = (entry.arguments ? undefined : treeCommandLabel(entry.command)) ?? entry.title;
@@ -486,9 +511,12 @@ export class PlatformTreeDataProvider implements vscode.TreeDataProvider<Platfor
 		];
 
 		const schema = VRunnerManager.getInstance().getActiveSettingsSchema();
-		for (const staticSpec of SERVICE_FILES) {
+		const specs = serviceFilesFor(this.traits.has('onescript'));
+		for (const staticSpec of specs) {
 			// «Профиль запуска» указывает на файл схемы установленного vrunner
-			const spec = staticSpec.id === 'launchProfile' ? resolveLaunchProfileSpec(schema) : staticSpec;
+			const spec = staticSpec.id === 'launchProfile'
+				? resolveLaunchProfileSpec(schema, this.traits.has('onescript'))
+				: staticSpec;
 			const exists = workspaceRoot
 				? fsSync.existsSync(path.join(workspaceRoot, spec.relPath))
 				: false;
@@ -509,7 +537,7 @@ export class PlatformTreeDataProvider implements vscode.TreeDataProvider<Platfor
 			item.tooltip = exists ? `Открыть ${spec.relPath}` : `Создать ${spec.relPath}`;
 			items.push(item);
 			// Типовые цепочки наполняют .1cpt/pipelines.json, поэтому стоят сразу за ним
-			if (spec.id === 'pipelines') {
+			if (spec.id === 'pipelines' && !this.traits.has('onescript')) {
 				items.push(await this.createPipelineTemplatesItem(workspaceRoot));
 			}
 		}
@@ -539,9 +567,7 @@ export class PlatformTreeDataProvider implements vscode.TreeDataProvider<Platfor
 			undefined,
 			installed ? 'check' : 'add'
 		);
-		item.tooltip = installed
-			? 'Обновить типовые цепочки до поставляемых с расширением'
-			: 'Добавить в проект типовые цепочки шагов';
+		item.tooltip = installed ? 'Обновить типовые цепочки' : 'Добавить типовые цепочки';
 		return item;
 	}
 
@@ -559,14 +585,14 @@ export class PlatformTreeDataProvider implements vscode.TreeDataProvider<Platfor
 			if (group.sectionType === 'helpAndSupport') {
 				continue;
 			}
-			if (hiddenGroups.has(group.sectionType)) {
+			if (hiddenGroups.has(group.sectionType) || !groupVisibleFor(group, this.traits)) {
 				continue;
 			}
 			const groupType = this.sectionTypeToRootType(group.sectionType);
 			const defaultExpanded = group.defaultCollapsibleState === 'expanded';
 			const collapsibleState = this.resolveGroupCollapsibleState(group.sectionType, defaultExpanded);
 
-			const children: PlatformTreeItem[] = groupCommandsFor(group, this.sourceFormat).map((cmd) =>
+			const children: PlatformTreeItem[] = groupCommandsFor(group, this.sourceFormat, this.traits).map((cmd) =>
 				this.createTreeItem(
 					cmd.treeLabel,
 					TreeItemType.Task,
@@ -850,7 +876,7 @@ export class PlatformTreeDataProvider implements vscode.TreeDataProvider<Platfor
 			if (items.length === 1) {
 				items.push(
 					this.createTreeItem(
-						'Нет файлов *.os в каталоге tasks',
+						'Нет файлов *.os в каталоге задач',
 						TreeItemType.Info,
 						vscode.TreeItemCollapsibleState.None
 					)

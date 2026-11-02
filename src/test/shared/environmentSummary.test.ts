@@ -1,6 +1,7 @@
 import * as assert from 'node:assert';
 import {
 	formatComponentLine,
+	formatEngineLine,
 	formatEnvironmentSummary,
 	formatToolLine,
 	type EnvironmentSummary,
@@ -44,6 +45,20 @@ function sampleSummary(overrides: Partial<EnvironmentSummary> = {}): Environment
 suite('сводка окружения', () => {
 	test('инструмент без пути и версии — не найден', () => {
 		assert.strictEqual(formatToolLine('OneScript', {}), '- OneScript: не найден');
+	});
+
+	test('движок проекта: откуда взят и какую ВерсияСреды требует проект', () => {
+		assert.strictEqual(
+			formatEngineLine({
+				path: 'C:/ovm/2.2.1/bin/oscript.exe',
+				version: '2.2.1',
+				source: 'ВерсияСреды в packagedef',
+				required: '2.2.1',
+			}),
+			'- OneScript: 2.2.1, C:/ovm/2.2.1/bin/oscript.exe (выбран: ВерсияСреды в packagedef; ВерсияСреды: 2.2.1)'
+		);
+		assert.strictEqual(formatEngineLine({ required: '2.0.0' }), '- OneScript: не найден (ВерсияСреды: 2.0.0)');
+		assert.strictEqual(formatEngineLine({ path: 'oscript' }), formatToolLine('OneScript', { path: 'oscript' }));
 	});
 
 	test('компонент без кэша — не загружен', () => {

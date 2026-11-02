@@ -4,6 +4,7 @@ import * as fs from 'node:fs/promises';
 import { BaseCommand } from './baseCommand';
 import { logger } from '../shared/logger';
 import { notifyQuiet } from '../shared/notify';
+import { oneScriptTasksDirectory } from '../shared/oneScriptLayout';
 
 const log = logger.scope('commands');
 
@@ -19,20 +20,62 @@ export interface OscriptTask {
 const DEFAULT_TASK_CONTENT = '//Вставить содержимое скрипта ';
 
 /**
- * Команды для работы с задачами oscript из каталога tasks в корне проекта
+ * Спрашивает имя и создаёт файл задачи в каталоге задач проекта.
+ *
+ * @param root - Корень проекта
+ * @returns Абсолютный путь нового файла или undefined, если пользователь отказался
+ */
+export async function createOneScriptTask(root: string): Promise<string | undefined> {
+	const fileName = await vscode.window.showInputBox({
+		title: 'Задача',
+		prompt: 'Имя задачи',
+		ignoreFocusOut: true,
+		validateInput: (value: string) => {
+			const trimmed = value.trim();
+			if (!trimmed) {
+				return 'Введите имя';
+			}
+			if (/[\\/:*?"<>|]/.test(trimmed)) {
+				return String.raw`Имя не должно содержать символы \ / : * ? " < > |`;
+			}
+			return undefined;
+		},
+	});
+	const baseName = fileName?.trim();
+	if (!baseName) {
+		return undefined;
+	}
+	const nameWithExt = baseName.toLowerCase().endsWith('.os') ? baseName : `${baseName}.os`;
+	const tasksPath = oneScriptTasksDirectory(root);
+	const filePath = path.join(tasksPath, nameWithExt);
+	try {
+		await fs.mkdir(tasksPath, { recursive: true });
+		await fs.writeFile(filePath, DEFAULT_TASK_CONTENT, { encoding: 'utf8', flag: 'wx' });
+	} catch (error) {
+		const code = (error as NodeJS.ErrnoException).code;
+		const errMsg = (error as Error).message;
+		log.error(`Ошибка при создании задачи oscript: ${errMsg}. Путь: ${filePath}`);
+		vscode.window.showErrorMessage(code === 'EEXIST' ? 'Такая задача уже есть.' : 'Не удалось создать задачу.');
+		return undefined;
+	}
+	log.info(`Создана задача oscript: ${nameWithExt}, путь: ${filePath}`);
+	return filePath;
+}
+
+/**
+ * Команды для работы с задачами oscript: каталог из настройки path.onescriptTasks, по умолчанию tasks
  */
 export class OscriptTasksCommands extends BaseCommand {
-	private static readonly TASKS_DIR = 'tasks';
 	private static readonly OS_EXTENSION = '.os';
 
 	/**
-	 * Получает список задач oscript из каталога tasks
+	 * Получает список задач oscript из каталога задач
 	 *
-	 * Читает каталог tasks в корне workspace и возвращает имена файлов *.os
+	 * Читает каталог задач OneScript (настройка path.onescriptTasks, по умолчанию tasks) и возвращает имена файлов *.os
 	 * без расширения (для выполнения через opm run &lt;имя&gt;).
 	 *
 	 * @returns Промис, который разрешается массивом задач.
-	 *          Возвращает пустой массив, если workspace не открыт, каталог tasks
+	 *          Возвращает пустой массив, если workspace не открыт, каталог задач
 	 *          не существует или не содержит файлов *.os
 	 */
 	async getOscriptTasks(): Promise<OscriptTask[]> {
@@ -41,7 +84,7 @@ export class OscriptTasksCommands extends BaseCommand {
 			return [];
 		}
 
-		const tasksPath = path.join(workspaceRoot, OscriptTasksCommands.TASKS_DIR);
+		const tasksPath = oneScriptTasksDirectory(workspaceRoot);
 		try {
 			const entries = await fs.readdir(tasksPath, { withFileTypes: true });
 			const files = entries
@@ -85,8 +128,8 @@ export class OscriptTasksCommands extends BaseCommand {
 		if (nameToRun === undefined) {
 			const tasks = await this.getOscriptTasks();
 			if (tasks.length === 0) {
-				log.warn('Нет задач oscript в каталоге tasks');
-				vscode.window.showWarningMessage('Нет задач oscript в каталоге tasks');
+				log.warn('Нет задач oscript в каталоге задач');
+				vscode.window.showWarningMessage('Нет задач oscript в каталоге задач');
 				return;
 			}
 			const chosen = await vscode.window.showQuickPick(
@@ -107,66 +150,29 @@ export class OscriptTasksCommands extends BaseCommand {
 	/**
 	 * Добавляет новую задачу oscript
 	 *
-	 * Показывает диалог ввода имени файла, создаёт каталог tasks в корне проекта
+	 * Показывает диалог ввода имени файла, создаёт каталог задач проекта
 	 * (если его нет), создаёт в нём файл с введённым именем в формате *.os
 	 * и содержимым по умолчанию.
 	 *
 	 * @returns Промис, который разрешается после создания файла или отмены ввода
 	 */
-	async addOscriptTask(): Promise<void> {
+	async addOscriptTask(): Promise<boolean> {
 		if (!this.ensureWorkspace()) {
-			return;
+			return false;
 		}
 
 		const workspaceRoot = this.vrunner.getWorkspaceRoot();
 		if (!workspaceRoot) {
-			return;
+			return false;
 		}
 
-		const fileName = await vscode.window.showInputBox({
-			prompt: 'Имя файла задачи (будет создан в каталоге tasks с расширением .os)',
-			placeHolder: 'имя_задачи',
-			validateInput: (value: string) => {
-				const trimmed = value.trim();
-				if (!trimmed) {
-					return 'Введите имя файла';
-				}
-				const invalidChars = /[\\/:*?"<>|]/;
-				if (invalidChars.test(trimmed)) {
-					return String.raw`Имя файла не должно содержать символы \ / : * ? " < > |`;
-				}
-				return null;
-			},
-		});
-
-		if (fileName === undefined) {
-			return;
+		const filePath = await createOneScriptTask(workspaceRoot);
+		if (!filePath) {
+			return false;
 		}
-
-		const baseName = fileName.trim();
-		const nameWithExt = baseName.toLowerCase().endsWith(OscriptTasksCommands.OS_EXTENSION)
-			? baseName
-			: `${baseName}${OscriptTasksCommands.OS_EXTENSION}`;
-
-		const tasksPath = path.join(workspaceRoot, OscriptTasksCommands.TASKS_DIR);
-		const filePath = path.join(tasksPath, nameWithExt);
-
-		try {
-			await fs.mkdir(tasksPath, { recursive: true });
-			await fs.writeFile(filePath, DEFAULT_TASK_CONTENT, 'utf8');
-
-			const uri = vscode.Uri.file(filePath);
-			const doc = await vscode.workspace.openTextDocument(uri);
-			await vscode.window.showTextDocument(doc);
-
-			log.info(`Создана задача oscript: ${nameWithExt}, путь: ${filePath}`);
-			notifyQuiet(`Создана задача oscript: ${nameWithExt}`);
-		} catch (error) {
-			const errMsg = (error as Error).message;
-			log.error(`Ошибка при создании задачи oscript: ${errMsg}. Путь: ${filePath}`);
-			vscode.window.showErrorMessage(
-				`Ошибка при создании задачи: ${errMsg}`
-			);
-		}
+		const doc = await vscode.workspace.openTextDocument(vscode.Uri.file(filePath));
+		await vscode.window.showTextDocument(doc);
+		notifyQuiet(`Создана задача: ${path.basename(filePath, '.os')}`);
+		return true;
 	}
 }

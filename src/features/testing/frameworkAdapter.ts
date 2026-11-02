@@ -19,6 +19,8 @@ export interface RunUnit {
 	fileUri: vscode.Uri;
 	/** Имена выбранных кейсов; undefined — весь файл */
 	caseNames?: string[];
+	/** Теги OneUnit: прогоняются только тесты хотя бы с одним из них; undefined — все */
+	tags?: string[];
 }
 
 /**

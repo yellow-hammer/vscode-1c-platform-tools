@@ -42,30 +42,6 @@ export function mutatosReports(reportsDir: string): MutatosReports {
 }
 
 /**
- * Версия движка из вывода `oscript -version`: у 2.x три числа, у 1.x четыре.
- *
- * @param output - Вывод команды
- * @returns Первые три числа версии и её текст либо undefined
- */
-export function parseEngineVersion(output: string): { parts: [number, number, number]; text: string } | undefined {
-	const match = /(\d+)\.(\d+)\.(\d+)\S*/.exec(output);
-	if (!match) {
-		return undefined;
-	}
-	return { parts: [Number(match[1]), Number(match[2]), Number(match[3])], text: match[0] };
-}
-
-/** Версия не ниже наименьшей. */
-export function engineVersionSupported(parts: readonly number[], min: readonly number[] = MUTATOS_MIN_ENGINE): boolean {
-	for (let i = 0; i < min.length; i += 1) {
-		if (parts[i] !== min[i]) {
-			return parts[i] > min[i];
-		}
-	}
-	return true;
-}
-
-/**
  * Движок, который запускается не собственным исполняемым файлом, а через dotnet:
  * сборка FDD. На Windows у неё вместо oscript.exe пакетный файл, на остальных
  * ОС сценарий оболочки.

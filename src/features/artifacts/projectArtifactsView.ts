@@ -220,6 +220,12 @@ export class ProjectArtifactsTreeDataProvider
 				count: result.extensions.length,
 			},
 			{
+				id: 'packages',
+				label: 'Пакеты',
+				icon: 'package',
+				count: result.packages.length,
+			},
+			{
 				id: 'processors',
 				label: 'Внешние обработки',
 				icon: 'tools',
@@ -232,8 +238,14 @@ export class ProjectArtifactsTreeDataProvider
 				count: result.reports.length,
 			},
 		];
-
-		return sections.map(
+		// У OneScript нет конфигурации и расширений. Пакеты есть, когда есть исходник или собранный файл.
+		// Обработки и отчёты те же разделы, что у проекта 1С, и стоят в конце.
+		const visible = result.oneScript
+			? sections.filter((section) =>
+				(section.id === 'packages' && section.count > 0) ||
+				((section.id === 'processors' || section.id === 'reports') && section.count > 0))
+			: sections.filter((section) => section.id !== 'packages' || section.count > 0);
+		return visible.map(
 			(s) => new SectionItem(s.label, s.count, s.icon, s.id, result)
 		);
 	}
@@ -253,6 +265,11 @@ export class ProjectArtifactsTreeDataProvider
 				return this.buildArtifactItems(result.processors, viewMode, result.root);
 			case 'reports':
 				return this.buildArtifactItems(result.reports, viewMode, result.root);
+			case 'packages':
+				return [
+					...this.buildArtifactItems(result.packages.filter((artifact) => artifact.kind === 'source'), viewMode, result.root),
+					...this.buildArtifactItems(result.packages.filter((artifact) => artifact.kind === 'binary'), viewMode, result.root),
+				];
 			default:
 				return [];
 		}
@@ -408,7 +425,11 @@ export class ProjectArtifactsTreeDataProvider
 		parentDirDescription?: string
 	): ArtifactTreeItem {
 		const label = a.name;
-		const icon = a.kind === 'source' ? 'folder' : 'file';
+		const icon = a.type === 'package' && a.kind === 'binary'
+			? 'package'
+			: a.kind === 'source' && a.type !== 'package'
+				? 'folder'
+				: 'file';
 		const isBinary = a.kind === 'binary';
 		const openTargetUri = a.sourceEntryUri ?? a.uri;
 		return new ArtifactItem(
@@ -456,6 +477,9 @@ class ProjectItem extends vscode.TreeItem {
 }
 
 class SectionItem extends vscode.TreeItem {
+	/** Корень проекта раздела. */
+	readonly projectRoot: string;
+
 	constructor(
 		label: string,
 		count: number,
@@ -469,6 +493,7 @@ class SectionItem extends vscode.TreeItem {
 				? vscode.TreeItemCollapsibleState.Expanded
 				: vscode.TreeItemCollapsibleState.None
 		);
+		this.projectRoot = result.root;
 		this.description = count > 0 ? String(count) : undefined;
 		this.iconPath = new vscode.ThemeIcon(icon);
 		this.contextValue = 'artifactsSection';

@@ -14,9 +14,9 @@ import { createVRunnerTask, type TaskOutputChain } from '../../tasks/vrunnerTask
 import { getMutationTestingCommandName } from '../../tools/commandNames';
 import { outputTail } from '../../edt/edtRunner';
 import { packagedefDeclaresDependency, resolveOneScriptRunner } from '../adapters/onescriptAdapter';
-import { resolveOnescriptTestsPath } from '../onescriptTestsPath';
+import { oneScriptTestsPath } from '../../../shared/oneScriptLayout';
+import { engineVersionSupported, parseEngineVersion } from '../../../shared/oneScriptEngine';
 import {
-	engineVersionSupported,
 	excludedDirectories,
 	isFrameworkDependentEngine,
 	MUTATOS_MIN_ENGINE,
@@ -26,7 +26,6 @@ import {
 	mutatosReports,
 	mutatosTempEnv,
 	oneUnitSuiteName,
-	parseEngineVersion,
 	relativeTestsDirs,
 	selectionLabel,
 	type MutatosReports,
@@ -104,7 +103,7 @@ export async function runMutationTesting(
 
 	const reportsDir = reportsDirectory(vrunner, root);
 	const reports = mutatosReports(reportsDir);
-	const testsDirs = [path.resolve(root, resolveOnescriptTestsPath(root))];
+	const testsDirs = [path.resolve(root, oneScriptTestsPath(root))];
 	const outputDirs = [path.resolve(root, vrunner.getOutPath()), path.resolve(root, vrunner.getDistPath())];
 	const sourcesDirs = findSourceDirectories(root, { skip: [...testsDirs, ...outputDirs] });
 	if (sourcesDirs.length === 0) {
@@ -399,7 +398,7 @@ async function resolveEngine(vrunner: VRunnerManager, root: string): Promise<{ o
 	if (!version) {
 		return { message: `Не удалось узнать версию OneScript ${oscript}.` };
 	}
-	if (!engineVersionSupported(version.parts)) {
+	if (!engineVersionSupported(version.parts, MUTATOS_MIN_ENGINE)) {
 		return {
 			message: `mutatos нужен OneScript не ниже ${MUTATOS_MIN_ENGINE.join('.')}, а выбран ${version.text}: ${oscript}. Укажите другой движок в настройке ${setting}.`,
 		};

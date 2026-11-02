@@ -239,8 +239,8 @@ export function getAddXunitSkillsCommandName(): CommandNameAndTitle {
 export function getUpdateOpmCommandName(): CommandNameAndTitle {
 	return {
 		id: '1c-platform-tools.dependencies.updateOpm',
-		name: 'Обновить пакетный менеджер opm',
-		title: 'Обновить пакетный менеджер opm'
+		name: 'Обновить пакетный менеджер',
+		title: 'Обновить пакетный менеджер'
 	};
 }
 
@@ -252,6 +252,39 @@ export function getInstallOneScriptCommandName(): CommandNameAndTitle {
 		id: '1c-platform-tools.dependencies.installOscript',
 		name: 'Установить OneScript',
 		title: 'Установить OneScript'
+	};
+}
+
+/**
+ * Получить название и заголовок для команды сборки пакета OneScript (opm build)
+ */
+export function getBuildPackageCommandName(): CommandNameAndTitle {
+	return {
+		id: '1c-platform-tools.package.build',
+		name: 'Собрать пакет',
+		title: 'Собрать пакет'
+	};
+}
+
+/**
+ * Получить название и заголовок для команды установки собранного пакета OneScript (opm install -f)
+ */
+export function getInstallPackageCommandName(): CommandNameAndTitle {
+	return {
+		id: '1c-platform-tools.package.install',
+		name: 'Установить пакет',
+		title: 'Установить пакет'
+	};
+}
+
+/**
+ * Получить название и заголовок для команды публикации пакета OneScript (opm push)
+ */
+export function getPushPackageCommandName(): CommandNameAndTitle {
+	return {
+		id: '1c-platform-tools.package.push',
+		name: 'Опубликовать пакет',
+		title: 'Опубликовать пакет'
 	};
 }
 
@@ -497,6 +530,17 @@ export function getMutationTestingCommandName(): CommandNameAndTitle {
 		id: '1c-platform-tools.test.mutatos',
 		name: 'Мутационное тестирование',
 		title: 'Мутационное тестирование'
+	};
+}
+
+/**
+ * Получить название и заголовок для команды прогона тестов OneScript (OneUnit или 1testrunner)
+ */
+export function getOneScriptTestsCommandName(): CommandNameAndTitle {
+	return {
+		id: '1c-platform-tools.test.onescript',
+		name: 'Тесты OneScript',
+		title: 'Тесты OneScript'
 	};
 }
 

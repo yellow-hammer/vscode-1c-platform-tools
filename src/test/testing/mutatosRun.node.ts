@@ -5,16 +5,16 @@
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 import * as path from 'node:path';
+import { engineVersionSupported, parseEngineVersion } from '../../shared/oneScriptEngine';
 import {
-	engineVersionSupported,
 	excludedDirectories,
 	isFrameworkDependentEngine,
+	MUTATOS_MIN_ENGINE,
 	mutatosCall,
 	mutatosEnv,
 	mutatosReports,
 	mutatosTempEnv,
 	oneUnitSuiteName,
-	parseEngineVersion,
 	relativeTestsDirs,
 	selectionFilters,
 	selectionLabel,
@@ -174,10 +174,10 @@ describe('mutatos: движок', () => {
 	});
 
 	test('mutatos нужен движок не ниже 2.0.0', () => {
-		assert.equal(engineVersionSupported([2, 0, 0]), true);
-		assert.equal(engineVersionSupported([2, 2, 0]), true);
-		assert.equal(engineVersionSupported([10, 0, 0]), true);
-		assert.equal(engineVersionSupported([1, 9, 4]), false);
+		assert.equal(engineVersionSupported([2, 0, 0], MUTATOS_MIN_ENGINE), true);
+		assert.equal(engineVersionSupported([2, 2, 0], MUTATOS_MIN_ENGINE), true);
+		assert.equal(engineVersionSupported([10, 0, 0], MUTATOS_MIN_ENGINE), true);
+		assert.equal(engineVersionSupported([1, 9, 4], MUTATOS_MIN_ENGINE), false);
 	});
 
 	test('сборка, запускаемая через dotnet: на Windows не exe, на остальных ОС сценарий', () => {

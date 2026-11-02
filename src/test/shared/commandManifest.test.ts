@@ -50,6 +50,8 @@ function registeredCommands(): Set<string> {
 /** Команды контекстного меню узлов, которые и без узла делают полезное. */
 const NODE_COMMANDS_IN_PALETTE = new Map<string, string>([
 	['1c-platform-tools.metadata.validateDump', 'проверяет выгрузки текущего проекта'],
+	['1c-platform-tools.package.build', 'собирает пакет текущего проекта'],
+	['1c-platform-tools.package.install', 'предлагает собранный пакет из каталога сборки'],
 	['1c-platform-tools.pipelines.run', 'открывает выбор пайплайна'],
 	['1c-platform-tools.pipelines.runWith', 'открывает выбор пайплайна'],
 	['1c-platform-tools.project.initialize', 'предлагает папку для packagedef'],

@@ -31,6 +31,7 @@ import { resolveProjectLayout, type SourceRoot } from '../shared/projectLayout';
 import { readRunSummary, formatRunSummary, RunReportFormat } from '../features/testing/runReportSummary';
 import { ensureAllure } from '../shared/allureComponent';
 import { openMutationReport, runMutationTesting } from '../features/testing/mutatos/mutatosCommand';
+import { runOneScriptTests } from '../features/testing/oneScriptTestsRun';
 import { logger } from '../shared/logger';
 
 const log = logger.scope('testing');
@@ -491,6 +492,23 @@ export class TestCommands extends BaseCommand {
 	 */
 	async runMutationTesting(opts?: CommandExecutionOptions): Promise<StructuredCommandResult | void> {
 		return runMutationTesting(this.vrunner, opts);
+	}
+
+	/**
+	 * Прогоняет тесты OneScript проекта раннером панели тестирования и движком проекта.
+	 *
+	 * @param opts - Опции выполнения
+	 * @returns void в UI-режиме, StructuredCommandResult при wait: true
+	 */
+	async runOneScriptTests(opts?: CommandExecutionOptions): Promise<StructuredCommandResult | void> {
+		const root = this.ensureWorkspace();
+		if (!root) {
+			return this.rejectIfWait(opts, 'Откройте рабочую область с проектом OneScript');
+		}
+		if (!(await this.ensureLocalOscriptForExecution(opts))) {
+			return this.rejectIfWait(opts, 'OneScript (oscript) или opm не найдены');
+		}
+		return runOneScriptTests(this.vrunner, root, opts);
 	}
 
 	/**

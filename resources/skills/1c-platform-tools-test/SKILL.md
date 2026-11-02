@@ -1,6 +1,6 @@
 ---
 name: 1c-platform-tools-test
-description: Тестирование 1С. Используй, когда пользователь просит запустить тесты xUnit, Vanessa, YAxUnit, мутационное тестирование, синтаксический контроль, проверку проекта EDT, собрать тестовые обработки или построить отчёт Allure.
+description: Тестирование 1С и OneScript. Используй, когда пользователь просит запустить тесты xUnit, Vanessa, YAxUnit, OneScript (OneUnit, 1testrunner), мутационное тестирование, синтаксический контроль, проверку проекта EDT, собрать тестовые обработки или построить отчёт Allure.
 ---
 
 # Тестирование: команды и MCP
@@ -15,6 +15,7 @@ description: Тестирование 1С. Используй, когда пол
 | Vanessa | `1c-platform-tools.test.vanessa` | `test_vanessa` | результат |
 | YAxUnit | `1c-platform-tools.test.yaxunit` | `test_yaxunit` | результат |
 | Мутационное тестирование | `1c-platform-tools.test.mutatos` | `test_mutatos` | результат |
+| Тесты OneScript | `1c-platform-tools.test.onescript` | `test_onescript` | результат |
 | Синтаксический контроль | `1c-platform-tools.syntaxCheck.run` | `syntaxCheck_run` | результат |
 | Обновить ошибки в Problems | `1c-platform-tools.syntaxCheck.refresh` | `syntaxCheck_refresh` | без исхода |
 | Очистить ошибки в Problems | `1c-platform-tools.syntaxCheck.clear` | `syntaxCheck_clear` | без исхода |
@@ -29,6 +30,10 @@ description: Тестирование 1С. Используй, когда пол
 | Разобрать тестовые расширения | `1c-platform-tools.test.decompileExtensions` | `test_decompileExts` | результат |
 | Добавить YAxUnit | `1c-platform-tools.test.addYaxunit` | `test_addYaxunit` | результат |
 | Запустить EPF в Предприятии | `1c-platform-tools.epf.run` | `epf_run` | результат |
+
+## Тесты OneScript
+
+`test_onescript` прогоняет все тесты каталога тестов OneScript раннером проекта: OneUnit (`execute -d <каталог> -r`) или 1testrunner (`-runall <каталог>`), как в панели тестирования. Движок — движок проекта. jUnit-отчёт ложится в `build/out/onescript`, итог приходит в `tests`. Тесты OneUnit с тегами `&Тег` отбирает профиль панели тестирования «Запуск по тегам OneUnit», инструмента для него нет.
 
 ## Синтаксический контроль
 

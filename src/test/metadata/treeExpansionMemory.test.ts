@@ -1,8 +1,10 @@
 import * as assert from 'node:assert';
+import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import * as vscode from 'vscode';
 import { MetadataSourceTreeItem, MetadataTreeDataProvider } from '../../features/metadata/metadataTreeView';
+import { OneScriptGroupTreeItem, OneScriptTasksGroupTreeItem } from '../../features/metadata/oneScriptPackageTree';
 import { METADATA_EXPANDED_SOURCES_STATE, projectMemento } from '../../shared/projectState';
 import { createMockExtensionContext } from '../fixtures/mocks/vscodeMocks';
 
@@ -79,5 +81,32 @@ suite('Память раскрытия дерева метаданных', () =>
 
 		assert.deepStrictEqual(saved(second), ['cfe1'], 'второй проект не унаследовал раскрытие первого');
 		assert.deepStrictEqual(saved(first), ['cf']);
+	});
+
+	test('группы OneScript и задачи без сохранённого состояния свёрнуты, сохранённое раскрывает', async () => {
+		const root = projectRoot('onescript');
+		await projectMemento(root).update(METADATA_EXPANDED_SOURCES_STATE, undefined);
+		fs.mkdirSync(path.join(root, 'tasks'), { recursive: true });
+		fs.writeFileSync(path.join(root, 'tasks', 'job.os'), '');
+		fs.writeFileSync(path.join(root, 'packagedef'), `
+			Описание.Имя("os")
+				.ОпределяетКласс("Класс", "src/Классы/Класс.os")
+				.ОпределяетМодуль("Модуль", "src/Модули/Модуль.os")
+				.ИсполняемыйФайл("src/main.os", "os");
+		`);
+		const fresh = providerAt(root);
+		(fresh as unknown as { _contentOneScript: boolean })._contentOneScript = true;
+		const closed = await fresh.getChildren();
+		assert.ok(closed.filter((item) => item instanceof OneScriptGroupTreeItem || item instanceof OneScriptTasksGroupTreeItem)
+			.every((item) => item.collapsibleState === vscode.TreeItemCollapsibleState.Collapsed));
+
+		const provider = providerAt(root, ['oscript:class', 'oscript:tasks']);
+		(provider as unknown as { _contentOneScript: boolean })._contentOneScript = true;
+		const rows = await provider.getChildren();
+		const byLabel = new Map(rows.map((item) => [String(item.label), item]));
+		assert.strictEqual(byLabel.get('Классы')?.collapsibleState, vscode.TreeItemCollapsibleState.Expanded);
+		assert.strictEqual(byLabel.get('Модули')?.collapsibleState, vscode.TreeItemCollapsibleState.Collapsed);
+		assert.strictEqual(byLabel.get('Программы')?.collapsibleState, vscode.TreeItemCollapsibleState.Collapsed);
+		assert.strictEqual(byLabel.get('Задачи (oscript)')?.collapsibleState, vscode.TreeItemCollapsibleState.Expanded);
 	});
 });

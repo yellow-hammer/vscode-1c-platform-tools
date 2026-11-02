@@ -5,7 +5,7 @@ import { VRunnerManager } from '../../shared/vrunnerManager';
 import { runCancellableCommand, CancellableProcessResult } from '../../shared/cancellableProcess';
 import { logger } from '../../shared/logger';
 import { EdtCommandError } from '../edt/edtRunner';
-import { TestFrameworkAdapter, RunUnit, AdapterRunPlan, AdapterRunStep, FileTreeLocation } from './frameworkAdapter';
+import { TestFrameworkAdapter, RunUnit, AdapterRunPlan, AdapterRunStep, FileTreeLocation, type TestFrameworkId } from './frameworkAdapter';
 import { DiscoveredFile } from './parsers/parserTypes';
 import { frameworkRootId, fileItemId } from './testItemIds';
 import {
@@ -49,6 +49,16 @@ const ONESCRIPT_RUNNER_CONTEXT = '1c-platform-tools.test.onescriptRunner';
  */
 function setOneScriptRunnerContext(runner: OneScriptRunner | undefined): void {
 	void vscode.commands.executeCommand('setContext', ONESCRIPT_RUNNER_CONTEXT, runner);
+}
+
+/**
+ * Тег фреймворка узла. VS Code не передаёт теги от родителя детям, поэтому тег
+ * стоит на каждом узле: по нему профиль запуска фреймворка есть на всём его дереве.
+ *
+ * @param adapterId - Фреймворк узла
+ */
+function frameworkTag(adapterId: TestFrameworkId): vscode.TestTag {
+	return new vscode.TestTag(frameworkRootId(adapterId));
 }
 
 /**
@@ -139,6 +149,15 @@ interface FileEntry {
 	 * парсятся лениво в resolveFile — при разворачивании, запуске или изменении.
 	 */
 	resolved: boolean;
+}
+
+/** Файл запроса: целиком или подмножество кейсов, с отбором по тегам OneUnit. */
+interface RequestUnit {
+	entry: FileEntry;
+	/** Имена выбранных кейсов; undefined — весь файл */
+	caseNames?: string[];
+	/** Теги OneUnit, которыми отобраны тесты файла */
+	tags?: string[];
 }
 
 /**
@@ -244,6 +263,13 @@ export class TestingController implements vscode.Disposable {
 			vscode.TestRunProfileKind.Run,
 			(request, token) => this.runHandler(request, token),
 			true
+		);
+		this.controller.createRunProfile(
+			'Запуск по тегам OneUnit',
+			vscode.TestRunProfileKind.Run,
+			(request, token) => this.runHandler(request, token, (units, root) => this.selectByTags(units, root)),
+			false,
+			frameworkTag('onescript')
 		);
 
 		this.disposables.push(
@@ -641,6 +667,7 @@ export class TestingController implements vscode.Disposable {
 
 		if (!entry) {
 			const item = this.controller.createTestItem(id, label, uri);
+			item.tags = [frameworkTag(adapter.id)];
 			// Дети (кейсы) подгружаются лениво в resolveFile
 			item.canResolveChildren = true;
 			parent.children.add(item);
@@ -712,9 +739,7 @@ export class TestingController implements vscode.Disposable {
 				child.range = new vscode.Range(descriptor.line, 0, descriptor.line, 0);
 				// Префикс ключом файла: кейсы держатся под своим файлом и в плоском списке
 				child.sortText = caseSortKey(fileKey, descriptor.sortText);
-				if (descriptor.tags) {
-					child.tags = descriptor.tags.map((tag) => new vscode.TestTag(tag));
-				}
+				child.tags = [frameworkTag(entry.adapter.id), ...(descriptor.tags ?? []).map((tag) => new vscode.TestTag(tag))];
 				// Параметризованный кейс: запоминаем имя процедуры для точечного запуска
 				if (descriptor.methodName && descriptor.methodName !== descriptor.name) {
 					this.caseMethodNames.set(descriptor.id, descriptor.methodName);
@@ -813,6 +838,7 @@ export class TestingController implements vscode.Disposable {
 			if (!dirItem) {
 				const dirFsPath = directoryNodeFsPath(fileUri.fsPath, segments.length, i);
 				dirItem = this.controller.createTestItem(id, segments[i], vscode.Uri.file(dirFsPath));
+				dirItem.tags = [frameworkTag(adapter.id)];
 				// Ключ сортировки по пути: каталог идёт перед файлами того же
 				// родителя, а его поддерево — единым блоком в плоском списке
 				dirItem.sortText = directorySortKey(segments.slice(0, i + 1));
@@ -831,7 +857,7 @@ export class TestingController implements vscode.Disposable {
 		let root = this.controller.items.get(id);
 		if (!root) {
 			root = this.controller.createTestItem(id, adapter.label);
-			root.tags = [new vscode.TestTag(id)];
+			root.tags = [frameworkTag(adapter.id)];
 			root.description = this.launchDescription(adapter);
 			this.controller.items.add(root);
 		}
@@ -847,7 +873,8 @@ export class TestingController implements vscode.Disposable {
 	 */
 	private async runHandler(
 		request: vscode.TestRunRequest,
-		token: vscode.CancellationToken
+		token: vscode.CancellationToken,
+		select?: (units: RequestUnit[], root: string) => Promise<RequestUnit[] | undefined>
 	): Promise<void> {
 		const root = this.treeRoot;
 		if (!root) {
@@ -868,14 +895,23 @@ export class TestingController implements vscode.Disposable {
 			// детей для всех запрошенных файлов, чтобы прогон видел кейсы
 			await this.resolveForRun(request);
 
-			const units = this.collectRunUnits(request);
-			if (units.length === 0) {
+			const collected = this.collectRunUnits(request);
+			const units = select ? await select(collected, root) : collected;
+			if (units === undefined || units.length === 0) {
 				return;
 			}
 
 			const run = this.controller.createTestRun(request);
 
 			const launch = this.launchForRun(root, units);
+			// Тесты запускает движок проекта: ниже ВерсияСреды он предупреждает, но не мешает.
+			// vanessa-runner в Docker работает движком образа, а не этой машины
+			const local = launch.units.some((unit) => !unit.entry.adapter.usesVanessaRunner);
+			void runWithProject(root, async () => {
+				if (launch.units.length > 0 && (local || !(await this.vrunner.shouldUseDocker()))) {
+					await this.vrunner.warnIfEngineUnfit();
+				}
+			});
 			for (const { unit, problem } of launch.refused) {
 				const suite = this.suiteNode(unit.entry.item);
 				this.markAll(run, this.leafItems(unit.entry.item), 'errored', problem, suite ? [suite] : undefined);
@@ -927,12 +963,12 @@ export class TestingController implements vscode.Disposable {
 	 */
 	private async runUnits(
 		run: vscode.TestRun,
-		units: { entry: FileEntry; caseNames?: string[] }[],
+		units: RequestUnit[],
 		token: vscode.CancellationToken,
 		root: string
 	): Promise<void> {
-		const batches = new Map<string, { entry: FileEntry; caseNames?: string[] }[]>();
-		const individual: { entry: FileEntry; caseNames?: string[] }[] = [];
+		const batches = new Map<string, RequestUnit[]>();
+		const individual: RequestUnit[] = [];
 
 		for (const unit of units) {
 			const uri = unit.entry.item.uri;
@@ -995,7 +1031,7 @@ export class TestingController implements vscode.Disposable {
 
 	private async runBatch(
 		run: vscode.TestRun,
-		units: { entry: FileEntry; caseNames?: string[] }[],
+		units: RequestUnit[],
 		token: vscode.CancellationToken,
 		root: string
 	): Promise<boolean> {
@@ -1007,12 +1043,12 @@ export class TestingController implements vscode.Disposable {
 			.filter((suite): suite is vscode.TestItem => suite !== undefined);
 
 		const runUnits: RunUnit[] = [];
-		for (const entry of entries) {
-			if (!entry.item.uri) {
+		for (const unit of units) {
+			if (!unit.entry.item.uri) {
 				this.markAll(run, allLeaves, 'errored', 'У элемента теста нет привязанного файла', allSuites);
 				return true;
 			}
-			runUnits.push({ fileUri: entry.item.uri });
+			runUnits.push({ fileUri: unit.entry.item.uri, ...(unit.tags ? { tags: unit.tags } : {}) });
 		}
 
 		let reportDir = '';
@@ -1190,14 +1226,58 @@ export class TestingController implements vscode.Disposable {
 	}
 
 	/**
+	 * Отбор тестов OneScript по тегам OneUnit: теги выбираются из тех, что есть у
+	 * тестов запроса, раннер получает их ключом `-t`. Тесты других фреймворков в
+	 * такой прогон не идут.
+	 *
+	 * @param units - Файлы запроса
+	 * @param root - Корень проекта прогона
+	 * @returns Файлы с тестами выбранных тегов либо undefined, если прогона не будет
+	 */
+	private async selectByTags(units: RequestUnit[], root: string): Promise<RequestUnit[] | undefined> {
+		const oneScript = units.filter((unit) => unit.entry.adapter.id === 'onescript');
+		if (oneScript.length === 0) {
+			void vscode.window.showInformationMessage('По тегам запускаются тесты OneScript.');
+			return undefined;
+		}
+		if (resolveOneScriptRunner(root).kind !== 'oneunit') {
+			void vscode.window.showWarningMessage('Теги отбирает OneUnit, а в проекте выбран 1testrunner: настройка test.onescriptRunner.');
+			return undefined;
+		}
+		// Тег фреймворка стоит на каждом узле ради профиля, OneUnit о нём не знает
+		const own = frameworkRootId('onescript');
+		const tagsOf = (unit: RequestUnit) =>
+			this.leafItems(unit.entry.item)
+				.filter((leaf) => unit.caseNames === undefined || unit.caseNames.includes(this.caseMethodNames.get(leaf.id) ?? leaf.label))
+				.flatMap((leaf) => leaf.tags.map((tag) => tag.id))
+				.filter((tag) => tag !== own);
+		const available = [...new Set(oneScript.flatMap(tagsOf))].sort((left, right) => left.localeCompare(right));
+		if (available.length === 0) {
+			void vscode.window.showInformationMessage('У выбранных тестов нет тегов &Тег.');
+			return undefined;
+		}
+		const picked = await vscode.window.showQuickPick(
+			available.map((label) => ({ label })),
+			{ canPickMany: true, title: 'Запуск по тегам OneUnit', placeHolder: 'Теги тестов' }
+		);
+		if (!picked || picked.length === 0) {
+			return undefined;
+		}
+		const tags = picked.map((item) => item.label);
+		return oneScript
+			.filter((unit) => tagsOf(unit).some((tag) => tags.includes(tag)))
+			.map((unit) => ({ entry: unit.entry, tags }));
+	}
+
+	/**
 	 * Собирает единицы запуска из запроса: корень/каталог → все файлы внутри,
 	 * файл → файл, кейс → родительский файл с подмножеством кейсов
 	 */
 	private collectRunUnits(
 		request: vscode.TestRunRequest
-	): { entry: FileEntry; caseNames?: string[] }[] {
+	): RequestUnit[] {
 		const excluded = new Set(request.exclude?.map((item) => item.id) ?? []);
-		const byFile = new Map<string, { entry: FileEntry; caseNames?: string[] }>();
+		const byFile = new Map<string, RequestUnit>();
 
 		const addFile = (entry: FileEntry, caseNames?: string[]) => {
 			if (excluded.has(entry.item.id)) {
@@ -1254,11 +1334,11 @@ export class TestingController implements vscode.Disposable {
 	 */
 	private async runUnit(
 		run: vscode.TestRun,
-		unit: { entry: FileEntry; caseNames?: string[] },
+		unit: RequestUnit,
 		token: vscode.CancellationToken,
 		root: string
 	): Promise<void> {
-		const { entry, caseNames } = unit;
+		const { entry, caseNames, tags } = unit;
 		const adapter = entry.adapter;
 		const leaves = this.leafItems(entry.item);
 		const suite = this.suiteNode(entry.item);
@@ -1291,7 +1371,7 @@ export class TestingController implements vscode.Disposable {
 		let result: CancellableProcessResult;
 		let plan: AdapterRunPlan;
 		try {
-			const runUnit: RunUnit = { fileUri, caseNames };
+			const runUnit: RunUnit = { fileUri, caseNames, ...(tags ? { tags } : {}) };
 			plan = await adapter.buildRunPlan(runUnit, reportDir);
 
 			// Чистим прошлые отчёты в настроенной цели, чтобы не прочитать устаревшие

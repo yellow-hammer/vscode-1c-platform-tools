@@ -81,6 +81,26 @@ suite('onescriptAdapter', () => {
 		assert.strictEqual(packagedefDeclaresDependency(packagedef, '1testrunner'), false, 'не объявлен');
 	});
 
+	test('OneUnit: теги отбирают тесты ключом -t у файла и у набора файлов', async () => {
+		const config = vscode.workspace.getConfiguration('1c-platform-tools');
+		await config.update('test.path.onescriptRunner', 'oscript_modules/bin/oneunit', vscode.ConfigurationTarget.Workspace);
+		try {
+			const adapter = new OneScriptAdapter(VRunnerManager.getInstance());
+			const tagged = await adapter.buildRunPlan({ fileUri, tags: ['Быстрый', 'Сеть'] }, '');
+			assert.ok(tagged.args[0].includes(' execute '));
+			assert.ok(tagged.args[0].includes(' -t "Быстрый,Сеть" '));
+
+			const other = vscode.Uri.file('C:\\proj\\tests os\\test_other.os');
+			const batch = await adapter.buildBatchRunPlan([{ fileUri, tags: ['Быстрый'] }, { fileUri: other, tags: ['Быстрый'] }], '');
+			assert.ok(batch?.args[0].includes(' -t "Быстрый" '));
+
+			const all = await adapter.buildRunPlan({ fileUri }, '');
+			assert.ok(!all.args[0].includes(' -t '), 'без тегов отбора нет');
+		} finally {
+			await config.update('test.path.onescriptRunner', undefined, vscode.ConfigurationTarget.Workspace);
+		}
+	});
+
 	test('buildBatchRunPlan: 1testrunner без полного каталога — батч недоступен', async () => {
 		// В тестовом окружении (без локального oneunit) раннер — 1testrunner:
 		// он отбирает тесты каталогом, а каталога из набора не существует —
