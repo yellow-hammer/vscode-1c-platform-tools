@@ -5178,7 +5178,7 @@
     "fast-xml-parser": "^5.11.2",
     "glob": "^14.0.2",
     "jsonc-parser": "^3.3.1",
-    "minimatch": "^10.2.6",
+    "minimatch": "^11.0.1",
     "yauzl": "^3.4.0"
   },
   "devDependencies": {
