@@ -8,17 +8,17 @@
 
 ## Панели
 
-Панели открываются номером в том же порядке, в каком они стоят в activity bar.
-
 | Сочетание | Панель |
 | --- | --- |
 | <kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>1</kbd> | 1С: Проекты |
 | <kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>2</kbd> | 1С: Администрирование |
 | <kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>3</kbd> | 1С: Инструменты |
-| <kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>4</kbd> | 1С: Метаданные |
-| <kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>5</kbd> | 1С: Свойства |
-| <kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>6</kbd> | 1С: Список дел |
+| <kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>4</kbd> | 1С: Служебные файлы |
+| <kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>5</kbd> | 1С: Метаданные |
+| <kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>6</kbd> | 1С: Свойства |
 | <kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>7</kbd> | 1С: Артефакты |
+| <kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>8</kbd> | 1С: Пакеты |
+| <kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>9</kbd> | 1С: Список дел |
 
 На macOS вместо <kbd>Ctrl</kbd> — <kbd>Cmd</kbd>.
 

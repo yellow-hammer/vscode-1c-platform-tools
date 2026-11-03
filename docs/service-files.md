@@ -15,6 +15,7 @@
 | `.gitignore` | `.gitignore` | исключения для проекта 1С | да |
 | `.gitattributes` | `.gitattributes` | text/binary для файлов 1С | да |
 | **Осн. профиль запуска** | `env.json` / `autumn-properties.json` | базовый [профиль запуска](launch-profiles.md) (формат по версии vrunner) | да |
+| **Осн. настройка окружения** | `.env` | файл [настроек окружения](environment.md) по умолчанию | нет |
 | **CI: прогон тестов** | `tools/vrunner.json` | настройки прогона тестов в CI (BDD, дымовые) | нет |
 | **CI: инициализация данных** | `tools/vrunner.init.json` | настройки шага инициализации данных в CI | нет |
 | **VA: параметры тестов** | `tools/VAParams.json` | параметры Vanessa Automation для прогона тестов | нет |
@@ -45,9 +46,3 @@
 ## CI-файлы
 
 `tools/vrunner.json` и `tools/vrunner.init.json` — файлы настроек для CI (совместимы с [jenkins-lib](https://github.com/firstBitMarksistskaya/jenkins-lib)): один для прогона тестов, другой для шага инициализации данных. На vrunner 3 они создаются в том же формате `autumn`, что и основной профиль (та же база `vrunner` + секция `test.vanessa`), отличаясь только файлом параметров VA.
-
-## Связанные руководства
-
-- [Профили запуска](launch-profiles.md) — активный профиль, именованные профили, временные параметры.
-- [Тестирование](testing.md) — файлы `tools/*` параметров Vanessa, xUnit, YAxUnit.
-- [1С: Инструменты](tools.md) — дерево команд, в котором находится раздел «Служебные файлы».

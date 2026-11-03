@@ -4393,6 +4393,14 @@
             }
           },
           {
+            "id": "step18-packages",
+            "title": "Пакеты",
+            "description": "Панель в проводнике рядом с артефактами: какая версия стоит и от какого пакета пришла.\n\n[Открыть панель «1С: Пакеты»](command:1c-platform-tools-packages.focus)",
+            "media": {
+              "markdown": "walkthrough/step18-packages.md"
+            }
+          },
+          {
             "id": "step5-service-files",
             "title": "Служебные файлы",
             "description": "env.json, launch.json и другие: параметры ИБ, отладка, Git. Единый интерфейс настройки разрабатывается.\n\n[Открыть env.json](command:1c-platform-tools.env.editSettingsFile)\n[Открыть launch.json](command:1c-platform-tools.launch.editConfigurations)",
