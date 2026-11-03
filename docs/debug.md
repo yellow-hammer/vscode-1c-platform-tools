@@ -6,7 +6,7 @@
 
 Расширение регистрирует отладчик **1Cpt: Enterprise Debugger** (тип `1c-platform-tools`) и работает через [onec-debug-adapter](https://github.com/yellow-hammer/onec-debug-adapter) — адаптер скачивается и обновляется автоматически при первом запуске отладки.
 
-![Отладка 1С в VS Code](../walkthrough/images/step8.png)
+![Отладка 1С в VS Code](../walkthrough/images/step12.png)
 
 ## Требования
 

@@ -6,7 +6,7 @@
 
 Панель **1С: Список дел** в нижней панели VS Code собирает комментарии с тегами `TODO`, `FIXME`, `XXX`, `HACK`, `BUG` по файлам BSL, OScript, Markdown и Gherkin.
 
-![Панель «1С: Список дел»](../walkthrough/images/step7.png)
+![Панель «1С: Список дел»](../walkthrough/images/step11.png)
 
 ## Работа с панелью
 

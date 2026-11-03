@@ -4361,11 +4361,11 @@
         "icon": "resources/1c-icon.png",
         "steps": [
           {
-            "id": "step1-create-open",
+            "id": "step1-project",
             "title": "Создайте или откройте проект",
             "description": "Выберите сценарий: откройте существующий проект, создайте новый или инициализируйте packagedef и структуру в текущей папке.\n\n[Открыть проект](command:vscode.openFolder)\n[Создать проект](command:1c-platform-tools.projects.create)\n[Инициализировать текущий](command:1c-platform-tools.dependencies.initializePackagedef)\n[Инициализировать структуру](command:1c-platform-tools.dependencies.initializeProjectStructure)",
             "media": {
-              "markdown": "walkthrough/step1-create-open.md"
+              "markdown": "walkthrough/step1-project.md"
             }
           },
           {
@@ -4377,129 +4377,121 @@
             }
           },
           {
-            "id": "step3-commands-panel",
-            "title": "Панель с командами",
-            "description": "Дерево команд, избранное и палитра: всё для работы с проектом. Закрепите нужные команды в избранном.\n\n[Открыть панель «1С: Инструменты»](command:workbench.view.extension.1c-platform-tools-tools)\n[Настроить избранное](command:1c-platform-tools.tools.configureFavorites)",
-            "media": {
-              "markdown": "walkthrough/step3-commands-panel.md"
-            }
-          },
-          {
-            "id": "step4-artifacts",
-            "title": "Панель артефактов",
-            "description": "Конфигурации, расширения, обработки, отчёты и feature-файлы. Открыть, собрать, разобрать, запустить Vanessa-Automation можно из панели проводника или панели редактора.\n\n[Настройки артефактов](command:1c-platform-tools.artifacts.openSettings)",
-            "media": {
-              "markdown": "walkthrough/step4-artifacts.md"
-            }
-          },
-          {
-            "id": "step18-packages",
-            "title": "Пакеты",
-            "description": "Панель в проводнике рядом с артефактами: какая версия стоит и от какого пакета пришла.\n\n[Открыть панель «1С: Пакеты»](command:1c-platform-tools-packages.focus)",
-            "media": {
-              "markdown": "walkthrough/step18-packages.md"
-            }
-          },
-          {
-            "id": "step5-service-files",
-            "title": "Служебные файлы",
-            "description": "env.json, launch.json и другие: параметры ИБ, отладка, Git. Единый интерфейс настройки разрабатывается.\n\n[Открыть env.json](command:1c-platform-tools.env.editSettingsFile)\n[Открыть launch.json](command:1c-platform-tools.launch.editConfigurations)",
-            "media": {
-              "markdown": "walkthrough/step5-service-files.md"
-            }
-          },
-          {
-            "id": "step6-projects",
+            "id": "step3-projects",
             "title": "Панель проектов",
             "description": "Укажите папки поиска, и расширение найдёт все проекты 1С. Избранное и теги помогут быстро переключаться.\n\n[Открыть панель «1С: Проекты»](command:workbench.view.extension.1c-platform-tools-projects)\n[Настройка проектов](command:1c-platform-tools.projects.openSettings)\n[Открыть список проектов](command:1c-platform-tools.projects.listOpen)",
             "media": {
-              "markdown": "walkthrough/step6-projects.md"
+              "markdown": "walkthrough/step3-projects.md"
             }
           },
           {
-            "id": "step7-todo-list",
-            "title": "Список дел",
-            "description": "Панель собирает TODO и FIXME по проекту. Фильтры и группировка помогают найти нужные пометки.\n\n[Открыть список дел](command:1c-platform-tools.todo.showPanel)\n[Настройки списка дел](command:1c-platform-tools.todo.openSettings)",
-            "media": {
-              "markdown": "walkthrough/step7-todo-list.md"
-            }
-          },
-          {
-            "id": "step8-debug",
-            "title": "Отладка 1С",
-            "description": "Отладка через onec-debug-adapter (DAP). ИБ из env.json, конфигурация 1Cpt:Enterprise в launch.json.\n\n[Открыть launch.json](command:1c-platform-tools.launch.editConfigurations)",
-            "media": {
-              "markdown": "walkthrough/step8-debug.md"
-            }
-          },
-          {
-            "id": "step12-testing",
-            "title": "Панель тестирования",
-            "description": "Тесты Vanessa, xUnit, YAxUnit, OneScript и 1bdd в нативной панели тестирования VS Code: запуск из редактора, статусы, переход к падению.\n\n[Открыть панель тестирования](command:workbench.view.testing.focus)\n[Настроить тесты](command:1c-platform-tools.test.configure)",
-            "media": {
-              "markdown": "walkthrough/step12-testing.md"
-            }
-          },
-          {
-            "id": "step14-automation",
-            "title": "Автоматизируйте повторяющиеся действия",
-            "description": "Пайплайн собирает шаги в цепочку с ветками на успех и ошибку, хук выполняет шаги вокруг любой команды расширения.\n\n[Редактор пайплайнов](command:1c-platform-tools.pipelines.openEditor)\n[Редактор хуков](command:1c-platform-tools.hooks.openEditor)\n[Запустить пайплайн](command:1c-platform-tools.pipelines.run)",
-            "media": {
-              "markdown": "walkthrough/step14-automation.md"
-            }
-          },
-          {
-            "id": "step9-ai-mcp",
-            "title": "Интеграция с AI и MCP",
-            "description": "Навыки для агента: разработка 1С, команды расширения, OneScript, Vanessa Automation, YAxUnit и xUnit.\n\n[Добавить навыки разработки 1С (cc-1c-skills)](command:1c-platform-tools.skills.addDevSkills) · [Добавить навыки расширения (команды и MCP)](command:1c-platform-tools.skills.add1cpt) · [Настройки](command:1c-platform-tools.tools.openSettings)",
-            "media": {
-              "markdown": "walkthrough/step9-ai-mcp.md"
-            }
-          },
-          {
-            "id": "step10-metadata-tree",
-            "title": "Дерево метаданных",
-            "description": "Панель метаданных показывает структуру конфигурации и даёт быстрый доступ к операциям с объектами прямо из IDE.\n\n[Открыть панель «1С: Метаданные»](command:workbench.view.extension.1c-platform-tools-metadata)\n[Обновить дерево](command:1c-platform-tools.metadata.refresh)\n[Настройки метаданных](command:1c-platform-tools.metadata.openSettings)",
-            "media": {
-              "markdown": "walkthrough/step10-metadata-tree.md"
-            }
-          },
-          {
-            "id": "step11-er-diagrams",
-            "title": "ER-диаграммы метаданных",
-            "description": "Интерактивная схема связей объектов конфигурации. Откройте из панели метаданных или через контекстное меню объекта.\n\n[Открыть ER-диаграмму](command:1c-platform-tools.metadata.er.openCanvas)\n[Настройки метаданных](command:1c-platform-tools.metadata.openSettings)",
-            "media": {
-              "markdown": "walkthrough/step11-er-diagrams.md"
-            }
-          },
-          {
-            "id": "step13-autonomous-server",
-            "title": "Автономный сервер",
-            "description": "Публикация файловой ИБ через ibsrv: запуск, выбор сервисов (HTTP/Web/OData), открытие в браузере и отладка.\n\n[Запустить сервер](command:1c-platform-tools.server.start)\n[Выбрать публикуемые сервисы](command:1c-platform-tools.server.selectServices)",
-            "media": {
-              "markdown": "walkthrough/step13-autonomous-server.md"
-            }
-          },
-          {
-            "id": "step15-admin",
+            "id": "step4-admin",
             "title": "1С: Администрирование",
             "description": "Список информационных баз платформы и консоль кластера. Панель доступна всегда, проект 1С не обязателен.\n\n[Открыть панель «1С: Администрирование»](command:workbench.view.extension.1c-platform-tools-admin)\n[Список информационных баз](command:1c-platform-tools.infobaseList.open)\n[Создать подключение к кластеру](command:1c-platform-tools.clusters.addConnection)",
             "media": {
-              "markdown": "walkthrough/step15-admin.md"
+              "markdown": "walkthrough/step4-admin.md"
             }
           },
           {
-            "id": "step16-edt",
+            "id": "step5-commands",
+            "title": "Панель с командами",
+            "description": "Дерево команд, избранное и палитра: всё для работы с проектом. Закрепите нужные команды в избранном.\n\n[Открыть панель «1С: Инструменты»](command:workbench.view.extension.1c-platform-tools-tools)\n[Настроить избранное](command:1c-platform-tools.tools.configureFavorites)",
+            "media": {
+              "markdown": "walkthrough/step5-commands.md"
+            }
+          },
+          {
+            "id": "step6-service-files",
+            "title": "Служебные файлы",
+            "description": "env.json, launch.json и другие: параметры ИБ, отладка, Git. Единый интерфейс настройки разрабатывается.\n\n[Открыть env.json](command:1c-platform-tools.env.editSettingsFile)\n[Открыть launch.json](command:1c-platform-tools.launch.editConfigurations)",
+            "media": {
+              "markdown": "walkthrough/step6-service-files.md"
+            }
+          },
+          {
+            "id": "step7-metadata",
+            "title": "Дерево метаданных",
+            "description": "Панель метаданных показывает структуру конфигурации и даёт быстрый доступ к операциям с объектами прямо из IDE.\n\n[Открыть панель «1С: Метаданные»](command:workbench.view.extension.1c-platform-tools-metadata)\n[Обновить дерево](command:1c-platform-tools.metadata.refresh)\n[Настройки метаданных](command:1c-platform-tools.metadata.openSettings)",
+            "media": {
+              "markdown": "walkthrough/step7-metadata.md"
+            }
+          },
+          {
+            "id": "step8-edt",
             "title": "Проект 1С:EDT",
             "description": "Проект 1С:EDT расширение находит само и работает с ним теми же панелями и командами; для команд над исходным кодом нужна установленная EDT.\n\n[Открыть панель «1С: Инструменты»](command:workbench.view.extension.1c-platform-tools-tools)",
             "media": {
-              "markdown": "walkthrough/step16-edt.md"
+              "markdown": "walkthrough/step8-edt.md"
+            }
+          },
+          {
+            "id": "step9-er",
+            "title": "ER-диаграммы метаданных",
+            "description": "Интерактивная схема связей объектов конфигурации. Откройте из панели метаданных или через контекстное меню объекта.\n\n[Открыть ER-диаграмму](command:1c-platform-tools.metadata.er.openCanvas)\n[Настройки метаданных](command:1c-platform-tools.metadata.openSettings)",
+            "media": {
+              "markdown": "walkthrough/step9-er.md"
+            }
+          },
+          {
+            "id": "step10-artifacts",
+            "title": "Панель артефактов",
+            "description": "Конфигурации, расширения, обработки, отчёты и feature-файлы. Открыть, собрать, разобрать, запустить Vanessa-Automation можно из панели проводника или панели редактора.\n\n[Открыть панель «1С: Артефакты»](command:1c-platform-tools-artifacts.focus)\n[Настройки артефактов](command:1c-platform-tools.artifacts.openSettings)",
+            "media": {
+              "markdown": "walkthrough/step10-artifacts.md"
+            }
+          },
+          {
+            "id": "step11-todo",
+            "title": "Список дел",
+            "description": "Панель собирает TODO и FIXME по проекту. Фильтры и группировка помогают найти нужные пометки.\n\n[Открыть панель «1С: Список дел»](command:1c-platform-tools.todo.showPanel)\n[Настройки списка дел](command:1c-platform-tools.todo.openSettings)",
+            "media": {
+              "markdown": "walkthrough/step11-todo.md"
+            }
+          },
+          {
+            "id": "step12-debug",
+            "title": "Отладка 1С",
+            "description": "Отладка через onec-debug-adapter (DAP). ИБ из env.json, конфигурация 1Cpt:Enterprise в launch.json.\n\n[Открыть панель «Запуск и отладка»](command:workbench.view.debug)\n[Открыть launch.json](command:1c-platform-tools.launch.editConfigurations)",
+            "media": {
+              "markdown": "walkthrough/step12-debug.md"
+            }
+          },
+          {
+            "id": "step13-testing",
+            "title": "Панель тестирования",
+            "description": "Тесты Vanessa, xUnit, YAxUnit, OneScript и 1bdd в нативной панели тестирования VS Code: запуск из редактора, статусы, переход к падению.\n\n[Открыть панель «Тестирование»](command:workbench.view.testing.focus)\n[Настроить тесты](command:1c-platform-tools.test.configure)",
+            "media": {
+              "markdown": "walkthrough/step13-testing.md"
+            }
+          },
+          {
+            "id": "step14-server",
+            "title": "Автономный сервер",
+            "description": "Публикация файловой ИБ через ibsrv: запуск, выбор сервисов (HTTP/Web/OData), открытие в браузере и отладка.\n\n[Запустить сервер](command:1c-platform-tools.server.start)\n[Выбрать публикуемые сервисы](command:1c-platform-tools.server.selectServices)",
+            "media": {
+              "markdown": "walkthrough/step14-server.md"
+            }
+          },
+          {
+            "id": "step15-automation",
+            "title": "Автоматизируйте повторяющиеся действия",
+            "description": "Пайплайн собирает шаги в цепочку с ветками на успех и ошибку, хук выполняет шаги вокруг любой команды расширения.\n\n[Редактор пайплайнов](command:1c-platform-tools.pipelines.openEditor)\n[Редактор хуков](command:1c-platform-tools.hooks.openEditor)\n[Запустить пайплайн](command:1c-platform-tools.pipelines.run)",
+            "media": {
+              "markdown": "walkthrough/step15-automation.md"
+            }
+          },
+          {
+            "id": "step16-ai",
+            "title": "Интеграция с AI и MCP",
+            "description": "Навыки для агента: разработка 1С, команды расширения, OneScript, Vanessa Automation, YAxUnit и xUnit.\n\n[Добавить навыки разработки 1С (cc-1c-skills)](command:1c-platform-tools.skills.addDevSkills) · [Добавить навыки расширения (команды и MCP)](command:1c-platform-tools.skills.add1cpt) · [Настройки](command:1c-platform-tools.tools.openSettings)",
+            "media": {
+              "markdown": "walkthrough/step16-ai.md"
             }
           },
           {
             "id": "step17-onescript",
             "title": "Проект OneScript",
-            "description": "В дереве метаданных классы, модули и задачи, в командах группа «Пакет».\n\n[Открыть панель «1С: Метаданные»](command:workbench.view.extension.1c-platform-tools-metadata)",
+            "description": "Панель пакетов показывает версию и откуда она пришла. У проекта OneScript дерево метаданных показывает состав пакета.\n\n[Открыть панель «1С: Пакеты»](command:1c-platform-tools-packages.focus)\n[Открыть панель «1С: Метаданные»](command:workbench.view.extension.1c-platform-tools-metadata)",
             "media": {
               "markdown": "walkthrough/step17-onescript.md"
             }
