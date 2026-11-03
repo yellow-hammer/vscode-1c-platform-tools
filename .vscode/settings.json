@@ -13,6 +13,7 @@
 		"oscript_modules",
 		"workspaceProjects",
 		"workspace-templates",
-		"workspaceScan"
+		"workspaceScan",
+		"depos"
 	]
 }

@@ -170,8 +170,10 @@ export class PlatformTreeItem extends vscode.TreeItem {
 				return new vscode.ThemeIcon('zap');
 			case TreeItemType.Editor:
 				return new vscode.ThemeIcon('edit');
-			default:
-				return new vscode.ThemeIcon('circle-outline');
+			default: {
+				const unknown: never = type;
+				throw new Error(`Нет иконки для ${String(unknown)}`);
+			}
 		}
 	}
 }
@@ -202,6 +204,8 @@ export class PlatformTreeDataProvider implements vscode.TreeDataProvider<Platfor
 	private readonly projectsSubscription: vscode.Disposable;
 	/** Create/delete служебных файлов → иконки check/add в группе. */
 	private serviceFilesWatcher: vscode.Disposable | undefined;
+	/** Появление файла не должно перестраивать дерево в том же клике, который его создал. */
+	private serviceFilesRefreshTimer: ReturnType<typeof setTimeout> | undefined;
 
 	constructor(
 		extensionUri?: vscode.Uri,
@@ -241,12 +245,20 @@ export class PlatformTreeDataProvider implements vscode.TreeDataProvider<Platfor
 		this.projectsSubscription.dispose();
 		this.serviceFilesWatcher?.dispose();
 		this.serviceFilesWatcher = undefined;
+		if (this.serviceFilesRefreshTimer !== undefined) {
+			clearTimeout(this.serviceFilesRefreshTimer);
+			this.serviceFilesRefreshTimer = undefined;
+		}
 	}
 
 	/** Как у плашки профиля: watcher на корень проекта, при смене корня — пересоздать. */
 	private watchServiceFiles(root: string | undefined): void {
 		this.serviceFilesWatcher?.dispose();
 		this.serviceFilesWatcher = undefined;
+		if (this.serviceFilesRefreshTimer !== undefined) {
+			clearTimeout(this.serviceFilesRefreshTimer);
+			this.serviceFilesRefreshTimer = undefined;
+		}
 		if (root === undefined) {
 			return;
 		}
@@ -256,10 +268,19 @@ export class PlatformTreeDataProvider implements vscode.TreeDataProvider<Platfor
 			true,
 			false
 		);
+		const schedule = (): void => {
+			if (this.serviceFilesRefreshTimer !== undefined) {
+				clearTimeout(this.serviceFilesRefreshTimer);
+			}
+			this.serviceFilesRefreshTimer = setTimeout(() => {
+				this.serviceFilesRefreshTimer = undefined;
+				this.refresh();
+			}, 400);
+		};
 		this.serviceFilesWatcher = vscode.Disposable.from(
 			watcher,
-			watcher.onDidCreate(() => this.refresh()),
-			watcher.onDidDelete(() => this.refresh())
+			watcher.onDidCreate(schedule),
+			watcher.onDidDelete(schedule)
 		);
 	}
 

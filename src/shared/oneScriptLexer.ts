@@ -9,10 +9,12 @@
 /** Вид лексемы: многострочная строка и прочие литералы идут как `other`. */
 export type TokenKind = 'name' | 'string' | 'punct' | 'other';
 
-/** Лексема. */
+/** Лексема. `start` и `end` — позиции в исходном тексте. */
 export interface Token {
 	kind: TokenKind;
 	value: string;
+	start: number;
+	end: number;
 }
 
 const NAME_START = /[\p{L}_]/u;
@@ -99,14 +101,14 @@ export function tokenize(text: string): Token[] {
 		lineStart = false;
 		if (char === '"') {
 			const literal = readString(text, index);
-			tokens.push({ kind: literal.multiline ? 'other' : 'string', value: literal.value });
+			tokens.push({ kind: literal.multiline ? 'other' : 'string', value: literal.value, start: index, end: literal.end });
 			index = literal.end;
 			continue;
 		}
 		if (char === "'") {
 			const close = text.indexOf("'", index + 1);
 			const end = close < 0 || close > lineEnd(text, index) ? lineEnd(text, index) : close + 1;
-			tokens.push({ kind: 'other', value: text.slice(index, end) });
+			tokens.push({ kind: 'other', value: text.slice(index, end), start: index, end });
 			index = end;
 			continue;
 		}
@@ -115,7 +117,7 @@ export function tokenize(text: string): Token[] {
 			while (end < text.length && NAME_PART.test(text[end])) {
 				end += 1;
 			}
-			tokens.push({ kind: 'name', value: text.slice(index, end) });
+			tokens.push({ kind: 'name', value: text.slice(index, end), start: index, end });
 			index = end;
 			continue;
 		}
@@ -124,11 +126,11 @@ export function tokenize(text: string): Token[] {
 			while (end < text.length && ((text[end] >= '0' && text[end] <= '9') || text[end] === '.')) {
 				end += 1;
 			}
-			tokens.push({ kind: 'other', value: text.slice(index, end) });
+			tokens.push({ kind: 'other', value: text.slice(index, end), start: index, end });
 			index = end;
 			continue;
 		}
-		tokens.push({ kind: 'punct', value: char });
+		tokens.push({ kind: 'punct', value: char, start: index, end: index + 1 });
 		index += 1;
 	}
 	return tokens;

@@ -5,7 +5,9 @@
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 import * as fs from 'node:fs';
+import * as os from 'node:os';
 import * as path from 'node:path';
+import { adoptExistingOneScriptMembers } from '../../shared/oneScriptMembers';
 import {
 	appendPackageMember,
 	autumnPropertiesOf,
@@ -14,6 +16,7 @@ import {
 	packageFileName,
 	packageMembers,
 	parsePackagedef,
+	oscriptConfigDirectories,
 	removePackageMember,
 } from '../../shared/packagedef';
 
@@ -144,10 +147,10 @@ describe('шаблоны packagedef расширения', () => {
 		assert.equal(manifest.engineVersion, '2.2.1');
 		assert.deepEqual(
 			manifest.dependencies.map((item) => [item.name, item.dev]),
-			[['oneunit', true], ['asserts', true], ['mutatos', true]]
+			[['oneunit', true], ['asserts', true], ['mutatos', true], ['depos', true]]
 		);
 		assert.deepEqual(manifest.includes, ['src', 'tests']);
-		assert.deepEqual(manifest.executables, [{ file: 'src/main.os', name: 'пакет' }]);
+		assert.deepEqual(manifest.executables, []);
 		assert.deepEqual(autumnPropertiesOf(manifest), {
 			пакет: {
 				ИмяПриложения: 'пакет',
@@ -161,6 +164,8 @@ describe('шаблоны packagedef расширения', () => {
 		const manifest = parsePackagedef(template('packagedef-1c.template'));
 
 		assert.equal(dependsOn(manifest, 'vanessa-runner'), true);
+		assert.equal(dependsOn(manifest, 'depos'), true);
+		assert.equal(manifest.dependencies.find((item) => item.name === 'depos')?.dev, true);
 		assert.equal(declaresPackageApi(manifest), false);
 	});
 });
@@ -189,11 +194,74 @@ describe('состав пакета из packagedef', () => {
 		assert.equal(parsePackagedef(next).version, '1.0.0');
 	});
 
-	test('новое объявление дописывается отдельной строкой', () => {
-		const next = appendPackageMember(autumn, 'class', 'Завязь', 'src/Классы/Завязь.os');
+	test('oscript.cfg пишется рядом с программой, не в корне', () => {
+		const manifest = parsePackagedef('Описание.ИсполняемыйФайл("src/main.os").ИсполняемыйФайл("tools/cli.os", "cli");');
+		assert.deepEqual(oscriptConfigDirectories(manifest), ['src', 'tools']);
+	});
+
+	test('программа без имени команды — src/main.os, имя подставляет opm', () => {
+		const source = 'Описание.Имя("app");\n';
+		const next = appendPackageMember(source, 'executable', '', 'src/main.os');
+		assert.equal(next.includes('.ИсполняемыйФайл("src/main.os")'), true);
+		assert.equal(parsePackagedef(next).executables[0]?.file, 'src/main.os');
+		assert.equal(parsePackagedef(next).executables[0]?.name, undefined);
+		const removed = removePackageMember(next, 'executable', 'src/main.os');
+		assert.equal(parsePackagedef(removed).executables.length, 0);
+		const named = appendPackageMember(source, 'executable', 'app', 'src/main.os');
+		assert.equal(parsePackagedef(removePackageMember(named, 'executable', 'src/main.os')).executables.length, 0);
+	});
+
+	test('перезаписанный packagedef снова видит лежащие файлы', async () => {
+		const root = await fs.promises.mkdtemp(path.join(os.tmpdir(), 'os-members-'));
+		try {
+			await fs.promises.mkdir(path.join(root, 'src', 'Классы'), { recursive: true });
+			await fs.promises.writeFile(path.join(root, 'src', 'main.os'), 'Сообщить("есть");\n');
+			await fs.promises.writeFile(path.join(root, 'src', 'Классы', 'Поделка.os'), '\n');
+			await fs.promises.writeFile(path.join(root, 'packagedef'), 'Описание.Имя("app");\n');
+			await adoptExistingOneScriptMembers(root);
+			const manifest = parsePackagedef(await fs.promises.readFile(path.join(root, 'packagedef'), 'utf8'));
+			assert.equal(manifest.executables[0]?.file, 'src/main.os');
+			assert.equal(manifest.executables[0]?.name, undefined);
+			assert.equal(
+				packageMembers(manifest).some((member) => member.kind === 'class' && member.name === 'Поделка'),
+				true
+			);
+		} finally {
+			await fs.promises.rm(root, { recursive: true, force: true });
+		}
+	});
+
+	test('класс встаёт к классам, модуль к модулям, программа после них', () => {
+		const withClass = appendPackageMember(autumn, 'class', 'Завязь', 'src/Классы/Завязь.os');
+		const classAt = withClass.indexOf('ОпределяетКласс("Завязь"');
+		assert.ok(withClass.indexOf('ОпределяетКласс("Поделка"') < classAt);
+		assert.ok(classAt < withClass.indexOf('ОпределяетМодуль'));
+
+		const bare = 'Описание.Имя("app")\n    .Версия("1.0.0")\n    .ИсполняемыйФайл("src/main.os")\n;\n';
+		const withModule = appendPackageMember(bare, 'module', 'Журнал', 'src/Модули/Журнал.os');
+		assert.ok(withModule.indexOf('ОпределяетМодуль') < withModule.indexOf('ИсполняемыйФайл'));
 		assert.equal(
-			packageMembers(parsePackagedef(next)).some((member) => member.name === 'Завязь'),
+			packageMembers(parsePackagedef(withClass)).some((member) => member.name === 'Завязь'),
 			true
 		);
+	});
+
+	test('убирается объявление, комментарий с тем же вызовом остаётся', () => {
+		const source = [
+			'// .ОпределяетКласс("Поделка", "src/Классы/Поделка.os")',
+			'Описание.Имя("app").ОпределяетКласс("Поделка", "src/Классы/Поделка.os").Версия("1.0.0");',
+			'',
+		].join('\n');
+		const next = removePackageMember(source, 'class', 'Поделка');
+		assert.equal(next.includes('// .ОпределяетКласс("Поделка"'), true);
+		assert.equal(parsePackagedef(next).classes.length, 0);
+		assert.equal(parsePackagedef(next).version, '1.0.0');
+		assert.equal(next.includes('.Версия("1.0.0")'), true);
+	});
+
+	test('из двух программ убирается одна, вторая остаётся', () => {
+		const source = 'Описание.Имя("app").ИсполняемыйФайл("src/main.os").ИсполняемыйФайл("src/cli.os", "cli");\n';
+		const files = parsePackagedef(removePackageMember(source, 'executable', 'src/main.os')).executables.map((item) => item.file);
+		assert.deepEqual(files, ['src/cli.os']);
 	});
 });

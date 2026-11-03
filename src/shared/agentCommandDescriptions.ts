@@ -287,6 +287,18 @@ export const AGENT_COMMAND_DESCRIPTIONS: Record<string, AgentCommandDescription>
 		title: 'Удалить установленные зависимости проекта',
 		category: DEPENDENCIES,
 	},
+	'1c-platform-tools.dependencies.check': {
+		title: 'Показать версии зависимостей из packagedef: что установлено и какая версия доступна',
+		category: DEPENDENCIES,
+	},
+	'1c-platform-tools.dependencies.doctor': {
+		title: 'Найти проблемы зависимостей: пакет не установлен, версия не совпадает, конфликт',
+		category: DEPENDENCIES,
+	},
+	'1c-platform-tools.dependencies.upgrade': {
+		title: 'Записать в packagedef более новые версии зависимостей. dependencyTarget обязателен: latest, minor или patch. packageName ограничивает один пакет. Пакеты не ставит',
+		category: DEPENDENCIES,
+	},
 	'1c-platform-tools.dependencies.updateOpm': {
 		title: 'Обновить пакетный менеджер',
 		category: DEPENDENCIES,

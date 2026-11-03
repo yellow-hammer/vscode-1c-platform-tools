@@ -39,7 +39,6 @@ export interface InitializeProjectUi {
 	 * @returns true — проект OneScript, false — проект 1С, undefined — отказ
 	 */
 	pickKind(suggested: boolean): Promise<boolean | undefined>;
-	confirmOverwrite(file: string): Promise<boolean>;
 	openProjectFile(file: string): Promise<void>;
 	noFolder(): void;
 }
@@ -155,9 +154,6 @@ export async function initializeProject(
 		if (!(error instanceof ProjectFileExistsError)) {
 			throw error;
 		}
-		if (!(await ui.confirmOverwrite(error.file))) {
-			return undefined;
-		}
 		root = await source.createProjectFile(dir, { overwrite: true, oneScript });
 	}
 	const file = path.join(normalizeProjectRoot(dir), PROJECT_FILE);
@@ -186,14 +182,6 @@ const interactiveUi: InitializeProjectUi = {
 			placeHolder: 'Какой проект создать',
 		});
 		return picked?.oneScript;
-	},
-	async confirmOverwrite(file) {
-		const answer = await vscode.window.showWarningMessage(
-			`Файл packagedef уже есть: ${file}. Перезаписать?`,
-			{ modal: true },
-			'Перезаписать'
-		);
-		return answer === 'Перезаписать';
 	},
 	async openProjectFile(file) {
 		const document = await vscode.workspace.openTextDocument(vscode.Uri.file(file));

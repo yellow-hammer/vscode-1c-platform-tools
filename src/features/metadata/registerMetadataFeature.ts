@@ -1344,19 +1344,13 @@ export function registerMetadataFeature(
 	}
 
 	/** Группа OneScript, с которой вызвано «Добавить объект». */
-	function oneScriptGroupToAdd(args: readonly unknown[]): 'class' | 'module' | 'task' | undefined {
+	function oneScriptGroupToAdd(args: readonly unknown[]): 'class' | 'module' | 'executable' | 'task' | undefined {
 		for (const arg of args) {
 			if (arg instanceof OneScriptTasksGroupTreeItem) {
 				return 'task';
 			}
-			if (!(arg instanceof OneScriptGroupTreeItem)) {
-				continue;
-			}
-			if (arg.expansionId === 'oscript:class') {
-				return 'class';
-			}
-			if (arg.expansionId === 'oscript:module') {
-				return 'module';
+			if (arg instanceof OneScriptGroupTreeItem) {
+				return arg.kind;
 			}
 		}
 		return undefined;
@@ -1377,7 +1371,7 @@ export function registerMetadataFeature(
 	}
 
 	/** Класс или модуль пакета: файл, строка в packagedef, обновление дерева. */
-	async function createOneScriptMember(kind: 'class' | 'module'): Promise<void> {
+	async function createOneScriptMember(kind: 'class' | 'module' | 'executable'): Promise<void> {
 		const root = currentRoot();
 		if (!root) {
 			return;
@@ -1487,11 +1481,12 @@ export function registerMetadataFeature(
 		registerMetadataCommand('1c-platform-tools.metadata.createOneScriptModule', () =>
 			createOneScriptMember('module')
 		),
+		registerMetadataCommand('1c-platform-tools.metadata.createOneScriptProgram', () =>
+			createOneScriptMember('executable')
+		),
 		registerMetadataCommand('1c-platform-tools.metadata.createOneScriptTask', () => createTask()),
 		registerMetadataCommand('1c-platform-tools.metadata.deleteOneScriptMember', async (item?: unknown) => {
-			const member = item instanceof OneScriptMemberTreeItem && (item.kind === 'class' || item.kind === 'module')
-				? item
-				: undefined;
+			const member = item instanceof OneScriptMemberTreeItem ? item : undefined;
 			const task = item instanceof OneScriptTaskTreeItem ? item : undefined;
 			const target = member ?? task;
 			if (!target || typeof target.label !== 'string') {
@@ -1508,11 +1503,12 @@ export function registerMetadataFeature(
 			if (target.resourceUri) {
 				await fs.promises.unlink(target.resourceUri.fsPath).catch(() => undefined);
 			}
-			if (member && (member.kind === 'class' || member.kind === 'module')) {
+			if (member) {
 				const packagedefPath = path.join(root, PROJECT_FILE);
 				try {
 					const source = await fs.promises.readFile(packagedefPath, 'utf8');
-					const next = removePackageMember(source, member.kind, target.label);
+					const key = member.kind === 'executable' ? member.file : target.label;
+					const next = removePackageMember(source, member.kind, key);
 					if (next !== source) {
 						await fs.promises.writeFile(packagedefPath, next, 'utf8');
 					}
@@ -1546,7 +1542,7 @@ export function registerMetadataFeature(
 			'1c-platform-tools.metadata.addObject',
 			async (...commandArgs: unknown[]) => {
 				const oneScript = oneScriptGroupToAdd(commandArgs);
-				if (oneScript === 'class' || oneScript === 'module') {
+				if (oneScript === 'class' || oneScript === 'module' || oneScript === 'executable') {
 					await createOneScriptMember(oneScript);
 					return;
 				}

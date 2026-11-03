@@ -68,11 +68,7 @@ export interface ProjectStructureFile {
 /** Каталоги нового проекта OneScript: классы, модули и тесты. */
 export const ONESCRIPT_PROJECT_DIRECTORIES: readonly string[] = ['src/Классы', 'src/Модули', 'tests'];
 
-/** Файлы нового проекта OneScript: `src/main.os` и `tests/oscript.cfg`. */
+/** Файл каталога тестов: путь к библиотекам. Программу создаёт дерево метаданных. */
 export const ONESCRIPT_PROJECT_FILES: readonly ProjectStructureFile[] = [
-	{
-		path: 'src/main.os',
-		content: 'Процедура ВыполнитьПриложение()\n\tСообщить("Приложение запущено");\nКонецПроцедуры\n\nВыполнитьПриложение();\n',
-	},
 	{ path: 'tests/oscript.cfg', content: 'lib.additional=../oscript_modules\n' },
 ];

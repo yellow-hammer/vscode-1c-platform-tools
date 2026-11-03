@@ -309,6 +309,12 @@
           "name": "1С: Артефакты",
           "contextualTitle": "Артефакты проекта",
           "when": "1c-platform-tools.is1CProject == true"
+        },
+        {
+          "id": "1c-platform-tools-packages",
+          "name": "1С: Пакеты",
+          "contextualTitle": "Пакеты",
+          "when": "1c-platform-tools.is1CProject == true"
         }
       ],
       "debug": [
@@ -923,6 +929,13 @@
         "category": "1С: Метаданные"
       },
       {
+        "command": "1c-platform-tools.metadata.createOneScriptProgram",
+        "title": "Добавить программу",
+        "shortTitle": "Программа",
+        "icon": "$(add)",
+        "category": "1С: Метаданные"
+      },
+      {
         "command": "1c-platform-tools.metadata.createOneScriptTask",
         "title": "Добавить задачу",
         "shortTitle": "Задача",
@@ -977,14 +990,14 @@
       {
         "command": "1c-platform-tools.metadata.initEmptyCf",
         "title": "Создать новую конфигурацию",
-        "shortTitle": "Создать конфигурацию",
+        "shortTitle": "Конфигурация",
         "icon": "$(add)",
         "category": "1С: Метаданные"
       },
       {
         "command": "1c-platform-tools.metadata.initEmptyCfe",
         "title": "Создать новое расширение",
-        "shortTitle": "Создать расширение",
+        "shortTitle": "Расширение",
         "icon": "$(extensions)",
         "category": "1С: Метаданные"
       },
@@ -1698,11 +1711,31 @@
       {
         "command": "1c-platform-tools.dependencies.install",
         "title": "Установить зависимости",
+        "icon": "$(package)",
+        "category": "1С: Зависимости"
+      },
+      {
+        "command": "1c-platform-tools.dependencies.check",
+        "title": "Проверить версии",
+        "icon": "$(search)",
+        "category": "1С: Зависимости"
+      },
+      {
+        "command": "1c-platform-tools.dependencies.doctor",
+        "title": "Диагностика зависимостей",
+        "icon": "$(pulse)",
+        "category": "1С: Зависимости"
+      },
+      {
+        "command": "1c-platform-tools.dependencies.upgrade",
+        "title": "Обновить версии",
+        "icon": "$(arrow-up)",
         "category": "1С: Зависимости"
       },
       {
         "command": "1c-platform-tools.dependencies.remove",
         "title": "Удалить зависимости",
+        "icon": "$(trash)",
         "category": "1С: Зависимости"
       },
       {
@@ -2615,6 +2648,10 @@
           "when": "false"
         },
         {
+          "command": "1c-platform-tools.metadata.createOneScriptProgram",
+          "when": "false"
+        },
+        {
           "command": "1c-platform-tools.metadata.createOneScriptTask",
           "when": "false"
         },
@@ -3156,6 +3193,31 @@
           "command": "1c-platform-tools.artifacts.refresh",
           "when": "view == 1c-platform-tools-artifacts",
           "group": "navigation@30"
+        },
+        {
+          "command": "1c-platform-tools.dependencies.install",
+          "when": "view == 1c-platform-tools-packages",
+          "group": "navigation@1"
+        },
+        {
+          "command": "1c-platform-tools.dependencies.check",
+          "when": "view == 1c-platform-tools-packages",
+          "group": "navigation@2"
+        },
+        {
+          "command": "1c-platform-tools.dependencies.doctor",
+          "when": "view == 1c-platform-tools-packages",
+          "group": "navigation@3"
+        },
+        {
+          "command": "1c-platform-tools.dependencies.upgrade",
+          "when": "view == 1c-platform-tools-packages",
+          "group": "navigation@4"
+        },
+        {
+          "command": "1c-platform-tools.dependencies.remove",
+          "when": "view == 1c-platform-tools-packages",
+          "group": "navigation@5"
         },
         {
           "command": "1c-platform-tools.todo.filterByScope",
@@ -3786,7 +3848,7 @@
         },
         {
           "command": "1c-platform-tools.metadata.addObject",
-          "when": "view == 1c-platform-tools-metadata-tree && (viewItem == oneScriptPackageGroupClass || viewItem == oneScriptPackageGroupModule || viewItem == oneScriptTasksGroup)",
+          "when": "view == 1c-platform-tools-metadata-tree && (viewItem == oneScriptPackageGroupClass || viewItem == oneScriptPackageGroupModule || viewItem == oneScriptPackageGroupExecutable || viewItem == oneScriptTasksGroup)",
           "group": "inline"
         },
         {
@@ -3876,7 +3938,7 @@
         },
         {
           "command": "1c-platform-tools.metadata.addObject",
-          "when": "view == 1c-platform-tools-metadata-tree && (viewItem == oneScriptPackageGroupClass || viewItem == oneScriptPackageGroupModule || viewItem == oneScriptTasksGroup)",
+          "when": "view == 1c-platform-tools-metadata-tree && (viewItem == oneScriptPackageGroupClass || viewItem == oneScriptPackageGroupModule || viewItem == oneScriptPackageGroupExecutable || viewItem == oneScriptTasksGroup)",
           "group": "3_create@1"
         },
         {
@@ -3988,6 +4050,11 @@
           "command": "1c-platform-tools.metadata.showLog",
           "when": "view == 1c-platform-tools-metadata-tree && viewItem =~ /(^| )metadata(Error|Notice)( |$)/",
           "group": "inline"
+        },
+        {
+          "command": "1c-platform-tools.dependencies.upgrade",
+          "when": "view == 1c-platform-tools-packages && viewItem == oscriptPackage",
+          "group": "1_upgrade@1"
         },
         {
           "command": "1c-platform-tools.pipelines.run",
@@ -4139,6 +4206,11 @@
           "group": "navigation@3"
         },
         {
+          "command": "1c-platform-tools.metadata.createOneScriptProgram",
+          "when": "1c-platform-tools.project.kind == onescript",
+          "group": "navigation@3.5"
+        },
+        {
           "command": "1c-platform-tools.metadata.addExternalReport",
           "group": "navigation@4"
         },
@@ -4222,17 +4294,17 @@
         "mac": "cmd+alt+3"
       },
       {
-        "command": "workbench.view.extension.1c-platform-tools-metadata",
+        "command": "workbench.view.extension.1c-platform-tools-service-files",
         "key": "ctrl+alt+4",
         "mac": "cmd+alt+4"
       },
       {
-        "command": "workbench.view.extension.1c-platform-tools-properties",
+        "command": "workbench.view.extension.1c-platform-tools-metadata",
         "key": "ctrl+alt+5",
         "mac": "cmd+alt+5"
       },
       {
-        "command": "workbench.view.extension.1c-platform-tools-todo",
+        "command": "workbench.view.extension.1c-platform-tools-properties",
         "key": "ctrl+alt+6",
         "mac": "cmd+alt+6"
       },
@@ -4240,6 +4312,16 @@
         "command": "1c-platform-tools-artifacts.focus",
         "key": "ctrl+alt+7",
         "mac": "cmd+alt+7"
+      },
+      {
+        "command": "1c-platform-tools-packages.focus",
+        "key": "ctrl+alt+8",
+        "mac": "cmd+alt+8"
+      },
+      {
+        "command": "workbench.view.extension.1c-platform-tools-todo",
+        "key": "ctrl+alt+9",
+        "mac": "cmd+alt+9"
       },
       {
         "command": "1c-platform-tools.syntaxCheck.run",
@@ -5154,7 +5236,7 @@
     "typecheck": "tsc --noEmit",
     "lint": "eslint src --max-warnings 0",
     "test": "vscode-test && npm run test:node",
-    "test:node": "node --test out/test/shared/skillMcpNames.node.js out/test/shared/gitHead.node.js out/test/shared/launchConfigurations.node.js out/test/shared/workspaceScope.node.js out/test/shared/dotEnv.node.js out/test/shared/environments.node.js out/test/shared/codeEnvironmentVariables.node.js out/test/shared/ovmPaths.node.js out/test/shared/packagedef.node.js out/test/shared/oneScriptEngine.node.js out/test/shared/processOutput.node.js out/test/shared/processTermination.node.js out/test/shared/ibsrvDataLock.node.js out/test/shared/channelLocation.node.js out/test/shared/windowRegistry.node.js out/test/utils/shellArgvRoundtrip.node.js out/test/shared/executableLookup.node.js out/test/testing/mutatosRun.node.js out/test/testing/mutatosSources.node.js out/test/testing/mutatosReport.node.js out/test/spreadsheet/spreadsheetHtml.node.js out/test/features/odata.node.js out/test/metadata/erTheme.node.js out/test/metadata/jarJavaVersion.node.js out/test/testing/yaxunitReleases.node.js out/test/metadata/erExport.node.js",
+    "test:node": "node --test out/test/shared/skillMcpNames.node.js out/test/shared/gitHead.node.js out/test/shared/launchConfigurations.node.js out/test/shared/workspaceScope.node.js out/test/shared/dotEnv.node.js out/test/shared/environments.node.js out/test/shared/codeEnvironmentVariables.node.js out/test/shared/ovmPaths.node.js out/test/shared/packagedef.node.js out/test/shared/oneScriptEngine.node.js out/test/shared/processOutput.node.js out/test/shared/processTermination.node.js out/test/shared/ibsrvDataLock.node.js out/test/shared/channelLocation.node.js out/test/shared/windowRegistry.node.js out/test/utils/shellArgvRoundtrip.node.js out/test/shared/executableLookup.node.js out/test/shared/oneScriptModules.node.js out/test/testing/mutatosRun.node.js out/test/testing/mutatosSources.node.js out/test/testing/mutatosReport.node.js out/test/spreadsheet/spreadsheetHtml.node.js out/test/features/odata.node.js out/test/metadata/erTheme.node.js out/test/metadata/jarJavaVersion.node.js out/test/testing/yaxunitReleases.node.js out/test/metadata/erExport.node.js out/test/features/dependencyModel.node.js",
     "package": "vsce package",
     "changelog": "git-cliff --config cliff.toml --output CHANGELOG.md",
     "docs:dev": "vitepress dev docs",

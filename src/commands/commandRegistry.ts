@@ -126,9 +126,23 @@ function registerRunningCommand<A extends unknown[]>(
 	return registerProjectCommand(id, withWorkspaceTrust(id, handler));
 }
 
+/** Объект опций агента, если аргумент команды пришёл из MCP. */
+function agentOptionsOf(target: unknown): CommandExecutionOptions | undefined {
+	return isAgentOptions(target) ? (target as CommandExecutionOptions) : undefined;
+}
+
+/** Имя пакета со строки дерева зависимостей. */
+function packageNameArgument(target: unknown): string | undefined {
+	if (isAgentOptions(target) || typeof target !== 'object' || target === null) {
+		return undefined;
+	}
+	const name = (target as { packageName?: unknown }).packageName;
+	return typeof name === 'string' && name.trim() !== '' ? name : undefined;
+}
+
 /**
  * Регистрирует все команды расширения
- * 
+ *
  * @param context - Контекст расширения VS Code
  * @param commands - Объекты команд
  * @returns Массив Disposable для подписки в context.subscriptions
@@ -423,6 +437,15 @@ export function registerCommands(
 		registerProjectCommand('1c-platform-tools.dependencies.remove', () => {
 			commands.dependencies.removeDependencies();
 		}),
+		registerProjectCommand('1c-platform-tools.dependencies.check', (target?: unknown) =>
+			commands.dependencies.checkDependencies(agentOptionsOf(target))
+		),
+		registerProjectCommand('1c-platform-tools.dependencies.doctor', (target?: unknown) =>
+			commands.dependencies.diagnoseDependencies(agentOptionsOf(target))
+		),
+		registerProjectCommand('1c-platform-tools.dependencies.upgrade', (target?: unknown) =>
+			commands.dependencies.upgradeDependencies(agentOptionsOf(target), packageNameArgument(target))
+		),
 		registerProjectCommand('1c-platform-tools.components.setGithubToken', uiOnlyHandler(
 			'Токен вводит пользователь в поле с маскировкой; агенту секрет не передаётся.',
 			() => askGithubToken()
@@ -582,7 +605,6 @@ export function registerCommands(
 
 	// Пакет OneScript: сборка и установка собранного. Раздел и узел дерева артефактов
 	// идут в проекте своего пути, вызов агента — в проекте вызова
-	const agentOptionsOf = (target: unknown) => (isAgentOptions(target) ? (target as CommandExecutionOptions) : undefined);
 	const packageCommands = [
 		vscode.commands.registerCommand('1c-platform-tools.package.build', (target?: unknown) => {
 			const opts = agentOptionsOf(target);

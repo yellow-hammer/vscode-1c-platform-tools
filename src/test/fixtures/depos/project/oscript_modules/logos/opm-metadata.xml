@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<opm-metadata xmlns="http://oscript.io/schemas/opm-metadata/1.0">
+    <name>logos</name>
+    <version>1.7.1</version>
+    <depends-on>
+        <name>strings</name>
+        <version>0.4.0</version>
+    </depends-on>
+</opm-metadata>

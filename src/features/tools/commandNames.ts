@@ -147,6 +147,39 @@ export function getRemoveDependenciesCommandName(): CommandNameAndTitle {
 }
 
 /**
+ * Проверка версий зависимостей проекта OneScript.
+ */
+export function getCheckDependenciesCommandName(): CommandNameAndTitle {
+	return {
+		id: '1c-platform-tools.dependencies.check',
+		name: 'Проверить версии',
+		title: 'Проверить версии'
+	};
+}
+
+/**
+ * Диагностика зависимостей.
+ */
+export function getDiagnoseDependenciesCommandName(): CommandNameAndTitle {
+	return {
+		id: '1c-platform-tools.dependencies.doctor',
+		name: 'Диагностика зависимостей',
+		title: 'Диагностика зависимостей'
+	};
+}
+
+/**
+ * Запись более новых версий зависимостей в packagedef.
+ */
+export function getUpgradeDependenciesCommandName(): CommandNameAndTitle {
+	return {
+		id: '1c-platform-tools.dependencies.upgrade',
+		name: 'Обновить версии',
+		title: 'Обновить версии'
+	};
+}
+
+/**
  * Получить название и заголовок для команды инициализации проекта (packagedef)
  */
 export function getInitializePackagedefCommandName(): CommandNameAndTitle {

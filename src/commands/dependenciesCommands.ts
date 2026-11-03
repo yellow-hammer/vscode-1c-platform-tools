@@ -19,13 +19,17 @@ import {
 } from '../shared/workspaceProjects';
 import { initializeProjectCommand } from '../features/projects/workspaceProjectCommands';
 import { workspaceProjectsSource } from '../features/projects/workspaceProjectsSource';
-import type { StructuredCommandResult } from '../shared/commandExecutionTypes';
+import type { CommandExecutionOptions, StructuredCommandResult } from '../shared/commandExecutionTypes';
 import { ONESCRIPT_PROJECT_DIRECTORIES, ONESCRIPT_PROJECT_FILES, projectStructureItems } from '../shared/projectStructure';
 import { detectProjectKind } from '../shared/projectKind';
 import { getEngineBinaryCandidates, getOvmBaseDir, getOvmRootDir } from '../shared/ovmPaths';
-import { MODULES_DIRECTORY, readPackageManifest } from '../shared/oneScriptLayout';
+import { readPackageManifest } from '../shared/oneScriptLayout';
+import { MODULES_DIRECTORY } from '../shared/oneScriptModules';
+import { adoptExistingOneScriptMembers } from '../shared/oneScriptMembers';
+import { oscriptConfigDirectories } from '../shared/packagedef';
 import { notifyBusy, notifyQuiet, notifyQuietFailure } from '../shared/notify';
 import { buildProcessCommand, joinCommands, PROCESS_HOST_SHELL } from '../utils/commandUtils';
+import { checkDepos, diagnoseDepos, upgradeDepos } from '../features/dependencies/deposRun';
 import { createVRunnerTask } from '../features/tasks/vrunnerTask';
 import { showComponentError } from '../shared/githubToken';
 import { ensureWorkspaceTrusted } from '../shared/workspaceTrust';
@@ -242,12 +246,25 @@ export class DependenciesCommands extends BaseCommand {
 		if (!(await this.ensureLocalOscriptAvailable())) {
 			return;
 		}
+		// opm пишет oscript.cfg рядом с программой из packagedef и падает, если каталога ещё нет
+		await this.ensureExecutableDirectories(workspaceRoot);
 
 		const commandName = getInstallDependenciesCommandName();
 		this.vrunner.executeOpmInTerminal(['install', '--dev', '-l'], {
 			cwd: workspaceRoot,
 			name: commandName.title
 		});
+	}
+
+	/** Каталоги программ пакета: туда opm кладёт `oscript.cfg` при локальной установке. */
+	private async ensureExecutableDirectories(root: string): Promise<void> {
+		const manifest = readPackageManifest(root);
+		if (!manifest) {
+			return;
+		}
+		await Promise.all(
+			oscriptConfigDirectories(manifest).map((dir) => fs.mkdir(path.join(root, dir), { recursive: true }))
+		);
 	}
 
 	/**
@@ -454,7 +471,7 @@ export class DependenciesCommands extends BaseCommand {
 	 *
 	 * Агенту возвращает результат для каталога из `root`, `projectPath` или корня вызова.
 	 * Пользователю при нескольких вариантах предлагает каталог: папки рабочей области и
-	 * не проекты; существующий файл перезаписывается только после подтверждения.
+	 * не проекты; существующий файл перезаписывается.
 	 *
 	 * @param arg - Первый аргумент команды
 	 * @param opts - Опции вызова
@@ -524,6 +541,26 @@ export class DependenciesCommands extends BaseCommand {
 	static readonly INSTALL_DEPS_AFTER_CREATE_KEY = '1c-platform-tools.installDepsAfterCreate';
 
 	/**
+	 * Каталоги нового проекта OneScript.
+	 *
+	 * @returns `directories` — каталоги пакета, `packagedefOnly` — только описание
+	 */
+	private async pickOneScriptStructure(): Promise<'directories' | 'packagedefOnly' | undefined> {
+		const picked = await vscode.window.showQuickPick(
+			[
+				{ label: 'Каталоги пакета', description: 'src/Классы, src/Модули и tests', choice: 'directories' as const },
+				{ label: 'Только packagedef', description: 'без каталогов', choice: 'packagedefOnly' as const },
+			],
+			{
+				title: 'Проект OneScript',
+				placeHolder: 'Что создать вместе с packagedef',
+				ignoreFocusOut: true,
+			}
+		);
+		return picked?.choice;
+	}
+
+	/**
 	 * Формат каталогов проекта 1С.
 	 *
 	 * Проект в формате 1С:Конфигуратор получает каталоги src и tests. Проект в формате 1С:EDT создаётся без них.
@@ -552,8 +589,8 @@ export class DependenciesCommands extends BaseCommand {
 	/**
 	 * Создаёт новый проект из пустого окна.
 	 *
-	 * Сначала вид: проект 1С или проект OneScript. У проекта 1С дальше формат исходников.
-	 * Затем установка зависимостей и папка.
+	 * Сначала вид: проект 1С или проект OneScript, затем каталоги или только packagedef.
+	 * Дальше установка зависимостей и папка.
 	 */
 	async createProjectFromWelcome(context?: vscode.ExtensionContext): Promise<void> {
 		const kindChoice = await vscode.window.showQuickPick([...DependenciesCommands.NEW_PROJECT_KINDS], {
@@ -566,7 +603,14 @@ export class DependenciesCommands extends BaseCommand {
 		}
 		const oneScript = kindChoice.oneScript;
 		let format: 'designer' | 'edt' | undefined;
-		if (!oneScript) {
+		let oneScriptDirectories = false;
+		if (oneScript) {
+			const layout = await this.pickOneScriptStructure();
+			if (!layout) {
+				return;
+			}
+			oneScriptDirectories = layout === 'directories';
+		} else {
 			const layout = await this.pickOneCStructure(true);
 			if (!layout) {
 				return;
@@ -633,21 +677,13 @@ export class DependenciesCommands extends BaseCommand {
 				if (!(error instanceof ProjectFileExistsError)) {
 					throw error;
 				}
-				const action = await vscode.window.showWarningMessage(
-					'В выбранной папке уже есть файл packagedef. Перезаписать и открыть папку?',
-					'Да',
-					'Нет'
-				);
-				if (action !== 'Да') {
-					return;
-				}
 				await writeProjectFile(targetDir, templatePath, true);
 			}
 			log.info(`Файл packagedef создан: ${packagedefPath}`);
 
-			if (oneScript || format) {
+			if (oneScriptDirectories || format) {
 				try {
-					const created = oneScript
+					const created = oneScriptDirectories
 						? await this.createOneScriptStructureInFolder(targetDir)
 						: await this.createProjectStructureInFolder(targetDir, format ?? 'designer');
 					const files = 'createdFiles' in created ? created.createdFiles : created.createdReadmes;
@@ -660,6 +696,9 @@ export class DependenciesCommands extends BaseCommand {
 				}
 			} else {
 				notifyQuiet(`${projectLabel} создан. Открываю папку…`);
+			}
+			if (oneScript) {
+				await adoptExistingOneScriptMembers(targetDir);
 			}
 			if (installDependencies && context) {
 				await context.globalState.update(DependenciesCommands.INSTALL_DEPS_AFTER_CREATE_KEY, targetDir);
@@ -881,5 +920,49 @@ export class DependenciesCommands extends BaseCommand {
 	private async useInstalledVersion(version: string): Promise<void> {
 		await this.vrunner.refreshOneScriptResolution();
 		notifyQuiet(`OneScript ${version} установлен`);
+	}
+
+	/**
+	 * Сравнивает версии зависимостей из packagedef с доступными.
+	 *
+	 * @param opts - Опции вызова; с `wait: true` возвращает список пакетов
+	 */
+	checkDependencies(opts?: CommandExecutionOptions): Promise<StructuredCommandResult | void> {
+		return this.runDepos(() => checkDepos(this.vrunner, opts), opts);
+	}
+
+	/**
+	 * Ищет проблемы зависимостей.
+	 *
+	 * @param opts - Опции вызова; с `wait: true` возвращает список пакетов
+	 */
+	diagnoseDependencies(opts?: CommandExecutionOptions): Promise<StructuredCommandResult | void> {
+		return this.runDepos(() => diagnoseDepos(this.vrunner, opts), opts);
+	}
+
+	/**
+	 * Записывает в packagedef более новые версии зависимостей.
+	 *
+	 * @param opts - Опции вызова
+	 * @param packageName - Пакет из строки дерева
+	 */
+	upgradeDependencies(opts?: CommandExecutionOptions, packageName?: string): Promise<StructuredCommandResult | void> {
+		return this.runDepos(() => upgradeDepos(this.vrunner, opts, packageName), opts);
+	}
+
+	private async runDepos(
+		run: () => Promise<StructuredCommandResult | void>,
+		opts?: CommandExecutionOptions,
+	): Promise<StructuredCommandResult | void> {
+		if (!ensureWorkspaceTrusted('проверка зависимостей')) {
+			return undefined;
+		}
+		if (!this.ensureWorkspace()) {
+			return opts?.wait === true ? this.executionError('Откройте проект') : undefined;
+		}
+		if (!(await this.ensureLocalOscriptForExecution(opts))) {
+			return opts?.wait === true ? this.executionError('OneScript (oscript) или opm не найдены') : undefined;
+		}
+		return run();
 	}
 }

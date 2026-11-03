@@ -1,0 +1,16 @@
+[
+  {
+    "packageName": "autumn",
+    "isDev": false,
+    "currentMinVersion": "5.0.0",
+    "targetMinVersion": "5.1.2",
+    "maxVersion": ""
+  },
+  {
+    "packageName": "oneunit",
+    "isDev": true,
+    "currentMinVersion": "0.5.0",
+    "targetMinVersion": "0.5.0",
+    "maxVersion": ""
+  }
+]

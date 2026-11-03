@@ -132,6 +132,17 @@ suite('mcpCommandPolicy', () => {
 		assert.strictEqual(isCommandExposedToMcp('1c-platform-tools.test.mutatosReport'), false);
 	});
 
+	test('проверка зависимостей OneScript агенту доступна с исходом', () => {
+		for (const id of [
+			'1c-platform-tools.dependencies.check',
+			'1c-platform-tools.dependencies.doctor',
+			'1c-platform-tools.dependencies.upgrade',
+		]) {
+			assert.strictEqual(isCommandExposedToMcp(id), true, id);
+			assert.strictEqual(commandSupportsWait(id), true, id);
+		}
+	});
+
 	test('пакет OneScript и его тесты агенту доступны с исходом: сборку можно дождаться перед установкой', () => {
 		for (const id of [
 			'1c-platform-tools.package.build',
