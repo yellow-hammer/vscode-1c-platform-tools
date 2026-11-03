@@ -24,6 +24,8 @@ const AGENT_OPTION_KEYS = [
 	'resource',
 	'include',
 	'exclude',
+	'packageName',
+	'dependencyTarget',
 ] as const;
 
 /**

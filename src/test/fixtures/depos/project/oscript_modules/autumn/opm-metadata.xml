@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<opm-metadata xmlns="http://oscript.io/schemas/opm-metadata/1.0">
+    <name>autumn</name>
+    <version>5.0.0</version>
+    <depends-on name="entity" dev="false" version="1.2.0"/>
+    <depends-on name="logos" dev="true" version="1.7.0"/>
+</opm-metadata>

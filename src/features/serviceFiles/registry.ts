@@ -54,6 +54,13 @@ export const SERVICE_FILES: ServiceFileSpec[] = [
 		recommended: true,
 	},
 	{
+		id: 'environment',
+		relPath: '.env',
+		label: 'Осн. настройка окружения',
+		description: 'переменные настроек окружения, файл .env',
+		recommended: false,
+	},
+	{
 		id: 'vrunner',
 		relPath: 'tools/vrunner.json',
 		label: 'CI: прогон тестов',
@@ -136,7 +143,7 @@ export function getServiceFileSpec(id: string): ServiceFileSpec | undefined {
 }
 
 /** Служебные файлы проекта OneScript. */
-const ONESCRIPT_SERVICE_IDS = new Set(['gitignore', 'gitattributes', 'launchProfile', 'hooks', 'pipelines']);
+const ONESCRIPT_SERVICE_IDS = new Set(['gitignore', 'gitattributes', 'launchProfile', 'environment', 'hooks', 'pipelines']);
 
 /** Базовый набор служебных файлов проекта OneScript. */
 const ONESCRIPT_RECOMMENDED_IDS = new Set(['gitignore', 'gitattributes']);

@@ -99,6 +99,13 @@ suite('дерево команд под вид проекта', () => {
 			'1c-platform-tools.test.allure',
 		]);
 		assert.ok(commands('dependency').includes('1c-platform-tools.dependencies.initializeProjectStructure'));
+		assert.ok(commands('dependency').includes('1c-platform-tools.dependencies.check'));
+		assert.ok(commands('dependency').includes('1c-platform-tools.dependencies.doctor'));
+		assert.ok(commands('dependency').includes('1c-platform-tools.dependencies.upgrade'));
+		const designerDeps = groupCommandsFor(group('dependency'), undefined, treeTraitsOf('designer', false)).map((entry) => entry.command);
+		assert.ok(designerDeps.includes('1c-platform-tools.dependencies.check'));
+		assert.ok(designerDeps.includes('1c-platform-tools.dependencies.upgrade'));
+		assert.ok(designerDeps.includes('1c-platform-tools.dependencies.doctor'));
 		assert.ok(!commands('serviceFiles').includes('1c-platform-tools.serviceFiles.createEnvJson'));
 		assert.ok(!commands('dependency').includes('1c-platform-tools.dependencies.selectOscript'));
 		assert.deepStrictEqual(commands('skills').sort(), [

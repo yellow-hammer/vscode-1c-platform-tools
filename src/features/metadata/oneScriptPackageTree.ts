@@ -44,19 +44,22 @@ function groupState(hasChildren: boolean, expanded: boolean | undefined): vscode
 
 /** Группа состава пакета. */
 export class OneScriptGroupTreeItem extends vscode.TreeItem {
+	readonly kind: PackageMemberKind;
+
 	readonly members: readonly OneScriptMemberTreeItem[];
 
 	readonly expansionId: string;
 
 	constructor(kind: PackageMemberKind, members: readonly OneScriptMemberTreeItem[], expanded?: boolean) {
 		super(GROUP_LABEL[kind], groupState(members.length > 0, expanded));
+		this.kind = kind;
 		this.members = members;
 		this.expansionId = oneScriptExpansionId(kind);
 		this.contextValue = kind === 'class'
 			? 'oneScriptPackageGroupClass'
 			: kind === 'module'
 				? 'oneScriptPackageGroupModule'
-				: 'oneScriptPackageGroup';
+				: 'oneScriptPackageGroupExecutable';
 		this.iconPath = plainIcon(GROUP_ICON[kind]);
 	}
 }
@@ -66,12 +69,12 @@ export class OneScriptMemberTreeItem extends vscode.TreeItem {
 	constructor(
 		readonly kind: PackageMemberKind,
 		name: string,
-		file: string,
+		readonly file: string,
 		root: string
 	) {
 		super(name, vscode.TreeItemCollapsibleState.None);
 		this.description = file;
-		this.contextValue = kind === 'executable' ? 'oneScriptPackageMember' : 'oneScriptPackageMemberDeletable';
+		this.contextValue = 'oneScriptPackageMemberDeletable';
 		this.resourceUri = vscode.Uri.file(path.resolve(root, file));
 		this.command = { command: 'vscode.open', title: 'Открыть', arguments: [this.resourceUri] };
 		this.iconPath = plainIcon('file');
@@ -154,17 +157,13 @@ export async function oneScriptPackageRoot(
 		return 'Нет файла packagedef';
 	}
 	const members = packageMembers(parsePackagedef(source));
-	const groups = (['class', 'module', 'executable'] as const)
-		.map((kind) => {
-			const items = members
-				.filter((member) => member.kind === kind)
-				.map((member) => new OneScriptMemberTreeItem(member.kind, member.name, member.file, root));
-			// Класс и модуль видны и пустыми: плюс на группе создаёт первый
-			if (kind === 'executable' && items.length === 0) {
-				return undefined;
-			}
-			return new OneScriptGroupTreeItem(kind, items, expanded?.(oneScriptExpansionId(kind)));
-		})
-		.filter((group): group is OneScriptGroupTreeItem => group !== undefined);
-	return groups;
+	return (['class', 'module', 'executable'] as const).flatMap((kind) => {
+		const items = members
+			.filter((member) => member.kind === kind)
+			.map((member) => new OneScriptMemberTreeItem(member.kind, member.name, member.file, root));
+		if (items.length === 0) {
+			return [];
+		}
+		return [new OneScriptGroupTreeItem(kind, items, expanded?.(oneScriptExpansionId(kind)))];
+	});
 }

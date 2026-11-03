@@ -22,7 +22,7 @@ import { mdSparrowSchemaFlagFromConfigurationXml } from './mdSparrowSchemaVersio
 import { offerGithubTokenOnRateLimit } from '../../shared/githubToken';
 import { configurationScope, type ConfigurationScope } from '../../shared/activeConfiguration';
 import { detectProjectKind } from '../../shared/projectKind';
-import { externalEntry, resolveProjectLayout, type ExternalRoot, type ProjectLayout } from '../../shared/projectLayout';
+import { externalEntry, PROJECT_FILE, resolveProjectLayout, type ExternalRoot, type ProjectLayout } from '../../shared/projectLayout';
 import {
 	OneScriptGroupTreeItem,
 	OneScriptMemberTreeItem,
@@ -1561,6 +1561,10 @@ export class MetadataTreeDataProvider implements vscode.TreeDataProvider<vscode.
 	/** Почему дерева нет, когда это не ошибка: например, проект OneScript. */
 	private _notice: string | undefined;
 	private _workspaceRoot: string | undefined;
+	/** `packagedef` текущего проекта: состав OneScript читается из него. */
+	private packagedefWatcher: vscode.Disposable | undefined;
+	private packagedefWatchRoot: string | undefined;
+	private packagedefTimer: ReturnType<typeof setTimeout> | undefined;
 	private _subsystemFilter:
 		| {
 				readonly subsystemName: string;
@@ -1792,6 +1796,44 @@ export class MetadataTreeDataProvider implements vscode.TreeDataProvider<vscode.
 		this.rebuildItemCache(root, external);
 	}
 
+	/**
+	 * Состав пакета OneScript берётся из `packagedef`. Вид проекта на правку файла
+	 * уже пересчитывает наблюдатель проектов; само дерево перечитывается здесь.
+	 */
+	private watchPackagedef(root: string | undefined): void {
+		if (root === this.packagedefWatchRoot) {
+			return;
+		}
+		this.packagedefWatcher?.dispose();
+		this.packagedefWatcher = undefined;
+		if (this.packagedefTimer !== undefined) {
+			clearTimeout(this.packagedefTimer);
+			this.packagedefTimer = undefined;
+		}
+		this.packagedefWatchRoot = root;
+		if (root === undefined) {
+			return;
+		}
+		const watcher = vscode.workspace.createFileSystemWatcher(new vscode.RelativePattern(root, PROJECT_FILE));
+		const schedule = (): void => {
+			if (this.packagedefTimer !== undefined) {
+				clearTimeout(this.packagedefTimer);
+			}
+			this.packagedefTimer = setTimeout(() => {
+				this.packagedefTimer = undefined;
+				if (projectByRoot(root)?.kind === 'onescript') {
+					void this.refresh();
+				}
+			}, 400);
+		};
+		this.packagedefWatcher = vscode.Disposable.from(
+			watcher,
+			watcher.onDidCreate(schedule),
+			watcher.onDidChange(schedule),
+			watcher.onDidDelete(schedule)
+		);
+	}
+
 	async refresh(): Promise<void> {
 		const generation = ++this._refreshGeneration;
 		this._lastError = undefined;
@@ -1818,6 +1860,7 @@ export class MetadataTreeDataProvider implements vscode.TreeDataProvider<vscode.
 
 		const root = this.selectedRoot();
 		this._workspaceRoot = root;
+		this.watchPackagedef(root);
 		if (!root) {
 			this._contentOneScript = false;
 			this._contentExternalKey = '';

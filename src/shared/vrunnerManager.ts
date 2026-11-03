@@ -2628,14 +2628,12 @@ export class VRunnerManager {
 			const { path: opmPath, leadingArgs } = this.getOpmInvocation();
 			const command = buildProcessCommand(opmPath, [...leadingArgs, ...args]);
 			const cwd = options?.cwd || this.getEffectiveRoot();
-
 			const execOptions = {
 				cwd,
 				env: this.childEnv(),
 				maxBuffer: MAX_EXEC_BUFFER_SIZE,
 				encoding: 'buffer' as const
 			};
-
 			log.info(`exec: ${command} (cwd: ${cwd ?? 'не задан'})`);
 			exec(command, execOptions, (error, stdout, stderr) => {
 				const errorOutput = decodeProcessOutput(stderr);

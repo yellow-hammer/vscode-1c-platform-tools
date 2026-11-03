@@ -55,6 +55,7 @@ const NODE_COMMANDS_IN_PALETTE = new Map<string, string>([
 	['1c-platform-tools.pipelines.run', 'открывает выбор пайплайна'],
 	['1c-platform-tools.pipelines.runWith', 'открывает выбор пайплайна'],
 	['1c-platform-tools.project.initialize', 'предлагает папку для packagedef'],
+	['1c-platform-tools.dependencies.upgrade', 'обновляет версии зависимостей текущего проекта'],
 ]);
 
 /** Скрытые из палитры команды и команды контекстного меню узлов деревьев. */

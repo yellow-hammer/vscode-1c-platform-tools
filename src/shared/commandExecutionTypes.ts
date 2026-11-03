@@ -89,6 +89,10 @@ export interface CommandExecutionOptions {
 	exclude?: string[];
 	/** Вернуть все объекты, которые можно включить в состав (odata.setup). */
 	available?: boolean;
+	/** Имя пакета OneScript для обновления одной зависимости (dependencies.upgrade). */
+	packageName?: string;
+	/** До какой версии поднимать минимум в packagedef: latest, minor или patch. */
+	dependencyTarget?: 'latest' | 'minor' | 'patch';
 }
 
 /**

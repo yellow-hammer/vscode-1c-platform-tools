@@ -1,14 +1,14 @@
 import * as vscode from 'vscode';
 import * as path from 'node:path';
 import * as fs from 'node:fs/promises';
-import * as fsSync from 'node:fs';
 import { VRunnerManager } from '../../../shared/vrunnerManager';
 import { TestFrameworkAdapter, AdapterRunPlan, RunUnit } from '../frameworkAdapter';
 import { DiscoveredFile } from '../parsers/parserTypes';
 import { parseBslTestModule } from '../parsers/bslTestParser';
 import { resolveConfigPath } from '../projectTestConfig';
 import { normalizeGlobBase, directorySegments } from './adapterUtils';
-import { MODULES_DIRECTORY, oneScriptTestsPath, readPackageManifest } from '../../../shared/oneScriptLayout';
+import { oneScriptTestsPath, readPackageManifest } from '../../../shared/oneScriptLayout';
+import { localPackageProgram } from '../../../shared/oneScriptModules';
 import { dependsOn, parsePackagedef } from '../../../shared/packagedef';
 import { projectConfiguration } from '../../../shared/projectConfiguration';
 import { BUILD_SUBDIRS } from '../../../shared/pathDefaults';
@@ -265,7 +265,8 @@ export function oneScriptRunnerProgram(workspaceRoot: string | undefined): { kin
 	}
 
 	const kind = resolveRunnerKind(runnerSetting, workspaceRoot);
-	return { kind, file: findLocalRunner(kind, workspaceRoot) ?? kind };
+	const local = workspaceRoot === undefined ? undefined : localPackageProgram(workspaceRoot, kind);
+	return { kind, file: local ?? kind };
 }
 
 /**
@@ -293,7 +294,8 @@ function resolveRunnerKind(setting: string, workspaceRoot: string | undefined): 
 	if (setting === '1testrunner' || setting === 'oneunit') {
 		return setting;
 	}
-	if (findLocalRunner('oneunit', workspaceRoot) || packagedefDependsOn('oneunit', workspaceRoot)) {
+	const localOneunit = workspaceRoot !== undefined && localPackageProgram(workspaceRoot, 'oneunit') !== undefined;
+	if (localOneunit || packagedefDependsOn('oneunit', workspaceRoot)) {
 		return 'oneunit';
 	}
 	return '1testrunner';
@@ -309,18 +311,6 @@ function resolveRunnerKind(setting: string, workspaceRoot: string | undefined): 
 function packagedefDependsOn(packageName: string, workspaceRoot: string | undefined): boolean {
 	const manifest = workspaceRoot === undefined ? undefined : readPackageManifest(workspaceRoot);
 	return manifest !== undefined && dependsOn(manifest, packageName);
-}
-
-/**
- * Ищет раннер в локальной установке oscript_modules/bin
- */
-function findLocalRunner(kind: OneScriptRunner, workspaceRoot: string | undefined): string | undefined {
-	if (!workspaceRoot) {
-		return undefined;
-	}
-	const name = process.platform === 'win32' ? `${kind}.bat` : kind;
-	const localPath = path.join(workspaceRoot, MODULES_DIRECTORY, 'bin', name);
-	return fsSync.existsSync(localPath) ? localPath : undefined;
 }
 
 /**

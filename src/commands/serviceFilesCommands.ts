@@ -27,6 +27,8 @@ import {
 	baseSettingsFileName,
 } from '../shared/envProfiles';
 import { notifyQuiet } from '../shared/notify';
+import { newEnvironmentText } from '../shared/environments';
+import { projectEnvironmentVariables } from '../features/launch/projectEnvironmentVariables';
 
 const log = logger.scope('serviceFiles');
 
@@ -116,6 +118,10 @@ export class ServiceFilesCommands extends BaseCommand {
 			}
 			return;
 		}
+		if (specId === 'environment') {
+			await this.ensureEnvironment();
+			return;
+		}
 		if (specId === 'env') {
 			await this.ensureEnv(nonInteractive);
 			return;
@@ -152,6 +158,27 @@ export class ServiceFilesCommands extends BaseCommand {
 			this.refreshTree();
 			notifyQuiet(`Создан ${spec.relPath}`);
 		}
+	}
+
+	/**
+	 * Открывает `.env`. Если файла нет, создаёт его с переменными из кода проекта.
+	 */
+	private async ensureEnvironment(): Promise<void> {
+		const workspaceRoot = this.ensureWorkspace();
+		if (!workspaceRoot) {
+			return;
+		}
+		const fullPath = path.join(workspaceRoot, '.env');
+		if (!fsSync.existsSync(fullPath)) {
+			const text = newEnvironmentText(await projectEnvironmentVariables(workspaceRoot));
+			await fs.writeFile(fullPath, text, 'utf8');
+			log.info('Создан .env');
+			notifyQuiet('Создан .env');
+		}
+		const doc = await vscode.workspace.openTextDocument(vscode.Uri.file(fullPath));
+		await vscode.window.showTextDocument(doc);
+		this.refreshTree();
+		this.refreshProfileStatusBar();
 	}
 
 	/**

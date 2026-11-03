@@ -24,6 +24,7 @@ import { registerMetadataFlow } from './registerMetadataFlow';
 import { registerPropertiesFlow } from './registerPropertiesFlow';
 import { checkMdSparrowUpdateInBackground } from '../features/metadata/mdSparrowBootstrap';
 import { registerArtifactsFlow } from './registerArtifactsFlow';
+import { registerPackagesView } from '../features/dependencies/packagesView';
 import { registerTodoFlow } from './registerTodoFlow';
 import { registerMainTreeFlow } from './registerMainTreeFlow';
 import { registerTestingFlow } from './registerTestingFlow';
@@ -103,6 +104,7 @@ export async function bootstrapApp(context: vscode.ExtensionContext): Promise<Pl
 		artifactsFeatureDisposables,
 		onArtifactsExcludeChanged,
 	} = registerArtifactsFlow(context, isProjectRef, showNot1CProjectMessage);
+	registerPackagesView(context);
 	const { treeDataProvider, mainTreeCommandDisposables } = registerMainTreeFlow({
 		context,
 		isProjectRef,

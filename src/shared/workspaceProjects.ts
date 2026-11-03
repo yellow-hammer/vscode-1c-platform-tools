@@ -34,6 +34,7 @@ import {
 } from './projectLayout';
 import { logger } from './logger';
 import { outsideLaunchSelection } from './launchSelection';
+import { adoptExistingOneScriptMembers } from './oneScriptMembers';
 import { declaresPackageApi, parsePackagedef } from './packagedef';
 import { projectKindOf, type ProjectKind } from './projectKind';
 import { notifyProjectLayoutChanged, onDidChangeProjectLayout, type ProjectLayoutChange } from './projectLayoutWatch';
@@ -687,6 +688,9 @@ export class WorkspaceProjects implements vscode.Disposable {
 		this.ownProjectFiles.set(key, own);
 		try {
 			await writeProjectFile(root, templateFile, options.overwrite);
+			if (options.oneScript) {
+				await adoptExistingOneScriptMembers(root);
+			}
 		} catch (error) {
 			own.pending -= 1;
 			this.forgetOwnProjectFile(key, own);

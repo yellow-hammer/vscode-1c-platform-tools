@@ -1,0 +1,108 @@
+{
+  "manifestPath": "packagedef",
+  "problemCount": 2,
+  "recommendationCount": 1,
+  "sections": [
+    {
+      "number": "01",
+      "type": "НеУстановлен",
+      "title": "Не установлены",
+      "description": "",
+      "items": [
+        {
+          "type": "НеУстановлен",
+          "packageName": "oneunit",
+          "isDev": true,
+          "isProblem": true,
+          "summary": "Пакет не установлен",
+          "reason": "",
+          "installedVersion": "",
+          "requiredVersion": "0.5.0",
+          "files": [],
+          "directory": "",
+          "requirements": [],
+          "conflictType": ""
+        }
+      ]
+    },
+    {
+      "number": "02",
+      "type": "ТранзитивныйКонфликт",
+      "title": "Конфликты транзитивных зависимостей",
+      "description": "",
+      "items": [
+        {
+          "type": "ТранзитивныйКонфликт",
+          "packageName": "entity",
+          "isDev": false,
+          "isProblem": true,
+          "summary": "Несовместимые требования",
+          "reason": "Разные границы версий",
+          "installedVersion": "1.2.0",
+          "requiredVersion": "",
+          "files": [],
+          "directory": "",
+          "requirements": [
+            {
+              "packageName": "entity",
+              "isDev": false,
+              "rootDirectDependency": "autumn",
+              "requirementSource": "autumn",
+              "minVersion": "1.2.0",
+              "maxVersion": "",
+              "requiredVersion": ">=1.2.0",
+              "dependencyChain": ["autumn", "entity"]
+            }
+          ],
+          "conflictType": "incompatible"
+        }
+      ]
+    },
+    {
+      "number": "03",
+      "type": "ОтсутствуетВМанифесте",
+      "title": "Отсутствуют в манифесте",
+      "description": "",
+      "items": [
+        {
+          "type": "ОтсутствуетВМанифесте",
+          "packageName": "strings",
+          "isDev": false,
+          "isProblem": true,
+          "summary": "Пакет используется в коде",
+          "reason": "",
+          "installedVersion": "",
+          "requiredVersion": "",
+          "files": ["src/main.os"],
+          "directory": "",
+          "requirements": [],
+          "conflictType": ""
+        }
+      ]
+    },
+    {
+      "number": "04",
+      "type": "РекомендацияВерсии",
+      "title": "Рекомендации по версиям",
+      "description": "",
+      "items": [
+        {
+          "type": "РекомендацияВерсии",
+          "packageName": "autumn",
+          "isDev": false,
+          "isProblem": false,
+          "summary": "Ограничение уже обеспечено",
+          "reason": "",
+          "installedVersion": "",
+          "requiredVersion": "",
+          "currentMinVersion": "5.0.0",
+          "transitiveMinVersion": "5.0.0",
+          "files": [],
+          "directory": "",
+          "requirements": [],
+          "conflictType": ""
+        }
+      ]
+    }
+  ]
+}

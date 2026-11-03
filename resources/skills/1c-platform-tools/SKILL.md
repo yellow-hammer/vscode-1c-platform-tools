@@ -117,6 +117,9 @@ description: "Операции с платформой 1С в этом прое�
 | Установить OneScript | `1c-platform-tools.dependencies.installOscript` | `deps_installOscript` |
 | Обновить пакетный менеджер | `1c-platform-tools.dependencies.updateOpm` | `deps_updateOpm` |
 | Установить зависимости | `1c-platform-tools.dependencies.install` | `deps_install` |
+| Проверить версии зависимостей | `1c-platform-tools.dependencies.check` | `deps_check` |
+| Диагностика зависимостей | `1c-platform-tools.dependencies.doctor` | `deps_doctor` |
+| Обновить версии | `1c-platform-tools.dependencies.upgrade` | `deps_upgrade` |
 | Удалить зависимости | `1c-platform-tools.dependencies.remove` | `deps_remove` |
 | Настроить Git | `1c-platform-tools.dependencies.setupGit` | нет |
 | Собрать пакет OneScript | `1c-platform-tools.package.build` | `package_build` |
@@ -125,9 +128,11 @@ description: "Операции с платформой 1С в этом прое�
 
 `project_init` и `deps_initPackagedef` создают `packagedef` в обязательном `projectPath` и делают проект текущим. Пустой каталог получает описание проекта 1С, каталог с файлами `.os` или каталогами классов и модулей — описание пакета OneScript. Существующий `packagedef` не перезаписывается. Для Execute Command каталог можно передать и полем `root`.
 
-`deps_initProjStruct` у проекта OneScript создаёт `src/Классы`, `src/Модули`, `tests`, `src/main.os` и `tests/oscript.cfg`. У проекта 1С — каталоги шаблона и README. Существующие файлы не перезаписываются. Класс клади в `src/Классы`, модуль в `src/Модули`: объявление в `packagedef` дописывает инициализация каталогов. Исход в ответ не входит.
+`deps_initProjStruct` у проекта OneScript создаёт каталоги `src/Классы`, `src/Модули`, `tests` и `tests/oscript.cfg`. Программу он не создаёт: файл `src/main.os` и строка `.ИсполняемыйФайл` добавляются отдельно. У проекта 1С — каталоги шаблона и README. Существующие файлы не перезаписываются. Класс клади в `src/Классы`, модуль в `src/Модули`: объявление в `packagedef` дописывает инициализация каталогов. Исход в ответ не входит.
 
 Зависимости ставь через `deps_install`. Если oscript уже есть, `deps_installOscript` не вызывай: он ставит интерпретатор. К `opm install` в терминале переходи, когда MCP недоступен. Git-мастер агенту недоступен: настраивай git командами git.
+
+Версии зависимостей смотри через `deps_check` с `wait: true`. Проблемы зависимостей смотри через `deps_doctor`. Новые версии в packagedef записывает `deps_upgrade` (`dependencyTarget`: `latest`, `minor` или `patch`), пакеты после этого ставит `deps_install`. depos берётся из oscript_modules проекта, иначе из установки OneScript. Если его нет ни там, ни там, допиши `.РазработкаЗависитОт("depos")` и вызови `deps_install`.
 
 Движок OneScript у каждого проекта свой: `components.path.oscript`; установка OVM, выбранная для проекта; движок машины (текущая установка OVM, иначе `oscript` из PATH), если он не ниже `ВерсияСреды` в `packagedef`; иначе установка по `ВерсияСреды`. Если подходящей установки нет, остаётся движок машины, и opm откажется ставить пакет: скажи человеку, что нужна версия не ниже `ВерсияСреды`. Версию проекта выбирает человек в палитре; `deps_installOscript` ставит версию рядом с остальными, а машину переключает только первая установка, когда `current` OVM ещё нет. Движок по пути агент задаёт настройкой `components.path.oscript`.
 

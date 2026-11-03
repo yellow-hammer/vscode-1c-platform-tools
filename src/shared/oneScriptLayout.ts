@@ -18,9 +18,6 @@ import { projectConfiguration } from './projectConfiguration';
 import { directoryKey, PROJECT_FILE, testsDirectoryName } from './projectLayout';
 import { currentRoot } from './workspaceProjects';
 
-/** Каталог зависимостей проекта: сюда их ставит `opm install -l`. */
-export const MODULES_DIRECTORY = 'oscript_modules';
-
 /** Каталог задач OneScript, если настройка пустая. */
 export const TASKS_DIRECTORY = 'tasks';
 

@@ -85,6 +85,9 @@ const WITHOUT_SYNC_RESULT_PREFIXES = [
 /** Команды, которые исход операции возвращают, хотя их префикс в списке выше. */
 const WITH_SYNC_RESULT_EXACT = [
 	`${COMMAND_PREFIX}dependencies.initializePackagedef`,
+	`${COMMAND_PREFIX}dependencies.check`,
+	`${COMMAND_PREFIX}dependencies.doctor`,
+	`${COMMAND_PREFIX}dependencies.upgrade`,
 ];
 
 /**

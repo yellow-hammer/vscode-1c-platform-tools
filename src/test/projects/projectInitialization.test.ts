@@ -23,8 +23,8 @@ import {
 } from './workspaceProjectsFixture';
 
 /** Ответы пользователя и что у него спрашивали. */
-function recordingUi(answers: { pick?: string; overwrite?: boolean; oneScript?: boolean } = {}) {
-	const asked = { choices: [] as InitializeChoice[][], kinds: [] as boolean[], overwrite: [] as string[], opened: [] as string[], noFolder: 0 };
+function recordingUi(answers: { pick?: string; oneScript?: boolean } = {}) {
+	const asked = { choices: [] as InitializeChoice[][], kinds: [] as boolean[], opened: [] as string[], noFolder: 0 };
 	const ui: InitializeProjectUi = {
 		pickDirectory: async (choices) => {
 			asked.choices.push([...choices]);
@@ -33,10 +33,6 @@ function recordingUi(answers: { pick?: string; overwrite?: boolean; oneScript?: 
 		pickKind: async (suggested) => {
 			asked.kinds.push(suggested);
 			return answers.oneScript ?? false;
-		},
-		confirmOverwrite: async (file) => {
-			asked.overwrite.push(file);
-			return answers.overwrite ?? false;
 		},
 		openProjectFile: async (file) => {
 			asked.opened.push(file);
@@ -75,21 +71,14 @@ suite('проекты: инициализация', () => {
 		}
 	});
 
-	test('packagedef уже есть: без согласия файл не трогается, с согласием перезаписывается', async () => {
+	test('packagedef уже есть: файл перезаписывается без вопроса', async () => {
 		const copy = copyFixtures('проект');
 		const [root] = copy.roots;
 		const file = path.join(root, 'packagedef');
-		const before = fs.readFileSync(file, 'utf8');
 		const fixture = await detectedProjects([root]);
 		try {
-			const refused = recordingUi({ overwrite: false });
-			assert.strictEqual(await initializeProject(fixture.source, root, refused.ui), undefined);
-			assert.deepStrictEqual(refused.asked.overwrite, [file]);
-			assert.deepStrictEqual(refused.asked.opened, []);
-			assert.strictEqual(fs.readFileSync(file, 'utf8'), before);
-
-			const accepted = recordingUi({ overwrite: true });
-			assert.strictEqual(await initializeProject(fixture.source, root, accepted.ui), root);
+			const ui = recordingUi();
+			assert.strictEqual(await initializeProject(fixture.source, root, ui.ui), root);
 			assert.strictEqual(fs.readFileSync(file, 'utf8'), fs.readFileSync(TEMPLATE, 'utf8'));
 		} finally {
 			fixture.instance.dispose();
