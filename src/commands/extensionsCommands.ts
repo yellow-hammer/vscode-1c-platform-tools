@@ -1378,12 +1378,13 @@ export class ExtensionsCommands extends BaseCommand {
 	}
 
 	/**
-	 * Разбирает .cfe файл в исходники
+	 * Разбирает собранные *.cfe решения в исходники.
 	 *
-	 * Находит все файлы .cfe в папке сборки и для каждого выполняет команду `decompileext`.
-	 * Бинарные .cfe файлы разбираются в исходники в формате XML в папку расширений.
-	 * 
-	 * @returns Промис, который разрешается после запуска команд
+	 * Берёт файлы из каталога сборки расширений и раскладывает каждый в свой
+	 * каталог. Разбирается сам файл, а не расширение, установленное в базе.
+	 *
+	 * @param opts - Опции выполнения
+	 * @returns void в UI-режиме, StructuredCommandResult при wait: true
 	 */
 	async decompile(opts?: CommandExecutionOptions): Promise<StructuredCommandResult | void> {
 		const cwd = this.getExecutionCwd(opts);
@@ -1457,7 +1458,8 @@ export class ExtensionsCommands extends BaseCommand {
 				return this.reportExportPrepareFailure(NO_PLACE_FOR_EDT_EXTENSION, opts, 'error');
 			}
 			intents.push({
-				kind: 'cfe.dumpIbToSrc',
+				kind: 'cfe.decompileCfeFile',
+				file: this.pathForCmd(path.join(buildPath, BUILD_SUBDIRS.cfe, cfeFile)),
 				extensionName: target.extensionName,
 				out: this.pathForCmd(target.out),
 				common: ibConnectionParam,
