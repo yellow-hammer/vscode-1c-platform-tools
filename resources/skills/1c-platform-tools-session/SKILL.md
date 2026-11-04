@@ -19,7 +19,7 @@ description: Сеансы серверной информационной баз
 | Проверить, что сеансов нет | `1c-platform-tools.session.checkClosed` | `session_checkClosed` | `sessionFilter`, `sessionFilterMode`, `sessionTimeout` |
 | Показать сеансы | `1c-platform-tools.session.list` | `session_list` | `sessionFilter`, `sessionFilterMode`, `sessionConnections` |
 
-`session_list` доступен на vanessa-runner 3.x. `sessionFilter`: например `appid=Designer`. `sessionFilterMode`: `ONLY`, `OFF`, `EXCEPT`; `DEFAULT` и `ALL`: только vanessa-runner 2.x. `sessionRetry` и `sessionTimeout` у завершения: vanessa-runner 3.x. Запрет входа сам по себе регламентные задания не останавливает: для этого `session_lockJobs`.
+`session_list` доступен на vanessa-runner 3.x. `sessionFilter` — например `appid=Designer`. `sessionFilterMode`: `ONLY`, `OFF`, `EXCEPT`; `DEFAULT` и `ALL` — только vanessa-runner 2.x. `sessionRetry` и `sessionTimeout` у завершения — vanessa-runner 3.x. Запрет входа сам по себе регламентные задания не останавливает: для этого `session_lockJobs`.
 
 ## Примеры
 

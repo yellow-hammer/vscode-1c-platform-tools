@@ -19,9 +19,9 @@ description: Сборка и разборка внешних обработок 
 
 `epf_compileProc` и `epf_compileReport` принимают `outputDirectory` и `outputName` (имя без расширения; переменные `${name}`, `${folder}`, `${version}`, `${gitBranch}`).
 
-`epf_clearCache` при `wait: true` сразу отказывается («Очистка кэша: файловая операция, не vrunner») и кэш не удаляет. Для очистки вызови с `wait: false`.
+`epf_clearCache` при `wait: true` сразу отказывается («Очистка кэша — файловая операция, не vrunner») и кэш не удаляет. Для очистки вызови с `wait: false`.
 
-`epf_run`: `execute`: путь к `.epf` или `.erf`, `command`: строка `/C`. Нужен хотя бы один. Те же параметры есть у `run_enterprise`.
+`epf_run`: `execute` — путь к `.epf` или `.erf`, `command` — строка `/C`. Нужен хотя бы один. Те же параметры есть у `run_enterprise`.
 
 `epf_addBspRegistration` спрашивает представление в окне и пишет в выделенный объект метаданных. Для агента его не вызывай.
 

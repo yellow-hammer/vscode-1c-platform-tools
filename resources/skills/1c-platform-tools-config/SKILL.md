@@ -5,25 +5,25 @@ description: Конфигурации запуска и служебные фа�
 
 # Конфигурации запуска и служебные файлы
 
-Профиль: файл настроек vanessa-runner в корне проекта. Активный хранится в состоянии проекта, в git не входит, виден в строке состояния и подставляется во все команды vanessa-runner.
+Профиль — файл настроек vanessa-runner в корне проекта. Активный хранится в состоянии проекта, в git не входит, виден в строке состояния и подставляется во все команды vanessa-runner.
 
-- vanessa-runner 2.x: `env.json`: базовый, `env.<id>.json`: именованный (`env.dev.json`);
+- vanessa-runner 2.x: `env.json` — базовый, `env.<id>.json` — именованный (`env.dev.json`);
 - vanessa-runner 3.x: `autumn-properties.json` и `autumn-properties.<id>.json`;
 - `tools/vrunner.json` и `tools/vrunner.<id>.json` той же схемы тоже профили. `env_selectProfile` принимает путь `tools/vrunner.json`;
-- инициализация данных передаёт `tools/vrunner.init.json` целиком. Файла нет: команда отказывает;
-- `env.local.json`: личные перекрытия, профилем не считается. Плоский объект с флагами `--ibconnection`, `--db-user`, `--db-pwd`, `--v8version`, `--additional`. Допустимы обёртки `default` (2.x) и `vrunner` (3.x).
+- инициализация данных передаёт `tools/vrunner.init.json` целиком. Файла нет — команда отказывает;
+- `env.local.json` — личные перекрытия, профилем не считается. Плоский объект с флагами `--ibconnection`, `--db-user`, `--db-pwd`, `--v8version`, `--additional`. Допустимы обёртки `default` (2.x) и `vrunner` (3.x).
 
-Приоритет строки подключения: временные параметры, затем `env.local.json`, затем профиль. Временные параметры: адрес ИБ, пользователь, пароль, версия платформы, дополнительные аргументы: действуют на все команды vanessa-runner. В значениях работает `${gitBranch}`: `feature/RS-123` становится `feature-RS-123`, так делают отдельную базу на ветку (`"--ibconnection": "/F./build/${gitBranch}"`).
+Приоритет строки подключения: временные параметры, затем `env.local.json`, затем профиль. Временные параметры — адрес ИБ, пользователь, пароль, версия платформы, дополнительные аргументы — действуют на все команды vanessa-runner. В значениях работает `${gitBranch}`: `feature/RS-123` становится `feature-RS-123`, так делают отдельную базу на ветку (`"--ibconnection": "/F./build/${gitBranch}"`).
 
 ## Смена профиля
 
-Перед операцией, которая зависит от окружения, вызови `env_status`. В ответе: `activeProfileId`, `settingsFile`, `settingsFileExists`, `settingsFiles` (найденные файлы настроек профиля), `settingsSchema` (`v2` или `v3`), `profiles` (`id`, `fileName`, `label`), `activeEnvironment`, `environment` (`files`, `variables`: имена без значений), `environments` (`id`, `files`), `launchProblem` (почему запуск не начнётся), `overrides`, `localOverrides`, `localOverridesFile`, `gitBranch`, `effectiveIbConnection` (уже с подстановкой ветки, перекрытиями и переменными окружения), `vrunnerVersion`, `odata`. Пароль замаскирован. У проекта OneScript профиль один: `autumn-properties.json`, если он есть.
+Перед операцией, которая зависит от окружения, вызови `env_status`. В ответе: `activeProfileId`, `settingsFile`, `settingsFileExists`, `settingsFiles` (найденные файлы настроек профиля), `settingsSchema` (`v2` или `v3`), `profiles` (`id`, `fileName`, `label`), `activeEnvironment`, `environment` (`files`, `variables` — имена без значений), `environments` (`id`, `files`), `launchProblem` (почему запуск не начнётся), `overrides`, `localOverrides`, `localOverridesFile`, `gitBranch`, `effectiveIbConnection` (уже с подстановкой ветки, перекрытиями и переменными окружения), `vrunnerVersion`, `odata`. Пароль замаскирован. У проекта OneScript профиль один — `autumn-properties.json`, если он есть.
 
-Если пользователь назвал профиль («запусти тесты под test», «переключись на storage»): переключи его и дальше работай уже с ним. Если не назвал: не переключай, оставайся на активном. Разовый прогон под другим файлом настроек, без смены активного профиля,: параметр `settingsFile` у команды vanessa-runner.
+Если пользователь назвал профиль («запусти тесты под test», «переключись на storage») — переключи его и дальше работай уже с ним. Если не назвал — не переключай, оставайся на активном. Разовый прогон под другим файлом настроек, без смены активного профиля, — параметр `settingsFile` у команды vanessa-runner.
 
-`env_selectProfile` и Execute Command `1c-platform-tools.env.selectProfile` принимают id (`dev`), имя файла (`env.dev.json`, `autumn-properties.ci.json`, `tools/vrunner.json`) или подпись (`По умолчанию`). У MCP это параметр `profile`, у Execute Command: строка-аргумент. Без имени агентный вызов окно не открывает и возвращает ошибку со списком `available`. Успех: «Активирован профиль «id» (файл fileName).» Неизвестный профиль: «Профиль запуска «…» не найден. Доступные профили: …».
+`env_selectProfile` и Execute Command `1c-platform-tools.env.selectProfile` принимают id (`dev`), имя файла (`env.dev.json`, `autumn-properties.ci.json`, `tools/vrunner.json`) или подпись (`По умолчанию`). У MCP это параметр `profile`, у Execute Command — строка-аргумент. Без имени агентный вызов окно не открывает и возвращает ошибку со списком `available`. Успех: «Активирован профиль «id» (файл fileName).» Неизвестный профиль: «Профиль запуска «…» не найден. Доступные профили: …».
 
-Окружение: переменные среды из `.env` и `.env.<имя>` для всех запусков проекта: выбирается отдельно от профиля, у проекта любого вида. `env_selectEnvironment` (параметр `environment`) и Execute Command `1c-platform-tools.env.selectEnvironment` (строка-аргумент) принимают имя (`ci`) или имя файла (`.env.ci`); пустая строка: «По умолчанию», только общие `.env` и `.env.local`. Какие окружения есть и какое выбрано: `environments` и `activeEnvironment` в `env_status` (`null`: по умолчанию), переменные там только именами, без значений. Окружение из запроса пользователя («запусти тесты в окружении ci») переключай, неназванное не трогай. Для одного прогона пайплайна: параметр `environment` у `pipelines_run`.
+Окружение — переменные среды из `.env` и `.env.<имя>` для всех запусков проекта — выбирается отдельно от профиля, у проекта любого вида. `env_selectEnvironment` (параметр `environment`) и Execute Command `1c-platform-tools.env.selectEnvironment` (строка-аргумент) принимают имя (`ci`) или имя файла (`.env.ci`); пустая строка — «По умолчанию», только общие `.env` и `.env.local`. Какие окружения есть и какое выбрано — `environments` и `activeEnvironment` в `env_status` (`null` — по умолчанию), переменные там только именами, без значений. Окружение из запроса пользователя («запусти тесты в окружении ci») переключай, неназванное не трогай. Для одного прогона пайплайна — параметр `environment` у `pipelines_run`.
 
 | Задача | Command ID | MCP | wait: true |
 |---|---|---|---|
@@ -53,14 +53,14 @@ description: Конфигурации запуска и служебные фа�
 
 `1c-platform-tools.launch.editConfigurations` в MCP нет. `tasks_edit` открывает `tasks.json`, не `launch.json`.
 
-`1c-platform-tools.serviceFiles.create`: меню. Агентный вызов отвечает: «Команда открывает окна VS Code и недоступна агенту. Используйте serviceFiles.createRecommendedSet, createGitignore, createGitattributes, createEnvJson или serviceFiles.ensure с id файла.» В MCP есть четыре команды создания из таблицы. `1c-platform-tools.serviceFiles.ensure` в MCP нет.
+`1c-platform-tools.serviceFiles.create` — меню. Агентный вызов отвечает: «Команда открывает окна VS Code и недоступна агенту. Используйте serviceFiles.createRecommendedSet, createGitignore, createGitattributes, createEnvJson или serviceFiles.ensure с id файла.» В MCP есть четыре команды создания из таблицы. `1c-platform-tools.serviceFiles.ensure` в MCP нет.
 
 ## Что лежит в файлах
 
-- `env.json`: подключение, платформа, секции команд.
-- `.gitignore`: `/build/`, `/oscript_modules/`, `env.local.json`, `lastUploadedCommit.txt`, бинарники конфигурации.
-- `.gitattributes`: текст и переводы строк для исходников 1С, бинарные cf и epf.
-- `lastUploadedCommit.txt`: SHA инкрементальной загрузки в каталоге исходников конфигурации.
+- `env.json` — подключение, платформа, секции команд.
+- `.gitignore` — `/build/`, `/oscript_modules/`, `env.local.json`, `lastUploadedCommit.txt`, бинарники конфигурации.
+- `.gitattributes` — текст и переводы строк для исходников 1С, бинарные cf и epf.
+- `lastUploadedCommit.txt` — SHA инкрементальной загрузки в каталоге исходников конфигурации.
 
 ## Примеры
 

@@ -111,7 +111,7 @@ async function createEnvironment(vrunner: VRunnerManager, refresh: () => void): 
 }
 
 /**
- * Неинтерактивный выбор окружения по имени или имени файла; пустая строка: по умолчанию.
+ * Неинтерактивный выбор окружения по имени или имени файла; пустая строка - по умолчанию.
  *
  * @param vrunner - Менеджер vrunner
  * @param refresh - Обновление строки состояния
@@ -229,7 +229,7 @@ async function selectEnvironment(vrunner: VRunnerManager, refresh: () => void): 
 export function registerEnvironmentCommands(vrunner: VRunnerManager, refresh: () => void): vscode.Disposable[] {
 	return [
 		vscode.commands.registerCommand('1c-platform-tools.env.selectEnvironment', inCurrentProject((requested?: unknown) => {
-			// строковый аргумент — неинтерактивный вызов: имя окружения, пустая строка: по умолчанию
+			// строковый аргумент — неинтерактивный вызов: имя окружения, пустая строка - по умолчанию
 			if (typeof requested === 'string') {
 				return selectEnvironmentById(vrunner, refresh, requested);
 			}
@@ -239,7 +239,7 @@ export function registerEnvironmentCommands(vrunner: VRunnerManager, refresh: ()
 				if (typeof environment === 'string') {
 					return selectEnvironmentById(vrunner, refresh, environment);
 				}
-				const hint = 'Передайте имя окружения: параметр environment (MCP) или строка-аргумент; пустая строка: по умолчанию.';
+				const hint = 'Передайте имя окружения: параметр environment (MCP) или строка-аргумент; пустая строка - по умолчанию.';
 				return {
 					success: false,
 					exitCode: 1,
@@ -251,7 +251,7 @@ export function registerEnvironmentCommands(vrunner: VRunnerManager, refresh: ()
 			return selectEnvironment(vrunner, refresh);
 		})),
 		vscode.commands.registerCommand('1c-platform-tools.env.createEnvironment', uiOnlyHandler(
-			'Имя окружения запрашивается в окне VS Code. Файл окружения: .env.<имя> в корне проекта.',
+			'Имя окружения запрашивается в окне VS Code; окружение - файл .env.<имя> в корне проекта.',
 			inCurrentProject(() => createEnvironment(vrunner, refresh))
 		)),
 		vscode.commands.registerCommand('1c-platform-tools.env.openEnvironment', uiOnlyHandler(

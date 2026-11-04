@@ -36,7 +36,7 @@ function sharedAssetsPlugin() {
 				if (name) {
 					return sendFile(res, sharedAssets[name]);
 				}
-				// Страницы ссылаются на ../resources и ../walkthrough: на dev-сервере
+				// Страницы ссылаются на ../resources и ../walkthrough - на dev-сервере
 				// эти пути выпадают из docs/, поэтому отдаём их из корня репозитория.
 				const match = pathname.match(/^\/(resources|walkthrough)\/(.+)$/);
 				if (match) {
@@ -59,14 +59,14 @@ const guides = [
 	{ text: '1С: Инструменты', link: '/tools' },
 	{ text: '1С: Служебные файлы', link: '/service-files' },
 	{ text: '1С: Метаданные', link: '/metadata' },
-	{ text: '1C:EDT', link: '/edt' },
+	{ text: 'Формат 1C:EDT', link: '/edt' },
 	{ text: 'ER-диаграммы', link: '/er-diagrams' },
 	{ text: '1С: Артефакты', link: '/artifacts' },
 	{ text: '1С: Пакеты', link: '/packages' },
 	{ text: 'Проект OneScript', link: '/onescript' },
 	{ text: '1С: Список дел', link: '/todo' },
 	{ text: 'Профили запуска', link: '/launch-profiles' },
-	{ text: 'Окружение', link: '/environment' },
+	{ text: 'Настройки окружения', link: '/environment' },
 	{ text: 'Отладка 1С', link: '/debug' },
 	{ text: 'Тестирование', link: '/testing' },
 	{ text: 'Автономный сервер', link: '/autonomous-server' },
@@ -92,7 +92,7 @@ export default defineConfig({
 	lang: 'ru-RU',
 	title: '1C: Platform Tools',
 	description:
-		'Расширение Visual Studio Code (Cursor, Windsurf, VSCodium) для разработки на 1С: проекты конфигуратора, 1C:EDT и OneScript, метаданные, отладка, тестирование, автоматизация и MCP.',
+		'Расширение Visual Studio Code (Cursor, Windsurf, VSCodium) для разработки на 1С: проекты в формате 1C:Конфигуратор, 1C:EDT и OneScript, метаданные, отладка, тестирование, автоматизация и MCP.',
 	base: '/vscode-1c-platform-tools/',
 	srcExclude: ['README.md'],
 	cleanUrls: true,

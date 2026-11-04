@@ -1,4 +1,4 @@
-# Шаг 17: Проект OneScript
+# Шаг 17 - Проект OneScript
 
 ![Скриншот](images/placeholder.svg)
 

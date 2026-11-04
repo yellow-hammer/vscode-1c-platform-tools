@@ -1,7 +1,7 @@
 {
   "name": "1c-platform-tools",
   "displayName": "1C: Platform Tools",
-  "description": "Разработка на 1С:Предприятии в VS Code (Cursor, Windsurf, VSCodium): проекты 1C:Конфигуратор, 1C:EDT и OneScript, метаданные, vanessa-runner, тесты, отладка и MCP.",
+  "description": "Разработка на 1С:Предприятии в VS Code (Cursor, Windsurf, VSCodium): проекты в формате 1C:Конфигуратор, 1C:EDT и OneScript, метаданные, vanessa-runner, тесты, отладка и MCP.",
   "keywords": [
     "1c",
     "1с",
@@ -142,7 +142,7 @@
           },
           "environment": {
             "type": "string",
-            "description": "Окружение на этот прогон вместо выбранного в редакторе; пустая строка: по умолчанию"
+            "description": "Окружение на этот прогон вместо выбранного в редакторе; пустая строка - по умолчанию"
           },
           "project": {
             "type": "string",

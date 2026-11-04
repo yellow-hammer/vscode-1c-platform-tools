@@ -1,6 +1,6 @@
 ---
 name: 1c-platform-tools-edt
-description: Команды 1C:EDT. Используй, когда пользователь просит импортировать или выгрузить проект EDT, отформатировать модули, отсортировать объекты, показать сведения о проекте или проверить проект EDT.
+description: Команды 1С:EDT. Используй, когда пользователь просит импортировать или выгрузить проект EDT, отформатировать модули, отсортировать объекты, показать сведения о проекте или проверить проект EDT.
 ---
 
 # EDT: команды и MCP
@@ -18,9 +18,9 @@ description: Команды 1C:EDT. Используй, когда пользо�
 | Сортировать объекты | `1c-platform-tools.edt.sortProject` | `edt_sortProj` |
 | Сведения о проекте | `1c-platform-tools.edt.projectInfo` | `edt_projectInfo` |
 
-`edt_validate` пишет `edt-validate.tsv` в каталог сборки и показывает замечания в Problems. В ответ инструмента таблица не входит. Проверка с разбором результата: `test_validateEdt` (`1c-platform-tools.test.validateEdt`): vanessa-runner 3.x, проект EDT.
+`edt_validate` пишет `edt-validate.tsv` в каталог сборки и показывает замечания в Problems. В ответ инструмента таблица не входит. Проверка с разбором результата — `test_validateEdt` (`1c-platform-tools.test.validateEdt`): vanessa-runner 3.x, проект EDT.
 
-Запуск IDE: `run_edt`, не команда из этой таблицы.
+Запуск IDE — `run_edt`, не команда из этой таблицы.
 
 ## Примеры
 

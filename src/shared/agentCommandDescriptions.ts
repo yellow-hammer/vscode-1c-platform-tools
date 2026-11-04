@@ -374,7 +374,7 @@ export const AGENT_COMMAND_DESCRIPTIONS: Record<string, AgentCommandDescription>
 		category: ENVIRONMENT,
 	},
 	'1c-platform-tools.env.selectEnvironment': {
-		title: 'Выбрать окружение запуска: переменные среды из .env.<имя> для всех запусков проекта (параметр environment; пустая строка: по умолчанию, только общие .env и .env.local)',
+		title: 'Выбрать окружение запуска - переменные среды из .env.<имя> для всех запусков проекта (параметр environment; пустая строка - по умолчанию, только общие .env и .env.local)',
 		category: ENVIRONMENT,
 	},
 	'1c-platform-tools.env.clearOverrides': {
@@ -392,7 +392,7 @@ export const AGENT_COMMAND_DESCRIPTIONS: Record<string, AgentCommandDescription>
 		category: PROJECT,
 	},
 	'1c-platform-tools.project.initialize': {
-		title: 'Создать packagedef в каталоге projectPath и сделать проект текущим. Пустой каталог получает описание проекта 1С, каталог с файлами .os или каталогами классов и модулей: описание пакета OneScript. Существующий packagedef не перезаписывается. projectPath обязателен: папка рабочей области или каталог из candidates списка проектов, в том числе внутри проекта',
+		title: 'Создать packagedef в каталоге projectPath и сделать проект текущим. Пустой каталог получает описание проекта 1С, каталог с файлами .os или каталогами классов и модулей - описание пакета OneScript. Существующий packagedef не перезаписывается. projectPath обязателен: папка рабочей области или каталог из candidates списка проектов, в том числе внутри проекта',
 		category: PROJECT,
 	},
 };
