@@ -95,6 +95,8 @@ import {
 import { VRunnerIntent } from './vrunnerCli';
 import { planIntents } from './vrunnerCli/planner';
 import { overlaySettings, parseSettingsJson, readSettingsJson, readSettingsJsonSync } from './settingsJson';
+import { applyLinkedCommands, readVrunnerLink } from '../features/serviceFiles/vrunnerLink';
+import { serviceFileLabel } from '../features/serviceFiles/registry';
 import { translateArgsToV3 } from './vrunnerCommandMap';
 import { createVRunnerTask, type TaskOutputChain } from '../features/tasks/vrunnerTask';
 import { decodeProcessOutput } from './processOutput';
@@ -462,51 +464,12 @@ export class VRunnerManager {
 	 * Путь берется из настроек VS Code (1c-platform-tools.vrunner.path.initSettings).
 	 * По умолчанию: 'tools/vrunner.init.json'
 	 *
-	 * ВАЖНО: использовать только для команды инициализации ИБ данными
-	 * («Инициализировать данные»). Для остальных команд (тесты, запуск feature)
-	 * применяются батч-настройки из env.json — см. getSettingsParam().
+	 * Команда «Инициализировать данные» передаёт этот файл целиком как `--settings`.
 	 *
 	 * @returns Путь к файлу настроек инициализации (относительно workspace)
 	 */
 	public getVRunnerInitSettingsPath(): string {
 		return projectConfiguration(this.getEffectiveRoot()).get<string>('vrunner.path.initSettings', DEFAULT_VRUNNER.initSettingsPath);
-	}
-
-	/**
-	 * Путь к файлу сценария Vanessa для инициализации данных (VAParams).
-	 *
-	 * Значение читается из vanessasettings файла инициализации (vrunner.init.json),
-	 * чтобы уважать конвенцию проекта и jenkins-lib; при отсутствии — дефолт
-	 * `tools/VAParams.init.json`. Подставляется как `--vanessasettings` поверх
-	 * активного профиля: ИБ и путь к VA берутся из профиля, отличается только
-	 * сценарий. Так инициализация работает и на v2, и на v3 (файл init формата
-	 * 2.x как `--settings` на v3 не передаётся).
-	 *
-	 * Путь возвращается как есть (относительный от корня проекта) — канонически
-	 * правильная форма. На v3 относительный `--vanessasettings` временно не
-	 * резолвится от проекта (баг vanessa-runner); после его фикса код готов
-	 * без изменений.
-	 *
-	 * @returns Путь к файлу сценария VA относительно корня проекта
-	 */
-	public getInitVanessaSettingsPath(): string {
-		const fallback = 'tools/VAParams.init.json';
-		const root = this.getEffectiveRoot();
-		if (!root) {
-			return fallback;
-		}
-		const initFile = path.join(root, this.getVRunnerInitSettingsPath());
-		try {
-			const parsed = readSettingsJsonSync(initFile) as SettingsDocument;
-			const value = parsed?.vanessa?.['--vanessasettings']
-				?? parsed?.vrunner?.test?.vanessa?.vanessasettings;
-			if (typeof value === 'string' && value.trim()) {
-				return value.trim();
-			}
-		} catch {
-			// файла инициализации нет — используем дефолт
-		}
-		return fallback;
 	}
 
 	/**
@@ -1238,7 +1201,7 @@ export class VRunnerManager {
 	}
 
 	private readSettingsLayersSync(root: string, settingsFile: string, schema: SettingsSchema): SettingsDocument {
-		return overlaySettings(
+		const settings = overlaySettings(
 			this.settingsLayerFiles(settingsFile, schema).map((file) => {
 				try {
 					return readSettingsJsonSync(path.resolve(root, file));
@@ -1247,6 +1210,7 @@ export class VRunnerManager {
 				}
 			})
 		) as SettingsDocument;
+		return this.withVrunnerLink(root, settingsFile, schema, settings);
 	}
 
 	/**
@@ -1272,7 +1236,71 @@ export class VRunnerManager {
 		const layers = await Promise.all(
 			this.settingsLayerFiles(settingsFile, fileSchema).map((file) => (file === settingsFile ? own : read(file)))
 		);
-		return { settings: overlaySettings(layers), schema: fileSchema };
+		return { settings: this.withVrunnerLink(root, settingsFile, fileSchema, overlaySettings(layers) as SettingsDocument), schema: fileSchema };
+	}
+
+	/** Ссылка активного профиля на файл vrunner. */
+	public linkedVrunnerFile(): string | undefined {
+		const root = this.getEffectiveRoot();
+		if (!root) {
+			return undefined;
+		}
+		try {
+			const doc = readSettingsJsonSync(path.join(root, this.getActiveEnvFile()));
+			return readVrunnerLink(doc, this.activeSettingsSchema());
+		} catch {
+			return undefined;
+		}
+	}
+
+	private withVrunnerLink(
+		root: string,
+		settingsFile: string,
+		schema: SettingsSchema,
+		settings: SettingsDocument
+	): SettingsDocument {
+		let source: unknown;
+		try {
+			source = readSettingsJsonSync(path.resolve(root, settingsFile));
+		} catch {
+			return settings;
+		}
+		const link = readVrunnerLink(source, schema);
+		if (!link) {
+			return settings;
+		}
+		try {
+			const linked = readSettingsJsonSync(path.resolve(root, link)) as Record<string, unknown>;
+			return applyLinkedCommands(settings as Record<string, unknown>, linked, schema) as SettingsDocument;
+		} catch {
+			return settings;
+		}
+	}
+
+	/** Строка базы из файла, на который ссылается активный профиль, если она задана. */
+	private linkedInfobaseConnection(): string | undefined {
+		const root = this.getEffectiveRoot();
+		const link = this.linkedVrunnerFile();
+		if (!root || !link) {
+			return undefined;
+		}
+		try {
+			const linked = readSettingsJsonSync(path.resolve(root, link)) as {
+				vrunner?: { ibconnection?: unknown };
+				default?: Record<string, unknown>;
+			};
+			const v3 = linked.vrunner?.ibconnection;
+			if (typeof v3 === 'string' && v3.trim().length > 0) {
+				return v3.trim();
+			}
+			const v2 = linked.default?.['--ibconnection'];
+			if (typeof v2 === 'string' && v2.trim().length > 0) {
+				return v2.trim();
+			}
+		} catch {
+			return undefined;
+		}
+		return undefined;
 	}
 
 	/**
@@ -1300,7 +1328,7 @@ export class VRunnerManager {
 			overrideArgs: this.getActiveEnvOverrideArgs(),
 			activeSettingsFile: this.getActiveSettingsParamIfExists()[1],
 			settingsFile,
-			explicitIbConnection,
+			explicitIbConnection: explicitIbConnection ?? this.linkedInfobaseConnection(),
 		});
 
 		this.planNotices = notices;
@@ -1491,7 +1519,11 @@ export class VRunnerManager {
 			: 'Профиль запуска не создан. Создайте его и повторите команду.';
 		void vscode.window.showWarningMessage(message, createAction).then((action) => {
 			if (action === createAction) {
-				void vscode.commands.executeCommand('1c-platform-tools.serviceFiles.ensure', this.settingsServiceFileId(state.schema));
+				void vscode.commands.executeCommand(
+					'1c-platform-tools.serviceFiles.ensure',
+					this.settingsServiceFileId(state.schema),
+					{ createOnly: true }
+				);
 			}
 		});
 	}
@@ -2796,7 +2828,46 @@ export class VRunnerManager {
 	 * @returns Список профилей (см. {@link projectProfiles})
 	 */
 	public discoverEnvProfiles(): EnvProfile[] {
-		return projectProfiles(this.rootFileNames(), this.activeSettingsSchema(), this.usesVanessaRunner());
+		const profiles = projectProfiles(this.rootFileNames(), this.activeSettingsSchema(), this.usesVanessaRunner());
+		return [...profiles, ...this.runnerSettingProfiles()];
+	}
+
+	/**
+	 * Файлы Vanessa Runner той же схемы, что установленный раннер.
+	 * Имя с идентификатором посередине (`vrunner.ci.json`, `vrunner.local.json`) тоже профиль.
+	 */
+	private runnerSettingProfiles(): EnvProfile[] {
+		const root = this.getEffectiveRoot();
+		if (!root || !this.usesVanessaRunner()) {
+			return [];
+		}
+		const schema = this.activeSettingsSchema();
+		let names: string[];
+		try {
+			names = fsSync.readdirSync(path.join(root, 'tools')).filter((name) => /^vrunner.*\.json$/i.test(name));
+		} catch {
+			return [];
+		}
+		const profiles: EnvProfile[] = [];
+		for (const name of names.sort((a, b) => a.localeCompare(b, 'ru'))) {
+			const relPath = `tools/${name}`;
+			let format: ReturnType<typeof detectSettingsFormat>;
+			try {
+				format = detectSettingsFormat(readSettingsJsonSync(path.join(root, relPath)));
+			} catch {
+				continue;
+			}
+			if (format !== schema) {
+				continue;
+			}
+			profiles.push({
+				id: relPath,
+				fileName: relPath,
+				label: serviceFileLabel(relPath),
+				isBase: false,
+			});
+		}
+		return profiles;
 	}
 
 	/**

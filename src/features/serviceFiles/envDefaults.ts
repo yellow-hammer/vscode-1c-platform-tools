@@ -85,13 +85,11 @@ export const VRUNNER_INIT_DEFAULTS = {
 const CI_BDDRUNNER_PATH = './oscript_modules/vanessa-automation-single/vanessa-automation-single.epf';
 
 /**
- * CI-файлы vanessa-runner 3 повторяют формат основного профиля (autumn): та же
- * база `AUTUMN_DEFAULTS.vrunner` + секция `test.vanessa` со своим файлом
- * параметров VA. Отличие vrunner.json / vrunner.init.json — только vanessasettings.
+ * Файл схемы 3 накладывается на autumn-properties.json, поэтому общая секция
+ * профиля (база, пользователь, язык) в него не пишется. Остаётся секция Vanessa.
  */
 export const VRUNNER_DEFAULTS_V3 = {
 	vrunner: {
-		...AUTUMN_DEFAULTS.vrunner,
 		test: {
 			vanessa: {
 				vanessasettings: './tools/VAParams.json',
@@ -105,7 +103,6 @@ export const VRUNNER_DEFAULTS_V3 = {
 /** Канонический дефолт tools/vrunner.init.json (формат vanessa-runner 3.0) */
 export const VRUNNER_INIT_DEFAULTS_V3 = {
 	vrunner: {
-		...AUTUMN_DEFAULTS.vrunner,
 		test: {
 			vanessa: {
 				vanessasettings: './tools/VAParams.init.json',
@@ -115,6 +112,35 @@ export const VRUNNER_INIT_DEFAULTS_V3 = {
 		},
 	},
 };
+
+/**
+ * Новый файл vrunner с идентификатором в середине имени.
+ * На схеме 2 в нём есть секция default: такой файл подменяет env.json.
+ * На схеме 3 остаётся только секция Vanessa, база берётся из профиля.
+ */
+export function vrunnerVariantDocument(schema: 'v2' | 'v3', id: string): Record<string, unknown> {
+	const va = `./tools/VAParams.${id}.json`;
+	if (schema === 'v2') {
+		return {
+			...VRUNNER_DEFAULTS,
+			vanessa: {
+				...VRUNNER_DEFAULTS.vanessa,
+				'--vanessasettings': va,
+			},
+		};
+	}
+	return {
+		vrunner: {
+			test: {
+				vanessa: {
+					vanessasettings: va,
+					'bddrunner-path': CI_BDDRUNNER_PATH,
+					additional: TEST_ADDITIONAL,
+				},
+			},
+		},
+	};
+}
 
 
 export const HOOKS_DEFAULTS = {

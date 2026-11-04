@@ -348,19 +348,6 @@ export const TREE_GROUPS: TreeGroup[] = [
 		],
 	},
 	{
-		groupLabel: 'Служебные файлы',
-		sectionType: 'serviceFiles',
-		defaultCollapsibleState: 'collapsed',
-		projects: ANY,
-		commands: [
-			{ command: '1c-platform-tools.serviceFiles.create', title: 'Создать служебные файлы', treeLabel: 'Создать служебные файлы' },
-			{ command: '1c-platform-tools.serviceFiles.createRecommendedSet', title: 'Создать базовый набор служебных файлов', treeLabel: 'Базовый набор' },
-			{ command: '1c-platform-tools.serviceFiles.createGitignore', title: 'Создать .gitignore', treeLabel: '.gitignore' },
-			{ command: '1c-platform-tools.serviceFiles.createGitattributes', title: 'Создать .gitattributes', treeLabel: '.gitattributes' },
-			{ command: '1c-platform-tools.serviceFiles.createEnvJson', title: 'Создать env.json', treeLabel: 'env.json', projects: ONEC },
-		],
-	},
-	{
 		groupLabel: 'Навыки для AI',
 		sectionType: 'skills',
 		defaultCollapsibleState: 'collapsed',

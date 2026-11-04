@@ -69,6 +69,7 @@ const OWN_CONTAINERS = new Set([
 	'1c-platform-tools-tools',
 	'1c-platform-tools-metadata',
 	'1c-platform-tools-properties',
+	'1c-platform-tools-service-files',
 	'1c-platform-tools-todo',
 ]);
 

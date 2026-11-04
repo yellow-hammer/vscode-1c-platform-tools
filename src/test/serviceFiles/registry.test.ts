@@ -1,6 +1,6 @@
 import * as assert from 'node:assert';
-import { BASE_AUTUMN_FILE, BASE_ENV_FILE } from '../../shared/envProfiles';
-import { SERVICE_FILES, serviceFilesWatchGlob } from '../../features/serviceFiles/registry';
+import { BASE_AUTUMN_FILE } from '../../shared/envProfiles';
+import { SERVICE_FILES, serviceFileLabel } from '../../features/serviceFiles/registry';
 
 suite('serviceFiles/registry', () => {
 	test('launchProfile по умолчанию — схема 3.x', () => {
@@ -9,13 +9,19 @@ suite('serviceFiles/registry', () => {
 		assert.strictEqual(launch.relPath, BASE_AUTUMN_FILE);
 	});
 
-	test('serviceFilesWatchGlob: реестр и оба базовых файла профиля', () => {
-		const glob = serviceFilesWatchGlob();
-		assert.ok(glob.startsWith('{') && glob.endsWith('}'));
-		for (const spec of SERVICE_FILES) {
-			assert.ok(glob.includes(spec.relPath), `нет ${spec.relPath}`);
-		}
-		assert.ok(glob.includes(BASE_ENV_FILE));
-		assert.ok(glob.includes(BASE_AUTUMN_FILE));
+	test('файлы параметров называются ролью, своё имя остаётся именем', () => {
+		assert.strictEqual(serviceFileLabel('tools/vrunner.json'), 'Прогон тестов');
+		assert.strictEqual(serviceFileLabel('tools/vrunner.init.json'), 'Инициализация данных');
+		assert.strictEqual(serviceFileLabel('tools/vrunner.local.json'), 'local');
+		assert.strictEqual(serviceFileLabel('tools/vrunner.ci.json'), 'ci');
+		assert.strictEqual(serviceFileLabel('tools/vrunner_ssl.json'), 'vrunner_ssl');
+		assert.strictEqual(serviceFileLabel('tools/VAParams.ci.json'), 'Прогон тестов');
+		assert.strictEqual(serviceFileLabel('tools/VAParams.init.json'), 'Инициализация данных');
+		assert.strictEqual(serviceFileLabel('tools/xUnitParams.ci.json'), 'Прогон тестов');
+		assert.strictEqual(serviceFileLabel('tools/xUnitParams.init.json'), 'Инициализация данных');
+		assert.strictEqual(serviceFileLabel('tools/yaxunit.ci.json'), 'Прогон тестов');
+		assert.strictEqual(serviceFileLabel('tools/yaxunit.init.json'), 'Инициализация данных');
+		assert.strictEqual(serviceFileLabel('tools/syntax-check-excludes.txt'), 'Исключения');
+		assert.strictEqual(serviceFileLabel('tools/VAParams.dev.json'), 'dev');
 	});
 });

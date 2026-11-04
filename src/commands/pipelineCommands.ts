@@ -314,7 +314,6 @@ export class PipelineCommands extends BaseCommand {
 		const summary = mergeSummary(result, names);
 		log.info(summary);
 		notifyQuiet(summary);
-		await this.openEditor(picked[0].template.id);
 	}
 
 	/**

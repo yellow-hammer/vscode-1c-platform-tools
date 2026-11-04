@@ -20,15 +20,12 @@ import {
 	DEFAULT_PROFILE_ID,
 	LOCAL_OVERRIDES_FILE,
 	NO_SETTINGS_LABEL,
-	SettingsSchema,
-	baseSettingsFileName,
 } from '../../shared/envProfiles';
 import { logger } from '../../shared/logger';
 import { showWorkspaceRequired } from '../../shared/configurationWriteTarget';
 import { watchGitHead } from '../../shared/gitHeadWatch';
 import { notifyQuiet } from '../../shared/notify';
-import { ENV_DEFAULTS, AUTUMN_DEFAULTS } from '../serviceFiles/envDefaults';
-import { buildEnvJsonWithSections } from '../serviceFiles/envJsonBuilder';
+import { buildAutumnPropertiesWithSections, buildEnvJsonWithSections } from '../serviceFiles/envJsonBuilder';
 import { isAgentOptions, uiOnlyHandler } from '../../shared/agentGate';
 import {
 	currentRoot,
@@ -142,31 +139,7 @@ async function suggestGitignoreForLocalOverrides(workspaceRoot: string): Promise
 }
 
 /**
- * Содержимое для нового файла профиля: копия базового файла настроек схемы
- * (env.json / autumn-properties.json) или канонический дефолт.
- *
- * @param workspaceRoot - Корень рабочей области
- * @param schema - Схема настроек установленного vrunner
- * @returns Текст файла (JSON)
- */
-async function buildNewProfileContent(workspaceRoot: string, schema: SettingsSchema): Promise<string> {
-	const basePath = path.join(workspaceRoot, baseSettingsFileName(schema));
-	try {
-		const base = await fs.readFile(basePath, 'utf8');
-		JSON.parse(base); // валидируем, что это корректный JSON
-		return base;
-	} catch {
-		// базового файла нет — используем канонический дефолт
-	}
-	if (schema === 'v3') {
-		return JSON.stringify(AUTUMN_DEFAULTS, null, 4) + '\n';
-	}
-	return JSON.stringify(ENV_DEFAULTS, null, 4) + '\n';
-}
-
-
-/**
- * Создаёт новый env-профиль (env.<id>.json) и делает его активным.
+ * Создаёт новый профиль (env.<id>.json или autumn-properties.<id>.json) и делает его активным.
  *
  * @param vrunner - Менеджер vrunner
  * @param refresh - Колбэк обновления статус-бара
@@ -210,10 +183,8 @@ async function createProfile(vrunner: VRunnerManager, refresh: () => void): Prom
 	const fullPath = path.join(workspaceRoot, fileName);
 	let created = false;
 	if (!fsSync.existsSync(fullPath)) {
-		// Для 2.x состав секций выбирается флажками; для 3.x — копия базового
-		// autumn-properties.json или конвертированный дефолт
 		const content = schema === 'v3'
-			? await buildNewProfileContent(workspaceRoot, 'v3')
+			? await buildAutumnPropertiesWithSections()
 			: await buildEnvJsonWithSections();
 		if (content === undefined) {
 			return;
@@ -222,8 +193,6 @@ async function createProfile(vrunner: VRunnerManager, refresh: () => void): Prom
 		log.info(`Создан профиль запуска: ${fileName}`);
 		created = true;
 	}
-	const doc = await vscode.workspace.openTextDocument(vscode.Uri.file(fullPath));
-	await vscode.window.showTextDocument(doc);
 	await vrunner.setActiveEnvProfileId(profileId);
 	refresh();
 	notifyQuiet(created ? `Профиль «${profileId}» создан и выбран активным` : `Профиль «${profileId}» выбран активным`);
@@ -468,6 +437,11 @@ async function selectProfile(vrunner: VRunnerManager, refresh: () => void): Prom
 		const hasOverrides = vrunner.hasActiveEnvOverrides();
 		const versionLabel = vrunner.getCachedVRunnerVersionLabel();
 		const hasBase = profiles.some((profile) => profile.isBase);
+		const selectedFile = profiles.some((profile) => profile.id === activeId) ? vrunner.getActiveEnvFile() : undefined;
+		const selectedRoot = vrunner.getWorkspaceRoot();
+		const selectedReady = selectedFile !== undefined && selectedRoot !== undefined && fsSync.existsSync(
+			path.isAbsolute(selectedFile) ? selectedFile : path.join(selectedRoot, selectedFile)
+		);
 
 		const items: ProfileItem[] = profiles.map((profile) => ({
 			label: `${profile.id === activeId ? '$(check)' : '$(blank)'} ${profile.label}`,
@@ -475,7 +449,7 @@ async function selectProfile(vrunner: VRunnerManager, refresh: () => void): Prom
 			action: 'select' as const,
 			profileId: profile.id,
 		}));
-		if (!hasBase) {
+		if (!hasBase && !selectedReady) {
 			items.unshift(
 				vanessaRunner
 					? { label: '$(warning) Создать профиль запуска', description: 'не создан, команды заблокированы', action: 'ensure' }
@@ -521,7 +495,12 @@ async function selectProfile(vrunner: VRunnerManager, refresh: () => void): Prom
 			case 'open': {
 				const root = vrunner.getWorkspaceRoot();
 				if (root !== undefined && activeFile !== undefined) {
-					await vscode.window.showTextDocument(vscode.Uri.file(path.join(root, activeFile)));
+					const fullPath = path.join(root, activeFile);
+					if (!fsSync.existsSync(fullPath)) {
+						await vscode.commands.executeCommand('1c-platform-tools.serviceFiles.ensure', 'launchProfile', { createOnly: true });
+						return;
+					}
+					await vscode.commands.executeCommand('vscode.openWith', vscode.Uri.file(fullPath), '1c-platform-tools.profileEditor');
 				}
 				return;
 			}
@@ -533,7 +512,7 @@ async function selectProfile(vrunner: VRunnerManager, refresh: () => void): Prom
 				await createProfile(vrunner, refresh);
 				return;
 			case 'ensure':
-				await vscode.commands.executeCommand('1c-platform-tools.serviceFiles.ensure', 'launchProfile');
+				await vscode.commands.executeCommand('1c-platform-tools.serviceFiles.ensure', 'launchProfile', { createOnly: true });
 				refresh();
 				return;
 			case 'editor':
@@ -622,7 +601,7 @@ export function registerLaunchFeature(
 			const fullPath = path.join(workspaceRoot, fileName);
 			if (!fsSync.existsSync(fullPath)) {
 				// файла нет — обычный поток создания через служебные файлы
-				await vscode.commands.executeCommand('1c-platform-tools.serviceFiles.ensure', 'launchProfile');
+				await vscode.commands.executeCommand('1c-platform-tools.serviceFiles.ensure', 'launchProfile', { createOnly: true });
 				return;
 			}
 			await vscode.commands.executeCommand('vscode.openWith', vscode.Uri.file(fullPath), '1c-platform-tools.profileEditor');

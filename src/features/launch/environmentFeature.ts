@@ -62,9 +62,13 @@ async function openEnvironmentFile(vrunner: VRunnerManager): Promise<void> {
 		return;
 	}
 	const own = ownEnvironmentFiles(vrunner.getActiveEnvironmentId());
-	const fileName = own.find((file) => fsSync.existsSync(path.join(root, file))) ?? own[0];
-	await ensureEnvironmentFile(root, fileName);
-	await vscode.window.showTextDocument(vscode.Uri.file(path.join(root, fileName)));
+	const existing = own.find((file) => fsSync.existsSync(path.join(root, file)));
+	if (existing === undefined) {
+		await ensureEnvironmentFile(root, own[0]);
+		notifyQuiet(`Создан ${own[0]}`);
+		return;
+	}
+	await vscode.window.showTextDocument(vscode.Uri.file(path.join(root, existing)));
 }
 
 /**
@@ -103,7 +107,6 @@ async function createEnvironment(vrunner: VRunnerManager, refresh: () => void): 
 	const created = await ensureEnvironmentFile(root, fileName);
 	await vrunner.setActiveEnvironmentId(id);
 	refresh();
-	await vscode.window.showTextDocument(vscode.Uri.file(path.join(root, fileName)));
 	notifyQuiet(created ? `Окружение «${id}» создано и выбрано` : `Окружение «${id}» выбрано`);
 }
 

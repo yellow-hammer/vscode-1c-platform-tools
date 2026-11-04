@@ -216,7 +216,7 @@ export function registerCommands(
 		registerProjectCommand('1c-platform-tools.serviceFiles.ensure', (specId?: unknown, opts?: unknown) => {
 			if (typeof specId === 'string') {
 				// второй аргумент-объект — агентный вызов: без окна выбора секций
-				return commands.serviceFiles.ensure(specId, isAgentOptions(opts));
+				return commands.serviceFiles.ensure(specId, isAgentOptions(opts), createOnlyOf(opts));
 			}
 			if (isAgentOptions(specId)) {
 				return agentInteractiveError('Передайте id служебного файла строкой (например, launchProfile).');
@@ -232,14 +232,17 @@ export function registerCommands(
 		registerProjectCommand('1c-platform-tools.serviceFiles.createEnvJson', () =>
 			commands.serviceFiles.createEnvJson()
 		),
-		registerProjectCommand('1c-platform-tools.serviceFiles.createRecommendedSet', () =>
-			commands.serviceFiles.createRecommendedSet()
+		registerProjectCommand('1c-platform-tools.serviceFiles.createRecommendedSet', (opts?: unknown) =>
+			commands.serviceFiles.createRecommendedSet(isAgentOptions(opts))
+		),
+		registerProjectCommand('1c-platform-tools.serviceFiles.baseSetReady', (opts?: unknown) =>
+			commands.serviceFiles.createRecommendedSet(isAgentOptions(opts))
 		),
 		registerProjectCommand('1c-platform-tools.serviceFiles.linkVrunner', (relPath?: unknown) =>
 			commands.serviceFiles.linkVrunner(relPath)
 		),
-		registerProjectCommand('1c-platform-tools.serviceFiles.createBuildFile', (relPath?: unknown) =>
-			commands.serviceFiles.createBuildFile(relPath)
+		registerProjectCommand('1c-platform-tools.serviceFiles.createBuildFile', (relPath?: unknown, opts?: unknown) =>
+			commands.serviceFiles.createBuildFile(relPath, createOnlyOf(opts))
 		),
 		registerProjectCommand('1c-platform-tools.serviceFiles.addVariant', (kind?: unknown) =>
 			commands.serviceFiles.addVariant(kind)
@@ -664,5 +667,10 @@ export function registerCommands(
 	);
 
 	return disposables;
+}
+
+/** Щелчок по отсутствующей строке панели: создать файл и не открывать его. */
+function createOnlyOf(opts: unknown): boolean {
+	return typeof opts === 'object' && opts !== null && (opts as { createOnly?: unknown }).createOnly === true;
 }
 

@@ -211,7 +211,14 @@ suite('mcpCommandPolicy: служебные команды представле�
 	});
 
 	test('внутренние команды расширения скрыты', () => {
+		assert.strictEqual(isCommandExposedToMcp('1c-platform-tools.serviceFiles.refresh'), false);
+		assert.strictEqual(isCommandExposedToMcp('1c-platform-tools.serviceFiles.select'), false);
+		assert.strictEqual(isCommandExposedToMcp('1c-platform-tools.serviceFiles.revealInTree'), false);
+		assert.strictEqual(isCommandExposedToMcp('1c-platform-tools.serviceFiles.baseSetReady'), false);
 		assert.strictEqual(isCommandExposedToMcp('1c-platform-tools.serviceFiles.ensure'), false);
+		assert.strictEqual(isCommandExposedToMcp('1c-platform-tools.serviceFiles.linkVrunner'), false);
+		assert.strictEqual(isCommandExposedToMcp('1c-platform-tools.serviceFiles.createBuildFile'), false);
+		assert.strictEqual(isCommandExposedToMcp('1c-platform-tools.serviceFiles.addVariant'), false);
 		assert.strictEqual(isCommandExposedToMcp('1c-platform-tools.server.statusBarRefresh'), false);
 		// создание служебных файлов по конкретному виду агенту доступно
 		assert.strictEqual(isCommandExposedToMcp('1c-platform-tools.serviceFiles.createEnvJson'), true);

@@ -31,6 +31,18 @@ function item(
 	return treeItem;
 }
 
+/** Файл профиля: существующий открывается редактором, отсутствующий только создаётся. */
+function profileFileCommand(state: SettingsFileState): vscode.Command {
+	if (state.exists) {
+		return { command: '1c-platform-tools.env.openProfileEditor', title: 'Редактор профиля' };
+	}
+	return {
+		command: '1c-platform-tools.serviceFiles.ensure',
+		title: 'Профиль',
+		arguments: ['launchProfile', { createOnly: true }],
+	};
+}
+
 /** Подсказка к строке файла настроек: почему файл не годится. */
 function settingsHint(state: SettingsFileState, vrunner: VRunnerManager): string {
 	if (state.fileReady) {
@@ -157,16 +169,16 @@ export class LaunchProfileViewProvider implements vscode.TreeDataProvider<vscode
 	private oneScriptProfileItem(workspaceRoot: string | undefined, exists: boolean): vscode.TreeItem {
 		if (workspaceRoot !== undefined && exists) {
 			return item(`Профиль: ${BASE_AUTUMN_FILE}`, 'rocket', 'Открыть профиль', {
-				command: 'vscode.open',
-				title: 'Открыть профиль',
-				arguments: [vscode.Uri.file(path.join(workspaceRoot, BASE_AUTUMN_FILE))],
+				command: 'vscode.openWith',
+				title: 'Редактор профиля',
+				arguments: [vscode.Uri.file(path.join(workspaceRoot, BASE_AUTUMN_FILE)), '1c-platform-tools.profileEditor'],
 			});
 		}
 		return item(
 			'Профиль: не создан',
 			'warning',
 			'Профиль не создан. Нажмите, чтобы создать.',
-			{ command: '1c-platform-tools.serviceFiles.ensure', title: 'Профиль', arguments: ['launchProfile'] }
+			{ command: '1c-platform-tools.serviceFiles.ensure', title: 'Профиль', arguments: ['launchProfile', { createOnly: true }] }
 		);
 	}
 
@@ -210,9 +222,7 @@ export class LaunchProfileViewProvider implements vscode.TreeDataProvider<vscode
 				`Файл настроек: ${settings.fileName}`,
 				settings.fileReady ? 'check' : 'warning',
 				settingsHint(settings, this.vrunner),
-				settings.fileReady || settings.readError
-					? { command: '1c-platform-tools.env.openProfileEditor', title: 'Редактор профиля' }
-					: { command: '1c-platform-tools.serviceFiles.ensure', title: 'Файл настроек', arguments: ['launchProfile'] }
+				profileFileCommand(settings)
 			),
 			this.environmentItem(),
 			item(
@@ -221,7 +231,7 @@ export class LaunchProfileViewProvider implements vscode.TreeDataProvider<vscode
 				ibConnection
 					? 'Строка подключения, которую увидят команды vrunner (профиль и перекрытия, ${gitBranch} подставлен)'
 					: 'В файле настроек не задана, используется каталог build/ib по умолчанию',
-				{ command: '1c-platform-tools.serviceFiles.ensure', title: 'Файл настроек', arguments: ['launchProfile'] }
+				profileFileCommand(settings)
 			),
 			item(
 				hasOverrides ? 'Временные параметры: заданы' : 'Временные параметры: нет',

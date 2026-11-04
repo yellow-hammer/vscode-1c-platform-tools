@@ -57,7 +57,7 @@ const guides = [
 	{ text: '1С: Проекты', link: '/projects' },
 	{ text: '1С: Администрирование', link: '/admin' },
 	{ text: '1С: Инструменты', link: '/tools' },
-	{ text: 'Служебные файлы', link: '/service-files' },
+	{ text: '1С: Служебные файлы', link: '/service-files' },
 	{ text: '1С: Метаданные', link: '/metadata' },
 	{ text: 'Формат EDT', link: '/edt' },
 	{ text: 'ER-диаграммы', link: '/er-diagrams' },
