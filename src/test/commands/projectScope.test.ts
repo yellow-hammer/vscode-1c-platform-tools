@@ -1,6 +1,6 @@
 import * as assert from 'node:assert';
 import * as path from 'node:path';
-import { inCurrentProject, inProjectOf, projectLabel, projectRelativePath } from '../../commands/projectScope';
+import { inCurrentProject, inProjectOf, inProjectRoot, projectLabel, projectRelativePath } from '../../commands/projectScope';
 import { currentRoot, normalizeProjectRoot, outsideProject, runWithProject } from '../../shared/workspaceProjects';
 
 const FIXTURES = path.resolve(__dirname, '..', '..', '..', 'src', 'test', 'fixtures', 'workspaceProjects');
@@ -22,6 +22,17 @@ suite('проект команды', () => {
 	test('действие над файлом вне проектов идёт в текущем проекте', () => {
 		const outside = path.parse(FIXTURES).root;
 		assert.strictEqual(runWithProject(OTHER, () => inProjectOf(outside, () => currentRoot())), OTHER);
+	});
+
+	test('корень узла важнее проекта, из которого вызвали команду', () => {
+		assert.strictEqual(
+			runWithProject(OTHER, () => inProjectRoot(PROJECT, () => currentRoot())),
+			PROJECT
+		);
+		assert.strictEqual(
+			runWithProject(OTHER, () => inProjectRoot(undefined, () => currentRoot())),
+			OTHER
+		);
 	});
 
 	test('без файла действие идёт в текущем проекте', () => {

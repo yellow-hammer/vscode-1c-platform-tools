@@ -31,6 +31,9 @@ export const TEST_EXTENSION_SELECTION_STATE = 'extensions.selection.tests';
 /** Раскрытые источники дерева метаданных. */
 export const METADATA_EXPANDED_SOURCES_STATE = 'metadata.expandedSources';
 
+/** Раскрытые группы панели служебных файлов. */
+export const SERVICE_FILES_EXPANDED_GROUPS_STATE = 'serviceFiles.expandedGroups';
+
 /** Выбор публикации автономного сервера. */
 export const SERVER_PUBLICATION_STATE = 'server.publicationSelection';
 

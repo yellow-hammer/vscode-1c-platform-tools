@@ -9,6 +9,8 @@ description: Конфигурации запуска и служебные фа�
 
 - vanessa-runner 2.x: `env.json` — базовый, `env.<id>.json` — именованный (`env.dev.json`);
 - vanessa-runner 3.x: `autumn-properties.json` и `autumn-properties.<id>.json`;
+- `tools/vrunner.json` и `tools/vrunner.<id>.json` той же схемы тоже профили. `env_selectProfile` принимает путь `tools/vrunner.json`;
+- инициализация данных передаёт `tools/vrunner.init.json` целиком. Файла нет — команда отказывает;
 - `env.local.json` — личные перекрытия, профилем не считается. Плоский объект с флагами `--ibconnection`, `--db-user`, `--db-pwd`, `--v8version`, `--additional`. Допустимы обёртки `default` (2.x) и `vrunner` (3.x).
 
 Приоритет строки подключения: временные параметры, затем `env.local.json`, затем профиль. Временные параметры — адрес ИБ, пользователь, пароль, версия платформы, дополнительные аргументы — действуют на все команды vanessa-runner. В значениях работает `${gitBranch}`: `feature/RS-123` становится `feature-RS-123`, так делают отдельную базу на ветку (`"--ibconnection": "/F./build/${gitBranch}"`).
@@ -19,7 +21,7 @@ description: Конфигурации запуска и служебные фа�
 
 Если пользователь назвал профиль («запусти тесты под test», «переключись на storage») — переключи его и дальше работай уже с ним. Если не назвал — не переключай, оставайся на активном. Разовый прогон под другим файлом настроек, без смены активного профиля, — параметр `settingsFile` у команды vanessa-runner.
 
-`env_selectProfile` и Execute Command `1c-platform-tools.env.selectProfile` принимают id (`dev`), имя файла (`env.dev.json`, `autumn-properties.ci.json`) или подпись (`По умолчанию`). У MCP это параметр `profile`, у Execute Command — строка-аргумент. Без имени агентный вызов окно не открывает и возвращает ошибку со списком `available`. Успех: «Активирован профиль «id» (файл fileName).» Неизвестный профиль: «Профиль запуска «…» не найден. Доступные профили: …».
+`env_selectProfile` и Execute Command `1c-platform-tools.env.selectProfile` принимают id (`dev`), имя файла (`env.dev.json`, `autumn-properties.ci.json`, `tools/vrunner.json`) или подпись (`По умолчанию`). У MCP это параметр `profile`, у Execute Command — строка-аргумент. Без имени агентный вызов окно не открывает и возвращает ошибку со списком `available`. Успех: «Активирован профиль «id» (файл fileName).» Неизвестный профиль: «Профиль запуска «…» не найден. Доступные профили: …».
 
 Окружение — переменные среды из `.env` и `.env.<имя>` для всех запусков проекта — выбирается отдельно от профиля, у проекта любого вида. `env_selectEnvironment` (параметр `environment`) и Execute Command `1c-platform-tools.env.selectEnvironment` (строка-аргумент) принимают имя (`ci`) или имя файла (`.env.ci`); пустая строка — «По умолчанию», только общие `.env` и `.env.local`. Какие окружения есть и какое выбрано — `environments` и `activeEnvironment` в `env_status` (`null` — по умолчанию), переменные там только именами, без значений. Окружение из запроса пользователя («запусти тесты в окружении ci») переключай, неназванное не трогай. Для одного прогона пайплайна — параметр `environment` у `pipelines_run`.
 

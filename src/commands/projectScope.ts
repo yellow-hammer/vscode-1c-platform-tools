@@ -32,6 +32,16 @@ export function inProjectOf<R>(target: vscode.Uri | string | undefined, fn: () =
 }
 
 /**
+ * Выполняет действие в указанном корне. Без корня остаётся текущий проект.
+ *
+ * @param root - Корень проекта узла
+ * @param fn - Действие
+ */
+export function inProjectRoot<R>(root: string | undefined, fn: () => R): R {
+	return runWithProject(root ?? currentRoot(), fn);
+}
+
+/**
  * Путь для команды: относительно корня проекта с прямыми разделителями, вне проекта абсолютный.
  *
  * @param root - Корень проекта

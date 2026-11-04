@@ -118,6 +118,37 @@ suite('окружение запуска', () => {
 		});
 	});
 
+	test('файл vrunner с идентификатором в имени выбирается профилем', async () => {
+		fs.mkdirSync(path.join(root, 'tools'));
+		write('autumn-properties.json', '{"vrunner": {}}');
+		const body = '{"vrunner": {"ibconnection": "/F./build/ci"}}';
+		write('tools/vrunner.json', body);
+		write('tools/vrunner.ci.json', body);
+		write('tools/vrunner.dev.json', body);
+		write('tools/vrunner_ssl.json', body);
+		write('tools/vrunner.init.json', body);
+		write('tools/vrunner.local.json', body);
+		write('tools/vrunner.old.json', '{"default": {"--ibconnection": "/F./build/old"}}');
+		await vrunner.runWithProjectRoot(root, async () => {
+			await vrunner.getVRunnerVersion();
+			assert.deepStrictEqual(
+				vrunner.discoverEnvProfiles().map((profile) => profile.fileName).sort(),
+				[
+					'autumn-properties.json',
+					'tools/vrunner.ci.json',
+					'tools/vrunner.dev.json',
+					'tools/vrunner.init.json',
+					'tools/vrunner.json',
+					'tools/vrunner.local.json',
+					'tools/vrunner_ssl.json',
+				]
+			);
+			await vrunner.setActiveEnvProfileId('tools/vrunner.ci.json');
+			assert.deepStrictEqual(vrunner.getActiveSettingsParamIfExists(), ['--settings', 'tools/vrunner.ci.json']);
+			assert.strictEqual(vrunner.launchProblem(), undefined);
+		});
+	});
+
 	test('VRUNNER_SETTINGS из окружения выбирает накладку вместо ключа settings', async () => {
 		fs.mkdirSync(path.join(root, 'tools'));
 		write('autumn-properties.json', '{"vrunner": {"settings": "autumn-properties.local.json"}}');

@@ -77,12 +77,12 @@ suite('дерево команд под вид проекта', () => {
 		TREE_GROUPS.filter((item) => item.sectionType !== 'helpAndSupport' && groupVisibleFor(item, traits)).map((item) => item.sectionType);
 
 	test('у проекта OneScript зависимости, пакет, тесты и навыки, групп платформы нет', () => {
-		assert.deepStrictEqual(visibleGroups(oneScript), ['package', 'dependency', 'test', 'serviceFiles', 'skills']);
+		assert.deepStrictEqual(visibleGroups(oneScript), ['package', 'dependency', 'test', 'skills']);
 	});
 
 	test('у проекта 1С группы платформы, пакет только у пакета OneScript', () => {
 		const onec = visibleGroups(treeTraitsOf('designer', false));
-		assert.ok(onec.includes('configuration') && onec.includes('infobase') && onec.includes('serviceFiles'));
+		assert.ok(onec.includes('configuration') && onec.includes('infobase'));
 		assert.ok(!onec.includes('package'));
 		assert.ok(visibleGroups(treeTraitsOf('designer', true)).includes('package'), 'проект 1С, который ещё и библиотека OneScript');
 	});
@@ -106,7 +106,6 @@ suite('дерево команд под вид проекта', () => {
 		assert.ok(designerDeps.includes('1c-platform-tools.dependencies.check'));
 		assert.ok(designerDeps.includes('1c-platform-tools.dependencies.upgrade'));
 		assert.ok(designerDeps.includes('1c-platform-tools.dependencies.doctor'));
-		assert.ok(!commands('serviceFiles').includes('1c-platform-tools.serviceFiles.createEnvJson'));
 		assert.ok(!commands('dependency').includes('1c-platform-tools.dependencies.selectOscript'));
 		assert.deepStrictEqual(commands('skills').sort(), [
 			'1c-platform-tools.mcp.configureCursor',

@@ -8,7 +8,11 @@ import {
 import { HelpAndSupportProvider } from '../projects/helpAndSupportProvider';
 import { bindProjectDescription } from '../projects/projectViewDescription';
 import { LaunchProfileViewProvider } from '../launch/launchProfileViewProvider';
+import * as path from 'node:path';
+import { ServiceFilesTreeProvider } from '../serviceFiles/serviceFilesTree';
+import { currentRoot } from '../../shared/workspaceProjects';
 import { VRunnerManager } from '../../shared/vrunnerManager';
+import { notifyQuiet } from '../../shared/notify';
 
 export interface MainTreeViewRegistration {
 	treeDataProvider: PlatformTreeDataProvider;
@@ -45,6 +49,40 @@ export function registerMainTreeView(
 		showCollapseAll: false,
 	});
 
+	const vrunner = VRunnerManager.getInstance();
+	const serviceFilesProvider = new ServiceFilesTreeProvider(vrunner);
+	const serviceFilesView = vscode.window.createTreeView('1c-platform-tools-service-files-tree', {
+		treeDataProvider: serviceFilesProvider,
+		showCollapseAll: true,
+	});
+	const serviceFilesRefresh = vscode.commands.registerCommand('1c-platform-tools.serviceFiles.refresh', () => {
+		serviceFilesProvider.refresh();
+		notifyQuiet('Дерево обновлено');
+	});
+	const serviceFilesSelect = vscode.commands.registerCommand('1c-platform-tools.serviceFiles.select', (element?: unknown) => {
+		void serviceFilesProvider.select(element);
+	});
+	const serviceFilesReveal = vscode.commands.registerCommand('1c-platform-tools.serviceFiles.revealInTree', async (uri?: vscode.Uri) => {
+		const target = uri ?? vscode.window.activeTextEditor?.document.uri;
+		await vscode.commands.executeCommand('1c-platform-tools-service-files-tree.focus');
+		if (!target || target.scheme !== 'file') {
+			return;
+		}
+		const root = currentRoot();
+		if (!root) {
+			return;
+		}
+		const relPath = path.relative(root, target.fsPath).replace(/\\/g, '/');
+		const node = await serviceFilesProvider.nodeFor(relPath);
+		if (node) {
+			await serviceFilesView.reveal(node, { select: true, focus: true, expand: true });
+		}
+	});
+	const serviceFilesHelp = vscode.window.createTreeView('1c-platform-tools-service-files-help', {
+		treeDataProvider: new HelpAndSupportProvider(),
+		showCollapseAll: false,
+	});
+
 	const saveGroupExpandedState = (element: unknown, expanded: boolean): void => {
 		if (!(element instanceof PlatformTreeItem) || !element.groupId) {
 			return;
@@ -55,11 +93,11 @@ export function registerMainTreeView(
 		void context.globalState.update(TREE_GROUP_EXPANDED_STATE_KEY, state);
 	};
 
-	// Схема служебных файлов («Профиль запуска», CI-настройки) зависит от версии
-	// vrunner: пока она не определена, дерево показывало бы v2-файлы. Прогреваем
-	// детект и перерисовываем дерево, когда версия установится или сменится.
-	const vrunner = VRunnerManager.getInstance();
-	void vrunner.getVRunnerVersion().then(() => treeDataProvider.refresh());
+	// Схема файлов профиля зависит от версии vrunner. Прогреваем детект и перерисовываем, когда версия известна.
+	void vrunner.getVRunnerVersion().then(() => {
+		treeDataProvider.refresh();
+		serviceFilesProvider.refresh();
+	});
 
 	context.subscriptions.push(
 		treeView,
@@ -68,12 +106,27 @@ export function registerMainTreeView(
 		launchProfileProvider,
 		profileTreeView,
 		helpTreeView,
-		vrunner.onDidChangeVRunnerVersion(() => treeDataProvider.refresh()),
+		serviceFilesProvider,
+		serviceFilesRefresh,
+		serviceFilesSelect,
+		serviceFilesReveal,
+		serviceFilesView,
+		serviceFilesHelp,
+		vrunner.onDidChangeVRunnerVersion(() => {
+			treeDataProvider.refresh();
+			serviceFilesProvider.refresh();
+		}),
 		treeView.onDidExpandElement((event) =>
 			saveGroupExpandedState(event.element, true)
 		),
 		treeView.onDidCollapseElement((event) =>
 			saveGroupExpandedState(event.element, false)
+		),
+		serviceFilesView.onDidExpandElement((event) =>
+			serviceFilesProvider.rememberExpanded(event.element, true)
+		),
+		serviceFilesView.onDidCollapseElement((event) =>
+			serviceFilesProvider.rememberExpanded(event.element, false)
 		)
 	);
 

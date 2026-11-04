@@ -9,7 +9,6 @@ import {
 	SettingsSchema,
 	baseSettingsFileName,
 	BASE_AUTUMN_FILE,
-	BASE_ENV_FILE,
 } from '../../shared/envProfiles';
 
 /** Описание служебного файла */
@@ -63,14 +62,14 @@ export const SERVICE_FILES: ServiceFileSpec[] = [
 	{
 		id: 'vrunner',
 		relPath: 'tools/vrunner.json',
-		label: 'CI: прогон тестов',
+		label: 'Прогон тестов',
 		description: 'tools/vrunner.json — настройки прогона тестов в CI (BDD, дымовые)',
 		recommended: false,
 	},
 	{
 		id: 'vrunnerInit',
 		relPath: 'tools/vrunner.init.json',
-		label: 'CI: инициализация данных',
+		label: 'Инициализация данных',
 		description: 'tools/vrunner.init.json — настройки шага инициализации данных в CI',
 		recommended: false,
 	},
@@ -78,7 +77,7 @@ export const SERVICE_FILES: ServiceFileSpec[] = [
 		id: 'vaParams',
 		relPath: 'tools/VAParams.json',
 		templateName: 'tools/VAParams.json.template',
-		label: 'VA: параметры тестов',
+		label: 'Прогон тестов',
 		description: 'tools/VAParams.json — параметры Vanessa Automation для прогона тестов',
 		recommended: false,
 	},
@@ -86,7 +85,7 @@ export const SERVICE_FILES: ServiceFileSpec[] = [
 		id: 'vaParamsInit',
 		relPath: 'tools/VAParams.init.json',
 		templateName: 'tools/VAParams.init.json.template',
-		label: 'VA: параметры инициализации',
+		label: 'Инициализация данных',
 		description: 'tools/VAParams.init.json — параметры Vanessa Automation для инициализации данных',
 		recommended: false,
 	},
@@ -94,7 +93,7 @@ export const SERVICE_FILES: ServiceFileSpec[] = [
 		id: 'xunit',
 		relPath: 'tools/xUnitParams.json',
 		templateName: 'tools/xUnitParams.json.template',
-		label: 'xUnit: параметры',
+		label: 'Прогон тестов',
 		description: 'tools/xUnitParams.json — параметры дымовых тестов xUnit',
 		recommended: false,
 	},
@@ -102,7 +101,7 @@ export const SERVICE_FILES: ServiceFileSpec[] = [
 		id: 'yaxunit',
 		relPath: 'tools/yaxunit.json',
 		templateName: 'tools/yaxunit.json.template',
-		label: 'YaXunit: параметры',
+		label: 'Прогон тестов',
 		description: 'tools/yaxunit.json — конфигурация YAxUnit',
 		recommended: false,
 	},
@@ -110,7 +109,7 @@ export const SERVICE_FILES: ServiceFileSpec[] = [
 		id: 'syntaxExcludes',
 		relPath: 'tools/syntax-check-excludes.txt',
 		templateName: 'tools/syntax-check-excludes.txt.template',
-		label: 'Syntax: исключения',
+		label: 'Исключения',
 		description: 'tools/syntax-check-excludes.txt — исключения синтаксического контроля',
 		recommended: false,
 	},
@@ -191,16 +190,37 @@ export function resolveLaunchProfileSpec(schema: SettingsSchema, oneScript = fal
 	};
 }
 
-/**
- * Glob служебных файлов для FileSystemWatcher (реестр + оба базовых файла профиля).
- *
- * @returns Относительный brace-glob для RelativePattern
- */
-export function serviceFilesWatchGlob(): string {
-	const paths = new Set<string>([
-		...SERVICE_FILES.map((spec) => spec.relPath),
-		BASE_AUTUMN_FILE,
-		BASE_ENV_FILE,
-	]);
-	return `{${[...paths].join(',')}}`;
+/** Подпись файла в панели и в строке состояния. */
+export function serviceFileLabel(relPath: string): string {
+	const name = relPath.split('/').pop() ?? relPath;
+	if (name === 'pipelines.json') {
+		return '1cpt: пайплайны';
+	}
+	const role = parameterRole(name);
+	if (role === 'run') {
+		return 'Прогон тестов';
+	}
+	if (role === 'init') {
+		return 'Инициализация данных';
+	}
+	if (name === 'syntax-check-excludes.txt' || name === 'syntax-check-exception-file.txt') {
+		return 'Исключения';
+	}
+	const spec = SERVICE_FILES.find((item) => (item.relPath.split('/').pop() ?? item.relPath) === name);
+	if (spec) {
+		return spec.label;
+	}
+	const id = /^(?:vrunner|VAParams|xUnitParams|yaxunit)\.([A-Za-z0-9_.-]+)\.json$/i.exec(name)?.[1];
+	return id ?? name.replace(/\.json$/i, '');
+}
+
+/** Общая роль файла параметров. Своё имя варианта сюда не попадает. */
+function parameterRole(name: string): 'run' | 'init' | undefined {
+	if (/^(?:vrunner|VAParams|xUnitParams|yaxunit)\.init\.json$/i.test(name)) {
+		return 'init';
+	}
+	if (name.toLowerCase() === 'vrunner.json' || /^(?:VAParams|xUnitParams|yaxunit)(?:\.ci)?\.json$/i.test(name)) {
+		return 'run';
+	}
+	return undefined;
 }

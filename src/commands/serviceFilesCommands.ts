@@ -5,14 +5,12 @@ import * as vscode from 'vscode';
 import { BaseCommand } from './baseCommand';
 import { logger } from '../shared/logger';
 import { readTemplate } from '../features/serviceFiles/templates';
-import { serviceFilesFor, getServiceFileSpec, resolveLaunchProfileSpec, type ServiceFileSpec } from '../features/serviceFiles/registry';
+import { serviceFilesFor, getServiceFileSpec, resolveLaunchProfileSpec, serviceFileLabel, type ServiceFileSpec } from '../features/serviceFiles/registry';
 import { autumnPropertiesOf } from '../shared/packagedef';
 import { readPackageManifest } from '../shared/oneScriptLayout';
 import { isOneScriptProject } from '../shared/workspaceProjects';
 import { buildEnvJsonWithSections, buildAutumnPropertiesWithSections } from '../features/serviceFiles/envJsonBuilder';
 import {
-	ENV_DEFAULTS,
-	AUTUMN_DEFAULTS,
 	VRUNNER_DEFAULTS,
 	VRUNNER_INIT_DEFAULTS,
 	VRUNNER_DEFAULTS_V3,
@@ -29,6 +27,9 @@ import {
 import { notifyQuiet } from '../shared/notify';
 import { newEnvironmentText } from '../shared/environments';
 import { projectEnvironmentVariables } from '../features/launch/projectEnvironmentVariables';
+import { writeBuildFile } from '../features/serviceFiles/buildFile';
+import { variantPath, type ServiceFileKind } from '../features/serviceFiles/catalog';
+import { isVrunnerFile, writeVrunnerLink } from '../features/serviceFiles/vrunnerLink';
 
 const log = logger.scope('serviceFiles');
 
@@ -45,6 +46,15 @@ export class ServiceFilesCommands extends BaseCommand {
 
 	private refreshProfileStatusBar(): void {
 		void vscode.commands.executeCommand('1c-platform-tools.env.statusBarRefresh').then(undefined, () => undefined);
+	}
+
+	/** Открывает файл текстом. Создание из панели файл не открывает: это делает следующий щелчок. */
+	private async openText(fullPath: string, createOnly: boolean): Promise<void> {
+		if (createOnly) {
+			return;
+		}
+		const doc = await vscode.workspace.openTextDocument(vscode.Uri.file(fullPath));
+		await vscode.window.showTextDocument(doc);
 	}
 
 	/**
@@ -97,29 +107,29 @@ export class ServiceFilesCommands extends BaseCommand {
 
 	/**
 	 * Открывает существующий служебный файл, либо создаёт отсутствующий.
-	 * Точка входа для клика по элементу дерева «Служебные файлы».
+	 * Из панели отсутствующий файл только создаётся: createOnly не открывает редактор.
 	 *
 	 * @param specId - Идентификатор файла из реестра
 	 */
-	async ensure(specId: string, nonInteractive = false): Promise<void> {
+	async ensure(specId: string, nonInteractive = false, createOnly = false): Promise<void> {
 		// «Профиль запуска» и его конкретные формы обрабатываются до реестра:
 		// файл зависит от схемы установленного vanessa-runner.
 		if (specId === 'launchProfile') {
 			await this.vrunner.getVRunnerVersion();
 			const workspaceRoot = this.ensureWorkspace();
 			if (workspaceRoot && isOneScriptProject(workspaceRoot)) {
-				await this.ensureOneScriptLaunchProfile(workspaceRoot);
+				await this.ensureOneScriptLaunchProfile(workspaceRoot, createOnly);
 				return;
 			}
 			if (this.vrunner.getActiveSettingsSchema() === 'v3') {
-				await this.ensureAutumnProperties(nonInteractive);
+				await this.ensureAutumnProperties(nonInteractive, createOnly);
 			} else {
-				await this.ensureEnv(nonInteractive);
+				await this.ensureEnv(nonInteractive, createOnly);
 			}
 			return;
 		}
-		if (specId === 'environment') {
-			await this.ensureEnvironment();
+		if (specId === 'environment' || specId === 'environmentLocal') {
+			await this.ensureDotEnv(specId === 'environmentLocal' ? '.env.local' : '.env', createOnly);
 			return;
 		}
 		if (specId === 'env') {
@@ -136,49 +146,50 @@ export class ServiceFilesCommands extends BaseCommand {
 			return;
 		}
 		if (spec.id === 'vrunner' || spec.id === 'vrunnerInit') {
-			// Формат CI-файла зависит от установленного vanessa-runner: 2.x — env-формат,
+			// Формат файла зависит от установленного vanessa-runner: 2.x — env-формат,
 			// 3.x — autumn (каскад vrunner.test.vanessa.*).
 			await this.vrunner.getVRunnerVersion();
 			const v3 = this.vrunner.getActiveSettingsSchema() === 'v3';
-			const defaults = spec.id === 'vrunner'
-				? (v3 ? VRUNNER_DEFAULTS_V3 : VRUNNER_DEFAULTS)
-				: (v3 ? VRUNNER_INIT_DEFAULTS_V3 : VRUNNER_INIT_DEFAULTS);
-			await this.ensureFromDefaults(spec, defaults);
+			const defaults = spec.id === 'vrunnerInit'
+				? (v3 ? VRUNNER_INIT_DEFAULTS_V3 : VRUNNER_INIT_DEFAULTS)
+				: (v3 ? VRUNNER_DEFAULTS_V3 : VRUNNER_DEFAULTS);
+			await this.ensureFromDefaults(spec, defaults, createOnly);
 			return;
 		}
 		if (spec.id === 'hooks') {
-			await this.ensureFromDefaults(spec, HOOKS_DEFAULTS);
+			await this.ensureFromDefaults(spec, HOOKS_DEFAULTS, createOnly);
 			return;
 		}
 		if (spec.id === 'pipelines') {
-			await this.ensureFromDefaults(spec, PIPELINES_DEFAULTS);
+			await this.ensureFromDefaults(spec, PIPELINES_DEFAULTS, createOnly);
 			return;
 		}
-		if (await this.createFromSpec(spec, true)) {
+		if (await this.createFromSpec(spec, !createOnly)) {
 			this.refreshTree();
 			notifyQuiet(`Создан ${spec.relPath}`);
 		}
 	}
 
 	/**
-	 * Открывает `.env`. Если файла нет, создаёт его с переменными из кода проекта.
+	 * Открывает файл окружения. Если его нет, создаёт с переменными из кода проекта.
+	 *
+	 * @param relPath - `.env` или личный `.env.local`
 	 */
-	private async ensureEnvironment(): Promise<void> {
+	private async ensureDotEnv(relPath: '.env' | '.env.local', createOnly = false): Promise<void> {
 		const workspaceRoot = this.ensureWorkspace();
 		if (!workspaceRoot) {
 			return;
 		}
-		const fullPath = path.join(workspaceRoot, '.env');
+		const fullPath = path.join(workspaceRoot, relPath);
 		if (!fsSync.existsSync(fullPath)) {
 			const text = newEnvironmentText(await projectEnvironmentVariables(workspaceRoot));
 			await fs.writeFile(fullPath, text, 'utf8');
-			log.info('Создан .env');
-			notifyQuiet('Создан .env');
+			log.info(`Создан ${relPath}`);
+			notifyQuiet(`Создан ${relPath}`);
 		}
-		const doc = await vscode.workspace.openTextDocument(vscode.Uri.file(fullPath));
-		await vscode.window.showTextDocument(doc);
 		this.refreshTree();
 		this.refreshProfileStatusBar();
+		await this.openText(fullPath, createOnly);
 	}
 
 	/**
@@ -187,7 +198,7 @@ export class ServiceFilesCommands extends BaseCommand {
 	 * @param spec - Описание файла
 	 * @param defaults - Объект-дефолт для сериализации в JSON
 	 */
-	private async ensureFromDefaults(spec: ServiceFileSpec, defaults: object): Promise<void> {
+	private async ensureFromDefaults(spec: ServiceFileSpec, defaults: object, createOnly = false): Promise<void> {
 		const workspaceRoot = this.ensureWorkspace();
 		if (!workspaceRoot) {
 			return;
@@ -200,8 +211,7 @@ export class ServiceFilesCommands extends BaseCommand {
 			notifyQuiet(`Создан ${spec.relPath}`);
 			this.refreshTree();
 		}
-		const doc = await vscode.workspace.openTextDocument(vscode.Uri.file(fullPath));
-		await vscode.window.showTextDocument(doc);
+		await this.openText(fullPath, createOnly);
 	}
 
 	/**
@@ -212,15 +222,14 @@ export class ServiceFilesCommands extends BaseCommand {
 	 * автоматически. Файл создаётся из рукописного v3-дефолта. Перенос настроек
 	 * из env.json пользователь выполняет сам скриптом из пакета vanessa-runner.
 	 */
-	private async ensureAutumnProperties(nonInteractive = false): Promise<void> {
+	private async ensureAutumnProperties(nonInteractive = false, createOnly = false): Promise<void> {
 		const workspaceRoot = this.ensureWorkspace();
 		if (!workspaceRoot) {
 			return;
 		}
 		const fullPath = path.join(workspaceRoot, BASE_AUTUMN_FILE);
 		if (fsSync.existsSync(fullPath)) {
-			const doc = await vscode.workspace.openTextDocument(vscode.Uri.file(fullPath));
-			await vscode.window.showTextDocument(doc);
+			await this.openText(fullPath, createOnly);
 			return;
 		}
 		if (await this.createAutumnWithSections(fullPath, nonInteractive)) {
@@ -251,15 +260,14 @@ export class ServiceFilesCommands extends BaseCommand {
 	/**
 	 * Открывает env.json, либо создаёт его с выбором секций команд (vanessa/xunit/...)
 	 */
-	private async ensureEnv(nonInteractive = false): Promise<void> {
+	private async ensureEnv(nonInteractive = false, createOnly = false): Promise<void> {
 		const workspaceRoot = this.ensureWorkspace();
 		if (!workspaceRoot) {
 			return;
 		}
 		const fullPath = path.join(workspaceRoot, BASE_ENV_FILE);
 		if (fsSync.existsSync(fullPath)) {
-			const doc = await vscode.workspace.openTextDocument(vscode.Uri.file(fullPath));
-			await vscode.window.showTextDocument(doc);
+			await this.openText(fullPath, createOnly);
 			return;
 		}
 		if (await this.createEnvWithSections(fullPath, nonInteractive)) {
@@ -276,7 +284,7 @@ export class ServiceFilesCommands extends BaseCommand {
 	 *
 	 * @param workspaceRoot - Корень проекта
 	 */
-	private async ensureOneScriptLaunchProfile(workspaceRoot: string): Promise<void> {
+	private async ensureOneScriptLaunchProfile(workspaceRoot: string, createOnly = false): Promise<void> {
 		const fullPath = path.join(workspaceRoot, BASE_AUTUMN_FILE);
 		if (!fsSync.existsSync(fullPath)) {
 			const properties = autumnPropertiesOf(readPackageManifest(workspaceRoot) ?? {
@@ -293,29 +301,7 @@ export class ServiceFilesCommands extends BaseCommand {
 			this.refreshProfileStatusBar();
 			notifyQuiet(`Создан ${BASE_AUTUMN_FILE}`);
 		}
-		const doc = await vscode.workspace.openTextDocument(vscode.Uri.file(fullPath));
-		await vscode.window.showTextDocument(doc);
-	}
-
-	/**
-	 * Создаёт файл настроек профиля запуска по схеме установленного vanessa-runner
-	 * (без диалогов): env.json для 2.x, autumn-properties.json для 3.x.
-	 *
-	 * @param workspaceRoot - Корень рабочей области
-	 * @returns Имя созданного файла либо undefined, если файл уже есть
-	 */
-	private async createLaunchProfileDefault(workspaceRoot: string): Promise<string | undefined> {
-		await this.vrunner.getVRunnerVersion();
-		const schema = this.vrunner.getActiveSettingsSchema();
-		const fileName = baseSettingsFileName(schema);
-		const defaults = schema === 'v3' ? AUTUMN_DEFAULTS : ENV_DEFAULTS;
-		const fullPath = path.join(workspaceRoot, fileName);
-		if (fsSync.existsSync(fullPath)) {
-			return undefined;
-		}
-		await fs.writeFile(fullPath, `${JSON.stringify(defaults, null, 4)}\n`, 'utf8');
-		log.info(`Создан ${fileName}`);
-		return fileName;
+		await this.openText(fullPath, createOnly);
 	}
 
 	/**
@@ -359,18 +345,38 @@ export class ServiceFilesCommands extends BaseCommand {
 	/**
 	 * Создаёт рекомендованный набор служебных файлов (только отсутствующие)
 	 */
-	async createRecommendedSet(): Promise<void> {
+	async createRecommendedSet(nonInteractive = false): Promise<void> {
 		const workspaceRoot = this.ensureWorkspace();
 		if (!workspaceRoot) {
 			return;
 		}
+		const specs = serviceFilesFor(isOneScriptProject(workspaceRoot)).filter((spec) => spec.recommended);
+		const profileWanted = specs.some((spec) => spec.id === 'launchProfile');
+		let profileName = '';
+		let profilePath = '';
+		let profileContent: string | undefined;
+		if (profileWanted) {
+			await this.vrunner.getVRunnerVersion();
+			const schema = this.vrunner.getActiveSettingsSchema();
+			profileName = baseSettingsFileName(schema);
+			profilePath = path.join(workspaceRoot, profileName);
+			if (!fsSync.existsSync(profilePath)) {
+				profileContent = schema === 'v3'
+					? await buildAutumnPropertiesWithSections(nonInteractive)
+					: await buildEnvJsonWithSections(nonInteractive);
+				if (profileContent === undefined) {
+					return;
+				}
+			}
+		}
 		const created: string[] = [];
 		let envCreated = false;
-		for (const spec of serviceFilesFor(isOneScriptProject(workspaceRoot)).filter((s) => s.recommended)) {
+		for (const spec of specs) {
 			if (spec.id === 'launchProfile') {
-				const fileName = await this.createLaunchProfileDefault(workspaceRoot);
-				if (fileName) {
-					created.push(fileName);
+				if (profileContent !== undefined && !fsSync.existsSync(profilePath)) {
+					await fs.writeFile(profilePath, profileContent, 'utf8');
+					log.info(`Создан ${profileName}`);
+					created.push(profileName);
 					envCreated = true;
 				}
 			} else if (await this.createFromSpec(spec, false)) {
@@ -433,5 +439,132 @@ export class ServiceFilesCommands extends BaseCommand {
 			return;
 		}
 		await this.ensure(picked.action);
+	}
+
+	/**
+	 * Записывает в активный профиль ссылку на файл vrunner.
+	 *
+	 * @param relPath - Путь от корня проекта
+	 */
+	async linkVrunner(relPath: unknown): Promise<void> {
+		const workspaceRoot = this.ensureWorkspace();
+		if (!workspaceRoot || typeof relPath !== 'string' || !isVrunnerFile(relPath)) {
+			return;
+		}
+		await this.vrunner.getVRunnerVersion();
+		const schema = this.vrunner.getActiveSettingsSchema();
+		const profilePath = path.join(workspaceRoot, this.vrunner.getActiveEnvFile());
+		if (!fsSync.existsSync(profilePath)) {
+			void vscode.window.showWarningMessage('Сначала создайте профиль запуска');
+			return;
+		}
+		const current = JSON.parse(await fs.readFile(profilePath, 'utf8')) as unknown;
+		const next = writeVrunnerLink(current, schema, relPath);
+		await fs.writeFile(profilePath, `${JSON.stringify(next, null, 4)}\n`, 'utf8');
+		notifyQuiet(`Выбран ${serviceFileLabel(relPath)}`);
+		this.refreshProfileStatusBar();
+	}
+
+	/**
+	 * Создаёт файл сборки или открывает уже лежащий.
+	 *
+	 * @param relPath - Путь от корня, например tools/vrunner.ci.json
+	 */
+	async createBuildFile(relPath: unknown, createOnly = false): Promise<void> {
+		const workspaceRoot = this.ensureWorkspace();
+		if (!workspaceRoot || typeof relPath !== 'string') {
+			return;
+		}
+		const normalized = relPath.replace(/\\/g, '/');
+		const known = knownBuildSpec(normalized);
+		if (known) {
+			await this.ensure(known, false, createOnly);
+			return;
+		}
+		const fullPath = path.join(workspaceRoot, normalized);
+		if (!fsSync.existsSync(fullPath)) {
+			await this.vrunner.getVRunnerVersion();
+			const schema = this.vrunner.getActiveSettingsSchema();
+			await writeBuildFile(workspaceRoot, normalized, schema, this.vrunner.getExtensionPath());
+			if (!fsSync.existsSync(fullPath)) {
+				void vscode.window.showErrorMessage(`Не удалось создать ${normalized}`);
+				return;
+			}
+			notifyQuiet(`Создан ${normalized}`);
+			this.refreshTree();
+		}
+		await this.openText(fullPath, createOnly);
+	}
+
+	/**
+	 * Спрашивает идентификатор и создаёт tools/<имя>.<id>.json.
+	 *
+	 * @param kind - Вид файла: vrunner, vanessa, xunit или yaxunit
+	 */
+	async addVariant(kind: unknown): Promise<void> {
+		if (!isVariantKind(kind)) {
+			return;
+		}
+		const pattern = variantPath(kind, 'dev')?.replace('.dev.json', '.<id>.json');
+		if (!pattern) {
+			return;
+		}
+		const input = await vscode.window.showInputBox({
+			title: 'Новый файл',
+			prompt: `Идентификатор, файл ${pattern}`,
+			placeHolder: 'dev',
+			ignoreFocusOut: true,
+			validateInput: (value) => {
+				const trimmed = value.trim();
+				if (!trimmed) {
+					return 'Укажите идентификатор';
+				}
+				if (!/^[A-Za-z0-9_.-]+$/.test(trimmed)) {
+					return 'Допустимы латиница, цифры, точка, дефис и подчёркивание';
+				}
+				return undefined;
+			},
+		});
+		if (input === undefined) {
+			return;
+		}
+		const relPath = variantPath(kind, input.trim());
+		if (relPath) {
+			await this.createBuildFile(relPath, true);
+		}
+	}
+}
+
+function isVariantKind(kind: unknown): kind is ServiceFileKind {
+	return kind === 'vrunner' || kind === 'vanessa' || kind === 'xunit' || kind === 'yaxunit';
+}
+
+function knownBuildSpec(relPath: string): string | undefined {
+	switch (relPath) {
+		case '.gitignore':
+			return 'gitignore';
+		case '.gitattributes':
+			return 'gitattributes';
+		case '.1cpt/hooks.json':
+			return 'hooks';
+		case '.1cpt/pipelines.json':
+			return 'pipelines';
+		case 'tools/syntax-check-excludes.txt':
+			return 'syntaxExcludes';
+		// В имени нет идентификатора, writeBuildFile такие файлы не собирает.
+		case 'tools/vrunner.json':
+			return 'vrunner';
+		case 'tools/vrunner.init.json':
+			return 'vrunnerInit';
+		case 'tools/VAParams.json':
+			return 'vaParams';
+		case 'tools/VAParams.init.json':
+			return 'vaParamsInit';
+		case 'tools/xUnitParams.json':
+			return 'xunit';
+		case 'tools/yaxunit.json':
+			return 'yaxunit';
+		default:
+			return undefined;
 	}
 }

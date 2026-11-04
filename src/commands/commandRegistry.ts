@@ -25,7 +25,7 @@ import { isAgentOptions, agentInteractiveError, uiOnlyHandler } from '../shared/
 import { askGithubToken, forgetGithubToken } from '../shared/githubToken';
 import { showWorkspaceRequired } from '../shared/configurationWriteTarget';
 import { withWorkspaceTrust } from '../shared/workspaceTrust';
-import { inCurrentProject, inProjectOf } from './projectScope';
+import { inCurrentProject, inProjectOf, inProjectRoot } from './projectScope';
 
 const log = logger.scope('commands');
 
@@ -131,6 +131,18 @@ function agentOptionsOf(target: unknown): CommandExecutionOptions | undefined {
 	return isAgentOptions(target) ? (target as CommandExecutionOptions) : undefined;
 }
 
+/**
+ * Корень проекта со строки панели пакетов.
+ *
+ * Кнопки шапки получают выбранную строку. У вызова агента корень уже задан
+ * каналом, поле строки не читается.
+ *
+ * @param target - Первый аргумент команды
+ */
+function packageCommandRoot(target: unknown): string | undefined {
+	return isAgentOptions(target) ? undefined : packageProjectArgument(target);
+}
+
 /** Имя пакета со строки дерева зависимостей. */
 function packageNameArgument(target: unknown): string | undefined {
 	if (isAgentOptions(target) || typeof target !== 'object' || target === null) {
@@ -204,7 +216,7 @@ export function registerCommands(
 		registerProjectCommand('1c-platform-tools.serviceFiles.ensure', (specId?: unknown, opts?: unknown) => {
 			if (typeof specId === 'string') {
 				// второй аргумент-объект — агентный вызов: без окна выбора секций
-				return commands.serviceFiles.ensure(specId, isAgentOptions(opts));
+				return commands.serviceFiles.ensure(specId, isAgentOptions(opts), createOnlyOf(opts));
 			}
 			if (isAgentOptions(specId)) {
 				return agentInteractiveError('Передайте id служебного файла строкой (например, launchProfile).');
@@ -220,8 +232,20 @@ export function registerCommands(
 		registerProjectCommand('1c-platform-tools.serviceFiles.createEnvJson', () =>
 			commands.serviceFiles.createEnvJson()
 		),
-		registerProjectCommand('1c-platform-tools.serviceFiles.createRecommendedSet', () =>
-			commands.serviceFiles.createRecommendedSet()
+		registerProjectCommand('1c-platform-tools.serviceFiles.createRecommendedSet', (opts?: unknown) =>
+			commands.serviceFiles.createRecommendedSet(isAgentOptions(opts))
+		),
+		registerProjectCommand('1c-platform-tools.serviceFiles.baseSetReady', (opts?: unknown) =>
+			commands.serviceFiles.createRecommendedSet(isAgentOptions(opts))
+		),
+		registerProjectCommand('1c-platform-tools.serviceFiles.linkVrunner', (relPath?: unknown) =>
+			commands.serviceFiles.linkVrunner(relPath)
+		),
+		registerProjectCommand('1c-platform-tools.serviceFiles.createBuildFile', (relPath?: unknown, opts?: unknown) =>
+			commands.serviceFiles.createBuildFile(relPath, createOnlyOf(opts))
+		),
+		registerProjectCommand('1c-platform-tools.serviceFiles.addVariant', (kind?: unknown) =>
+			commands.serviceFiles.addVariant(kind)
 		),
 	];
 	disposables.push(...serviceFilesCommands);
@@ -431,20 +455,22 @@ export function registerCommands(
 		registerProjectCommand('1c-platform-tools.dependencies.updateOpm', () => {
 			commands.dependencies.updateOpm();
 		}),
-		registerProjectCommand('1c-platform-tools.dependencies.install', () => {
-			commands.dependencies.installDependencies();
-		}),
-		registerProjectCommand('1c-platform-tools.dependencies.remove', () => {
-			commands.dependencies.removeDependencies();
-		}),
-		registerProjectCommand('1c-platform-tools.dependencies.check', (target?: unknown) =>
-			commands.dependencies.checkDependencies(agentOptionsOf(target))
+		vscode.commands.registerCommand('1c-platform-tools.dependencies.install', (target?: unknown) =>
+			inProjectRoot(packageCommandRoot(target), () => commands.dependencies.installDependencies())
 		),
-		registerProjectCommand('1c-platform-tools.dependencies.doctor', (target?: unknown) =>
-			commands.dependencies.diagnoseDependencies(agentOptionsOf(target))
+		vscode.commands.registerCommand('1c-platform-tools.dependencies.remove', (target?: unknown) =>
+			inProjectRoot(packageCommandRoot(target), () => commands.dependencies.removeDependencies())
 		),
-		registerProjectCommand('1c-platform-tools.dependencies.upgrade', (target?: unknown) =>
-			commands.dependencies.upgradeDependencies(agentOptionsOf(target), packageNameArgument(target))
+		vscode.commands.registerCommand('1c-platform-tools.dependencies.check', (target?: unknown) =>
+			inProjectRoot(packageCommandRoot(target), () => commands.dependencies.checkDependencies(agentOptionsOf(target)))
+		),
+		vscode.commands.registerCommand('1c-platform-tools.dependencies.doctor', (target?: unknown) =>
+			inProjectRoot(packageCommandRoot(target), () => commands.dependencies.diagnoseDependencies(agentOptionsOf(target)))
+		),
+		vscode.commands.registerCommand('1c-platform-tools.dependencies.upgrade', (target?: unknown) =>
+			inProjectRoot(packageCommandRoot(target), () =>
+				commands.dependencies.upgradeDependencies(agentOptionsOf(target), packageNameArgument(target))
+			)
 		),
 		registerProjectCommand('1c-platform-tools.components.setGithubToken', uiOnlyHandler(
 			'Токен вводит пользователь в поле с маскировкой; агенту секрет не передаётся.',
@@ -641,5 +667,10 @@ export function registerCommands(
 	);
 
 	return disposables;
+}
+
+/** Щелчок по отсутствующей строке панели: создать файл и не открывать его. */
+function createOnlyOf(opts: unknown): boolean {
+	return typeof opts === 'object' && opts !== null && (opts as { createOnly?: unknown }).createOnly === true;
 }
 

@@ -62,13 +62,26 @@ export class InfobaseCommands extends BaseCommand {
 	}
 
 	async initialize(opts?: CommandExecutionOptions): Promise<StructuredCommandResult | void> {
-		// Инициализация отличается от обычного прогона Vanessa только сценарием:
-		// его подставляем через --vanessasettings. ИБ и путь Vanessa — из профиля.
-		const vanessaSettings = this.vrunner.getInitVanessaSettingsPath();
+		// Команда берёт файл инициализации целиком: база и путь к параметрам Vanessa лежат в нём.
+		const settingsFile = this.vrunner.getVRunnerInitSettingsPath();
+		const root = this.vrunner.getWorkspaceRoot();
+		if (root) {
+			try {
+				await fs.access(path.join(root, settingsFile));
+			} catch {
+				const message = 'Нет файла инициализации данных';
+				if (opts?.wait === true) {
+					return this.executionError(message);
+				}
+				void vscode.window.showWarningMessage(message);
+				return;
+			}
+		}
 		const cmd = getInitializeCommandName();
 		return this.runIntent(
-			{ kind: 'test.vanessa', vanessaSettings },
-			opts, cmd.title, undefined, cmd.id
+			{ kind: 'test.vanessa' },
+			{ ...opts, settingsFile },
+			cmd.title, undefined, cmd.id
 		);
 	}
 

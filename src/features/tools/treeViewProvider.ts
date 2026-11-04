@@ -1,9 +1,6 @@
 import * as vscode from 'vscode';
-import * as path from 'node:path';
-import * as fsSync from 'node:fs';
 import { WorkspaceTasksCommands } from '../../commands/workspaceTasksCommands';
 import { OscriptTasksCommands } from '../../commands/oscriptTasksCommands';
-import { resolveLaunchProfileSpec, serviceFilesFor, serviceFilesWatchGlob } from '../serviceFiles/registry';
 import { VRunnerManager } from '../../shared/vrunnerManager';
 import {
 	getSetVersionReportCommandName,
@@ -12,7 +9,6 @@ import {
 	getOpenHooksEditorCommandName
 } from './commandNames';
 import { readPipelines } from '../../shared/pipelines/pipelineFile';
-import { PIPELINE_TEMPLATE_ID_PREFIX } from '../../shared/pipelines/pipelineTemplates';
 import { stepsWord } from '../../shared/pipelines/pipelineTypes';
 import { readHooks, describeHookEntry, HOOKS_WILDCARD } from '../../shared/hooks/hooksModel';
 import { commandTitle } from '../../shared/commandCatalog';
@@ -31,7 +27,7 @@ import {
 } from './treeStructure';
 import { configurationScope } from '../../shared/activeConfiguration';
 import { onDidChangeProjectLayout } from '../../shared/projectLayoutWatch';
-import { currentRoot, onDidChangeCurrentProject, onDidChangeProjects, projectByRoot } from '../../shared/workspaceProjects';
+import { onDidChangeCurrentProject, onDidChangeProjects, projectByRoot } from '../../shared/workspaceProjects';
 
 /** Ключ в globalState для сохранения состояния раскрытия групп дерева */
 export const TREE_GROUP_EXPANDED_STATE_KEY = '1c-platform-tools.treeGroupExpanded';
@@ -202,10 +198,6 @@ export class PlatformTreeDataProvider implements vscode.TreeDataProvider<Platfor
 	private readonly formatSubscription: vscode.Disposable;
 	private readonly layoutSubscription: vscode.Disposable;
 	private readonly projectsSubscription: vscode.Disposable;
-	/** Create/delete служебных файлов → иконки check/add в группе. */
-	private serviceFilesWatcher: vscode.Disposable | undefined;
-	/** Появление файла не должно перестраивать дерево в том же клике, который его создал. */
-	private serviceFilesRefreshTimer: ReturnType<typeof setTimeout> | undefined;
 
 	constructor(
 		extensionUri?: vscode.Uri,
@@ -217,13 +209,11 @@ export class PlatformTreeDataProvider implements vscode.TreeDataProvider<Platfor
 		this.setVersionCommands = setVersionCommands;
 		this.extensionUri = extensionUri;
 		this.extensionContext = extensionContext;
-		this.formatSubscription = onDidChangeCurrentProject((change) => {
-			this.watchServiceFiles(change.current);
+		this.formatSubscription = onDidChangeCurrentProject(() => {
 			void this.refreshSourceFormat(true);
 		});
 		this.layoutSubscription = onDidChangeProjectLayout(() => void this.refreshSourceFormat());
 		this.projectsSubscription = onDidChangeProjects(() => void this.refreshSourceFormat());
-		this.watchServiceFiles(currentRoot());
 		void this.refreshSourceFormat();
 	}
 
@@ -243,45 +233,6 @@ export class PlatformTreeDataProvider implements vscode.TreeDataProvider<Platfor
 		this.formatSubscription.dispose();
 		this.layoutSubscription.dispose();
 		this.projectsSubscription.dispose();
-		this.serviceFilesWatcher?.dispose();
-		this.serviceFilesWatcher = undefined;
-		if (this.serviceFilesRefreshTimer !== undefined) {
-			clearTimeout(this.serviceFilesRefreshTimer);
-			this.serviceFilesRefreshTimer = undefined;
-		}
-	}
-
-	/** Как у плашки профиля: watcher на корень проекта, при смене корня — пересоздать. */
-	private watchServiceFiles(root: string | undefined): void {
-		this.serviceFilesWatcher?.dispose();
-		this.serviceFilesWatcher = undefined;
-		if (this.serviceFilesRefreshTimer !== undefined) {
-			clearTimeout(this.serviceFilesRefreshTimer);
-			this.serviceFilesRefreshTimer = undefined;
-		}
-		if (root === undefined) {
-			return;
-		}
-		const watcher = vscode.workspace.createFileSystemWatcher(
-			new vscode.RelativePattern(root, serviceFilesWatchGlob()),
-			false,
-			true,
-			false
-		);
-		const schedule = (): void => {
-			if (this.serviceFilesRefreshTimer !== undefined) {
-				clearTimeout(this.serviceFilesRefreshTimer);
-			}
-			this.serviceFilesRefreshTimer = setTimeout(() => {
-				this.serviceFilesRefreshTimer = undefined;
-				this.refresh();
-			}, 400);
-		};
-		this.serviceFilesWatcher = vscode.Disposable.from(
-			watcher,
-			watcher.onDidCreate(schedule),
-			watcher.onDidDelete(schedule)
-		);
 	}
 
 	/**
@@ -377,7 +328,6 @@ export class PlatformTreeDataProvider implements vscode.TreeDataProvider<Platfor
 			testEnvironment: TreeItemType.Test,
 			setVersion: TreeItemType.SetVersion,
 			config: TreeItemType.Config,
-			serviceFiles: TreeItemType.Config,
 			helpAndSupport: TreeItemType.Lightbulb,
 			oscriptTasks: TreeItemType.OscriptTasks,
 			pipelines: TreeItemType.Pipelines,
@@ -415,13 +365,6 @@ export class PlatformTreeDataProvider implements vscode.TreeDataProvider<Platfor
 
 		if (element.type === TreeItemType.SetVersionProcessorsFolder) {
 			return this.getSetVersionProcessorItems();
-		}
-
-		// Служебные файлы строим лениво: состав («Осн. профиль запуска» →
-		// env.json / autumn-properties.json, CI-файлы) зависит от версии vrunner,
-		// которая могла определиться уже после первого построения дерева.
-		if (element.groupId === 'serviceFiles') {
-			return this.buildServiceFilesChildren();
 		}
 
 		return Promise.resolve(element.children || []);
@@ -506,90 +449,6 @@ export class PlatformTreeDataProvider implements vscode.TreeDataProvider<Platfor
 		return defaultExpanded
 			? vscode.TreeItemCollapsibleState.Expanded
 			: vscode.TreeItemCollapsibleState.Collapsed;
-	}
-
-	/**
-	 * Строит дочерние элементы группы «Служебные файлы»: для каждого файла его
-	 * наличие в проекте и действие создать (если нет) или открыть (если есть).
-	 * @returns Массив элементов дерева
-	 */
-	private async buildServiceFilesChildren(): Promise<PlatformTreeItem[]> {
-		const workspaceRoot = currentRoot();
-		const items: PlatformTreeItem[] = [
-			this.createTreeItem(
-				'Базовый набор',
-				TreeItemType.Task,
-				vscode.TreeItemCollapsibleState.None,
-				{
-					command: '1c-platform-tools.serviceFiles.createRecommendedSet',
-					title: 'Базовый набор',
-				},
-				undefined,
-				undefined,
-				undefined,
-				'checklist'
-			),
-		];
-
-		const schema = VRunnerManager.getInstance().getActiveSettingsSchema();
-		const specs = serviceFilesFor(this.traits.has('onescript'));
-		for (const staticSpec of specs) {
-			// «Профиль запуска» указывает на файл схемы установленного vrunner
-			const spec = staticSpec.id === 'launchProfile'
-				? resolveLaunchProfileSpec(schema, this.traits.has('onescript'))
-				: staticSpec;
-			const exists = workspaceRoot
-				? fsSync.existsSync(path.join(workspaceRoot, spec.relPath))
-				: false;
-			const item = this.createTreeItem(
-				spec.label,
-				TreeItemType.Task,
-				vscode.TreeItemCollapsibleState.None,
-				{
-					command: '1c-platform-tools.serviceFiles.ensure',
-					title: spec.label,
-					arguments: [spec.id],
-				},
-				undefined,
-				undefined,
-				undefined,
-				exists ? 'check' : 'add'
-			);
-			item.tooltip = exists ? `Открыть ${spec.relPath}` : `Создать ${spec.relPath}`;
-			items.push(item);
-			// Типовые цепочки наполняют .1cpt/pipelines.json, поэтому стоят сразу за ним
-			if (spec.id === 'pipelines' && !this.traits.has('onescript')) {
-				items.push(await this.createPipelineTemplatesItem(workspaceRoot));
-			}
-		}
-
-		return items;
-	}
-
-	/**
-	 * Строка «1cpt: pipeline templates» рядом с файлом цепочек.
-	 *
-	 * Значок как у служебного файла: плюс, пока типовых цепочек в проекте нет,
-	 * и галка, когда они уже стоят.
-	 *
-	 * @param workspaceRoot Корень проекта; без него цепочки не читаются
-	 * @returns Элемент дерева
-	 */
-	private async createPipelineTemplatesItem(workspaceRoot: string | undefined): Promise<PlatformTreeItem> {
-		const pipelines = workspaceRoot ? await readPipelines(workspaceRoot) : [];
-		const installed = pipelines.some((pipeline) => pipeline.id.startsWith(PIPELINE_TEMPLATE_ID_PREFIX));
-		const item = this.createTreeItem(
-			'1cpt: pipeline templates',
-			TreeItemType.Task,
-			vscode.TreeItemCollapsibleState.None,
-			{ command: '1c-platform-tools.pipelines.addTemplates', title: '1cpt: pipeline templates' },
-			undefined,
-			undefined,
-			undefined,
-			installed ? 'check' : 'add'
-		);
-		item.tooltip = installed ? 'Обновить типовые цепочки' : 'Добавить типовые цепочки';
-		return item;
 	}
 
 	/**

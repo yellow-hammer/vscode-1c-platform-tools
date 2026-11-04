@@ -170,6 +170,12 @@
           "when": "1c-platform-tools.is1CProject == true"
         },
         {
+          "id": "1c-platform-tools-service-files",
+          "title": "1С: Служебные файлы",
+          "icon": "resources/activitybar-service-files.svg",
+          "when": "1c-platform-tools.is1CProject == true"
+        },
+        {
           "id": "1c-platform-tools-metadata",
           "title": "1С: Метаданные",
           "icon": "resources/activitybar-metadata.svg",
@@ -248,6 +254,20 @@
         },
         {
           "id": "1c-platform-tools-tools-help",
+          "name": "Помощь и поддержка",
+          "contextualTitle": "Помощь и поддержка",
+          "when": "1c-platform-tools.is1CProject == true",
+          "visibility": "collapsed"
+        }
+      ],
+      "1c-platform-tools-service-files": [
+        {
+          "id": "1c-platform-tools-service-files-tree",
+          "name": "Служебные файлы",
+          "when": "1c-platform-tools.is1CProject == true"
+        },
+        {
+          "id": "1c-platform-tools-service-files-help",
           "name": "Помощь и поддержка",
           "contextualTitle": "Помощь и поддержка",
           "when": "1c-platform-tools.is1CProject == true",
@@ -1965,6 +1985,23 @@
         "icon": "$(checklist)"
       },
       {
+        "command": "1c-platform-tools.serviceFiles.refresh",
+        "title": "Обновить",
+        "icon": "$(refresh)",
+        "category": "1С: Служебные файлы"
+      },
+      {
+        "command": "1c-platform-tools.serviceFiles.select",
+        "title": "Выбрать",
+        "icon": "$(target)",
+        "category": "1С: Служебные файлы"
+      },
+      {
+        "command": "1c-platform-tools.serviceFiles.revealInTree",
+        "title": "Показать в панели",
+        "category": "1С: Служебные файлы"
+      },
+      {
         "command": "1c-platform-tools.serviceFiles.create",
         "title": "Создать…",
         "category": "1С: Служебные файлы",
@@ -1988,6 +2025,28 @@
       {
         "command": "1c-platform-tools.serviceFiles.createRecommendedSet",
         "title": "Создать базовый набор",
+        "icon": "$(add)",
+        "category": "1С: Служебные файлы"
+      },
+      {
+        "command": "1c-platform-tools.serviceFiles.baseSetReady",
+        "title": "Базовый набор",
+        "icon": "$(check)",
+        "category": "1С: Служебные файлы"
+      },
+      {
+        "command": "1c-platform-tools.serviceFiles.linkVrunner",
+        "title": "Сделать файлом сборки профиля",
+        "category": "1С: Служебные файлы"
+      },
+      {
+        "command": "1c-platform-tools.serviceFiles.createBuildFile",
+        "title": "Создать файл сборки",
+        "category": "1С: Служебные файлы"
+      },
+      {
+        "command": "1c-platform-tools.serviceFiles.addVariant",
+        "title": "Добавить вариант",
         "category": "1С: Служебные файлы"
       },
       {
@@ -2660,7 +2719,35 @@
           "when": "false"
         },
         {
+          "command": "1c-platform-tools.serviceFiles.refresh",
+          "when": "false"
+        },
+        {
+          "command": "1c-platform-tools.serviceFiles.select",
+          "when": "false"
+        },
+        {
+          "command": "1c-platform-tools.serviceFiles.revealInTree",
+          "when": "false"
+        },
+        {
+          "command": "1c-platform-tools.serviceFiles.baseSetReady",
+          "when": "false"
+        },
+        {
           "command": "1c-platform-tools.serviceFiles.ensure",
+          "when": "false"
+        },
+        {
+          "command": "1c-platform-tools.serviceFiles.linkVrunner",
+          "when": "false"
+        },
+        {
+          "command": "1c-platform-tools.serviceFiles.createBuildFile",
+          "when": "false"
+        },
+        {
+          "command": "1c-platform-tools.serviceFiles.addVariant",
           "when": "false"
         },
         {
@@ -3170,6 +3257,21 @@
           "group": "navigation@30"
         },
         {
+          "command": "1c-platform-tools.serviceFiles.createRecommendedSet",
+          "when": "view == 1c-platform-tools-service-files-tree && !1c-platform-tools.serviceFiles.baseSetReady",
+          "group": "navigation@10"
+        },
+        {
+          "command": "1c-platform-tools.serviceFiles.baseSetReady",
+          "when": "view == 1c-platform-tools-service-files-tree && 1c-platform-tools.serviceFiles.baseSetReady",
+          "group": "navigation@10"
+        },
+        {
+          "command": "1c-platform-tools.serviceFiles.refresh",
+          "when": "view == 1c-platform-tools-service-files-tree",
+          "group": "navigation@30"
+        },
+        {
           "submenu": "1c-platform-tools.artifacts.viewAndSortMenu",
           "when": "view == 1c-platform-tools-artifacts",
           "group": "1_artifacts"
@@ -3361,6 +3463,11 @@
         }
       ],
       "view/item/context": [
+        {
+          "command": "1c-platform-tools.serviceFiles.select",
+          "when": "view == 1c-platform-tools-service-files-tree && viewItem =~ /^serviceFile(Profile|Environment)$/",
+          "group": "inline"
+        },
         {
           "command": "1c-platform-tools.infobaseList.launchEnterprise",
           "when": "view == 1c-platform-tools-admin-infobases && viewItem == ibase",
@@ -4276,7 +4383,13 @@
         "command": "1c-platform-tools.metadata.revealInTree",
         "key": "ctrl+alt+t",
         "mac": "cmd+alt+t",
-        "when": "1c-platform-tools.is1CProject == true && editorTextFocus"
+        "when": "1c-platform-tools.is1CProject == true && editorTextFocus && !(resourceFilename =~ /^(\\.env.*|env.*\\.json|autumn-properties.*\\.json|vrunner.*\\.json|VAParams.*\\.json|xUnitParams.*\\.json|yaxunit.*\\.json|vanessaConf\\.json|syntax-check.*\\.txt|hooks\\.json|pipelines\\.json|\\.gitignore|\\.gitattributes)$/)"
+      },
+      {
+        "command": "1c-platform-tools.serviceFiles.revealInTree",
+        "key": "ctrl+alt+t",
+        "mac": "cmd+alt+t",
+        "when": "1c-platform-tools.is1CProject == true && editorTextFocus && resourceFilename =~ /^(\\.env.*|env.*\\.json|autumn-properties.*\\.json|vrunner.*\\.json|VAParams.*\\.json|xUnitParams.*\\.json|yaxunit.*\\.json|vanessaConf\\.json|syntax-check.*\\.txt|hooks\\.json|pipelines\\.json|\\.gitignore|\\.gitattributes)$/"
       },
       {
         "command": "workbench.view.extension.1c-platform-tools-projects",
@@ -4402,8 +4515,8 @@
           },
           {
             "id": "step6-service-files",
-            "title": "Служебные файлы",
-            "description": "env.json, launch.json и другие: параметры ИБ, отладка, Git. Единый интерфейс настройки разрабатывается.\n\n[Открыть env.json](command:1c-platform-tools.env.editSettingsFile)\n[Открыть launch.json](command:1c-platform-tools.launch.editConfigurations)",
+            "title": "1С: Служебные файлы",
+            "description": "Панель собирает профили запуска, окружение и файлы сборки.\n\n[Открыть панель «1С: Служебные файлы»](command:workbench.view.extension.1c-platform-tools-service-files)\n[Создать базовый набор](command:1c-platform-tools.serviceFiles.createRecommendedSet)",
             "media": {
               "markdown": "walkthrough/step6-service-files.md"
             }
