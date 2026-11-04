@@ -4,7 +4,7 @@
  *
  * Конфигурация или расширение делают проект проектом 1С в своём формате, даже если
  * `packagedef` объявляет классы. Внешний отчёт и обработка вид не меняют: проект
- * OneScript их держит и в выгрузке конфигуратора, и в 1С:EDT. Без конфигурации
+ * OneScript их держит и в выгрузке конфигуратора, и в 1C:EDT. Без конфигурации
  * решает `packagedef`: пакет с классами, модулями или исполняемым файлом это
  * OneScript; зависимость от vanessa-runner, vanessa-automation или add — проект 1С.
  * Остальное — OneScript. У такого проекта 1С
@@ -15,6 +15,7 @@
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 import { declaresPackageApi, dependsOn, parsePackagedef, type PackageManifest } from './packagedef';
+import { SOURCE_FORMAT_LABELS } from './activeConfiguration';
 import { PROJECT_FILE, resolveProjectLayout, type ProjectLayout, type SourceFormat } from './projectLayout';
 
 /** Вид проекта: формат исходного кода 1С, `onec` без исходного кода, `onescript`. */
@@ -22,8 +23,8 @@ export type ProjectKind = SourceFormat | 'onec' | 'onescript';
 
 /** Подписи видов проектов. */
 export const PROJECT_KIND_LABELS: Readonly<Record<ProjectKind, string>> = {
-	designer: 'Конфигуратор',
-	edt: 'EDT',
+	designer: SOURCE_FORMAT_LABELS.designer,
+	edt: SOURCE_FORMAT_LABELS.edt,
 	onec: '1С',
 	onescript: 'OneScript',
 };

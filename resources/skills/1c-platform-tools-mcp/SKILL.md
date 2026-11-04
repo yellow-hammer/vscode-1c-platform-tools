@@ -5,19 +5,19 @@ description: Инструменты MCP сервера mcp-1c-platform-tools. И
 
 # MCP: инструменты mcp-1c-platform-tools
 
-Если пользователь назвал инструмент по имени, вызови этот инструмент. Таблицы ниже — когда имя не названо.
+Если пользователь назвал инструмент по имени, вызови этот инструмент. Таблицы ниже: когда имя не названо.
 
-Сервер публикует команды расширения. Имя в таблице — точное: его не собирают из command id вручную. Имени нет в таблицах — инструмента нет, другое имя не подбирай.
+Сервер публикует команды расширения. Имя в таблице: точное: его не собирают из command id вручную. Имени нет в таблицах: инструмента нет, другое имя не подбирай.
 
 ## Проекты окна и projectPath
 
-Проект — каталог с `packagedef`. В окне их может быть несколько.
+Проект: каталог с `packagedef`. В окне их может быть несколько.
 
 | Инструмент | Параметры | Что делает |
 |---|---|---|
 | `project_list` | `wait` | Проекты окна: корень, имя, `kind` (`designer`, `edt`, `onec`, `onescript`), текущий проект и `candidates` без `packagedef`. `projectPath` нет |
-| `project_select` | `root`, `wait` | Делает проект текущим, в том числе у пользователя. `root` — корень из `project_list`. `projectPath` нет |
-| `project_init` | `projectPath`, `wait` | Создаёт `packagedef` в каталоге `projectPath` и делает проект текущим. Пустой каталог — описание проекта 1С, каталог с файлами `.os` или каталогами классов и модулей — описание пакета OneScript. `projectPath` обязателен. Существующий `packagedef` не перезаписывается |
+| `project_select` | `root`, `wait` | Делает проект текущим, в том числе у пользователя. `root`: корень из `project_list`. `projectPath` нет |
+| `project_init` | `projectPath`, `wait` | Создаёт `packagedef` в каталоге `projectPath` и делает проект текущим. Пустой каталог: описание проекта 1С, каталог с файлами `.os` или каталогами классов и модулей: описание пакета OneScript. `projectPath` обязателен. Существующий `packagedef` не перезаписывается |
 
 У остальных инструментов `projectPath` необязателен: без него вызов идёт в текущем проекте и текущий проект не меняет. Относительный путь считается от текущего. Тот же `packagedef` создаёт `deps_initPackagedef`.
 
@@ -45,10 +45,10 @@ description: Инструменты MCP сервера mcp-1c-platform-tools. И
 
 Колонка «wait: true» в таблицах:
 
-- **результат** — жди ответ и читай его;
-- **без исхода** — ответ только подтверждает запуск, stdout операции нет;
-- **отказ** — при `wait: true` команда сразу возвращает ошибку и ничего не делает; нужен `wait: false`;
-- **пустой** — обработчик ничего не возвращает. При `wait: true` канал отвечает, что wait не поддерживается, хотя действие уже могло выполниться. Вызывай с `wait: false` и не повторяй вызов из-за этой фразы.
+- **результат**: жди ответ и читай его;
+- **без исхода**: ответ только подтверждает запуск, stdout операции нет;
+- **отказ**: при `wait: true` команда сразу возвращает ошибку и ничего не делает; нужен `wait: false`;
+- **пустой**: обработчик ничего не возвращает. При `wait: true` канал отвечает, что wait не поддерживается, хотя действие уже могло выполниться. Вызывай с `wait: false` и не повторяй вызов из-за этой фразы.
 
 Упавшие тесты, ненулевой код и непустой `errors` приходят как ошибка вызова. У `syntaxCheck_run` поле `errors`: `filepath` (путь к модулю от корня проекта), `metadataPath`, `severity` (`error` или `warning`), `message`. Правь исходники по `errors`. У прогона тестов поле `tests`: `total`, `passed`, `failed`, `errors`, `skipped`, `reportPath`, `failedTests`.
 
@@ -60,13 +60,13 @@ description: Инструменты MCP сервера mcp-1c-platform-tools. И
 
 Явный `settingsFile` отменяет перекрытия активного профиля и не отменяет `ibConnection`. Явный `ibConnection` убирает из перекрытий подключение, пользователя и пароль и передаётся в команду. Замечания приходят в stdout строками `[контекст]`, в том числе «Подключение из вызова: …». Длинный вывод в ответе обрезается до хвоста: первая строка `[начало вывода пропущено: N символов]`.
 
-Отдельные параметры есть только у своих команд: `sha` у `cf_loadInc`, `updateDb` у `cf_load`, `cf_loadInc`, `cf_loadFile`, `cf_loadByList` и `cfe_load`, `extensions` у `cfe_load`, `cfe_loadFile`, `cfe_loadByList`, `cfe_dump`, `cfe_unload`, `cfe_compile`, `cfe_decompile`, `cfe_convert`, `cfe_updateDb`, `cfe_borrowObject`, `test_loadExts`, `test_dumpExts`, `test_compileExts` и `test_decompileExts`, `outputDirectory` и `outputName` у `cf_unload`, `cf_compile`, `cf_makeDist`, `cfe_unload`, `cfe_compile`, `epf_compileProc` и `epf_compileReport`, `profile` у `env_selectProfile` и `pipelines_run`, `environment` у `env_selectEnvironment` и `pipelines_run`, `frameworks` у `test_configure`, `execute` и `command` у `run_enterprise` и `epf_run`, `pipeline` у `pipelines_run`, `dependencyTarget` и `packageName` у `deps_upgrade`. Параметры сеанса — в разделе «Сеансы», параметры OData — у `odata_query` и `odata_setup`.
+Отдельные параметры есть только у своих команд: `sha` у `cf_loadInc`, `updateDb` у `cf_load`, `cf_loadInc`, `cf_loadFile`, `cf_loadByList` и `cfe_load`, `extensions` у `cfe_load`, `cfe_loadFile`, `cfe_loadByList`, `cfe_dump`, `cfe_unload`, `cfe_compile`, `cfe_decompile`, `cfe_convert`, `cfe_updateDb`, `cfe_borrowObject`, `test_loadExts`, `test_dumpExts`, `test_compileExts` и `test_decompileExts`, `outputDirectory` и `outputName` у `cf_unload`, `cf_compile`, `cf_makeDist`, `cfe_unload`, `cfe_compile`, `epf_compileProc` и `epf_compileReport`, `profile` у `env_selectProfile` и `pipelines_run`, `environment` у `env_selectEnvironment` и `pipelines_run`, `frameworks` у `test_configure`, `execute` и `command` у `run_enterprise` и `epf_run`, `pipeline` у `pipelines_run`, `dependencyTarget` и `packageName` у `deps_upgrade`. Параметры сеанса: в разделе «Сеансы», параметры OData: у `odata_query` и `odata_setup`.
 
-`outputName` — имя файла без расширения. Переменные: `${name}`, `${folder}`, `${version}`, `${gitBranch}`. Одно имя без переменных на несколько объектов команду не запускает.
+`outputName`: имя файла без расширения. Переменные: `${name}`, `${folder}`, `${version}`, `${gitBranch}`. Одно имя без переменных на несколько объектов команду не запускает.
 
 ## Конфигурация
 
-Загрузка изменений, выгрузка изменений и загрузка по `objlist.txt` есть у выгрузки конфигуратора. Агентный вызов `cf_loadInc` без `sha` отклоняется: пустая строка — полная загрузка. SHA пишется в `lastUploadedCommit.txt` в каталоге исходников конфигурации.
+Загрузка изменений, выгрузка изменений и загрузка по `objlist.txt` есть у выгрузки конфигуратора. Агентный вызов `cf_loadInc` без `sha` отклоняется: пустая строка: полная загрузка. SHA пишется в `lastUploadedCommit.txt` в каталоге исходников конфигурации.
 
 | Инструмент | Command ID | wait: true | Параметры |
 |---|---|---|---|
@@ -86,13 +86,13 @@ description: Инструменты MCP сервера mcp-1c-platform-tools. И
 
 ## Расширения
 
-`extensions` — имя каталога, путь от корня проекта или имя из метаданных. Явный список окно не открывает и сохранённый выбор не меняет. Без параметра сначала берётся непустая настройка (`1c-platform-tools.cfe.selected` у расширений решения, `1c-platform-tools.test.cfe.selected` у тестовых), иначе сохранённый выбор проекта, а если он пуст или уже не подходит составу — все расширения.
+`extensions`: имя каталога, путь от корня проекта или имя из метаданных. Явный список окно не открывает и сохранённый выбор не меняет. Без параметра сначала берётся непустая настройка (`1c-platform-tools.cfe.selected` у расширений решения, `1c-platform-tools.test.cfe.selected` у тестовых), иначе сохранённый выбор проекта, а если он пуст или уже не подходит составу: все расширения.
 
 | Инструмент | Command ID | wait: true | Параметры |
 |---|---|---|---|
 | `cfe_load` | `1c-platform-tools.cfe.load` | результат | `extensions`, `updateDb` |
 | `cfe_loadFile` | `1c-platform-tools.cfe.loadFile` | результат | `extensions` |
-| `cfe_loadByList` | `1c-platform-tools.cfe.loadByList` | отказ | «Частичная загрузка расширений по objlist — несколько шагов; wait: true недоступен» |
+| `cfe_loadByList` | `1c-platform-tools.cfe.loadByList` | отказ | «Частичная загрузка расширений по objlist: несколько шагов; wait: true недоступен» |
 | `cfe_dump` | `1c-platform-tools.cfe.dump` | результат | `extensions` |
 | `cfe_unload` | `1c-platform-tools.cfe.unload` | результат | `extensions`, `outputDirectory`, `outputName` |
 | `cfe_compile` | `1c-platform-tools.cfe.compile` | результат | `extensions`, `outputDirectory`, `outputName` |
@@ -101,7 +101,7 @@ description: Инструменты MCP сервера mcp-1c-platform-tools. И
 | `cfe_updateDb` | `1c-platform-tools.cfe.updateDb` | результат | `extensions` |
 | `cfe_borrowObject` | `1c-platform-tools.cfe.borrowObject` | пустой | работает с выделенным узлом метаданных и окном выбора, для агента не вызывай |
 
-Тестовые расширения (каталог задаёт настройка `1c-platform-tools.test.directoryName`, отбор — `1c-platform-tools.test.cfe.selected`):
+Тестовые расширения (каталог задаёт настройка `1c-platform-tools.test.directoryName`, отбор: `1c-platform-tools.test.cfe.selected`):
 
 | Инструмент | Command ID | wait: true |
 |---|---|---|
@@ -134,7 +134,7 @@ description: Инструменты MCP сервера mcp-1c-platform-tools. И
 | `epf_decompileProc` | `1c-platform-tools.epf.decompileProcessor` | результат | |
 | `epf_compileReport` | `1c-platform-tools.epf.compileReport` | результат | `outputDirectory`, `outputName` |
 | `epf_decompileReport` | `1c-platform-tools.epf.decompileReport` | результат | |
-| `epf_clearCache` | `1c-platform-tools.epf.clearCache` | отказ | «Очистка кэша — файловая операция, не vrunner» |
+| `epf_clearCache` | `1c-platform-tools.epf.clearCache` | отказ | «Очистка кэша: файловая операция, не vrunner» |
 | `epf_run` | `1c-platform-tools.epf.run` | результат | `execute`, `command`; нужен хотя бы один |
 | `epf_addBspRegistration` | `1c-platform-tools.epf.addBspRegistration` | пустой | спрашивает представление и пишет в выделенный объект; для агента не вызывай |
 
@@ -180,7 +180,7 @@ description: Инструменты MCP сервера mcp-1c-platform-tools. И
 | `package_install` | `1c-platform-tools.package.install` | результат |
 | `package_push` | `1c-platform-tools.package.push` | результат |
 
-`deps_initPackagedef` совпадает с `project_init`: обязательный `projectPath`, создаёт `packagedef`. Пустой каталог получает описание проекта 1С, каталог с файлами `.os` или каталогами классов и модулей — описание пакета OneScript. `deps_install` ставит зависимости по `packagedef`, `deps_installOscript` ставит OneScript рядом с другими версиями. К `opm install` в терминале переходи, когда этих инструментов нет. `deps_initProjStruct` у проекта OneScript создаёт каталоги `src/Классы`, `src/Модули`, `tests` и `tests/oscript.cfg`. Программу он не создаёт. У проекта 1С — каталоги шаблона. Класс клади в `src/Классы`, модуль в `src/Модули`. `package_build` собирает пакет OneScript проекта в `build/out/ospx` и возвращает путь к нему в `artifact`. `package_install` ставит собранный пакет в движок проекта: пакет версии из `packagedef`, иначе самый новый. Ставь пакет после того, как `package_build` с `wait: true` вернул результат. `package_push` публикует пакет: токен `GITHUB_OAUTH_TOKEN` и канал `OPM_HUB_CHANNEL` берутся из окружения запуска.
+`deps_initPackagedef` совпадает с `project_init`: обязательный `projectPath`, создаёт `packagedef`. Пустой каталог получает описание проекта 1С, каталог с файлами `.os` или каталогами классов и модулей: описание пакета OneScript. `deps_install` ставит зависимости по `packagedef`, `deps_installOscript` ставит OneScript рядом с другими версиями. К `opm install` в терминале переходи, когда этих инструментов нет. `deps_initProjStruct` у проекта OneScript создаёт каталоги `src/Классы`, `src/Модули`, `tests` и `tests/oscript.cfg`. Программу он не создаёт. У проекта 1С: каталоги шаблона. Класс клади в `src/Классы`, модуль в `src/Модули`. `package_build` собирает пакет OneScript проекта в `build/out/ospx` и возвращает путь к нему в `artifact`. `package_install` ставит собранный пакет в движок проекта: пакет версии из `packagedef`, иначе самый новый. Ставь пакет после того, как `package_build` с `wait: true` вернул результат. `package_push` публикует пакет: токен `GITHUB_OAUTH_TOKEN` и канал `OPM_HUB_CHANNEL` берутся из окружения запуска.
 
 ## Окружение и служебные файлы
 
@@ -200,9 +200,9 @@ description: Инструменты MCP сервера mcp-1c-platform-tools. И
 | `serviceFiles_createGitattributes` | `1c-platform-tools.serviceFiles.createGitattributes` | пустой |
 | `serviceFiles_createEnvJson` | `1c-platform-tools.serviceFiles.createEnvJson` | пустой |
 
-`env_selectProfile`: параметр `profile` — id (`dev`), имя файла (`env.dev.json`, `autumn-properties.ci.json`) или подпись (`По умолчанию`). Профиль из запроса пользователя («под test», «переключись на storage») переключай этой командой. Неназванный не переключай. Разовый прогон без смены активного профиля — `settingsFile` у команды vanessa-runner. Без `profile` вызов возвращает ошибку и список доступных id, окно не открывает.
+`env_selectProfile`: параметр `profile`: id (`dev`), имя файла (`env.dev.json`, `autumn-properties.ci.json`) или подпись (`По умолчанию`). Профиль из запроса пользователя («под test», «переключись на storage») переключай этой командой. Неназванный не переключай. Разовый прогон без смены активного профиля: `settingsFile` у команды vanessa-runner. Без `profile` вызов возвращает ошибку и список доступных id, окно не открывает.
 
-`env_selectEnvironment`: параметр `environment` — имя окружения (`ci`) или файла (`.env.ci`), пустая строка — «По умолчанию», только общие `.env` и `.env.local`. Без `environment` вызов возвращает ошибку и список доступных имён.
+`env_selectEnvironment`: параметр `environment`: имя окружения (`ci`) или файла (`.env.ci`), пустая строка: «По умолчанию», только общие `.env` и `.env.local`. Без `environment` вызов возвращает ошибку и список доступных имён.
 
 ## Тестирование
 
@@ -224,13 +224,13 @@ description: Инструменты MCP сервера mcp-1c-platform-tools. И
 
 `test_allure` при `wait: true` отвечает «Allure-отчёт открывается в браузере; wait: true недоступен» и отчёт не строит. Вызов с `wait: false` строит отчёт и открывает его в браузере.
 
-`test_configure`: `frameworks` — `vanessa`, `xunit`, `yaxunit`, `onescript`, `onebdd`. Перечисленные включаются, остальные выключаются. Без `frameworks` агентный вызов возвращает ошибку.
+`test_configure`: `frameworks`: `vanessa`, `xunit`, `yaxunit`, `onescript`, `onebdd`. Перечисленные включаются, остальные выключаются. Без `frameworks` агентный вызов возвращает ошибку.
 
-`test_validateEdt` — проверка проекта EDT через vanessa-runner 3.x, с результатом. Команда `edt_validate` — другая.
+`test_validateEdt`: проверка проекта EDT через vanessa-runner 3.x, с результатом. Команда `edt_validate`: другая.
 
 ## EDT
 
-Команды ниже для проекта формата EDT. Ответ инструмента исход не содержит (колонка «пустой»). Проверка с результатом — `test_validateEdt`.
+Команды ниже для проекта формата EDT. Ответ инструмента исход не содержит (колонка «пустой»). Проверка с результатом: `test_validateEdt`.
 
 | Инструмент | Command ID | wait: true |
 |---|---|---|
@@ -243,7 +243,7 @@ description: Инструменты MCP сервера mcp-1c-platform-tools. И
 
 ## Сеансы
 
-Подключение к кластеру берётся из профиля. У `session_lock`, `session_unlock`, `session_lockJobs`, `session_unlockJobs`, `session_kill`, `session_checkClosed` и `session_list` есть `lockMessage`, `accessCode`, `lockStart`, `lockEnd` (время — только vanessa-runner 2.x).
+Подключение к кластеру берётся из профиля. У `session_lock`, `session_unlock`, `session_lockJobs`, `session_unlockJobs`, `session_kill`, `session_checkClosed` и `session_list` есть `lockMessage`, `accessCode`, `lockStart`, `lockEnd` (время: только vanessa-runner 2.x).
 
 | Инструмент | Command ID | Дополнительно |
 |---|---|---|
@@ -255,7 +255,7 @@ description: Инструменты MCP сервера mcp-1c-platform-tools. И
 | `session_checkClosed` | `1c-platform-tools.session.checkClosed` | `sessionFilter`, `sessionFilterMode`, `sessionTimeout` |
 | `session_list` | `1c-platform-tools.session.list` | `sessionFilter`, `sessionFilterMode`, `sessionConnections`; только vanessa-runner 3.x |
 
-У всех семи `wait: true` возвращает результат. `sessionFilterMode`: `ONLY`, `OFF`, `EXCEPT`; `DEFAULT` и `ALL` — только vanessa-runner 2.x.
+У всех семи `wait: true` возвращает результат. `sessionFilterMode`: `ONLY`, `OFF`, `EXCEPT`; `DEFAULT` и `ALL`: только vanessa-runner 2.x.
 
 ## Пайплайны, задачи, панель свойств
 
@@ -266,7 +266,7 @@ description: Инструменты MCP сервера mcp-1c-platform-tools. И
 | `tasks_view` | `1c-platform-tools.tasks.view` | без исхода |
 | `properties_show` | `1c-platform-tools.properties.show` | пустой |
 
-`pipelines_run`: параметр `pipeline` обязателен (id или название из `.1cpt/pipelines.json`). Без него команда не выбирает цепочку сама. `profile` и `environment` — профиль и окружение на этот прогон вместо выбранных в редакторе; свои у цепочки и шагов в файле остаются.
+`pipelines_run`: параметр `pipeline` обязателен (id или название из `.1cpt/pipelines.json`). Без него команда не выбирает цепочку сама. `profile` и `environment`: профиль и окружение на этот прогон вместо выбранных в редакторе; свои у цепочки и шагов в файле остаются.
 
 `tasks_edit` открывает `tasks.json`. `tasks_view` обновляет дерево задач. Запуск задачи по имени в MCP нет: `1c-platform-tools.tasks.run` и `1c-platform-tools.tasks.runOscript` выполняет человек из палитры. `properties_show` только показывает панель свойств.
 
@@ -279,21 +279,21 @@ description: Инструменты MCP сервера mcp-1c-platform-tools. И
 
 **`odata_query`** обращается к `…/odata/standard.odata/`:
 
-- адрес — публикация запущенного автономного сервера проекта (`server_start`, в составе публикации нужен OData) либо своя публикация из параметра `url` (корень публикации, например `http://srv/base`);
-- `resource` — набор (`Catalog_Номенклатура`), элемент (`Catalog_Номенклатура(guid'…')`), свойство или `$metadata`;
-- `method` — `GET` по умолчанию; `POST` создаёт, `PATCH` меняет переданные поля, `PUT` заменяет элемент целиком (поля не из `body` сбрасываются — для правки не используй), `DELETE` удаляет: вызывай их только по явной просьбе пользователя;
-- выборка — `filter`, `select`, `expand`, `orderby`, `top`, `skip`; тело записи — `body`: строка с JSON объекта (`{"Description":"Стол"}`);
-- учётная запись — `db-user` и `db-pwd` активного профиля (или `settingsFile`), пароль в вызов не передаётся.
+- адрес: публикация запущенного автономного сервера проекта (`server_start`, в составе публикации нужен OData) либо своя публикация из параметра `url` (корень публикации, например `http://srv/base`);
+- `resource`: набор (`Catalog_Номенклатура`), элемент (`Catalog_Номенклатура(guid'…')`), свойство или `$metadata`;
+- `method`: `GET` по умолчанию; `POST` создаёт, `PATCH` меняет переданные поля, `PUT` заменяет элемент целиком (поля не из `body` сбрасываются: для правки не используй), `DELETE` удаляет: вызывай их только по явной просьбе пользователя;
+- выборка: `filter`, `select`, `expand`, `orderby`, `top`, `skip`; тело записи: `body`: строка с JSON объекта (`{"Description":"Стол"}`);
+- учётная запись: `db-user` и `db-pwd` активного профиля (или `settingsFile`), пароль в вызов не передаётся.
 
-Своя публикация из `url` — обычно чужая или продуктивная база. К ней только `GET`, всегда с `select` и `top`; учётная запись — из профиля, который назвал пользователь (`settingsFile`). `odata_setup` работает с базой Предприятия: `ibConnection`, если он передан, иначе база профиля. К публикации из `url` он не обращается.
+Своя публикация из `url`: обычно чужая или продуктивная база. К ней только `GET`, всегда с `select` и `top`; учётная запись: из профиля, который назвал пользователь (`settingsFile`). `odata_setup` работает с базой Предприятия: `ibConnection`, если он передан, иначе база профиля. К публикации из `url` он не обращается.
 
 Ответ содержит код HTTP и тело. Большая выборка урезается по записям с пометкой: сузь её `top`, `select`, `filter`. Ошибка объясняет причину: сервер не запущен или OData не опубликован, 401 по учётной записи профиля, объект не входит в состав интерфейса.
 
 **`odata_setup`** работает с базой Предприятия (`ibConnection` или база профиля): состав интерфейса хранится в информационной базе.
 
-- без `include` и `exclude` возвращает текущий состав именами наборов OData (`Catalog_Номенклатура`): при запущенном сервере из `$metadata`, без него — запуском Предприятия;
+- без `include` и `exclude` возвращает текущий состав именами наборов OData (`Catalog_Номенклатура`): при запущенном сервере из `$metadata`, без него: запуском Предприятия;
 - `include` / `exclude` точечно включают и исключают объекты, остальной состав не меняется; имена полные (`Справочник.Номенклатура`) или как набор OData (`Catalog_Номенклатура`);
-- `available: true` добавляет объекты проекта вне состава; у большой конфигурации список может быть неполным — это сказано в ответе.
+- `available: true` добавляет объекты проекта вне состава; у большой конфигурации список может быть неполным: это сказано в ответе.
 
 Изменение состава выполняет служебная обработка в Предприятии: нужны административные права. Автономный сервер этой базы на время запуска останавливается и поднимается снова.
 
@@ -315,5 +315,5 @@ description: Инструменты MCP сервера mcp-1c-platform-tools. И
 - Конфигуратор: `run_designer`.
 - Зависимости: `deps_install`. OneScript: `deps_installOscript`.
 - Другой проект: `project_list`, затем `project_select` с `root`.
-- Десять товаров: `odata_query` с `resource: "Catalog_Номенклатура"`, `top: 10`, `select: "Ref_Key,Description"`. Ошибка про состав — `odata_setup` с `include: ["Catalog_Номенклатура"]` и повтор запроса.
+- Десять товаров: `odata_query` с `resource: "Catalog_Номенклатура"`, `top: 10`, `select: "Ref_Key,Description"`. Ошибка про состав: `odata_setup` с `include: ["Catalog_Номенклатура"]` и повтор запроса.
 - Синтаксический контроль: `syntaxCheck_run`.

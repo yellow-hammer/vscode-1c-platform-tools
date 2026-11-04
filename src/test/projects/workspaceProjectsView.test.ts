@@ -69,8 +69,8 @@ suite('проекты: вид «Рабочая область»', () => {
 		assert.deepStrictEqual(
 			top.map((node) => row(provider, node)),
 			[
-				['проект', 'текущий · Конфигуратор · Основная · профиль: dev', 'workspaceProjectCurrent', PROJECT],
-				['две-конфигурации', 'Конфигуратор · Первая', 'workspaceProject', TWO_CONFIGURATIONS],
+				['проект', 'текущий · 1C:Конфигуратор · Основная · профиль: dev', 'workspaceProjectCurrent', PROJECT],
+				['две-конфигурации', '1C:Конфигуратор · Первая', 'workspaceProject', TWO_CONFIGURATIONS],
 				['Не проекты', undefined, 'workspaceCandidates', undefined],
 			]
 		);
@@ -80,14 +80,14 @@ suite('проекты: вид «Рабочая область»', () => {
 		const [project, twoConfigurations, group] = provider.getChildren();
 
 		assert.deepStrictEqual(provider.getChildren(project).map((node) => row(provider, node)), [
-			['подпроект', 'Конфигуратор · Подпроект', 'workspaceProject', SUB_PROJECT],
+			['подпроект', '1C:Конфигуратор · Подпроект', 'workspaceProject', SUB_PROJECT],
 		]);
 		assert.deepStrictEqual(provider.getChildren(twoConfigurations).map((node) => row(provider, node)), [
-			['Вторая', 'вторая конфигурация · Конфигуратор · Вторая', 'workspaceExtraConfiguration', DELIVERY],
-			['Учёт', 'вторая конфигурация · EDT · Учёт', 'workspaceExtraConfiguration', ACCOUNTING],
+			['Вторая', 'вторая конфигурация · 1C:Конфигуратор · Вторая', 'workspaceExtraConfiguration', DELIVERY],
+			['Учёт', 'вторая конфигурация · 1C:EDT · Учёт', 'workspaceExtraConfiguration', ACCOUNTING],
 		]);
 		assert.deepStrictEqual(provider.getChildren(group).map((node) => row(provider, node)), [
-			['без-packagedef', 'Конфигуратор · БезПроекта', 'workspaceCandidate', NOT_PROJECT],
+			['без-packagedef', '1C:Конфигуратор · БезПроекта', 'workspaceCandidate', NOT_PROJECT],
 		]);
 	});
 
@@ -105,7 +105,7 @@ suite('проекты: вид «Рабочая область»', () => {
 		assert.strictEqual(icon(extra).id, 'warning');
 		await fixture.source.selectProject(SUB_PROJECT);
 		assert.strictEqual(icon(subProject).color?.id, 'testing.iconPassed');
-		assert.strictEqual(provider.getTreeItem(subProject).description, 'текущий · Конфигуратор · Подпроект');
+		assert.strictEqual(provider.getTreeItem(subProject).description, 'текущий · 1C:Конфигуратор · Подпроект');
 		await fixture.source.selectProject(PROJECT);
 		assert.strictEqual(provider.getTreeItem(project).collapsibleState, vscode.TreeItemCollapsibleState.Expanded);
 		assert.strictEqual(provider.getTreeItem(subProject).collapsibleState, vscode.TreeItemCollapsibleState.None);
@@ -142,9 +142,9 @@ suite('проекты: вид «Рабочая область»', () => {
 			assert.deepStrictEqual(
 				top.map((node) => row(localProvider, node)),
 				[
-					['проект', 'текущий · Конфигуратор · Основная · профиль: dev', 'workspaceProjectCurrent', PROJECT],
-					['библиотека', 'монорепозиторий · Конфигуратор · Библиотека', 'workspaceProject', at('монорепозиторий', 'библиотека')],
-					['приложение', 'монорепозиторий · Конфигуратор · Приложение', 'workspaceProject', at('монорепозиторий', 'приложение')],
+					['проект', 'текущий · 1C:Конфигуратор · Основная · профиль: dev', 'workspaceProjectCurrent', PROJECT],
+					['библиотека', 'монорепозиторий · 1C:Конфигуратор · Библиотека', 'workspaceProject', at('монорепозиторий', 'библиотека')],
+					['приложение', 'монорепозиторий · 1C:Конфигуратор · Приложение', 'workspaceProject', at('монорепозиторий', 'приложение')],
 				]
 			);
 			assert.deepStrictEqual(top.map((node) => icon(node).id), ['repo', 'file-submodule', 'file-submodule']);
@@ -154,11 +154,11 @@ suite('проекты: вид «Рабочая область»', () => {
 			assert.deepStrictEqual(
 				items.map((item) => [item.label, item.description, (item.iconPath as vscode.ThemeIcon | undefined)?.id]),
 				[
-					['проект', 'текущий · Конфигуратор · Основная', 'check'],
-					['подпроект', 'src/cfe/подпроект · Конфигуратор · Подпроект', 'file-submodule'],
-					['библиотека', 'монорепозиторий · Конфигуратор · Библиотека', 'file-submodule'],
-					['приложение', 'монорепозиторий · Конфигуратор · Приложение', 'file-submodule'],
-					['модуль', 'src/cfe/модуль · Конфигуратор · Модуль', 'file-submodule'],
+					['проект', 'текущий · 1C:Конфигуратор · Основная', 'check'],
+					['подпроект', 'src/cfe/подпроект · 1C:Конфигуратор · Подпроект', 'file-submodule'],
+					['библиотека', 'монорепозиторий · 1C:Конфигуратор · Библиотека', 'file-submodule'],
+					['приложение', 'монорепозиторий · 1C:Конфигуратор · Приложение', 'file-submodule'],
+					['модуль', 'src/cfe/модуль · 1C:Конфигуратор · Модуль', 'file-submodule'],
 				]
 			);
 		} finally {
@@ -218,8 +218,8 @@ suite('проекты: вид «Рабочая область»', () => {
 
 			const [project, twoConfigurations] = local.getChildren();
 			assert.strictEqual(changes, 1);
-			assert.strictEqual(local.getTreeItem(project).description, 'текущий · Конфигуратор · Основная · профиль: test · окружение: ci');
-			assert.strictEqual(local.getTreeItem(twoConfigurations).description, 'Конфигуратор · Первая · профиль: prod');
+			assert.strictEqual(local.getTreeItem(project).description, 'текущий · 1C:Конфигуратор · Основная · профиль: test · окружение: ci');
+			assert.strictEqual(local.getTreeItem(twoConfigurations).description, '1C:Конфигуратор · Первая · профиль: prod');
 		} finally {
 			subscription.dispose();
 			local.dispose();
@@ -238,8 +238,8 @@ suite('проекты: вид «Рабочая область»', () => {
 
 		const [project, twoConfigurations] = provider.getChildren();
 		assert.ok(changes > 0);
-		assert.strictEqual(provider.getTreeItem(project).description, 'Конфигуратор · Основная · профиль: dev');
-		assert.strictEqual(provider.getTreeItem(twoConfigurations).description, 'текущий · Конфигуратор · Первая');
+		assert.strictEqual(provider.getTreeItem(project).description, '1C:Конфигуратор · Основная · профиль: dev');
+		assert.strictEqual(provider.getTreeItem(twoConfigurations).description, 'текущий · 1C:Конфигуратор · Первая');
 		assert.strictEqual(provider.getTreeItem(twoConfigurations).contextValue, 'workspaceProjectCurrent');
 	});
 });
@@ -263,14 +263,14 @@ suite('проекты: окно выбора и описание видов', ()
 			items.map((item) => [item.label, item.description, (item.iconPath as vscode.ThemeIcon | undefined)?.id, item.kind]),
 			[
 				['проект', undefined, undefined, vscode.QuickPickItemKind.Separator],
-				['проект', 'текущий · Конфигуратор · Основная', 'check', undefined],
-				['подпроект', 'src/cfe/подпроект · Конфигуратор · Подпроект', 'file-submodule', undefined],
+				['проект', 'текущий · 1C:Конфигуратор · Основная', 'check', undefined],
+				['подпроект', 'src/cfe/подпроект · 1C:Конфигуратор · Подпроект', 'file-submodule', undefined],
 				['две-конфигурации', undefined, undefined, vscode.QuickPickItemKind.Separator],
-				['две-конфигурации', 'Конфигуратор · Первая', 'repo', undefined],
+				['две-конфигурации', '1C:Конфигуратор · Первая', 'repo', undefined],
 				['Не проекты', undefined, undefined, vscode.QuickPickItemKind.Separator],
-				['без-packagedef', 'Конфигуратор · БезПроекта', 'folder', undefined],
-				['поставка', 'вторая конфигурация · Конфигуратор · Вторая', 'warning', undefined],
-				['учёт', 'вторая конфигурация · EDT · Учёт', 'warning', undefined],
+				['без-packagedef', '1C:Конфигуратор · БезПроекта', 'folder', undefined],
+				['поставка', 'вторая конфигурация · 1C:Конфигуратор · Вторая', 'warning', undefined],
+				['учёт', 'вторая конфигурация · 1C:EDT · Учёт', 'warning', undefined],
 			]
 		);
 		assert.deepStrictEqual(items.filter((item) => item.detail !== undefined), []);
@@ -284,10 +284,10 @@ suite('проекты: окно выбора и описание видов', ()
 			assert.deepStrictEqual(
 				items.map((item) => [item.label, item.description, (item.iconPath as vscode.ThemeIcon | undefined)?.id, item.kind]),
 				[
-					['розница', 'Конфигуратор · Розница', 'repo', undefined],
-					['менеджер-пакетов', 'src/cfe/менеджер-пакетов · Конфигуратор · БазаМенеджераПакетов', 'file-submodule', undefined],
-					['метрики', 'текущий · src/cfe/метрики · Конфигуратор · БазаМетрик', 'check', undefined],
-					['экспорт', 'src/cfe/метрики/src/cfe/экспорт · Конфигуратор · БазаЭкспорта', 'file-submodule', undefined],
+					['розница', '1C:Конфигуратор · Розница', 'repo', undefined],
+					['менеджер-пакетов', 'src/cfe/менеджер-пакетов · 1C:Конфигуратор · БазаМенеджераПакетов', 'file-submodule', undefined],
+					['метрики', 'текущий · src/cfe/метрики · 1C:Конфигуратор · БазаМетрик', 'check', undefined],
+					['экспорт', 'src/cfe/метрики/src/cfe/экспорт · 1C:Конфигуратор · БазаЭкспорта', 'file-submodule', undefined],
 				]
 			);
 		} finally {
@@ -357,8 +357,8 @@ suite('проекты: окно выбора и описание видов', ()
 			configuration: { dir: path.join(root, dir), format: 'designer', name: 'Проверка', isExtension: false },
 		});
 
-		assert.strictEqual(candidateDescription(candidate(path.join('test', 'fixtures', 'cf'))), 'test/fixtures/cf · Конфигуратор · Проверка');
-		assert.strictEqual(candidateDescription(candidate(path.join('src', 'cf'))), 'Конфигуратор · Проверка');
+		assert.strictEqual(candidateDescription(candidate(path.join('test', 'fixtures', 'cf'))), 'test/fixtures/cf · 1C:Конфигуратор · Проверка');
+		assert.strictEqual(candidateDescription(candidate(path.join('src', 'cf'))), '1C:Конфигуратор · Проверка');
 	});
 
 	test('с одним проектом описание вида пустое', async () => {

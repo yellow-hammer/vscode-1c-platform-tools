@@ -1,6 +1,6 @@
 <img src="../resources/brand/cat.png" alt="" width="72" align="right">
 
-# Настройки окружения
+# Окружение
 
 > <img src="../resources/brand/cat.png" alt="" width="26" align="left"> Переменные, которые получает каждый запуск проекта.
 

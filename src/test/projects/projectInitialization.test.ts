@@ -96,7 +96,7 @@ suite('проекты: инициализация', () => {
 
 			assert.deepStrictEqual(
 				asked.choices.map((choices) => choices.map((choice) => [choice.dir, choice.label, choice.description])),
-				[[[source, 'без-packagedef', 'Конфигуратор · БезПроекта'], [empty, 'пустая', undefined]]]
+				[[[source, 'без-packagedef', '1C:Конфигуратор · БезПроекта'], [empty, 'пустая', undefined]]]
 			);
 			assert.strictEqual(hasProjectFile(source), false);
 			assert.strictEqual(hasProjectFile(empty), false);
@@ -148,8 +148,8 @@ suite('проекты: инициализация', () => {
 				choices.map((choice) => [choice.dir, choice.label, choice.description]),
 				[
 					[TWO_CONFIGURATIONS, 'две-конфигурации', 'уже проект'],
-					[DELIVERY, 'поставка', 'вторая конфигурация · Конфигуратор · Вторая'],
-					[ACCOUNTING, 'учёт', 'вторая конфигурация · EDT · Учёт'],
+					[DELIVERY, 'поставка', 'вторая конфигурация · 1C:Конфигуратор · Вторая'],
+					[ACCOUNTING, 'учёт', 'вторая конфигурация · 1C:EDT · Учёт'],
 				]
 			);
 		} finally {

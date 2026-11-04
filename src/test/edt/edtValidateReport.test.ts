@@ -2,7 +2,7 @@ import * as assert from 'node:assert';
 import { parseEdtValidationReport } from '../../features/edt/edtValidateReport';
 
 /**
- * Строки взяты из отчёта 1С:EDT 2026.1 на демонстрационном расширении:
+ * Строки взяты из отчёта 1C:EDT 2026.1 на демонстрационном расширении:
  * восемь колонок через табуляцию, без заголовка.
  */
 const REPORT = [

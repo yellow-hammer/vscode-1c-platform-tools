@@ -511,9 +511,9 @@ export class DependenciesCommands extends BaseCommand {
 
 	/**
 	 * Создаёт структуру каталогов по шаблону vanessa-bootstrap в указанной папке.
-	 * У проекта 1С:EDT нет каталога src и выгрузки тестов конфигуратора.
+	 * У проекта 1C:EDT нет каталога src и выгрузки тестов конфигуратора.
 	 * @param targetRoot - корень проекта
-	 * @param format - проект в формате 1С:Конфигуратор или 1С:EDT
+	 * @param format - проект в формате 1C:Конфигуратор или 1C:EDT
 	 * @returns количество созданных каталогов и новых README
 	 */
 	private async createProjectStructureInFolder(
@@ -563,7 +563,7 @@ export class DependenciesCommands extends BaseCommand {
 	/**
 	 * Формат каталогов проекта 1С.
 	 *
-	 * Проект в формате 1С:Конфигуратор получает каталоги src и tests. Проект в формате 1С:EDT создаётся без них.
+	 * Проект в формате 1C:Конфигуратор получает каталоги src и tests. Проект в формате 1C:EDT создаётся без них.
 	 * При создании проекта есть ещё пункт без каталогов.
 	 *
 	 * @param includePackagedefOnly - добавить «Только packagedef»
@@ -572,8 +572,8 @@ export class DependenciesCommands extends BaseCommand {
 		includePackagedefOnly: boolean
 	): Promise<'designer' | 'edt' | 'packagedefOnly' | undefined> {
 		const items: { label: string; description: string; choice: 'designer' | 'edt' | 'packagedefOnly' }[] = [
-			{ label: 'Проект в формате 1С:Конфигуратор', description: 'каталоги src и tests', choice: 'designer' },
-			{ label: 'Проект в формате 1С:EDT', description: 'без каталогов src и tests', choice: 'edt' },
+			{ label: 'Проект в формате 1C:Конфигуратор', description: 'каталоги src и tests', choice: 'designer' },
+			{ label: 'Проект в формате 1C:EDT', description: 'без каталогов src и tests', choice: 'edt' },
 		];
 		if (includePackagedefOnly) {
 			items.push({ label: 'Только packagedef', description: 'без каталогов', choice: 'packagedefOnly' });

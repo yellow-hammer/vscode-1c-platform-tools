@@ -162,7 +162,7 @@ async function askSupportRule(
 
 /**
  * Каталог нового проекта расширения: рядом с проектом конфигурации, под именем
- * «<Базовый проект>.<Расширение>», как называет расширения сама 1С:EDT.
+ * «<Базовый проект>.<Расширение>», как называет расширения сама 1C:EDT.
  *
  * @param configurationMdo - Описание расширяемой конфигурации
  * @param name - Имя расширения
@@ -1054,7 +1054,7 @@ export function registerMetadataFeature(
 		if (source.supportEditingEnabled !== true) {
 			void vscode.window.showInformationMessage(
 				'Возможность изменения конфигурации не включена: включите её в конфигураторе'
-					+ ' или 1С:EDT, либо снимите конфигурацию с поддержки.'
+					+ ' или 1C:EDT, либо снимите конфигурацию с поддержки.'
 			);
 			return;
 		}
@@ -2765,7 +2765,7 @@ export function registerMetadataFeature(
 					if (!node.supportRulesOpen) {
 						void vscode.window.showInformationMessage(
 							'Возможность изменения конфигурации не включена: включите её в конфигураторе'
-								+ ' или 1С:EDT, либо снимите конфигурацию с поддержки.'
+								+ ' или 1C:EDT, либо снимите конфигурацию с поддержки.'
 						);
 						return;
 					}
@@ -2902,7 +2902,7 @@ export function registerMetadataFeature(
 					: path.join(root, (await projectPaths(root)).extensionsContainer ?? CONVENTIONAL_PATHS.cfe, name.trim());
 				if (edt && !sameOrUnder(cfeRoot, root)) {
 					void vscode.window.showErrorMessage(
-						'Проект расширения создаётся рядом с проектом конфигурации, а открыта папка самого проекта. Откройте рабочую область 1С:EDT с проектами.'
+						'Проект расширения создаётся рядом с проектом конфигурации, а открыта папка самого проекта. Откройте рабочую область 1C:EDT с проектами.'
 					);
 					return;
 				}

@@ -148,7 +148,7 @@ suite('поиск тестов в раскладке EDT', () => {
 		const plan = await adapter.buildRunPlan({ fileUri: vscode.Uri.file(EDT_TEST_MODULE) }, path.join(EDT_WORKSPACE, 'run'));
 
 		assert.deepStrictEqual(plan.prepare?.map((step) => step.tool), ['action', 'vrunner']);
-		assert.strictEqual(plan.prepare?.[0].title, 'Выгрузка из 1С:EDT: tests/epf/Тесты_Арифметика');
+		assert.strictEqual(plan.prepare?.[0].title, 'Выгрузка из 1C:EDT: tests/epf/Тесты_Арифметика');
 		// Раннер собирает выгрузку проекта, а не его исходники
 		assert.deepStrictEqual(intentOf(plan.prepare![1].args), {
 			kind: 'epf.build',
@@ -202,7 +202,7 @@ suite('поиск тестов в раскладке EDT', () => {
 
 		await assert.rejects(
 			() => adapter.buildRunPlan({ fileUri: vscode.Uri.file(stray) }, path.join(EDT_WORKSPACE, 'run')),
-			/вне проекта 1С:EDT/
+			/вне проекта 1C:EDT/
 		);
 	});
 });

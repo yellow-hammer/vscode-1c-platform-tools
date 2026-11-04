@@ -156,7 +156,7 @@ export class XUnitAdapter implements TestFrameworkAdapter {
 					: undefined;
 				if (!bridge) {
 					throw new Error(
-						`Обработка ${info.processorName} лежит вне проекта 1С:EDT: ` +
+						`Обработка ${info.processorName} лежит вне проекта 1C:EDT: ` +
 						`в ${info.projectDir ?? info.processorDir} нет файлов проекта.`
 					);
 				}
@@ -186,7 +186,7 @@ export class XUnitAdapter implements TestFrameworkAdapter {
 			steps.unshift({
 				tool: 'action',
 				args: [],
-				title: `Выгрузка из 1С:EDT: ${projects.join(', ')}`,
+				title: `Выгрузка из 1C:EDT: ${projects.join(', ')}`,
 				run: () => runEdtBuildExports(bridges),
 			});
 		}

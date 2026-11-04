@@ -75,7 +75,7 @@ export interface EnvironmentSummary {
 	cestartPath?: string;
 	/** Путь к rac. */
 	racPath?: string;
-	/** Найденные версии 1С:EDT. */
+	/** Найденные версии 1C:EDT. */
 	edtVersions: string[];
 	/** Путь к 1cedtcli выбранной установки. */
 	edtCliPath?: string;
@@ -117,7 +117,7 @@ export function formatEnvironmentSummary(summary: EnvironmentSummary): string {
 	lines.push(`- 1cestart: ${summary.cestartPath ?? 'не найден'}`);
 	lines.push(`- rac: ${summary.racPath ?? 'не найден'}`);
 	lines.push(
-		`- 1С:EDT: ${summary.edtVersions.length > 0 ? summary.edtVersions.join(', ') : 'не найдена'}`
+		`- 1C:EDT: ${summary.edtVersions.length > 0 ? summary.edtVersions.join(', ') : 'не найдена'}`
 	);
 	if (summary.edtCliPath) {
 		lines.push(`- 1cedtcli: ${summary.edtCliPath}`);

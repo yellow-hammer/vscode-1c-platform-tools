@@ -32,7 +32,7 @@ export const PROJECT_STRUCTURE: ProjectStructureItem[] = [
 ];
 
 /**
- * Каталоги выгрузки конфигуратора. У проекта 1С:EDT их нет:
+ * Каталоги выгрузки конфигуратора. У проекта 1C:EDT их нет:
  * конфигурация и тесты живут своими проектами, а не в src и tests.
  */
 const DESIGNER_DUMP_PATHS = new Set([
@@ -49,7 +49,7 @@ const DESIGNER_DUMP_PATHS = new Set([
 /**
  * Каталоги шаблона для формата исходников.
  *
- * @param format - Выгрузка конфигуратора или проект 1С:EDT
+ * @param format - Выгрузка конфигуратора или проект 1C:EDT
  */
 export function projectStructureItems(format: 'designer' | 'edt'): readonly ProjectStructureItem[] {
 	if (format === 'designer') {

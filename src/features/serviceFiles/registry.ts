@@ -63,14 +63,14 @@ export const SERVICE_FILES: ServiceFileSpec[] = [
 		id: 'vrunner',
 		relPath: 'tools/vrunner.json',
 		label: 'Прогон тестов',
-		description: 'tools/vrunner.json — настройки прогона тестов в CI (BDD, дымовые)',
+		description: 'настройки прогона тестов',
 		recommended: false,
 	},
 	{
 		id: 'vrunnerInit',
 		relPath: 'tools/vrunner.init.json',
 		label: 'Инициализация данных',
-		description: 'tools/vrunner.init.json — настройки шага инициализации данных в CI',
+		description: 'настройки инициализации данных',
 		recommended: false,
 	},
 	{
@@ -78,7 +78,7 @@ export const SERVICE_FILES: ServiceFileSpec[] = [
 		relPath: 'tools/VAParams.json',
 		templateName: 'tools/VAParams.json.template',
 		label: 'Прогон тестов',
-		description: 'tools/VAParams.json — параметры Vanessa Automation для прогона тестов',
+		description: 'параметры прогона тестов',
 		recommended: false,
 	},
 	{
@@ -86,7 +86,7 @@ export const SERVICE_FILES: ServiceFileSpec[] = [
 		relPath: 'tools/VAParams.init.json',
 		templateName: 'tools/VAParams.init.json.template',
 		label: 'Инициализация данных',
-		description: 'tools/VAParams.init.json — параметры Vanessa Automation для инициализации данных',
+		description: 'параметры инициализации данных',
 		recommended: false,
 	},
 	{
@@ -94,7 +94,7 @@ export const SERVICE_FILES: ServiceFileSpec[] = [
 		relPath: 'tools/xUnitParams.json',
 		templateName: 'tools/xUnitParams.json.template',
 		label: 'Прогон тестов',
-		description: 'tools/xUnitParams.json — параметры дымовых тестов xUnit',
+		description: 'параметры дымовых тестов',
 		recommended: false,
 	},
 	{
@@ -102,7 +102,7 @@ export const SERVICE_FILES: ServiceFileSpec[] = [
 		relPath: 'tools/yaxunit.json',
 		templateName: 'tools/yaxunit.json.template',
 		label: 'Прогон тестов',
-		description: 'tools/yaxunit.json — конфигурация YAxUnit',
+		description: 'параметры YAxUnit',
 		recommended: false,
 	},
 	{
@@ -110,21 +110,21 @@ export const SERVICE_FILES: ServiceFileSpec[] = [
 		relPath: 'tools/syntax-check-excludes.txt',
 		templateName: 'tools/syntax-check-excludes.txt.template',
 		label: 'Исключения',
-		description: 'tools/syntax-check-excludes.txt — исключения синтаксического контроля',
+		description: 'исключения синтаксического контроля',
 		recommended: false,
 	},
 	{
 		id: 'hooks',
 		relPath: '.1cpt/hooks.json',
 		label: '1cpt: hooks',
-		description: '.1cpt/hooks.json — хуки pre/post/onError на команды расширения',
+		description: 'хуки на команды',
 		recommended: false,
 	},
 	{
 		id: 'pipelines',
 		relPath: '.1cpt/pipelines.json',
 		label: '1cpt: pipelines',
-		description: '.1cpt/pipelines.json — графы шагов: команды, оболочка, паузы',
+		description: 'цепочки команд',
 		recommended: false,
 	},
 	// tools/README.md создаётся командой «Инициализировать структуру проекта»

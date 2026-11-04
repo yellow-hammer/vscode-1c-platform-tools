@@ -11,8 +11,8 @@ import { resolveProjectLayout, type SourceFormat, type SourceRoot } from './proj
 
 /** Подписи форматов исходного кода. */
 export const SOURCE_FORMAT_LABELS: Record<SourceFormat, string> = {
-	designer: 'Конфигуратор',
-	edt: 'EDT',
+	designer: '1C:Конфигуратор',
+	edt: '1C:EDT',
 };
 
 /** Область работы проекта. */

@@ -1,5 +1,5 @@
 /**
- * Команды 1С:EDT над проектом.
+ * Команды 1C:EDT над проектом.
  *
  * Всё, что здесь есть, выполняет сама EDT через `1cedtcli`, поэтому команды
  * работают независимо от версии vanessa-runner. Проект берётся у активной
@@ -107,7 +107,7 @@ export async function importToEdt(): Promise<void> {
 	}
 	if (target.format === 'edt') {
 		void vscode.window.showErrorMessage(
-			'Команда импортирует выгрузку конфигуратора, а активная конфигурация уже в формате 1С:EDT.'
+			'Команда импортирует выгрузку конфигуратора, а активная конфигурация уже в формате 1C:EDT.'
 		);
 		return;
 	}
@@ -156,9 +156,9 @@ export async function importToEdt(): Promise<void> {
 }
 
 /**
- * Создаёт пустую конфигурацию в формате 1С:EDT.
+ * Создаёт пустую конфигурацию в формате 1C:EDT.
  *
- * Своей команды создания у 1С:EDT нет: заготовкой служит пустая выгрузка
+ * Своей команды создания у 1C:EDT нет: заготовкой служит пустая выгрузка
  * конфигуратора, а 1cedtcli превращает её в проект рядом с остальными.
  *
  * @param context - Контекст расширения: нужен для запуска md-sparrow
@@ -173,7 +173,7 @@ export async function createEdtProject(context: vscode.ExtensionContext): Promis
 	}
 
 	const projectName = await vscode.window.showInputBox({
-		title: 'Новая конфигурация в формате 1С:EDT',
+		title: 'Новая конфигурация в формате 1C:EDT',
 		prompt: 'Имя конфигурации: так же назовётся каталог проекта',
 		validateInput: (value) => (value.trim().length > 0 ? undefined : 'Введите имя конфигурации'),
 	});
@@ -187,7 +187,7 @@ export async function createEdtProject(context: vscode.ExtensionContext): Promis
 		return undefined;
 	}
 
-	// Платформа пишется в манифест и потом не меняется. Версия 1С:EDT в файлах проекта
+	// Платформа пишется в манифест и потом не меняется. Версия 1C:EDT в файлах проекта
 	// не хранится: проект импортирует выбранная 1cedtcli.
 	const settings = readEdtSettings(workspaceRoot);
 	const found = findEdtInstallations(settings.path);
@@ -207,7 +207,7 @@ export async function createEdtProject(context: vscode.ExtensionContext): Promis
 			installation: item,
 		})),
 		{
-			title: 'Версия 1С:EDT',
+			title: 'Версия 1C:EDT',
 			placeHolder: 'Этой версией создаётся проект. Младшая его не откроет',
 		}
 	);
@@ -224,7 +224,7 @@ export async function createEdtProject(context: vscode.ExtensionContext): Promis
 			);
 		} catch (error) {
 			log.warn(`не удалось запомнить версию EDT: ${error instanceof Error ? error.message : String(error)}`);
-			void vscode.window.showErrorMessage('Не удалось запомнить версию 1С:EDT.');
+			void vscode.window.showErrorMessage('Не удалось запомнить версию 1C:EDT.');
 			return undefined;
 		}
 	}
@@ -254,7 +254,7 @@ export async function createEdtProject(context: vscode.ExtensionContext): Promis
 		if (imported.exitCode !== 0) {
 			return undefined;
 		}
-		const edt = installation.version ? `1С:EDT ${installation.version}` : '1С:EDT';
+		const edt = installation.version ? `1C:EDT ${installation.version}` : '1C:EDT';
 		notifyQuiet(`Пустая конфигурация создана: ${projectName}, ${edt}, платформа ${platform.platform}`);
 		return projectDir;
 	} finally {
@@ -439,10 +439,10 @@ export async function showEdtProjectInfo(): Promise<void> {
 }
 
 /**
- * Открывает рабочую область проекта в графической 1С:EDT.
+ * Открывает рабочую область проекта в графической 1C:EDT.
  */
 export async function openInEdt(): Promise<void> {
-	if (!ensureWorkspaceTrusted('запуск 1С:EDT')) {
+	if (!ensureWorkspaceTrusted('запуск 1C:EDT')) {
 		return;
 	}
 
@@ -458,7 +458,7 @@ export async function openInEdt(): Promise<void> {
 	}
 	if (!installation.gui) {
 		void vscode.window.showErrorMessage(
-			'Графический клиент 1С:EDT не найден рядом с 1cedtcli: проверьте настройку каталога установки.'
+			'Графический клиент 1C:EDT не найден рядом с 1cedtcli: проверьте настройку каталога установки.'
 		);
 		return;
 	}

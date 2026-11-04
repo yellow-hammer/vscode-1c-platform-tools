@@ -1,5 +1,5 @@
 /**
- * Замечания проверки 1С:EDT в панели Problems.
+ * Замечания проверки 1C:EDT в панели Problems.
  *
  * Проверка пишет отчёт таблицей, и без разбора он остаётся файлом, который
  * нужно читать глазами. Здесь замечания раскладываются по файлам проекта, как
@@ -132,7 +132,7 @@ export async function showValidationFindings(reportPath: string, projectPath: st
 			messageOf(finding),
 			severityOf(finding)
 		);
-		diagnostic.source = '1С:EDT';
+		diagnostic.source = '1C:EDT';
 		diagnostic.code = finding.check;
 		byFile.set(file, [...(byFile.get(file) ?? []), diagnostic]);
 	}
@@ -151,7 +151,7 @@ export async function showValidationFindings(reportPath: string, projectPath: st
 					finding.metadataPath ? `${finding.metadataPath}: ${messageOf(finding)}` : messageOf(finding),
 					severityOf(finding)
 				);
-				diagnostic.source = '1С:EDT';
+				diagnostic.source = '1C:EDT';
 				diagnostic.code = finding.check;
 				return diagnostic;
 			})

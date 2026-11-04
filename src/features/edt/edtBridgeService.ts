@@ -1,7 +1,7 @@
 /**
  * Мост EDT для адаптеров панели тестирования.
  *
- * Команды проводятся через проект 1С:EDT в BaseCommand; у адаптеров панели
+ * Команды проводятся через проект 1C:EDT в BaseCommand; у адаптеров панели
  * такого слоя нет, а тестовая обработка из проекта EDT собирается так же:
  * проект выгружает сама EDT, и раннер собирает .epf уже из выгрузки. План
  * строится без EDT, выгрузка идёт отдельным шагом перед сборкой.
@@ -108,7 +108,7 @@ export async function runEdtBuildExports(bridges: readonly EdtBuildBridge[]): Pr
 	const exported = await runEdtExports([...exports.values()], context);
 	if (exported.exitCode !== 0) {
 		throw new EdtCommandError(
-			edtFailureMessage('Выгрузка проекта 1С:EDT не удалась, сборка не запущена.', exported),
+			edtFailureMessage('Выгрузка проекта 1C:EDT не удалась, сборка не запущена.', exported),
 			exported.exitCode
 		);
 	}

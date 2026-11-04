@@ -470,8 +470,8 @@ export function getSyntaxCheckCommandName(): CommandNameAndTitle {
 export function getValidateEdtCommandName(): CommandNameAndTitle {
 	return {
 		id: '1c-platform-tools.test.validateEdt',
-		name: 'Проверить проект EDT',
-		title: 'Проверить проект EDT'
+		name: 'Проверить проект 1C:EDT',
+		title: 'Проверить проект 1C:EDT'
 	};
 }
 
@@ -497,17 +497,17 @@ export function getConvertExtensionSourcesCommandName(): CommandNameAndTitle {
 	};
 }
 
-/** Названия команд 1С:EDT. */
+/** Названия команд 1C:EDT. */
 export function getEdtImportCommandName(): CommandNameAndTitle {
-	return { id: '1c-platform-tools.edt.import', name: 'Импортировать в проект EDT', title: 'Импортировать в проект EDT' };
+	return { id: '1c-platform-tools.edt.import', name: 'Импортировать в проект 1C:EDT', title: 'Импортировать в проект 1C:EDT' };
 }
 
 export function getEdtExportCommandName(): CommandNameAndTitle {
-	return { id: '1c-platform-tools.edt.export', name: 'Выгрузить проект EDT в XML', title: 'Выгрузить проект EDT в XML' };
+	return { id: '1c-platform-tools.edt.export', name: 'Выгрузить проект 1C:EDT в XML', title: 'Выгрузить проект 1C:EDT в XML' };
 }
 
 export function getEdtValidateCommandName(): CommandNameAndTitle {
-	return { id: '1c-platform-tools.edt.validate', name: 'Проверить проект EDT', title: 'Проверить проект EDT' };
+	return { id: '1c-platform-tools.edt.validate', name: 'Проверить проект 1C:EDT', title: 'Проверить проект 1C:EDT' };
 }
 
 export function getEdtFormatCommandName(): CommandNameAndTitle {
@@ -519,7 +519,7 @@ export function getEdtSortCommandName(): CommandNameAndTitle {
 }
 
 export function getEdtProjectInfoCommandName(): CommandNameAndTitle {
-	return { id: '1c-platform-tools.edt.projectInfo', name: 'Сведения о проекте EDT', title: 'Сведения о проекте EDT' };
+	return { id: '1c-platform-tools.edt.projectInfo', name: 'Сведения о проекте 1C:EDT', title: 'Сведения о проекте 1C:EDT' };
 }
 
 export function getRunEdtCommandName(): CommandNameAndTitle {

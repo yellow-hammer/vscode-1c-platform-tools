@@ -1,7 +1,7 @@
 {
   "name": "1c-platform-tools",
   "displayName": "1C: Platform Tools",
-  "description": "Разработка на 1С:Предприятии в VS Code (Cursor, Windsurf, VSCodium): проекты конфигуратора, 1С:EDT и OneScript, метаданные, vanessa-runner, тесты, отладка и MCP.",
+  "description": "Разработка на 1С:Предприятии в VS Code (Cursor, Windsurf, VSCodium): проекты 1C:Конфигуратор, 1C:EDT и OneScript, метаданные, vanessa-runner, тесты, отладка и MCP.",
   "keywords": [
     "1c",
     "1с",
@@ -23,7 +23,7 @@
   "capabilities": {
     "untrustedWorkspaces": {
       "supported": "limited",
-      "description": "В режиме ограниченной функциональности расширение не запускает программы по проекту: команды 1С и vrunner, прогон тестов, 1С:EDT, запуск баз из списка, консоль кластера, автономный сервер, отладку, цепочки и хуки, установку OneScript и зависимостей. Канал для агентов не открывается. Панели, дерево команд и просмотр метаданных работают.",
+      "description": "В режиме ограниченной функциональности расширение не запускает программы по проекту: команды 1С и vrunner, прогон тестов, 1C:EDT, запуск баз из списка, консоль кластера, автономный сервер, отладку, цепочки и хуки, установку OneScript и зависимостей. Канал для агентов не открывается. Панели, дерево команд и просмотр метаданных работают.",
       "restrictedConfigurations": [
         "1c-platform-tools.vrunner.path.executable",
         "1c-platform-tools.execution.useTasks",
@@ -142,7 +142,7 @@
           },
           "environment": {
             "type": "string",
-            "description": "Окружение на этот прогон вместо выбранного в редакторе; пустая строка — по умолчанию"
+            "description": "Окружение на этот прогон вместо выбранного в редакторе; пустая строка: по умолчанию"
           },
           "project": {
             "type": "string",
@@ -2066,17 +2066,17 @@
       },
       {
         "command": "1c-platform-tools.edt.import",
-        "title": "Импортировать в проект EDT",
+        "title": "Импортировать в проект 1C:EDT",
         "category": "1С: EDT"
       },
       {
         "command": "1c-platform-tools.edt.export",
-        "title": "Выгрузить проект EDT в XML",
+        "title": "Выгрузить проект 1C:EDT в XML",
         "category": "1С: EDT"
       },
       {
         "command": "1c-platform-tools.edt.validate",
-        "title": "Проверить проект EDT",
+        "title": "Проверить проект 1C:EDT",
         "category": "1С: EDT"
       },
       {
@@ -2091,7 +2091,7 @@
       },
       {
         "command": "1c-platform-tools.edt.projectInfo",
-        "title": "Сведения о проекте EDT",
+        "title": "Сведения о проекте 1C:EDT",
         "category": "1С: EDT"
       },
       {
@@ -2102,7 +2102,7 @@
       },
       {
         "command": "1c-platform-tools.test.validateEdt",
-        "title": "Проверить проект EDT",
+        "title": "Проверить проект 1C:EDT",
         "category": "1С: Тестирование"
       },
       {
@@ -4531,8 +4531,8 @@
           },
           {
             "id": "step8-edt",
-            "title": "Проект 1С:EDT",
-            "description": "Проект 1С:EDT расширение находит само и работает с ним теми же панелями и командами; для команд над исходным кодом нужна установленная EDT.\n\n[Открыть панель «1С: Инструменты»](command:workbench.view.extension.1c-platform-tools-tools)",
+            "title": "Проект 1C:EDT",
+            "description": "Проект 1C:EDT расширение находит само и работает с ним теми же панелями и командами; для команд над исходным кодом нужна установленная EDT.\n\n[Открыть панель «1С: Инструменты»](command:workbench.view.extension.1c-platform-tools-tools)",
             "media": {
               "markdown": "walkthrough/step8-edt.md"
             }
@@ -5242,7 +5242,7 @@
         }
       },
       {
-        "title": "EDT",
+        "title": "1C:EDT",
         "id": "1c-platform-tools.edt",
         "order": 11,
         "properties": {
@@ -5250,19 +5250,19 @@
             "type": "string",
             "default": "",
             "scope": "resource",
-            "description": "Каталог установки 1С:EDT, если расширение не нашло её само."
+            "description": "Каталог установки 1C:EDT, если расширение не нашло её само."
           },
           "1c-platform-tools.edt.version": {
             "type": "string",
             "default": "",
             "scope": "resource",
-            "description": "Версия 1С:EDT, если установлено несколько, например 2026.1. Пусто: старшая из найденных."
+            "description": "Версия 1C:EDT, если установлено несколько, например 2026.1. Пусто: старшая из найденных."
           },
           "1c-platform-tools.edt.workspace": {
             "type": "string",
             "default": "",
             "scope": "resource",
-            "description": "Каталог рабочей области 1С:EDT для команд расширения. Пусто: каталог сборки проекта, а у проекта EDT, открытого как рабочая область, временный каталог. Рабочую область 1cedtcli занимает монопольно, поэтому общий временный каталог не подходит."
+            "description": "Каталог рабочей области 1C:EDT для команд расширения. Пусто: каталог сборки проекта, а у проекта EDT, открытого как рабочая область, временный каталог. Рабочую область 1cedtcli занимает монопольно, поэтому общий временный каталог не подходит."
           },
           "1c-platform-tools.edt.timeoutSeconds": {
             "type": "number",

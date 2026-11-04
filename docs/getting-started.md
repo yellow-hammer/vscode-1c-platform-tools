@@ -2,7 +2,7 @@
 
 # С чего начать
 
-> <img src="../resources/brand/cat-hi.png" alt="" width="26" align="left"> Поставить, открыть проект, заполнить профиль — и дерево команд готово к работе.
+> <img src="../resources/brand/cat-hi.png" alt="" width="26" align="left"> Поставить, открыть проект, заполнить профиль: и дерево команд готово к работе.
 
 ## Установка
 
@@ -14,18 +14,18 @@
 | Cursor, Windsurf, VSCodium | [Open VSX](https://open-vsx.org/extension/yellow-hammer/1c-platform-tools) |
 | Без доступа к маркетплейсу | файл `.vsix` из [релизов](https://github.com/yellow-hammer/vscode-1c-platform-tools/releases), `Extensions: Install from VSIX…` |
 
-В Cursor работают те же панели и команды. Подключение MCP — в разделе [MCP-сервер](https://yellow-hammer.github.io/vscode-1c-platform-tools/mcp/).
+В Cursor работают те же панели и команды. Подключение MCP: в разделе [MCP-сервер](https://yellow-hammer.github.io/vscode-1c-platform-tools/mcp/).
 
 Расширение активируется, когда в рабочей области есть [проект](projects.md): каталог с файлом `packagedef`. Панели **1С: Проекты** и **1С: Администрирование** работают и без открытого проекта: первая поможет найти и открыть нужный, вторая не привязана к рабочей области вовсе.
 
 ## Что нужно для работы
 
-- **Платформа 1С:Предприятие 8** — клиент, конфигуратор, `1cestart`, `rac`/`ras`, `ibsrv`, `ibcmd`.
-- **OneScript, OPM и vanessa-runner** — из раздела **Зависимости** в дереве **1С: Инструменты**.
-- **1С:EDT** — если исходный код ведётся в формате EDT, см. [Формат EDT](edt.md).
-- **MCP** — расширение [1C: Platform Tools MCP](https://marketplace.visualstudio.com/items?itemName=yellow-hammer.mcp-1c-platform-tools), если команды вызывает агент, см. [MCP-сервер](https://yellow-hammer.github.io/vscode-1c-platform-tools/mcp/).
+- **Платформа 1С:Предприятие 8**: клиент, конфигуратор, `1cestart`, `rac`/`ras`, `ibsrv`, `ibcmd`.
+- **OneScript, OPM и vanessa-runner**: из раздела **Зависимости** в дереве **1С: Инструменты**.
+- **1C:EDT**: исходный код в этом формате описан в [руководстве](edt.md).
+- **MCP**: расширение [1C: Platform Tools MCP](https://marketplace.visualstudio.com/items?itemName=yellow-hammer.mcp-1c-platform-tools), если команды вызывает агент, см. [MCP-сервер](https://yellow-hammer.github.io/vscode-1c-platform-tools/mcp/).
 
-<img src="../resources/brand/bird.png" alt="" width="28" align="left"> Без локальной 1С команды можно выполнять в Docker — см. [Docker и ibcmd](docker.md).
+<img src="../resources/brand/bird.png" alt="" width="28" align="left"> Без локальной 1С команды можно выполнять в Docker: см. [Docker и ibcmd](docker.md).
 
 ## Первые шаги
 
@@ -34,10 +34,10 @@
 3. Настройте подключение к ИБ в [профиле запуска](launch-profiles.md). Формат файла зависит от установленного vanessa-runner (расширение определяет версию автоматически):
 
    ```jsonc
-   // env.json — vanessa-runner 2
+   // env.json: vanessa-runner 2
    { "default": { "--ibconnection": "/F./build/ib" } }
 
-   // autumn-properties.json — vanessa-runner 3
+   // autumn-properties.json: vanessa-runner 3
    { "vrunner": { "ibconnection": "/F./build/ib" } }
    ```
 
@@ -46,4 +46,4 @@
 4. Установите зависимости через раздел **Зависимости** или команду **1С: Зависимости: Установить зависимости**.
 5. Откройте панель **1С: Инструменты** и запускайте нужные команды из дерева.
 
-Пошаговое знакомство со всеми панелями есть и внутри редактора — walkthrough **Начало работы с 1C: Platform Tools** (Help → Welcome или `F1` → `Welcome: Open Walkthrough`).
+Пошаговое знакомство со всеми панелями есть и внутри редактора: walkthrough **Начало работы с 1C: Platform Tools** (Help → Welcome или `F1` → `Welcome: Open Walkthrough`).

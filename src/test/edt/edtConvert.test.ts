@@ -2,7 +2,7 @@ import * as assert from 'node:assert';
 import * as path from 'node:path';
 import { designerExtensionBase } from '../../features/edt/edtConvert';
 
-suite('конвертация расширения через 1С:EDT', () => {
+suite('конвертация расширения через 1C:EDT', () => {
 	const converted = path.join('C:', 'проект', 'build', 'out', 'cf-edt');
 	const existing = (files: string[]) => (file: string) => files.includes(file);
 

@@ -283,7 +283,7 @@ suite('недоверенная папка: версия vrunner', () => {
 	});
 });
 
-suite('недоверенная папка: команды 1С:EDT', () => {
+suite('недоверенная папка: команды 1C:EDT', () => {
 	teardown(() => setWorkspaceTrustProbe());
 
 	test('1cedtcli не запускается', async () => {

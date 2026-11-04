@@ -24,7 +24,7 @@ export interface InfobaseEntry {
 	readonly orderInList: number;
 	/** Порядок в дереве списка платформы; нет поля — 0. */
 	readonly orderInTree: number;
-	/** Идентификатор записи: по нему 1С:EDT находит рабочую область базы. */
+	/** Идентификатор записи: по нему 1C:EDT находит рабочую область базы. */
 	readonly id?: string;
 	/** Версия платформы из записи, если она задана. */
 	readonly version?: string;

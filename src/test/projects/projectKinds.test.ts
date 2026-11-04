@@ -83,7 +83,7 @@ suite('проекты: вид в списках', () => {
 			]
 		);
 		assert.strictEqual(autodetectDetail(LIBRARY, undefined, 'w', 'onescript'), 'OneScript · w');
-		assert.strictEqual(autodetectDetail(RETAIL, undefined, undefined, 'edt'), 'EDT');
+		assert.strictEqual(autodetectDetail(RETAIL, undefined, undefined, 'edt'), '1C:EDT');
 	});
 });
 

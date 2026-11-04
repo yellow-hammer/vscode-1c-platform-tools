@@ -1,5 +1,5 @@
 /**
- * Подключение команд 1С:EDT.
+ * Подключение команд 1C:EDT.
  *
  * @module registerEdtFeature
  */

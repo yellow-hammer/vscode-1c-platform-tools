@@ -14,8 +14,8 @@ suite('выбор формата исходников', () => {
 		for (const subject of SUBJECTS) {
 			const picks = sourceFormatPicks(subject);
 			assert.deepStrictEqual(picks.map((pick) => pick.label), [
-				'Проект в формате 1С:Конфигуратор',
-				'Проект в формате 1С:EDT',
+				'Проект в формате 1C:Конфигуратор',
+				'Проект в формате 1C:EDT',
 			]);
 			assert.deepStrictEqual(picks.map((pick) => pick.format), ['designer', 'edt']);
 			assert.deepStrictEqual(picks.map((pick) => pick.description), [...expected[subject]]);

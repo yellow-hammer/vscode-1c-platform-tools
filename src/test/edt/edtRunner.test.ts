@@ -35,7 +35,7 @@ suite('запуск команд EDT', () => {
 			{
 				command: 'validate',
 				args: ['--project-list', 'ssl31'],
-				title: 'Проверить проект EDT',
+				title: 'Проверить проект 1C:EDT',
 				workspaceDir: 'C:/проект/build/edt-workspace',
 				cwd: 'C:/проект',
 			},
@@ -114,12 +114,12 @@ suite('запуск команд EDT', () => {
 });
 
 suite('причина неудачной команды 1cedtcli', () => {
-	// Строки вывода 1С:EDT 2026.1
+	// Строки вывода 1C:EDT 2026.1
 	test('занятая рабочая область', () => {
 		const output =
 			"Не удалось запустить 1C:EDT CLI по причине того, что рабочая область 'C:\\проект\\build\\edt-workspace' уже используется другим приложением.";
 
-		assert.ok(explainEdtFailure(output)?.includes('Рабочая область 1С:EDT занята'));
+		assert.ok(explainEdtFailure(output)?.includes('Рабочая область 1C:EDT занята'));
 		assert.ok(
 			explainEdtFailure(
 				"Could not launch 1C:EDT CLI because the associated workspace 'C:\\ws' is currently in use by another application."
@@ -130,22 +130,22 @@ suite('причина неудачной команды 1cedtcli', () => {
 	test('проект уже подключён или его нет', () => {
 		assert.strictEqual(
 			explainEdtFailure('edtsh: Проект с именем ext-edt уже существует в рабочей области'),
-			'Проект ext-edt уже подключён к рабочей области 1С:EDT.'
+			'Проект ext-edt уже подключён к рабочей области 1C:EDT.'
 		);
 		assert.strictEqual(
 			explainEdtFailure('Project not found: НетТакогоПроекта\n'),
-			'Проекта НетТакогоПроекта нет в рабочей области 1С:EDT.'
+			'Проекта НетТакогоПроекта нет в рабочей области 1C:EDT.'
 		);
 	});
 
 	test('английский текст отказов о проекте в рабочей области', () => {
 		assert.strictEqual(
 			explainEdtFailure('edtsh: Workspace project with name tiny-edt already exist\r\n'),
-			'Проект tiny-edt уже подключён к рабочей области 1С:EDT.'
+			'Проект tiny-edt уже подключён к рабочей области 1C:EDT.'
 		);
 		assert.strictEqual(
 			explainEdtFailure('edtsh: Workspace project with name NoSuchProject does not exist\r\n'),
-			'Проекта NoSuchProject нет в рабочей области 1С:EDT.'
+			'Проекта NoSuchProject нет в рабочей области 1C:EDT.'
 		);
 	});
 
@@ -156,13 +156,13 @@ suite('причина неудачной команды 1cedtcli', () => {
 	test('распознанный отказ объясняется и в сообщении', () => {
 		assert.strictEqual(
 			describeEdtFailure('edtsh: Не найдено проекта с именем НетТакогоПроекта в рабочей области\r\n', 204),
-			'Проекта НетТакогоПроекта нет в рабочей области 1С:EDT.'
+			'Проекта НетТакогоПроекта нет в рабочей области 1C:EDT.'
 		);
 	});
 });
 
 suite('нераспознанный отказ 1cedtcli', () => {
-	// Вывод 1С:EDT 2026.1 целиком, код возврата 204; английский текст с -nl en
+	// Вывод 1C:EDT 2026.1 целиком, код возврата 204; английский текст с -nl en
 	const UNKNOWN_COMMAND = "Команда не найдена. Введите 'help' для получения списка доступных команд.\r\n";
 	const UNKNOWN_COMMAND_EN = "Command not found. Run 'help' for the list of available commands.\r\n";
 	const NO_CALL_VARIANT = [
@@ -183,22 +183,22 @@ suite('нераспознанный отказ 1cedtcli', () => {
 	test('неизвестная команда показывается строкой 1cedtcli с кодом возврата', () => {
 		assert.strictEqual(
 			describeEdtFailure(UNKNOWN_COMMAND, 204),
-			"Команда 1С:EDT завершилась с кодом 204: Команда не найдена. Введите 'help' для получения списка доступных команд."
+			"Команда 1C:EDT завершилась с кодом 204: Команда не найдена. Введите 'help' для получения списка доступных команд."
 		);
 		assert.strictEqual(
 			describeEdtFailure(UNKNOWN_COMMAND_EN, 204),
-			"Команда 1С:EDT завершилась с кодом 204: Command not found. Run 'help' for the list of available commands."
+			"Команда 1C:EDT завершилась с кодом 204: Command not found. Run 'help' for the list of available commands."
 		);
 	});
 
 	test('неподходящие аргументы показываются первой строкой отказа', () => {
 		assert.strictEqual(
 			describeEdtFailure(NO_CALL_VARIANT, 204),
-			'Команда 1С:EDT завершилась с кодом 204: Не найден вариант вызова команды, подходящий под переданные аргументы.'
+			'Команда 1C:EDT завершилась с кодом 204: Не найден вариант вызова команды, подходящий под переданные аргументы.'
 		);
 		assert.strictEqual(
 			describeEdtFailure(NO_CALL_VARIANT_EN, 204),
-			'Команда 1С:EDT завершилась с кодом 204: No command call variant was found that matched the passed arguments.'
+			'Команда 1C:EDT завершилась с кодом 204: No command call variant was found that matched the passed arguments.'
 		);
 	});
 
@@ -234,7 +234,7 @@ suite('нераспознанный отказ 1cedtcli', () => {
 		);
 		assert.strictEqual(
 			describeEdtFailure('[Fatal Error] :1:1: Premature end of file.\r\n', 204),
-			'Команда 1С:EDT завершилась с кодом 204.'
+			'Команда 1C:EDT завершилась с кодом 204.'
 		);
 	});
 
@@ -265,7 +265,7 @@ suite('нераспознанный отказ 1cedtcli', () => {
 	test('без вывода остаётся код возврата', () => {
 		assert.strictEqual(edtErrorLine(''), undefined);
 		assert.strictEqual(edtErrorLine('\r\n  \r\n'), undefined);
-		assert.strictEqual(describeEdtFailure('', 1), 'Команда 1С:EDT завершилась с кодом 1.');
+		assert.strictEqual(describeEdtFailure('', 1), 'Команда 1C:EDT завершилась с кодом 1.');
 	});
 
 	test('отказ лаунчера в UTF-16LE читается', () => {
@@ -276,7 +276,7 @@ suite('нераспознанный отказ 1cedtcli', () => {
 
 		assert.strictEqual(
 			describeEdtFailure(decodeProcessOutput(stderr), 1),
-			'Команда 1С:EDT завершилась с кодом 1: Failed to copy file C:\\edt\\1cedtcli-startup.txt to C:\\Temp\\1cedtcli-startup.txt: Процесс не может получить доступ к файлу'
+			'Команда 1C:EDT завершилась с кодом 1: Failed to copy file C:\\edt\\1cedtcli-startup.txt to C:\\Temp\\1cedtcli-startup.txt: Процесс не может получить доступ к файлу'
 		);
 	});
 
@@ -285,16 +285,16 @@ suite('нераспознанный отказ 1cedtcli', () => {
 		assert.deepStrictEqual(edtRunResult(204, UNKNOWN_COMMAND, true), { exitCode: 204 });
 		assert.deepStrictEqual(edtRunResult(204, UNKNOWN_COMMAND, false), {
 			exitCode: 204,
-			error: "Команда 1С:EDT завершилась с кодом 204: Команда не найдена. Введите 'help' для получения списка доступных команд.",
+			error: "Команда 1C:EDT завершилась с кодом 204: Команда не найдена. Введите 'help' для получения списка доступных команд.",
 		});
 	});
 
 	test('сообщение шага дополняется причиной, если она есть', () => {
-		const summary = 'Выгрузка проекта 1С:EDT не удалась, команда не запущена.';
+		const summary = 'Выгрузка проекта 1C:EDT не удалась, команда не запущена.';
 
 		assert.strictEqual(
 			edtFailureMessage(summary, { exitCode: 204, error: describeEdtFailure(UNKNOWN_COMMAND, 204) }),
-			`${summary} Команда 1С:EDT завершилась с кодом 204: Команда не найдена. Введите 'help' для получения списка доступных команд.`
+			`${summary} Команда 1C:EDT завершилась с кодом 204: Команда не найдена. Введите 'help' для получения списка доступных команд.`
 		);
 		assert.strictEqual(edtFailureMessage(summary, { exitCode: 1 }), summary);
 	});
@@ -381,7 +381,7 @@ suite('команда EDT, которую ждёт вызывающий', () => 
 		try {
 			const result = await runEdtCommand(request(new TaskOutputChain(true)));
 
-			assert.deepStrictEqual(result, { exitCode: 13, error: 'Проекта проект нет в рабочей области 1С:EDT.' });
+			assert.deepStrictEqual(result, { exitCode: 13, error: 'Проекта проект нет в рабочей области 1C:EDT.' });
 			assert.deepStrictEqual(opened, []);
 		} finally {
 			listener.dispose();

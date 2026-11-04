@@ -360,7 +360,7 @@ export function launchEdtStart(url?: string, deps: LaunchEdtStartDeps = {}): Lau
 			message:
 				platform === 'darwin'
 					? 'На macOS расширение не открывает 1C:EDT Start: запустите его сами.'
-					: '1cedtstart не найден: установите 1С:EDT через него.',
+					: '1cedtstart не найден: установите 1C:EDT через него.',
 		};
 	}
 	const read = deps.readFile ?? readText;

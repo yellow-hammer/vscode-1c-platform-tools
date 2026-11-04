@@ -1,5 +1,5 @@
 /**
- * Запуск команд 1С:EDT через `1cedtcli`.
+ * Запуск команд 1C:EDT через `1cedtcli`.
  *
  * Команды EDT идут долго - импорт большой конфигурации занимает десятки минут, -
  * поэтому выполняются задачей VS Code: с выводом в терминал, отменой и повтором,
@@ -40,9 +40,9 @@ const DEFAULT_WORKSPACE_DIR = 'edt-workspace';
 /** Идёт ли сейчас команда EDT: рабочую область нельзя делить. */
 let running: Promise<number> | undefined;
 
-/** Ответ, когда 1С:EDT на машине не найдена. */
+/** Ответ, когда 1C:EDT на машине не найдена. */
 export const EDT_NOT_FOUND_MESSAGE =
-	'1С:EDT не найдена. Установите её через 1cedtstart или укажите каталог в настройке «Каталог установки 1С:EDT».';
+	'1C:EDT не найдена. Установите её через 1cedtstart или укажите каталог в настройке «Каталог установки 1C:EDT».';
 
 /** Сколько последнего вывода команды хранится для объяснения ошибки. */
 const OUTPUT_TAIL_LIMIT = 64_000;
@@ -74,15 +74,15 @@ const EDT_FAILURES: { pattern: RegExp; explain: (match: RegExpMatchArray) => str
 	{
 		pattern: /рабочая область '[^']*' уже используется другим приложением|workspace .* is currently in use by another application/i,
 		explain: () =>
-			'Рабочая область 1С:EDT занята: её держит открытая EDT или другой процесс 1cedtcli. Закройте EDT на этой рабочей области и повторите команду.',
+			'Рабочая область 1C:EDT занята: её держит открытая EDT или другой процесс 1cedtcli. Закройте EDT на этой рабочей области и повторите команду.',
 	},
 	{
 		pattern: /Проект с именем (.+?) уже существует в рабочей области|project (?:with name )?'?(.+?)'? already exists in the workspace|Workspace project with name (.+?) already exist/i,
-		explain: (match) => `Проект ${match[1] ?? match[2] ?? match[3]} уже подключён к рабочей области 1С:EDT.`,
+		explain: (match) => `Проект ${match[1] ?? match[2] ?? match[3]} уже подключён к рабочей области 1C:EDT.`,
 	},
 	{
 		pattern: /Project not found: (.+)|Не найдено проекта с именем (.+?) в рабочей области|Workspace project with name (.+?) does not exist/i,
-		explain: (match) => `Проекта ${(match[1] ?? match[2] ?? match[3]).trim()} нет в рабочей области 1С:EDT.`,
+		explain: (match) => `Проекта ${(match[1] ?? match[2] ?? match[3]).trim()} нет в рабочей области 1C:EDT.`,
 	},
 ];
 
@@ -134,8 +134,8 @@ export function edtErrorLine(output: string): string | undefined {
  */
 export function edtExitMessage(exitCode: number, line?: string): string {
 	return line === undefined
-		? `Команда 1С:EDT завершилась с кодом ${exitCode}.`
-		: `Команда 1С:EDT завершилась с кодом ${exitCode}: ${line}`;
+		? `Команда 1C:EDT завершилась с кодом ${exitCode}.`
+		: `Команда 1C:EDT завершилась с кодом ${exitCode}: ${line}`;
 }
 
 /**
@@ -220,7 +220,7 @@ function editorHoldsWorkspace(workspaceDir: string): boolean {
 	});
 }
 
-/** Настройки раздела «1С:EDT». */
+/** Настройки раздела «1C:EDT». */
 export interface EdtSettings {
 	/** Каталог установки или каталог со списком версий. */
 	path: string;
@@ -311,7 +311,7 @@ export interface EdtCommand {
 }
 
 /**
- * Что сказать, когда у 1С:EDT нет той Java, которую требует её `1cedt.ini`.
+ * Что сказать, когда у 1C:EDT нет той Java, которую требует её `1cedt.ini`.
  *
  * @param edtVersion - Версия установки, например `2026.2`
  * @param required - Старший номер Java
@@ -320,7 +320,7 @@ export interface EdtCommand {
 export function edtJavaRequiredMessage(edtVersion: string, required: number, found: readonly number[] = []): string {
 	const version = edtVersion.trim() === '' ? '' : ` ${edtVersion.trim()}`;
 	const available = found.length > 0 ? ` На машине есть Java ${found.join(' и ')}.` : '';
-	return `1С:EDT${version} нужна Java ${required}.${available}`;
+	return `1C:EDT${version} нужна Java ${required}.${available}`;
 }
 
 /**
@@ -521,7 +521,7 @@ export async function runEdtCommand(request: EdtCommand): Promise<EdtRunResult> 
 
 	if (editorHoldsWorkspace(request.workspaceDir)) {
 		return notStarted(
-			'1С:EDT открыта на рабочей области проекта, а 1cedtcli с занятой рабочей областью не работает. Закройте EDT и повторите команду.',
+			'1C:EDT открыта на рабочей области проекта, а 1cedtcli с занятой рабочей областью не работает. Закройте EDT и повторите команду.',
 			background
 		);
 	}

@@ -343,7 +343,7 @@ export class OnecDebugConfigurationProvoider implements vscode.DebugConfiguratio
 		const rootProject = typeof config.rootProject === 'string' ? config.rootProject : '';
 		if (!hasConfigurationSources(rootProject)) {
 			void vscode.window.showErrorMessage(
-				`Исходный код конфигурации не найден в каталоге rootProject: ${rootProject || 'каталог не задан'}. Укажите выгрузку конфигуратора или проект 1С:EDT.`
+				`Исходный код конфигурации не найден в каталоге rootProject: ${rootProject || 'каталог не задан'}. Укажите выгрузку конфигуратора или проект 1C:EDT.`
 			);
 			return undefined;
 		}

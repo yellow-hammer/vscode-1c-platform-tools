@@ -58,7 +58,7 @@ export class LaunchProfileViewProvider implements vscode.TreeDataProvider<vscode
 	private readonly _onDidChangeTreeData = new vscode.EventEmitter<void>();
 	public readonly onDidChangeTreeData = this._onDidChangeTreeData.event;
 	private readonly disposables: vscode.Disposable[] = [];
-	/** Проект активной конфигурации, если она в формате 1С:EDT. */
+	/** Проект активной конфигурации, если она в формате 1C:EDT. */
 	private edtProject: string | undefined;
 	/** Наблюдатель за файлами настроек текущего проекта. */
 	private projectWatcher: vscode.Disposable | undefined;
@@ -137,11 +137,11 @@ export class LaunchProfileViewProvider implements vscode.TreeDataProvider<vscode
 	private edtItem(project: string): vscode.TreeItem {
 		const installation = resolveEdt(readEdtSettings());
 		return item(
-			`1С:EDT: ${installation?.version ?? 'не найдена'}`,
+			`1C:EDT: ${installation?.version ?? 'не найдена'}`,
 			installation ? 'verified' : 'warning',
 			installation
 				? `Проект ${project} идёт через 1cedtcli: выгрузка перед загрузкой, сборкой и тестами, импорт после выгрузки из базы.`
-				: `Проект ${project} в формате 1С:EDT, а 1cedtcli не найдена: команды над исходниками не выполнятся.`,
+				: `Проект ${project} в формате 1C:EDT, а 1cedtcli не найдена: команды над исходниками не выполнятся.`,
 			{ command: '1c-platform-tools.edt.projectInfo', title: 'Сведения о проекте' }
 		);
 	}

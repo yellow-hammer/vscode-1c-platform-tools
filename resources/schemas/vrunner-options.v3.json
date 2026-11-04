@@ -1749,7 +1749,7 @@
 				{
 					"key": "report",
 					"type": "string",
-					"description": "Файл результатов в исходном формате 1С:EDT (устарела: --report-format edt --report-path <файл>)"
+					"description": "Файл результатов в исходном формате 1C:EDT (устарела: --report-format edt --report-path <файл>)"
 				},
 				{
 					"key": "junitpath",

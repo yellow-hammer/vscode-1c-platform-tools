@@ -178,7 +178,7 @@ export class ProfileEditorProvider implements vscode.CustomTextEditorProvider {
 		}
 
 		const picked = await vscode.window.showQuickPick(items, {
-			title: `Добавить параметр — ${section.label}`,
+			title: `Добавить параметр: ${section.label}`,
 			placeHolder: 'Поиск по имени или описанию…',
 			matchOnDescription: true,
 		});
@@ -227,7 +227,7 @@ export class ProfileEditorProvider implements vscode.CustomTextEditorProvider {
 			root = undefined;
 		}
 		if (typeof root !== 'object' || root === null || Array.isArray(root)) {
-			return { ...base, error: 'Файл не является JSON-объектом — исправьте его в текстовом редакторе.' };
+			return { ...base, error: 'Файл не является JSON-объектом: исправьте его в текстовом редакторе.' };
 		}
 
 		const { sections, groups } = this.sectionsFor(document);

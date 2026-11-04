@@ -6,9 +6,9 @@
 
 Команды vrunner могут выполняться не на локальной машине, а внутри Docker-контейнера с платформой 1С. Это полезно, когда платформа не установлена или её негде устанавливать:
 
-- единое окружение у всей команды — версия платформы зашита в образ;
+- единое окружение у всей команды: версия платформы зашита в образ;
 - работа в **GitHub Codespaces** и dev-контейнерах: в облачной среде нет GUI и установленной платформы, но серверные операции (создание ИБ, загрузка/выгрузка конфигурации, сборка) выполняются в контейнере прямо из расширения;
-- тот же образ используется в CI — локальный запуск и пайплайн ведут себя одинаково.
+- тот же образ используется в CI: локальный запуск и пайплайн ведут себя одинаково.
 
 ## Включение
 
@@ -43,12 +43,12 @@
 
 ## Где взять образ
 
-Готовые публичные образы с платформой 1С не распространяются — лицензия 1С не позволяет. Образ собирается самостоятельно:
+Готовые публичные образы с платформой 1С не распространяются: лицензия 1С не позволяет. Образ собирается самостоятельно:
 
-- **[pravets/onec-images](https://github.com/pravets/onec-images)** — рецепты и готовые GitHub Actions для сборки образов платформы и **vrunner** в свой registry; для скачивания дистрибутивов нужны учётные данные [releases.1c.ru](https://releases.1c.ru).
-- **[firstBitMarksistskaya/onec-docker](https://github.com/firstBitMarksistskaya/onec-docker)** — альтернативный набор, включает образы для Jenkins, k8s и gitsync.
+- **[pravets/onec-images](https://github.com/pravets/onec-images)**: рецепты и готовые GitHub Actions для сборки образов платформы и **vrunner** в свой registry; для скачивания дистрибутивов нужны учётные данные [releases.1c.ru](https://releases.1c.ru).
+- **[firstBitMarksistskaya/onec-docker](https://github.com/firstBitMarksistskaya/onec-docker)**: альтернативный набор, включает образы для Jenkins, k8s и gitsync.
 
-Для расширения нужен образ с vanessa-runner (в onec-images — образ `vrunner`).
+Для расширения нужен образ с vanessa-runner (в onec-images: образ `vrunner`).
 
 ## GitHub Codespaces
 
@@ -66,7 +66,7 @@
 
 1. В `devcontainer.json` подключите Docker: feature `docker-in-docker` или `docker-outside-of-docker`. Во втором случае демон видит пути хоста, поэтому передайте путь рабочей папки на хосте: `"remoteEnv": { "LOCAL_WORKSPACE_FOLDER": "${localWorkspaceFolder}" }`.
 2. Авторизуйтесь в своём registry (`docker login`) и укажите образ в `1c-platform-tools.docker.image`.
-3. Включите `1c-platform-tools.docker.enabled` — команды дерева **1С: Инструменты** будут выполняться в контейнере внутри Codespace.
+3. Включите `1c-platform-tools.docker.enabled`: команды дерева **1С: Инструменты** будут выполняться в контейнере внутри Codespace.
 
 ### Загрузка компонентов
 

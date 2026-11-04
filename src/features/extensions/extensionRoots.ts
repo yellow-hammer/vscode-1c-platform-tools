@@ -16,7 +16,7 @@ import { cfeStem, findExtension, type ExtensionNames, type ExtensionScope } from
 
 /** Проект EDT конфигурации открыт как рабочая область: класть проект расширения рядом некуда. */
 export const NO_PLACE_FOR_EDT_EXTENSION =
-	'Проект расширения кладётся рядом с проектом конфигурации: откройте каталог с проектами 1С:EDT.';
+	'Проект расширения кладётся рядом с проектом конфигурации: откройте каталог с проектами 1C:EDT.';
 
 /** Расширение из раскладки. */
 export interface ExtensionEntry extends ExtensionNames {

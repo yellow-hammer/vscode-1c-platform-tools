@@ -96,7 +96,7 @@ export class SetVersionCommands extends BaseCommand {
 		);
 		if (exported.exitCode !== 0) {
 			void vscode.window.showErrorMessage(
-				edtFailureMessage('Выгрузка проекта 1С:EDT не удалась, версия не изменена.', exported)
+				edtFailureMessage('Выгрузка проекта 1C:EDT не удалась, версия не изменена.', exported)
 			);
 			return;
 		}
