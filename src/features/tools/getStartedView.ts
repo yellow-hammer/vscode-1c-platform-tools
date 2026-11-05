@@ -43,7 +43,7 @@ interface WalkthroughStep {
 	shortDescription: string;
 	extendedContent: string;
 	image: string;
-	commands: Array<[label: string, command: string]>;
+	commands: Array<[label: string, command: string, keys?: string]>;
 }
 
 const CMD_PREFIX = '](command:';
@@ -119,7 +119,43 @@ interface PackageWalkthrough {
 	steps?: Array<{ title: string; description: string; media?: { markdown?: string } }>;
 }
 
-type PackageWithContributes = { contributes?: { walkthroughs?: PackageWalkthrough[] } };
+interface PackageKeybinding {
+	command: string;
+	key: string;
+	mac?: string;
+}
+
+type PackageWithContributes = {
+	contributes?: { walkthroughs?: PackageWalkthrough[]; keybindings?: PackageKeybinding[] };
+};
+
+/** Подпись сочетания как в редакторе: на macOS берётся поле mac. */
+function keybindingLabel(command: string, bindings: readonly PackageKeybinding[]): string | undefined {
+	const own = bindings.find((binding) => binding.command === command);
+	const raw = own
+		? process.platform === 'darwin' && own.mac
+			? own.mac
+			: own.key
+		: command === 'workbench.view.debug'
+			? process.platform === 'darwin'
+				? 'shift+cmd+d'
+				: 'ctrl+shift+d'
+			: undefined;
+	if (!raw) {
+		return undefined;
+	}
+	const names: Record<string, string> = {
+		ctrl: 'Ctrl',
+		alt: 'Alt',
+		shift: 'Shift',
+		cmd: 'Cmd',
+		meta: 'Cmd',
+	};
+	return raw
+		.split('+')
+		.map((part) => names[part.toLowerCase()] ?? (part.length === 1 ? part.toUpperCase() : part))
+		.join('+');
+}
 
 function getWalkthroughs(pkg: PackageWithContributes | undefined): PackageWalkthrough[] | undefined {
 	return pkg?.contributes?.walkthroughs;
@@ -148,13 +184,16 @@ async function loadWalkthroughData(context: vscode.ExtensionContext): Promise<Wa
 	if (!walkthrough?.steps?.length) {
 		return {
 			title: walkthrough?.title ?? 'Начало работы с 1C: Platform Tools',
-			description: walkthrough?.description ?? 'Шесть шагов: проект, зависимости, панель команд, служебные файлы, панель проектов, список дел.',
+			description: walkthrough?.description ?? 'Проект, зависимости и панели расширения, затем отладка, тесты и агенты.',
 			steps,
 		};
 	}
 
 	for (const step of walkthrough.steps) {
-		const commands = parseCommandsFromDescription(step.description);
+		const bindings = pkg?.contributes?.keybindings ?? [];
+		const commands = parseCommandsFromDescription(step.description).map(
+			([label, command]): [string, string, string?] => [label, command, keybindingLabel(command, bindings)]
+		);
 		const shortDescription = extractShortDescription(step.description);
 
 		let extendedContent = '';
@@ -257,10 +296,12 @@ async function buildWalkthroughWebviewContent(
 	const stepsContent = steps.map(
 		(step, i) => {
 			const commandsHtml = step.commands
-				.map(
-					([label, cmd]) =>
-						`<button class="cmd-btn" data-command="${escapeHtml(cmd)}">${escapeHtml(label)}</button>`
-				)
+				.map(([label, cmd, keys]) => {
+					const tip = keys
+						? `<div class="cmd-tip">Совет: используйте сочетание клавиш <span class="cmd-keys">${escapeHtml(keys)}</span></div>`
+						: '';
+					return `<div class="cmd"><button class="cmd-btn" data-command="${escapeHtml(cmd)}">${escapeHtml(label)}</button>${tip}</div>`;
+				})
 				.join('');
 			return `
 		<div class="step-content" data-step="${i}" ${i > 0 ? 'style="display:none"' : ''}>
