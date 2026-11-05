@@ -22,7 +22,7 @@
 
 - **Платформа 1С:Предприятие 8** — клиент, конфигуратор, `1cestart`, `rac`/`ras`, `ibsrv`, `ibcmd`.
 - **OneScript, OPM и vanessa-runner** — из раздела **Зависимости** в дереве **1С: Инструменты**.
-- **Формат проекта**: Конфигуратор, EDT или OneScript.
+- **1С:EDT**, если его используете.
 - **MCP** — расширение [1C: Platform Tools MCP](https://marketplace.visualstudio.com/items?itemName=yellow-hammer.mcp-1c-platform-tools), если команды вызывает агент, см. [MCP-сервер](https://yellow-hammer.github.io/vscode-1c-platform-tools/mcp/).
 
 <img src="../resources/brand/bird.png" alt="" width="28" align="left"> Без локальной 1С команды можно выполнять в Docker — см. [Docker и ibcmd](docker.md).
