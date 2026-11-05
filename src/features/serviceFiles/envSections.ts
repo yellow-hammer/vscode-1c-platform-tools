@@ -137,13 +137,14 @@ export const AUTUMN_OPTIONAL_SECTIONS: AutumnSectionOption[] = [
 	},
 	{
 		id: 'syntax-check',
-		description: 'Синтаксический контроль конфигурации',
+		description: 'Синтаксический контроль конфигурации и расширений',
 		path: ['validate', 'syntax-check'],
 		section: {
 			groupbymetadata: true,
 			'exception-file': 'tools/syntax-check-excludes.txt',
 			'report-format': ['junit', 'allure'],
 			'report-path': 'build/out/syntax-check',
+			target: ['main', 'AllExtensions'],
 			mode: [
 				'ExtendedModulesCheck',
 				'ThinClient',
