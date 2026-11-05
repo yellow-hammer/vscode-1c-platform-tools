@@ -33,13 +33,15 @@
 		.step-content .extended strong { font-weight: 600; }
 		.step-content .extended ul { margin: 0.3em 0; padding-left: 1.4em; }
 		.step-content .extended code { background: var(--vscode-textCodeBlock-background); padding: 0.1em 0.3em; border-radius: 3px; font-size: 0.9em; }
-		.commands { display: flex; flex-wrap: wrap; gap: 0.4em; margin-top: 0.75em; }
+		.commands { display: flex; flex-direction: column; align-items: flex-start; gap: 0.7em; margin-top: 0.75em; }
 		.cmd-btn {
 			background: var(--vscode-button-background); color: var(--vscode-button-foreground);
 			border: 1px solid var(--vscode-button-border, transparent); padding: 0.45em 0.9em; border-radius: 4px;
 			cursor: pointer; font-size: 0.9em;
 		}
 		.cmd-btn:hover { opacity: 0.92; }
+		.cmd-tip { margin-top: 0.25em; color: var(--vscode-descriptionForeground); font-size: 0.85em; }
+		.cmd-keys { color: var(--vscode-foreground); }
 		.media img {
 			width: 100%; height: auto; border-radius: 6px; cursor: zoom-in;
 			border: 1px solid var(--vscode-widget-border, var(--vscode-panel-border));

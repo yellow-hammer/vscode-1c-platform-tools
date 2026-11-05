@@ -1,6 +1,6 @@
-# Шаг 12 — Отладка 1С
+# Шаг 7: 1С: Отладка
 
-![Скриншот](images/step12.png)
+![Скриншот](images/step7.png)
 
 Расширение поддерживает отладку 1С:Предприятие через [onec-debug-adapter](https://github.com/yellow-hammer/onec-debug-adapter) (DAP для HTTP-сервера отладки 1С).
 
