@@ -9,9 +9,11 @@
  * @module extensionRoots
  */
 
+import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 import { sameOrUnder, type SourceFormat } from '../../shared/projectLayout';
 import { CONVENTIONAL_PATHS, type ProjectPaths, type RelativeRoot } from '../../shared/projectPaths';
+import { isUsableExtensionFolderName } from './extensionDumpTargets';
 import { cfeStem, findExtension, type ExtensionNames, type ExtensionScope } from './extensionSelection';
 
 /** Проект EDT конфигурации открыт как рабочая область: класть проект расширения рядом некуда. */
@@ -101,6 +103,79 @@ export function newExtensionDir(paths: ProjectPaths | undefined, name: string, s
 		return path.posix.join(path.posix.dirname(configuration.dir), `${path.posix.basename(configuration.dir)}.${name}`);
 	}
 	return path.posix.join(paths?.extensionsContainer ?? CONVENTIONAL_PATHS.cfe, name);
+}
+
+async function isEmptyDirectory(absolute: string): Promise<boolean> {
+	let entries: string[];
+	try {
+		entries = await fs.readdir(absolute);
+	} catch {
+		return false;
+	}
+	return entries.length === 0;
+}
+
+/**
+ * Имена каталогов в `tests/cfe` выгрузки конфигуратора.
+ *
+ * @param workspaceRoot - Корень рабочей области
+ * @param paths - Пути раскладки
+ * @returns Имена каталогов; пусто, если каталога тестовых расширений нет
+ */
+export async function designerTestCatalogNames(
+	workspaceRoot: string,
+	paths: ProjectPaths | undefined
+): Promise<string[]> {
+	const relative = paths?.testExtensionsContainer ?? CONVENTIONAL_PATHS.testsCfe;
+	let listed;
+	try {
+		listed = await fs.readdir(path.resolve(workspaceRoot, relative), { withFileTypes: true });
+	} catch {
+		return [];
+	}
+	return listed
+		.filter((entry) => entry.isDirectory() && !entry.name.startsWith('.'))
+		.map((entry) => entry.name)
+		.sort((left, right) => left.localeCompare(right, 'ru'));
+}
+
+/**
+ * Пустые каталоги в общем каталоге расширений выгрузки конфигуратора.
+ *
+ * @param workspaceRoot - Корень рабочей области
+ * @param paths - Пути раскладки
+ * @param existing - Расширения, которые уже есть: одноимённый пустой каталог не дублирует их
+ * @returns Пустые каталоги в порядке имени
+ */
+export async function vacantExtensionEntries(
+	workspaceRoot: string,
+	paths: ProjectPaths | undefined,
+	existing: readonly ExtensionNames[]
+): Promise<ExtensionEntry[]> {
+	const relative = paths?.extensionsContainer ?? CONVENTIONAL_PATHS.cfe;
+	const parent = path.resolve(workspaceRoot, relative);
+	let listed;
+	try {
+		listed = await fs.readdir(parent, { withFileTypes: true });
+	} catch {
+		return [];
+	}
+	const found: ExtensionEntry[] = [];
+	for (const entry of listed) {
+		if (!entry.isDirectory() || entry.name.startsWith('.') || !isUsableExtensionFolderName(entry.name)) {
+			continue;
+		}
+		if (findExtension(existing, entry.name) !== undefined) {
+			continue;
+		}
+		const dir = path.posix.join(relative, entry.name);
+		if (!(await isEmptyDirectory(path.resolve(workspaceRoot, dir)))) {
+			continue;
+		}
+		found.push({ dir, folder: entry.name, name: entry.name, format: 'designer' });
+	}
+	found.sort((left, right) => left.folder.localeCompare(right.folder, 'ru'));
+	return found;
 }
 
 /** Файл `*.cfe` и расширение раскладки, к которому он относится. */

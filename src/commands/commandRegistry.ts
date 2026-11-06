@@ -365,6 +365,9 @@ export function registerCommands(
 
 	// Команды расширений
 	const extensionsCommands = [
+		registerVRunnerCommand('1c-platform-tools.cfe.initializeFromIb', (opts) =>
+			commands.extensions.initializeFromIb(opts)
+		),
 		registerVRunnerCommand('1c-platform-tools.cfe.load', (opts) =>
 			commands.extensions.loadFromSrc(opts)
 		),

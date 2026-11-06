@@ -1,10 +1,14 @@
 import * as assert from 'node:assert';
+import * as fs from 'node:fs/promises';
+import * as os from 'node:os';
 import * as path from 'node:path';
 import {
 	cfeFileEntries,
 	extensionContaining,
 	extensionEntries,
+	designerTestCatalogNames,
 	newExtensionDir,
+	vacantExtensionEntries,
 } from '../../features/extensions/extensionRoots';
 import { findExtension, selectionKey } from '../../features/extensions/extensionSelection';
 import { invalidateProjectLayout, setLayoutExclusions } from '../../shared/projectLayout';
@@ -113,4 +117,45 @@ suite('расширения раскладки', () => {
 		assert.strictEqual(newExtensionDir(rootProject, 'Новое', 'solution'), undefined);
 		assert.strictEqual(newExtensionDir(rootProject, 'Новое', 'tests'), 'tests/cfe/Новое');
 	});
+
+	test('в фикстурах нет пустых каталогов расширений', async () => {
+		const designer = await projectPaths(DESIGNER_WORKSPACE);
+		const edt = await projectPaths(EDT_WORKSPACE);
+		assert.deepStrictEqual(await vacantExtensionEntries(DESIGNER_WORKSPACE, designer, extensionEntries(designer, 'all')), []);
+		assert.deepStrictEqual(await vacantExtensionEntries(EDT_WORKSPACE, edt, extensionEntries(edt, 'all')), []);
+	});
+
+	test('пустой каталог становится расширением для выгрузки, занятый и уже известное нет', async () => {
+		const root = await fs.mkdtemp(path.join(os.tmpdir(), 'cfe-vacant-'));
+		try {
+			await fs.mkdir(path.join(root, 'src', 'cfe', 'Новое'), { recursive: true });
+			await fs.mkdir(path.join(root, 'src', 'cfe', 'Занято'), { recursive: true });
+			await fs.writeFile(path.join(root, 'src', 'cfe', 'Занято', 'readme.txt'), 'x');
+			await fs.mkdir(path.join(root, 'src', 'cfe', 'Уже'), { recursive: true });
+
+			const paths: ProjectPaths = {
+				configuration: { name: 'Конф', dir: 'src/cf', format: 'designer' },
+				extensions: [],
+				testExtensions: [],
+				processors: [],
+				reports: [],
+				testProcessors: [],
+				extensionsContainer: 'src/cfe',
+			};
+			const existing = [{ folder: 'Уже', name: 'УжеЕсть', dir: 'src/cfe/Уже', format: 'designer' as const }];
+			const vacant = await vacantExtensionEntries(root, paths, existing);
+			assert.deepStrictEqual(vacant, [
+				{ dir: 'src/cfe/Новое', folder: 'Новое', name: 'Новое', format: 'designer' },
+			]);
+			await fs.mkdir(path.join(root, 'tests', 'cfe', 'YAXUNIT'), { recursive: true });
+			await fs.mkdir(path.join(root, 'tests', 'cfe', 'Тесты'), { recursive: true });
+			assert.deepStrictEqual(
+				await designerTestCatalogNames(root, paths),
+				['Тесты', 'YAXUNIT']
+			);
+		} finally {
+			await fs.rm(root, { recursive: true, force: true });
+		}
+	});
+
 });

@@ -707,6 +707,17 @@ export function getLoadConfigurationFromFilesByListCommandName(): CommandNameAnd
 // ============================================================================
 
 /**
+ * Получить название и заголовок для команды создания каталогов расширений из информационной базы
+ */
+export function getInitializeExtensionsFromIbCommandName(): CommandNameAndTitle {
+	return {
+		id: '1c-platform-tools.cfe.initializeFromIb',
+		name: 'Инициализировать расширения из ИБ',
+		title: 'Инициализировать расширения из ИБ'
+	};
+}
+
+/**
  * Получить название и заголовок для команды загрузки расширений из src/cfe
  */
 export function getLoadExtensionFromSrcCommandName(): CommandNameAndTitle {

@@ -43,6 +43,7 @@ import {
 	getDumpConfigurationToDistCommandName,
 	getBuildConfigurationCommandName,
 	getDecompileConfigurationCommandName,
+	getInitializeExtensionsFromIbCommandName,
 	getLoadExtensionFromSrcCommandName,
 	getLoadExtensionFromFilesByListCommandName,
 	getLoadExtensionFromCfeCommandName,
@@ -199,6 +200,7 @@ export const TREE_GROUPS: TreeGroup[] = [
 		defaultCollapsibleState: 'collapsed',
 		projects: ONEC,
 		commands: [
+			{ command: '1c-platform-tools.cfe.initializeFromIb', title: getInitializeExtensionsFromIbCommandName().title, treeLabel: '📁 Инициализировать из ИБ' },
 			{ command: '1c-platform-tools.cfe.load', title: getLoadExtensionFromSrcCommandName().title, treeLabel: '📥 Загрузить из исходного кода'},
 			{ command: '1c-platform-tools.cfe.loadByList', title: getLoadExtensionFromFilesByListCommandName().title, treeLabel: '📥 Загрузить из objlist.txt' , formats: ['designer']},
 			{ command: '1c-platform-tools.cfe.loadFile', title: getLoadExtensionFromCfeCommandName().title, treeLabel: '📥 Загрузить из *.cfe' },

@@ -26,6 +26,8 @@ suite('дерево команд под формат исходников', () =
 		assert.ok(!edt.includes('1c-platform-tools.cf.loadByList'));
 		assert.ok(!edt.includes('1c-platform-tools.cf.dumpIncrement'));
 		assert.ok(edt.includes('1c-platform-tools.cf.load') && edt.includes('1c-platform-tools.cf.dump'));
+		assert.strictEqual(commands('extension', 'designer')[0], '1c-platform-tools.cfe.initializeFromIb');
+		assert.strictEqual(commands('extension', 'edt')[0], '1c-platform-tools.cfe.initializeFromIb');
 		assert.ok(!commands('extension', 'edt').includes('1c-platform-tools.cfe.loadByList'));
 		// У выгрузки конфигуратора состав полный
 		assert.ok(commands('configuration', 'designer').includes('1c-platform-tools.cf.loadByList'));

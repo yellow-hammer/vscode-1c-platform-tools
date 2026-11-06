@@ -214,6 +214,10 @@ export const AGENT_COMMAND_DESCRIPTIONS: Record<string, AgentCommandDescription>
 		title: 'Разобрать файл .cf в исходный код конфигурации, без обращения к ИБ',
 		category: CONFIGURATION,
 	},
+	'1c-platform-tools.cfe.initializeFromIb': {
+		title: 'Создать в src/cfe каталоги расширений ИБ, которых ещё нет в проекте',
+		category: EXTENSIONS,
+	},
 	'1c-platform-tools.cfe.load': {
 		title: 'Загрузить расширения в ИБ из исходного кода проекта',
 		category: EXTENSIONS,

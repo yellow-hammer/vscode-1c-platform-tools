@@ -88,6 +88,7 @@
                     "1c-platform-tools.cfe.convert",
                     "1c-platform-tools.cfe.decompile",
                     "1c-platform-tools.cfe.dump",
+                    "1c-platform-tools.cfe.initializeFromIb",
                     "1c-platform-tools.cfe.load",
                     "1c-platform-tools.cfe.loadByList",
                     "1c-platform-tools.cfe.loadFile",
