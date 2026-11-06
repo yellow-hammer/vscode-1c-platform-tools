@@ -4,6 +4,7 @@ import * as fs from 'node:fs/promises';
 import { BaseCommand, INFOBASE_BUSY, type OutputTarget } from './baseCommand';
 import type { VRunnerExecutionResult } from '../shared/vrunnerManager';
 import {
+	getInitializeExtensionsFromIbCommandName,
 	getLoadExtensionFromSrcCommandName,
 	getLoadExtensionFromCfeCommandName,
 	getLoadExtensionFromFilesByListCommandName,
@@ -42,17 +43,21 @@ import {
 } from '../features/extensions/extensionDumpTargets';
 import {
 	cfeFileEntries,
+	designerTestCatalogNames,
 	extensionEntries,
 	newExtensionDir,
 	NO_PLACE_FOR_EDT_EXTENSION,
+	vacantExtensionEntries,
 	type ExtensionEntry
 } from '../features/extensions/extensionRoots';
 import { decideUpdateDb } from '../features/configuration/updateDbDecision';
 import type { CommandExecutionOptions, StructuredCommandResult } from '../shared/commandExecutionTypes';
 import type { VRunnerIntent } from '../shared/vrunnerCli';
 import { BUILD_SUBDIRS } from '../shared/pathDefaults';
+import { CONVENTIONAL_PATHS } from '../shared/projectPaths';
 import { VRUNNER_FEATURES, isAtLeast } from '../shared/vrunnerVersion';
 import { resolveProjectLayout } from '../shared/projectLayout';
+import { showTextTask } from '../features/tasks/vrunnerTask';
 import { CONVERTED_CONFIGURATION_DIR, convertSourcesWithEdt, designerExtensionBase } from '../features/edt/edtConvert';
 import { EDT_NOT_FOUND_MESSAGE, readEdtSettings, resolveEdt } from '../features/edt/edtRunner';
 import { readSourceProperty } from '../features/metadata/sourceProperties';
@@ -94,6 +99,23 @@ async function pickYaxunitRelease(releases: readonly YaxunitRelease[]): Promise<
 		{ title: 'Версия YAxUnit', placeHolder: 'Релиз, который добавить в тестовые расширения' }
 	);
 	return picked?.release;
+}
+
+/** Текст о созданных каталогах и расширениях, которых нет в базе. */
+function catalogsCreatedText(dirs: readonly string[], unknown: readonly string[]): string {
+	const lines = dirs.length === 0
+		? ['ИНФОРМАЦИЯ - Выбранные расширения уже есть в проекте']
+		: dirs.map(catalogCreatedLine);
+	for (const name of unknown) {
+		lines.push(`ИНФОРМАЦИЯ - В информационной базе нет расширения '${name}'`);
+	}
+	return lines.join('\n');
+}
+
+/** Строка о созданном каталоге расширения. */
+function catalogCreatedLine(dir: string): string {
+	const name = path.posix.basename(dir);
+	return `ИНФОРМАЦИЯ - ✓ Создан каталог расширения '${name}': ${dir}`;
 }
 
 /**
@@ -357,8 +379,15 @@ export class ExtensionsCommands extends BaseCommand {
 			}
 		}
 
+		const read = () => this.runExtensionsListCommand(workspaceRoot, listRel, listAbs, viaDesigner, opts);
 		try {
-			return await this.runExtensionsListCommand(workspaceRoot, listRel, listAbs, viaDesigner, opts);
+			if (opts?.wait === true) {
+				return await read();
+			}
+			return await vscode.window.withProgress(
+				{ location: vscode.ProgressLocation.Notification, title: 'Читаю список расширений из базы' },
+				read
+			);
 		} finally {
 			if (viaDesigner) {
 				// Выгрузка ради имён весит столько же, сколько сами расширения
@@ -401,19 +430,9 @@ export class ExtensionsCommands extends BaseCommand {
 			return { error: INFOBASE_BUSY, level: 'error' };
 		}
 
-		const run = () => this.vrunner.executeVRunner(steps[0], { cwd: workspaceRoot });
-
 		let result: VRunnerExecutionResult;
 		try {
-			result = opts?.wait === true
-				? await run()
-				: await vscode.window.withProgress(
-					{
-						location: vscode.ProgressLocation.Notification,
-						title: 'Читаю список расширений из базы'
-					},
-					run
-				);
+			result = await this.vrunner.executeVRunner(steps[0], { cwd: workspaceRoot });
 		} finally {
 			await window.restore?.();
 		}
@@ -509,23 +528,31 @@ export class ExtensionsCommands extends BaseCommand {
 	}
 
 	/**
-	 * Собирает цели выгрузки из ИБ: расширения решения из раскладки и, если их
-	 * нет, имена из настройки, параметра или самой базы.
+	 * Собирает цели выгрузки из ИБ: расширения решения из раскладки, пустые
+	 * каталоги под расширения, которых в раскладке ещё нет, и, если каталогов
+	 * нет совсем, имена из настройки, параметра или самой базы.
 	 */
 	private async prepareTargetsForIbExport(
 		workspaceRoot: string,
 		opts: CommandExecutionOptions | undefined
 	): Promise<ExtensionDumpTarget[] | StructuredCommandResult | undefined> {
-		const disk = await this.layoutExtensions('solution');
+		const paths = await this.paths();
+		const disk = extensionEntries(paths, 'solution');
+		const placeholders = await vacantExtensionEntries(
+			workspaceRoot,
+			paths,
+			[...disk, ...extensionEntries(paths, 'tests')]
+		);
+		const known = [...disk, ...placeholders];
 		// Явные имена от агента задают цели сами: среди них могут быть расширения
 		// базы, каталога под которые ещё нет, и отбор по диску их бы потерял
 		const explicit = normalizeConfiguredExtensions(opts?.extensions);
 		let selected: string[] | StructuredCommandResult | undefined;
 		if (explicit.length > 0) {
 			selected = explicit;
-		} else if (disk.length > 0) {
+		} else if (known.length > 0) {
 			// Ключ выбора, а не имя каталога: одноимённые каталоги различаются путём
-			selected = (await this.selectExtensions(disk, opts))?.map((extension) => selectionKey(extension, disk));
+			selected = (await this.selectExtensions(known, opts))?.map((extension) => selectionKey(extension, known));
 		} else {
 			selected = await this.namesWhenSourcesEmpty(workspaceRoot, opts);
 		}
@@ -539,7 +566,7 @@ export class ExtensionsCommands extends BaseCommand {
 			);
 		}
 
-		const targets = resolveDumpTargets(disk, selected);
+		const targets = resolveDumpTargets(known, selected);
 		// Существующий каталог бывает вложенным, проверка имени только для новых
 		const invalid = targets.find((target) => target.dir === undefined && !isUsableExtensionFolderName(target.folder));
 		if (invalid !== undefined) {
@@ -970,12 +997,138 @@ export class ExtensionsCommands extends BaseCommand {
 	}
 
 	/**
+	 * Каталоги расширений базы, которых в проекте ещё нет.
+	 *
+	 * Существующий каталог и каталог из tests/cfe не меняются.
+	 */
+	private async catalogsFromNames(
+		workspaceRoot: string,
+		container: string,
+		names: readonly string[],
+		unknown: readonly string[],
+		opts: CommandExecutionOptions | undefined
+	): Promise<{ text: string } | { error: string; level: 'info' | 'error'; quiet?: boolean }> {
+		const invalid = names.find((name) => !isUsableExtensionFolderName(name));
+		if (invalid !== undefined) {
+			return { error: `Нельзя создать каталог «${invalid}»`, level: 'error' };
+		}
+
+		const paths = await this.paths();
+		const known = [
+			...extensionEntries(paths, 'solution'),
+			...extensionEntries(paths, 'tests'),
+		];
+		const dirs: string[] = [];
+		for (const name of names) {
+			if (findExtension(known, name) !== undefined) {
+				continue;
+			}
+			const dir = path.join(container, name).split(path.sep).join('/');
+			try {
+				await fs.stat(path.resolve(workspaceRoot, dir));
+			} catch (error) {
+				if ((error as NodeJS.ErrnoException).code !== 'ENOENT') {
+					log.error(`Каталоги расширений: ${(error as Error).message}`);
+					return { error: `Не удалось проверить каталог «${dir}»`, level: 'error' };
+				}
+				dirs.push(dir);
+			}
+		}
+
+		for (const dir of dirs) {
+			const absolute = path.resolve(workspaceRoot, dir);
+			if (!(await this.ensureDirectoryForExecution(absolute, opts, `Ошибка при создании папки ${dir}`))) {
+				return { error: `Не удалось создать каталог ${dir}`, level: 'error', quiet: true };
+			}
+		}
+		return { text: catalogsCreatedText(dirs, unknown) };
+	}
+
+	/**
+	 * Создаёт каталоги расширений, которые есть в базе и отсутствуют в проекте.
+	 *
+	 * Человеку сначала предлагается каталог, агент пишет в src/cfe. Каталоги из
+	 * tests/cfe и уже известные расширения не затрагиваются.
+	 *
+	 * @param opts - Опции выполнения
+	 * @returns Результат агенту либо undefined после сообщения в UI
+	 */
+	async initializeFromIb(opts?: CommandExecutionOptions): Promise<StructuredCommandResult | void> {
+		const workspaceRoot = await this.beginIbExport(opts);
+		if (workspaceRoot === undefined || typeof workspaceRoot !== 'string') {
+			return workspaceRoot;
+		}
+
+		const container = opts?.wait === true
+			? CONVENTIONAL_PATHS.cfe
+			: await this.pickOutputPath(CONVENTIONAL_PATHS.cfe, 'Каталог расширений');
+		if (container === undefined) {
+			return;
+		}
+
+		const commandName = getInitializeExtensionsFromIbCommandName();
+		const listed = await this.listExtensionNamesFromInfobase(workspaceRoot, opts);
+		if ('error' in listed) {
+			return this.reportExportPrepareFailure(listed.error, opts, listed.level);
+		}
+		if (listed.names.length === 0) {
+			return this.reportExportPrepareFailure('В информационной базе нет расширений', opts, 'info');
+		}
+
+		const paths = await this.paths();
+		const testCatalogs = new Set(
+			(await designerTestCatalogNames(workspaceRoot, paths)).map((name) => name.toLowerCase())
+		);
+		const ib = listed.names
+			.filter((name) => !testCatalogs.has(name.toLowerCase()))
+			.map((name) => ({ folder: name, name }));
+		if (ib.length === 0) {
+			return this.reportExportPrepareFailure('В информационной базе нет расширений', opts, 'info');
+		}
+		const selected = await this.selectExtensions(ib, opts);
+		if (selected === undefined) {
+			return;
+		}
+		if (selected.length === 0) {
+			return this.reportEmptySelection(
+				`Расширений ${emptySelectionSource('solution', opts)} в базе нет`,
+				opts
+			);
+		}
+
+		const requested = normalizeConfiguredExtensions(opts?.extensions);
+		const unknown = requested.filter((wanted) => findExtension(
+			listed.names.map((name) => ({ folder: name, name })),
+			wanted
+		) === undefined);
+		const settled = await this.catalogsFromNames(
+			workspaceRoot,
+			container,
+			selected.map((extension) => extension.name),
+			unknown,
+			opts
+		);
+		if ('error' in settled) {
+			if (settled.quiet) {
+				return opts?.wait === true ? this.executionError(settled.error) : undefined;
+			}
+			return this.reportExportPrepareFailure(settled.error, opts, settled.level);
+		}
+		log.info(settled.text);
+		if (opts?.wait === true) {
+			return { success: true, exitCode: 0, stdout: settled.text, stderr: '' };
+		}
+		await showTextTask(commandName.title, settled.text, workspaceRoot);
+		return undefined;
+	}
+
+	/**
 	 * Выгружает расширения из информационной базы в исходники
 	 *
-	 * Если в раскладке уже есть расширения — выгружает выбранные в их каталоги:
-	 * у проекта EDT это сам проект. Если расширений ещё нет (проект только что
-	 * инициализирован), берёт имена из информационной базы, заводит каталоги и
-	 * выгружает в них.
+	 * Если в раскладке уже есть расширения, выгружает выбранные в их каталоги:
+	 * у проекта EDT это сам проект. Пустые каталоги, заведённые под расширения
+	 * базы, тоже участвуют. Если каталогов нет совсем, берёт имена из
+	 * информационной базы, заводит каталоги и выгружает в них.
 	 *
 	 * @returns Промис, который разрешается после запуска команд
 	 */
@@ -1012,9 +1165,9 @@ export class ExtensionsCommands extends BaseCommand {
 	/**
 	 * Выгружает расширение из информационной базы в .cfe файл
 	 *
-	 * Если в исходниках есть каталоги — выгружает выбранные. Если каталогов
-	 * нет, берёт имена из информационной базы: для *.cfe папки исходников
-	 * не нужны.
+	 * Если в исходниках есть каталоги, выгружает выбранные, включая пустые
+	 * каталоги под расширения базы. Если каталогов нет совсем, берёт имена
+	 * из информационной базы: для *.cfe папки исходников не нужны.
 	 *
 	 * @returns Промис, который разрешается после запуска команд
 	 */

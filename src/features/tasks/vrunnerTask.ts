@@ -251,3 +251,48 @@ export function createVRunnerTask(params: VRunnerTaskParams): vscode.Task {
 
 	return task;
 }
+
+/**
+ * Задача, которая пишет готовый текст в терминал.
+ *
+ * @param name - Заголовок задачи
+ * @param text - Текст
+ * @param root - Корень проекта
+ */
+export async function showTextTask(name: string, text: string, root?: string): Promise<void> {
+	const project = root ?? currentRoot();
+	const scope = (project === undefined ? undefined : workspaceFolderOf(project)) ?? vscode.TaskScope.Workspace;
+	const execution = new vscode.CustomExecution(async () => {
+		const writeEmitter = new vscode.EventEmitter<string>();
+		const closeEmitter = new vscode.EventEmitter<number>();
+		return {
+			onDidWrite: writeEmitter.event,
+			onDidClose: closeEmitter.event,
+			open() {
+				const startedAt = Date.now();
+				if (project !== undefined) {
+					rememberTaskProject({ name, source: VRUNNER_TASK_SOURCE }, project);
+				}
+				const body = text.endsWith('\n') ? text : `${text}\n`;
+				writeEmitter.fire(body.replace(/\r?\n/g, '\r\n'));
+				signalTaskFinished({ name, exitCode: 0, durationMs: Date.now() - startedAt });
+				closeEmitter.fire(0);
+			},
+			close() {},
+		};
+	});
+	const task = new vscode.Task(
+		{ type: VRUNNER_TASK_TYPE, command: name, ...(project === undefined ? {} : { project }) },
+		scope,
+		name,
+		VRUNNER_TASK_SOURCE,
+		execution
+	);
+	task.presentationOptions = {
+		reveal: vscode.TaskRevealKind.Always,
+		panel: vscode.TaskPanelKind.Shared,
+		clear: true,
+		showReuseMessage: false,
+	};
+	await vscode.tasks.executeTask(task);
+}

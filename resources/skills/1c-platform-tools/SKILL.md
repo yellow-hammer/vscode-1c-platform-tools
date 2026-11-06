@@ -63,6 +63,7 @@ description: "Операции с платформой 1С в этом прое�
 
 | Задача | Command ID | MCP |
 |---|---|---|
+| Инициализировать каталоги из базы | `1c-platform-tools.cfe.initializeFromIb` | `cfe_initFromIb` |
 | Загрузить из исходного кода | `1c-platform-tools.cfe.load` | `cfe_load` |
 | Загрузить из objlist.txt | `1c-platform-tools.cfe.loadByList` | `cfe_loadByList` |
 | Загрузить из *.cfe | `1c-platform-tools.cfe.loadFile` | `cfe_loadFile` |

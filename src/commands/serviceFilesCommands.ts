@@ -343,9 +343,10 @@ export class ServiceFilesCommands extends BaseCommand {
 	}
 
 	/**
-	 * Создаёт рекомендованный набор служебных файлов (только отсутствующие)
+	 * Создаёт рекомендованный набор служебных файлов (только отсутствующие).
+	 * Профиль пишется со всеми секциями команд.
 	 */
-	async createRecommendedSet(nonInteractive = false): Promise<void> {
+	async createRecommendedSet(): Promise<void> {
 		const workspaceRoot = this.ensureWorkspace();
 		if (!workspaceRoot) {
 			return;
@@ -362,11 +363,8 @@ export class ServiceFilesCommands extends BaseCommand {
 			profilePath = path.join(workspaceRoot, profileName);
 			if (!fsSync.existsSync(profilePath)) {
 				profileContent = schema === 'v3'
-					? await buildAutumnPropertiesWithSections(nonInteractive)
-					: await buildEnvJsonWithSections(nonInteractive);
-				if (profileContent === undefined) {
-					return;
-				}
+					? await buildAutumnPropertiesWithSections(true)
+					: await buildEnvJsonWithSections(true);
 			}
 		}
 		const created: string[] = [];

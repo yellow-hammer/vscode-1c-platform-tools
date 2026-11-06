@@ -1589,6 +1589,11 @@
         "category": "1С: Конфигурация"
       },
       {
+        "command": "1c-platform-tools.cfe.initializeFromIb",
+        "title": "Инициализировать расширения из ИБ",
+        "category": "1С: Расширения"
+      },
+      {
         "command": "1c-platform-tools.cfe.load",
         "title": "Загрузить расширения из исходного кода",
         "category": "1С: Расширения"

@@ -60,7 +60,7 @@ description: Инструменты MCP сервера mcp-1c-platform-tools. И
 
 Явный `settingsFile` отменяет перекрытия активного профиля и не отменяет `ibConnection`. Явный `ibConnection` убирает из перекрытий подключение, пользователя и пароль и передаётся в команду. Замечания приходят в stdout строками `[контекст]`, в том числе «Подключение из вызова: …». Длинный вывод в ответе обрезается до хвоста: первая строка `[начало вывода пропущено: N символов]`.
 
-Отдельные параметры есть только у своих команд: `sha` у `cf_loadInc`, `updateDb` у `cf_load`, `cf_loadInc`, `cf_loadFile`, `cf_loadByList` и `cfe_load`, `extensions` у `cfe_load`, `cfe_loadFile`, `cfe_loadByList`, `cfe_dump`, `cfe_unload`, `cfe_compile`, `cfe_decompile`, `cfe_convert`, `cfe_updateDb`, `cfe_borrowObject`, `test_loadExts`, `test_dumpExts`, `test_compileExts` и `test_decompileExts`, `outputDirectory` и `outputName` у `cf_unload`, `cf_compile`, `cf_makeDist`, `cfe_unload`, `cfe_compile`, `epf_compileProc` и `epf_compileReport`, `profile` у `env_selectProfile` и `pipelines_run`, `environment` у `env_selectEnvironment` и `pipelines_run`, `frameworks` у `test_configure`, `execute` и `command` у `run_enterprise` и `epf_run`, `pipeline` у `pipelines_run`, `dependencyTarget` и `packageName` у `deps_upgrade`. Параметры сеанса — в разделе «Сеансы», параметры OData — у `odata_query` и `odata_setup`.
+Отдельные параметры есть только у своих команд: `sha` у `cf_loadInc`, `updateDb` у `cf_load`, `cf_loadInc`, `cf_loadFile`, `cf_loadByList` и `cfe_load`, `extensions` у `cfe_initFromIb`, `cfe_load`, `cfe_loadFile`, `cfe_loadByList`, `cfe_dump`, `cfe_unload`, `cfe_compile`, `cfe_decompile`, `cfe_convert`, `cfe_updateDb`, `cfe_borrowObject`, `test_loadExts`, `test_dumpExts`, `test_compileExts` и `test_decompileExts`, `outputDirectory` и `outputName` у `cf_unload`, `cf_compile`, `cf_makeDist`, `cfe_unload`, `cfe_compile`, `epf_compileProc` и `epf_compileReport`, `profile` у `env_selectProfile` и `pipelines_run`, `environment` у `env_selectEnvironment` и `pipelines_run`, `frameworks` у `test_configure`, `execute` и `command` у `run_enterprise` и `epf_run`, `pipeline` у `pipelines_run`, `dependencyTarget` и `packageName` у `deps_upgrade`. Параметры сеанса — в разделе «Сеансы», параметры OData — у `odata_query` и `odata_setup`.
 
 `outputName` — имя файла без расширения. Переменные: `${name}`, `${folder}`, `${version}`, `${gitBranch}`. Одно имя без переменных на несколько объектов команду не запускает.
 
@@ -88,8 +88,11 @@ description: Инструменты MCP сервера mcp-1c-platform-tools. И
 
 `extensions` — имя каталога, путь от корня проекта или имя из метаданных. Явный список окно не открывает и сохранённый выбор не меняет. Без параметра сначала берётся непустая настройка (`1c-platform-tools.cfe.selected` у расширений решения, `1c-platform-tools.test.cfe.selected` у тестовых), иначе сохранённый выбор проекта, а если он пуст или уже не подходит составу — все расширения.
 
+`cfe_initFromIb` создаёт каталоги расширений базы, которых нет в проекте. Без `extensions` список базы проходит тот же выбор: настройка `1c-platform-tools.cfe.selected`, затем сохранённый выбор, иначе все. В `extensions` имя расширения в базе.
+
 | Инструмент | Command ID | wait: true | Параметры |
 |---|---|---|---|
+| `cfe_initFromIb` | `1c-platform-tools.cfe.initializeFromIb` | результат | `extensions` |
 | `cfe_load` | `1c-platform-tools.cfe.load` | результат | `extensions`, `updateDb` |
 | `cfe_loadFile` | `1c-platform-tools.cfe.loadFile` | результат | `extensions` |
 | `cfe_loadByList` | `1c-platform-tools.cfe.loadByList` | отказ | «Частичная загрузка расширений по objlist — несколько шагов; wait: true недоступен» |
