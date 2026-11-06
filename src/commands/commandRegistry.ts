@@ -232,11 +232,11 @@ export function registerCommands(
 		registerProjectCommand('1c-platform-tools.serviceFiles.createEnvJson', () =>
 			commands.serviceFiles.createEnvJson()
 		),
-		registerProjectCommand('1c-platform-tools.serviceFiles.createRecommendedSet', (opts?: unknown) =>
-			commands.serviceFiles.createRecommendedSet(isAgentOptions(opts))
+		registerProjectCommand('1c-platform-tools.serviceFiles.createRecommendedSet', () =>
+			commands.serviceFiles.createRecommendedSet()
 		),
-		registerProjectCommand('1c-platform-tools.serviceFiles.baseSetReady', (opts?: unknown) =>
-			commands.serviceFiles.createRecommendedSet(isAgentOptions(opts))
+		registerProjectCommand('1c-platform-tools.serviceFiles.baseSetReady', () =>
+			commands.serviceFiles.createRecommendedSet()
 		),
 		registerProjectCommand('1c-platform-tools.serviceFiles.linkVrunner', (relPath?: unknown) =>
 			commands.serviceFiles.linkVrunner(relPath)
