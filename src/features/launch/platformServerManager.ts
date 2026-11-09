@@ -37,6 +37,7 @@ import { loadProjectMetadataTree } from '../metadata/metadataTreeService';
 import { extractPublishableServices, readHttpServiceRoots, PublishableService, PublishableServices } from './serverServices';
 import type { InfobaseHolder } from '../../shared/exclusiveInfobase';
 import { projectConfiguration } from '../../shared/projectConfiguration';
+import { BUILD_SUBDIRS, DEFAULT_PATHS } from '../../shared/pathDefaults';
 import { projectMemento, SERVER_PUBLICATION_STATE } from '../../shared/projectState';
 import { currentRoot, runWithProject, sameProjectRoot } from '../../shared/workspaceProjects';
 import { projectLabel } from '../../commands/projectScope';
@@ -128,7 +129,6 @@ interface ServerSettings extends ServerArgsSettings {
 	host: string;
 	port: number;
 	httpBase: string;
-	dataPath: string;
 	distributeLicenses: boolean;
 	publication: PublicationOptions;
 }
@@ -264,7 +264,7 @@ export class PlatformServerManager {
 	public async previewUrls(workspaceRoot: string | undefined = currentRoot()): Promise<ServerUrls> {
 		const settings = this.readSettings(workspaceRoot);
 		if (workspaceRoot) {
-			const params = await this.readConfigParams(this.getConfigPath(workspaceRoot, settings), settings);
+			const params = await this.readConfigParams(this.getConfigPath(workspaceRoot), settings);
 			return buildServerUrls(params.host, params.port, params.base);
 		}
 		return buildServerUrls(settings.host, settings.port, settings.httpBase);
@@ -379,7 +379,7 @@ export class PlatformServerManager {
 		if (!ibPath) {
 			return;
 		}
-		const dataDir = this.getDataDir(workspaceRoot, settings);
+		const dataDir = this.getDataDir(workspaceRoot);
 		if (!(await this.freeDataDir(dataDir))) {
 			return;
 		}
@@ -570,7 +570,7 @@ export class PlatformServerManager {
 			return;
 		}
 		const settings = this.readSettings(workspaceRoot);
-		const configPath = this.getConfigPath(workspaceRoot, settings);
+		const configPath = this.getConfigPath(workspaceRoot);
 
 		if (!(await fileExists(configPath))) {
 			const ibPath = await this.resolveFileInfobasePath(workspaceRoot, true);
@@ -639,7 +639,6 @@ export class PlatformServerManager {
 			host: config.get<string>('server.host', 'localhost'),
 			port: config.get<number>('server.port', 8314),
 			httpBase: config.get<string>('server.httpBase', 'ib'),
-			dataPath: config.get<string>('server.path.data', ''),
 			distributeLicenses: config.get<boolean>('server.distributeLicenses', true),
 			debug: config.get<boolean>('server.debug', false),
 			debugPort: config.get<number>('server.debugPort', 1550),
@@ -741,7 +740,7 @@ export class PlatformServerManager {
 			return;
 		}
 		const settings = this.readSettings(workspaceRoot);
-		const configPath = this.getConfigPath(workspaceRoot, settings);
+		const configPath = this.getConfigPath(workspaceRoot);
 		const published = await fs.readFile(configPath, 'utf8').then(parseServerConfigParams, () => undefined);
 		if (!published) {
 			return;
@@ -848,18 +847,18 @@ export class PlatformServerManager {
 	}
 
 	/**
-	 * Каталог данных сервера: настройка `server.dataPath` либо `build/ibsrv`
-	 * в корне проекта (по умолчанию, попадает в .gitignore вместе с build/).
+	 * Каталог данных сервера: подкаталог ibsrv каталога сборки.
+	 *
+	 * @param workspaceRoot - Корень проекта
 	 */
-	private getDataDir(workspaceRoot: string, settings: ServerSettings): string {
-		return settings.dataPath
-			? path.resolve(workspaceRoot, settings.dataPath)
-			: path.join(workspaceRoot, 'build', 'ibsrv');
+	private getDataDir(workspaceRoot: string): string {
+		const out = projectConfiguration(workspaceRoot).get<string>('path.out', DEFAULT_PATHS.out);
+		return path.join(workspaceRoot, out, BUILD_SUBDIRS.ibsrv);
 	}
 
 	/** Путь к файлу конфига публикации. */
-	private getConfigPath(workspaceRoot: string, settings: ServerSettings): string {
-		return path.join(this.getDataDir(workspaceRoot, settings), 'publication.yaml');
+	private getConfigPath(workspaceRoot: string): string {
+		return path.join(this.getDataDir(workspaceRoot), 'publication.yaml');
 	}
 
 	/**

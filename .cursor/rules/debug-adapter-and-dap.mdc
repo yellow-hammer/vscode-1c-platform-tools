@@ -31,7 +31,7 @@ alwaysApply: false
 - Для отладки DAP использует строку подключения к ИБ из `env.json`:
   - в `default["--ibconnection"]` должна быть строка `/F...` или `/S...`;
   - в `resolveDebugConfiguration` строка валидируется, и для `/F` путь нормализуется относительно `workspaceFolder`.
-- Настройки путей (`1c-platform-tools.paths.cf`, `paths.cfe`, `paths.out`, `paths.dist` и др.) должны быть согласованы:
+- Настройка `1c-platform-tools.path.out` и пути выгрузки в профиле должны быть согласованы:
   - VRunner (`VRunnerManager`) использует их для сборки и выгрузки конфигурации/расширений;
   - DAP ожидает, что `rootProject` и `extensions` указывают на те же выгрузки, которые использует VRunner.
 

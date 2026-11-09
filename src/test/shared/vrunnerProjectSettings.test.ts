@@ -15,7 +15,6 @@ suite('настройки проекта в командах vrunner', () => {
 	const root = path.resolve('/w/проект-с-настройками-папки');
 	const folderValues: Record<string, string> = {
 		'path.out': 'out',
-		'path.dist': 'dist',
 		'vrunner.path.initSettings': 'tools/init.folder.json',
 		'env.defaultProfile': 'ci',
 	};
@@ -45,13 +44,13 @@ suite('настройки проекта в командах vrunner', () => {
 
 		assert.deepStrictEqual(await vrunner.runWithProjectRoot(root, async () => read()), [
 			'out',
-			'dist',
+			'out/dist',
 			'tools/init.folder.json',
 			'ci',
 		]);
 		assert.deepStrictEqual(await vrunner.runWithProjectRoot(path.resolve('/w/другой-проект'), async () => read()), [
 			DEFAULT_PATHS.out,
-			DEFAULT_PATHS.dist,
+			`${DEFAULT_PATHS.out}/dist`,
 			DEFAULT_VRUNNER.initSettingsPath,
 			DEFAULT_ENV.defaultProfile || DEFAULT_PROFILE_ID,
 		]);

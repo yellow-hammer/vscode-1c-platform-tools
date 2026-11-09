@@ -448,7 +448,6 @@ suite('настройки, которые задают программу или
 		'notifications.onCommandFinish': 'уведомление о завершении команды',
 		'vrunner.path.initSettings': 'файл настроек инициализации, не программа',
 		'path.out': 'каталог сборки',
-		'path.dist': 'каталог поставки',
 		'path.onescriptTasks': 'каталог задач',
 		'projects.path.baseFolders': 'каталоги поиска проектов',
 		'projects.path.storage': 'файл списка проектов',
@@ -469,7 +468,6 @@ suite('настройки, которые задают программу или
 		'test.onescriptRunner': 'выбор из известных раннеров, не путь',
 		'server.port': 'порт публикации своего сервера',
 		'server.directRegPort': 'порт публикации своего сервера',
-		'server.path.data': 'каталог данных сервера',
 		'server.debugPort': 'порт отладки своего сервера',
 		'clusters.autoRefresh.enabled': 'период обновления дерева кластеров',
 	};

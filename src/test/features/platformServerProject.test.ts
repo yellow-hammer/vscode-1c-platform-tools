@@ -62,7 +62,7 @@ suite('автономный сервер в проектах', () => {
 			await profileChanged();
 			assert.strictEqual(fs.existsSync(path.join(root, 'build')), false);
 
-			const config = path.join(root, 'build', 'ibsrv', 'publication.yaml');
+			const config = path.join(root, 'build', 'out', 'ibsrv', 'publication.yaml');
 			const infobase = path.join(root, 'build', 'ib');
 			const edited = `server:\n  address: localhost\n  port: 9000\ndatabase:\n  path: ${infobase}\n# ручная правка\n`;
 			fs.mkdirSync(path.dirname(config), { recursive: true });

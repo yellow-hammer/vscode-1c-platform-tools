@@ -62,7 +62,7 @@ export class SupportCommands extends BaseCommand {
 
 	/**
 	 * Обновление конфигурации, находящейся на поддержке (UpdateCfg).
-	 * Предлагает выбрать cf/cfu и файл настроек из каталога шаблонов (path.dist),
+	 * Предлагает выбрать cf/cfu и файл настроек из каталога поставки,
 	 * затем окно выбора опций объединения.
 	 */
 	async updateCfg(): Promise<void> {
@@ -152,7 +152,7 @@ export class SupportCommands extends BaseCommand {
 
 	/**
 	 * Создать файл списка шаблонов конфигураций (/CreateTemplateListFile).
-	 * Предлагает сохранить файл (по умолчанию в path.dist) и опционально указать каталог поиска шаблонов.
+	 * Предлагает сохранить файл (по умолчанию в каталог поставки) и опционально указать каталог поиска шаблонов.
 	 */
 	async createTemplateListFile(): Promise<void> {
 		const workspaceRoot = this.ensureWorkspace();
@@ -214,7 +214,7 @@ export class SupportCommands extends BaseCommand {
 
 	/**
 	 * Создать файл описания комплекта поставки (edf) по шаблону, заполняя его из Configuration.xml.
-	 * Версия и каталог: build/dist/&lt;версия&gt;/; имя файла по умолчанию: Комплект.edf.
+	 * Версия и каталог: каталог поставки/&lt;версия&gt;/; имя файла по умолчанию: Комплект.edf.
 	 */
 	/**
 	 * Описание активной конфигурации: `Configuration.xml` выгрузки либо `Configuration.mdo` проекта EDT.
@@ -253,7 +253,7 @@ export class SupportCommands extends BaseCommand {
 
 		const suggestedVersion = props.version?.trim() || '1.0.0';
 		const version = await vscode.window.showInputBox({
-			prompt: 'Версия (каталог build/dist/<версия>, из описания конфигурации или введите вручную)',
+			prompt: 'Версия из описания конфигурации или введите вручную',
 			value: suggestedVersion,
 			placeHolder: '1.0.0.1'
 		});
@@ -306,7 +306,7 @@ export class SupportCommands extends BaseCommand {
 
 	/**
 	 * Создать комплект поставки по описанию (/CreateDistributivePackage).
-	 * Сначала выбор режима (MakeSetup/MakeFiles), затем версия из Configuration.xml и выбор файла .edf в build/dist/&lt;версия&gt;.
+	 * Сначала выбор режима (MakeSetup/MakeFiles), затем версия из Configuration.xml и выбор файла .edf в каталоге поставки/&lt;версия&gt;.
 	 */
 	async createDistributivePackage(): Promise<void> {
 		const workspaceRoot = this.ensureWorkspace();
@@ -387,7 +387,7 @@ export class SupportCommands extends BaseCommand {
 
 	/**
 	 * Создать файлы поставки и обновления (/CreateDistributionFiles).
-	 * Варианты: cf, cf+cfu, cfu. Версия из Configuration.xml; результат в build/dist/&lt;версия&gt;/ (1Cv8.cf и/или 1Cv8.cfu).
+	 * Варианты: cf, cf+cfu, cfu. Версия из Configuration.xml; результат в каталоге поставки/&lt;версия&gt;/ (1Cv8.cf и/или 1Cv8.cfu).
 	 * Для cf+cfu и cfu предыдущие версии с 1Cv8.cf подставляются в -f автоматически.
 	 */
 	async createDistributionFiles(): Promise<void> {
@@ -449,7 +449,7 @@ export class SupportCommands extends BaseCommand {
 		);
 		if (requirePreviousVersions && previousVersions.length === 0) {
 			void vscode.window.showErrorMessage(
-				noPreviousVersionsWarning ?? 'Для создания cfu нужны предыдущие версии с файлом 1Cv8.cf в build/dist.'
+				noPreviousVersionsWarning ?? 'Для создания cfu нужны предыдущие версии с файлом 1Cv8.cf в каталоге поставки.'
 			);
 			return;
 		}
@@ -480,7 +480,7 @@ export class SupportCommands extends BaseCommand {
 		if (mode === 'cf+cfu') {
 			let param = ' /CreateDistributionFiles -cffile "' + cfRelative + '"';
 			if (previousVersions.length === 0) {
-				return { additionalParam: param, noPreviousVersionsWarning: 'В build/dist нет предыдущих версий с файлом 1Cv8.cf; создаётся только cf.' };
+				return { additionalParam: param, noPreviousVersionsWarning: 'В каталоге поставки нет предыдущих версий с файлом 1Cv8.cf; создаётся только cf.' };
 			}
 			param += ' -cfufile "' + cfuRelative + '"';
 			for (const rel of previousVersions) {
@@ -489,7 +489,7 @@ export class SupportCommands extends BaseCommand {
 			return { additionalParam: param };
 		}
 		const cfuNoBaseMsg =
-			'Для создания только cfu нужны предыдущие версии с файлом 1Cv8.cf в build/dist. Добавьте каталоги версий с полной поставкой (1Cv8.cf).';
+			'Для создания только cfu нужны предыдущие версии с файлом 1Cv8.cf в каталоге поставки.';
 		if (previousVersions.length === 0) {
 			return {
 				additionalParam: ' /CreateDistributionFiles -cfufile "' + cfuRelative + '"',
@@ -526,7 +526,7 @@ export class SupportCommands extends BaseCommand {
 	}
 
 	/**
-	 * Возвращает относительные пути к 1Cv8.cf в подкаталогах build/dist, кроме текущей версии (для -f при создании cfu).
+	 * Возвращает относительные пути к 1Cv8.cf в подкаталогах каталога поставки, кроме текущей версии (для -f при создании cfu).
 	 * Поиск файла поставки — регистронезависимый; в результате всегда используется каноническое имя 1Cv8.cf.
 	 * Подкаталоги сортируются по имени (версии), чтобы старые версии шли первыми.
 	 */

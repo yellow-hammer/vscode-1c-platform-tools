@@ -4670,12 +4670,6 @@
             "scope": "resource",
             "markdownDescription": "Каталог задач OneScript относительно корня проекта. Файлы `.os` из него показываются в дереве метаданных и запускаются как задачи. По умолчанию `tasks`."
           },
-          "1c-platform-tools.path.dist": {
-            "type": "string",
-            "default": "build/dist",
-            "scope": "resource",
-            "description": "Каталог хранения шаблонов (cf, cfu, файлы настроек объединения). Используется в группе «Поддержка» при выборе файлов."
-          },
           "1c-platform-tools.cfe.selected": {
             "type": "array",
             "items": {
@@ -5193,12 +5187,6 @@
             "pattern": "^$|^[0-9]{1,5}:[0-9]{1,5}$",
             "patternErrorMessage": "Укажите диапазон в формате нижний:верхний, например 1660:1691.",
             "description": "Диапазон портов прямого соединения (--direct-range) в формате нижний:верхний. Пусто: умолчание платформы 1560:1591."
-          },
-          "1c-platform-tools.server.path.data": {
-            "type": "string",
-            "default": "",
-            "scope": "resource",
-            "description": "Каталог данных автономного сервера (сеансовые данные, журнал, конфиг публикации publication.yaml). Относительный путь считается от корня проекта. Пусто: build/ibsrv в корне проекта."
           },
           "1c-platform-tools.server.distributeLicenses": {
             "type": "boolean",

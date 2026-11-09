@@ -8,7 +8,7 @@
  * Формат единый: относительный путь от корня проекта без ведущего `./`.
  */
 
-/** Привычные места исходного кода и дефолты настроек path.out и path.dist */
+/** Привычные места исходного кода и дефолт настройки path.out */
 export const DEFAULT_PATHS = {
 	/** Привычное место исходного кода конфигурации */
 	cf: 'src/cf',
@@ -19,9 +19,7 @@ export const DEFAULT_PATHS = {
 	/** Привычное место внешних отчётов */
 	erf: 'src/erf',
 	/** Результаты сборки (path.out) */
-	out: 'build/out',
-	/** Каталог шаблонов поставки (path.dist) */
-	dist: 'build/dist'
+	out: 'build/out'
 } as const;
 
 /**
@@ -87,7 +85,13 @@ export const BUILD_SUBDIRS = {
 	/** jUnit-отчёты тестов OneScript: build/out/onescript */
 	onescript: 'onescript',
 	/** Собранные пакеты OneScript: build/out/ospx */
-	packages: 'ospx'
+	packages: 'ospx',
+	/** Временные файлы прогона панели: build/out/testapi */
+	testapi: 'testapi',
+	/** Шаблоны поставки: build/out/dist */
+	dist: 'dist',
+	/** Данные автономного сервера: build/out/ibsrv */
+	ibsrv: 'ibsrv'
 } as const;
 
 /** Дефолты путей группы 1c-platform-tools.test.* */
@@ -125,7 +129,6 @@ export const DEFAULT_ENV = {
  */
 export const SETTING_DEFAULTS: ReadonlyArray<{ readonly key: string; readonly value: string }> = [
 	{ key: '1c-platform-tools.path.out', value: DEFAULT_PATHS.out },
-	{ key: '1c-platform-tools.path.dist', value: DEFAULT_PATHS.dist },
 	{ key: '1c-platform-tools.test.directoryName', value: DEFAULT_TESTING.directoryName },
 	{ key: '1c-platform-tools.test.path.features', value: DEFAULT_TESTING.featuresPath },
 	{ key: '1c-platform-tools.test.path.onescriptTests', value: DEFAULT_TESTING.onescriptTestsPath },

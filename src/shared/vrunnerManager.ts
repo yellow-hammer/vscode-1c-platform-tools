@@ -37,7 +37,7 @@ import { logger } from './logger';
 import { setTerminalOscriptBinDir } from './terminalEnv';
 import { dockerCommandRun, dockerContainerName } from './dockerRun';
 import { runCancellableCommand, CancellableProcessResult, type CommandRun } from './cancellableProcess';
-import { DEFAULT_PATHS, DEFAULT_VRUNNER, DEFAULT_ENV } from './pathDefaults';
+import { BUILD_SUBDIRS, DEFAULT_PATHS, DEFAULT_VRUNNER, DEFAULT_ENV } from './pathDefaults';
 import {
 	engineFileKey,
 	envName,
@@ -510,15 +510,12 @@ export class VRunnerManager {
 	}
 
 	/**
-	 * Получает путь к каталогу хранения шаблонов (cf, cfu, настройки объединения и т.д.)
+	 * Каталог шаблонов поставки: подкаталог dist каталога сборки.
 	 *
-	 * Путь берётся из настроек VS Code (1c-platform-tools.path.dist).
-	 * По умолчанию: 'build/dist'
-	 *
-	 * @returns Путь к каталогу шаблонов (относительно workspace)
+	 * @returns Путь относительно корня проекта
 	 */
 	public getDistPath(): string {
-		return projectConfiguration(this.getEffectiveRoot()).get<string>('path.dist', DEFAULT_PATHS.dist);
+		return path.posix.join(this.getOutPath().replace(/\\/g, '/'), BUILD_SUBDIRS.dist);
 	}
 
 
