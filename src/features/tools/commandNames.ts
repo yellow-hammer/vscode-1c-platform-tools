@@ -572,8 +572,8 @@ export function getMutationTestingCommandName(): CommandNameAndTitle {
 export function getOneScriptTestsCommandName(): CommandNameAndTitle {
 	return {
 		id: '1c-platform-tools.test.onescript',
-		name: 'Тесты OneScript',
-		title: 'Тесты OneScript'
+		name: 'OneScript тесты',
+		title: 'OneScript тесты'
 	};
 }
 

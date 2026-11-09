@@ -14,8 +14,8 @@ description: Тестирование 1С и OneScript. Используй, ко
 | xUnit | `1c-platform-tools.test.xunit` | `test_xunit` | результат |
 | Vanessa | `1c-platform-tools.test.vanessa` | `test_vanessa` | результат |
 | YAxUnit | `1c-platform-tools.test.yaxunit` | `test_yaxunit` | результат |
+| OneScript тесты | `1c-platform-tools.test.onescript` | `test_onescript` | результат |
 | Мутационное тестирование | `1c-platform-tools.test.mutatos` | `test_mutatos` | результат |
-| Тесты OneScript | `1c-platform-tools.test.onescript` | `test_onescript` | результат |
 | Синтаксический контроль | `1c-platform-tools.syntaxCheck.run` | `syntaxCheck_run` | результат |
 | Обновить ошибки в Problems | `1c-platform-tools.syntaxCheck.refresh` | `syntaxCheck_refresh` | без исхода |
 | Очистить ошибки в Problems | `1c-platform-tools.syntaxCheck.clear` | `syntaxCheck_clear` | без исхода |
@@ -31,7 +31,7 @@ description: Тестирование 1С и OneScript. Используй, ко
 | Добавить YAxUnit | `1c-platform-tools.test.addYaxunit` | `test_addYaxunit` | результат |
 | Запустить EPF в Предприятии | `1c-platform-tools.epf.run` | `epf_run` | результат |
 
-## Тесты OneScript
+## OneScript тесты
 
 `test_onescript` прогоняет все тесты каталога тестов OneScript раннером проекта: OneUnit (`execute -d <каталог> -r`) или 1testrunner (`-runall <каталог>`), как в панели тестирования. Движок — движок проекта. jUnit-отчёт ложится в `build/out/onescript`, итог приходит в `tests`. Тесты OneUnit с тегами `&Тег` отбирает профиль панели тестирования «Запуск по тегам OneUnit», инструмента для него нет.
 

@@ -334,7 +334,7 @@ export const TREE_GROUPS: TreeGroup[] = [
 			{ command: '1c-platform-tools.edt.validate', title: getEdtValidateCommandName().title, treeLabel: '🧪 Проверка проекта EDT', formats: ['edt'], projects: ONEC },
 			{ command: '1c-platform-tools.test.vanessa', title: getVanessaTestsCommandName('normal').title, treeLabel: '🧪 Vanessa тесты', projects: ONEC },
 			{ command: '1c-platform-tools.test.yaxunit', title: getYAxUnitTestsCommandName().title, treeLabel: '🧪 YAxUnit тесты', projects: ONEC },
-			{ command: '1c-platform-tools.test.onescript', title: getOneScriptTestsCommandName().title, treeLabel: '🧪 Тесты OneScript', projects: PACKAGE },
+			{ command: '1c-platform-tools.test.onescript', title: getOneScriptTestsCommandName().title, treeLabel: '🧪 OneScript тесты' },
 			{ command: '1c-platform-tools.test.mutatos', title: getMutationTestingCommandName().title, treeLabel: '🧬 Мутационное тестирование' },
 			{ command: '1c-platform-tools.test.allure', title: getAllureReportCommandName().title, treeLabel: '📊 Отчёт Allure' },
 		],

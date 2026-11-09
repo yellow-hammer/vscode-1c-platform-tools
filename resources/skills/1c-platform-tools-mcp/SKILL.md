@@ -214,8 +214,8 @@ description: Инструменты MCP сервера mcp-1c-platform-tools. И
 | `test_xunit` | `1c-platform-tools.test.xunit` | результат |
 | `test_vanessa` | `1c-platform-tools.test.vanessa` | результат |
 | `test_yaxunit` | `1c-platform-tools.test.yaxunit` | результат |
-| `test_mutatos` | `1c-platform-tools.test.mutatos` | результат |
 | `test_onescript` | `1c-platform-tools.test.onescript` | результат |
+| `test_mutatos` | `1c-platform-tools.test.mutatos` | результат |
 | `syntaxCheck_run` | `1c-platform-tools.syntaxCheck.run` | результат |
 | `syntaxCheck_refresh` | `1c-platform-tools.syntaxCheck.refresh` | без исхода |
 | `syntaxCheck_clear` | `1c-platform-tools.syntaxCheck.clear` | без исхода |

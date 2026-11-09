@@ -167,8 +167,8 @@ description: "Операции с платформой 1С в этом прое�
 | xUnit | `1c-platform-tools.test.xunit` | `test_xunit` |
 | Vanessa | `1c-platform-tools.test.vanessa` | `test_vanessa` |
 | YAxUnit | `1c-platform-tools.test.yaxunit` | `test_yaxunit` |
+| OneScript тесты | `1c-platform-tools.test.onescript` | `test_onescript` |
 | Мутационное тестирование | `1c-platform-tools.test.mutatos` | `test_mutatos` |
-| Тесты OneScript (OneUnit, 1testrunner) | `1c-platform-tools.test.onescript` | `test_onescript` |
 | Синтаксический контроль | `1c-platform-tools.syntaxCheck.run` | `syntaxCheck_run` |
 | Обновить Problems | `1c-platform-tools.syntaxCheck.refresh` | `syntaxCheck_refresh` |
 | Очистить Problems | `1c-platform-tools.syntaxCheck.clear` | `syntaxCheck_clear` |
