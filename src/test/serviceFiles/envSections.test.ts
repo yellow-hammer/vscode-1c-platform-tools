@@ -6,6 +6,7 @@ import {
 	mergeAutumnSections,
 } from '../../features/serviceFiles/envSections';
 import { syntaxCheckJUnitPathFromEnv } from '../../features/testing/projectTestConfig';
+import { AUTUMN_DEFAULTS } from '../../features/serviceFiles/envDefaults';
 
 suite('serviceFiles/envSections', () => {
 	const base = { $schema: 'x', default: { '--v8version': '8.3' } };
@@ -48,6 +49,15 @@ suite('serviceFiles/envSections', () => {
 			Object.keys(result.vrunner.test.yaxunit),
 			['yaxunit-config', 'report-format', 'report-path', 'additional']
 		);
+	});
+
+	test('новый autumn-профиль собирает cf и cfe во временной базе', () => {
+		const vrunner = AUTUMN_DEFAULTS.vrunner;
+		assert.strictEqual(vrunner.cf.compile['temp-db'], true);
+		assert.strictEqual(vrunner.cfe.compile['temp-db'], true);
+		assert.strictEqual('decompile' in vrunner.cf, false);
+		assert.strictEqual('decompile' in vrunner.cfe, false);
+		assert.strictEqual('temp-db' in vrunner, false);
 	});
 
 	suite('autumn (v3)', () => {

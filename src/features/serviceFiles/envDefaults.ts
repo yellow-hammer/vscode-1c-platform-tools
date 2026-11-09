@@ -50,6 +50,16 @@ export const AUTUMN_DEFAULTS = {
 		language: 'ru',
 		additional: LAUNCH_ADDITIONAL,
 		ordinaryapp: '-1',
+		cf: {
+			compile: {
+				'temp-db': true,
+			},
+		},
+		cfe: {
+			compile: {
+				'temp-db': true,
+			},
+		},
 	},
 };
 

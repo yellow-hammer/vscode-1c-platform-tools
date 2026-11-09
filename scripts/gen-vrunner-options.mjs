@@ -15,7 +15,7 @@
  * (задача VS Code «Обновить каталоги опций vrunner»).
  *
  * Использование:
- *   node scripts/gen-vrunner-options.mjs --v3-ref v3.0.0       # скачать тег с GitHub
+ *   node scripts/gen-vrunner-options.mjs --v3-ref v3.1.0-rc1   # скачать тег с GitHub
  *   node scripts/gen-vrunner-options.mjs --v3-src <путь>       # локальный клон
  *   (без --v3-ref/--v3-src обновляется только каталог 2.x)
  */
@@ -36,6 +36,17 @@ const V2_SKIP_SECTIONS = new Set(['help', '--help', 'version']);
 /** Опция без содержательного описания (для выбора лучшего источника). */
 function isEmptyDescription(description) {
 	return !description || description.trim().length < 3;
+}
+
+/**
+ * Убирает из описания общую приписку про обязательность.
+ * В форме она ничего не добавляет: любая опция задаётся так же.
+ */
+function trimDescription(description) {
+	return description
+		.replace(/\.?\s*Обязательна:\s*задаётся в командной строке или в файле настроек\.?$/u, '')
+		.replace(/\.?\s*Обязательна\.?$/u, '')
+		.trim();
 }
 
 async function generateV2() {
@@ -297,6 +308,7 @@ function generateV3(srcRoot, v2Options) {
 				option.default = v2.default;
 			}
 		}
+		option.description = trimDescription(option.description);
 		return option;
 	};
 

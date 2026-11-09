@@ -92,7 +92,7 @@
 			"id": "vrunnerV3Ref",
 			"type": "promptString",
 			"description": "Тег vanessa-runner 3 для каталога опций (пусто — обновить только 2.x)",
-			"default": "v3.0.0"
+			"default": "v3.1.0-rc1"
 		}
 	]
 }
