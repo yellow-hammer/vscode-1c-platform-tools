@@ -4972,13 +4972,13 @@
             "type": "boolean",
             "default": true,
             "scope": "resource",
-            "description": "Скачивать portable JRE для дерева метаданных. Номер версии берётся из манифеста JAR md-sparrow. Выключите, если путь задан в components.path.java или java доступна в PATH."
+            "description": "Скачивать portable JRE для дерева метаданных и Allure. Номер версии берётся из манифеста JAR md-sparrow. Выключите, если путь задан в components.path.java или java доступна в PATH."
           },
           "1c-platform-tools.components.path.java": {
             "type": "string",
             "default": "",
             "scope": "resource",
-            "description": "Java: полный путь к java или javaw для дерева метаданных. Пусто: portable JRE из кэша либо java из PATH."
+            "description": "Java: полный путь к java или javaw для дерева метаданных и Allure. Пусто: portable JRE из кэша либо java из PATH."
           },
           "1c-platform-tools.components.autoload.ovm": {
             "type": "boolean",

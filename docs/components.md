@@ -12,7 +12,7 @@
 |-----------|---------------------|---------------------|----------|
 | Отладчик | архив [onec-debug-adapter](https://github.com/yellow-hammer/onec-debug-adapter/releases) для своей системы: `win-x64`, `linux-x64`, `osx-arm64`, `osx-x64`; внутри `OnecDebugAdapter.exe` | `components.path.adapter` | `components.autoload.adapter` |
 | Дерево метаданных | файл `md-sparrow-*-all.jar` из [релизов](https://github.com/yellow-hammer/md-sparrow/releases) | `components.path.metadataJar` | `components.autoload.metadataJar` |
-| Java для дерева | [Temurin JRE](https://adoptium.net/temurin/releases/?package=jre) версии из md-sparrow для своей системы; внутри `bin/java` | `components.path.java` | `components.autoload.java` |
+| Java для дерева и Allure | [Temurin JRE](https://adoptium.net/temurin/releases/?package=jre) версии из md-sparrow для своей системы; внутри `bin/java` | `components.path.java` | `components.autoload.java` |
 | OVM | файл `ovm.exe` из [релизов](https://github.com/oscript-library/ovm/releases) | `components.path.ovm` | `components.autoload.ovm` |
 | Allure | архив `allure-<версия>.zip` из [релизов](https://github.com/allure-framework/allure2/releases); внутри `bin/allure.bat` | `components.path.allure` | `components.autoload.allure` |
 | OneScript | архив [OneScript](https://github.com/EvilBeaver/OneScript/releases) для своей системы; внутри `bin/oscript.exe` | `components.path.oscript` | загрузки нет: [ставится через OVM](tools.md#установка-onescript) |

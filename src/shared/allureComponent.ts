@@ -21,8 +21,12 @@ import {
 	resolveGithubToken,
 	type ReleaseComponentSpec,
 } from './githubReleaseLoader';
+import { logger } from './logger';
+import { downloadPortableJre } from '../features/metadata/mdSparrowBootstrap';
 import { projectConfiguration } from './projectConfiguration';
 import { currentRoot } from './workspaceProjects';
+
+const log = logger.scope('components');
 
 /**
  * Релизы Allure: нужен архив `allure-<версия>.zip`, внутри которого лежит
@@ -103,6 +107,34 @@ export async function ensureAllure(context: vscode.ExtensionContext, root: strin
 		);
 	}
 	return binary;
+}
+
+/**
+ * JAVA_HOME для Allure: java из настроек либо portable JRE расширения.
+ *
+ * @param context - Контекст расширения
+ * @param root - Корень проекта
+ * @returns Каталог JRE или undefined, если своей Java нет
+ */
+export async function allureJavaHome(
+	context: vscode.ExtensionContext,
+	root: string | undefined = currentRoot(),
+): Promise<string | undefined> {
+	const override = projectConfiguration(root).get<string>('components.path.java', '').trim();
+	let java = override && !override.includes('${') && path.isAbsolute(override) ? override : undefined;
+	if (!java) {
+		try {
+			java = await downloadPortableJre(context);
+		} catch (error) {
+			log.warn(`Portable JRE для Allure не подготовлена: ${(error as Error).message}`);
+			return undefined;
+		}
+	}
+	if (!java || !path.isAbsolute(java)) {
+		return undefined;
+	}
+	const bin = path.dirname(java);
+	return path.basename(bin).toLowerCase() === 'bin' ? path.dirname(bin) : bin;
 }
 
 /**

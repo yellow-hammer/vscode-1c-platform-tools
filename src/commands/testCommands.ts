@@ -15,19 +15,19 @@ import {
 	getDecompileTestEpfCommandName,
 	getYAxUnitTestsCommandName
 } from '../features/tools/commandNames';
-import { collectAllureResultDirs, uniqueResultDirs, type DeclaredResultDir } from '../utils/allureResults';
+import { uniqueResultDirs, type DeclaredResultDir } from '../utils/allureResults';
 import { configurationScope } from '../shared/activeConfiguration';
 import { VRUNNER_FEATURES, isAtLeast } from '../shared/vrunnerVersion';
 import type { CommandExecutionOptions, StructuredCommandResult, SyntaxCheckError } from '../shared/commandExecutionTypes';
 import { BUILD_SUBDIRS } from '../shared/pathDefaults';
 import { CONVENTIONAL_PATHS } from '../shared/projectPaths';
 import * as fs from 'node:fs/promises';
-import { resolveConfigPath, reportsXunitFromEnv, extractJUnitPathFromReportsXunit, extractAllurePathFromReportsXunit, vanessaReportTarget, vanessaSettingsPathFromEnv, syntaxCheckJUnitPathFromEnv, syntaxCheckAllurePathsFromEnv, yaxunitSectionFromEnv, YaxunitProfileSection } from '../features/testing/projectTestConfig';
+import { resolveConfigPath, reportsXunitFromEnv, extractJUnitPathFromReportsXunit, extractAllurePathFromReportsXunit, vanessaReportTarget, vanessaResultDirs, vanessaSettingsPathFromEnv, syntaxCheckJUnitPathFromEnv, syntaxCheckAllurePathsFromEnv, yaxunitSectionFromEnv, YaxunitProfileSection } from '../features/testing/projectTestConfig';
 import { locateSyntaxCheckFiles, parseSyntaxCheckFindings, toSyntaxCheckErrors, SyntaxCheckFinding } from '../features/diagnostics/syntaxCheckJUnit';
 import { resolveMetadataInRoots } from '../features/tools/terminalLinks';
 import { resolveProjectLayout, type SourceRoot } from '../shared/projectLayout';
 import { readRunSummary, formatRunSummary, RunReportFormat } from '../features/testing/runReportSummary';
-import { ensureAllure } from '../shared/allureComponent';
+import { allureJavaHome, ensureAllure } from '../shared/allureComponent';
 import { openMutationReport, runMutationTesting } from '../features/testing/mutatos/mutatosCommand';
 import { runOneScriptTests } from '../features/testing/oneScriptTestsRun';
 import { logger } from '../shared/logger';
@@ -38,9 +38,6 @@ const NL = '\n';
 
 /** Порт, с которого ищется свободный для отчёта Allure в удалённом окружении. */
 const DEFAULT_ALLURE_PORT = 8090;
-
-/** Путь jUnit-отчёта syntax-check, когда он не задан в настройках прогона. */
-const DEFAULT_SYNTAX_CHECK_JUNIT = 'build/out/syntax-check/junit/junit.xml';
 
 /** Цель отчёта прогона: путь и формат. */
 interface RunReportTarget {
@@ -245,24 +242,19 @@ export class TestCommands extends BaseCommand {
 	/**
 	 * Абсолютный путь к jUnit-отчёту синтаксического контроля.
 	 *
-	 * Берётся из настроек прогона (секция syntax-check), с откатом на стандартный.
+	 * Только путь из секции syntax-check. Ключа нет: где искать отчёт, неизвестно.
 	 *
 	 * @param opts - Опции выполнения (нужны для выбора файла настроек)
 	 * @param workspaceRoot - Корень проекта
-	 * @returns Абсолютный путь к файлу отчёта
+	 * @returns Абсолютный путь к файлу отчёта или undefined
 	 */
 	private async syntaxCheckJUnitPath(
 		opts: CommandExecutionOptions | undefined,
 		workspaceRoot: string
-	): Promise<string> {
-		let rel = DEFAULT_SYNTAX_CHECK_JUNIT;
-		try {
-			const { settings, schema } = await this.readRunSettings(opts);
-			rel = syntaxCheckJUnitPathFromEnv(settings, schema) ?? rel;
-		} catch {
-			// Настройки нечитаемы — берём стандартный путь отчёта
-		}
-		return resolveConfigPath(rel, workspaceRoot);
+	): Promise<string | undefined> {
+		const { settings, schema } = await this.readRunSettings(opts);
+		const rel = syntaxCheckJUnitPathFromEnv(settings, schema);
+		return rel ? resolveConfigPath(rel, workspaceRoot) : undefined;
 	}
 
 	/**
@@ -278,10 +270,14 @@ export class TestCommands extends BaseCommand {
 		if (!workspaceRoot) {
 			return;
 		}
+		const reportPath = await this.syntaxCheckJUnitPath(opts, workspaceRoot);
+		if (!reportPath) {
+			return;
+		}
 		try {
-			await fs.mkdir(path.dirname(await this.syntaxCheckJUnitPath(opts, workspaceRoot)), { recursive: true });
+			await fs.mkdir(path.dirname(reportPath), { recursive: true });
 		} catch {
-			// каталог не создался — прогон сам сообщит об отсутствии отчёта
+			// каталог не создался: прогон сам сообщит об отсутствии отчёта
 		}
 	}
 
@@ -355,9 +351,8 @@ export class TestCommands extends BaseCommand {
 	/**
 	 * Читает ошибки синтаксического контроля из jUnit-отчёта.
 	 *
-	 * Путь к отчёту берётся из настроек прогона (секция syntax-check,
-	 * --junitpath), с откатом на стандартный. Отсутствие отчёта — не ошибка:
-	 * проверка могла упасть до его записи, тогда остаётся stdout.
+	 * Путь к отчёту берётся из секции syntax-check профиля. Отчёта нет:
+	 * проверка могла упасть до записи, тогда остаётся stdout.
 	 *
 	 * Адрес файла ищется по корням раскладки правилами формата каждого корня:
 	 * в проекте EDT модуль лежит в src и без Ext.
@@ -374,6 +369,9 @@ export class TestCommands extends BaseCommand {
 		}
 
 		const reportPath = await this.syntaxCheckJUnitPath(opts, workspaceRoot);
+		if (!reportPath) {
+			return [];
+		}
 
 		let xml: string;
 		try {
@@ -601,71 +599,54 @@ export class TestCommands extends BaseCommand {
 	}
 
 	/**
-	 * Каталоги результатов, объявленные в файлах настроек проекта.
-	 *
-	 * Пути отчётов проект уже описал сам: env.json (`xunit --reportsxunit` -
-	 * оба генератора, `syntax-check --junitpath`, `--allure-results` и
-	 * `--allure-results2`), файл параметров VA из `--vanessasettings` и конфиг
-	 * YAxUnit. Обход каталогов угадывает их по именам, поэтому нестандартную
-	 * раскладку отчётов теряет.
-	 *
-	 * Каждая опция описывает либо файл отчёта, либо каталог результатов - это
-	 * известно из её смысла, а не из вида пути. Allure принимает каталоги,
-	 * поэтому у файловых опций берётся каталог файла.
+	 * Каталоги результатов из профиля. У файлового отчёта берётся его каталог.
 	 *
 	 * @param workspaceRoot - Корень workspace
-	 * @returns Абсолютные пути существующих каталогов результатов
+	 * @returns Абсолютные пути существующих непустых каталогов
 	 */
 	private async declaredResultDirs(workspaceRoot: string): Promise<string[]> {
 		const declared: Array<{ value: string; kind: 'file' | 'dir'; run?: string; junit?: boolean }> = [];
-		try {
-			const { settings, schema } = await this.vrunner.readActiveSettings();
+		const { settings, schema } = await this.vrunner.readActiveSettings();
 
-			const reportsXunit = reportsXunitFromEnv(settings, schema);
-			if (reportsXunit) {
-				// оба генератора указывают на файл отчёта
-				const junit = extractJUnitPathFromReportsXunit(reportsXunit);
-				if (junit) {
-					declared.push({ value: junit, kind: 'file', run: 'xunit', junit: true });
-				}
-				const allure = extractAllurePathFromReportsXunit(reportsXunit);
-				if (allure) {
-					declared.push({ value: allure, kind: 'file', run: 'xunit' });
-				}
+		const reportsXunit = reportsXunitFromEnv(settings, schema);
+		if (reportsXunit) {
+			const junit = extractJUnitPathFromReportsXunit(reportsXunit);
+			if (junit) {
+				declared.push({ value: junit, kind: 'file', run: 'xunit', junit: true });
 			}
-
-			const syntaxJUnit = syntaxCheckJUnitPathFromEnv(settings, schema);
-			if (syntaxJUnit) {
-				declared.push({ value: syntaxJUnit, kind: 'file', run: 'syntax-check', junit: true });
+			const allure = extractAllurePathFromReportsXunit(reportsXunit);
+			if (allure) {
+				declared.push({ value: allure, kind: 'file', run: 'xunit' });
 			}
-			for (const value of syntaxCheckAllurePathsFromEnv(settings, schema)) {
-				declared.push({ value, kind: 'dir', run: 'syntax-check' });
-			}
-
-			const vaSettingsRel = vanessaSettingsPathFromEnv(settings, schema);
-			if (vaSettingsRel) {
-				const vaPath = resolveConfigPath(vaSettingsRel, workspaceRoot);
-				try {
-					const raw = await fs.readFile(vaPath, 'utf8');
-					// VA задаёт каталоги выгрузки, а не файлы отчётов
-					const target = vanessaReportTarget(
-						JSON.parse(stripBom(raw)) as Record<string, unknown>,
-						workspaceRoot
-					);
-					if (target) {
-						declared.push({ value: target.path, kind: 'dir' });
-					}
-				} catch (error) {
-					log.debug(`Файл параметров VA ${vaPath} не прочитан: ${(error as Error).message}`);
-				}
-			}
-		} catch (error) {
-			log.debug(`Настройки активного профиля не прочитаны: ${(error as Error).message}`);
 		}
 
-		const yaxunitTarget = await this.resolveRunReportTarget('yaxunit');
-		if (yaxunitTarget) {
-			declared.push({ value: yaxunitTarget.path, kind: 'file' });
+		const syntaxJUnit = syntaxCheckJUnitPathFromEnv(settings, schema);
+		if (syntaxJUnit) {
+			declared.push({ value: syntaxJUnit, kind: 'file', run: 'syntax-check', junit: true });
+		}
+		for (const value of syntaxCheckAllurePathsFromEnv(settings, schema)) {
+			declared.push({ value, kind: 'dir', run: 'syntax-check' });
+		}
+
+		const vaSettingsRel = vanessaSettingsPathFromEnv(settings, schema);
+		if (vaSettingsRel) {
+			const vaParams = await this.readJsonObject(resolveConfigPath(vaSettingsRel, workspaceRoot));
+			if (vaParams) {
+				for (const dir of vanessaResultDirs(vaParams, workspaceRoot)) {
+					declared.push({ value: dir, kind: 'dir' });
+				}
+			}
+		}
+
+		const yaxunit = yaxunitSectionFromEnv(settings, schema);
+		const yaxunitConfig = yaxunit.configPath
+			? await this.readJsonObject(resolveConfigPath(yaxunit.configPath, workspaceRoot))
+			: undefined;
+		const yaxunitReport = typeof yaxunitConfig?.['reportPath'] === 'string' && yaxunitConfig['reportPath'].length > 0
+			? yaxunitConfig['reportPath']
+			: yaxunit.configPath ? undefined : yaxunit.report;
+		if (yaxunitReport) {
+			declared.push({ value: yaxunitReport, kind: 'file' });
 		}
 
 		const found: DeclaredResultDir[] = [];
@@ -673,13 +654,9 @@ export class TestCommands extends BaseCommand {
 			const dir = kind === 'file'
 				? path.dirname(resolveConfigPath(value, workspaceRoot))
 				: resolveConfigPath(value, workspaceRoot);
-			// Каталога нет — прогон в него ещё не писал; Allure на пустом источнике падает
-			try {
-				if ((await fs.stat(dir)).isDirectory()) {
-					found.push({ dir, run, junit });
-				}
-			} catch {
-				log.debug(`Каталог результатов ${dir} не существует, пропущен`);
+			const names = await fs.readdir(dir).catch(() => undefined);
+			if (names && names.length > 0) {
+				found.push({ dir, run, junit });
 			}
 		}
 		return uniqueResultDirs(found);
@@ -688,9 +665,7 @@ export class TestCommands extends BaseCommand {
 	/**
 	 * Получает пути к результатам тестов для Allure
 	 *
-	 * Сначала берутся каталоги, объявленные в файлах настроек проекта, затем к
-	 * ним добавляется обход каталога сборки: так подхватываются и отчёты
-	 * прогонов из панели тестирования, которые в настройках не описаны.
+	 * Каталоги из профиля и постоянные каталоги отчётов OneScript и 1bdd.
 	 *
 	 * @param workspaceRoot - Корень workspace
 	 * @param outPath - Путь к результатам сборки (относительно workspace)
@@ -698,8 +673,12 @@ export class TestCommands extends BaseCommand {
 	 */
 	private async getAllureResultPaths(workspaceRoot: string, outPath: string): Promise<string[]> {
 		const absoluteDirs = new Set<string>(await this.declaredResultDirs(workspaceRoot));
-		for (const dir of collectAllureResultDirs(path.join(workspaceRoot, outPath))) {
-			absoluteDirs.add(dir);
+		for (const name of [BUILD_SUBDIRS.onescript, '1bdd']) {
+			const dir = path.join(workspaceRoot, outPath, name);
+			const names = await fs.readdir(dir).catch(() => undefined);
+			if (names && names.length > 0) {
+				absoluteDirs.add(dir);
+			}
 		}
 		return [...absoluteDirs].map((dir) => path.relative(workspaceRoot, dir));
 	}
@@ -748,8 +727,7 @@ export class TestCommands extends BaseCommand {
 	/**
 	 * Формирует Allure отчет из результатов тестирования
 	 *
-	 * Выполняет команду `allure generate` с несколькими путями к результатам тестов
-	 * (syntax-check, smoke, общий allure) и открывает сгенерированный отчет в браузере.
+	 * Выполняет `allure generate` по каталогам из профиля и открывает отчёт в браузере.
 	 *
 	 * @returns Промис, который разрешается после запуска команд
 	 */
@@ -788,6 +766,8 @@ export class TestCommands extends BaseCommand {
 			void showComponentError(`Не удалось подготовить Allure: ${message}`);
 			return;
 		}
+		const javaHome = this.context ? await allureJavaHome(this.context, workspaceRoot) : undefined;
+		const env = javaHome ? { JAVA_HOME: javaHome } : undefined;
 		if (this.vrunner.shouldUseTasks()) {
 			const generateArgs = ['generate', ...allureResultPaths, '-c', '-o', outputPath];
 			// В удалённом окружении браузера рядом с allure нет: фиксируем порт,
@@ -804,6 +784,7 @@ export class TestCommands extends BaseCommand {
 				name: commandName.title,
 				command,
 				cwd: workspaceRoot,
+				env,
 			}));
 			if (port !== undefined) {
 				await openLocalUrl(`http://localhost:${port}/`);
@@ -825,7 +806,8 @@ export class TestCommands extends BaseCommand {
 		/* eslint-disable no-restricted-syntax -- execution.useTasks === false: терминал выбран пользователем */
 		const terminal = vscode.window.createTerminal({
 			name: commandName.title,
-			cwd: workspaceRoot
+			cwd: workspaceRoot,
+			env,
 		});
 
 		terminal.sendText(fullCommand);
