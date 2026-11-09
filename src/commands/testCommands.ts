@@ -19,12 +19,10 @@ import { collectAllureResultDirs, uniqueResultDirs, type DeclaredResultDir } fro
 import { configurationScope } from '../shared/activeConfiguration';
 import { VRUNNER_FEATURES, isAtLeast } from '../shared/vrunnerVersion';
 import type { CommandExecutionOptions, StructuredCommandResult, SyntaxCheckError } from '../shared/commandExecutionTypes';
-import { DEFAULT_TESTING, BUILD_SUBDIRS } from '../shared/pathDefaults';
+import { BUILD_SUBDIRS } from '../shared/pathDefaults';
 import { CONVENTIONAL_PATHS } from '../shared/projectPaths';
-import { projectConfiguration } from '../shared/projectConfiguration';
 import * as fs from 'node:fs/promises';
 import { resolveConfigPath, reportsXunitFromEnv, extractJUnitPathFromReportsXunit, extractAllurePathFromReportsXunit, vanessaReportTarget, vanessaSettingsPathFromEnv, syntaxCheckJUnitPathFromEnv, syntaxCheckAllurePathsFromEnv, yaxunitSectionFromEnv, YaxunitProfileSection } from '../features/testing/projectTestConfig';
-import { settingValue } from '../shared/vrunnerSettings';
 import { locateSyntaxCheckFiles, parseSyntaxCheckFindings, toSyntaxCheckErrors, SyntaxCheckFinding } from '../features/diagnostics/syntaxCheckJUnit';
 import { resolveMetadataInRoots } from '../features/tools/terminalLinks';
 import { resolveProjectLayout, type SourceRoot } from '../shared/projectLayout';
@@ -85,37 +83,28 @@ export class TestCommands extends BaseCommand {
 	}
 
 	/**
-	 * Готовый конфиг YAxUnit: из секции активного профиля, иначе из настройки
-	 * test.path.yaxunitConfig. На vanessa-runner 3 файла из настройки может не
-	 * быть, тогда конфиг собирает раннер из секции vrunner.test.yaxunit.
+	 * Секция YAxUnit активного профиля.
+	 *
+	 * Конфиг берётся из секции профиля. Схемы 2 и 3 читаются одинаково.
 	 *
 	 * @param opts - Опции выполнения (нужны для выбора файла настроек)
-	 * @param workspaceRoot - Корень проекта
-	 * @returns Секция профиля и путь конфига, как он уйдёт в команду
+	 * @returns Секция профиля и путь конфига, как он записан в профиле
 	 */
 	private async yaxunitRunConfig(
-		opts: CommandExecutionOptions | undefined,
-		workspaceRoot: string
+		opts: CommandExecutionOptions | undefined
 	): Promise<{ profile: YaxunitProfileSection; configPath?: string }> {
 		const { settings, schema } = await this.readRunSettings(opts);
 		const profile = yaxunitSectionFromEnv(settings, schema);
-		if (profile.configPath) {
-			return { profile, configPath: profile.configPath };
-		}
-		const configured = projectConfiguration(workspaceRoot).get<string>('test.path.yaxunitConfig', DEFAULT_TESTING.yaxunitConfigPath);
-		if (schema === 'v2') {
-			return { profile, configPath: configured };
-		}
-		const exists = await fs.access(resolveConfigPath(configured, workspaceRoot)).then(() => true, () => false);
-		return { profile, configPath: exists ? configured : undefined };
+		return { profile, configPath: profile.configPath };
 	}
 
 	/**
 	 * Путь jUnit-отчёта прогона по конфигурации проекта.
 	 *
-	 * vanessa: файл VAParams (--vanessasettings) → КаталогОтчетаJUnit;
-	 * xunit: --reportsxunit → путь генератора jUnit;
-	 * yaxunit: готовый конфиг → reportPath, без него report секции профиля 3.x.
+	 * vanessa: файл из vanessasettings, если ключ задан и файл читается;
+	 * xunit: путь генератора jUnit из reportsxunit, если он задан;
+	 * yaxunit: reportPath готового конфига, без конфига report-path секции.
+	 * Названный файл, которого нет, отчёта не даёт.
 	 *
 	 * @returns Абсолютный путь к файлу/каталогу отчёта или undefined
 	 */
@@ -127,37 +116,41 @@ export class TestCommands extends BaseCommand {
 		if (!workspaceRoot) {
 			return undefined;
 		}
-		try {
-			if (framework === 'yaxunit') {
-				const { profile, configPath } = await this.yaxunitRunConfig(opts, workspaceRoot);
-				if (!configPath) {
-					return profile.report
-						? { path: resolveConfigPath(profile.report, workspaceRoot), format: 'junit' }
-						: undefined;
-				}
-				const raw = await fs.readFile(resolveConfigPath(configPath, workspaceRoot), 'utf8');
-				const parsed = JSON.parse(stripBom(raw)) as Record<string, unknown>;
-				const reportPath = parsed['reportPath'];
-				return typeof reportPath === 'string' && reportPath.length > 0
-					? { path: resolveConfigPath(reportPath, workspaceRoot), format: 'junit' }
+		if (framework === 'yaxunit') {
+			const { profile, configPath } = await this.yaxunitRunConfig(opts);
+			if (!configPath) {
+				return profile.report
+					? { path: resolveConfigPath(profile.report, workspaceRoot), format: 'junit' }
 					: undefined;
 			}
-			const { settings, schema } = await this.readRunSettings(opts);
-			if (framework === 'xunit') {
-				const reportsXunit = reportsXunitFromEnv(settings, schema);
-				const junitRel = reportsXunit ? extractJUnitPathFromReportsXunit(reportsXunit) : undefined;
-				return junitRel ? { path: resolveConfigPath(junitRel, workspaceRoot), format: 'junit' } : undefined;
-			}
-			const vaSettingsRel = settingValue(settings, schema, 'vanessa', 'vanessasettings');
-			if (typeof vaSettingsRel !== 'string' || vaSettingsRel.length === 0) {
-				return undefined;
-			}
-			const vaRaw = await fs.readFile(resolveConfigPath(vaSettingsRel, workspaceRoot), 'utf8');
-			const vaParams = JSON.parse(stripBom(vaRaw)) as Record<string, unknown>;
-			// Цель отчёта VA определяется так же, как в панели тестирования:
-			// jUnit, а при выключенном jUnit — Cucumber JSON
-			const target = vanessaReportTarget(vaParams, workspaceRoot);
-			return target ? { path: target.path, format: target.format } : undefined;
+			const parsed = await this.readJsonObject(resolveConfigPath(configPath, workspaceRoot));
+			const reportPath = parsed?.['reportPath'];
+			return typeof reportPath === 'string' && reportPath.length > 0
+				? { path: resolveConfigPath(reportPath, workspaceRoot), format: 'junit' }
+				: undefined;
+		}
+		const { settings, schema } = await this.readRunSettings(opts);
+		if (framework === 'xunit') {
+			const reportsXunit = reportsXunitFromEnv(settings, schema);
+			const junitRel = reportsXunit ? extractJUnitPathFromReportsXunit(reportsXunit) : undefined;
+			return junitRel ? { path: resolveConfigPath(junitRel, workspaceRoot), format: 'junit' } : undefined;
+		}
+		const vaSettingsRel = vanessaSettingsPathFromEnv(settings, schema);
+		if (!vaSettingsRel) {
+			return undefined;
+		}
+		const vaParams = await this.readJsonObject(resolveConfigPath(vaSettingsRel, workspaceRoot));
+		if (!vaParams) {
+			return undefined;
+		}
+		const target = vanessaReportTarget(vaParams, workspaceRoot);
+		return target ? { path: target.path, format: target.format } : undefined;
+	}
+
+	/** JSON-объект файла настроек. Файла нет или он не разбирается: undefined. */
+	private async readJsonObject(filePath: string): Promise<Record<string, unknown> | undefined> {
+		try {
+			return JSON.parse(stripBom(await fs.readFile(filePath, 'utf8'))) as Record<string, unknown>;
 		} catch {
 			return undefined;
 		}
@@ -521,10 +514,9 @@ export class TestCommands extends BaseCommand {
 	/**
 	 * Запускает тесты YAxUnit
 	 *
-	 * Готовый конфиг берётся из секции yaxunit активного профиля, иначе из
-	 * test.path.yaxunitConfig; отчёт и фильтры в нём. На vanessa-runner 2 это
-	 * run --command RunUnitTests=<конфиг> с опциями секции, на 3 - test yaxunit,
-	 * секцию профиля раннер читает сам.
+	 * Готовый конфиг берётся только из секции yaxunit активного профиля.
+	 * На vanessa-runner 2 это run --command RunUnitTests=<конфиг> с опциями
+	 * секции, на 3 команда test yaxunit, секцию профиля раннер читает сам.
 	 *
 	 * Предварительно в ИБ должны быть загружены расширение-движок YAXUNIT
 	 * и тестовое расширение (с отключённым безопасным режимом).
@@ -541,7 +533,7 @@ export class TestCommands extends BaseCommand {
 			return;
 		}
 
-		const { profile, configPath } = await this.yaxunitRunConfig(opts, workspaceRoot);
+		const { profile, configPath } = await this.yaxunitRunConfig(opts);
 		// --settings активного профиля подставляет planIntent; здесь — только явный
 		// адрес ИБ из вызова MCP (перекрывает ИБ профиля), иначе пусто.
 		const connectionArgs = await this.vrunner.getIbConnectionParam(opts?.ibConnection);

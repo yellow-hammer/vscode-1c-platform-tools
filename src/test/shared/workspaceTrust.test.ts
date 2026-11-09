@@ -463,8 +463,6 @@ suite('настройки, которые задают программу или
 		'test.panelEnabled': 'показ панели тестирования',
 		'test.path.features': 'каталог сценариев',
 		'test.path.onescriptTests': 'каталог тестов',
-		'test.path.reports': 'каталог отчётов',
-		'test.path.yaxunitConfig': 'файл настроек прогона',
 		'test.onescriptRunner': 'выбор из известных раннеров, не путь',
 		'server.port': 'порт публикации своего сервера',
 		'server.directRegPort': 'порт публикации своего сервера',

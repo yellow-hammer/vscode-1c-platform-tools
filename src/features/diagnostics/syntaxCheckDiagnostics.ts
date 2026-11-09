@@ -20,15 +20,12 @@ const log = logger.scope('syntax-check');
 /** Источник диагностик в панели Problems */
 const DIAGNOSTIC_SOURCE = '1С: синтаксический контроль';
 
-/** Путь к junit-отчёту по умолчанию (если не задан в env.json) */
-const DEFAULT_JUNIT_REL = 'build/out/syntax-check/junit/junit.xml';
-
 /**
  * Диагностика синтаксического контроля в панели Problems.
  *
- * Источник данных — jUnit-отчёт vrunner syntax-check; путь берётся из env.json
- * (секция syntax-check, --junitpath; формат vanessa-runner v2), с откатом на
- * стандартный путь. Обновление завязано на FileSystemWatcher по файлу отчёта:
+ * Источник данных: jUnit-отчёт vrunner syntax-check. Путь берётся из профиля
+ * (секция syntax-check). Ключа нет: отчёт не ищем и диагностику не показываем.
+ * Обновление завязано на FileSystemWatcher по файлу отчёта:
  * UI-режим запускает vrunner в терминале «выстрелил и забыл», поэтому опираться
  * на момент завершения команды нельзя — перечитываем отчёт по факту перезаписи.
  * Перезапуск env.json меняет путь → watcher пересоздаётся. Смена текущего
@@ -96,18 +93,24 @@ export class SyntaxCheckDiagnostics implements vscode.Disposable {
 				return;
 			}
 
-			// Следим за файлами настроек профиля: правка пути/опции syntax-check → пересборка
+			// Следим за файлами настроек профиля: правка пути syntax-check пересобирает наблюдение
 			const settingsFiles = this.vrunner.settingsLayerFiles(this.vrunner.getActiveEnvFile());
 			const envWatcher = vscode.workspace.createFileSystemWatcher(
 				new vscode.RelativePattern(root, settingsFiles.length > 1 ? `{${settingsFiles.join(',')}}` : settingsFiles[0])
 			);
-			// Следим за файлом отчёта: перезапись после прогона → обновление диагностики
-			const junitWatcher = vscode.workspace.createFileSystemWatcher(buildWatchPattern(root, junitAbs));
-			this.reconfigurableListeners.push(
+			const listeners: vscode.Disposable[] = [
 				envWatcher,
 				envWatcher.onDidChange(() => void this.reconfigure()),
 				envWatcher.onDidCreate(() => void this.reconfigure()),
 				envWatcher.onDidDelete(() => void this.reconfigure()),
+			];
+			if (!junitAbs) {
+				this.collection.clear();
+				this.reconfigurableListeners.push(...listeners);
+				return;
+			}
+			const junitWatcher = vscode.workspace.createFileSystemWatcher(buildWatchPattern(root, junitAbs));
+			listeners.push(
 				junitWatcher,
 				junitWatcher.onDidChange(() => void this.refreshRoot(root, generation)),
 				junitWatcher.onDidCreate(() => void this.refreshRoot(root, generation)),
@@ -117,36 +120,32 @@ export class SyntaxCheckDiagnostics implements vscode.Disposable {
 					}
 				})
 			);
+			this.reconfigurableListeners.push(...listeners);
 
 			await this.refreshRoot(root, generation);
 		});
 	}
 
 	/**
-	 * Разрешает абсолютный путь к junit-отчёту из env активного профиля
+	 * Абсолютный путь к junit-отчёту из активного профиля.
 	 *
-	 * Берётся файл выбранного профиля запуска (env.<id>.json), а не корневой
-	 * env.json. Путь — из секции syntax-check (--junitpath), с откатом на дефолт.
+	 * Путь берётся из секции syntax-check. Ключа нет: отчёт не ищем.
+	 *
+	 * @param root - Корень проекта
 	 */
-	private async resolveJunitPath(root: string): Promise<string> {
-		let rel = DEFAULT_JUNIT_REL;
-		const envFile = this.vrunner.getActiveEnvFile();
-		try {
-			const { settings, schema } = await this.vrunner.readActiveSettings();
-			const configured = syntaxCheckJUnitPathFromEnv(settings, schema);
-			if (configured) {
-				rel = configured;
-			}
-			if (syntaxCheckGroupByMetadataFromEnv(settings, schema) === false) {
-				log.debug(
-					'syntax-check.--groupbymetadata=false: имена testcase не по метаданным, ' +
-						'диагностика уйдёт на fallback-файл'
-				);
-			}
-		} catch (error) {
-			log.debug(`не удалось прочитать ${envFile}: ${(error as Error).message}`);
+	private async resolveJunitPath(root: string): Promise<string | undefined> {
+		const { settings, schema } = await this.vrunner.readActiveSettings();
+		const configured = syntaxCheckJUnitPathFromEnv(settings, schema);
+		if (!configured) {
+			return undefined;
 		}
-		return resolveConfigPath(rel, root);
+		if (syntaxCheckGroupByMetadataFromEnv(settings, schema) === false) {
+			log.debug(
+				'syntax-check.--groupbymetadata=false: имена testcase не по метаданным, ' +
+					'диагностика уйдёт на fallback-файл'
+			);
+		}
+		return resolveConfigPath(configured, root);
 	}
 
 	/**
@@ -171,6 +170,12 @@ export class SyntaxCheckDiagnostics implements vscode.Disposable {
 
 		await runWithProject(root, async () => {
 			const junitAbs = await this.resolveJunitPath(root);
+			if (!junitAbs) {
+				if (actual()) {
+					this.collection.clear();
+				}
+				return;
+			}
 			let xml: string;
 			try {
 				xml = await fs.readFile(junitAbs, 'utf8');

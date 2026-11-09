@@ -17,9 +17,7 @@ function managerFor(workspaceRoot: string): VRunnerManager {
 		getWorkspaceRoot: () => workspaceRoot,
 		planIntent: async () => [['test', 'xunit']],
 		runnerPath: async (hostPath: string) => hostPath,
-		readActiveSettings: async () => {
-			throw new Error('в проекте нет файла настроек');
-		},
+		readActiveSettings: async () => ({ settings: {}, schema: 'v2' as const }),
 	} as unknown as VRunnerManager;
 }
 

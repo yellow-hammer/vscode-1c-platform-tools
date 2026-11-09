@@ -5064,18 +5064,6 @@
             "scope": "resource",
             "description": "Сегменты пути, исключаемые при поиске тестов в панели тестирования (например: oscript_modules, build, vendor). build исключён, чтобы не находить собранные обработки и отчёты прогонов."
           },
-          "1c-platform-tools.test.path.reports": {
-            "type": "string",
-            "default": "build/out/testapi",
-            "scope": "resource",
-            "description": "Каталог временных файлов прогонов из панели тестирования (относительно корня проекта; должен быть внутри workspace для работы в Docker). Используется, только если пути отчётов не настроены в env.json/tools проекта."
-          },
-          "1c-platform-tools.test.path.yaxunitConfig": {
-            "type": "string",
-            "default": "tools/yaxunit.json",
-            "scope": "resource",
-            "description": "Базовый конфиг YAxUnit (RunUnitTests), если секция yaxunit активного профиля не задаёт свой. Панель тестирования накладывает на него фильтр по выбранному модулю или тесту и берёт из него reportPath."
-          },
           "1c-platform-tools.test.frameworks.vanessa": {
             "type": "boolean",
             "default": true,

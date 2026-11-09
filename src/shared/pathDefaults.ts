@@ -101,11 +101,7 @@ export const DEFAULT_TESTING = {
 	/** Каталог feature-файлов (test.path.features) */
 	featuresPath: 'features',
 	/** Каталог тестов OneScript (test.path.onescriptTests); пусто - каталог тестов */
-	onescriptTestsPath: '',
-	/** Каталог временных файлов прогонов (test.path.reports) */
-	reportsPath: 'build/out/testapi',
-	/** Базовый конфиг YAxUnit (test.path.yaxunitConfig) */
-	yaxunitConfigPath: 'tools/yaxunit.json'
+	onescriptTestsPath: ''
 } as const;
 
 /** Дефолты путей группы 1c-platform-tools.vrunner.path.* */
@@ -132,8 +128,6 @@ export const SETTING_DEFAULTS: ReadonlyArray<{ readonly key: string; readonly va
 	{ key: '1c-platform-tools.test.directoryName', value: DEFAULT_TESTING.directoryName },
 	{ key: '1c-platform-tools.test.path.features', value: DEFAULT_TESTING.featuresPath },
 	{ key: '1c-platform-tools.test.path.onescriptTests', value: DEFAULT_TESTING.onescriptTestsPath },
-	{ key: '1c-platform-tools.test.path.reports', value: DEFAULT_TESTING.reportsPath },
-	{ key: '1c-platform-tools.test.path.yaxunitConfig', value: DEFAULT_TESTING.yaxunitConfigPath },
 	{ key: '1c-platform-tools.vrunner.path.initSettings', value: DEFAULT_VRUNNER.initSettingsPath },
 	{ key: '1c-platform-tools.env.defaultProfile', value: DEFAULT_ENV.defaultProfile },
 ];

@@ -2,7 +2,6 @@ import * as vscode from 'vscode';
 import * as path from 'node:path';
 import * as fs from 'node:fs/promises';
 import { VRunnerManager } from '../../../shared/vrunnerManager';
-import { logger } from '../../../shared/logger';
 import { TestFrameworkAdapter, AdapterRunPlan, RunUnit } from '../frameworkAdapter';
 import { DiscoveredFile } from '../parsers/parserTypes';
 import { parseFeatureFile } from '../parsers/featureParser';
@@ -17,18 +16,14 @@ import { hasConfigurationSources } from './xunitAdapter';
 import { DEFAULT_TESTING } from '../../../shared/pathDefaults';
 import { projectConfiguration } from '../../../shared/projectConfiguration';
 
-const log = logger.scope('testing');
-
 /**
  * Адаптер Vanessa Automation (BDD-сценарии в .feature файлах)
  *
  * Discovery: статический разбор Gherkin (Функционал → Сценарии).
- * Запуск: vrunner vanessa --settings env.json --ibconnection ... --path <файл> —
- * так же, как команда «Запустить текущий feature», но в батч-режиме env.json.
+ * Запуск: vrunner vanessa, путь к фиче в featurePath.
  *
- * Результаты читаются из отчётов, настроенных в самом проекте
- * (env.json → --vanessasettings → tools/VAParams.json): jUnit, а если он
- * выключен — Cucumber JSON (типичная конфигурация vanessa-bootstrap).
+ * Результаты читаются из файла vanessasettings: jUnit, а если он выключен,
+ * Cucumber JSON.
  *
  * Ограничение CLI: отдельный сценарий запустить нельзя — выполняется файл
  * целиком, статусы сценариев раскладываются из отчёта (testcase = сценарий).
@@ -66,34 +61,13 @@ export class VanessaAdapter implements TestFrameworkAdapter {
 		return { segments: directorySegments(fileUri.fsPath, base, workspaceRoot) };
 	}
 
-	public async buildRunPlan(unit: RunUnit, reportDir: string): Promise<AdapterRunPlan> {
+	public async buildRunPlan(unit: RunUnit, _reportDir: string): Promise<AdapterRunPlan> {
 		// --settings активного профиля подставляет planIntent централизованно.
 		const reportTarget = await this.findProjectReportTarget();
-		if (reportTarget) {
-			const [args] = await this.vrunner.planIntent(
-				{ kind: 'test.vanessa', featurePath: unit.fileUri.fsPath }
-			);
-			return { tool: 'vrunner', args, reportTarget };
-		}
-
-		// Проект без VAParams (или без настроенных отчётов): подключаем
-		// собственные настройки VA с jUnit-отчётом в каталог прогона
-		log.info('VAParams проекта не настроены на отчёты: используются настройки VA от расширения');
-		const vanessaSettings = {
-			'ВыполнитьСценарии': true,
-			'ЗавершитьРаботуСистемы': true,
-			'ДелатьОтчетВФорматеjUnit': true,
-			'ОтчетjUnit': { 'КаталогВыгрузкиjUnit': await this.vrunner.runnerPath(reportDir) }
-		};
-		const settingsPath = path.join(reportDir, 'vanessasettings.json');
-		await fs.writeFile(settingsPath, JSON.stringify(vanessaSettings, null, 2), 'utf8');
-
-		const [args] = await this.vrunner.planIntent({
-			kind: 'test.vanessa',
-			featurePath: unit.fileUri.fsPath,
-			vanessaSettings: settingsPath,
-		});
-		return { tool: 'vrunner', args };
+		const [args] = await this.vrunner.planIntent(
+			{ kind: 'test.vanessa', featurePath: unit.fileUri.fsPath }
+		);
+		return reportTarget ? { tool: 'vrunner', args, reportTarget } : { tool: 'vrunner', args };
 	}
 
 	/**
@@ -112,9 +86,6 @@ export class VanessaAdapter implements TestFrameworkAdapter {
 	 * файлов возвращает undefined, и контроллер прогоняет их поштучно - иначе в
 	 * прогон попали бы соседние фичи каталога.
 	 *
-	 * Без настроенной в проекте цели отчёта батч недоступен: собственные
-	 * настройки VA пришлось бы подменять.
-	 *
 	 * @param units - Файлы прогона
 	 * @param _reportDir - Каталог отчёта прогона (не используется)
 	 * @param discovered - Все обнаруженные фичи проекта
@@ -125,27 +96,21 @@ export class VanessaAdapter implements TestFrameworkAdapter {
 		_reportDir: string,
 		discovered: readonly vscode.Uri[]
 	): Promise<AdapterRunPlan | undefined> {
-		const reportTarget = await this.findProjectReportTarget();
-		if (!reportTarget) {
-			return undefined;
-		}
-
 		const featurePath = singlePathForSelection(units, discovered);
 		if (featurePath === undefined) {
 			return undefined;
 		}
 
+		const reportTarget = await this.findProjectReportTarget();
 		// --settings активного профиля подставляет planIntent централизованно.
 		const [args] = await this.vrunner.planIntent(
 			featurePath === '' ? { kind: 'test.vanessa' } : { kind: 'test.vanessa', featurePath }
 		);
-		return { tool: 'vrunner', args, reportTarget };
+		return reportTarget ? { tool: 'vrunner', args, reportTarget } : { tool: 'vrunner', args };
 	}
 
 	/**
-	 * Ищет настроенную в проекте цель отчёта VA
-	 *
-	 * env.json (vanessa.--vanessasettings) → VAParams.json → jUnit или Cucumber JSON.
+	 * Цель отчёта из файла vanessasettings. Ключа нет: цели нет.
 	 */
 	private async findProjectReportTarget(): Promise<ReportTarget | undefined> {
 		const workspaceRoot = this.vrunner.getWorkspaceRoot();
@@ -153,16 +118,14 @@ export class VanessaAdapter implements TestFrameworkAdapter {
 			return undefined;
 		}
 
-		try {
-			const { settings, schema } = await this.vrunner.readActiveSettings();
-			const vaSettingsRel = vanessaSettingsPathFromEnv(settings, schema) ?? './tools/VAParams.json';
-			const vaSettingsPath = resolveConfigPath(vaSettingsRel, workspaceRoot);
-			const vaParams = JSON.parse(await fs.readFile(vaSettingsPath, 'utf8')) as Record<string, unknown>;
-			return vanessaReportTarget(vaParams, workspaceRoot);
-		} catch (error) {
-			log.debug(`Не удалось прочитать настройки VA проекта: ${(error as Error).message}`);
+		const { settings, schema } = await this.vrunner.readActiveSettings();
+		const vaSettingsRel = vanessaSettingsPathFromEnv(settings, schema);
+		if (!vaSettingsRel) {
 			return undefined;
 		}
+		const vaSettingsPath = resolveConfigPath(vaSettingsRel, workspaceRoot);
+		const vaParams = JSON.parse(stripBom(await fs.readFile(vaSettingsPath, 'utf8'))) as Record<string, unknown>;
+		return vanessaReportTarget(vaParams, workspaceRoot);
 	}
 }
 
@@ -190,4 +153,9 @@ export function singlePathForSelection(
 	const dir = [...dirs][0];
 	const inDir = discovered.filter((uri) => path.dirname(uri.fsPath) === dir);
 	return inDir.every((uri) => chosen.has(uri.fsPath)) ? dir : undefined;
+}
+
+/** Убирает BOM в начале JSON-файла. */
+function stripBom(text: string): string {
+	return text.charCodeAt(0) === 0xfeff ? text.slice(1) : text;
 }

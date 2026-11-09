@@ -22,7 +22,8 @@ import { parseCucumberJson } from './parsers/cucumberParser';
 import { ReportTarget } from './projectTestConfig';
 import { RunQueue } from './runQueue';
 import { routeReportCases, RoutableFile } from './batchRouter';
-import { DEFAULT_TESTING } from '../../shared/pathDefaults';
+import { BUILD_SUBDIRS, DEFAULT_PATHS } from '../../shared/pathDefaults';
+import { environmentLabel } from '../../shared/environments';
 import { hasProjectFile } from '../../shared/projectLayout';
 import { projectConfiguration } from '../../shared/projectConfiguration';
 import {
@@ -34,7 +35,6 @@ import {
 import { findProjectFiles, isOutsideScanRoot, projectScanRootOf } from '../artifacts/projectScan';
 import { ensureWorkspaceTrusted } from '../../shared/workspaceTrust';
 import { DEFAULT_PROFILE_ID } from '../../shared/envProfiles';
-import { environmentLabel } from '../../shared/environments';
 import { resolveOneScriptRunner, type OneScriptRunner } from './adapters/onescriptAdapter';
 
 const log = logger.scope('testing');
@@ -1072,6 +1072,7 @@ export class TestingController implements vscode.Disposable {
 			}
 
 			if (plan.reportTarget) {
+				await this.ensureConfiguredReportDir(plan.reportTarget, adapter.id);
 				await this.clearReportTarget(plan.reportTarget);
 			}
 
@@ -1376,6 +1377,7 @@ export class TestingController implements vscode.Disposable {
 
 			// Чистим прошлые отчёты в настроенной цели, чтобы не прочитать устаревшие
 			if (plan.reportTarget) {
+				await this.ensureConfiguredReportDir(plan.reportTarget, adapter.id);
 				await this.clearReportTarget(plan.reportTarget);
 			}
 
@@ -1643,15 +1645,15 @@ export class TestingController implements vscode.Disposable {
 	/**
 	 * Абсолютный путь к базовому каталогу временных отчётов прогонов
 	 *
-	 * Единый источник пути (test.path.reports) для создания подкаталогов
-	 * прогонов и для очистки устаревших отчётов.
+	 * Подкаталог testapi внутри каталога сборки: копия фильтра YAxUnit,
+	 * выбранные обработки xUnit и очистка прерванных прогонов.
 	 *
 	 * @param root - Корень проекта
 	 * @returns Абсолютный путь
 	 */
 	private reportsBaseDir(root: string): string {
-		const reportsBase = projectConfiguration(root).get<string>('test.path.reports', DEFAULT_TESTING.reportsPath);
-		return path.join(root, reportsBase);
+		const out = projectConfiguration(root).get<string>('path.out', DEFAULT_PATHS.out);
+		return path.join(root, out, BUILD_SUBDIRS.testapi);
 	}
 
 	/**
@@ -1739,10 +1741,24 @@ export class TestingController implements vscode.Disposable {
 	}
 
 	/**
+	 * Создаёт каталог отчёта из профиля: Vanessa и генераторы jUnit сами его не создают.
+	 *
+	 * @param target - Цель отчёта
+	 * @param framework - Идентификатор фреймворка
+	 */
+	private async ensureConfiguredReportDir(target: ReportTarget, framework: string): Promise<void> {
+		const dir = framework === 'vanessa' ? target.path : path.dirname(target.path);
+		try {
+			await fs.mkdir(dir, { recursive: true });
+		} catch (error) {
+			log.warn(`Каталог отчёта ${dir} не создан: ${(error as Error).message}`);
+		}
+	}
+
+	/**
 	 * Удаляет прошлые файлы отчётов в цели перед прогоном
 	 *
-	 * Цели указывают в build-каталоги проекта (env.json/VAParams), поэтому
-	 * устаревший отчёт от предыдущего прогона был бы прочитан как актуальный.
+	 * Устаревший отчёт по тому же пути был бы прочитан как актуальный.
 	 */
 	private async clearReportTarget(target: ReportTarget): Promise<void> {
 		const extension = target.format === 'cucumber' ? '.json' : '.xml';

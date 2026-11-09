@@ -75,12 +75,9 @@ export function yaxunitSectionFromEnv(
 }
 
 /**
- * Чтение тестовой конфигурации проекта (env.json + tools/*)
+ * Чтение тестовой конфигурации из файла профиля.
  *
- * Расширение не генерирует собственные служебные файлы, а использует те,
- * что уже есть в проекте (см. vanessa-bootstrap): env.json с секциями
- * vanessa/xunit, tools/VAParams.json, tools/yaxunit.json.
- * Чистые функции — тестируются без vscode.
+ * Чистые функции, тестируются без vscode.
  */
 
 /**
@@ -158,16 +155,6 @@ export function extractAllurePathFromReportsXunit(reportsXunit: string): string 
 }
 
 /**
- * Определяет цель отчёта Vanessa Automation по содержимому VAParams.json
- *
- * Приоритет: jUnit (если включён и задан каталог) → Cucumber JSON.
- * В реальных проектах jUnit у VA часто выключен, а Cucumber JSON включён.
- *
- * @param vaParams - Разобранное содержимое VAParams.json
- * @param workspaceRoot - Корень workspace для подстановки $workspaceRoot
- * @returns Цель отчёта или undefined, если ни один формат не настроен
- */
-/**
  * Истина в терминах настроек VA: булево true либо строки «Истина»/«True».
  *
  * @param value - Значение флага из VAParams
@@ -218,33 +205,87 @@ function vaReportDir(
 	return undefined;
 }
 
-export function vanessaReportTarget(
+/**
+ * Отчёт VA, который прогон читает: сначала jUnit, затем Cucumber JSON.
+ *
+ * @param vaParams - Разобранное содержимое файла настроек VA
+ * @returns Формат и каталог как записан в файле
+ */
+export function vanessaReportSpec(
 	vaParams: Record<string, unknown>,
-	workspaceRoot: string
-): ReportTarget | undefined {
+): { format: 'junit' | 'cucumber'; path: string } | undefined {
 	if (vaFlagOn(vaParams['ДелатьОтчетВФорматеjUnit'])) {
 		const dir = vaReportDir(
 			vaParams,
 			['КаталогВыгрузкиJUnit', 'КаталогВыгрузкиjUnit', 'КаталогОтчетаJUnit'],
-			[['ОтчетJUnit', 'КаталогВыгрузкиJUnit'], ['ОтчетjUnit', 'КаталогВыгрузкиjUnit']]
+			[['ОтчетJUnit', 'КаталогВыгрузкиJUnit'], ['ОтчетjUnit', 'КаталогВыгрузкиjUnit']],
 		);
 		if (dir) {
-			return { format: 'junit', path: resolveConfigPath(dir, workspaceRoot) };
+			return { format: 'junit', path: dir };
 		}
 	}
-
 	if (vaFlagOn(vaParams['ДелатьОтчетВФорматеCucumberJson'])) {
 		const dir = vaReportDir(
 			vaParams,
 			['КаталогВыгрузкиCucumberJson'],
-			[['ОтчетCucumber', 'КаталогВыгрузкиCucumberJson']]
+			[['ОтчетCucumber', 'КаталогВыгрузкиCucumberJson']],
 		);
 		if (dir) {
-			return { format: 'cucumber', path: resolveConfigPath(dir, workspaceRoot) };
+			return { format: 'cucumber', path: dir };
 		}
 	}
-
 	return undefined;
+}
+
+/**
+ * Абсолютный каталог отчёта VA, который прогон читает.
+ *
+ * @param vaParams - Разобранное содержимое файла настроек VA
+ * @param workspaceRoot - Корень проекта
+ * @returns Каталог на диске или undefined, если отчёт не задан
+ */
+export function vanessaReportTarget(
+	vaParams: Record<string, unknown>,
+	workspaceRoot: string
+): ReportTarget | undefined {
+	const spec = vanessaReportSpec(vaParams);
+	return spec === undefined ? undefined : { format: spec.format, path: resolveConfigPath(spec.path, workspaceRoot) };
+}
+
+/**
+ * Каталоги отчётов VA, которые в файле включены: jUnit, Cucumber JSON и Allure.
+ *
+ * @param vaParams - Разобранное содержимое файла настроек VA
+ * @param workspaceRoot - Корень проекта
+ * @returns Абсолютные пути каталогов
+ */
+export function vanessaResultDirs(vaParams: Record<string, unknown>, workspaceRoot: string): string[] {
+	const dirs: string[] = [];
+	const add = (on: boolean, flatKeys: string[], sections: [string, string][]) => {
+		if (!on) {
+			return;
+		}
+		const dir = vaReportDir(vaParams, flatKeys, sections);
+		if (dir) {
+			dirs.push(resolveConfigPath(dir, workspaceRoot));
+		}
+	};
+	add(
+		vaFlagOn(vaParams['ДелатьОтчетВФорматеjUnit']),
+		['КаталогВыгрузкиJUnit', 'КаталогВыгрузкиjUnit', 'КаталогОтчетаJUnit'],
+		[['ОтчетJUnit', 'КаталогВыгрузкиJUnit'], ['ОтчетjUnit', 'КаталогВыгрузкиjUnit']],
+	);
+	add(
+		vaFlagOn(vaParams['ДелатьОтчетВФорматеCucumberJson']),
+		['КаталогВыгрузкиCucumberJson'],
+		[['ОтчетCucumber', 'КаталогВыгрузкиCucumberJson']],
+	);
+	add(
+		vaFlagOn(vaParams['ДелатьОтчетВФорматеАллюр']),
+		['КаталогВыгрузкиAllure'],
+		[['ОтчетAllure', 'КаталогВыгрузкиAllure']],
+	);
+	return dirs;
 }
 
 /**
@@ -258,6 +299,21 @@ export function vanessaSettingsPathFromEnv(
 	schema: SettingsSchema = 'v2'
 ): string | undefined {
 	const value = settingValue(settings, schema, 'vanessa', 'vanessasettings');
+	return typeof value === 'string' && value.length > 0 ? value : undefined;
+}
+
+/**
+ * Извлекает путь к файлу настроек xUnit из профиля (секция xunit).
+ *
+ * @param settings - Разобранное содержимое файла настроек
+ * @param schema - Схема файла настроек
+ * @returns Путь из xddConfig или undefined
+ */
+export function xunitSettingsPathFromEnv(
+	settings: Record<string, unknown>,
+	schema: SettingsSchema = 'v2'
+): string | undefined {
+	const value = settingValue(settings, schema, 'xunit', 'xddConfig');
 	return typeof value === 'string' && value.length > 0 ? value : undefined;
 }
 
@@ -318,6 +374,21 @@ function reportPathFromSettings(
 	}
 	const trimmed = reportPath.trim();
 	return formats.length === 1 ? trimmed : `${trimmed.replace(/[\\/]+$/, '')}/${nameInDir}`;
+}
+
+/**
+ * Файл исключений синтаксического контроля из профиля.
+ *
+ * @param settings - Разобранное содержимое файла настроек
+ * @param schema - Схема файла настроек
+ * @returns Путь из exception-file или undefined
+ */
+export function syntaxCheckExceptionFileFromEnv(
+	settings: Record<string, unknown>,
+	schema: SettingsSchema = 'v2',
+): string | undefined {
+	const value = settingValue(settings, schema, 'syntax-check', 'exception-file');
+	return typeof value === 'string' && value.length > 0 ? value : undefined;
 }
 
 /**

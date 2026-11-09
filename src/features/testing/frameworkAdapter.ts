@@ -26,9 +26,8 @@ export interface RunUnit {
 /**
  * План запуска тестов для адаптера
  *
- * Результаты прогона контроллер читает из reportTarget (пути из конфигурации
- * проекта: env.json, tools/VAParams.json, tools/yaxunit.json). Если цель
- * не указана, читаются все *.xml из reportDir, переданного в buildRunPlan.
+ * Результаты прогона контроллер читает из reportTarget. Если цель не указана,
+ * читаются все *.xml из reportDir, переданного в buildRunPlan.
  */
 /**
  * Подготовительный шаг плана запуска (например, сборка тестовой обработки)
@@ -94,8 +93,9 @@ export interface TestFrameworkAdapter {
 	/**
 	 * Нужен ли адаптеру временный scratch-каталог прогона (reportDir в buildRunPlan)
 	 *
-	 * true/undefined (по умолчанию) — туда стейджатся конфиги (yaxunit-config.json,
-	 * vanessasettings.json) и/или туда же кладётся отчёт. false — адаптер пишет
+	 * true/undefined (по умолчанию): туда копируется конфиг YAxUnit с фильтром
+	 * выбранных тестов и собирается каталог выбранных обработок xUnit.
+	 * false: адаптер пишет
 	 * отчёт в собственный постоянный каталог и обязан задать reportTarget
 	 * (так делают OneScript и 1bdd); контроллер не создаёт пустой временный каталог.
 	 */

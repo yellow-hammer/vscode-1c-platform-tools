@@ -3,7 +3,6 @@ import * as path from 'node:path';
 import * as fsSync from 'node:fs';
 import * as fs from 'node:fs/promises';
 import { VRunnerManager } from '../../../shared/vrunnerManager';
-import { logger } from '../../../shared/logger';
 import { TestFrameworkAdapter, AdapterRunPlan, AdapterRunStep, RunUnit, FileTreeLocation } from '../frameworkAdapter';
 import { DiscoveredFile } from '../parsers/parserTypes';
 import { parseBslTestModule } from '../parsers/bslTestParser';
@@ -20,8 +19,6 @@ import {
 	resolveConfigPath
 } from '../projectTestConfig';
 import { normalizeGlobBase, directorySegments, testProcessorGlobBases } from './adapterUtils';
-
-const log = logger.scope('testing');
 
 /**
  * Описание исходника тестовой обработки
@@ -51,10 +48,8 @@ export interface EpfTestSourceInfo {
  * Файлы .os в каталоге тестов — мир OneScript (1testrunner): xddTestRunner
  * в 1С подключает только внешние обработки, поэтому .os здесь не сканируются.
  *
- * Запуск: vrunner xunit <файл> с настройками проекта (env.json).
- * Путь jUnit-отчёта берётся из env.json (xunit.--reportsxunit, синтаксис
- * ГенераторОтчетаJUnitXML{...} или jUnit:...); если не настроен —
- * передаётся --reportsxunit с каталогом прогона расширения.
+ * Запуск: vrunner xunit с настройками проекта.
+ * Путь jUnit-отчёта берётся из reportsxunit профиля.
  *
  * Ограничение CLI: отдельный метод запустить нельзя — выполняется файл целиком,
  * статусы методов раскладываются из jUnit-отчёта (testcase = метод).
@@ -116,7 +111,7 @@ export class XUnitAdapter implements TestFrameworkAdapter {
 		return { segments: directorySegments(fileUri.fsPath, oneScriptTestsPath(workspaceRoot), workspaceRoot) };
 	}
 
-	public async buildRunPlan(unit: RunUnit, reportDir: string): Promise<AdapterRunPlan> {
+	public async buildRunPlan(unit: RunUnit, _reportDir: string): Promise<AdapterRunPlan> {
 		const epfInfo = epfTestSourceInfo(unit.fileUri.fsPath);
 
 		// Исходник обработки: перед прогоном собираем её в build/out/tests и
@@ -126,11 +121,11 @@ export class XUnitAdapter implements TestFrameworkAdapter {
 		if (epfInfo) {
 			const binariesPath = path.join(this.vrunner.getOutPath(), BUILD_SUBDIRS.testsEpf);
 			const builtEpf = path.join(binariesPath, `${epfInfo.processorName}.epf`);
-			const basePlan = await this.buildXunitPlan(builtEpf, reportDir);
+			const basePlan = await this.buildXunitPlan(builtEpf);
 			return { ...basePlan, prepare: await this.buildSteps([epfInfo], binariesPath) };
 		}
 
-		return this.buildXunitPlan(unit.fileUri.fsPath, reportDir);
+		return this.buildXunitPlan(unit.fileUri.fsPath);
 	}
 
 	/**
@@ -242,51 +237,37 @@ export class XUnitAdapter implements TestFrameworkAdapter {
 			run: () => collectRunBinaries(binariesFsPath, runDir, selected),
 		});
 
-		const basePlan = await this.buildXunitPlan(runDir, reportDir);
+		const basePlan = await this.buildXunitPlan(runDir);
 		return { ...basePlan, prepare };
 	}
 
 	/**
-	 * Строит план запуска vrunner xunit для файла или собранного .epf
+	 * План запуска vrunner xunit для файла или собранного .epf.
+	 *
+	 * Отчёт ищется по генератору jUnit из профиля.
+	 *
+	 * @param targetPath - Файл или каталог тестов
 	 */
-	private async buildXunitPlan(targetPath: string, reportDir: string): Promise<AdapterRunPlan> {
+	private async buildXunitPlan(targetPath: string): Promise<AdapterRunPlan> {
 		const workspaceRoot = this.vrunner.getWorkspaceRoot();
+		const reportTarget = workspaceRoot ? await this.junitTarget(workspaceRoot) : undefined;
+		// --settings активного профиля подставляет planIntent централизованно.
+		const [args] = await this.vrunner.planIntent({ kind: 'test.xunit', testsPath: targetPath });
+		return reportTarget
+			? { tool: 'vrunner', args, reportTarget, noReportHint: XUNIT_NO_REPORT_HINT }
+			: { tool: 'vrunner', args, noReportHint: XUNIT_NO_REPORT_HINT };
+	}
 
-		// Путь jUnit из конфигурации проекта (env.json, секция xunit)
-		if (workspaceRoot) {
-			try {
-				const { settings, schema } = await this.vrunner.readActiveSettings();
-				const reportsXunit = reportsXunitFromEnv(settings, schema);
-				const junitRel = reportsXunit ? extractJUnitPathFromReportsXunit(reportsXunit) : undefined;
-				if (junitRel) {
-					// --settings активного профиля подставляет planIntent централизованно.
-					const [args] = await this.vrunner.planIntent(
-						{ kind: 'test.xunit', testsPath: targetPath }
-					);
-					return {
-						tool: 'vrunner',
-						args,
-						reportTarget: { format: 'junit', path: resolveConfigPath(junitRel, workspaceRoot) },
-						noReportHint: XUNIT_NO_REPORT_HINT
-					};
-				}
-			} catch (error) {
-				log.debug(`Не удалось прочитать файл настроек для xunit: ${(error as Error).message}`);
-			}
-		}
-
-		// env.json не настроен на jUnit — направляем отчёт в каталог прогона.
-		// Параметр отчёта идёт через намерение: адаптер CLI ставит опции до
-		// позиционного пути, иначе 3.x не разбирает команду.
-		const reportFile = path.join(reportDir, 'xunit.xml');
-		const [args] = await this.vrunner.planIntent(
-			{ kind: 'test.xunit', testsPath: targetPath, reportsXunit: `jUnit:${await this.vrunner.runnerPath(reportFile)}` }
-		);
-		return {
-			tool: 'vrunner',
-			args,
-			noReportHint: XUNIT_NO_REPORT_HINT
-		};
+	/**
+	 * Путь jUnit-отчёта из reportsxunit профиля.
+	 *
+	 * @param workspaceRoot - Корень проекта
+	 */
+	private async junitTarget(workspaceRoot: string): Promise<{ format: 'junit'; path: string } | undefined> {
+		const { settings, schema } = await this.vrunner.readActiveSettings();
+		const reportsXunit = reportsXunitFromEnv(settings, schema);
+		const junitRel = reportsXunit ? extractJUnitPathFromReportsXunit(reportsXunit) : undefined;
+		return junitRel ? { format: 'junit', path: resolveConfigPath(junitRel, workspaceRoot) } : undefined;
 	}
 }
 

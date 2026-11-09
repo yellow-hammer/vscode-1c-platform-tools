@@ -5,18 +5,13 @@ import * as vscode from 'vscode';
 import * as path from 'node:path';
 import * as fs from 'node:fs/promises';
 import { VRunnerManager } from '../../../shared/vrunnerManager';
-import { logger } from '../../../shared/logger';
 import { TestFrameworkAdapter, AdapterRunPlan, RunUnit } from '../frameworkAdapter';
 import { DiscoveredFile } from '../parsers/parserTypes';
 import { parseBslTestModule } from '../parsers/bslTestParser';
 import type { JUnitCase } from '../parsers/junitParser';
-import { resolveConfigPath, yaxunitSectionFromEnv, type YaxunitProfileSection } from '../projectTestConfig';
-import { DEFAULT_TESTING } from '../../../shared/pathDefaults';
+import { resolveConfigPath, yaxunitSectionFromEnv, type ReportTarget, type YaxunitProfileSection } from '../projectTestConfig';
 import { projectConfiguration } from '../../../shared/projectConfiguration';
-import type { SettingsSchema } from '../../../shared/envProfiles';
 import type { YaxunitFilter } from '../../../shared/vrunnerCli';
-
-const log = logger.scope('testing');
 
 const NO_REPORT_HINT =
 	'Для YAxUnit в информационной базе должны быть загружены: расширение-движок YAXUNIT ' +
@@ -31,12 +26,10 @@ const NO_REPORT_HINT =
  * тестовых (tests/cfe) - расширение с тестами держат отдельно от поставки,
  * но и внутри решения оно встречается.
  *
- * Запуск: готовый конфиг из секции yaxunit активного профиля, иначе из
- * настройки test.path.yaxunitConfig; из него же reportPath, поверх ложится
- * filter по выбранному модулю или тестам (единственный фреймворк с точечным
- * запуском). На vanessa-runner 2 это run --command RunUnitTests=<копия> с
- * опциями секции, на 3 - test yaxunit; без конфига фильтр и отчёт уходят
- * опциями команды, остальное раннер берёт из профиля.
+ * Запуск: готовый конфиг из секции yaxunit активного профиля. Панель копирует
+ * его в каталог прогона и меняет фильтр на выбранные тесты: с --yaxunit-config
+ * раннер берёт файл как есть. Отчёт берётся из reportPath. Без конфига фильтр
+ * уходит опциями команды, отчёт из report-path секции. Схемы 2 и 3 одинаковы.
  */
 export class YaxunitAdapter implements TestFrameworkAdapter {
 	public readonly id = 'yaxunit' as const;
@@ -153,10 +146,9 @@ export class YaxunitAdapter implements TestFrameworkAdapter {
 	 * План прогона по фильтру.
 	 *
 	 * С готовым конфигом фильтр накладывается на его копию в каталоге прогона:
-	 * раннер использует готовый конфиг как есть. Без конфига, что бывает только
-	 * на vanessa-runner 3, фильтр и путь jUnit-отчёта этого прогона уходят
-	 * опциями test yaxunit: `--report-path` перекрывает `report-path` секции,
-	 * иначе раннер пишет отчёт в профиль, а панель ждёт файл прогона.
+	 * раннер читает готовый конфиг как есть, а файл профиля не меняется.
+	 * Без конфига в команду уходит только фильтр выбранных тестов. Путь отчёта
+	 * тогда берётся из report-path секции, если он там записан.
 	 *
 	 * @param filter - Отбор тестов прогона
 	 * @param reportDir - Каталог отчёта прогона
@@ -167,27 +159,25 @@ export class YaxunitAdapter implements TestFrameworkAdapter {
 		const workspaceRoot = this.vrunner.getWorkspaceRoot();
 		const { settings, schema } = await this.vrunner.readActiveSettings();
 		const profile = yaxunitSectionFromEnv(settings, schema);
-		const baseConfig = await this.readBaseConfig(profile, schema, workspaceRoot);
+		const baseConfig = await this.readBaseConfig(profile, workspaceRoot);
 		const runOptions = {
 			ordinaryApp: profile.ordinaryApp,
 			exitCodePath: profile.exitCodePath,
 			additional: profile.additional,
 			noWait: profile.noWait,
 		};
-		const ownReport = path.join(reportDir, 'report.xml');
 
 		if (baseConfig === undefined) {
 			const [args] = await this.vrunner.planIntent({
 				kind: 'test.yaxunit',
 				filter,
-				report: ownReport,
 				...runOptions,
 				common,
 			});
 			return {
 				tool: 'vrunner',
 				args,
-				reportTarget: { format: 'junit', path: ownReport },
+				reportTarget: junitTarget(profile.report, workspaceRoot),
 				noReportHint: NO_REPORT_HINT,
 			};
 		}
@@ -199,7 +189,7 @@ export class YaxunitAdapter implements TestFrameworkAdapter {
 		const reportPathRaw =
 			typeof baseConfig['reportPath'] === 'string' && baseConfig['reportPath'].length > 0
 				? baseConfig['reportPath']
-				: ownReport;
+				: undefined;
 		const runConfig: Record<string, unknown> = {
 			...baseConfig,
 			filter: {
@@ -208,10 +198,6 @@ export class YaxunitAdapter implements TestFrameworkAdapter {
 				modules: filter.modules ?? null,
 				tests: filter.tests ?? null,
 			},
-			// Путь внутри конфига читает 1С: в Docker это путь контейнера
-			reportPath: reportPathRaw === ownReport ? await this.vrunner.runnerPath(ownReport) : reportPathRaw,
-			reportFormat: baseConfig['reportFormat'] ?? 'jUnit',
-			closeAfterTests: baseConfig['closeAfterTests'] ?? true,
 		};
 		const configPath = path.join(reportDir, 'yaxunit-config.json');
 		await fs.writeFile(configPath, JSON.stringify(runConfig, null, 2), 'utf8');
@@ -225,10 +211,7 @@ export class YaxunitAdapter implements TestFrameworkAdapter {
 		return {
 			tool: 'vrunner',
 			args,
-			reportTarget: {
-				format: 'junit',
-				path: workspaceRoot ? resolveConfigPath(reportPathRaw, workspaceRoot) : reportPathRaw,
-			},
+			reportTarget: junitTarget(reportPathRaw, workspaceRoot),
 			noReportHint: NO_REPORT_HINT,
 		};
 	}
@@ -236,11 +219,8 @@ export class YaxunitAdapter implements TestFrameworkAdapter {
 	/**
 	 * Имена расширений, которым принадлежат запускаемые модули.
 	 *
-	 * Фильтр YAxUnit отбирает тесты по имени расширения. В конфиге проекта оно
-	 * задано одним списком, а панель показывает модули из обоих корней (решения
-	 * и тестового): со списком из конфига запуск модуля из другого расширения
-	 * дал бы пустой отчёт. Имя берём из метаданных исходников - оно может не
-	 * совпадать с именем каталога.
+	 * Имя расширения для фильтра берётся из метаданных исходников.
+	 * Оно может не совпадать с именем каталога.
 	 *
 	 * @param units - Файлы прогона
 	 * @returns Имена расширений без повторов
@@ -257,35 +237,50 @@ export class YaxunitAdapter implements TestFrameworkAdapter {
 	}
 
 	/**
-	 * Готовый конфиг прогона: из секции профиля, иначе из настройки test.path.yaxunitConfig.
+	 * Готовый конфиг прогона из секции профиля.
 	 *
-	 * На vanessa-runner 2 конфиг есть всегда: без файла база пустая, фильтр и
-	 * отчёт панель задаёт сама. На 3 файла из настройки может не быть, тогда
-	 * конфиг собирает раннер из секции профиля. Конфиг из профиля обязан читаться.
+	 * Путь берётся из профиля, одинаково для схем 2 и 3. Ключа нет: конфига нет.
+	 * Файл назван, но не читается: ошибка.
 	 *
-	 * @returns Содержимое конфига или undefined, когда готового конфига нет
+	 * @param profile - Секция yaxunit активного профиля
+	 * @param workspaceRoot - Корень проекта
+	 * @returns Содержимое конфига или undefined, когда профиль его не называет
 	 */
 	private async readBaseConfig(
 		profile: YaxunitProfileSection,
-		schema: SettingsSchema,
 		workspaceRoot: string | undefined
 	): Promise<Record<string, unknown> | undefined> {
-		if (!workspaceRoot) {
-			return schema === 'v3' ? undefined : {};
+		if (!profile.configPath || !workspaceRoot) {
+			return undefined;
 		}
-		const configured = projectConfiguration(workspaceRoot)
-			.get<string>('test.path.yaxunitConfig', DEFAULT_TESTING.yaxunitConfigPath);
-		const configPath = resolveConfigPath(profile.configPath ?? configured, workspaceRoot);
+		const configPath = resolveConfigPath(profile.configPath, workspaceRoot);
 		try {
-			return JSON.parse(await fs.readFile(configPath, 'utf8')) as Record<string, unknown>;
+			return JSON.parse(stripBom(await fs.readFile(configPath, 'utf8'))) as Record<string, unknown>;
 		} catch (error) {
-			if (profile.configPath) {
-				throw new Error(`Конфиг YAxUnit из профиля не прочитан: ${configPath}. ${(error as Error).message}`);
-			}
-			log.debug(`Конфиг YAxUnit ${configPath} не прочитан: ${(error as Error).message}`);
-			return schema === 'v3' ? undefined : {};
+			throw new Error(`Конфиг YAxUnit из профиля не прочитан: ${configPath}. ${(error as Error).message}`);
 		}
 	}
+}
+
+/** Убирает BOM в начале JSON-файла. */
+function stripBom(text: string): string {
+	return text.charCodeAt(0) === 0xfeff ? text.slice(1) : text;
+}
+
+/**
+ * Цель jUnit-отчёта по пути из профиля или конфига.
+ *
+ * @param reportPath - Путь, как он записан в настройках
+ * @param workspaceRoot - Корень проекта
+ */
+function junitTarget(reportPath: string | undefined, workspaceRoot: string | undefined): ReportTarget | undefined {
+	if (!reportPath) {
+		return undefined;
+	}
+	return {
+		format: 'junit',
+		path: workspaceRoot ? resolveConfigPath(reportPath, workspaceRoot) : reportPath,
+	};
 }
 
 /** Корень раскладки, которому принадлежит файл: из вложенных самый глубокий. */

@@ -185,7 +185,7 @@ suite('поиск тестов в раскладке EDT', () => {
 		});
 	});
 
-	test('в Docker отчёт xUnit указан путём контейнера', async () => {
+	test('без генератора jUnit в профиле свой reportsxunit не добавляется', async () => {
 		const adapter = new XUnitAdapter(vrunnerAt(DESIGNER_WORKSPACE, true));
 		const module = path.join(
 			DESIGNER_WORKSPACE, 'tests', 'epf', 'Тесты_Арифметика', 'Тесты_Арифметика', 'Ext', 'ObjectModule.bsl'
@@ -193,7 +193,8 @@ suite('поиск тестов в раскладке EDT', () => {
 
 		const plan = await adapter.buildRunPlan({ fileUri: vscode.Uri.file(module) }, path.join(DESIGNER_WORKSPACE, 'run'));
 
-		assert.strictEqual((intentOf(plan.args) as { reportsXunit?: string }).reportsXunit, 'jUnit:/workspace/run/xunit.xml');
+		assert.strictEqual((intentOf(plan.args) as { reportsXunit?: string }).reportsXunit, undefined);
+		assert.strictEqual(plan.reportTarget, undefined);
 	});
 
 	test('обработка EDT вне проекта не собирается молча', async () => {

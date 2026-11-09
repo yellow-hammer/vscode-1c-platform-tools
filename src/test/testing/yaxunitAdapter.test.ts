@@ -16,13 +16,28 @@ const DESIGNER_WORKSPACE = path.join(FIXTURES, 'designer');
 const EDT_WORKSPACE = path.join(FIXTURES, 'edt-workspace');
 
 /** Раннер, знающий только корень рабочей области: остальное адаптер берёт из раскладки. */
-function vrunnerAt(workspaceRoot: string): VRunnerManager {
+function vrunnerAt(workspaceRoot: string, configPath?: string, schema: 'v2' | 'v3' = 'v2'): VRunnerManager {
+	const settings = configPath
+		? schema === 'v3'
+			? { vrunner: { test: { yaxunit: { 'yaxunit-config': configPath } } } }
+			: { yaxunit: { '--command': `RunUnitTests=${configPath}` } }
+		: {};
 	return {
 		getWorkspaceRoot: () => workspaceRoot,
-		readActiveSettings: async () => ({ settings: {}, schema: 'v2' }),
+		readActiveSettings: async () => ({ settings, schema }),
 		planIntent: async () => [['run', 'enterprise']],
 		runnerPath: async (hostPath: string) => hostPath,
 	} as unknown as VRunnerManager;
+}
+
+/** Конфиг профиля с чужим списком расширений: панель должна заменить его фильтром прогона. */
+async function writeBaseConfig(dir: string): Promise<string> {
+	const configPath = path.join(dir, 'base.json');
+	await fs.writeFile(configPath, JSON.stringify({
+		filter: { extensions: ['Чужое'] },
+		reportPath: 'build/from-config.xml',
+	}), 'utf8');
+	return configPath;
 }
 
 /** Положение модуля в дереве по пути внутри рабочей области. */
@@ -71,61 +86,74 @@ suite('yaxunitAdapter', () => {
 		);
 	});
 
-	test('без готового конфига на 3.x отчёт прогона уходит в report-path', async () => {
+	test('без конфига в профиле свой файл и свой отчёт не создаются', async () => {
 		invalidateProjectLayout();
 		const reportDir = await fs.mkdtemp(path.join(os.tmpdir(), 'yaxunit-report-'));
-		const ownReport = path.join(reportDir, 'report.xml');
 		const fileUri = vscode.Uri.file(
 			path.join(DESIGNER_WORKSPACE, 'tests', 'cfe', 'Тесты', 'CommonModules', 'ОМ_Тест', 'Ext', 'Module.bsl')
 		);
-		let report: string | undefined;
-		const vrunner = {
-			getWorkspaceRoot: () => DESIGNER_WORKSPACE,
-			readActiveSettings: async () => ({
+		const cases = [
+			{
+				schema: 'v3' as const,
 				settings: {
 					vrunner: { test: { yaxunit: { 'report-path': 'build/out/yaxunit/junit.xml' } } },
 				},
-				schema: 'v3' as const,
-			}),
-			planIntent: async (intent: { report?: string }) => {
-				report = intent.report;
-				return [['test', 'yaxunit']];
+				report: path.join(DESIGNER_WORKSPACE, 'build', 'out', 'yaxunit', 'junit.xml'),
 			},
-			runnerPath: async (hostPath: string) => hostPath,
-		} as unknown as VRunnerManager;
-		const adapter = new YaxunitAdapter(vrunner);
+			{
+				schema: 'v2' as const,
+				settings: {},
+				report: undefined,
+			},
+		];
 		try {
-			const plan = await adapter.buildRunPlan({ fileUri }, reportDir);
-			assert.strictEqual(report, ownReport);
-			assert.strictEqual(plan.reportTarget?.path, ownReport);
+			for (const item of cases) {
+				let intent: { configPath?: string; report?: string; filter?: { modules?: string[] } } | undefined;
+				const vrunner = {
+					getWorkspaceRoot: () => DESIGNER_WORKSPACE,
+					readActiveSettings: async () => ({ settings: item.settings, schema: item.schema }),
+					planIntent: async (value: { configPath?: string; report?: string; filter?: { modules?: string[] } }) => {
+						intent = value;
+						return [['test', 'yaxunit']];
+					},
+					runnerPath: async (hostPath: string) => hostPath,
+				} as unknown as VRunnerManager;
+				const plan = await new YaxunitAdapter(vrunner).buildRunPlan({ fileUri }, reportDir);
+				assert.strictEqual(intent?.configPath, undefined, item.schema);
+				assert.strictEqual(intent?.report, undefined, item.schema);
+				assert.deepStrictEqual(intent?.filter?.modules, ['ОМ_Тест'], item.schema);
+				assert.strictEqual(plan.reportTarget?.path, item.report, item.schema);
+			}
+			await assert.rejects(fs.access(path.join(reportDir, 'yaxunit-config.json')));
 		} finally {
 			await fs.rm(reportDir, { recursive: true, force: true });
 		}
 	});
 
 	test('buildRunPlan: весь модуль — filter.modules, подмножество — filter.tests', async () => {
-		const adapter = new YaxunitAdapter(VRunnerManager.getInstance());
 		const reportDir = await fs.mkdtemp(path.join(os.tmpdir(), 'yaxunit-test-'));
 		const fileUri = vscode.Uri.file('C:\\proj\\src\\cfe\\T\\CommonModules\\ОМ_Тесты\\Module.bsl');
+		const intents: Array<{ filter?: { modules?: string[]; tests?: string[] } }> = [];
+		const vrunner = {
+			getWorkspaceRoot: () => undefined,
+			readActiveSettings: async () => ({ settings: {}, schema: 'v3' as const }),
+			planIntent: async (intent: { filter?: { modules?: string[]; tests?: string[] } }) => {
+				intents.push(intent);
+				return [['test', 'yaxunit']];
+			},
+			runnerPath: async (hostPath: string) => hostPath,
+		} as unknown as VRunnerManager;
+		const adapter = new YaxunitAdapter(vrunner);
 
 		try {
 			const fullPlan = await adapter.buildRunPlan({ fileUri }, reportDir);
 			assert.strictEqual(fullPlan.tool, 'vrunner');
-			assert.strictEqual(fullPlan.args[0], 'test');
-			assert.strictEqual(fullPlan.args[1], 'yaxunit');
-			assert.strictEqual(fullPlan.args[fullPlan.args.indexOf('--modules') + 1], 'ОМ_Тесты');
-			assert.ok(fullPlan.reportTarget, 'Должна быть цель отчёта');
-			assert.strictEqual(fullPlan.reportTarget.format, 'junit');
+			assert.deepStrictEqual(intents[0]?.filter?.modules, ['ОМ_Тесты']);
+			assert.strictEqual(fullPlan.reportTarget, undefined);
 
-			const subsetPlan = await adapter.buildRunPlan(
-				{ fileUri, caseNames: ['ПроверитьЗапись'] },
-				reportDir
-			);
-			assert.strictEqual(
-				subsetPlan.args[subsetPlan.args.indexOf('--tests') + 1],
-				'ОМ_Тесты.ПроверитьЗапись'
-			);
-			assert.strictEqual(subsetPlan.args.includes('--modules'), false);
+			await adapter.buildRunPlan({ fileUri, caseNames: ['ПроверитьЗапись'] }, reportDir);
+			assert.deepStrictEqual(intents[1]?.filter?.tests, ['ОМ_Тесты.ПроверитьЗапись']);
+			assert.strictEqual(intents[1]?.filter?.modules, undefined);
 		} finally {
 			await fs.rm(reportDir, { recursive: true, force: true });
 		}
@@ -134,20 +162,24 @@ suite('yaxunitAdapter', () => {
 
 	test('buildRunPlan: фильтр по имени расширения из раскладки, а не по списку из конфига проекта', async () => {
 		invalidateProjectLayout();
-		const adapter = new YaxunitAdapter(vrunnerAt(DESIGNER_WORKSPACE));
 		const reportDir = await fs.mkdtemp(path.join(os.tmpdir(), 'yaxunit-ext-'));
+		const configPath = await writeBaseConfig(reportDir);
 		// имя расширения в метаданных отличается от имени каталога
 		const fileUri = vscode.Uri.file(
 			path.join(DESIGNER_WORKSPACE, 'tests', 'cfe', 'Тесты', 'CommonModules', 'ОМ_Тест', 'Ext', 'Module.bsl')
 		);
 
 		try {
-			await adapter.buildRunPlan({ fileUri }, reportDir);
-			const config = JSON.parse(await fs.readFile(path.join(reportDir, 'yaxunit-config.json'), 'utf8'));
-			// без этого прогон модуля из другого расширения отфильтровался бы
-			// списком extensions из tools/yaxunit.json и дал пустой отчёт
-			assert.deepStrictEqual(config.filter.extensions, ['Тесты']);
-			assert.deepStrictEqual(config.filter.modules, ['ОМ_Тест']);
+			for (const schema of ['v2', 'v3'] as const) {
+				const adapter = new YaxunitAdapter(vrunnerAt(DESIGNER_WORKSPACE, configPath, schema));
+				const plan = await adapter.buildRunPlan({ fileUri }, reportDir);
+				const config = JSON.parse(await fs.readFile(path.join(reportDir, 'yaxunit-config.json'), 'utf8'));
+				// фильтр копии берёт расширение из метаданных, а не список из конфига профиля
+				assert.deepStrictEqual(config.filter.extensions, ['Тесты'], schema);
+				assert.deepStrictEqual(config.filter.modules, ['ОМ_Тест'], schema);
+				assert.strictEqual(config.reportPath, 'build/from-config.xml', schema);
+				assert.strictEqual(plan.reportTarget?.path, path.join(DESIGNER_WORKSPACE, 'build', 'from-config.xml'), schema);
+			}
 		} finally {
 			await fs.rm(reportDir, { recursive: true, force: true });
 		}
@@ -155,13 +187,14 @@ suite('yaxunitAdapter', () => {
 
 	test('buildRunPlan: у проекта EDT имя расширения берётся из проекта, а не из каталога src', async () => {
 		invalidateProjectLayout();
-		const adapter = new YaxunitAdapter(vrunnerAt(EDT_WORKSPACE));
 		const reportDir = await fs.mkdtemp(path.join(os.tmpdir(), 'yaxunit-edt-'));
+		const configPath = await writeBaseConfig(reportDir);
 		const fileUri = vscode.Uri.file(
 			path.join(EDT_WORKSPACE, 'tests', 'cfe', 'yaxunit-test', 'src', 'CommonModules', 'ОМ_Тест', 'Module.bsl')
 		);
 
 		try {
+			const adapter = new YaxunitAdapter(vrunnerAt(EDT_WORKSPACE, configPath, 'v3'));
 			await adapter.buildRunPlan({ fileUri }, reportDir);
 			const config = JSON.parse(await fs.readFile(path.join(reportDir, 'yaxunit-config.json'), 'utf8'));
 			assert.deepStrictEqual(config.filter.extensions, ['Тесты']);
