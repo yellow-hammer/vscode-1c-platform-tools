@@ -2532,7 +2532,7 @@
         "command": "1c-platform-tools.pipelines.runWith",
         "title": "Запустить с профилем и окружением…",
         "category": "1С: Пайплайны",
-        "icon": "$(rocket)"
+        "icon": "$(run-all)"
       },
       {
         "command": "1c-platform-tools.pipelines.addTemplates",
