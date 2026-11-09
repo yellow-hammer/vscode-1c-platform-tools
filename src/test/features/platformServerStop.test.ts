@@ -110,7 +110,7 @@ suite('остановка автономного сервера', () => {
 			this.skip();
 		}
 		root = fs.mkdtempSync(path.join(os.tmpdir(), 'ibsrv-stop-'));
-		dataDir = path.join(root, 'build', 'ibsrv');
+		dataDir = path.join(root, 'build', 'out', 'ibsrv');
 		fs.mkdirSync(dataDir, { recursive: true });
 		fs.writeFileSync(
 			path.join(dataDir, 'publication.yaml'),

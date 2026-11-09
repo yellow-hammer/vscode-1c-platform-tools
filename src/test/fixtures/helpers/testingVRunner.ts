@@ -19,6 +19,7 @@ export function testingVRunner(members: Record<string, unknown> = {}): VRunnerMa
 		environmentProblem: () => undefined,
 		shouldUseDocker: async () => false,
 		warnIfEngineUnfit: async () => undefined,
+		getActiveEnvFile: () => 'autumn-properties.json',
 		readActiveSettings: async () => ({ settings: {}, schema: 'v3' as const }),
 		...members,
 	} as unknown as VRunnerManager;

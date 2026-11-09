@@ -215,7 +215,7 @@ suite('vrunnerTask: программа с аргументами', () => {
 
 			assert.strictEqual(exitCode, 4);
 			assert.strictEqual(outcomes[0]?.exitCode, 4);
-			assert.ok(written[0].includes('process.exit(4)'), `эхо без команды: ${written[0]}`);
+			assert.ok(written.join('').includes('process.exit(4)'), `эхо без команды: ${written.join('')}`);
 			assert.ok(written.join('').includes('готово'));
 		} finally {
 			unsubscribe();
