@@ -247,6 +247,18 @@ export function registerCommands(
 		registerProjectCommand('1c-platform-tools.serviceFiles.addVariant', (kind?: unknown) =>
 			commands.serviceFiles.addVariant(kind)
 		),
+		registerProjectCommand('1c-platform-tools.serviceFiles.addVrunner', () =>
+			commands.serviceFiles.addVariant('vrunner')
+		),
+		registerProjectCommand('1c-platform-tools.serviceFiles.addVanessa', () =>
+			commands.serviceFiles.addVariant('vanessa')
+		),
+		registerProjectCommand('1c-platform-tools.serviceFiles.addXunit', () =>
+			commands.serviceFiles.addVariant('xunit')
+		),
+		registerProjectCommand('1c-platform-tools.serviceFiles.addYaxunit', () =>
+			commands.serviceFiles.addVariant('yaxunit')
+		),
 	];
 	disposables.push(...serviceFilesCommands);
 

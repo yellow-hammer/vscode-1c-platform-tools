@@ -219,6 +219,8 @@ suite('mcpCommandPolicy: служебные команды представле�
 		assert.strictEqual(isCommandExposedToMcp('1c-platform-tools.serviceFiles.linkVrunner'), false);
 		assert.strictEqual(isCommandExposedToMcp('1c-platform-tools.serviceFiles.createBuildFile'), false);
 		assert.strictEqual(isCommandExposedToMcp('1c-platform-tools.serviceFiles.addVariant'), false);
+		assert.strictEqual(isCommandExposedToMcp('1c-platform-tools.serviceFiles.addXunit'), false);
+		assert.strictEqual(isCommandExposedToMcp('1c-platform-tools.serviceFiles.row.dG9vbHMvc3ludGF4'), false);
 		assert.strictEqual(isCommandExposedToMcp('1c-platform-tools.server.statusBarRefresh'), false);
 		// создание служебных файлов по конкретному виду агенту доступно
 		assert.strictEqual(isCommandExposedToMcp('1c-platform-tools.serviceFiles.createEnvJson'), true);

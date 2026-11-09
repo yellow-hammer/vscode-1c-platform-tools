@@ -64,6 +64,11 @@ const HIDDEN_PREFIXES = [
 	`${COMMAND_PREFIX}serviceFiles.linkVrunner`,
 	`${COMMAND_PREFIX}serviceFiles.createBuildFile`,
 	`${COMMAND_PREFIX}serviceFiles.addVariant`,
+	`${COMMAND_PREFIX}serviceFiles.addVrunner`,
+	`${COMMAND_PREFIX}serviceFiles.addVanessa`,
+	`${COMMAND_PREFIX}serviceFiles.addXunit`,
+	`${COMMAND_PREFIX}serviceFiles.addYaxunit`,
+	`${COMMAND_PREFIX}serviceFiles.row.`,
 	`${COMMAND_PREFIX}server.statusBarRefresh`,
 ];
 

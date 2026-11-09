@@ -2061,6 +2061,26 @@
         "category": "1С: Служебные файлы"
       },
       {
+        "command": "1c-platform-tools.serviceFiles.addVrunner",
+        "title": "Другое имя Vanessa Runner",
+        "category": "1С: Служебные файлы"
+      },
+      {
+        "command": "1c-platform-tools.serviceFiles.addVanessa",
+        "title": "Другое имя Vanessa Automation",
+        "category": "1С: Служебные файлы"
+      },
+      {
+        "command": "1c-platform-tools.serviceFiles.addXunit",
+        "title": "Другое имя xUnit",
+        "category": "1С: Служебные файлы"
+      },
+      {
+        "command": "1c-platform-tools.serviceFiles.addYaxunit",
+        "title": "Другое имя YAxUnit",
+        "category": "1С: Служебные файлы"
+      },
+      {
         "command": "1c-platform-tools.serviceFiles.ensure",
         "title": "Создать служебный файл",
         "category": "1С: Служебные файлы"
@@ -2759,6 +2779,22 @@
         },
         {
           "command": "1c-platform-tools.serviceFiles.addVariant",
+          "when": "false"
+        },
+        {
+          "command": "1c-platform-tools.serviceFiles.addVrunner",
+          "when": "false"
+        },
+        {
+          "command": "1c-platform-tools.serviceFiles.addVanessa",
+          "when": "false"
+        },
+        {
+          "command": "1c-platform-tools.serviceFiles.addXunit",
+          "when": "false"
+        },
+        {
+          "command": "1c-platform-tools.serviceFiles.addYaxunit",
           "when": "false"
         },
         {

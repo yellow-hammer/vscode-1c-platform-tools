@@ -28,7 +28,7 @@ import { terminalProjectRoot } from '../tasks/terminalProjects';
 const log = logger.scope('tools');
 
 /** Расширения файлов, на которые ставится ссылка. */
-const LINKED_EXTENSIONS = ['bsl', 'os', 'feature', 'xml', 'mdo', 'json', 'md'];
+const LINKED_EXTENSIONS = ['bsl', 'os', 'feature', 'xml', 'mdo', 'json', 'md', 'txt'];
 
 /** Цель ссылки: файл на диске либо путь по метаданным. */
 export type TerminalLinkTarget =
@@ -176,7 +176,8 @@ export class SourceTerminalLinkProvider implements vscode.TerminalLinkProvider<R
 	async handleTerminalLink(link: ResolvedTerminalLink): Promise<void> {
 		const file = await resolveTerminalLinkTarget(link.target, link.root);
 		if (!file) {
-			void vscode.window.showWarningMessage('Не нашли исходник для этой ссылки.');
+			const place = link.target.kind === 'file' ? link.target.file : link.target.metadataPath;
+			log.debug(`исходник не найден: ${place}`);
 			return;
 		}
 		const document = await vscode.workspace.openTextDocument(vscode.Uri.file(file));

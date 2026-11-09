@@ -289,7 +289,7 @@ export class ServiceFilesTreeProvider implements vscode.TreeDataProvider<Service
 		node.iconPath = new vscode.ThemeIcon(row.exists ? 'check' : 'add');
 		node.tooltip = databaseTooltip(currentRoot(), row);
 		node.contextValue = selectContext(row, this.activeProfile(), this.selectedEnvironmentFile());
-		node.command = commandOf(row, schema);
+		node.command = rowClickCommand(row);
 		return node;
 	}
 
@@ -423,8 +423,24 @@ function addCommand(kind: ServiceFileKind): vscode.Command {
 			return { command: '1c-platform-tools.env.createProfile', title: 'Создать профиль' };
 		case 'environment':
 			return { command: '1c-platform-tools.env.createEnvironment', title: 'Создать окружение' };
-		default:
-			return { command: '1c-platform-tools.serviceFiles.addVariant', title: addLabel(kind), arguments: [kind] };
+		case 'vrunner':
+			return { command: '1c-platform-tools.serviceFiles.addVrunner', title: addLabel(kind) };
+		case 'vanessa':
+			return { command: '1c-platform-tools.serviceFiles.addVanessa', title: addLabel(kind) };
+		case 'xunit':
+			return { command: '1c-platform-tools.serviceFiles.addXunit', title: addLabel(kind) };
+		case 'yaxunit':
+			return { command: '1c-platform-tools.serviceFiles.addYaxunit', title: addLabel(kind) };
+		case 'gitignore':
+		case 'gitattributes':
+		case 'hooks':
+		case 'pipelines':
+		case 'syntax':
+			return { command: '1c-platform-tools.serviceFiles.addVariant', title: addLabel(kind) };
+		default: {
+			const unknown: never = kind;
+			return unknown;
+		}
 	}
 }
 
@@ -526,6 +542,37 @@ function marksOf(row: ServiceFileRow, profile: string, environmentFile: string):
 }
 
 const CREATE_ONLY = { createOnly: true };
+
+/** Команды строк, уже зарегистрированные. Повторная регистрация того же пути не нужна. */
+const rowCommands = new Set<string>();
+
+/**
+ * Щелчок по строке. Путь записан в имени команды, без аргументов.
+ *
+ * @param row - Строка, которую открывают или создают
+ */
+function rowClickCommand(row: ServiceFileRow): vscode.Command {
+	const id = `1c-platform-tools.serviceFiles.row.${Buffer.from(row.relPath, 'utf8').toString('base64url')}`;
+	if (!rowCommands.has(id)) {
+		rowCommands.add(id);
+		const relPath = row.relPath;
+		const kind = row.kind;
+		vscode.commands.registerCommand(id, () => openServiceRow(relPath, kind));
+	}
+	return { command: id, title: row.exists ? 'Открыть' : 'Создать' };
+}
+
+/** Создаёт или открывает файл строки. Наличие смотрит на диске, а не в устаревшей строке. */
+async function openServiceRow(relPath: string, kind: ServiceFileKind): Promise<void> {
+	const root = currentRoot();
+	if (!root) {
+		return;
+	}
+	const normalized = relPath.replace(/\\/g, '/');
+	const row: ServiceFileRow = { kind, relPath: normalized, exists: fs.existsSync(path.join(root, normalized)) };
+	const action = commandOf(row, VRunnerManager.getInstance().getActiveSettingsSchema());
+	await vscode.commands.executeCommand(action.command, ...(action.arguments ?? []));
+}
 
 function commandOf(row: ServiceFileRow, schema: SettingsSchema): vscode.Command {
 	if (!row.exists) {
