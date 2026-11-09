@@ -4,6 +4,7 @@ import {
 	edtStartArgs,
 	edtStartFromRegistryOutput,
 	findEdtStart,
+	iniSetVm,
 	iniWithVm,
 	javaExecutable,
 	jvmOfFeature,
@@ -71,6 +72,10 @@ suite('Запуск 1cedtstart по ссылке базы', () => {
 			'-vm\nC:\\Java\\25\\bin\n-vmargs\n-Dosgi.requiredJavaVersion=25\n'
 		);
 		assert.strictEqual(iniWithVm('-vm\nC:\\Java\\17\\bin\n-vmargs\n', 'C:\\Java\\25\\bin'), '-vm\nC:\\Java\\17\\bin\n-vmargs\n');
+		assert.strictEqual(
+			iniSetVm('-vm\nC:\\Java\\17\\bin\n-vmargs\n-Dosgi.requiredJavaVersion=17\n', 'C:\\Java\\25\\bin'),
+			'-vm\nC:\\Java\\25\\bin\n-vmargs\n-Dosgi.requiredJavaVersion=17\n'
+		);
 	});
 
 	test('ссылка file переводится в путь целевой платформы независимо от хоста', () => {

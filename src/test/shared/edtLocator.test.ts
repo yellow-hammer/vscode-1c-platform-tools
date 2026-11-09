@@ -9,8 +9,8 @@ import {
 	edtProductsFromRegistry,
 	edtStartDataDirectory,
 	edtVersionFromDirectory,
+	edtVersionPickRows,
 	findEdtInstallations,
-	edtInstallationsForChoice,
 	pickEdtInstallation,
 	productsRootFromPreferences,
 } from '../../shared/edtLocator';
@@ -95,11 +95,11 @@ suite('поиск установленной EDT', () => {
 		assert.strictEqual(pickEdtInstallation(found, '2025.2')?.version, '2025.2');
 		assert.strictEqual(pickEdtInstallation(found, '2019'), undefined);
 		assert.deepStrictEqual(
-			edtInstallationsForChoice(found, '2025.2').map((item) => item.version),
-			['2025.2', '2026.1']
+			edtVersionPickRows(found, '2025.2').map((row) => (row.kind === 'separator' ? row.label : row.installation.version)),
+			['Версия проекта', '2025.2', 'Найденные', '2026.1', '2025.2']
 		);
 		assert.deepStrictEqual(
-			edtInstallationsForChoice(found, '').map((item) => item.version),
+			edtVersionPickRows(found, '').map((row) => (row.kind === 'installation' ? row.installation.version : row.label)),
 			['2026.1', '2025.2']
 		);
 	});

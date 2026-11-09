@@ -39,6 +39,7 @@ suite('область настроек компонентов и EDT', () => {
 			'1c-platform-tools.platform.path',
 			'1c-platform-tools.edt.version',
 			'1c-platform-tools.edt.workspace',
+			'1c-platform-tools.edt.java',
 			'1c-platform-tools.edt.vmargs',
 		]) {
 			assert.ok(scopes.has(key), `нет настройки ${key}`);
@@ -173,13 +174,21 @@ suite('настройки компонентов и EDT читаются для 
 	});
 
 	test('настройки EDT читаются для проекта команды', async () => {
-		values.set(first, { 'edt.version': '2026.1', 'edt.workspace': 'едт', 'edt.vmargs': ['-Xmx8g'] });
+		values.set(first, {
+			'edt.version': '2026.1',
+			'edt.workspace': 'едт',
+			'edt.vmargs': ['-Xmx8g'],
+			'edt.java': 'C:/Java/bin',
+		});
 		values.set(second, { 'edt.version': '2025.2', 'edt.timeoutSeconds': 7200 });
 
 		const settings = readEdtSettings(first);
 		const current = await runWithProject(second, async () => readEdtSettings());
 
-		assert.deepStrictEqual([settings.version, settings.workspace, settings.vmargs], ['2026.1', 'едт', ['-Xmx8g']]);
+		assert.deepStrictEqual(
+			[settings.version, settings.workspace, settings.vmargs, settings.java],
+			['2026.1', 'едт', ['-Xmx8g'], 'C:/Java/bin']
+		);
 		assert.deepStrictEqual([current.version, current.timeoutSeconds], ['2025.2', 7200]);
 		assert.strictEqual(edtWorkspaceDir(first, 'build'), path.join(first, 'едт'));
 		assertScopes(first, second);

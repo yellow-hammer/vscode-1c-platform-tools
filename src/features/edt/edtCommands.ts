@@ -16,7 +16,7 @@ import { configurationScope } from '../../shared/activeConfiguration';
 import type { SourceFormat } from '../../shared/projectLayout';
 import { VRunnerManager } from '../../shared/vrunnerManager';
 import { logger } from '../../shared/logger';
-import { edtInstallationsForChoice, findEdtInstallations, type EdtInstallation } from '../../shared/edtLocator';
+import { edtVersionPickRows, findEdtInstallations, type EdtInstallation } from '../../shared/edtLocator';
 import { configurationWriteTarget, showWorkspaceRequired } from '../../shared/configurationWriteTarget';
 import { projectConfiguration } from '../../shared/projectConfiguration';
 import {
@@ -199,19 +199,22 @@ export async function createEdtProject(context: vscode.ExtensionContext): Promis
 	if (!platform) {
 		return undefined;
 	}
-	const ordered = edtInstallationsForChoice(found.installations, settings.version);
 	const picked = await vscode.window.showQuickPick(
-		ordered.map((item) => ({
-			label: item.version || 'без номера',
-			description: `платформа ${platform.platform}`,
-			installation: item,
-		})),
+		edtVersionPickRows(found.installations, settings.version).map((row) =>
+			row.kind === 'separator'
+				? { label: row.label, kind: vscode.QuickPickItemKind.Separator }
+				: {
+						label: row.installation.version || 'без номера',
+						description: `платформа ${platform.platform}`,
+						installation: row.installation,
+					}
+		),
 		{
 			title: 'Версия 1С:EDT',
 			placeHolder: 'Этой версией создаётся проект. Младшая его не откроет',
 		}
 	);
-	if (!picked) {
+	if (!picked || !('installation' in picked) || picked.installation === undefined) {
 		return undefined;
 	}
 	const installation: EdtInstallation = picked.installation;

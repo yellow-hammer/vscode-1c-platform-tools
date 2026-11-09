@@ -26,7 +26,7 @@ type ShowErrorMessage = typeof vscode.window.showErrorMessage;
 
 /** Настройки по умолчанию для сборки вызова. */
 function settings(overrides: Partial<EdtSettings> = {}): EdtSettings {
-	return { path: '', version: '', workspace: '', timeoutSeconds: 3600, vmargs: [], ...overrides };
+	return { path: '', version: '', workspace: '', timeoutSeconds: 3600, vmargs: [], java: '', ...overrides };
 }
 
 suite('запуск команд EDT', () => {
@@ -71,6 +71,17 @@ suite('запуск команд EDT', () => {
 			'-command',
 			'build',
 		]);
+	});
+
+	test('свой ini идёт до -command', () => {
+		const args = buildEdtArgs(
+			{ command: 'import', args: [], title: 'Импорт', workspaceDir: 'ws', cwd: '.' },
+			settings(),
+			'C:/tmp/1cedt.ini'
+		);
+
+		assert.deepStrictEqual(args.slice(0, 2), ['-ini-file', 'C:/tmp/1cedt.ini']);
+		assert.ok(args.indexOf('-ini-file') < args.indexOf('-command'));
 	});
 
 	test('таймаут берётся из настроек', () => {

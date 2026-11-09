@@ -14,6 +14,7 @@
  */
 
 import * as fs from 'node:fs';
+import * as os from 'node:os';
 import * as path from 'node:path';
 import * as vscode from 'vscode';
 import { buildProcessCommand } from '../../utils/commandUtils';
@@ -21,7 +22,7 @@ import { createVRunnerTask, type TaskOutputChain } from '../tasks/vrunnerTask';
 import { runCancellableCommand } from '../../shared/cancellableProcess';
 import { logger } from '../../shared/logger';
 import { edtStartDataDirectory, findEdtInstallations, pickEdtInstallation, type EdtInstallation } from '../../shared/edtLocator';
-import { iniWithVm, launcherJava, recordedJavaFeatures, requiredJavaFeature, vmFromIni } from '../ibases/edtStart';
+import { iniSetVm, javaExecutable, launcherJava, recordedJavaFeatures, requiredJavaFeature, vmFromIni } from '../ibases/edtStart';
 import { isEdtProject } from '../../shared/projectLayout';
 import { edtTemporaryDir } from '../../shared/edtStaging';
 import { projectConfiguration } from '../../shared/projectConfiguration';
@@ -232,6 +233,8 @@ export interface EdtSettings {
 	timeoutSeconds: number;
 	/** Дополнительные аргументы JVM. */
 	vmargs: string[];
+	/** Путь к java.exe. Пусто: Java из установки EDT. */
+	java: string;
 }
 
 /**
@@ -247,6 +250,7 @@ export function readEdtSettings(root: string | undefined = currentRoot()): EdtSe
 		workspace: config.get<string>('edt.workspace', ''),
 		timeoutSeconds: config.get<number>('edt.timeoutSeconds', 3600),
 		vmargs: config.get<string[]>('edt.vmargs', []),
+		java: config.get<string>('edt.java', ''),
 	};
 }
 
@@ -324,32 +328,87 @@ export function edtJavaRequiredMessage(edtVersion: string, required: number, fou
 }
 
 /**
- * Проверяет, что в `1cedt.ini` есть Java.
+ * Готовит Java для `1cedtcli`.
  *
- * В команду `-vm` не попадает: `1cedtcli` отдаёт этот ключ в Java. Если строки
- * нет, в ini пишется каталог `bin` версии из `-Dosgi.requiredJavaVersion`.
+ * Ключ `-vm` в команде `1cedtcli` отдаёт в Java, свою Java он читает из ini.
+ * Общий `1cedt.ini` не меняется. Заданная Java пишется в копию ini.
+ * Пустая настройка оставляет Java из установки EDT.
  *
  * @param installation - Установка, чей `1cedtcli` запускается
- * @returns Текст отказа, если нужной Java нет
+ * @param configured - `edt.java`: путь к java.exe
+ * @returns Путь к копии ini либо текст отказа
  */
-function javaForEdtCli(installation: EdtInstallation): { error?: string } {
+function javaForEdtCli(installation: EdtInstallation, configured: string): { error?: string; iniFile?: string } {
 	const iniPath = path.join(path.dirname(installation.cli), '1cedt.ini');
 	const ini = readOptional(iniPath);
-	if (ini === undefined || vmFromIni(ini)) {
-		return {};
+	const chosen = configuredJavaBin(configured);
+	if (chosen.error) {
+		return { error: chosen.error };
 	}
-	const preferences = readOptional(path.join(edtStartDataDirectory(), 'preferences.json'));
-	const exe = launcherJava(ini, preferences, true);
-	if (exe) {
-		fs.writeFileSync(iniPath, iniWithVm(ini, path.dirname(exe)));
+	if (ini === undefined) {
+		return chosen.bin ? { iniFile: writePrivateIni(installation.cli, '', chosen.bin) } : {};
+	}
+	const bin = chosen.bin ?? (vmFromIni(ini) ? undefined : javaBinFromStarter(ini));
+	if (bin) {
+		return { iniFile: writePrivateIni(installation.cli, ini, bin) };
+	}
+	if (vmFromIni(ini)) {
 		return {};
 	}
 	const required = requiredJavaFeature(ini);
 	if (required === undefined) {
 		return {};
 	}
+	const preferences = readOptional(path.join(edtStartDataDirectory(), 'preferences.json'));
 	const found = preferences === undefined ? [] : recordedJavaFeatures(preferences);
 	return { error: edtJavaRequiredMessage(installation.version, required, found) };
+}
+
+/** Каталог `bin` из настройки. Пустая настройка не выбирает Java. */
+function configuredJavaBin(configured: string): { bin?: string; error?: string } {
+	const value = configured.trim();
+	if (value === '') {
+		return {};
+	}
+	if (value.includes('${')) {
+		return { error: 'Укажите полный путь к java.exe для команд 1С:EDT.' };
+	}
+	const bin = javaBin(value);
+	if (!javaExists(bin)) {
+		return { error: 'Файл Java для команд 1С:EDT не найден.' };
+	}
+	return { bin };
+}
+
+/** Каталог `bin` версии из `-Dosgi.requiredJavaVersion`, если стартер её записал и файл есть. */
+function javaBinFromStarter(ini: string): string | undefined {
+	const preferences = readOptional(path.join(edtStartDataDirectory(), 'preferences.json'));
+	const exe = launcherJava(ini, preferences, true);
+	return exe === undefined ? undefined : path.dirname(exe);
+}
+
+/** Каталог `bin`: от исполняемого файла берётся его каталог. */
+function javaBin(vmPath: string): string {
+	const base = path.basename(vmPath).toLowerCase();
+	if (base === 'java' || base === 'java.exe' || base === 'javaw' || base === 'javaw.exe') {
+		return path.dirname(vmPath);
+	}
+	return vmPath;
+}
+
+/** Есть ли в каталоге `java` или `javaw`. */
+function javaExists(bin: string): boolean {
+	const java = javaExecutable(bin, process.platform, true);
+	const javaw = javaExecutable(bin, process.platform, false);
+	return fs.existsSync(java) || fs.existsSync(javaw);
+}
+
+/** Копия `1cedt.ini` с `-vm` во временном каталоге. Общий файл установки не меняется. */
+function writePrivateIni(cli: string, ini: string, bin: string): string {
+	const file = path.join(os.tmpdir(), '1c-platform-tools', 'edt-ini', `${cli.replace(/[^\w.+-]+/g, '_')}.ini`);
+	fs.mkdirSync(path.dirname(file), { recursive: true });
+	fs.writeFileSync(file, iniSetVm(ini, bin));
+	return file;
 }
 
 /** Текст файла либо undefined, если файла нет. */
@@ -367,10 +426,16 @@ function readOptional(filePath: string): string | undefined {
  * Порядок важен: рабочая область и общие параметры идут до `-command`, всё
  * после него достаётся самой команде. Лаунчер отдаёт JVM всё от первого
  * `-vmargs` до `-command`: второй `-vmargs` дошёл бы до Java буквально.
- * Java задаёт `-vm` в `1cedt.ini`, не аргумент этой команды.
+ * Java задаёт `-vm` в ini. Свой ini передаётся через `-ini-file`, ключ `-vm` в команду не ставится.
  */
-export function buildEdtArgs(request: EdtCommand, settings: EdtSettings): string[] {
-	const args = ['-data', request.workspaceDir, '-timeout', String(settings.timeoutSeconds)];
+export function buildEdtArgs(request: EdtCommand, settings: EdtSettings, iniFile?: string): string[] {
+	const args = [
+		...(iniFile ? ['-ini-file', iniFile] : []),
+		'-data',
+		request.workspaceDir,
+		'-timeout',
+		String(settings.timeoutSeconds),
+	];
 	if (settings.vmargs.length > 0) {
 		args.push('-vmargs', ...settings.vmargs);
 	}
@@ -526,11 +591,11 @@ export async function runEdtCommand(request: EdtCommand): Promise<EdtRunResult> 
 		);
 	}
 
-	const java = javaForEdtCli(installation);
+	const java = javaForEdtCli(installation, settings.java);
 	if (java.error) {
 		return notStarted(java.error, background);
 	}
-	const args = buildEdtArgs(request, settings);
+	const args = buildEdtArgs(request, settings, java.iniFile);
 	// Задача исполняет команду процессом, а не терминалом пользователя: экранирование по оболочке процесса
 	const command = buildProcessCommand(installation.cli, args);
 	log.info(`EDT ${installation.version}: ${request.command}`);

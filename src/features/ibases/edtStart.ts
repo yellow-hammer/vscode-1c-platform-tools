@@ -123,6 +123,44 @@ export function iniWithVm(ini: string, bin: string): string {
 	if (vmFromIni(ini)) {
 		return ini;
 	}
+	return iniInsertVm(ini, bin);
+}
+
+/**
+ * Ставит `-vm` на каталог `bin`: существующую строку заменяет.
+ *
+ * Копия ini нужна `1cedtcli`: ключ `-vm` в команде он отдаёт в Java, а общий файл установки не переписывается.
+ *
+ * @param ini - Текст ini
+ * @param bin - Каталог `bin` нужной Java
+ * @returns Текст с одной строкой `-vm`
+ */
+export function iniSetVm(ini: string, bin: string): string {
+	const nl = ini.includes('\r\n') ? '\r\n' : '\n';
+	const lines = ini.split(/\r?\n/);
+	const vmargs = lines.findIndex((line) => line.trim() === '-vmargs');
+	const limit = vmargs < 0 ? lines.length : vmargs;
+	for (let index = 0; index < limit; index++) {
+		const line = lines[index].trim();
+		if (line === '-vm') {
+			const next = lines[index + 1];
+			if (next !== undefined && !next.trim().startsWith('-')) {
+				lines[index + 1] = bin;
+			} else {
+				lines.splice(index + 1, 0, bin);
+			}
+			return lines.join(nl);
+		}
+		if (line.startsWith('-vm ')) {
+			lines.splice(index, 1, '-vm', bin);
+			return lines.join(nl);
+		}
+	}
+	return iniInsertVm(ini, bin);
+}
+
+/** Вставляет блок `-vm` перед `-vmargs`. */
+function iniInsertVm(ini: string, bin: string): string {
 	const nl = ini.includes('\r\n') ? '\r\n' : '\n';
 	const block = `-vm${nl}${bin}${nl}`;
 	const at = ini.search(/^-vmargs[ \t]*$/m);

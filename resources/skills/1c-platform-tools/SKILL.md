@@ -190,6 +190,8 @@ description: "Операции с платформой 1С в этом прое�
 | Сортировать объекты | `1c-platform-tools.edt.sortProject` | `edt_sortProj` |
 | Сведения о проекте EDT | `1c-platform-tools.edt.projectInfo` | `edt_projectInfo` |
 
+Java для 1cedtcli: путь к java.exe в настройке 1c-platform-tools.edt.java. Пустое поле оставляет Java из установки EDT.
+
 ## Сеансы
 
 | Задача | Command ID | MCP |

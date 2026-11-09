@@ -37,6 +37,7 @@
         "1c-platform-tools.test.path.onebdd",
         "1c-platform-tools.platform.path",
         "1c-platform-tools.edt.path",
+        "1c-platform-tools.edt.java",
         "1c-platform-tools.edt.vmargs",
         "1c-platform-tools.docker.enabled",
         "1c-platform-tools.docker.image",
@@ -5175,7 +5176,7 @@
             "type": "string",
             "default": "",
             "scope": "resource",
-            "description": "Каталог установки платформы 1С, если расширение не нашло её само."
+            "description": "Каталог установки платформы 1С. Пусто: каталоги из 1cestart.cfg, затем обычные места установки."
           }
         }
       },
@@ -5270,7 +5271,13 @@
             "type": "string",
             "default": "",
             "scope": "resource",
-            "description": "Каталог установки 1С:EDT, если расширение не нашло её само."
+            "description": "Каталог установки 1С:EDT. Пусто: каталоги 1C:EDT Start и установщика 1С."
+          },
+          "1c-platform-tools.edt.java": {
+            "type": "string",
+            "default": "",
+            "scope": "resource",
+            "description": "Путь к java.exe для команд 1С:EDT. Пусто: Java из установки EDT."
           },
           "1c-platform-tools.edt.version": {
             "type": "string",

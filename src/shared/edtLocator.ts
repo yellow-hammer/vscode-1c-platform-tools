@@ -362,23 +362,40 @@ export function pickEdtInstallation(
 	);
 }
 
+/** Строка списка версий EDT: заголовок группы или установка. */
+export type EdtVersionPickRow =
+	| { readonly kind: 'separator'; readonly label: string }
+	| { readonly kind: 'installation'; readonly installation: EdtInstallation };
+
 /**
- * Порядок установок в вопросе при создании проекта.
+ * Строки вопроса о версии EDT.
  *
- * Текущая настройка проекта идёт первой, чтобы её было видно. Пустая настройка
- * оставляет порядок поиска: от старшей версии к младшей.
+ * Сверху версия проекта, затем все найденные от новой к старой.
+ * Без сохранённой версии остаётся только найденный список.
  *
- * @param installations - Найденные установки, уже отсортированные
- * @param currentVersion - `edt.version` проекта
- * @returns Тот же набор, текущая версия впереди
+ * @param installations - Найденные установки, уже от новой к старой
+ * @param currentVersion - `edt.version` проекта; пусто, если проект её ещё не записал
+ * @returns Строки для QuickPick
  */
-export function edtInstallationsForChoice(
+export function edtVersionPickRows(
 	installations: readonly EdtInstallation[],
 	currentVersion: string
-): EdtInstallation[] {
-	const preferred = pickEdtInstallation(installations, currentVersion);
-	if (preferred === undefined) {
-		return [...installations];
+): EdtVersionPickRow[] {
+	const found = installations.map((installation): EdtVersionPickRow => ({ kind: 'installation', installation }));
+	const requested = currentVersion.trim();
+	if (requested === '') {
+		return found;
 	}
-	return [preferred, ...installations.filter((installation) => installation.cli !== preferred.cli)];
+	const project = installations.find(
+		(installation) => installation.version === requested || installation.version.startsWith(`${requested}.`)
+	);
+	if (project === undefined) {
+		return found;
+	}
+	return [
+		{ kind: 'separator', label: 'Версия проекта' },
+		{ kind: 'installation', installation: project },
+		{ kind: 'separator', label: 'Найденные' },
+		...found,
+	];
 }
