@@ -14,6 +14,11 @@ export const VRUNNER_TASK_TYPE = '1c-vrunner';
 /** Источник задач, отображаемый в списке Tasks: Run Task. */
 export const VRUNNER_TASK_SOURCE = '1C: Platform Tools';
 
+/** Строка «Выполнение задачи». VS Code свою не показывает, если первый вывод с кодом цвета. */
+function executingTaskLine(name: string): string {
+	return `* Выполнение задачи: ${VRUNNER_TASK_SOURCE}: ${name}\r\n\r\n`;
+}
+
 /**
  * Определение задачи vrunner для tasks.json.
  *
@@ -86,6 +91,8 @@ export interface VRunnerTaskParams {
 	onOutput?: (chunk: string) => void;
 	/** Корень проекта: папка рабочей области задачи, её определение и ссылки в выводе; по умолчанию текущий проект. */
 	root?: string;
+	/** Текст перед эхом команды: профиль, окружение и незаданные настройки. */
+	preface?: string;
 }
 
 /**
@@ -152,7 +159,8 @@ class VRunnerPseudoterminal implements vscode.Pseudoterminal {
 		private readonly env?: NodeJS.ProcessEnv,
 		private readonly exitCallback?: (exitCode: number) => void,
 		private readonly onOutput?: (chunk: string) => void,
-		private readonly root?: string
+		private readonly root?: string,
+		private readonly preface?: string
 	) {}
 
 	public open(): void {
@@ -161,8 +169,11 @@ class VRunnerPseudoterminal implements vscode.Pseudoterminal {
 		if (this.root !== undefined) {
 			rememberTaskProject({ name: this.name, source: VRUNNER_TASK_SOURCE }, this.root);
 		}
-		// Эхо исходной команды в начале вывода (как у штатных задач VS Code),
-		// чтобы было видно, что именно запущено. Служебный префикс кодировки прячем.
+		this.writeEmitter.fire(executingTaskLine(this.name));
+		if (this.preface) {
+			this.writeEmitter.fire(`${this.preface.replace(/\r?\n/g, '\r\n')}\r\n\r\n`);
+		}
+		// Эхо команды: видно, что именно запущено. Служебный префикс кодировки спрятан.
 		const displayCommand = commandEcho(this.run.command);
 		this.writeEmitter.fire(`[90m> ${displayCommand}[0m\r\n\r\n`);
 		runCancellableCommand(this.run.command, {
@@ -211,7 +222,8 @@ export function createVRunnerTaskTerminal(params: VRunnerTaskParams): vscode.Pse
 		params.env,
 		params.exitCallback,
 		params.onOutput,
-		params.root ?? currentRoot()
+		params.root ?? currentRoot(),
+		params.preface
 	);
 }
 
@@ -244,6 +256,7 @@ export function createVRunnerTask(params: VRunnerTaskParams): vscode.Task {
 
 	task.presentationOptions = {
 		reveal: vscode.TaskRevealKind.Always,
+		echo: false,
 		panel: vscode.TaskPanelKind.Shared,
 		clear: params.appendOutput !== true,
 		showReuseMessage: false,
@@ -259,7 +272,7 @@ export function createVRunnerTask(params: VRunnerTaskParams): vscode.Task {
  * @param text - Текст
  * @param root - Корень проекта
  */
-export async function showTextTask(name: string, text: string, root?: string): Promise<void> {
+export async function showTextTask(name: string, text: string, root?: string, exitCode = 0): Promise<void> {
 	const project = root ?? currentRoot();
 	const scope = (project === undefined ? undefined : workspaceFolderOf(project)) ?? vscode.TaskScope.Workspace;
 	const execution = new vscode.CustomExecution(async () => {
@@ -273,10 +286,11 @@ export async function showTextTask(name: string, text: string, root?: string): P
 				if (project !== undefined) {
 					rememberTaskProject({ name, source: VRUNNER_TASK_SOURCE }, project);
 				}
+				writeEmitter.fire(executingTaskLine(name));
 				const body = text.endsWith('\n') ? text : `${text}\n`;
 				writeEmitter.fire(body.replace(/\r?\n/g, '\r\n'));
-				signalTaskFinished({ name, exitCode: 0, durationMs: Date.now() - startedAt });
-				closeEmitter.fire(0);
+				signalTaskFinished({ name, exitCode, durationMs: Date.now() - startedAt });
+				closeEmitter.fire(exitCode);
 			},
 			close() {},
 		};
@@ -290,6 +304,7 @@ export async function showTextTask(name: string, text: string, root?: string): P
 	);
 	task.presentationOptions = {
 		reveal: vscode.TaskRevealKind.Always,
+		echo: false,
 		panel: vscode.TaskPanelKind.Shared,
 		clear: true,
 		showReuseMessage: false,

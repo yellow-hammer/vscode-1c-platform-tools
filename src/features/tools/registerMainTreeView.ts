@@ -13,6 +13,14 @@ import { ServiceFilesTreeProvider } from '../serviceFiles/serviceFilesTree';
 import { currentRoot } from '../../shared/workspaceProjects';
 import { VRunnerManager } from '../../shared/vrunnerManager';
 import { notifyQuiet } from '../../shared/notify';
+import {
+	formatMissingProfileFile,
+	formatProfileLinks,
+	profileFileMissing,
+	profileLinks,
+} from '../testing/profileLinks';
+import { showTextTask } from '../tasks/vrunnerTask';
+import { showWorkspaceRequired } from '../../shared/configurationWriteTarget';
 
 export interface MainTreeViewRegistration {
 	treeDataProvider: PlatformTreeDataProvider;
@@ -54,6 +62,21 @@ export function registerMainTreeView(
 	const serviceFilesView = vscode.window.createTreeView('1c-platform-tools-service-files-tree', {
 		treeDataProvider: serviceFilesProvider,
 		showCollapseAll: true,
+	});
+	const serviceFilesCheck = vscode.commands.registerCommand('1c-platform-tools.serviceFiles.checkLinks', async () => {
+		const root = currentRoot();
+		if (!root) {
+			showWorkspaceRequired();
+			return;
+		}
+		const file = vrunner.getActiveEnvFile();
+		if (await profileFileMissing(root, file)) {
+			await showTextTask('Проверить связи', formatMissingProfileFile(file), root, 1);
+			return;
+		}
+		const { settings, schema } = await vrunner.readActiveSettings();
+		const links = await profileLinks(root, settings, schema);
+		await showTextTask('Проверить связи', formatProfileLinks(file, links), root, links.every((link) => link.ok) ? 0 : 1);
 	});
 	const serviceFilesRefresh = vscode.commands.registerCommand('1c-platform-tools.serviceFiles.refresh', () => {
 		serviceFilesProvider.refresh();
@@ -107,6 +130,7 @@ export function registerMainTreeView(
 		profileTreeView,
 		helpTreeView,
 		serviceFilesProvider,
+		serviceFilesCheck,
 		serviceFilesRefresh,
 		serviceFilesSelect,
 		serviceFilesReveal,

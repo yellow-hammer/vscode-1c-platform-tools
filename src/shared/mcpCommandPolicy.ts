@@ -56,6 +56,7 @@ const HIDDEN_PREFIXES = [
 	`${COMMAND_PREFIX}project.createFromWelcome`,
 	// Служебные: вызываются самим расширением, отдельного смысла для агента нет
 	`${COMMAND_PREFIX}serviceFiles.refresh`,
+	`${COMMAND_PREFIX}serviceFiles.checkLinks`,
 	`${COMMAND_PREFIX}serviceFiles.select`,
 	`${COMMAND_PREFIX}serviceFiles.revealInTree`,
 	`${COMMAND_PREFIX}serviceFiles.baseSetReady`,

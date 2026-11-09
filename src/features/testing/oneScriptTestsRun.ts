@@ -22,6 +22,7 @@ import { buildProcessCommand } from '../../utils/commandUtils';
 import { createVRunnerTask } from '../tasks/vrunnerTask';
 import { getOneScriptTestsCommandName } from '../tools/commandNames';
 import { oneScriptRunnerProgram, type OneScriptRunner } from './adapters/onescriptAdapter';
+import { formatLaunchPreface } from './launchPreface';
 import { formatRunSummary, readRunSummary } from './runReportSummary';
 
 const log = logger.scope('testing');
@@ -163,6 +164,10 @@ async function runAndReport(
 	log.info(`${title}: ${runner.kind}, каталог ${testsDir}`);
 
 	const command = buildProcessCommand(runner.file, call.args);
+	const preface = await formatLaunchPreface(vrunner, root, []);
+	if (preface !== '') {
+		log.info(preface);
+	}
 	let exitCode: number;
 	let output = '';
 	if (opts?.wait === true) {
@@ -180,7 +185,7 @@ async function runAndReport(
 				ended?.dispose();
 				resolve(code);
 			};
-			const task = createVRunnerTask({ name: title, command, cwd: root, env, root, exitCallback: finish });
+			const task = createVRunnerTask({ name: title, command, cwd: root, env, root, preface, exitCallback: finish });
 			// Задача, чей терминал так и не открылся, о выходе не сообщит: конец ловим и по событию
 			ended = vscode.tasks.onDidEndTask((event) => {
 				if (event.execution.task === task) {
@@ -207,7 +212,7 @@ async function runAndReport(
 	return {
 		success: green,
 		exitCode,
-		stdout: stats ? formatRunSummary(stats) : output,
+		stdout: [preface, stats ? formatRunSummary(stats) : output].filter((part) => part !== '').join('\n'),
 		stderr: stats ? '' : `Отчёт прогона не найден (ожидался: ${call.report}); код возврата ${exitCode}.`,
 		artifact: stats ? call.report : undefined,
 		...(stats ? { tests: stats } : {}),

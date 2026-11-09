@@ -1996,6 +1996,12 @@
         "category": "1С: Служебные файлы"
       },
       {
+        "command": "1c-platform-tools.serviceFiles.checkLinks",
+        "title": "Проверить связи",
+        "icon": "$(verified)",
+        "category": "1С: Служебные файлы"
+      },
+      {
         "command": "1c-platform-tools.serviceFiles.select",
         "title": "Выбрать",
         "icon": "$(target)",
@@ -3270,6 +3276,11 @@
           "command": "1c-platform-tools.serviceFiles.baseSetReady",
           "when": "view == 1c-platform-tools-service-files-tree && 1c-platform-tools.serviceFiles.baseSetReady",
           "group": "navigation@10"
+        },
+        {
+          "command": "1c-platform-tools.serviceFiles.checkLinks",
+          "when": "view == 1c-platform-tools-service-files-tree",
+          "group": "navigation@20"
         },
         {
           "command": "1c-platform-tools.serviceFiles.refresh",

@@ -2068,6 +2068,8 @@ export class VRunnerManager {
 			exitCallback?: (exitCode: number) => void;
 			/** Общий терминал шагов одной команды: без него задача очищает терминал */
 			output?: TaskOutputChain;
+			/** Текст перед эхом команды. */
+			preface?: string;
 		}
 	): Promise<vscode.Task | undefined> {
 		await this.getVRunnerVersion();
@@ -2094,6 +2096,7 @@ export class VRunnerManager {
 			definition: options?.definition,
 			exitCallback: options?.exitCallback,
 			appendOutput: options?.output?.append(),
+			preface: options?.preface,
 		});
 	}
 
@@ -2108,7 +2111,7 @@ export class VRunnerManager {
 	 */
 	public async executeVRunnerTask(
 		args: string[],
-		options?: { cwd?: string; env?: NodeJS.ProcessEnv; name?: string; appendOverrides?: boolean; output?: TaskOutputChain }
+		options?: { cwd?: string; env?: NodeJS.ProcessEnv; name?: string; appendOverrides?: boolean; output?: TaskOutputChain; preface?: string }
 	): Promise<void> {
 		const task = await this.createVRunnerTaskFromArgs(args, options);
 		if (task) {
@@ -2123,7 +2126,7 @@ export class VRunnerManager {
 	 */
 	public async executeVRunnerTaskAndWait(
 		args: string[],
-		options?: { cwd?: string; env?: NodeJS.ProcessEnv; name?: string; appendOverrides?: boolean; output?: TaskOutputChain }
+		options?: { cwd?: string; env?: NodeJS.ProcessEnv; name?: string; appendOverrides?: boolean; output?: TaskOutputChain; preface?: string }
 	): Promise<number> {
 		let resolveExit!: (exitCode: number) => void;
 		const exitPromise = new Promise<number>((resolve) => {
@@ -2152,7 +2155,7 @@ export class VRunnerManager {
 	 */
 	public async executeVRunnerTaskSequence(
 		argsArray: string[][],
-		options?: { cwd?: string; env?: NodeJS.ProcessEnv; name?: string; appendOverrides?: boolean; output?: TaskOutputChain }
+		options?: { cwd?: string; env?: NodeJS.ProcessEnv; name?: string; appendOverrides?: boolean; output?: TaskOutputChain; preface?: string }
 	): Promise<void> {
 		if (argsArray.length === 0) {
 			return;
@@ -2188,6 +2191,7 @@ export class VRunnerManager {
 			cwd,
 			env: this.childEnv(options?.env),
 			appendOutput: options?.output?.append(),
+			preface: options?.preface,
 		});
 		await vscode.tasks.executeTask(task);
 	}
@@ -2217,7 +2221,7 @@ export class VRunnerManager {
 	 */
 	public async executeVRunnerTaskSequenceAndWait(
 		argsArray: string[][],
-		options?: { cwd?: string; env?: NodeJS.ProcessEnv; name?: string; appendOverrides?: boolean; output?: TaskOutputChain }
+		options?: { cwd?: string; env?: NodeJS.ProcessEnv; name?: string; appendOverrides?: boolean; output?: TaskOutputChain; preface?: string }
 	): Promise<number> {
 		if (argsArray.length === 0) {
 			return 0;
@@ -2256,6 +2260,7 @@ export class VRunnerManager {
 			env: this.childEnv(options?.env),
 			exitCallback: resolveExit,
 			appendOutput: options?.output?.append(),
+			preface: options?.preface,
 		});
 		await vscode.tasks.executeTask(task);
 		return exitPromise;
@@ -2282,7 +2287,7 @@ export class VRunnerManager {
 	 */
 	public async executeVRunnerInTerminal(
 		args: string[],
-		options?: { cwd?: string; env?: NodeJS.ProcessEnv; name?: string; shellType?: ShellType; appendOverrides?: boolean; output?: TaskOutputChain }
+		options?: { cwd?: string; env?: NodeJS.ProcessEnv; name?: string; shellType?: ShellType; appendOverrides?: boolean; output?: TaskOutputChain; preface?: string }
 	): Promise<void> {
 		await this.getVRunnerVersion();
 		// По умолчанию команды идут как задачи VS Code (Rerun, список задач).
@@ -2335,7 +2340,7 @@ export class VRunnerManager {
 	 */
 	public async executeVRunnerCommandsInSequence(
 		argsArray: string[][],
-		options?: { cwd?: string; env?: NodeJS.ProcessEnv; name?: string; shellType?: ShellType; appendOverrides?: boolean; output?: TaskOutputChain }
+		options?: { cwd?: string; env?: NodeJS.ProcessEnv; name?: string; shellType?: ShellType; appendOverrides?: boolean; output?: TaskOutputChain; preface?: string }
 	): Promise<void> {
 		if (argsArray.length === 0) {
 			return;

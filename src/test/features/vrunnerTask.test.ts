@@ -23,6 +23,7 @@ suite('вывод задач одной команды', () => {
 		const chained = createVRunnerTask({ name: 'Сборка', command: 'vrunner compile', cwd: '.', appendOutput: true });
 
 		assert.strictEqual(single.presentationOptions.clear, true);
+		assert.strictEqual(single.presentationOptions.echo, false);
 		assert.strictEqual(chained.presentationOptions.clear, false);
 	});
 });

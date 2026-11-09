@@ -75,6 +75,8 @@ export interface RunExtras {
 	/** Файлы результата для ответа вызывающему. */
 	artifacts?: string[];
 	finish?: FinishStep;
+	/** Текст в начале вывода задачи: профиль, окружение, незаданные настройки. */
+	preface?: string;
 }
 
 /** Собираемый объект. */
@@ -616,8 +618,8 @@ export abstract class BaseCommand {
 		const steps = await this.vrunner.planIntent(effective, opts?.settingsFile, opts?.ibConnection);
 		const notices = this.vrunner.consumePlanNotices();
 		const result = steps.length === 1
-			? await this.runVRunner(steps[0], opts, terminalName, artifact, commandId, true, onComplete, bridged.output, extras?.finish)
-			: await this.runVRunnerSequential(steps, opts, terminalName, commandId, true, onComplete, bridged.output, extras?.finish);
+			? await this.runVRunner(steps[0], opts, terminalName, artifact, commandId, true, onComplete, bridged.output, extras?.finish, extras?.preface)
+			: await this.runVRunnerSequential(steps, opts, terminalName, commandId, true, onComplete, bridged.output, extras?.finish, extras?.preface);
 		return this.appendNotices(withArtifacts(result, extras?.artifacts), notices);
 	}
 
@@ -1112,7 +1114,8 @@ export abstract class BaseCommand {
 		planned = false,
 		onComplete?: () => Promise<void>,
 		output?: TaskOutputChain,
-		finish?: FinishStep
+		finish?: FinishStep,
+		preface?: string
 	): Promise<StructuredCommandResult | void> {
 		const cwd = this.getExecutionCwd(opts);
 		if (!cwd) {
@@ -1139,7 +1142,11 @@ export abstract class BaseCommand {
 		if (opts?.wait === true) {
 			const execute = (): Promise<StructuredCommandResult> => inRoot(async () => {
 				const result = await this.vrunner.executeVRunner(args, { cwd });
-				return applyFinish(this.vrunnerResultToStructured(result, artifact), finish);
+				const structured = this.vrunnerResultToStructured(result, artifact);
+				if (preface) {
+					structured.stdout = [preface, structured.stdout].filter(Boolean).join('\n');
+				}
+				return applyFinish(structured, finish);
 			});
 			try {
 				if (!commandId) {
@@ -1151,7 +1158,7 @@ export abstract class BaseCommand {
 			}
 		}
 
-		const runOptions = { cwd, name: terminalName, appendOverrides, output };
+		const runOptions = { cwd, name: terminalName, appendOverrides, output, preface };
 		const runTracked = () => inRoot(async () =>
 			finishTracked(await this.vrunner.executeVRunnerTaskAndWait(args, runOptions), finish)
 		);
@@ -1185,7 +1192,8 @@ export abstract class BaseCommand {
 		planned = false,
 		onComplete?: () => Promise<void>,
 		output?: TaskOutputChain,
-		finish?: FinishStep
+		finish?: FinishStep,
+		preface?: string
 	): Promise<StructuredCommandResult | void> {
 		const cwd = this.getExecutionCwd(opts);
 		if (!cwd) {
@@ -1226,6 +1234,9 @@ export abstract class BaseCommand {
 						break;
 					}
 				}
+				if (preface) {
+					stdout = [preface, stdout].filter(Boolean).join('\n');
+				}
 				return applyFinish({ success, exitCode, stdout, stderr }, finish);
 			});
 			try {
@@ -1241,7 +1252,7 @@ export abstract class BaseCommand {
 		// Объединяем в одну цепочку (&& / ; — в зависимости от оболочки),
 		// чтобы каждая следующая команда стартовала после реального завершения
 		// предыдущей, а не по факту попадания в input-буфер терминала.
-		const runOptions = { cwd, name: terminalName, appendOverrides, output };
+		const runOptions = { cwd, name: terminalName, appendOverrides, output, preface };
 		const runTracked = () => inRoot(async () =>
 			finishTracked(await this.vrunner.executeVRunnerTaskSequenceAndWait(argsList, runOptions), finish)
 		);

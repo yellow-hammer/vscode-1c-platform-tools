@@ -23,7 +23,7 @@ import { ReportTarget } from './projectTestConfig';
 import { RunQueue } from './runQueue';
 import { routeReportCases, RoutableFile } from './batchRouter';
 import { BUILD_SUBDIRS, DEFAULT_PATHS } from '../../shared/pathDefaults';
-import { environmentLabel } from '../../shared/environments';
+import { formatLaunchPreface } from './launchPreface';
 import { hasProjectFile } from '../../shared/projectLayout';
 import { projectConfiguration } from '../../shared/projectConfiguration';
 import {
@@ -311,9 +311,7 @@ export class TestingController implements vscode.Disposable {
 	}
 
 	/**
-	 * Профиль и окружение проекта для прогона: строка в начало вывода и тесты,
-	 * которые не начинаются, с причиной. Окружение нужно всем тестам, профиль —
-	 * тестам через vanessa-runner.
+	 * Первая строка прогона и тесты, которые не начинаются.
 	 *
 	 * @param root - Корень проекта прогона
 	 * @param units - Единицы прогона
@@ -322,8 +320,8 @@ export class TestingController implements vscode.Disposable {
 	private launchForRun<T extends { entry: FileEntry }>(
 		root: string,
 		units: T[]
-	): { header?: string; units: T[]; refused: { unit: T; problem: string }[] } {
-		return runWithProject(root, () => {
+	): Promise<{ header?: string; units: T[]; refused: { unit: T; problem: string }[] }> {
+		return runWithProject(root, async () => {
 			const profileProblem = this.vrunner.profileProblem();
 			const environmentProblem = this.vrunner.environmentProblem();
 			const allowed: T[] = [];
@@ -336,19 +334,12 @@ export class TestingController implements vscode.Disposable {
 					refused.push({ unit, problem });
 				}
 			}
-			const { profile, environment } = this.vrunner.launchSummary();
-			const parts: string[] = [];
-			if (profile.settingsFiles.length > 0 && allowed.some((unit) => unit.entry.adapter.usesVanessaRunner)) {
-				parts.push(`Профиль запуска: ${profile.label} (${profile.settingsFiles.join(', ')})`);
-			}
-			if (environment.files.length > 0) {
-				const names = Object.keys(environment.variables);
-				const label = environmentLabel(environment.id, environment.files);
-				parts.push(`окружение: ${label} (${environment.files.join(', ')}${names.length > 0 ? `: ${names.join(', ')}` : ''})`);
-			}
-			const text = parts.join('; ');
+			const frameworkIds = allowed
+				.filter((unit) => unit.entry.adapter.usesVanessaRunner)
+				.map((unit) => unit.entry.adapter.id);
+			const body = await formatLaunchPreface(this.vrunner, root, frameworkIds);
 			return {
-				header: text === '' ? undefined : `${text.charAt(0).toUpperCase()}${text.slice(1)}\r\n`,
+				header: body === '' ? undefined : `${body}\r\n`,
 				units: allowed,
 				refused,
 			};
@@ -903,7 +894,7 @@ export class TestingController implements vscode.Disposable {
 
 			const run = this.controller.createTestRun(request);
 
-			const launch = this.launchForRun(root, units);
+			const launch = await this.launchForRun(root, units);
 			// Тесты запускает движок проекта: ниже ВерсияСреды он предупреждает, но не мешает.
 			// vanessa-runner в Docker работает движком образа, а не этой машины
 			const local = launch.units.some((unit) => !unit.entry.adapter.usesVanessaRunner);
@@ -922,6 +913,7 @@ export class TestingController implements vscode.Disposable {
 			}
 			if (launch.header) {
 				run.appendOutput(launch.header);
+				log.info(launch.header.trim());
 			}
 
 			for (const unit of launch.units) {

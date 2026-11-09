@@ -28,6 +28,7 @@ import { resolveMetadataInRoots } from '../features/tools/terminalLinks';
 import { resolveProjectLayout, type SourceRoot } from '../shared/projectLayout';
 import { readRunSummary, formatRunSummary, RunReportFormat } from '../features/testing/runReportSummary';
 import { allureJavaHome, ensureAllure } from '../shared/allureComponent';
+import { formatLaunchPreface } from '../features/testing/launchPreface';
 import { openMutationReport, runMutationTesting } from '../features/testing/mutatos/mutatosCommand';
 import { runOneScriptTests } from '../features/testing/oneScriptTestsRun';
 import { logger } from '../shared/logger';
@@ -144,6 +145,20 @@ export class TestCommands extends BaseCommand {
 		return target ? { path: target.path, format: target.format } : undefined;
 	}
 
+	/** Первая строка прогона, как у панели тестирования. */
+	private async launchPreface(ids: readonly string[]): Promise<string | undefined> {
+		const root = this.vrunner.getWorkspaceRoot();
+		if (!root) {
+			return undefined;
+		}
+		const text = await formatLaunchPreface(this.vrunner, root, ids);
+		if (text === '') {
+			return undefined;
+		}
+		log.info(text);
+		return text;
+	}
+
 	/** JSON-объект файла настроек. Файла нет или он не разбирается: undefined. */
 	private async readJsonObject(filePath: string): Promise<Record<string, unknown> | undefined> {
 		try {
@@ -234,7 +249,8 @@ export class TestCommands extends BaseCommand {
 		await this.ensureReportDir('xunit', reportTarget);
 		const result = await this.runIntent(
 			{ kind: 'test.xunit' },
-			opts, commandName.title, undefined, commandName.id
+			opts, commandName.title, undefined, commandName.id,
+			{ preface: await this.launchPreface(['xunit']) }
 		);
 		return this.withRunReport(result, 'xunit', startedAtMs, opts, reportTarget);
 	}
@@ -298,7 +314,8 @@ export class TestCommands extends BaseCommand {
 		await this.ensureSyntaxCheckReportDir(opts);
 		const result = await this.runIntent(
 			{ kind: 'validate.syntaxCheck' },
-			opts, commandName.title, undefined, commandName.id
+			opts, commandName.title, undefined, commandName.id,
+			{ preface: await this.launchPreface(['syntax-check']) }
 		);
 		if (!result || !opts?.wait) {
 			return result;
@@ -432,7 +449,8 @@ export class TestCommands extends BaseCommand {
 		await this.ensureReportDir('vanessa', reportTarget);
 		const result = await this.runIntent(
 			{ kind: 'test.vanessa' },
-			opts, commandName.title, undefined, commandName.id
+			opts, commandName.title, undefined, commandName.id,
+			{ preface: await this.launchPreface(['vanessa']) }
 		);
 		return this.withRunReport(result, 'vanessa', startedAtMs, opts, reportTarget);
 	}
@@ -549,7 +567,8 @@ export class TestCommands extends BaseCommand {
 				noWait: profile.noWait,
 				common: connectionArgs,
 			},
-			opts, yaxCmd.title, undefined, yaxCmd.id
+			opts, yaxCmd.title, undefined, yaxCmd.id,
+			{ preface: await this.launchPreface(['yaxunit']) }
 		);
 		return this.withRunReport(result, 'yaxunit', startedAtMs, opts, reportTarget);
 	}
@@ -785,6 +804,7 @@ export class TestCommands extends BaseCommand {
 				command,
 				cwd: workspaceRoot,
 				env,
+				preface: await this.launchPreface(['vanessa', 'xunit', 'yaxunit', 'syntax-check']),
 			}));
 			if (port !== undefined) {
 				await openLocalUrl(`http://localhost:${port}/`);
