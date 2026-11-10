@@ -313,14 +313,27 @@ function generateV3(srcRoot, v2Options) {
 	};
 
 	const sets = {};
+	const setTexts = {};
 	const setsDir = path.join(cliDir, 'НаборыОпций');
 	for (const file of fs.readdirSync(setsDir)) {
 		if (!file.endsWith('.os')) {
 			continue;
 		}
 		const setName = file.replace(/\.os$/, '');
-		sets[setName] = parseOptions(fs.readFileSync(path.join(setsDir, file), 'utf8')).map(enrich);
+		const text = fs.readFileSync(path.join(setsDir, file), 'utf8');
+		setTexts[setName] = text;
+		sets[setName] = parseOptions(text).map(enrich);
 	}
+
+	// Набор может подключать другой: НаборОпцийИсходников включает НаборОпцийEDT.
+	const nestedSets = (name, seen = new Set()) => {
+		if (seen.has(name)) {
+			return [];
+		}
+		seen.add(name);
+		const nested = [...(setTexts[name] ?? '').matchAll(/&НаборОпций\("([^"]+)"\)/g)].map((match) => match[1]);
+		return nested.flatMap((child) => [child, ...nestedSets(child, seen)]);
+	};
 
 	const modules = walk(cliDir).map((file) => ({
 		name: path.basename(file, '.os'),
@@ -339,7 +352,8 @@ function generateV3(srcRoot, v2Options) {
 		if (!source.name.startsWith('Подкоманда') || !commandsByModule.has(source.name)) {
 			continue;
 		}
-		const usedSets = [...source.text.matchAll(/&НаборОпций\("([^"]+)"\)/g)].map((m) => m[1]);
+		const directSets = [...source.text.matchAll(/&НаборОпций\("([^"]+)"\)/g)].map((m) => m[1]);
+		const usedSets = [...new Set(directSets.flatMap((name) => [name, ...nestedSets(name)]))];
 		commands.push({
 			path: commandPath(source.name, commandsByModule),
 			options: parseOptions(source.text).map(enrich),

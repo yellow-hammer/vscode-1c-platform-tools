@@ -182,7 +182,7 @@ export const TREE_GROUPS: TreeGroup[] = [
 		projects: ONEC,
 		commands: [
 			{ command: '1c-platform-tools.cf.load', title: getLoadConfigurationFromSrcCommandName().title, treeLabel: '📥 Загрузить из исходного кода'},
-			{ command: '1c-platform-tools.cf.loadIncrement', title: getLoadConfigurationIncrementFromSrcCommandName().title, treeLabel: '📥 Загрузить изменения (git diff)' , formats: ['designer']},
+			{ command: '1c-platform-tools.cf.loadIncrement', title: getLoadConfigurationIncrementFromSrcCommandName().title, treeLabel: '📥 Загрузить изменения (git diff)' },
 			{ command: '1c-platform-tools.cf.loadByList', title: getLoadConfigurationFromFilesByListCommandName().title, treeLabel: '📥 Загрузить из objlist.txt' , formats: ['designer']},
 			{ command: '1c-platform-tools.cf.loadFile', title: getLoadConfigurationFromCfCommandName().title, treeLabel: '📥 Загрузить из 1Cv8.cf' },
 			{ command: '1c-platform-tools.infobase.updateDb', title: getUpdateConfigurationInInfobaseCommandName().title, treeLabel: '🔄 Обновить конфигурацию в ИБ' },

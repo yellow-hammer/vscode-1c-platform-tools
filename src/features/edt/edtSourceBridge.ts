@@ -400,6 +400,11 @@ export function planEdtBridge(
 	if (source?.format !== 'edt') {
 		return undefined;
 	}
+	// Инкремент vanessa-runner 3 считается по файлам проекта. Выгрузка в XML
+	// подменила бы каталог, и в базу ушёл бы весь проект.
+	if (intent.kind === 'cf.loadFromSrc' && intent.increment) {
+		return undefined;
+	}
 	const sourceDir = source.dir ?? intentSourcePath(intent);
 	if (!sourceDir) {
 		return undefined;

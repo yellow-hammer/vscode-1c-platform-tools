@@ -179,7 +179,7 @@ export const AGENT_COMMAND_DESCRIPTIONS: Record<string, AgentCommandDescription>
 		category: CONFIGURATION,
 	},
 	'1c-platform-tools.cf.loadIncrement': {
-		title: 'Загрузить в ИБ только изменённые объекты конфигурации (параметр sha задаёт коммит сравнения)',
+		title: 'Загрузить в ИБ только изменённые объекты конфигурации. Для выгрузки конфигуратора параметр sha задаёт коммит сравнения. Для проекта EDT нужен vanessa-runner 3, sha не используется',
 		category: CONFIGURATION,
 	},
 	'1c-platform-tools.cf.loadByList': {

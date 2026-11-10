@@ -40,6 +40,11 @@ suite('мост между проектом EDT и раннером', () => {
 		assert.deepStrictEqual(plan?.imports, []);
 	});
 
+	test('инкремент проекта остаётся на каталоге проекта', () => {
+		const intent = { kind: 'cf.loadFromSrc' as const, src: 'ssl31', increment: true, updateDb: true };
+		assert.strictEqual(planEdtBridge(intent, edtSource, layout), undefined);
+	});
+
 	test('создание базы и сборка cf выгружают проект перед командой', () => {
 		for (const intent of [
 			{ kind: 'infobase.init' as const, src: 'ssl31' },
