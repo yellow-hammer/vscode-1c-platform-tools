@@ -58,8 +58,21 @@ suite('дерево команд под формат исходников', () =
 			!allTreeCommands.includes('1c-platform-tools.test.validateEdt'),
 			'в дереве должна стоять edt.validate: test.validateEdt — отдельная проверка через vanessa-runner'
 		);
-		assert.ok(commands('test', 'edt').includes('1c-platform-tools.edt.validate'));
-		assert.ok(!commands('test', 'designer').includes('1c-platform-tools.edt.validate'));
+		const testing = [
+			'1c-platform-tools.syntaxCheck.run',
+			'1c-platform-tools.test.vanessa',
+			'1c-platform-tools.test.xunit',
+			'1c-platform-tools.test.yaxunit',
+			'1c-platform-tools.test.onescript',
+			'1c-platform-tools.test.mutatos',
+			'1c-platform-tools.test.allure',
+		];
+		assert.deepStrictEqual(commands('test', 'designer'), testing);
+		assert.deepStrictEqual(commands('test', 'edt'), [
+			testing[0],
+			'1c-platform-tools.edt.validate',
+			...testing.slice(1),
+		]);
 	});
 
 	test('подписи команд одни на оба формата и не называют раскладку исходников', () => {
@@ -114,18 +127,6 @@ suite('дерево команд под вид проекта', () => {
 			'1c-platform-tools.skills.add1cpt',
 			'1c-platform-tools.skills.addOnescript',
 		]);
-		assert.deepStrictEqual(
-			groupCommandsFor(group('test'), 'designer', treeTraitsOf('designer', false)).map((entry) => entry.command),
-			[
-				'1c-platform-tools.syntaxCheck.run',
-				'1c-platform-tools.test.vanessa',
-				'1c-platform-tools.test.xunit',
-				'1c-platform-tools.test.yaxunit',
-				'1c-platform-tools.test.onescript',
-				'1c-platform-tools.test.mutatos',
-				'1c-platform-tools.test.allure',
-			],
-		);
 	});
 
 	test('избранное: команды платформы у проекта OneScript не видны, цепочки и задачи видны', () => {
