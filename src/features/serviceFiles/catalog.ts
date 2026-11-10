@@ -17,6 +17,7 @@ import {
 	type SettingsFileFormat,
 	type SettingsSchema,
 } from '../../shared/envProfiles';
+import { PROJECT_FILE } from '../../shared/projectLayout';
 
 /** Каталоги, которые обход не заходит. */
 export const SKIP_DIRS = new Set(['src', 'oscript_modules', 'build', '.git']);
@@ -30,6 +31,7 @@ export type ServiceFileKind =
 	| 'environment'
 	| 'gitignore'
 	| 'gitattributes'
+	| 'packagedef'
 	| 'hooks'
 	| 'pipelines'
 	| 'vrunner'
@@ -62,6 +64,7 @@ const VARIANT_STEMS: Partial<Record<ServiceFileKind, string>> = {
 const SINGLE_FILES: { kind: ServiceFileKind; relPath: string }[] = [
 	{ kind: 'gitignore', relPath: '.gitignore' },
 	{ kind: 'gitattributes', relPath: '.gitattributes' },
+	{ kind: 'packagedef', relPath: PROJECT_FILE },
 	{ kind: 'hooks', relPath: '.1cpt/hooks.json' },
 	{ kind: 'pipelines', relPath: '.1cpt/pipelines.json' },
 	{ kind: 'syntax', relPath: 'tools/syntax-check-excludes.txt' },
@@ -89,6 +92,9 @@ export function classifyServiceFile(relPath: string): ServiceFileKind | undefine
 	}
 	if (atRoot && name === '.gitattributes') {
 		return 'gitattributes';
+	}
+	if (atRoot && name === PROJECT_FILE) {
+		return 'packagedef';
 	}
 	if (normalized === '.1cpt/hooks.json') {
 		return 'hooks';
@@ -268,7 +274,7 @@ export function variantPath(kind: ServiceFileKind, id: string): string | undefin
  * @returns true, если в подписи нужен сам путь
  */
 export function pathIsNotable(kind: ServiceFileKind, relPath: string): boolean {
-	if (kind === 'profile' || kind === 'environment' || kind === 'gitignore' || kind === 'gitattributes') {
+	if (kind === 'profile' || kind === 'environment' || kind === 'gitignore' || kind === 'gitattributes' || kind === 'packagedef') {
 		return relPath.includes('/');
 	}
 	if (kind === 'hooks' || kind === 'pipelines') {
@@ -291,6 +297,7 @@ function defaultPaths(kind: ServiceFileKind): readonly string[] {
 			return ['tools/syntax-check-excludes.txt'];
 		case 'gitignore':
 		case 'gitattributes':
+		case 'packagedef':
 		case 'hooks':
 		case 'pipelines':
 			return SINGLE_FILES.filter((file) => file.kind === kind).map((file) => file.relPath);

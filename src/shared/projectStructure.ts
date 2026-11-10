@@ -4,6 +4,8 @@
  * @see https://github.com/yellow-hammer/vanessa-bootstrap
  */
 
+import type { ProjectKind } from './projectKind';
+
 export interface ProjectStructureItem {
 	/** Относительный путь каталога от корня workspace */
 	path: string;
@@ -72,3 +74,19 @@ export const ONESCRIPT_PROJECT_DIRECTORIES: readonly string[] = ['src/Класс
 export const ONESCRIPT_PROJECT_FILES: readonly ProjectStructureFile[] = [
 	{ path: 'tests/oscript.cfg', content: 'lib.additional=../oscript_modules\n' },
 ];
+
+/**
+ * Каталоги, которые «Инициализировать структуру проекта» создаёт у проекта этого вида.
+ *
+ * У проекта 1С без исходного кода формат спрашивается при запуске, поэтому
+ * здесь только каталоги, общие для 1C:Конфигуратор и 1C:EDT.
+ *
+ * @param kind - Вид проекта; undefined, пока он не известен
+ * @returns Пути от корня проекта
+ */
+export function projectStructureDirectories(kind: ProjectKind | undefined): readonly string[] {
+	if (kind === 'onescript') {
+		return ONESCRIPT_PROJECT_DIRECTORIES;
+	}
+	return projectStructureItems(kind === 'designer' ? 'designer' : 'edt').map((item) => item.path);
+}

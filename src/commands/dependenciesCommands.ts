@@ -489,12 +489,15 @@ export class DependenciesCommands extends BaseCommand {
 	/**
 	 * Создаёт каталоги и файлы нового проекта OneScript; существующие файлы не трогает.
 	 * @param targetRoot — корень проекта (полный путь)
-	 * @returns количество созданных каталогов и файлов
+	 * @returns количество новых каталогов и файлов
 	 */
 	private async createOneScriptStructureInFolder(targetRoot: string): Promise<{ createdDirs: number; createdFiles: number }> {
+		let createdDirs = 0;
 		let createdFiles = 0;
 		for (const dir of ONESCRIPT_PROJECT_DIRECTORIES) {
-			await fs.mkdir(path.join(targetRoot, dir), { recursive: true });
+			if (await fs.mkdir(path.join(targetRoot, dir), { recursive: true })) {
+				createdDirs += 1;
+			}
 		}
 		for (const file of ONESCRIPT_PROJECT_FILES) {
 			try {
@@ -506,7 +509,7 @@ export class DependenciesCommands extends BaseCommand {
 				}
 			}
 		}
-		return { createdDirs: ONESCRIPT_PROJECT_DIRECTORIES.length, createdFiles };
+		return { createdDirs, createdFiles };
 	}
 
 	/**
@@ -514,7 +517,7 @@ export class DependenciesCommands extends BaseCommand {
 	 * У проекта 1С:EDT нет каталога src и выгрузки тестов конфигуратора.
 	 * @param targetRoot - корень проекта
 	 * @param format - проект в формате 1С:Конфигуратор или 1С:EDT
-	 * @returns количество созданных каталогов и новых README
+	 * @returns количество новых каталогов и README
 	 */
 	private async createProjectStructureInFolder(
 		targetRoot: string,
@@ -525,8 +528,9 @@ export class DependenciesCommands extends BaseCommand {
 		for (const item of projectStructureItems(format)) {
 			const dirPath = path.join(targetRoot, item.path);
 			const readmePath = path.join(dirPath, 'README.md');
-			await fs.mkdir(dirPath, { recursive: true });
-			createdDirs += 1;
+			if (await fs.mkdir(dirPath, { recursive: true })) {
+				createdDirs += 1;
+			}
 			try {
 				await fs.access(readmePath);
 			} catch {
@@ -736,7 +740,9 @@ export class DependenciesCommands extends BaseCommand {
 				log.info(
 					`Структура проекта создана: каталогов=${createdDirs}, новых файлов=${createdFiles}. Workspace: ${workspaceRoot}`
 				);
-				notifyQuiet(`Структура проекта создана: ${createdDirs} каталогов, ${createdFiles} файлов`);
+				notifyQuiet(createdDirs + createdFiles === 0
+					? 'Структура проекта уже есть'
+					: `Структура проекта создана: ${createdDirs} каталогов, ${createdFiles} файлов`);
 				return;
 			}
 
@@ -758,9 +764,9 @@ export class DependenciesCommands extends BaseCommand {
 			log.info(
 				`Структура проекта создана: каталогов=${createdDirs}, новых README=${createdReadmes}. Workspace: ${workspaceRoot}`
 			);
-			notifyQuiet(
-				`Структура проекта создана: ${createdDirs} каталогов, ${createdReadmes} файлов README`
-			);
+			notifyQuiet(createdDirs + createdReadmes === 0
+				? 'Структура проекта уже есть'
+				: `Структура проекта создана: ${createdDirs} каталогов, ${createdReadmes} файлов README`);
 		} catch (error) {
 			const errMsg = (error as Error).message;
 			log.error(`Не удалось создать структуру проекта: ${errMsg}. Workspace: ${workspaceRoot}`);

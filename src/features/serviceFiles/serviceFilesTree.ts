@@ -10,7 +10,8 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import * as vscode from 'vscode';
 import { VRunnerManager } from '../../shared/vrunnerManager';
-import { currentRoot, isOneScriptProject, onDidChangeCurrentProject } from '../../shared/workspaceProjects';
+import { currentRoot, isOneScriptProject, onDidChangeCurrentProject, projectByRoot } from '../../shared/workspaceProjects';
+import { projectStructureDirectories } from '../../shared/projectStructure';
 import { SERVICE_FILES_EXPANDED_GROUPS_STATE, projectMemento } from '../../shared/projectState';
 import { detectSettingsFormat, parseEnvFileName, type SettingsFileFormat, type SettingsSchema } from '../../shared/envProfiles';
 import { readSettingsJsonSync } from '../../shared/settingsJson';
@@ -75,6 +76,7 @@ export class ServiceFilesTreeProvider implements vscode.TreeDataProvider<Service
 	private watcher: vscode.Disposable | undefined;
 	private watchTimer: ReturnType<typeof setTimeout> | undefined;
 	private discovered: DiscoveredServiceFile[] = [];
+	private missingStructure: readonly string[] = [];
 	private linkedFiles = new Set<string>();
 	private profileLabel = '';
 	private rootNodes: ServiceNode[] | undefined;
@@ -236,7 +238,16 @@ export class ServiceFilesTreeProvider implements vscode.TreeDataProvider<Service
 
 	private async groupNodes(group: ServiceFileKind | 'repo' | 'automation', root: string): Promise<ServiceNode[]> {
 		if (group === 'repo') {
-			return [...this.fileNodes('gitignore', 'repo'), ...this.fileNodes('gitattributes', 'repo')];
+			const structure = new ServiceNode('Структура проекта', undefined, undefined, vscode.TreeItemCollapsibleState.None);
+			structure.iconPath = new vscode.ThemeIcon(this.missingStructure.length === 0 ? 'check' : 'add');
+			structure.tooltip = this.missingStructure.length === 0 ? undefined : `Нет каталогов: ${this.missingStructure.join(', ')}`;
+			structure.command = { command: '1c-platform-tools.dependencies.initializeProjectStructure', title: 'Структура проекта' };
+			return [
+				...this.fileNodes('gitignore', 'repo'),
+				...this.fileNodes('gitattributes', 'repo'),
+				...this.fileNodes('packagedef', 'repo'),
+				structure,
+			];
 		}
 		if (group === 'automation') {
 			const installed = (await readPipelines(root)).some((pipeline) => pipeline.id.startsWith(PIPELINE_TEMPLATE_ID_PREFIX));
@@ -315,6 +326,7 @@ export class ServiceFilesTreeProvider implements vscode.TreeDataProvider<Service
 
 	private async load(root: string): Promise<void> {
 		this.discovered = await scanServiceFiles(root);
+		this.missingStructure = await missingDirectories(root, projectStructureDirectories(projectByRoot(root)?.kind));
 		await this.rememberProfileCalls();
 		void vscode.commands.executeCommand('setContext', BASE_SET_READY, baseSetReady(root, this.vrunner.getActiveSettingsSchema()));
 	}
@@ -341,7 +353,7 @@ export class ServiceFilesTreeProvider implements vscode.TreeDataProvider<Service
 			return false;
 		}
 		const rel = path.relative(root, uri.fsPath).replace(/\\/g, '/');
-		return rel === '.1cpt' || rel.startsWith('.1cpt/') || classifyServiceFile(rel) !== undefined;
+		return rel === '.1cpt' || rel.startsWith('.1cpt/') || STRUCTURE_DIRECTORIES.has(rel) || classifyServiceFile(rel) !== undefined;
 	}
 
 	private watch(root: string | undefined): void {
@@ -352,7 +364,7 @@ export class ServiceFilesTreeProvider implements vscode.TreeDataProvider<Service
 		}
 		const watcher = vscode.workspace.createFileSystemWatcher(new vscode.RelativePattern(
 			root,
-			'{**/vrunner*.json,**/VAParams*.json,**/xUnitParams*.json,**/yaxunit*.json,**/vanessaConf.json,**/syntax-check*.txt,**/.env*,**/env*.json,**/autumn-properties*.json,.gitignore,.gitattributes,.1cpt,**/.1cpt/**}'
+			`{**/vrunner*.json,**/VAParams*.json,**/xUnitParams*.json,**/yaxunit*.json,**/vanessaConf.json,**/syntax-check*.txt,**/.env*,**/env*.json,**/autumn-properties*.json,.gitignore,.gitattributes,packagedef,.1cpt,**/.1cpt/**,${[...STRUCTURE_DIRECTORIES].join(',')}}`
 		));
 		const refresh = (): void => this.scheduleRefresh();
 		this.watcher = vscode.Disposable.from(
@@ -376,6 +388,14 @@ export class ServiceFilesTreeProvider implements vscode.TreeDataProvider<Service
 }
 
 const BASE_SET_READY = '1c-platform-tools.serviceFiles.baseSetReady';
+
+/** Каталоги шаблона у проектов всех видов: их появление и удаление меняет отметку структуры. */
+const STRUCTURE_DIRECTORIES = new Set([...projectStructureDirectories('designer'), ...projectStructureDirectories('onescript')]);
+
+async function missingDirectories(root: string, dirs: readonly string[]): Promise<string[]> {
+	const present = await Promise.all(dirs.map((dir) => fs.promises.stat(path.join(root, dir)).then((stat) => stat.isDirectory(), () => false)));
+	return dirs.filter((_, index) => !present[index]);
+}
 
 /** Раскрытые группы проекта. Пока человек ничего не раскрывал, групп в списке нет. */
 function expandedGroups(root: string | undefined): Set<string> {
@@ -401,7 +421,7 @@ function parentGroupOf(relPath: string): ServiceFileKind | 'repo' | 'automation'
 	if (!kind) {
 		return undefined;
 	}
-	if (kind === 'gitignore' || kind === 'gitattributes') {
+	if (kind === 'gitignore' || kind === 'gitattributes' || kind === 'packagedef') {
 		return 'repo';
 	}
 	if (kind === 'hooks' || kind === 'pipelines') {
@@ -444,6 +464,7 @@ function addCommand(kind: ServiceFileKind): vscode.Command {
 			return { command: '1c-platform-tools.serviceFiles.addYaxunit', title: addLabel(kind) };
 		case 'gitignore':
 		case 'gitattributes':
+		case 'packagedef':
 		case 'hooks':
 		case 'pipelines':
 		case 'syntax':
@@ -475,6 +496,7 @@ function fileLabel(row: ServiceFileRow, schema: SettingsSchema): string {
 			return parseEnvironmentFileName(name) ?? name;
 		case 'gitignore':
 		case 'gitattributes':
+		case 'packagedef':
 		case 'hooks':
 		case 'pipelines':
 		case 'vrunner':
@@ -607,6 +629,9 @@ function commandOf(row: ServiceFileRow, schema: SettingsSchema): vscode.Command 
 		}
 		if (row.kind === 'profile') {
 			return { command: '1c-platform-tools.serviceFiles.ensure', title: 'Профиль', arguments: ['launchProfile', CREATE_ONLY] };
+		}
+		if (row.kind === 'packagedef') {
+			return { command: '1c-platform-tools.dependencies.initializePackagedef', title: 'packagedef', arguments: [currentRoot()] };
 		}
 		return { command: '1c-platform-tools.serviceFiles.createBuildFile', title: 'Создать', arguments: [row.relPath, CREATE_ONLY] };
 	}

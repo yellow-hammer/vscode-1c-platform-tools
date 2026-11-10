@@ -4436,13 +4436,13 @@
         "command": "1c-platform-tools.metadata.revealInTree",
         "key": "ctrl+alt+t",
         "mac": "cmd+alt+t",
-        "when": "1c-platform-tools.is1CProject == true && editorTextFocus && !(resourceFilename =~ /^(\\.env.*|env.*\\.json|autumn-properties.*\\.json|vrunner.*\\.json|VAParams.*\\.json|xUnitParams.*\\.json|yaxunit.*\\.json|vanessaConf\\.json|syntax-check.*\\.txt|hooks\\.json|pipelines\\.json|\\.gitignore|\\.gitattributes)$/)"
+        "when": "1c-platform-tools.is1CProject == true && editorTextFocus && !(resourceFilename =~ /^(\\.env.*|env.*\\.json|autumn-properties.*\\.json|vrunner.*\\.json|VAParams.*\\.json|xUnitParams.*\\.json|yaxunit.*\\.json|vanessaConf\\.json|syntax-check.*\\.txt|hooks\\.json|pipelines\\.json|\\.gitignore|\\.gitattributes|packagedef)$/)"
       },
       {
         "command": "1c-platform-tools.serviceFiles.revealInTree",
         "key": "ctrl+alt+t",
         "mac": "cmd+alt+t",
-        "when": "1c-platform-tools.is1CProject == true && editorTextFocus && resourceFilename =~ /^(\\.env.*|env.*\\.json|autumn-properties.*\\.json|vrunner.*\\.json|VAParams.*\\.json|xUnitParams.*\\.json|yaxunit.*\\.json|vanessaConf\\.json|syntax-check.*\\.txt|hooks\\.json|pipelines\\.json|\\.gitignore|\\.gitattributes)$/"
+        "when": "1c-platform-tools.is1CProject == true && editorTextFocus && resourceFilename =~ /^(\\.env.*|env.*\\.json|autumn-properties.*\\.json|vrunner.*\\.json|VAParams.*\\.json|xUnitParams.*\\.json|yaxunit.*\\.json|vanessaConf\\.json|syntax-check.*\\.txt|hooks\\.json|pipelines\\.json|\\.gitignore|\\.gitattributes|packagedef)$/"
       },
       {
         "command": "workbench.view.extension.1c-platform-tools-projects",

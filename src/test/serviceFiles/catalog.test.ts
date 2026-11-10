@@ -12,6 +12,13 @@ suite('служебные файлы: поиск по имени', () => {
 		assert.strictEqual(classifyServiceFile('.git/vrunner.json'), undefined);
 	});
 
+	test('packagedef только в корне, строка есть и без файла', () => {
+		assert.strictEqual(classifyServiceFile('packagedef'), 'packagedef');
+		assert.strictEqual(classifyServiceFile('tools/packagedef'), undefined);
+		assert.deepStrictEqual(rowsOf('packagedef', discoverServiceFiles([])).map((row) => `${row.relPath}:${row.exists}`), ['packagedef:false']);
+		assert.strictEqual(pathIsNotable('packagedef', 'packagedef'), false);
+	});
+
 	test('профиль и окружение только в корне', () => {
 		assert.strictEqual(classifyServiceFile('autumn-properties.json'), 'profile');
 		assert.strictEqual(classifyServiceFile('env.dev.json'), 'profile');
