@@ -58,6 +58,23 @@ suite('распаковка zip', () => {
 		}
 	});
 
+	test('с отбором распаковываются только выбранные записи', async () => {
+		const work = tempDir('1cpt-zip-include-');
+		const archive = path.join(work, 'repo.zip');
+		await writeArchive(archive, [
+			{ name: 'repo-main/skills/one/SKILL.md', content: 'навык' },
+			{ name: 'repo-main/skills-old/SKILL.md', content: 'не тот каталог' },
+			{ name: 'repo-main/docs/readme.md', content: 'документация' },
+		]);
+
+		const out = path.join(work, 'out');
+		await extractZip(archive, out, (fileName) => fileName.startsWith('repo-main/skills/'));
+
+		assert.strictEqual(fs.readFileSync(path.join(out, 'repo-main/skills/one/SKILL.md'), 'utf8'), 'навык');
+		assert.ok(!fs.existsSync(path.join(out, 'repo-main/skills-old')));
+		assert.ok(!fs.existsSync(path.join(out, 'repo-main/docs')));
+	});
+
 	test('запись за пределы каталога прерывает распаковку', async () => {
 		const work = tempDir('1cpt-zip-traversal-');
 		const archive = path.join(work, 'evil.zip');

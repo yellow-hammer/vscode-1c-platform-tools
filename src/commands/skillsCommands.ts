@@ -1,4 +1,3 @@
-import { execSync } from 'node:child_process';
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
@@ -6,6 +5,7 @@ import * as vscode from 'vscode';
 import { logger } from '../shared/logger';
 import { notifyQuiet } from '../shared/notify';
 import { currentRoot, workspaceFolderOf } from '../shared/workspaceProjects';
+import { extractZip } from '../shared/zipExtract';
 
 const log = logger.scope('skills');
 
@@ -148,35 +148,65 @@ function displayDestination(targetDir: string, workspaceRoot: string | undefined
 	return targetDir;
 }
 
+/** Сколько ждать ответа GitHub или следующей порции архива. */
+const DOWNLOAD_IDLE_TIMEOUT_MS = 15 * 1000;
+
 /**
  * Скачивает архив по URL и возвращает путь к временному файлу.
+ *
+ * За закрытым наружу шлюзом запрос не отвергается, а молчит. Срок ожидания отсчитывается
+ * заново на каждой порции данных, поэтому медленная загрузка не прерывается.
  */
 async function downloadToTemp(url: string): Promise<string> {
-	const response = await fetch(url);
-	if (!response.ok) {
-		throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+	const controller = new AbortController();
+	let timer: ReturnType<typeof setTimeout> | undefined;
+	const restartTimer = (): void => {
+		clearTimeout(timer);
+		timer = setTimeout(() => controller.abort(), DOWNLOAD_IDLE_TIMEOUT_MS);
+	};
+	const chunks: Uint8Array[] = [];
+	try {
+		restartTimer();
+		const response = await fetch(url, { signal: controller.signal });
+		if (!response.ok || !response.body) {
+			throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+		}
+		const reader = response.body.getReader();
+		for (;;) {
+			restartTimer();
+			const { done, value } = await reader.read();
+			if (done) {
+				break;
+			}
+			chunks.push(value);
+		}
+	} catch (error) {
+		if (controller.signal.aborted) {
+			throw new Error(`GitHub не ответил за ${DOWNLOAD_IDLE_TIMEOUT_MS / 1000} секунд`);
+		}
+		throw error;
+	} finally {
+		clearTimeout(timer);
 	}
-	const buffer = await response.arrayBuffer();
 	const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), '1cpt-skills-'));
 	const zipPath = path.join(tmpDir, 'archive.zip');
-	await fs.writeFile(zipPath, new Uint8Array(buffer));
+	await fs.writeFile(zipPath, Buffer.concat(chunks));
 	return zipPath;
 }
 
 /**
- * Распаковывает ZIP во временную папку. Возвращает путь к папке с распакованным содержимым.
+ * Распаковывает рядом с архивом только перечисленные каталоги.
+ *
+ * Архив репозитория cc-1c-skills это больше двадцати тысяч файлов, навыков из них несколько сотен.
+ *
+ * @param zipPath - Путь к архиву
+ * @param folders - Каталоги внутри архива
+ * @returns Каталог, в котором лежат распакованные каталоги
  */
-async function extractZip(zipPath: string): Promise<string> {
+async function extractFolders(zipPath: string, folders: readonly string[]): Promise<string> {
 	const extractDir = path.join(path.dirname(zipPath), 'extracted');
-	await fs.mkdir(extractDir, { recursive: true });
-	if (process.platform === 'win32') {
-		execSync(
-			`powershell -NoProfile -Command "Expand-Archive -Path '${zipPath.replaceAll("'", "''")}' -DestinationPath '${extractDir.replaceAll("'", "''")}' -Force"`,
-			{ stdio: 'pipe' }
-		);
-	} else {
-		execSync(`unzip -o -q "${zipPath}" -d "${extractDir}"`, { stdio: 'pipe' });
-	}
+	const prefixes = folders.map((folder) => `${folder}/`);
+	await extractZip(zipPath, extractDir, (fileName) => prefixes.some((prefix) => fileName.startsWith(prefix)));
 	return extractDir;
 }
 
@@ -350,7 +380,7 @@ export class SkillsCommands {
 				let zipPath: string | null = null;
 				try {
 					zipPath = await downloadToTemp(CC_1C_SKILLS_ZIP_URL);
-					const extractDir = await extractZip(zipPath);
+					const extractDir = await extractFolders(zipPath, [`${CC_1C_SKILLS_ARCHIVE_ROOT}/${CC_1C_SKILLS_SOURCE_SUBDIR}`]);
 					const sourceSkillsPath = path.join(
 						extractDir,
 						CC_1C_SKILLS_ARCHIVE_ROOT,
@@ -483,7 +513,7 @@ export class SkillsCommands {
 				let zipPath: string | null = null;
 				try {
 					zipPath = await downloadToTemp(source.zipUrl);
-					const extractDir = await extractZip(zipPath);
+					const extractDir = await extractFolders(zipPath, [`${source.archiveRoot}/skills`, `${source.archiveRoot}/rules`]);
 					const catalogDir = path.join(extractDir, source.archiveRoot);
 					const skillsSource = path.join(catalogDir, 'skills');
 					try {

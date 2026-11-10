@@ -74,9 +74,14 @@ async function writeEntry(zip: ZipFile, entry: Entry, target: string): Promise<v
  *
  * @param archivePath путь к архиву
  * @param outDir каталог назначения (создаётся при необходимости)
+ * @param include отбор записей по имени в архиве; без него распаковывается всё
  * @throws Error если архив повреждён или запись уводит за пределы каталога
  */
-export async function extractZip(archivePath: string, outDir: string): Promise<void> {
+export async function extractZip(
+	archivePath: string,
+	outDir: string,
+	include?: (fileName: string) => boolean
+): Promise<void> {
 	await fsp.mkdir(outDir, { recursive: true });
 	const zip = await new Promise<ZipFile>((resolve, reject) => {
 		yauzl.open(archivePath, { lazyEntries: true, autoClose: true }, (err, opened) =>
@@ -100,6 +105,10 @@ export async function extractZip(archivePath: string, outDir: string): Promise<v
 			resolve();
 		});
 		zip.on('entry', (entry: Entry) => {
+			if (include && !include(entry.fileName)) {
+				zip.readEntry();
+				return;
+			}
 			const target = safeEntryPath(outDir, entry.fileName);
 			if (!target) {
 				fail(new Error(`Архив ${path.basename(archivePath)}: запись «${entry.fileName}» ведёт за пределы каталога`));
