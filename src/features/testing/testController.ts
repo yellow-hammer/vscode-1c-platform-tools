@@ -34,7 +34,7 @@ import {
 } from '../../shared/workspaceProjects';
 import { findProjectFiles, isOutsideScanRoot, projectScanRootOf } from '../artifacts/projectScan';
 import { ensureWorkspaceTrusted } from '../../shared/workspaceTrust';
-import { DEFAULT_PROFILE_ID } from '../../shared/envProfiles';
+import { environmentLabel } from '../../shared/environments';
 import { resolveOneScriptRunner, type OneScriptRunner } from './adapters/onescriptAdapter';
 
 const log = logger.scope('testing');
@@ -280,8 +280,7 @@ export class TestingController implements vscode.Disposable {
 	}
 
 	/**
-	 * Подпись корня фреймворка: именованный профиль у тестов через vanessa-runner и
-	 * выбранное окружение проекта дерева.
+	 * Подпись корня: профиль у тестов через vanessa-runner и окружение проекта.
 	 *
 	 * @param adapter - Фреймворк корня
 	 */
@@ -292,9 +291,10 @@ export class TestingController implements vscode.Disposable {
 		}
 		return runWithProject(root, () => {
 			const { profile, environment } = this.vrunner.launchSummary();
+			const hasEnvironment = environment.files.length > 0 || environment.id !== undefined;
 			const parts = [
-				profile.id === DEFAULT_PROFILE_ID || !adapter.usesVanessaRunner ? '' : `профиль: ${profile.label}`,
-				environment.id === undefined ? '' : `окружение: ${environment.id}`,
+				adapter.usesVanessaRunner ? `профиль: ${profile.label}` : '',
+				hasEnvironment ? `окружение: ${environmentLabel(environment.id, environment.files)}` : '',
 			].filter(Boolean);
 			return parts.length > 0 ? parts.join(', ') : undefined;
 		});

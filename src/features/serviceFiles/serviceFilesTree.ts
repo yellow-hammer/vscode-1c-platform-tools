@@ -16,6 +16,7 @@ import { detectSettingsFormat, parseEnvFileName, type SettingsFileFormat, type S
 import { readSettingsJsonSync } from '../../shared/settingsJson';
 import { parseEnvironmentFileName, BASE_DOTENV_FILE } from '../../shared/environments';
 import { getServiceFileSpec, resolveLaunchProfileSpec, serviceFileLabel, serviceFilesFor } from './registry';
+import { referencedSettingFiles } from '../testing/projectTestConfig';
 import { readPipelines } from '../../shared/pipelines/pipelineFile';
 import { PIPELINE_TEMPLATE_ID_PREFIX } from '../../shared/pipelines/pipelineTemplates';
 import {
@@ -74,6 +75,8 @@ export class ServiceFilesTreeProvider implements vscode.TreeDataProvider<Service
 	private watcher: vscode.Disposable | undefined;
 	private watchTimer: ReturnType<typeof setTimeout> | undefined;
 	private discovered: DiscoveredServiceFile[] = [];
+	private linkedFiles = new Set<string>();
+	private profileLabel = '';
 	private rootNodes: ServiceNode[] | undefined;
 	private readonly files = new Map<string, ServiceNode>();
 	private readonly groupChildren = new Map<string, ServiceNode[]>();
@@ -284,7 +287,7 @@ export class ServiceFilesTreeProvider implements vscode.TreeDataProvider<Service
 	private fileNode(row: ServiceFileRow, schema: SettingsSchema, parent: ServiceFileKind | 'repo' | 'automation'): ServiceNode {
 		const node = new ServiceNode(fileLabel(row, schema), parent, row, vscode.TreeItemCollapsibleState.None);
 		this.files.set(row.relPath, node);
-		const marks = marksOf(row, this.activeProfile(), this.selectedEnvironmentFile());
+		const marks = marksOf(row, this.activeProfile(), this.selectedEnvironmentFile(), this.linkedFiles, this.profileLabel);
 		node.description = [marks, pathIsNotable(row.kind, row.relPath) ? row.relPath : ''].filter((part) => part.length > 0).join(' · ');
 		node.iconPath = new vscode.ThemeIcon(row.exists ? 'check' : 'add');
 		node.tooltip = databaseTooltip(currentRoot(), row);
@@ -312,7 +315,15 @@ export class ServiceFilesTreeProvider implements vscode.TreeDataProvider<Service
 
 	private async load(root: string): Promise<void> {
 		this.discovered = await scanServiceFiles(root);
+		await this.rememberProfileCalls();
 		void vscode.commands.executeCommand('setContext', BASE_SET_READY, baseSetReady(root, this.vrunner.getActiveSettingsSchema()));
+	}
+
+	private async rememberProfileCalls(): Promise<void> {
+		const { settings, schema } = await this.vrunner.readActiveSettings();
+		const files = [...referencedSettingFiles(settings, schema), this.vrunner.linkedVrunnerFile()];
+		this.linkedFiles = new Set(files.filter((file): file is string => file !== undefined).map(servicePathKey));
+		this.profileLabel = this.linkedFiles.size > 0 ? this.vrunner.launchSummary().profile.label : '';
 	}
 
 	private activeProfile(): string {
@@ -528,17 +539,27 @@ function selectContext(row: ServiceFileRow, profile: string, environmentFile: st
 	return undefined;
 }
 
-function marksOf(row: ServiceFileRow, profile: string, environmentFile: string): string {
-	if (!row.exists) {
-		return '';
-	}
-	if ((row.kind === 'profile' || row.kind === 'vrunner') && row.relPath === profile) {
+function marksOf(
+	row: ServiceFileRow,
+	profile: string,
+	environmentFile: string,
+	linkedFiles: ReadonlySet<string>,
+	profileLabel: string,
+): string {
+	if (row.exists && (row.kind === 'profile' || row.kind === 'vrunner') && row.relPath === profile) {
 		return 'выбран';
 	}
-	if (row.kind === 'environment' && row.relPath === environmentFile) {
+	if (row.exists && row.kind === 'environment' && row.relPath === environmentFile) {
 		return 'выбрано';
 	}
+	if (profileLabel.length > 0 && linkedFiles.has(servicePathKey(row.relPath))) {
+		return profileLabel;
+	}
 	return '';
+}
+
+function servicePathKey(file: string): string {
+	return file.replace(/\\/g, '/').replace(/^\.\//, '');
 }
 
 const CREATE_ONLY = { createOnly: true };

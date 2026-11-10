@@ -377,6 +377,25 @@ function reportPathFromSettings(
 }
 
 /**
+ * Файлы настроек, названные в профиле.
+ *
+ * @param settings - Разобранный профиль
+ * @param schema - Схема профиля
+ */
+export function referencedSettingFiles(
+	settings: Record<string, unknown>,
+	schema: SettingsSchema = 'v2',
+): string[] {
+	const listed = [
+		vanessaSettingsPathFromEnv(settings, schema),
+		xunitSettingsPathFromEnv(settings, schema),
+		yaxunitSectionFromEnv(settings, schema).configPath,
+		syntaxCheckExceptionFileFromEnv(settings, schema),
+	];
+	return listed.filter((file): file is string => file !== undefined);
+}
+
+/**
  * Файл исключений синтаксического контроля из профиля.
  *
  * @param settings - Разобранное содержимое файла настроек

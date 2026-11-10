@@ -11,6 +11,7 @@ import {
 	reportsXunitFromEnv,
 	syntaxCheckJUnitPathFromEnv,
 	syntaxCheckGroupByMetadataFromEnv,
+	referencedSettingFiles,
 	yaxunitSectionFromEnv,
 	yaxunitConfigPathFromCommand,
 } from '../../features/testing/projectTestConfig';
@@ -216,6 +217,21 @@ suite('projectTestConfig', () => {
 		assert.strictEqual(syntaxCheckGroupByMetadataFromEnv(autumn, 'v3'), false);
 		// v2-читатель не находит значения в autumn-структуре
 		assert.strictEqual(reportsXunitFromEnv(autumn, 'v2'), undefined);
+	});
+
+	test('referencedSettingFiles называет только заданные файлы', () => {
+		assert.deepStrictEqual(referencedSettingFiles({
+			vanessa: { '--vanessasettings': './tools/VAParams.json' },
+			xunit: { '--xddConfig': 'tools/xUnitParams.json' },
+			yaxunit: { '--command': 'RunUnitTests=tools/yaxunit.json' },
+			'syntax-check': { '--exception-file': 'tools/syntax-check-excludes.txt' },
+		}), [
+			'./tools/VAParams.json',
+			'tools/xUnitParams.json',
+			'tools/yaxunit.json',
+			'tools/syntax-check-excludes.txt',
+		]);
+		assert.deepStrictEqual(referencedSettingFiles({}), []);
 	});
 
 	test('yaxunitSectionFromEnv: секция yaxunit env.json (2.x)', () => {

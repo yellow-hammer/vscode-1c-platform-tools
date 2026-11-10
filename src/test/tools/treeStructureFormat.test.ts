@@ -114,10 +114,18 @@ suite('дерево команд под вид проекта', () => {
 			'1c-platform-tools.skills.add1cpt',
 			'1c-platform-tools.skills.addOnescript',
 		]);
-		const designerTests = groupCommandsFor(group('test'), undefined, treeTraitsOf('designer', false)).map((entry) => entry.command);
-		const onescriptAt = designerTests.indexOf('1c-platform-tools.test.onescript');
-		assert.ok(onescriptAt >= 0, 'тесты OneScript есть у проекта 1С');
-		assert.ok(onescriptAt < designerTests.indexOf('1c-platform-tools.test.mutatos'));
+		assert.deepStrictEqual(
+			groupCommandsFor(group('test'), undefined, treeTraitsOf('designer', false)).map((entry) => entry.command),
+			[
+				'1c-platform-tools.syntaxCheck.run',
+				'1c-platform-tools.test.vanessa',
+				'1c-platform-tools.test.xunit',
+				'1c-platform-tools.test.yaxunit',
+				'1c-platform-tools.test.onescript',
+				'1c-platform-tools.test.mutatos',
+				'1c-platform-tools.test.allure',
+			],
+		);
 	});
 
 	test('избранное: команды платформы у проекта OneScript не видны, цепочки и задачи видны', () => {

@@ -329,10 +329,10 @@ export const TREE_GROUPS: TreeGroup[] = [
 		defaultCollapsibleState: 'collapsed',
 		projects: ANY,
 		commands: [
-			{ command: '1c-platform-tools.test.xunit', title: getXUnitTestsCommandName().title, treeLabel: '🧪 XUnit тесты', projects: ONEC },
 			{ command: '1c-platform-tools.syntaxCheck.run', title: getSyntaxCheckCommandName().title, treeLabel: '🧪 Синтаксический контроль', projects: ONEC },
 			{ command: '1c-platform-tools.edt.validate', title: getEdtValidateCommandName().title, treeLabel: '🧪 Проверка проекта EDT', formats: ['edt'], projects: ONEC },
 			{ command: '1c-platform-tools.test.vanessa', title: getVanessaTestsCommandName('normal').title, treeLabel: '🧪 Vanessa тесты', projects: ONEC },
+			{ command: '1c-platform-tools.test.xunit', title: getXUnitTestsCommandName().title, treeLabel: '🧪 XUnit тесты', projects: ONEC },
 			{ command: '1c-platform-tools.test.yaxunit', title: getYAxUnitTestsCommandName().title, treeLabel: '🧪 YAxUnit тесты', projects: ONEC },
 			{ command: '1c-platform-tools.test.onescript', title: getOneScriptTestsCommandName().title, treeLabel: '🧪 OneScript тесты' },
 			{ command: '1c-platform-tools.test.mutatos', title: getMutationTestingCommandName().title, treeLabel: '🧬 Мутационное тестирование' },
