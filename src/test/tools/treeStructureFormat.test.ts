@@ -22,7 +22,7 @@ const commands = (sectionType: string, format: 'designer' | 'edt' | undefined) =
 suite('дерево команд под формат исходников', () => {
 	test('у проекта EDT нет команд по файлам выгрузки', () => {
 		const edt = commands('configuration', 'edt');
-		assert.ok(!edt.includes('1c-platform-tools.cf.loadIncrement'));
+		assert.ok(edt.includes('1c-platform-tools.cf.loadIncrement'));
 		assert.ok(!edt.includes('1c-platform-tools.cf.loadByList'));
 		assert.ok(!edt.includes('1c-platform-tools.cf.dumpIncrement'));
 		assert.ok(edt.includes('1c-platform-tools.cf.load') && edt.includes('1c-platform-tools.cf.dump'));

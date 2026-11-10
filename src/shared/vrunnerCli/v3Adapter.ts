@@ -21,6 +21,7 @@ import {
 	VRunnerCliAdapter,
 	VRunnerIntent,
 	CommonArgs,
+	EdtRunnerArgs,
 	assertNever,
 	lastPathSegment,
 } from './intents';
@@ -76,6 +77,24 @@ function withoutOptions(options: string[], names: string[]): string[] {
  */
 function valued(name: string, value: string): string[] {
 	return value.startsWith('-') ? [`${name}=${value}`] : [name, value];
+}
+
+/**
+ * Опции 1cedtcli для загрузки проекта EDT самим раннером.
+ *
+ * Формат задаётся явно: каталог проекта иначе можно принять за XML.
+ */
+function edtSourceOptions(edt: EdtRunnerArgs): string[] {
+	const args = [
+		'--src-format', 'edt',
+		...valued('--edt-path', edt.cli),
+		...valued('--edt-workspace', edt.workspace),
+		...valued('--edt-timeout', String(edt.timeoutSeconds)),
+	];
+	for (const vmarg of edt.vmargs) {
+		args.push(...valued('--edt-vmargs', vmarg));
+	}
+	return args;
 }
 
 /** Сквозные опции: пары «опция, значение». */
@@ -205,6 +224,9 @@ export class V3CliAdapter implements VRunnerCliAdapter {
 				if (intent.increment) {
 					// Инкремент по индексу изменений (в 2.x — --git-increment)
 					options.push('--increment');
+				}
+				if (intent.edt !== undefined) {
+					options.push(...edtSourceOptions(intent.edt));
 				}
 				if (!intent.updateDb) {
 					options.push('--no-update-db');

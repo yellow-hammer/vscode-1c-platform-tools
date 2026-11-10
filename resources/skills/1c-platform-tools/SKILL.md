@@ -57,6 +57,8 @@ description: "Операции с платформой 1С в этом прое�
 | Конвертировать исходный код | `1c-platform-tools.cf.convert` | `cf_convert` |
 | Выгрузить поставку | `1c-platform-tools.cf.makeDist` | `cf_makeDist` |
 
+Загрузка изменений проекта EDT выполняется vanessa-runner 3 и не требует sha. На vanessa-runner 2 такая команда отказывает.
+
 ## Расширения
 
 Тестовые расширения лежат в каталоге из настройки `1c-platform-tools.test.directoryName`.

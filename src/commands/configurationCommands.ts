@@ -17,7 +17,13 @@ import {
 } from '../features/tools/commandNames';
 import { configurationScope } from '../shared/activeConfiguration';
 import { CONVERTED_CONFIGURATION_DIR, convertSourcesWithEdt } from '../features/edt/edtConvert';
-import { EDT_NOT_FOUND_MESSAGE, readEdtSettings, resolveEdt } from '../features/edt/edtRunner';
+import {
+	EDT_NOT_FOUND_MESSAGE,
+	edtWorkspaceBusyMessage,
+	edtWorkspaceDir,
+	readEdtSettings,
+	resolveEdt,
+} from '../features/edt/edtRunner';
 import {
 	checkVersionFileExists,
 	handleMissingVersionFile
@@ -28,6 +34,9 @@ import type { CommandExecutionOptions, StructuredCommandResult } from '../shared
 import { readSourceProperty } from '../features/metadata/sourceProperties';
 
 const log = logger.scope('commands');
+
+/** Загрузка изменений проекта EDT есть только у vanessa-runner 3. */
+const EDT_INCREMENT_NEEDS_V3 = 'Загрузка изменений проекта EDT есть в vanessa-runner 3.';
 
 /** Почему у файла из базы нет имени и версии. */
 const INFOBASE_PROPERTIES_UNKNOWN = 'имя и версию конфигурации из базы прочитать нельзя';
@@ -340,6 +349,18 @@ export class ConfigurationCommands extends BaseCommand {
 	}
 
 	async loadIncrementFromSrc(opts?: CommandExecutionOptions): Promise<StructuredCommandResult | void> {
+		if ((await this.paths())?.configuration?.format === 'edt') {
+			const workspaceRoot = this.ensureWorkspace();
+			if (!workspaceRoot || !(await this.ensureOscriptAvailable())) {
+				return;
+			}
+			const srcPath = await this.requireCfPath(opts);
+			if (typeof srcPath !== 'string') {
+				return srcPath;
+			}
+			return this.loadEdtIncrement(workspaceRoot, srcPath, opts);
+		}
+
 		// SHA в опциях — неинтерактивный вызов (агент, MCP); ввод в UI не нужен.
 		// Агентный вызов без sha отклоняется до открытия input box.
 		let shaInput = typeof opts?.sha === 'string' ? opts.sha : undefined;
@@ -357,10 +378,6 @@ export class ConfigurationCommands extends BaseCommand {
 		const srcPath = await this.requireCfPath(opts);
 		if (typeof srcPath !== 'string') {
 			return srcPath;
-		}
-		const edt = await this.refuseEdtConfiguration(opts);
-		if (edt !== null) {
-			return edt;
 		}
 		const lastUploadedCommitPath = path.join(workspaceRoot, srcPath, 'lastUploadedCommit.txt');
 
@@ -410,6 +427,56 @@ export class ConfigurationCommands extends BaseCommand {
 		}
 		return this.runIntent(
 			{ kind: 'cf.loadFromSrc', src: srcPath, increment: true, updateDb, common: ibConnectionParam },
+			opts, loadIncrCmd.title, undefined, loadIncrCmd.id
+		);
+	}
+
+	/**
+	 * Загрузка изменений проекта EDT: раннер 3 сам выгружает проект и считает изменения по его каталогу.
+	 *
+	 * @param workspaceRoot - Корень проекта
+	 * @param srcPath - Каталог проекта EDT относительно корня
+	 * @param opts - Опции выполнения
+	 */
+	private async loadEdtIncrement(
+		workspaceRoot: string,
+		srcPath: string,
+		opts?: CommandExecutionOptions
+	): Promise<StructuredCommandResult | void> {
+		if (!(await this.vrunner.supportsVRunnerFeature('cli3'))) {
+			return this.reportUnavailable(EDT_INCREMENT_NEEDS_V3, opts);
+		}
+		const settings = readEdtSettings(workspaceRoot);
+		const installation = resolveEdt(settings);
+		if (!installation) {
+			return this.reportUnavailable(EDT_NOT_FOUND_MESSAGE, opts);
+		}
+		const workspaceDir = edtWorkspaceDir(workspaceRoot, this.vrunner.getOutPath(), settings);
+		const workspaceBusy = edtWorkspaceBusyMessage(workspaceDir);
+		if (workspaceBusy !== undefined) {
+			return this.reportUnavailable(workspaceBusy, opts);
+		}
+
+		const ibConnectionParam = await this.vrunner.getIbConnectionParam();
+		const loadIncrCmd = getLoadConfigurationIncrementFromSrcCommandName();
+		const updateDb = await decideUpdateDb(opts);
+		if (updateDb === undefined) {
+			return;
+		}
+		return this.runIntent(
+			{
+				kind: 'cf.loadFromSrc',
+				src: srcPath,
+				increment: true,
+				updateDb,
+				edt: {
+					cli: installation.cli,
+					workspace: workspaceDir,
+					timeoutSeconds: settings.timeoutSeconds,
+					vmargs: settings.vmargs,
+				},
+				common: ibConnectionParam,
+			},
 			opts, loadIncrCmd.title, undefined, loadIncrCmd.id
 		);
 	}

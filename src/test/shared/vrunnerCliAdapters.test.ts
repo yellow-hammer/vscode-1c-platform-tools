@@ -48,6 +48,28 @@ suite('vrunnerCli: адаптеры v2/v3', () => {
 		);
 	});
 
+	test('cf.loadFromSrc инкремент проекта EDT', () => {
+		const edt = {
+			cli: 'C:/edt/1cedtcli.exe',
+			workspace: 'C:/проект/build/edt-workspace',
+			timeoutSeconds: 5400,
+			vmargs: ['-Xmx8g'],
+		};
+		check(
+			{ kind: 'cf.loadFromSrc', src: 'ssl31', increment: true, updateDb: true, edt, common: conn },
+			[['update-dev', '--src', 'ssl31', '--git-increment', ...conn]],
+			[[
+				'cf', 'load', '--increment', '--src-format', 'edt',
+				'--edt-path', edt.cli,
+				'--edt-workspace', edt.workspace,
+				'--edt-timeout', '5400',
+				'--edt-vmargs=-Xmx8g',
+				...conn,
+				'ssl31',
+			]]
+		);
+	});
+
 	test('cf.loadFromSrc без обновления БД', () => {
 		check(
 			{ kind: 'cf.loadFromSrc', src: 'src/cf', updateDb: false, common: conn },

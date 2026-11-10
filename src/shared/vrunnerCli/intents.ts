@@ -24,6 +24,18 @@
 /** Сквозные опции команды (аргументы, валидные в обоих CLI): пары «опция, значение». */
 export type CommonArgs = readonly string[];
 
+/** Параметры 1cedtcli, когда проект EDT загружает vanessa-runner 3. Адаптер 2.x поле не передаёт. */
+export interface EdtRunnerArgs {
+	/** Путь к `1cedtcli`. */
+	cli: string;
+	/** Каталог рабочей области EDT. */
+	workspace: string;
+	/** Таймаут команды, секунды. */
+	timeoutSeconds: number;
+	/** Дополнительные аргументы JVM. */
+	vmargs: readonly string[];
+}
+
 /** Отбор тестов YAxUnit: имена расширений, модулей и полные имена тестов `Модуль.Тест`. */
 export interface YaxunitFilter {
 	extensions?: readonly string[];
@@ -78,6 +90,8 @@ export type VRunnerIntent =
 		increment?: boolean;
 		/** Файл со списком объектов для выборочной загрузки. */
 		listFile?: string;
+		/** Параметры 1cedtcli для загрузки проекта EDT самим раннером. */
+		edt?: EdtRunnerArgs;
 		updateDb: boolean;
 		common?: CommonArgs;
 	}
