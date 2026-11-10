@@ -241,6 +241,9 @@ export function registerCommands(
 		registerProjectCommand('1c-platform-tools.serviceFiles.linkVrunner', (relPath?: unknown) =>
 			commands.serviceFiles.linkVrunner(relPath)
 		),
+		registerProjectCommand('1c-platform-tools.serviceFiles.recreate', (element?: unknown) =>
+			commands.serviceFiles.recreate(element)
+		),
 		registerProjectCommand('1c-platform-tools.serviceFiles.createBuildFile', (relPath?: unknown, opts?: unknown) =>
 			commands.serviceFiles.createBuildFile(relPath, createOnlyOf(opts))
 		),

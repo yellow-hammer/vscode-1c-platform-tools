@@ -9,7 +9,7 @@ import { HelpAndSupportProvider } from '../projects/helpAndSupportProvider';
 import { bindProjectDescription } from '../projects/projectViewDescription';
 import { LaunchProfileViewProvider } from '../launch/launchProfileViewProvider';
 import * as path from 'node:path';
-import { ServiceFilesTreeProvider } from '../serviceFiles/serviceFilesTree';
+import { ServiceFilesTreeProvider, openServiceFile } from '../serviceFiles/serviceFilesTree';
 import { currentRoot } from '../../shared/workspaceProjects';
 import { VRunnerManager } from '../../shared/vrunnerManager';
 import { notifyQuiet } from '../../shared/notify';
@@ -82,9 +82,9 @@ export function registerMainTreeView(
 		serviceFilesProvider.refresh();
 		notifyQuiet('Дерево обновлено');
 	});
-	const serviceFilesSelect = vscode.commands.registerCommand('1c-platform-tools.serviceFiles.select', (element?: unknown) => {
-		void serviceFilesProvider.select(element);
-	});
+	const serviceFilesOpen = vscode.commands.registerCommand('1c-platform-tools.serviceFiles.open', (element?: unknown) =>
+		openServiceFile(element)
+	);
 	const serviceFilesReveal = vscode.commands.registerCommand('1c-platform-tools.serviceFiles.revealInTree', async (uri?: vscode.Uri) => {
 		const target = uri ?? vscode.window.activeTextEditor?.document.uri;
 		await vscode.commands.executeCommand('1c-platform-tools-service-files-tree.focus');
@@ -132,7 +132,7 @@ export function registerMainTreeView(
 		serviceFilesProvider,
 		serviceFilesCheck,
 		serviceFilesRefresh,
-		serviceFilesSelect,
+		serviceFilesOpen,
 		serviceFilesReveal,
 		serviceFilesView,
 		serviceFilesHelp,

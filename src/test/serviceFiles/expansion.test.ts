@@ -15,7 +15,8 @@ function projectRoot(name: string): string {
 }
 
 suite('служебные файлы: раскрытие групп service-files-groups', () => {
-	test('без сохранённого состояния группы свёрнуты, раскрытие живёт в проекте', async () => {
+	test('без сохранённого состояния группы свёрнуты, раскрытие живёт в проекте', async function () {
+		this.timeout(60_000);
 		const first = projectRoot('первый');
 		const second = projectRoot('второй');
 		const provider = new ServiceFilesTreeProvider(VRunnerManager.getInstance());

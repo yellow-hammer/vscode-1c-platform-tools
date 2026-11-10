@@ -1,9 +1,10 @@
 /**
  * Дерево панели «1С: Служебные файлы».
  *
- * Щелчок по отсутствующей строке только создаёт файл.
- * Следующий щелчок открывает его: профиль, хуки и пайплайны своим редактором, остальные текстом.
- * Кнопка в строке выбирает профиль запуска, файл Vanessa Runner и окружение.
+ * Щелчок по отсутствующей строке только создаёт файл. Щелчок по профилю запуска,
+ * файлу Vanessa Runner и окружению выбирает их, по остальным строкам открывает файл:
+ * профиль, хуки и пайплайны своим редактором, остальные текстом. VS Code присылает
+ * команду строки на каждый щелчок, поэтому выбранная строка второй щелчок пропускает.
  */
 
 import * as fs from 'node:fs';
@@ -17,6 +18,7 @@ import { detectSettingsFormat, parseEnvFileName, type SettingsFileFormat, type S
 import { readSettingsJsonSync } from '../../shared/settingsJson';
 import { parseEnvironmentFileName, BASE_DOTENV_FILE } from '../../shared/environments';
 import { getServiceFileSpec, resolveLaunchProfileSpec, serviceFileLabel, serviceFilesFor } from './registry';
+import { canRecreateServiceFile } from './recreate';
 import { referencedSettingFiles } from '../testing/projectTestConfig';
 import { readPipelines } from '../../shared/pipelines/pipelineFile';
 import { PIPELINE_TEMPLATE_ID_PREFIX } from '../../shared/pipelines/pipelineTemplates';
@@ -41,6 +43,8 @@ import {
 class ServiceNode extends vscode.TreeItem {
 	readonly group: ServiceFileKind | 'repo' | 'automation' | undefined;
 	readonly row: ServiceFileRow | undefined;
+	/** Строка «1cpt: типовые пайплайны». */
+	pipelineTemplates = false;
 
 	constructor(
 		label: string,
@@ -155,43 +159,6 @@ export class ServiceFilesTreeProvider implements vscode.TreeDataProvider<Service
 		return projectMemento(root).update(SERVICE_FILES_EXPANDED_GROUPS_STATE, [...current]);
 	}
 
-	/** Кнопка строки: выбрать профиль запуска, файл Vanessa Runner или окружение. */
-	async select(element: unknown): Promise<void> {
-		if (!(element instanceof ServiceNode)) {
-			return;
-		}
-		const row = element.row;
-		if (!row?.exists) {
-			return;
-		}
-		const schema = this.vrunner.getActiveSettingsSchema();
-		if (row.kind === 'profile') {
-			const parsed = parseEnvFileName(path.posix.basename(row.relPath), schema);
-			if (!parsed || row.relPath === this.activeProfile()) {
-				return;
-			}
-			await vscode.commands.executeCommand('1c-platform-tools.env.selectProfile', parsed.id);
-			return;
-		}
-		if (row.kind === 'vrunner') {
-			if (row.relPath === this.activeProfile()) {
-				return;
-			}
-			await vscode.commands.executeCommand('1c-platform-tools.env.selectProfile', row.relPath);
-			return;
-		}
-		if (row.kind === 'environment' && row.relPath !== LOCAL_DOTENV_FILE) {
-			if (row.relPath === this.selectedEnvironmentFile()) {
-				return;
-			}
-			const id = row.relPath === BASE_DOTENV_FILE ? '' : parseEnvironmentFileName(path.posix.basename(row.relPath));
-			if (id === undefined) {
-				return;
-			}
-			await vscode.commands.executeCommand('1c-platform-tools.env.selectEnvironment', id);
-		}
-	}
-
 	dispose(): void {
 		if (this.watchTimer !== undefined) {
 			clearTimeout(this.watchTimer);
@@ -252,6 +219,8 @@ export class ServiceFilesTreeProvider implements vscode.TreeDataProvider<Service
 		if (group === 'automation') {
 			const installed = (await readPipelines(root)).some((pipeline) => pipeline.id.startsWith(PIPELINE_TEMPLATE_ID_PREFIX));
 			const templates = new ServiceNode('1cpt: типовые пайплайны', undefined, undefined, vscode.TreeItemCollapsibleState.None);
+			templates.pipelineTemplates = true;
+			templates.contextValue = installed ? 'serviceFileRecreatable' : undefined;
 			templates.iconPath = new vscode.ThemeIcon(installed ? 'check' : 'add');
 			templates.tooltip = installed ? 'Открыть редактор' : 'Добавить типовые пайплайны';
 			templates.command = installed
@@ -298,12 +267,12 @@ export class ServiceFilesTreeProvider implements vscode.TreeDataProvider<Service
 	private fileNode(row: ServiceFileRow, schema: SettingsSchema, parent: ServiceFileKind | 'repo' | 'automation'): ServiceNode {
 		const node = new ServiceNode(fileLabel(row, schema), parent, row, vscode.TreeItemCollapsibleState.None);
 		this.files.set(row.relPath, node);
-		const marks = marksOf(row, this.activeProfile(), this.selectedEnvironmentFile(), this.linkedFiles, this.profileLabel);
+		const marks = marksOf(row, selectionOf(this.vrunner), this.linkedFiles, this.profileLabel);
 		node.description = [marks, pathIsNotable(row.kind, row.relPath) ? row.relPath : ''].filter((part) => part.length > 0).join(' · ');
 		node.iconPath = new vscode.ThemeIcon(row.exists ? 'check' : 'add');
 		node.tooltip = databaseTooltip(currentRoot(), row);
-		node.contextValue = selectContext(row, this.activeProfile(), this.selectedEnvironmentFile());
-		node.command = rowClickCommand(row);
+		node.contextValue = rowContext(row, schema);
+		node.command = rowClickCommand(row, schema);
 		return node;
 	}
 
@@ -336,15 +305,6 @@ export class ServiceFilesTreeProvider implements vscode.TreeDataProvider<Service
 		const files = [...referencedSettingFiles(settings, schema), this.vrunner.linkedVrunnerFile()];
 		this.linkedFiles = new Set(files.filter((file): file is string => file !== undefined).map(servicePathKey));
 		this.profileLabel = this.linkedFiles.size > 0 ? this.vrunner.launchSummary().profile.label : '';
-	}
-
-	private activeProfile(): string {
-		return this.vrunner.getActiveEnvFile().replace(/\\/g, '/');
-	}
-
-	private selectedEnvironmentFile(): string {
-		const id = this.vrunner.activeEnvironment().id;
-		return id ? `.env.${id}` : BASE_DOTENV_FILE;
 	}
 
 	private affectsTree(uri: vscode.Uri): boolean {
@@ -548,30 +508,109 @@ function launchProfileLabel(): string {
 	return getServiceFileSpec('launchProfile')?.label ?? 'Осн. профиль запуска';
 }
 
-function selectContext(row: ServiceFileRow, profile: string, environmentFile: string): string | undefined {
+/** Выбранные файлы: профиль запуска и окружение. */
+export interface ServiceSelection {
+	profile: string;
+	environmentFile: string;
+}
+
+function selectionOf(vrunner: VRunnerManager): ServiceSelection {
+	const id = vrunner.activeEnvironment().id;
+	return {
+		profile: vrunner.getActiveEnvFile().replace(/\\/g, '/'),
+		environmentFile: id ? `.env.${id}` : BASE_DOTENV_FILE,
+	};
+}
+
+/** Выбор профиля, файла Vanessa Runner или окружения; undefined, если выбирать в строке нечего. */
+function selectCommand(row: ServiceFileRow, schema: SettingsSchema): vscode.Command | undefined {
 	if (!row.exists) {
 		return undefined;
 	}
-	if ((row.kind === 'profile' || row.kind === 'vrunner') && row.relPath !== profile) {
-		return 'serviceFileProfile';
+	if (row.kind === 'profile') {
+		const parsed = parseEnvFileName(path.posix.basename(row.relPath), schema);
+		return parsed ? { command: '1c-platform-tools.env.selectProfile', title: 'Выбрать', arguments: [parsed.id] } : undefined;
 	}
-	if (row.kind === 'environment' && row.relPath !== LOCAL_DOTENV_FILE && row.relPath !== environmentFile) {
-		return 'serviceFileEnvironment';
+	if (row.kind === 'vrunner') {
+		return { command: '1c-platform-tools.env.selectProfile', title: 'Выбрать', arguments: [row.relPath] };
+	}
+	if (row.kind === 'environment' && row.relPath !== LOCAL_DOTENV_FILE) {
+		const id = row.relPath === BASE_DOTENV_FILE ? '' : parseEnvironmentFileName(path.posix.basename(row.relPath));
+		return id === undefined ? undefined : { command: '1c-platform-tools.env.selectEnvironment', title: 'Выбрать', arguments: [id] };
 	}
 	return undefined;
 }
 
+function isSelected(row: ServiceFileRow, selection: ServiceSelection): boolean {
+	return row.kind === 'environment' ? row.relPath === selection.environmentFile : row.relPath === selection.profile;
+}
+
+/**
+ * Что делает щелчок по строке.
+ *
+ * @param row - Строка с наличием файла на диске
+ * @param schema - Схема настроек установленного vanessa-runner
+ * @param selection - Выбранные профиль и окружение
+ * @returns Команда; undefined, если строка уже выбрана
+ */
+export function clickCommand(row: ServiceFileRow, schema: SettingsSchema, selection: ServiceSelection): vscode.Command | undefined {
+	if (!row.exists) {
+		return createCommand(row);
+	}
+	const select = selectCommand(row, schema);
+	if (select) {
+		return isSelected(row, selection) ? undefined : select;
+	}
+	return openCommand(row, schema);
+}
+
+/** Признаки строки для меню: файл лежит, щелчок выбирает, есть шаблон для пересоздания. */
+function rowContext(row: ServiceFileRow, schema: SettingsSchema): string | undefined {
+	if (!row.exists) {
+		return undefined;
+	}
+	return [
+		'serviceFile',
+		selectCommand(row, schema) ? 'serviceFileSelectable' : '',
+		canRecreateServiceFile(row.relPath, isOneScriptProject(currentRoot())) ? 'serviceFileRecreatable' : '',
+	].filter((part) => part.length > 0).join(' ');
+}
+
+/** Строка панели под узлом дерева. */
+export function serviceRowOf(element: unknown): ServiceFileRow | undefined {
+	return element instanceof ServiceNode ? element.row : undefined;
+}
+
+/** Узел «1cpt: типовые пайплайны»: пересоздание ставит цепочки шаблона заново. */
+export function isPipelineTemplatesNode(element: unknown): boolean {
+	return element instanceof ServiceNode && element.pipelineTemplates;
+}
+
+/**
+ * «Открыть» в строке и в меню: профиль, хуки и пайплайны своим редактором, остальные файлы текстом.
+ *
+ * @param element - Строка панели
+ */
+export async function openServiceFile(element: unknown): Promise<void> {
+	const row = serviceRowOf(element);
+	const root = currentRoot();
+	if (!row || !root || !fs.existsSync(path.join(root, row.relPath))) {
+		return;
+	}
+	const action = openCommand(row, VRunnerManager.getInstance().getActiveSettingsSchema());
+	await vscode.commands.executeCommand(action.command, ...(action.arguments ?? []));
+}
+
 function marksOf(
 	row: ServiceFileRow,
-	profile: string,
-	environmentFile: string,
+	selection: ServiceSelection,
 	linkedFiles: ReadonlySet<string>,
 	profileLabel: string,
 ): string {
-	if (row.exists && (row.kind === 'profile' || row.kind === 'vrunner') && row.relPath === profile) {
+	if (row.exists && (row.kind === 'profile' || row.kind === 'vrunner') && row.relPath === selection.profile) {
 		return 'выбран';
 	}
-	if (row.exists && row.kind === 'environment' && row.relPath === environmentFile) {
+	if (row.exists && row.kind === 'environment' && row.relPath === selection.environmentFile) {
 		return 'выбрано';
 	}
 	if (profileLabel.length > 0 && linkedFiles.has(servicePathKey(row.relPath))) {
@@ -592,49 +631,55 @@ const rowCommands = new Set<string>();
 /**
  * Щелчок по строке. Путь записан в имени команды, без аргументов.
  *
- * @param row - Строка, которую открывают или создают
+ * @param row - Строка, по которой щёлкают
+ * @param schema - Схема настроек установленного vanessa-runner
  */
-function rowClickCommand(row: ServiceFileRow): vscode.Command {
+function rowClickCommand(row: ServiceFileRow, schema: SettingsSchema): vscode.Command {
 	const id = `1c-platform-tools.serviceFiles.row.${Buffer.from(row.relPath, 'utf8').toString('base64url')}`;
 	if (!rowCommands.has(id)) {
 		rowCommands.add(id);
 		const relPath = row.relPath;
 		const kind = row.kind;
-		vscode.commands.registerCommand(id, () => openServiceRow(relPath, kind));
+		vscode.commands.registerCommand(id, () => clickServiceRow(relPath, kind));
 	}
-	return { command: id, title: row.exists ? 'Открыть' : 'Создать' };
+	const title = !row.exists ? 'Создать' : selectCommand(row, schema) ? 'Выбрать' : 'Открыть';
+	return { command: id, title };
 }
 
-/** Создаёт или открывает файл строки. Наличие смотрит на диске, а не в устаревшей строке. */
-async function openServiceRow(relPath: string, kind: ServiceFileKind): Promise<void> {
+/** Наличие файла и выбор смотрит в момент щелчка, а не в устаревшей строке. */
+async function clickServiceRow(relPath: string, kind: ServiceFileKind): Promise<void> {
 	const root = currentRoot();
 	if (!root) {
 		return;
 	}
+	const vrunner = VRunnerManager.getInstance();
 	const normalized = relPath.replace(/\\/g, '/');
 	const row: ServiceFileRow = { kind, relPath: normalized, exists: fs.existsSync(path.join(root, normalized)) };
-	const action = commandOf(row, VRunnerManager.getInstance().getActiveSettingsSchema());
-	await vscode.commands.executeCommand(action.command, ...(action.arguments ?? []));
+	const action = clickCommand(row, vrunner.getActiveSettingsSchema(), selectionOf(vrunner));
+	if (action) {
+		await vscode.commands.executeCommand(action.command, ...(action.arguments ?? []));
+	}
 }
 
-function commandOf(row: ServiceFileRow, schema: SettingsSchema): vscode.Command {
-	if (!row.exists) {
-		if (row.kind === 'environment' && (row.relPath === BASE_DOTENV_FILE || row.relPath === LOCAL_DOTENV_FILE)) {
-			const local = row.relPath === LOCAL_DOTENV_FILE;
-			return {
-				command: '1c-platform-tools.serviceFiles.ensure',
-				title: 'Окружение',
-				arguments: [local ? 'environmentLocal' : 'environment', CREATE_ONLY],
-			};
-		}
-		if (row.kind === 'profile') {
-			return { command: '1c-platform-tools.serviceFiles.ensure', title: 'Профиль', arguments: ['launchProfile', CREATE_ONLY] };
-		}
-		if (row.kind === 'packagedef') {
-			return { command: '1c-platform-tools.dependencies.initializePackagedef', title: 'packagedef', arguments: [currentRoot()] };
-		}
-		return { command: '1c-platform-tools.serviceFiles.createBuildFile', title: 'Создать', arguments: [row.relPath, CREATE_ONLY] };
+function createCommand(row: ServiceFileRow): vscode.Command {
+	if (row.kind === 'environment' && (row.relPath === BASE_DOTENV_FILE || row.relPath === LOCAL_DOTENV_FILE)) {
+		const local = row.relPath === LOCAL_DOTENV_FILE;
+		return {
+			command: '1c-platform-tools.serviceFiles.ensure',
+			title: 'Окружение',
+			arguments: [local ? 'environmentLocal' : 'environment', CREATE_ONLY],
+		};
 	}
+	if (row.kind === 'profile') {
+		return { command: '1c-platform-tools.serviceFiles.ensure', title: 'Профиль', arguments: ['launchProfile', CREATE_ONLY] };
+	}
+	if (row.kind === 'packagedef') {
+		return { command: '1c-platform-tools.dependencies.initializePackagedef', title: 'packagedef', arguments: [currentRoot()] };
+	}
+	return { command: '1c-platform-tools.serviceFiles.createBuildFile', title: 'Создать', arguments: [row.relPath, CREATE_ONLY] };
+}
+
+function openCommand(row: ServiceFileRow, schema: SettingsSchema): vscode.Command {
 	const uri = vscode.Uri.file(path.join(currentRoot() ?? '', row.relPath));
 	if (row.kind === 'hooks') {
 		return { command: '1c-platform-tools.hooks.openEditor', title: 'Хуки' };

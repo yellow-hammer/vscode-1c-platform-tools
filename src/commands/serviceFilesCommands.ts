@@ -6,8 +6,9 @@ import { BaseCommand } from './baseCommand';
 import { logger } from '../shared/logger';
 import { readTemplate } from '../features/serviceFiles/templates';
 import { serviceFilesFor, getServiceFileSpec, resolveLaunchProfileSpec, serviceFileLabel, type ServiceFileSpec } from '../features/serviceFiles/registry';
-import { autumnPropertiesOf } from '../shared/packagedef';
-import { readPackageManifest } from '../shared/oneScriptLayout';
+import { canRecreateServiceFile, oneScriptLaunchProfileText, recreatePicksParts, recreateServiceFile } from '../features/serviceFiles/recreate';
+import { PIPELINES_FILE_REL_PATH } from '../shared/pipelines/pipelineTypes';
+import { isPipelineTemplatesNode, serviceRowOf } from '../features/serviceFiles/serviceFilesTree';
 import { isOneScriptProject } from '../shared/workspaceProjects';
 import { buildEnvJsonWithSections, buildAutumnPropertiesWithSections } from '../features/serviceFiles/envJsonBuilder';
 import {
@@ -287,14 +288,7 @@ export class ServiceFilesCommands extends BaseCommand {
 	private async ensureOneScriptLaunchProfile(workspaceRoot: string, createOnly = false): Promise<void> {
 		const fullPath = path.join(workspaceRoot, BASE_AUTUMN_FILE);
 		if (!fsSync.existsSync(fullPath)) {
-			const properties = autumnPropertiesOf(readPackageManifest(workspaceRoot) ?? {
-				dependencies: [],
-				classes: [],
-				modules: [],
-				executables: [],
-				includes: [],
-			});
-			await fs.writeFile(fullPath, `${JSON.stringify(properties, null, 4)}\n`, 'utf8');
+			await fs.writeFile(fullPath, oneScriptLaunchProfileText(workspaceRoot), 'utf8');
 			log.info(`Создан ${BASE_AUTUMN_FILE}`);
 			await this.vrunner.setActiveEnvProfileId(DEFAULT_PROFILE_ID);
 			this.refreshTree();
@@ -460,6 +454,54 @@ export class ServiceFilesCommands extends BaseCommand {
 		const next = writeVrunnerLink(current, schema, relPath);
 		await fs.writeFile(profilePath, `${JSON.stringify(next, null, 4)}\n`, 'utf8');
 		notifyQuiet(`Выбран ${serviceFileLabel(relPath)}`);
+		this.refreshProfileStatusBar();
+	}
+
+	/**
+	 * Записывает лежащий файл строки заново из шаблона, если человек подтвердил.
+	 *
+	 * Строка типовых пайплайнов пересоздаёт тот же файл пайплайнов.
+	 *
+	 * @param element - Строка панели «Служебные файлы»
+	 */
+	async recreate(element: unknown): Promise<void> {
+		const workspaceRoot = this.ensureWorkspace();
+		const relPath = isPipelineTemplatesNode(element) ? PIPELINES_FILE_REL_PATH : serviceRowOf(element)?.relPath;
+		if (!workspaceRoot || !relPath) {
+			return;
+		}
+		const oneScript = isOneScriptProject(workspaceRoot);
+		if (!canRecreateServiceFile(relPath, oneScript) || !fsSync.existsSync(path.join(workspaceRoot, relPath))) {
+			return;
+		}
+		if (!recreatePicksParts(relPath)) {
+			const answer = await vscode.window.showWarningMessage(
+				`Пересоздать ${relPath}? Текущее содержимое будет потеряно.`,
+				{ modal: true },
+				'Пересоздать'
+			);
+			if (answer !== 'Пересоздать') {
+				return;
+			}
+		}
+		try {
+			await this.vrunner.getVRunnerVersion();
+			const written = await recreateServiceFile(workspaceRoot, relPath, {
+				schema: this.vrunner.getActiveSettingsSchema(),
+				oneScript,
+				extensionPath: this.vrunner.getExtensionPath(),
+			});
+			if (!written) {
+				return;
+			}
+		} catch (error) {
+			const errMsg = error instanceof Error ? error.message : String(error);
+			log.error(`Не удалось пересоздать ${relPath}: ${errMsg}`);
+			void vscode.window.showErrorMessage(`Не удалось пересоздать ${relPath}: ${errMsg}`);
+			return;
+		}
+		log.info(`Пересоздан ${relPath}`);
+		notifyQuiet(`Пересоздан ${relPath}`);
 		this.refreshProfileStatusBar();
 	}
 

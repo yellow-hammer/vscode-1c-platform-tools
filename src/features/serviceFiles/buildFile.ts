@@ -38,13 +38,19 @@ export async function writeBuildFile(
 		await writeIfMissing(root, normalized, `${JSON.stringify(vrunnerVariantDocument(schema, vrunnerId), null, 4)}\n`);
 		return;
 	}
-	const template = templateOf(name);
+	const template = buildFileTemplate(name);
 	if (template) {
 		await writeIfMissing(root, normalized, await templateOrEmpty(extensionPath, template));
 	}
 }
 
-function templateOf(name: string): string | undefined {
+/**
+ * Шаблон файла сборки по имени файла.
+ *
+ * @param name - Имя файла без каталога
+ * @returns Имя шаблона в resources/templates или undefined, если шаблона нет
+ */
+export function buildFileTemplate(name: string): string | undefined {
 	if (/^VAParams\.init\.json$/i.test(name)) {
 		return 'tools/VAParams.init.json.template';
 	}
