@@ -115,7 +115,7 @@ suite('дерево команд под вид проекта', () => {
 			'1c-platform-tools.skills.addOnescript',
 		]);
 		assert.deepStrictEqual(
-			groupCommandsFor(group('test'), undefined, treeTraitsOf('designer', false)).map((entry) => entry.command),
+			groupCommandsFor(group('test'), 'designer', treeTraitsOf('designer', false)).map((entry) => entry.command),
 			[
 				'1c-platform-tools.syntaxCheck.run',
 				'1c-platform-tools.test.vanessa',
