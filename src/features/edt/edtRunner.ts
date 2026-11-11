@@ -46,7 +46,7 @@ export const EDT_NOT_FOUND_MESSAGE =
 	'1С:EDT не найдена. Установите её через 1cedtstart или укажите каталог в настройке «Каталог установки 1С:EDT».';
 
 /** Ответ, когда графическая EDT держит рабочую область команды. */
-export const EDT_WORKSPACE_BUSY_MESSAGE =
+const EDT_WORKSPACE_BUSY_MESSAGE =
 	'1С:EDT открыта на рабочей области проекта, а 1cedtcli с занятой рабочей областью не работает. Закройте EDT и повторите команду.';
 
 /** Сколько последнего вывода команды хранится для объяснения ошибки. */
@@ -223,16 +223,6 @@ function editorHoldsWorkspace(workspaceDir: string): boolean {
 			definition.workspace.toLowerCase() === wanted
 		);
 	});
-}
-
-/**
- * Сообщение, если графическая EDT уже открыта на этой рабочей области.
- *
- * @param workspaceDir - Каталог рабочей области EDT
- * @returns Текст отказа либо undefined, когда область свободна
- */
-export function edtWorkspaceBusyMessage(workspaceDir: string): string | undefined {
-	return editorHoldsWorkspace(workspaceDir) ? EDT_WORKSPACE_BUSY_MESSAGE : undefined;
 }
 
 /** Настройки раздела «1С:EDT». */
@@ -598,9 +588,8 @@ export async function runEdtCommand(request: EdtCommand): Promise<EdtRunResult> 
 		await running.catch(() => undefined);
 	}
 
-	const workspaceBusy = edtWorkspaceBusyMessage(request.workspaceDir);
-	if (workspaceBusy !== undefined) {
-		return notStarted(workspaceBusy, background);
+	if (editorHoldsWorkspace(request.workspaceDir)) {
+		return notStarted(EDT_WORKSPACE_BUSY_MESSAGE, background);
 	}
 
 	const java = javaForEdtCli(installation, settings.java);

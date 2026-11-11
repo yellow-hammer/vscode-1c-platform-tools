@@ -19,7 +19,6 @@ import { configurationScope } from '../shared/activeConfiguration';
 import { CONVERTED_CONFIGURATION_DIR, convertSourcesWithEdt } from '../features/edt/edtConvert';
 import {
 	EDT_NOT_FOUND_MESSAGE,
-	edtWorkspaceBusyMessage,
 	edtWorkspaceDir,
 	readEdtSettings,
 	resolveEdt,
@@ -452,11 +451,6 @@ export class ConfigurationCommands extends BaseCommand {
 			return this.reportUnavailable(EDT_NOT_FOUND_MESSAGE, opts);
 		}
 		const workspaceDir = edtWorkspaceDir(workspaceRoot, this.vrunner.getOutPath(), settings);
-		const workspaceBusy = edtWorkspaceBusyMessage(workspaceDir);
-		if (workspaceBusy !== undefined) {
-			return this.reportUnavailable(workspaceBusy, opts);
-		}
-
 		const ibConnectionParam = await this.vrunner.getIbConnectionParam();
 		const loadIncrCmd = getLoadConfigurationIncrementFromSrcCommandName();
 		const updateDb = await decideUpdateDb(opts);
