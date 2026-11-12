@@ -35,6 +35,8 @@ import {
 	runWithProject,
 } from '../../shared/workspaceProjects';
 import { inCurrentProject } from '../../commands/projectScope';
+import { readPipelines } from '../../shared/pipelines/pipelineFile';
+import { detectProjectKind } from '../../shared/projectKind';
 import { projectStatusVisible } from './launchStatusScope';
 import {
 	ensureEnvProfileStatusBar,
@@ -647,6 +649,18 @@ export function registerLaunchFeature(
 					?? null,
 				// Запущен ли автономный сервер проекта с OData: без этого агент узнаёт о нём только пробным запросом
 				odata: odataStatus(workspaceRoot),
+				// Цепочки проекта: агент видит id и название до вызова pipelines_run
+				pipelines: workspaceRoot === undefined
+					? []
+					: (await readPipelines(workspaceRoot)).map((pipeline) => ({
+						id: pipeline.id,
+						name: pipeline.name,
+						description: pipeline.description ?? null,
+					})),
+				// designer, edt, onec или onescript: от вида зависит подготовка базы
+				projectKind: workspaceRoot === undefined
+					? null
+					: (await detectProjectKind(workspaceRoot)) ?? null,
 			};
 			return {
 				success: true,

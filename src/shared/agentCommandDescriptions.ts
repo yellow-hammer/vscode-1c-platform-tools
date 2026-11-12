@@ -31,13 +31,14 @@ const PIPELINES = '1С: Пайплайны';
 const SERVER = '1С: Автономный сервер';
 const PROJECT = '1С: Проект';
 const ODATA = '1С: OData';
+const EDT = '1С: EDT';
 const ONESCRIPT = '1С: OneScript';
 
 /** Описания команд, чей заголовок вне интерфейса непонятен. */
 export const AGENT_COMMAND_DESCRIPTIONS: Record<string, AgentCommandDescription> = {
 	// Команды, которых нет в палитре: заголовка у них нет вовсе
 	'1c-platform-tools.env.status': {
-		title: 'Показать состояние запуска: версия vanessa-runner, активный профиль, файл настроек, строка подключения к ИБ, выбранное окружение (.env-файлы и имена переменных без значений)',
+		title: 'Показать состояние запуска: версия vanessa-runner, активный профиль, файл настроек, строка подключения к ИБ, вид проекта projectKind (designer, edt, onec, onescript), выбранное окружение (.env-файлы и имена переменных без значений), цепочки pipelines (id, name, description)',
 		category: ENVIRONMENT,
 	},
 	'1c-platform-tools.epf.run': {
@@ -105,6 +106,14 @@ export const AGENT_COMMAND_DESCRIPTIONS: Record<string, AgentCommandDescription>
 	'1c-platform-tools.test.decompileEpf': {
 		title: 'Разобрать обработки с тестами в исходный код',
 		category: TESTING,
+	},
+	'1c-platform-tools.test.validateEdt': {
+		title: 'Проверить проект EDT и вернуть результат; на выгрузке конфигуратора и на vanessa-runner 2 команда отказывает',
+		category: TESTING,
+	},
+	'1c-platform-tools.edt.validate': {
+		title: 'Проверить проект EDT и показать замечания в Problems; таблица в ответ не входит',
+		category: EDT,
 	},
 	'1c-platform-tools.test.configure': {
 		title: 'Включить или выключить тестовые фреймворки в панели тестирования (параметр frameworks)',

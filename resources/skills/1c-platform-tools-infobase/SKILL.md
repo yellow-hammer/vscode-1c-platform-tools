@@ -18,7 +18,7 @@ description: Операции с информационными базами 1С
 | Загрузить из dt | `1c-platform-tools.infobase.restoreDt` | `infobase_restoreDt` |
 | Запретить внешние ресурсы | `1c-platform-tools.infobase.blockExternalResources` | `infobase_blockExtRes` |
 
-`infobase_initFromSrc` загружает конфигурацию в пустую базу. `infobase_updateDb` обновляет конфигурацию базы из уже загруженной конфигурации. Обработчики обновления — отдельный запуск Предприятия, `infobase_runUpdateHandlers`.
+`infobase_create` создаёт новую пустую базу, в том числе когда отлаживают инициализацию или текущая база испорчена. `infobase_initFromSrc` загружает конфигурацию в пустую базу. `infobase_updateDb` обновляет конфигурацию базы из уже загруженной конфигурации. Обработчики обновления выполняет `infobase_runUpdateHandlers`. Нет файла инициализации: `infobase_init` пропускают.
 
 Загрузка конфигурации из исходников в существующую базу — `cf_load`, не команда из этой таблицы.
 

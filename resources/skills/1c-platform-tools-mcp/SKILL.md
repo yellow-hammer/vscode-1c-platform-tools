@@ -187,7 +187,7 @@ description: Инструменты MCP сервера mcp-1c-platform-tools. И
 
 ## Окружение и служебные файлы
 
-`env_status` возвращает JSON: `activeProfileId`, `settingsFile`, `settingsFileExists`, `settingsFiles`, `settingsSchema`, `profiles`, `activeEnvironment`, `environment` (файлы и имена переменных без значений), `environments`, `launchProblem`, `overrides`, `localOverrides`, `gitBranch`, `effectiveIbConnection`, `vrunnerVersion`, `odata`. Пароль замаскирован. Перед операцией, которая зависит от окружения, смотри этот ответ.
+`env_status` возвращает JSON: `activeProfileId`, `settingsFile`, `settingsFileExists`, `settingsFiles`, `settingsSchema`, `profiles`, `activeEnvironment`, `environment` (файлы и имена переменных без значений), `environments`, `launchProblem`, `overrides`, `localOverrides`, `gitBranch`, `effectiveIbConnection`, `vrunnerVersion`, `odata`, `projectKind` (`designer`, `edt`, `onec`, `onescript`), `pipelines` (`id`, `name`, `description`). Пароль замаскирован. Перед операцией, которая зависит от окружения, смотри этот ответ.
 
 | Инструмент | Command ID | wait: true |
 |---|---|---|
@@ -269,7 +269,7 @@ description: Инструменты MCP сервера mcp-1c-platform-tools. И
 | `tasks_view` | `1c-platform-tools.tasks.view` | без исхода |
 | `properties_show` | `1c-platform-tools.properties.show` | пустой |
 
-`pipelines_run`: параметр `pipeline` обязателен (id или название из `.1cpt/pipelines.json`). Без него команда не выбирает цепочку сама. `profile` и `environment` — профиль и окружение на этот прогон вместо выбранных в редакторе; свои у цепочки и шагов в файле остаются.
+`pipelines_run`: параметр `pipeline` обязателен (id или название из `env_status`, поле pipelines). Без него команда не выбирает цепочку сама. `profile` и `environment` задают профиль и окружение на этот прогон вместо выбранных в редакторе; свои у цепочки и шагов в файле остаются.
 
 `tasks_edit` открывает `tasks.json`. `tasks_view` обновляет дерево задач. Запуск задачи по имени в MCP нет: `1c-platform-tools.tasks.run` и `1c-platform-tools.tasks.runOscript` выполняет человек из палитры. `properties_show` только показывает панель свойств.
 
