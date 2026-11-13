@@ -258,8 +258,10 @@ export class MetadataSourceTreeItem extends vscode.TreeItem {
 		/** Отпечаток правил поддержки: правка сверяется с ним. */
 		public readonly supportGeneration?: string,
 		/** Версия выгрузки, которую md-sparrow не читает: узел без состава. */
-		public readonly unsupportedSchemaVersion?: string
+		public readonly unsupportedSchemaVersion?: string,
+		version?: string
 	) {
+		const shown = version?.trim();
 		super(
 			label,
 			(expanded ?? sourceKind === 'main')
@@ -267,6 +269,9 @@ export class MetadataSourceTreeItem extends vscode.TreeItem {
 				: vscode.TreeItemCollapsibleState.Collapsed
 		);
 		this.contextValue = 'metadataSource';
+		if (shown) {
+			this.description = shown;
+		}
 		if (unsupportedSchemaVersion !== undefined) {
 			// Состав не прочитан: из действий остаются файл выгрузки и сборка
 			this.contextValue = 'metadataSourceUnsupported';
@@ -2011,7 +2016,8 @@ export class MetadataTreeDataProvider implements vscode.TreeDataProvider<vscode.
 			const sItem = new MetadataSourceTreeItem(
 				src.id, src.label, src.kind, cfgAbs, metaAbs, expanded?.has(src.id), src.support,
 				src.supportEditingEnabled, src.supportGeneration,
-				unsupported ? (src.schemaVersion ?? '') : undefined);
+				unsupported ? (src.schemaVersion ?? '') : undefined,
+				src.version);
 			const sourceIcon = metadataSourceIcon(src.kind, this._context.extensionUri);
 			// Возможность изменения не включена: правки закрыты целиком, остаётся снятие с поддержки
 			const editingOff = (sItem.contextValue ?? '').includes('mdSupportRules') && src.supportEditingEnabled !== true;

@@ -30,6 +30,8 @@ export interface MetadataSourceDto {
 	readonly metadataRootRelativePath: string;
 	/** Версия выгрузки источника (`MetaDataObject/@version`); у внешних файлов пусто. */
 	readonly schemaVersion?: string;
+	/** Версия конфигурации или расширения (`Version`). Пусто у внешних отчётов и обработок. */
+	readonly version?: string;
 	/** Формат выгрузки читается md-sparrow; `false` у расширения чужого формата: состав пуст. */
 	readonly schemaSupported?: boolean;
 	/** Правило поддержки самого корня конфигурации: locked либо editable. */

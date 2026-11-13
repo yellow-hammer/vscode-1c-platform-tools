@@ -740,6 +740,23 @@ suite('metadataTreeView: расширение неподдерживаемого
 		assert.strictEqual(supported.collapsibleState, vscode.TreeItemCollapsibleState.Collapsed);
 		assert.strictEqual(supported.contextValue, 'metadataSourceConfigLike metadataExtensionRoot');
 	});
+
+	test('версия конфигурации стоит в описании корня', () => {
+		const withVersion = new MetadataSourceTreeItem(
+			'main', 'Основная конфигурация', 'main',
+			undefined, undefined, undefined, undefined, undefined, undefined, undefined,
+			'3.1.11.392'
+		);
+		const blank = new MetadataSourceTreeItem(
+			'ext', 'БезВерсии', 'extension',
+			undefined, undefined, undefined, undefined, undefined, undefined, undefined,
+			'   '
+		);
+		assert.strictEqual(withVersion.label, 'Основная конфигурация');
+		assert.strictEqual(withVersion.description, '3.1.11.392');
+		assert.strictEqual(blank.label, 'БезВерсии');
+		assert.strictEqual(blank.description, undefined);
+	});
 });
 
 suite('metadataTreeView: ошибка чтения дерева', () => {
