@@ -46,11 +46,15 @@ suite('раскладка проекта', () => {
 		const extension = [
 			'<mdclass:Configuration uuid="2fd73213-5b64-4002-b842-6e6dbd6ab9fa">',
 			'  <name>_ДемоРасширение</name>',
+			'  <version>1.0.1.14</version>',
 			'  <namePrefix>_Демо</namePrefix>',
 			'  <objectBelonging>Adopted</objectBelonging>',
 		].join('\n');
-		assert.deepStrictEqual(describeMarker(extension, 'edt'), { name: '_ДемоРасширение', isExtension: true });
-		assert.deepStrictEqual(describeMarker('<Configuration><Name>Демо</Name>', 'designer'), { name: 'Демо', isExtension: false });
+		assert.deepStrictEqual(describeMarker(extension, 'edt'), { name: '_ДемоРасширение', version: '1.0.1.14', isExtension: true });
+		assert.deepStrictEqual(
+			describeMarker('<Configuration><Name>Демо</Name><Version>1.2.3</Version>', 'designer'),
+			{ name: 'Демо', version: '1.2.3', isExtension: false }
+		);
 		assert.strictEqual(externalKindOfHead('<?xml version="1.0"?><ExternalDataProcessor xmlns="...">'), 'processor');
 		assert.strictEqual(externalKindOfHead('<mdclass:ExternalReport uuid="1">'), 'report');
 		assert.strictEqual(externalKindOfHead('<mdclass:ExternalReportSettings>'), undefined);
@@ -117,6 +121,8 @@ suite('раскладка проекта', () => {
 
 		assert.strictEqual(layout.configuration?.format, 'edt');
 		assert.strictEqual(layout.configuration?.name, 'БиблиотекаСтандартныхПодсистемДемо');
+		assert.strictEqual(layout.configuration?.version, '3.1.11.392');
+		assert.strictEqual(layout.extensions.find((root) => root.name === '_ДемоРасширение')?.version, '1.0.1.14');
 		assert.strictEqual(rel(layout.configuration?.dir ?? ''), 'ssl31');
 		assert.deepStrictEqual(layout.others.map((root) => rel(root.dir)), ['учёт']);
 		assert.deepStrictEqual(

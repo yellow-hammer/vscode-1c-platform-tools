@@ -44,12 +44,13 @@ export function nestedProjectLocation(project: WorkspaceProject): string | undef
 		: relativeLocation(path.dirname(project.folder), path.dirname(project.root));
 }
 
-/** Формат и имя конфигурации. */
+/** Формат, имя и версия конфигурации. */
 export function configurationParts(configuration: SourceRoot | undefined): string[] {
 	if (!configuration) {
 		return [];
 	}
-	return [SOURCE_FORMAT_LABELS[configuration.format], configuration.name].filter((part) => part.length > 0);
+	const version = configuration.version?.trim() ?? '';
+	return [SOURCE_FORMAT_LABELS[configuration.format], configuration.name, version].filter((part) => part.length > 0);
 }
 
 /** Формат и имя конфигурации проекта, а без конфигурации его вид. */
@@ -71,8 +72,8 @@ export interface ProjectDescriptionDetails {
 }
 
 /**
- * Описание строки проекта: «текущий», путь от корневого проекта, формат и
- * конфигурация или вид проекта, именованный профиль и окружение.
+ * Описание строки проекта: «текущий», путь от корневого проекта, формат,
+ * имя и версия конфигурации или вид проекта, именованный профиль и окружение.
  *
  * @param project - Проект
  * @param current - Проект текущий

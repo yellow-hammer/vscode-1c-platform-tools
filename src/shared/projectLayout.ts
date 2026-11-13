@@ -43,6 +43,8 @@ export interface SourceRoot {
 	format: SourceFormat;
 	/** Имя из метаданных; у конфигурации может быть пустым. */
 	name: string;
+	/** Свойство Version из заголовка; пусто, если его там нет. */
+	version?: string;
 	/** Расширение конфигурации, а не сама конфигурация. */
 	isExtension: boolean;
 }
@@ -260,15 +262,18 @@ export function markerIn(directory: string): { format: SourceFormat; file: strin
 	return undefined;
 }
 
-/** Имя и признак расширения из заголовка файла метаданных. */
-export function describeMarker(head: string, format: SourceFormat): { name: string; isExtension: boolean } {
+/** Имя, версия и признак расширения из заголовка файла метаданных. */
+export function describeMarker(head: string, format: SourceFormat): { name: string; version: string; isExtension: boolean } {
 	const isExtension = format === 'designer'
 		? /<ObjectBelonging>/i.test(head)
 		: /<objectBelonging>/.test(head) || /namePrefix/.test(head);
 	const name = format === 'designer'
 		? head.match(/<Name>([^<]+)<\/Name>/)?.[1] ?? ''
 		: head.match(/<name>([^<]+)<\/name>/)?.[1] ?? '';
-	return { name: name.trim(), isExtension };
+	const version = format === 'designer'
+		? head.match(/<Version>([^<]*)<\/Version>/)?.[1] ?? ''
+		: head.match(/<version>([^<]*)<\/version>/)?.[1] ?? '';
+	return { name: name.trim(), version: version.trim(), isExtension };
 }
 
 /**
@@ -394,8 +399,8 @@ async function readRoot(directory: string): Promise<SourceRoot | undefined> {
 	if (head === undefined) {
 		return undefined;
 	}
-	const { name, isExtension } = describeMarker(head, marker.format);
-	return { dir: directory, format: marker.format, name, isExtension };
+	const { name, version, isExtension } = describeMarker(head, marker.format);
+	return { dir: directory, format: marker.format, name, version, isExtension };
 }
 
 /**
