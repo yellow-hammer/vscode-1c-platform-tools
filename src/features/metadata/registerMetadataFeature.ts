@@ -81,6 +81,7 @@ import {
 	type MdSparrowParams,
 	supportEnabled,
 } from './mdSparrowParams';
+import { registerDcsAgentCommands } from './dcsAgentCommands';
 import { openDcsEditorPanel } from './dcsEditorPanel';
 import { dcsEditorUnsupportedReason, dcsTemplateMutationParams, resolveDcsOwnerTarget, type DcsTemplateOp } from './dcsTargets';
 import { openSpreadsheetPanel } from '../spreadsheet/openSpreadsheetPanel';
@@ -3437,6 +3438,8 @@ export function registerMetadataFeature(
 		onDidChangeProjects(() => void metadataTreeProvider.syncWithProjectLayout()),
 	];
 
+	// Команды агента пишут в той же очереди правок, что дерево и вкладки СКД
+	metadataDisposables.push(...registerDcsAgentCommands(context, runMdSparrowMutation));
 	return [...metadataDisposables, ...paletteSource];
 }
 
