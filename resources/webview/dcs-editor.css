@@ -1,6 +1,347 @@
-/* Редактор схемы компоновки: структура списками, запрос текстом */
-.dcs-section {
-	margin-bottom: 18px;
+/* Редактор схемы компоновки: таблицы с кнопками, формы в мини-диалоге, запрос текстом */
+.dcs-set-head {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	flex-wrap: wrap;
+	margin-bottom: 6px;
+}
+.dcs-set-title {
+	font-weight: 600;
+	font-size: 14px;
+	overflow-wrap: break-word;
+}
+.dcs-kind {
+	padding: 1px 8px;
+	border-radius: 999px;
+	font-size: 11px;
+	background: var(--vscode-badge-background);
+	color: var(--vscode-badge-foreground);
+	white-space: nowrap;
+}
+.dcs-btn-small {
+	padding: 2px 8px;
+	font-size: 12px;
+	border-radius: 4px;
+}
+.dcs-btn-danger:hover {
+	border-color: var(--vscode-errorForeground);
+	color: var(--vscode-errorForeground);
+}
+/*
+ * Команды над списками — пиктограммы 16px с подсказкой (iconButton в dcs-editor.js).
+ * Линии рисуются цветом текста (currentColor): пиктограмма следует теме и состоянию кнопки,
+ * у недоступной она приглушена вместе с текстом. Обводка задаётся здесь, а не в разметке: CSP окна не
+ * пропускает атрибут style.
+ */
+.dcs-icon-btn {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	min-width: 26px;
+	min-height: 24px;
+	padding: 3px 4px;
+	line-height: 1;
+}
+/* Свой display перебил бы общее .hidden («Добавить значение» вне режима списка) */
+.dcs-icon-btn.hidden {
+	display: none;
+}
+.dcs-icon {
+	flex: none;
+	width: 16px;
+	height: 16px;
+	fill: none;
+	stroke: currentColor;
+	stroke-width: 1.4;
+	stroke-linecap: round;
+	stroke-linejoin: round;
+	pointer-events: none;
+}
+/* Кнопки строки таблицы — без рамки, поэтому меньше */
+.struct-btn.dcs-icon-btn {
+	min-width: 22px;
+	min-height: 20px;
+	padding: 2px;
+}
+/* Название пиктограммы (и обрезанной вертикальной вкладки) при фокусе с клавиатуры: у нижнего края окна, как подсказка
+   редактора; слой (z-index) ставит скрипт — над окнами стека и списком подсказки */
+.dcs-focus-hint {
+	position: fixed;
+	right: 8px;
+	bottom: 8px;
+	max-width: calc(100vw - 16px);
+	box-sizing: border-box;
+	padding: 3px 8px;
+	border: 1px solid var(--vscode-editorHoverWidget-border, var(--vscode-panel-border));
+	border-radius: 3px;
+	background: var(--vscode-editorHoverWidget-background, var(--vscode-editorWidget-background));
+	color: var(--vscode-editorHoverWidget-foreground, var(--vscode-foreground));
+	font-size: 12px;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	pointer-events: none;
+}
+/* Панель пиктограмм над таблицей вкладки схемы */
+.dcs-list-toolbar {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 4px;
+	margin: 0 0 6px 0;
+}
+/* Вкладка «Наборы данных» — как в конфигураторе: дерево наборов слева, выбранный набор справа */
+.dcs-sets {
+	display: grid;
+	grid-template-columns: minmax(220px, 300px) minmax(0, 1fr);
+	gap: 16px;
+	align-items: start;
+}
+/* Длинная таблица полей прокручивается вместе со страницей, дерево остаётся под рукой */
+.dcs-sets-side {
+	position: sticky;
+	top: 8px;
+	max-height: calc(100vh - 16px);
+	overflow: auto;
+	min-width: 0;
+}
+.dcs-sets-body {
+	min-width: 0;
+}
+@media (max-width: 760px) {
+	.dcs-sets {
+		grid-template-columns: minmax(0, 1fr);
+	}
+	.dcs-sets-side {
+		position: static;
+		max-height: none;
+	}
+}
+.dcs-sets-toolbar {
+	margin: 0 0 6px 0;
+	flex-wrap: nowrap;
+}
+.dcs-sets-toolbar .edit-ref-add-select {
+	max-width: 130px;
+}
+.dcs-sets-icon {
+	min-width: 26px;
+	padding: 2px 6px;
+}
+.dcs-sets-tree .dcs-tree-row:focus {
+	outline: none;
+}
+.dcs-sets-tree .dcs-tree-row:focus-visible {
+	outline: 1px solid var(--vscode-focusBorder);
+	outline-offset: -1px;
+}
+.dcs-tree-root {
+	font-weight: 600;
+	cursor: default;
+}
+.dcs-tree-root:hover {
+	background: transparent;
+}
+.dcs-sets-sources {
+	margin-top: 14px;
+}
+.dcs-sets-caption {
+	font-size: 12px;
+	font-weight: 600;
+	color: var(--vscode-descriptionForeground);
+	margin: 12px 0 4px 0;
+}
+.dcs-sets-note {
+	font-size: 12px;
+	color: var(--vscode-descriptionForeground);
+	margin: 6px 0;
+	overflow-wrap: anywhere;
+}
+.dcs-sets-body .dcs-hl-box {
+	margin-top: 2px;
+}
+.dcs-sets-body .dcs-query {
+	margin-top: 0;
+}
+.dcs-sets-body .dcs-plate {
+	margin: 6px 0 4px 0;
+}
+.dcs-fields-wrap {
+	max-width: 100%;
+}
+.dcs-fields-table thead tr:first-child th {
+	border-bottom: none;
+}
+.dcs-fields-table th {
+	vertical-align: bottom;
+}
+/* Заголовок группы флажков переносится в две строки: колонки флажков узкие */
+.dcs-fields-table .dcs-th-group {
+	text-align: center;
+	border-bottom: 1px solid var(--vscode-panel-border);
+	vertical-align: middle;
+	white-space: normal;
+	line-height: 1.2;
+}
+.dcs-fields-table .dcs-th-check {
+	text-align: center;
+	font-weight: 400;
+	padding: 2px 3px 4px 3px;
+}
+.dcs-fields-table .dcs-col-sep {
+	border-left: 1px solid var(--vscode-panel-border);
+}
+.dcs-fields-table td.dcs-cell-check {
+	padding: 3px 3px;
+	vertical-align: middle;
+}
+/*
+ * Колонка «Поле» закреплена у левого края рамки таблицы: на окне около 1000 px все колонки конфигуратора не
+ * помещаются, таблица прокручивается вбок внутри рамки (не вся страница), а имя поля строки остаётся на виду.
+ * Фон непрозрачный — под закреплённой ячейкой проезжают соседние.
+ */
+.dcs-fields-table .dcs-col-pin {
+	position: sticky;
+	left: 0;
+	z-index: 1;
+	background: var(--vscode-input-background);
+	box-shadow: inset -1px 0 0 var(--vscode-panel-border);
+}
+/* Строка под мышью подсвечивается целиком, и закреплённая ячейка тоже: фон под подсветкой остаётся непрозрачным */
+.dcs-fields-table tbody tr:hover .dcs-col-pin {
+	background: linear-gradient(
+			color-mix(in srgb, var(--vscode-focusBorder) 10%, transparent),
+			color-mix(in srgb, var(--vscode-focusBorder) 10%, transparent)
+		),
+		var(--vscode-input-background);
+}
+.dcs-fields-table td.dcs-cell-path {
+	min-width: 130px;
+}
+/* Отказ проверки пути под полем ячейки: текст ошибки темы, поле — рамкой ошибки */
+.dcs-cell-error {
+	font-size: 11px;
+	color: var(--vscode-errorForeground);
+	white-space: normal;
+	overflow-wrap: anywhere;
+}
+.dcs-cell-error:empty {
+	display: none;
+}
+.dcs-cell-input[aria-invalid='true'] {
+	border-color: var(--vscode-inputValidation-errorBorder, var(--vscode-errorForeground));
+}
+.dcs-fields-table td {
+	vertical-align: middle;
+}
+/* Имена полей не рвутся по буквам: на узком окне таблица прокручивается вбок, как в конфигураторе */
+.dcs-fields-table td:not(.dcs-cell-title) {
+	white-space: nowrap;
+	overflow-wrap: normal;
+}
+/* Chromium переносит на wbr и при nowrap: места переноса имён (setNameText) здесь выключены — имя в одну строку */
+.dcs-fields-table td:not(.dcs-cell-title) wbr {
+	display: none;
+}
+.dcs-cell-title {
+	min-width: 140px;
+	padding: 1px 4px;
+}
+.dcs-cell-input {
+	width: 100%;
+	box-sizing: border-box;
+	padding: 2px 4px;
+	border: 1px solid transparent;
+	border-radius: 2px;
+	background: transparent;
+	color: inherit;
+	font: inherit;
+}
+.dcs-cell-input:hover {
+	border-color: var(--vscode-input-border, var(--vscode-panel-border));
+}
+.dcs-cell-input:focus {
+	outline: none;
+	border-color: var(--vscode-focusBorder);
+	background: var(--vscode-input-background);
+	color: var(--vscode-input-foreground);
+}
+.dcs-cell-input::placeholder {
+	color: var(--vscode-descriptionForeground);
+	font-style: italic;
+	opacity: 0.8;
+}
+.dcs-props {
+	display: flex;
+	align-items: center;
+	gap: 6px 16px;
+	flex-wrap: wrap;
+	margin: 6px 0 10px 0;
+}
+.dcs-prop {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	font-size: 12px;
+}
+.dcs-prop-label {
+	color: var(--vscode-descriptionForeground);
+}
+.dcs-table-wrap {
+	overflow-x: auto;
+	border: 1px solid var(--vscode-input-border, var(--vscode-panel-border));
+	border-radius: 4px;
+	background: var(--vscode-input-background);
+}
+.dcs-table {
+	border-collapse: collapse;
+	width: 100%;
+	font-size: 12px;
+}
+.dcs-table th {
+	text-align: left;
+	font-weight: 600;
+	color: var(--vscode-descriptionForeground);
+	padding: 4px 8px;
+	border-bottom: 1px solid var(--vscode-panel-border);
+	white-space: nowrap;
+}
+/* Имена в ячейках переносятся на границах слов (места переноса — wbr из setNameText); посреди слова — только когда одна часть шире колонки */
+.dcs-table td {
+	padding: 3px 8px;
+	border-bottom: 1px solid var(--vscode-panel-border);
+	vertical-align: top;
+	overflow-wrap: break-word;
+}
+.dcs-table tbody tr:last-child td {
+	border-bottom: none;
+}
+.dcs-table tbody tr:hover {
+	background: color-mix(in srgb, var(--vscode-focusBorder) 10%, transparent);
+}
+.dcs-cell-check {
+	text-align: center;
+	white-space: nowrap;
+}
+.dcs-cell-actions {
+	text-align: right;
+	white-space: nowrap;
+}
+.dcs-table .struct-btn {
+	opacity: 0.35;
+}
+.dcs-table tr:hover .struct-btn,
+.dcs-table .struct-btn:focus-visible {
+	opacity: 1;
+}
+/* Недоступная кнопка строки (aria-disabled, например «Выше» у первой строки): цвет недоступного и при наведении на
+   строку, подсветки наведения нет; рамка фокуса — в полную силу (приглушается цвет рисунка, а не вся кнопка) */
+.dcs-table .struct-btn[aria-disabled='true'],
+.dcs-table .struct-btn[aria-disabled='true']:hover {
+	color: var(--vscode-disabledForeground);
+	background: transparent;
+	cursor: default;
 }
 .dcs-query {
 	width: 100%;
@@ -14,6 +355,7 @@
 	font-family: var(--vscode-editor-font-family, monospace);
 	font-size: var(--vscode-editor-font-size, 13px);
 	box-sizing: border-box;
+	margin-top: 8px;
 }
 .dcs-query:focus {
 	outline: 1px solid var(--vscode-focusBorder);
@@ -25,21 +367,2293 @@
 	gap: 8px;
 	align-items: center;
 }
-.dcs-add-grid {
-	display: grid;
-	grid-template-columns: 160px 1fr;
-	gap: 6px 10px;
+
+/* Мини-диалог правки и подтверждения: window.confirm в webview отключён */
+.dcs-dialog-backdrop {
+	position: fixed;
+	inset: 0;
+	z-index: 20;
+	display: flex;
 	align-items: center;
-	max-width: 720px;
+	justify-content: center;
+	background: rgba(0, 0, 0, 0.35);
 }
-.dcs-add-grid input {
+.dcs-dialog-backdrop.hidden {
+	display: none;
+}
+/*
+ * Вложенный уровень стека: z-index ставит скрипт по глубине. Затемнение светлее первого —
+ * подложки складываются, и нижние окна темнеют с каждым уровнем, а не уходят в черноту.
+ */
+.dcs-dialog-nested {
+	background: rgba(0, 0, 0, 0.22);
+}
+.dcs-dialog {
+	background: var(--vscode-editor-background);
+	border: 1px solid var(--vscode-panel-border);
+	border-radius: 8px;
+	padding: 14px 16px;
+	min-width: 420px;
+	max-width: 600px;
+	max-height: 85vh;
+	overflow: auto;
+	box-shadow: 0 6px 24px rgba(0, 0, 0, 0.35);
+	box-sizing: border-box;
+}
+/* Фокус на самом окне — точка входа для Tab и читалки, а не элемент ввода: рамка не нужна */
+.dcs-dialog:focus {
+	outline: none;
+}
+.dcs-dialog-title {
+	font-weight: 600;
+	margin-bottom: 12px;
+	overflow-wrap: anywhere;
+}
+.dcs-dialog-body {
+	overflow-wrap: anywhere;
+}
+.dcs-form-row {
+	display: grid;
+	grid-template-columns: 150px minmax(0, 1fr);
+	gap: 8px;
+	align-items: center;
+	margin-bottom: 8px;
+}
+.dcs-form-label {
+	color: var(--vscode-descriptionForeground);
+	font-size: 12px;
+	line-height: 1.3;
+}
+.dcs-form-group {
+	font-weight: 600;
+	font-size: 12px;
+	margin: 12px 0 6px 0;
+}
+.dcs-check-row {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 6px 14px;
+	margin-bottom: 8px;
+}
+.dcs-check {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	font-size: 12px;
+	cursor: pointer;
+}
+.dcs-check-list {
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+	max-height: 180px;
+	overflow: auto;
+	border: 1px solid var(--vscode-input-border, var(--vscode-panel-border));
+	border-radius: 4px;
+	padding: 6px 8px;
+	background: var(--vscode-input-background);
+	margin-bottom: 6px;
+}
+.dcs-input-number {
+	max-width: 90px;
+}
+.dcs-confirm-text {
+	overflow-wrap: anywhere;
+}
+.dcs-dialog-error {
+	color: var(--vscode-errorForeground);
+	font-size: 12px;
+	white-space: pre-wrap;
+	overflow-wrap: anywhere;
+	margin-top: 8px;
+}
+.dcs-dialog-error:empty {
+	display: none;
+}
+.dcs-dialog-actions {
+	display: flex;
+	justify-content: flex-end;
+	gap: 8px;
+	margin-top: 12px;
+}
+/* Уровень с пустым списком кнопок (buttons: []) — без пустой полосы подвала */
+.dcs-dialog-actions:empty {
+	display: none;
+}
+/*
+ * Недоступная, но фокусируемая кнопка подвала (unavailable, aria-disabled): вид как у disabled, но
+ * приглушён текст и фон, а не вся кнопка — opacity гасила бы и рамку фокуса (в контрастных темах — ниже 3:1)
+ */
+.dcs-dialog-actions .ghost-btn[aria-disabled='true'] {
+	color: var(--vscode-disabledForeground);
+	cursor: default;
+}
+.dcs-dialog-actions .primary-btn[aria-disabled='true'] {
+	background: color-mix(in srgb, var(--vscode-button-background) 50%, transparent);
+	color: color-mix(in srgb, var(--vscode-button-foreground) 60%, transparent);
+	cursor: default;
+}
+.dcs-dialog-actions .ghost-btn[aria-disabled='true']:hover {
+	border-color: var(--vscode-panel-border);
+}
+/* «*» изменённого окна после заголовка: обычный вес, чтобы знак не спорил с текстом */
+.dcs-dialog-modified {
+	font-weight: normal;
+	color: var(--vscode-descriptionForeground);
+}
+/* Те же сведения словами для читалки: в имени окна, но не на экране */
+.dcs-dialog-modified-spoken {
+	position: absolute;
+	width: 1px;
+	height: 1px;
+	overflow: hidden;
+	clip-path: inset(50%);
+	white-space: nowrap;
+}
+
+/*
+ * Вкладка «Настройки» как в конфигураторе: сверху слева — таблица вариантов, сверху справа
+ * — дерево структуры, снизу на всю ширину — «Настройки: <узел>» и вкладки узла. Верх — около 40 % высоты окна, низ — около
+ * 60 % (за вычетом шапки редактора, полосы закладок и строки состояния — около 240 px); таблица вариантов и дерево
+ * прокручиваются внутри своей половины. На окне около 1000 px обе половины верха помещаются без прокрутки страницы, уже
+ * 760 px всё встаёт столбиком.
+ */
+.dcs-setv {
+	display: flex;
+	flex-direction: column;
+	gap: 12px;
+	min-width: 0;
+}
+.dcs-setv-top {
+	display: grid;
+	grid-template-columns: minmax(0, 2fr) minmax(0, 3fr);
+	gap: 12px 16px;
+	height: max(200px, calc((100vh - 240px) * 0.4));
+}
+.dcs-setv-pane {
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+	min-width: 0;
+	min-height: 0;
+}
+.dcs-setv-pane > .dcs-list-toolbar {
+	margin: 0;
+}
+.dcs-setv-pane > .dcs-setv-scroll,
+.dcs-setv-pane > .dcs-setv-tree {
+	flex: 1 1 auto;
+	min-height: 0;
+	overflow: auto;
+}
+.dcs-setv-bottom {
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+	min-width: 0;
+	min-height: max(280px, calc((100vh - 240px) * 0.6));
+}
+.dcs-setv-bottom.dcs-setv-bottom-idle {
+	min-height: 0;
+}
+.dcs-setv-caption {
+	font-size: 12px;
+	font-weight: 600;
+	overflow-wrap: break-word;
+}
+.dcs-setv-bottom > .dcs-subtabs {
+	margin-bottom: 0;
+}
+/* Таблица вариантов и списки панелей: выбранная строка — как в остальных сетках редактора, рамка фокуса — своя */
+.dcs-setv-grid tbody tr {
+	cursor: pointer;
+}
+.dcs-setv-grid tbody tr:focus {
+	outline: none;
+}
+.dcs-setv-grid tbody tr:focus-visible {
+	outline: 1px solid var(--vscode-focusBorder);
+	outline-offset: -1px;
+}
+.dcs-setv-grid tbody tr.dcs-tree-selected .struct-btn {
+	opacity: 1;
+}
+.dcs-setv-grid th {
+	position: sticky;
+	top: 0;
+	/* Над строками и при относительных ячейках (линия переноса в контрастном режиме): ячейки идут в разметке позже */
+	z-index: 1;
+	background: var(--vscode-input-background);
+}
+/* Строка с фокусом не уходит под закреплённую шапку: отступ прокрутки сверху — около высоты шапки */
+.dcs-setv-scroll {
+	scroll-padding-top: 2.2em;
+}
+.dcs-setv-node:focus {
+	outline: none;
+}
+.dcs-setv-node:focus-visible {
+	outline: 1px solid var(--vscode-focusBorder);
+	outline-offset: -1px;
+}
+/* «Выбранные поля», «Отбор», «Сортировка»: «Доступные поля» слева, «>» посередине, список справа */
+.dcs-setv-fields {
+	display: grid;
+	grid-template-columns: minmax(180px, 260px) auto minmax(0, 1fr);
+	gap: 8px;
+	align-items: start;
+}
+.dcs-setv-col {
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+	min-width: 0;
+}
+.dcs-setv-col > .dcs-list-toolbar {
+	margin: 0;
+}
+.dcs-setv-fields .dcs-qd-moves {
+	flex-direction: column;
+	align-self: center;
+}
+.dcs-setv-fields .dcs-field-tree {
+	min-height: 160px;
+	max-height: max(200px, calc((100vh - 240px) * 0.6 - 90px));
+}
+/* Список панели не ниже дерева «Доступные поля»: под строками есть пустое место, щелчок по нему снимает выбор строки */
+.dcs-setv-col > .dcs-setv-scroll {
+	min-height: 160px;
+	max-height: max(200px, calc((100vh - 240px) * 0.6 - 90px));
+	overflow: auto;
+}
+/* Недоступная, но фокусируемая команда панели (aria-disabled): приглушена, причина — в подсказке и у читалки */
+.dcs-list-toolbar .ghost-btn[aria-disabled='true'] {
+	color: var(--vscode-disabledForeground);
+	cursor: default;
+}
+.dcs-list-toolbar .ghost-btn[aria-disabled='true']:hover {
+	border-color: var(--vscode-panel-border);
+}
+@media (max-width: 760px) {
+	.dcs-setv-top {
+		grid-template-columns: minmax(0, 1fr);
+		height: auto;
+	}
+	.dcs-setv-pane > .dcs-setv-scroll,
+	.dcs-setv-pane > .dcs-setv-tree {
+		max-height: 30vh;
+	}
+	.dcs-setv-bottom {
+		min-height: 0;
+	}
+	.dcs-setv-fields {
+		grid-template-columns: minmax(0, 1fr);
+	}
+	.dcs-setv-fields .dcs-qd-moves {
+		flex-direction: row;
+		align-self: start;
+	}
+	/* Колонки друг под другом: дерево не на весь экран, список панели (цель «>») виден под ним */
+	.dcs-setv-fields .dcs-field-tree,
+	.dcs-setv-col > .dcs-setv-scroll {
+		max-height: 40vh;
+	}
+}
+.dcs-tree {
+	border: 1px solid var(--vscode-input-border, var(--vscode-panel-border));
+	border-radius: 4px;
+	background: var(--vscode-input-background);
+	padding: 4px 0;
+	font-size: 12px;
+}
+.dcs-tree-row {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	padding: 2px 8px;
+	cursor: pointer;
+}
+.dcs-tree-row:hover {
+	background: color-mix(in srgb, var(--vscode-focusBorder) 10%, transparent);
+}
+.dcs-tree-selected,
+.dcs-tree-selected:hover {
+	background: color-mix(in srgb, var(--vscode-focusBorder) 22%, transparent);
+}
+.dcs-tree-twist {
+	flex: 0 0 14px;
+	color: var(--vscode-descriptionForeground);
+	text-align: center;
+}
+.dcs-tree-label {
+	overflow-wrap: break-word;
+}
+.dcs-tree-off .dcs-tree-label {
+	opacity: 0.55;
+}
+.dcs-tree-name {
+	color: var(--vscode-descriptionForeground);
+	overflow-wrap: break-word;
+}
+.dcs-tree-kind {
+	flex: none;
+	white-space: nowrap;
+}
+.dcs-tree-badge {
+	flex: none;
+	padding: 0 5px;
+	border-radius: 999px;
+	font-size: 10px;
+	background: var(--vscode-badge-background);
+	color: var(--vscode-badge-foreground);
+	white-space: nowrap;
+}
+.dcs-tree-ro {
+	flex: none;
+	padding: 0 6px;
+	border: 1px solid var(--vscode-panel-border);
+	border-radius: 999px;
+	font-size: 10px;
+	color: var(--vscode-descriptionForeground);
+	white-space: nowrap;
+}
+.dcs-tree-toolbar {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	margin-top: 6px;
+	flex-wrap: wrap;
+}
+.dcs-subtabs {
+	margin-bottom: 10px;
+}
+.dcs-subtabs .tab {
+	padding: 4px 10px;
+	font-size: 12px;
+}
+.dcs-panel {
+	min-width: 0;
+}
+/* Область вкладки узла без элементов управления — сама в обходе Tab (читалка доходит до её текста) */
+.dcs-panel:focus {
+	outline: none;
+}
+.dcs-panel:focus-visible {
+	outline: 1px solid var(--vscode-focusBorder);
+	outline-offset: 2px;
+}
+.dcs-plate {
+	border: 1px dashed var(--vscode-panel-border);
+	border-radius: 4px;
+	padding: 10px 12px;
+	color: var(--vscode-descriptionForeground);
+	font-size: 12px;
+	overflow-wrap: anywhere;
+}
+.dcs-plate-error {
+	border-style: solid;
+	border-color: var(--vscode-errorForeground);
+	color: var(--vscode-errorForeground);
+}
+/* Предупреждение над таблицей: записано то, чего платформа не хранит */
+.dcs-plate-warn {
+	border-style: solid;
+	border-color: var(--vscode-editorWarning-foreground, var(--vscode-panel-border));
+	color: var(--vscode-foreground);
+	margin-bottom: 8px;
+}
+.dcs-plate .ghost-btn {
+	margin-top: 8px;
+}
+.dcs-ro-note {
+	color: var(--vscode-descriptionForeground);
+	font-size: 11px;
+}
+.dcs-bound {
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+	min-width: 0;
+}
+.dcs-row-select {
+	font-size: 12px;
+	padding: 1px 4px;
 	background: var(--vscode-input-background);
 	color: var(--vscode-input-foreground);
 	border: 1px solid var(--vscode-input-border, var(--vscode-panel-border));
 	border-radius: 2px;
-	padding: 4px 8px;
 }
-.dcs-add-grid input:focus {
+.dcs-row-off td {
+	opacity: 0.6;
+}
+
+/* Отбор, параметры, условное оформление, общий редактор значения */
+.dcs-dialog-wide {
+	min-width: 520px;
+	max-width: 860px;
+	width: 92vw;
+}
+/*
+ * Уровень full — многостраничные конструкторы: окно на всю вкладку, прокручивается только
+ * тело, а подвал с «ОК / Отмена» всегда на виду.
+ */
+.dcs-dialog-full {
+	display: flex;
+	flex-direction: column;
+	width: calc(100vw - 32px);
+	height: calc(100vh - 32px);
+	min-width: 0;
+	max-width: none;
+	max-height: none;
+	overflow: hidden;
+}
+.dcs-dialog-full > .dcs-dialog-body {
+	flex: 1 1 auto;
+	min-height: 0;
+	overflow: auto;
+}
+.dcs-us-badge {
+	display: inline-block;
+	margin-left: 6px;
+	padding: 0 5px;
+	border-radius: 999px;
+	font-size: 10px;
+	background: var(--vscode-badge-background);
+	color: var(--vscode-badge-foreground);
+	cursor: help;
+	white-space: nowrap;
+}
+/*
+ * Пометки строк «Связей» о записанном, чего платформа не хранит («обязательная», «без параметра»): значок, как у
+ * пользовательской настройки, но с рамкой цвета предупреждения — это продолжение плашки-предупреждения над таблицей,
+ * а не свойство связи. Рамка — контуром: box-shadow контрастная тема Windows убрала бы.
+ */
+.dcs-link-required-mark,
+.dcs-link-list-flag-mark {
+	outline: 1px solid var(--vscode-editorWarning-foreground, var(--vscode-errorForeground));
+	outline-offset: -1px;
+}
+.dcs-warn {
+	color: var(--vscode-editorWarning-foreground, var(--vscode-errorForeground));
+	font-size: 11px;
+}
+.dcs-value-edit {
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+	min-width: 0;
+}
+.dcs-value-host {
+	min-width: 0;
+}
+.dcs-date-edit {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	flex-wrap: wrap;
+}
+.dcs-period-edit {
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+}
+.dcs-period-dates {
+	display: flex;
+	gap: 6px;
+	flex-wrap: wrap;
+}
+.dcs-color-edit {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	flex-wrap: wrap;
+}
+.dcs-color-pick {
+	width: 44px;
+	height: 24px;
+	padding: 0;
+	border: 1px solid var(--vscode-input-border, var(--vscode-panel-border));
+	border-radius: 2px;
+	background: var(--vscode-input-background);
+}
+.dcs-list-edit {
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+	border: 1px solid var(--vscode-input-border, var(--vscode-panel-border));
+	border-radius: 4px;
+	padding: 6px 8px;
+	background: var(--vscode-input-background);
+}
+.dcs-list-edit:empty {
+	display: none;
+}
+/* Части редактора значения скрываются классом hidden; свой display класса иначе перебил бы общее .hidden */
+.dcs-date-edit.hidden,
+.dcs-period-edit.hidden,
+.dcs-period-dates.hidden,
+.dcs-color-edit.hidden,
+.dcs-list-edit.hidden {
+	display: none;
+}
+.dcs-list-row {
+	display: flex;
+	align-items: flex-start;
+	gap: 6px;
+	flex-wrap: wrap;
+}
+.dcs-list-row .dcs-value-edit {
+	flex: 1 1 180px;
+}
+.dcs-mini-filter {
+	margin-bottom: 6px;
+}
+.dcs-mini-form {
+	margin-bottom: 6px;
+}
+/* Причина недоступной команды мини-редактора условия: живая строка в окне, без текста места не занимает */
+.dcs-mini-note {
+	font-size: 12px;
+	color: var(--vscode-descriptionForeground);
+}
+.dcs-mini-note:not(:empty) {
+	margin-bottom: 6px;
+}
+.dcs-mini-box {
+	border: 1px solid var(--vscode-input-border, var(--vscode-panel-border));
+	border-radius: 4px;
+	padding: 8px 10px;
+	background: var(--vscode-input-background);
+}
+.dcs-mini-actions {
+	display: flex;
+	gap: 8px;
+	margin-top: 8px;
+}
+.dcs-params-bar {
+	display: flex;
+	align-items: center;
+	gap: 12px;
+	margin-bottom: 8px;
+}
+.dcs-inline-input {
+	min-width: 140px;
+	font-size: 12px;
+}
+.dcs-ca-fields {
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+	margin-bottom: 6px;
+}
+.dcs-ca-field-row {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+}
+.dcs-ca-add {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	margin: 4px 0 8px 0;
+}
+.dcs-ca-add .edit-input {
+	max-width: 320px;
+}
+.dcs-ca-appearance {
+	margin-bottom: 6px;
+}
+.dcs-usein-grid {
+	display: grid;
+	grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+	gap: 6px 16px;
+	margin-bottom: 8px;
+}
+.dcs-usein-row {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 8px;
+	font-size: 12px;
+}
+.dcs-usein-label {
+	color: var(--vscode-descriptionForeground);
+}
+/*
+ * Окно «Форматная строка»: строки «флажок ключа — поле значения» сеткой, чтобы
+ * поля вкладки стояли одной колонкой при подписях разной длины; пример — рамкой под полями,
+ * итоговая строка — моноширинным полем, в нём видны пробелы и кавычки значений.
+ */
+.dcs-value-text-pair > .dcs-fmt-open {
+	flex: 0 0 auto;
+}
+.dcs-fmt-common {
+	margin-bottom: 8px;
+}
+.dcs-fmt-tabs {
+	margin-bottom: 8px;
+}
+.dcs-fmt-panel {
+	min-width: 0;
+}
+.dcs-fmt-row {
+	display: grid;
+	grid-template-columns: minmax(200px, 280px) minmax(0, 1fr);
+	gap: 8px;
+	align-items: center;
+	margin-bottom: 6px;
+}
+.dcs-fmt-input {
+	max-width: 320px;
+}
+.dcs-fmt-preview {
+	display: flex;
+	align-items: center;
+	flex-wrap: wrap;
+	gap: 8px;
+	margin: 10px 0 6px 0;
+	padding: 8px 10px;
+	border: 1px solid var(--vscode-panel-border);
+	border-radius: 4px;
+}
+.dcs-fmt-preview-label {
+	font-size: 12px;
+	color: var(--vscode-descriptionForeground);
+}
+.dcs-fmt-sample {
+	max-width: 220px;
+}
+.dcs-fmt-arrow {
+	color: var(--vscode-descriptionForeground);
+}
+.dcs-fmt-result {
+	font-family: var(--vscode-editor-font-family);
+	font-size: var(--vscode-editor-font-size, 12px);
+	white-space: pre-wrap;
+	overflow-wrap: anywhere;
+}
+.dcs-fmt-note,
+.dcs-fmt-unknown {
+	margin-bottom: 6px;
+}
+.dcs-fmt-unknown:empty {
+	display: none;
+}
+.dcs-fmt-text {
+	width: 100%;
+	box-sizing: border-box;
+	resize: vertical;
+	font-family: var(--vscode-editor-font-family);
+	font-size: var(--vscode-editor-font-size, 12px);
+}
+.dcs-userfield {
+	border: 1px solid var(--vscode-input-border, var(--vscode-panel-border));
+	border-radius: 4px;
+	background: var(--vscode-input-background);
+	padding: 4px 8px;
+	margin-top: 6px;
+	font-size: 12px;
+}
+.dcs-userfield summary {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	cursor: pointer;
+	flex-wrap: wrap;
+}
+.dcs-userfield-path {
+	font-weight: 600;
+	overflow-wrap: break-word;
+}
+.dcs-userfield-body {
+	margin: 6px 0 2px 0;
+}
+.dcs-userfield-label {
+	color: var(--vscode-descriptionForeground);
+	font-size: 11px;
+	margin-top: 4px;
+}
+.dcs-userfield-expr {
+	margin: 2px 0;
+	padding: 4px 6px;
+	border-radius: 3px;
+	background: var(--vscode-editor-background);
+	font-family: var(--vscode-editor-font-family, monospace);
+	font-size: 12px;
+	white-space: pre-wrap;
+	overflow-wrap: anywhere;
+}
+
+/* Подсветка запроса и выражений: зеркало-pre лежит за прозрачной textarea.
+   Метрики текста (шрифт, паддинги, переносы, жёлоб скроллбара) у пары общие —
+   иначе зеркало разъезжается с кареткой. */
+.dcs-hl-box {
+	min-width: 0;
+}
+.dcs-hl-wrap {
+	position: relative;
+	background: var(--vscode-input-background);
+	border: 1px solid var(--vscode-input-border, var(--vscode-panel-border));
+	border-radius: 2px;
+}
+.dcs-hl-wrap:focus-within {
 	outline: 1px solid var(--vscode-focusBorder);
 	outline-offset: -1px;
+}
+.dcs-hl-wrap > textarea,
+.dcs-hl-pre {
+	margin: 0;
+	padding: 8px;
+	border: none;
+	box-sizing: border-box;
+	font-family: var(--vscode-editor-font-family, monospace);
+	font-size: var(--vscode-editor-font-size, 13px);
+	line-height: 1.45;
+	tab-size: 4;
+	white-space: pre-wrap;
+	word-wrap: break-word;
+	scrollbar-gutter: stable;
+}
+.dcs-hl-wrap > textarea {
+	position: relative;
+	z-index: 1;
+	display: block;
+	width: 100%;
+	background: transparent;
+	color: transparent;
+	caret-color: var(--vscode-input-foreground);
+	resize: vertical;
+}
+.dcs-hl-wrap > textarea:focus {
+	outline: none;
+}
+.dcs-hl-pre {
+	position: absolute;
+	inset: 0;
+	z-index: 0;
+	overflow: hidden;
+	pointer-events: none;
+	color: var(--vscode-input-foreground);
+}
+/* Подсветка выключена (нет модуля или текст больше ~100 КБ): textarea снова с текстом */
+.dcs-hl-off > textarea {
+	color: var(--vscode-input-foreground);
+}
+.dcs-hl-off .dcs-hl-pre {
+	display: none;
+}
+.dcs-expr {
+	min-height: calc(2 * 1.45em + 16px);
+	height: calc(2 * 1.45em + 16px);
+}
+/* Цвета токенов — только из переменных темы VS Code */
+.dcs-tok-keyword {
+	color: var(--vscode-charts-blue);
+	font-weight: 600;
+}
+.dcs-tok-func {
+	color: var(--vscode-charts-purple);
+}
+.dcs-tok-string {
+	color: var(--vscode-charts-orange);
+}
+.dcs-tok-number {
+	color: var(--vscode-charts-green);
+}
+.dcs-tok-param {
+	color: var(--vscode-charts-yellow);
+}
+.dcs-tok-comment {
+	color: var(--vscode-descriptionForeground);
+	font-style: italic;
+}
+.dcs-tok-operator {
+	color: var(--vscode-descriptionForeground);
+}
+/* Парность скобок и кавычек: ненавязчивое предупреждение, сохранение не блокируется */
+.dcs-hl-warn {
+	margin-top: 2px;
+	font-size: 11px;
+	color: var(--vscode-editorWarning-foreground, var(--vscode-errorForeground));
+}
+.dcs-hl-warn:empty {
+	display: none;
+}
+
+/*
+ * Подсказка путей полей, параметров и функций: один список на документ, висит на body поверх
+ * окон (z-index ставит скрипт по стеку диалогов). Цвета — как у списка подсказки редактора
+ * VS Code, с запасными переменными для тем, где их нет.
+ */
+.dcs-complete {
+	position: fixed;
+	box-sizing: border-box;
+	min-width: 220px;
+	max-width: min(640px, calc(100vw - 8px));
+	max-height: calc(10 * 22px + 2px);
+	overflow-x: hidden;
+	overflow-y: auto;
+	background: var(--vscode-editorSuggestWidget-background, var(--vscode-editorWidget-background, var(--vscode-editor-background)));
+	color: var(--vscode-editorSuggestWidget-foreground, var(--vscode-foreground));
+	border: 1px solid var(--vscode-editorSuggestWidget-border, var(--vscode-widget-border, var(--vscode-panel-border)));
+	border-radius: 3px;
+	box-shadow: 0 2px 8px var(--vscode-widget-shadow, rgba(0, 0, 0, 0.36));
+	font-family: var(--vscode-editor-font-family, monospace);
+	font-size: var(--vscode-editor-font-size, 13px);
+}
+.dcs-complete.hidden {
+	display: none;
+}
+.dcs-complete-row {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	height: 22px;
+	padding: 0 6px;
+	white-space: nowrap;
+	cursor: pointer;
+}
+.dcs-complete-row:hover {
+	background: var(--vscode-editorSuggestWidget-hoverBackground, var(--vscode-list-hoverBackground));
+}
+.dcs-complete-row.dcs-complete-active {
+	background: var(--vscode-editorSuggestWidget-selectedBackground, var(--vscode-list-activeSelectionBackground));
+	color: var(--vscode-editorSuggestWidget-selectedForeground, var(--vscode-list-activeSelectionForeground, inherit));
+	outline: 1px solid var(--vscode-list-focusOutline, transparent);
+	outline-offset: -1px;
+}
+.dcs-complete-kind {
+	flex: 0 0 auto;
+	min-width: 2.2em;
+	text-align: center;
+	font-size: 11px;
+	color: var(--vscode-descriptionForeground);
+}
+.dcs-complete-kind[data-kind='function'] {
+	color: var(--vscode-symbolIcon-functionForeground, var(--vscode-charts-purple));
+}
+.dcs-complete-kind[data-kind='param'],
+.dcs-complete-kind[data-kind='dataParam'] {
+	color: var(--vscode-symbolIcon-variableForeground, var(--vscode-charts-yellow));
+}
+.dcs-complete-kind[data-kind='calc'],
+.dcs-complete-kind[data-kind='total'] {
+	color: var(--vscode-symbolIcon-fieldForeground, var(--vscode-charts-blue));
+}
+/* Поля общих реквизитов таблиц конфигурации: разделитель (черта) и прочий общий реквизит */
+.dcs-complete-kind[data-kind='separator'],
+.dcs-complete-kind[data-kind='commonAttribute'] {
+	color: var(--vscode-symbolIcon-constantForeground, var(--vscode-charts-orange));
+}
+.dcs-complete-name {
+	flex: 0 1 auto;
+	min-width: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+.dcs-complete-hit {
+	color: var(--vscode-editorSuggestWidget-highlightForeground, var(--vscode-list-highlightForeground, var(--vscode-textLink-foreground)));
+	font-weight: 600;
+}
+.dcs-complete-detail {
+	flex: 1 1 auto;
+	min-width: 0;
+	display: flex;
+	justify-content: flex-end;
+	gap: 8px;
+	margin-left: 12px;
+	overflow: hidden;
+	font-size: 11px;
+	color: var(--vscode-descriptionForeground);
+}
+.dcs-complete-title,
+.dcs-complete-type {
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+.dcs-complete-row.dcs-complete-active .dcs-complete-detail {
+	color: inherit;
+	opacity: 0.8;
+}
+.dcs-complete-note {
+	padding: 3px 6px;
+	border-top: 1px solid var(--vscode-editorSuggestWidget-border, var(--vscode-panel-border));
+	font-size: 11px;
+	color: var(--vscode-descriptionForeground);
+	white-space: normal;
+}
+/* Строка состояния для читалки: в разметке, но не на экране */
+.dcs-complete-status {
+	position: absolute;
+	width: 1px;
+	height: 1px;
+	overflow: hidden;
+	clip-path: inset(50%);
+	white-space: nowrap;
+}
+/* Кнопка «⋯» у поля: тот же список мышью; скрывается вместе со скрытым полем */
+.dcs-complete-more {
+	flex: 0 0 auto;
+	align-self: center;
+	padding: 2px 6px;
+	font-size: 13px;
+}
+.hidden + .dcs-complete-more {
+	display: none;
+}
+.dcs-form-row.dcs-complete-host {
+	grid-template-columns: 150px minmax(0, 1fr) auto;
+}
+.dcs-hl-box.dcs-complete-host {
+	display: grid;
+	grid-template-columns: minmax(0, 1fr) auto;
+	column-gap: 4px;
+	align-items: start;
+}
+.dcs-hl-box.dcs-complete-host > .dcs-hl-wrap {
+	grid-column: 1;
+	grid-row: 1;
+}
+/* Строка 2 — ошибки текста запроса набора (.dcs-query-status, первой под полем), 3 — непарные скобки, 4 — проверка имён */
+.dcs-hl-box.dcs-complete-host > .dcs-hl-warn {
+	grid-column: 1;
+	grid-row: 3;
+}
+.dcs-hl-box.dcs-complete-host > .dcs-complete-more {
+	grid-column: 2;
+	grid-row: 1;
+	align-self: start;
+	margin-top: 2px;
+}
+.dcs-complete-pair {
+	display: flex;
+	align-items: center;
+	gap: 4px;
+	min-width: 0;
+}
+.dcs-complete-pair.hidden {
+	display: none;
+}
+.dcs-complete-pair > .edit-input {
+	flex: 1 1 auto;
+	min-width: 0;
+}
+
+/* Плашка итогов: автозаполнение полей и строгая проверка схемы */
+.dcs-notice {
+	margin: 0 0 12px 0;
+	padding: 8px 10px;
+	border: 1px solid var(--vscode-panel-border);
+	border-left: 3px solid var(--vscode-textLink-foreground);
+	border-radius: 4px;
+	background: var(--vscode-input-background);
+	font-size: 12px;
+}
+.dcs-notice.hidden {
+	display: none;
+}
+.dcs-notice-ok {
+	border-left-color: var(--vscode-charts-green);
+}
+.dcs-notice-error {
+	border-left-color: var(--vscode-errorForeground);
+}
+.dcs-notice-head {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	gap: 8px;
+}
+.dcs-notice-title {
+	font-weight: 600;
+}
+.dcs-notice-line {
+	margin-top: 4px;
+	white-space: pre-wrap;
+	overflow-wrap: anywhere;
+}
+.dcs-notice-hint {
+	color: var(--vscode-descriptionForeground);
+}
+
+/* Тип значения — колонка «Тип» таблиц и окно «Тип значения» */
+.dcs-cell-type {
+	max-width: 260px;
+}
+/* Подпись типа в ячейке — кнопка без рамки: таблица остаётся таблицей, а щелчок открывает окно */
+.dcs-type-link {
+	display: inline-block;
+	max-width: 100%;
+	padding: 0 2px;
+	border: none;
+	border-radius: 2px;
+	background: none;
+	color: var(--vscode-textLink-foreground);
+	font: inherit;
+	font-size: 12px;
+	text-align: left;
+	overflow-wrap: break-word;
+	cursor: pointer;
+}
+.dcs-type-link:hover {
+	text-decoration: underline;
+}
+.dcs-type-link:focus-visible {
+	outline: 1px solid var(--vscode-focusBorder);
+}
+.dcs-type-ro {
+	color: var(--vscode-descriptionForeground);
+}
+.dcs-type-row {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	min-width: 0;
+}
+.dcs-type-text {
+	flex: 1 1 auto;
+	min-width: 0;
+	font-size: 12px;
+	overflow-wrap: break-word;
+}
+.dcs-type-plates {
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+	margin-bottom: 8px;
+}
+.dcs-type-plates:empty {
+	display: none;
+}
+.dcs-type-toolbar {
+	display: flex;
+	align-items: center;
+	gap: 12px;
+	flex-wrap: wrap;
+	margin-bottom: 8px;
+}
+.dcs-type-search {
+	flex: 1 1 220px;
+	min-width: 160px;
+}
+.dcs-type-chips {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 4px 6px;
+	margin-bottom: 8px;
+}
+.dcs-type-chip {
+	display: inline-flex;
+	align-items: center;
+	gap: 4px;
+	padding: 1px 4px 1px 8px;
+	border: 1px solid var(--vscode-panel-border);
+	border-radius: 999px;
+	font-size: 12px;
+	background: color-mix(in srgb, var(--vscode-focusBorder) 10%, transparent);
+	overflow-wrap: break-word;
+}
+.dcs-type-chip-remove {
+	border: none;
+	background: none;
+	padding: 0 4px;
+	color: var(--vscode-descriptionForeground);
+	font: inherit;
+	cursor: pointer;
+}
+.dcs-type-chip-remove:hover {
+	color: var(--vscode-errorForeground);
+}
+.dcs-type-tree {
+	max-height: 38vh;
+	overflow: auto;
+	margin-bottom: 8px;
+}
+.dcs-type-tree-row:focus {
+	outline: 1px solid var(--vscode-focusBorder);
+	outline-offset: -1px;
+}
+.dcs-type-tree-row .edit-check {
+	margin: 0;
+}
+.dcs-type-more {
+	padding: 2px 8px 4px 34px;
+	color: var(--vscode-descriptionForeground);
+	font-size: 11px;
+}
+.dcs-type-qualifiers:empty {
+	display: none;
+}
+.dcs-type-qerror {
+	margin: -4px 0 6px 158px;
+	color: var(--vscode-errorForeground);
+	font-size: 11px;
+}
+.dcs-type-qerror:empty {
+	display: none;
+}
+.dcs-type-warn:empty {
+	display: none;
+}
+.dcs-type-warn {
+	margin: 4px 0;
+}
+/*
+ * Предупреждения о списке значений параметра (Неопределено в списке, представления элементов) в окне параметра — с
+ * тем же отступом, что предупреждение о типе под ними; в ячейке «Значение» таблицы их разводит промежуток колонки
+ * (.dcs-type-value-box), отступ там не нужен.
+ */
+.dcs-dialog-body .dcs-list-nil-warn,
+.dcs-dialog-body .dcs-list-presentation-warn {
+	margin: 4px 0;
+}
+.dcs-type-value {
+	font-size: 12px;
+	overflow-wrap: anywhere;
+}
+.dcs-type-value-box {
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+	min-width: 0;
+}
+.dcs-type-summary {
+	margin-top: 10px;
+	padding-top: 8px;
+	border-top: 1px solid var(--vscode-panel-border);
+	font-size: 12px;
+	font-weight: 600;
+	overflow-wrap: anywhere;
+}
+
+/*
+ * Конструктор настроек (мастер «Список / Таблица / Диаграмма»): широкий уровень стека — шаги сверху,
+ * слева шаг, справа предпросмотр результата. Два списка «доступные → выбранные» ужимаются раньше
+ * предпросмотра: дерево результата без них читать не по чему.
+ */
+.dcs-dialog-wide:has(> .dcs-dialog-body > .dcs-wizard) {
+	max-width: 1000px;
+}
+.dcs-wizard {
+	display: flex;
+	flex-direction: column;
+	gap: 10px;
+	font-size: 12px;
+}
+.dcs-wizard-steps {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 4px;
+	padding-bottom: 6px;
+	border-bottom: 1px solid var(--vscode-panel-border);
+}
+.dcs-wizard-step {
+	background: transparent;
+	border: none;
+	border-bottom: 2px solid transparent;
+	color: var(--vscode-descriptionForeground);
+	font: inherit;
+	padding: 2px 4px;
+	cursor: pointer;
+}
+.dcs-wizard-step:hover {
+	color: var(--vscode-foreground);
+}
+.dcs-wizard-step:focus-visible {
+	outline: 1px solid var(--vscode-focusBorder);
+}
+.dcs-wizard-step-active {
+	color: var(--vscode-foreground);
+	font-weight: 600;
+	border-bottom-color: var(--vscode-focusBorder);
+}
+.dcs-wizard-step-sep {
+	color: var(--vscode-descriptionForeground);
+}
+.dcs-wizard-layout {
+	display: grid;
+	grid-template-columns: minmax(0, 1fr) 210px;
+	gap: 12px;
+	align-items: start;
+}
+@media (max-width: 760px) {
+	.dcs-wizard-layout {
+		grid-template-columns: minmax(0, 1fr);
+	}
+}
+.dcs-wizard-main {
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+	min-width: 0;
+}
+.dcs-wizard-step-body {
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+	min-width: 0;
+}
+.dcs-wizard-preview {
+	border-left: 1px solid var(--vscode-panel-border);
+	padding-left: 10px;
+	min-width: 0;
+	overflow-wrap: anywhere;
+}
+.dcs-wizard-preview-title {
+	font-weight: 600;
+	margin-bottom: 4px;
+}
+.dcs-wizard-preview-tree {
+	margin-bottom: 6px;
+}
+.dcs-wizard-preview-row {
+	line-height: 1.5;
+}
+.dcs-wizard-preview-root,
+.dcs-wizard-preview-container {
+	font-weight: 600;
+}
+.dcs-wizard-preview-details,
+.dcs-wizard-preview-target,
+.dcs-wizard-preview-empty {
+	color: var(--vscode-descriptionForeground);
+	font-style: italic;
+}
+.dcs-wizard-preview-line {
+	margin-top: 4px;
+	font-size: 11px;
+	color: var(--vscode-descriptionForeground);
+}
+.dcs-wizard-preview-line.dcs-warn {
+	color: var(--vscode-editorWarning-foreground, var(--vscode-errorForeground));
+}
+.dcs-wizard-cards {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+	gap: 8px;
+}
+.dcs-wizard-card {
+	display: flex;
+	align-items: flex-start;
+	gap: 8px;
+	padding: 10px;
+	border: 1px solid var(--vscode-panel-border);
+	border-radius: 6px;
+	cursor: pointer;
+}
+.dcs-wizard-card:hover {
+	border-color: var(--vscode-focusBorder);
+}
+.dcs-wizard-card-active {
+	border-color: var(--vscode-focusBorder);
+	background: color-mix(in srgb, var(--vscode-focusBorder) 12%, transparent);
+}
+.dcs-wizard-card-text {
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+}
+.dcs-wizard-card-title {
+	font-weight: 600;
+}
+.dcs-wizard-radio {
+	margin: 1px 0 0 0;
+	accent-color: var(--vscode-focusBorder);
+}
+.dcs-wizard-dual {
+	display: grid;
+	grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr) auto;
+	gap: 6px;
+	align-items: start;
+}
+.dcs-wizard-col {
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+	min-width: 0;
+}
+.dcs-wizard-col-title {
+	font-size: 11px;
+	font-weight: 600;
+	color: var(--vscode-descriptionForeground);
+}
+.dcs-wizard-search {
+	width: 100%;
+	box-sizing: border-box;
+}
+.dcs-wizard-list {
+	height: 34vh;
+	min-height: 140px;
+	overflow: auto;
+}
+.dcs-wizard-moves {
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+	padding-top: 44px;
+}
+.dcs-wizard-move {
+	min-width: 32px;
+}
+.dcs-wizard-row:focus {
+	outline: 1px solid var(--vscode-focusBorder);
+	outline-offset: -1px;
+}
+.dcs-wizard-row-group {
+	color: var(--vscode-descriptionForeground);
+}
+.dcs-wizard-row-taken .dcs-tree-label {
+	opacity: 0.6;
+}
+.dcs-wizard-row-pinned .dcs-tree-label {
+	font-style: italic;
+	color: var(--vscode-descriptionForeground);
+}
+.dcs-wizard-row-off .dcs-tree-label {
+	opacity: 0.55;
+	text-decoration: line-through;
+}
+.dcs-wizard-row-note {
+	color: var(--vscode-descriptionForeground);
+	font-size: 11px;
+}
+.dcs-wizard-row-select {
+	margin-left: auto;
+	max-width: 150px;
+	padding: 0 2px;
+	font-size: 11px;
+}
+.dcs-wizard-empty {
+	padding: 6px 8px;
+	color: var(--vscode-descriptionForeground);
+	font-style: italic;
+	font-size: 11px;
+}
+/* «Загрузка реквизитов…» под раскрытым полем: не строка-поле, на неё не наводят и не выделяют */
+.dcs-wizard-row-info,
+.dcs-wizard-row-info:hover {
+	cursor: default;
+	background: none;
+	font-style: italic;
+	color: var(--vscode-descriptionForeground);
+}
+.dcs-wizard-other {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	flex-wrap: wrap;
+}
+.dcs-wizard-other-label {
+	color: var(--vscode-descriptionForeground);
+}
+.dcs-wizard-other-input {
+	flex: 1 1 220px;
+	min-width: 0;
+}
+.dcs-wizard-target {
+	border: 1px solid var(--vscode-input-border, var(--vscode-panel-border));
+	border-radius: 4px;
+	background: var(--vscode-input-background);
+	margin-bottom: 6px;
+}
+.dcs-wizard-target-active {
+	border-color: var(--vscode-focusBorder);
+}
+.dcs-wizard-target-title {
+	display: block;
+	width: 100%;
+	text-align: left;
+	background: transparent;
+	border: none;
+	border-bottom: 1px solid var(--vscode-panel-border);
+	color: var(--vscode-foreground);
+	font: inherit;
+	font-weight: 600;
+	font-size: 11px;
+	padding: 3px 8px;
+	cursor: pointer;
+}
+.dcs-wizard-target-title:focus-visible {
+	outline: 1px solid var(--vscode-focusBorder);
+	outline-offset: -1px;
+}
+.dcs-wizard-target-list {
+	max-height: 18vh;
+	min-height: 26px;
+	overflow: auto;
+	padding: 2px 0;
+}
+.dcs-wizard-note {
+	min-height: 14px;
+	font-size: 11px;
+	color: var(--vscode-descriptionForeground);
+}
+.dcs-wizard-note:empty {
+	min-height: 0;
+}
+.dcs-wizard-warns {
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+}
+.dcs-wizard-warns:empty {
+	display: none;
+}
+.dcs-wizard-warn {
+	border-style: solid;
+	border-color: var(--vscode-editorWarning-foreground, var(--vscode-panel-border));
+	color: var(--vscode-foreground);
+	padding: 6px 10px;
+}
+.dcs-wizard-charts {
+	display: grid;
+	grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+	gap: 8px 14px;
+	max-height: 46vh;
+	overflow: auto;
+}
+.dcs-wizard-chart-group {
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+}
+.dcs-wizard-chart-title {
+	font-weight: 600;
+	font-size: 11px;
+	color: var(--vscode-descriptionForeground);
+	margin-bottom: 2px;
+}
+.dcs-wizard-chart {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	padding: 2px 4px;
+	border-radius: 3px;
+	cursor: pointer;
+}
+.dcs-wizard-chart:hover {
+	background: color-mix(in srgb, var(--vscode-focusBorder) 10%, transparent);
+}
+.dcs-wizard-chart-active {
+	background: color-mix(in srgb, var(--vscode-focusBorder) 22%, transparent);
+}
+.dcs-wizard-confirm-line {
+	margin-top: 8px;
+}
+.dcs-wizard-hint {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	flex-wrap: wrap;
+	margin-top: 8px;
+	color: var(--vscode-descriptionForeground);
+	font-size: 12px;
+}
+
+/*
+ * Многостраничный конструктор запроса (окно уровня full). Три колонки «База данных ·
+ * Таблицы · Поля» с кнопками переноса между ними; деревья прокручиваются внутри колонок, чтобы
+ * подвал окна оставался на виду.
+ */
+/*
+ * Слева — вкладки конструктора с содержимым (.dcs-qd-main), справа — вертикальные вкладки частей
+ * объединения и запросов пакета, как у конфигуратора. Полосы узкие (текст повёрнут), а содержимое
+ * сжимается (min-width: 0): горизонтальной прокрутки окна полосы не добавляют.
+ */
+.dcs-qd {
+	display: flex;
+	align-items: flex-start;
+	gap: 6px;
+	min-height: 0;
+}
+.dcs-qd-main {
+	flex: 1 1 auto;
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+	min-width: 0;
+	min-height: 0;
+}
+.dcs-qd > .dcs-qd-textonly {
+	flex: 1 1 auto;
+}
+/*
+ * Полоса остаётся на виду, когда тело окна прокручено; длинный пакет прокручивается внутри полосы.
+ * Полоса — область прокрутки и обрезает всё, что за её внутренним краем, а рамка фокуса вкладки
+ * (.tab:focus-visible: 1px со сдвигом 1px) и рамка активной вкладки контрастной темы рисуются снаружи
+ * кнопки: отступ полосы оставляет им место со всех сторон, у первой и последней вкладки тоже.
+ */
+.dcs-qd-vtabs {
+	flex: none;
+	position: sticky;
+	top: 0;
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+	padding: 3px;
+	max-height: calc(100vh - 140px);
+	overflow-x: hidden;
+	overflow-y: auto;
+}
+/* Запросы пакета — у самого края, за чертой: части объединения относятся к выбранному запросу */
+.dcs-qd-vtabs-batch {
+	padding-left: 6px;
+	border-left: 1px solid var(--vscode-panel-border);
+}
+.dcs-qd-vtabs .tab {
+	padding: 10px 4px;
+	border-radius: 6px;
+	font-size: 12px;
+	line-height: 1.2;
+}
+/* Длинное имя временной таблицы — с многоточием, полное название — в подсказке вкладки */
+.dcs-qd-vtab-text {
+	display: block;
+	writing-mode: vertical-rl;
+	max-height: 180px;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+.dcs-qd-tabs {
+	flex-wrap: wrap;
+	margin-bottom: 0;
+}
+.dcs-qd-panel {
+	min-height: 0;
+}
+.dcs-qd-columns {
+	display: grid;
+	grid-template-columns: minmax(220px, 1.2fr) auto minmax(200px, 1fr) auto minmax(200px, 1fr);
+	gap: 8px;
+	align-items: stretch;
+	min-height: 320px;
+}
+@media (max-width: 900px) {
+	.dcs-qd-columns {
+		grid-template-columns: 1fr;
+	}
+	.dcs-qd-moves {
+		flex-direction: row;
+	}
+}
+.dcs-qd-col {
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+	min-width: 0;
+	min-height: 0;
+}
+.dcs-qd-col-head {
+	font-size: 12px;
+	font-weight: 600;
+	color: var(--vscode-foreground);
+}
+.dcs-qd-toolbar {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 4px;
+}
+.dcs-qd-search {
+	flex: 1 1 120px;
+	min-width: 0;
+}
+/*
+ * Недоступная, но фокусируемая кнопка панели (aria-disabled): вид как у disabled, причина — в подсказке.
+ * Приглушён текст, а не вся кнопка: opacity гасила бы и рамку фокуса
+ */
+.dcs-qd-toolbar .ghost-btn[aria-disabled='true'] {
+	color: var(--vscode-disabledForeground);
+	cursor: default;
+}
+.dcs-qd-toolbar .ghost-btn[aria-disabled='true']:hover {
+	border-color: var(--vscode-panel-border);
+}
+.dcs-qd-tree {
+	flex: 1 1 auto;
+	min-height: 160px;
+	max-height: calc(100vh - 300px);
+	overflow: auto;
+}
+.dcs-qd-row {
+	white-space: nowrap;
+}
+/*
+ * Знак вида поля общего реквизита в деревьях конструктора запроса (разделитель — черта, как значок в дереве полей
+ * конфигуратора): в разметке после имени, на экране — между стрелкой и именем. Слово для читалки — скрытым текстом.
+ * В дереве со знаками у строки без знака на его месте пустое место той же ширины: имена одного уровня стоят ровно.
+ */
+.dcs-qd-row > .dcs-tree-twist {
+	order: -2;
+}
+.dcs-qd-mark,
+.dcs-qd-mark-slot {
+	order: -1;
+	flex: 0 0 1em;
+	width: 1em;
+	text-align: center;
+}
+.dcs-qd-mark {
+	color: var(--vscode-symbolIcon-constantForeground, var(--vscode-charts-orange));
+}
+.dcs-qd-mark-spoken {
+	position: absolute;
+	width: 1px;
+	height: 1px;
+	overflow: hidden;
+	clip-path: inset(50%);
+	white-space: nowrap;
+}
+.dcs-qd-row:focus {
+	outline: none;
+}
+.dcs-qd-row:focus-visible {
+	outline: 1px solid var(--vscode-focusBorder);
+	outline-offset: -1px;
+}
+.dcs-qd-row-info {
+	cursor: default;
+	font-style: italic;
+	color: var(--vscode-descriptionForeground);
+}
+.dcs-qd-empty {
+	padding: 6px 8px;
+	color: var(--vscode-descriptionForeground);
+}
+.dcs-qd-moves {
+	display: flex;
+	flex-direction: column;
+	justify-content: center;
+	gap: 4px;
+}
+.dcs-qd-move {
+	min-width: 32px;
+	padding: 2px 6px;
+}
+/* Недоступная, но фокусируемая кнопка переноса (aria-disabled): приглушён текст, рамка фокуса остаётся */
+.dcs-qd-moves .ghost-btn[aria-disabled='true'] {
+	color: var(--vscode-disabledForeground);
+	cursor: default;
+}
+.dcs-qd-moves .ghost-btn[aria-disabled='true']:hover {
+	border-color: var(--vscode-panel-border);
+}
+.dcs-qd-notes {
+	/* Живой регион стоит за перерисовываемым телом окна, а не внутри .dcs-qd: отступ — свой */
+	margin-top: 8px;
+	min-height: 1.2em;
+	font-size: 12px;
+	color: var(--vscode-editorWarning-foreground, var(--vscode-descriptionForeground));
+}
+.dcs-qd-textonly {
+	margin-bottom: 8px;
+}
+.dcs-qd-text {
+	min-height: calc(100vh - 240px);
+}
+/* Окно выражения: поля и функции сверху, текст выражения снизу */
+.dcs-qd-expr {
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+}
+.dcs-qd-expr-panes {
+	display: grid;
+	grid-template-columns: 1fr 1fr;
+	gap: 8px;
+}
+.dcs-qd-expr-panes .dcs-qd-tree {
+	min-height: 200px;
+	max-height: 260px;
+}
+.dcs-qd-expr-text {
+	min-height: 90px;
+}
+/* Окно параметров виртуальной таблицы: строка на позицию параметра */
+.dcs-qd-params {
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+}
+.dcs-qd-param-row {
+	display: flex;
+	align-items: flex-start;
+	gap: 4px;
+	min-width: 0;
+}
+.dcs-qd-param-row > .dcs-hl-box {
+	flex: 1 1 auto;
+	min-width: 0;
+}
+.dcs-qd-param {
+	min-height: 28px;
+}
+/*
+ * Строки окна параметров виртуальной таблицы видом как у конфигуратора: значение (НачалоПериода, Субконто…) — поле со
+ * списком в одну строку, условия (Условие, УсловиеСчета…) — заметно выше, в три строки.
+ */
+.dcs-hl-wrap > .dcs-qd-param-value {
+	min-height: calc(1.45em + 16px);
+	height: calc(1.45em + 16px);
+	resize: none;
+}
+.dcs-hl-wrap > .dcs-qd-param-cond {
+	min-height: calc(3 * 1.45em + 16px);
+	height: calc(3 * 1.45em + 16px);
+}
+/*
+ * Поле, которого в «Условии» этой виртуальной таблицы быть не может: предупреждение под текстом условия,
+ * ОК оно не блокирует. У поля с кнопкой подсказки — четвёртой строкой сетки, под непарными скобками.
+ */
+.dcs-qd-vt-warn {
+	margin-top: 2px;
+	font-size: 12px;
+	color: var(--vscode-editorWarning-foreground, var(--vscode-errorForeground));
+	overflow-wrap: anywhere;
+}
+.dcs-qd-vt-warn:empty {
+	display: none;
+}
+.dcs-hl-box.dcs-complete-host > .dcs-qd-vt-warn {
+	grid-column: 1;
+	grid-row: 4;
+}
+
+/*
+ * Вкладки «Связи», «Группировка», «Условия». Сетка строк с элементами управления в
+ * ячейках (вид каждой — свой шаблон колонок), раскладка «дерево полей · списки справа».
+ */
+.dcs-qd-grid {
+	display: flex;
+	flex-direction: column;
+	border: 1px solid var(--vscode-input-border, var(--vscode-panel-border));
+	border-radius: 4px;
+	background: var(--vscode-input-background);
+	font-size: 12px;
+	max-height: calc(100vh - 320px);
+	overflow: auto;
+}
+.dcs-qd-grid-row {
+	display: grid;
+	align-items: center;
+	gap: 6px;
+	padding: 2px 8px;
+	border-bottom: 1px solid color-mix(in srgb, var(--vscode-panel-border) 50%, transparent);
+	cursor: pointer;
+}
+.dcs-qd-grid-row:hover {
+	background: color-mix(in srgb, var(--vscode-focusBorder) 10%, transparent);
+}
+.dcs-qd-grid-row.dcs-tree-selected {
+	background: color-mix(in srgb, var(--vscode-focusBorder) 22%, transparent);
+}
+.dcs-qd-grid-row:focus {
+	outline: none;
+}
+.dcs-qd-grid-row:focus-visible {
+	outline: 1px solid var(--vscode-focusBorder);
+	outline-offset: -1px;
+}
+.dcs-qd-grid-head {
+	position: sticky;
+	top: 0;
+	z-index: 1;
+	cursor: default;
+	font-weight: 600;
+	background: var(--vscode-input-background);
+	color: var(--vscode-descriptionForeground);
+}
+.dcs-qd-grid-head:hover {
+	background: var(--vscode-input-background);
+}
+.dcs-qd-grid-cell {
+	display: flex;
+	align-items: center;
+	gap: 4px;
+	min-width: 0;
+}
+/*
+ * «Произвольное» — по ширине заголовка, чтобы он не заезжал на «Условие» («Условие связи»); у
+ * «Связей» и «Условий» колонка одной ширины. Минимум «Условия» небольшой: простое условие переносится
+ * внутри ячейки, и сетка не уходит в горизонтальную прокрутку
+ */
+.dcs-qd-grid-links .dcs-qd-grid-row {
+	grid-template-columns: 36px minmax(90px, 1fr) 32px minmax(90px, 1fr) 32px 96px minmax(200px, 3fr);
+}
+.dcs-qd-grid-conds .dcs-qd-grid-row {
+	grid-template-columns: 76px 96px minmax(160px, 1fr);
+}
+.dcs-qd-grid-sums .dcs-qd-grid-row {
+	grid-template-columns: minmax(140px, 2fr) minmax(120px, 1fr);
+}
+.dcs-qd-cell-input {
+	min-width: 0;
+	padding: 1px 4px;
+	font-size: 12px;
+}
+.dcs-qd-cell-simple {
+	display: flex;
+	align-items: center;
+	gap: 4px;
+	min-width: 0;
+	flex: 1 1 auto;
+}
+.dcs-qd-cell-simple > .dcs-qd-cell-input {
+	flex: 1 1 0;
+}
+/*
+ * Знак и вид сравнения — по своей ширине: без width: auto список взял бы width: 100% у .edit-input и при
+ * flex: 0 0 auto растянулся бы на всю ячейку, а поле и параметр ушли бы за край.
+ */
+.dcs-qd-cell-simple > .dcs-qd-cell-op {
+	flex: 0 0 auto;
+	width: auto;
+}
+/*
+ * Простое условие «Условий»: поле по ширине текста (длинное — с многоточием и подсказкой), вид сравнения,
+ * «&» с именем параметра на остаток; когда места мало, параметр переносится на вторую строку ячейки.
+ */
+.dcs-qd-cond-simple {
+	flex-wrap: wrap;
+	row-gap: 2px;
+}
+.dcs-qd-cond-simple > .dcs-qd-cond-field {
+	flex: 0 1 auto;
+	min-width: 6em;
+	max-width: 100%;
+}
+/* Основа блока параметра — около его нужной ширины: при основе 8em условие средней длины переносится */
+.dcs-qd-cond-value {
+	display: flex;
+	align-items: center;
+	gap: 2px;
+	flex: 1 1 4em;
+	min-width: 4em;
+}
+.dcs-qd-cond-value > .dcs-qd-cell-input {
+	flex: 1 1 0;
+	min-width: 3em;
+}
+/* «Объединения/Псевдонимы»: имя колонки с явным КАК — жирным (как у платформы) и значком рядом */
+.dcs-qd-alias-explicit {
+	font-weight: 600;
+}
+.dcs-qd-alias-mark {
+	flex: none;
+	padding: 0 5px;
+	border: 1px solid var(--vscode-panel-border);
+	border-radius: 999px;
+	font-size: 10px;
+	color: var(--vscode-descriptionForeground);
+	white-space: nowrap;
+}
+.dcs-qd-cell-expr {
+	display: flex;
+	align-items: center;
+	gap: 4px;
+	min-width: 0;
+	flex: 1 1 auto;
+}
+.dcs-qd-cell-text {
+	flex: 1 1 auto;
+	min-width: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	font-family: var(--vscode-editor-font-family);
+}
+.dcs-qd-cell-amp {
+	flex: none;
+	color: var(--vscode-descriptionForeground);
+}
+.dcs-qd-split {
+	display: grid;
+	grid-template-columns: minmax(220px, 1fr) minmax(320px, 1.5fr);
+	gap: 8px;
+	align-items: stretch;
+	min-height: 320px;
+}
+.dcs-qd-split-moves {
+	grid-template-columns: minmax(220px, 1fr) auto minmax(320px, 1.5fr);
+}
+@media (max-width: 900px) {
+	.dcs-qd-split,
+	.dcs-qd-split-moves {
+		grid-template-columns: 1fr;
+	}
+}
+.dcs-qd-stack {
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+	min-width: 0;
+}
+.dcs-qd-pair {
+	display: grid;
+	grid-template-columns: auto minmax(0, 1fr);
+	gap: 8px;
+	min-width: 0;
+}
+.dcs-qd-pair .dcs-qd-tree {
+	min-height: 120px;
+	max-height: calc(50vh - 160px);
+}
+.dcs-qd-warnings {
+	border-color: var(--vscode-editorWarning-foreground, var(--vscode-panel-border));
+	color: var(--vscode-editorWarning-foreground, var(--vscode-descriptionForeground));
+}
+
+/*
+ * Проверка имён по метаданным — плашка конструктора и строка под текстом набора.
+ * Список предупреждений обычным текстом: имена в нём набраны так, как в запросе.
+ */
+.dcs-qd-names-title,
+.dcs-query-names-title {
+	font-weight: 600;
+}
+
+.dcs-qd-names-list {
+	margin: 4px 0;
+	padding-left: 18px;
+}
+
+.dcs-qd-names-list li {
+	overflow-wrap: anywhere;
+}
+
+.dcs-query-names {
+	margin-top: 4px;
+	font-size: 12px;
+	color: var(--vscode-editorWarning-foreground, var(--vscode-descriptionForeground));
+	overflow-wrap: anywhere;
+}
+
+.dcs-query-names:empty {
+	display: none;
+}
+
+/*
+ * Строка под текстом запроса набора: ошибка разбора, пустой текст или отказ записи —
+ * цветом ошибки, первой под полем. Текст пишется по уходу из поля.
+ */
+.dcs-query-status {
+	margin-top: 4px;
+	font-size: 12px;
+	overflow-wrap: anywhere;
+}
+.dcs-query-status-error {
+	color: var(--vscode-errorForeground);
+}
+.dcs-query-status:empty {
+	display: none;
+}
+/*
+ * У поля с кнопкой подсказки «⋯» коробка — сетка: строка ошибок идёт первой под полем и во всю ширину, а не в колонку
+ * кнопки; строка проверки имён — под предупреждением скобок (строки сетки — у .dcs-hl-warn)
+ */
+.dcs-hl-box.dcs-complete-host > .dcs-query-status {
+	grid-column: 1 / -1;
+	grid-row: 2;
+}
+.dcs-hl-box.dcs-complete-host > .dcs-query-names {
+	grid-column: 1;
+	grid-row: 4;
+}
+
+/*
+ * Вкладки «Дополнительно», «Индекс», «Объединения/Псевдонимы», «Порядок», «Пакет
+ * запросов», «Компоновка данных» и «Характеристики». Сетки — те же строки с элементами управления,
+ * у таблицы соответствия колонок шаблон задаёт скрипт (число частей объединения известно при отрисовке).
+ */
+.dcs-qd-advanced {
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+	max-width: 760px;
+}
+.dcs-qd-group {
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+	padding-bottom: 6px;
+	border-bottom: 1px solid color-mix(in srgb, var(--vscode-panel-border) 50%, transparent);
+}
+.dcs-qd-group > .dcs-form-group {
+	margin-top: 6px;
+}
+.dcs-qd-inline {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+}
+.dcs-qd-index {
+	display: grid;
+	grid-template-columns: minmax(180px, 0.8fr) minmax(180px, 1fr) auto minmax(180px, 1fr);
+	gap: 8px;
+	align-items: stretch;
+	min-height: 280px;
+}
+.dcs-qd-union {
+	display: grid;
+	grid-template-columns: minmax(200px, 0.6fr) minmax(320px, 2fr);
+	gap: 8px;
+	align-items: stretch;
+	min-height: 280px;
+}
+@media (max-width: 900px) {
+	.dcs-qd-index,
+	.dcs-qd-union {
+		grid-template-columns: 1fr;
+	}
+}
+.dcs-qd-grid-index .dcs-qd-grid-row {
+	grid-template-columns: minmax(90px, 1fr) 96px;
+}
+.dcs-qd-grid-parts .dcs-qd-grid-row {
+	grid-template-columns: minmax(90px, 1fr) 88px;
+}
+.dcs-qd-grid-union .dcs-qd-grid-row {
+	grid-template-columns: minmax(120px, 1fr) minmax(140px, 1.4fr);
+}
+.dcs-qd-grid-order .dcs-qd-grid-row {
+	grid-template-columns: minmax(160px, 2fr) minmax(150px, 1fr);
+}
+.dcs-qd-grid-batch .dcs-qd-grid-row {
+	grid-template-columns: 40px minmax(180px, 2fr) minmax(160px, 1fr);
+}
+.dcs-qd-grid-ctables .dcs-qd-grid-row {
+	grid-template-columns: minmax(180px, 2fr) 96px 110px 120px;
+}
+.dcs-qd-grid-dsel .dcs-qd-grid-row {
+	grid-template-columns: minmax(160px, 2fr) 150px minmax(120px, 1fr);
+}
+.dcs-qd-grid-dwhere .dcs-qd-grid-row {
+	grid-template-columns: minmax(220px, 3fr) 150px minmax(120px, 1fr);
+}
+.dcs-qd-subtabs {
+	margin-bottom: 6px;
+}
+.dcs-qd-subpanel {
+	min-height: 0;
+}
+/* Окно параметров ВТ для СКД: позиция — значение, блок {…}, необязательность или поля-отборы */
+.dcs-qd-vt {
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+	padding-bottom: 6px;
+	border-bottom: 1px solid color-mix(in srgb, var(--vscode-panel-border) 50%, transparent);
+}
+.dcs-qd-vt-name {
+	max-width: 220px;
+}
+.dcs-qd-vt-filters {
+	max-height: 220px;
+}
+.dcs-qd-vt-filter {
+	display: grid;
+	grid-template-columns: minmax(160px, 1.4fr) auto minmax(120px, 1fr);
+	align-items: center;
+	gap: 8px;
+}
+.dcs-qd-chars {
+	margin: 6px 0;
+	padding: 6px 8px;
+	max-height: calc(100vh - 320px);
+	overflow: auto;
+	white-space: pre;
+	font-family: var(--vscode-editor-font-family);
+	font-size: var(--vscode-editor-font-size, 12px);
+	color: var(--vscode-foreground);
+	background: var(--vscode-input-background);
+	border: 1px solid var(--vscode-input-border, var(--vscode-panel-border));
+	border-radius: 4px;
+}
+.dcs-qd-chars:focus-visible {
+	outline: 1px solid var(--vscode-focusBorder);
+}
+
+/*
+ * Закладка «Ресурсы» как в конфигураторе: слева «Доступные поля», посередине кнопки
+ * переноса, справа таблица ресурсов. На окне около 1000 px три колонки помещаются без прокрутки страницы (дерево —
+ * до 280 px, таблица берёт остальное); уже 760 px колонки встают друг под другом, кнопки — в строку.
+ */
+.dcs-res {
+	display: grid;
+	grid-template-columns: minmax(200px, 280px) auto minmax(0, 1fr);
+	gap: 8px;
+	align-items: start;
+}
+.dcs-res-col {
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+	min-width: 0;
+}
+.dcs-res-col > .dcs-list-toolbar {
+	margin: 0;
+}
+.dcs-res .dcs-qd-moves {
+	flex-direction: column;
+	align-self: center;
+}
+@media (max-width: 760px) {
+	.dcs-res {
+		grid-template-columns: minmax(0, 1fr);
+	}
+	.dcs-res .dcs-qd-moves {
+		flex-direction: row;
+		align-self: start;
+	}
+}
+/* Многострочное выражение ресурса (ВЫБОР КОГДА … КОНЕЦ) видно в строке целиком: переносы строк сохраняются */
+.dcs-res-table td.dcs-res-expr {
+	white-space: pre-wrap;
+	overflow-wrap: break-word;
+	font-family: var(--vscode-editor-font-family, monospace);
+}
+.dcs-res-table tbody tr {
+	cursor: pointer;
+}
+.dcs-res-table tbody tr:focus {
+	outline: none;
+}
+.dcs-res-table tbody tr:focus-visible {
+	outline: 1px solid var(--vscode-focusBorder);
+	outline-offset: -1px;
+}
+.dcs-res-table tbody tr.dcs-tree-selected .struct-btn {
+	opacity: 1;
+}
+/* «Доступные поля» на вкладке схемы: места больше, чем в окне конструктора, — дерево выше */
+.dcs-res .dcs-field-tree {
+	max-height: calc(100vh - 220px);
+}
+@media (max-width: 760px) {
+	/* Колонки друг под другом: дерево не занимает весь экран, таблица ресурсов (цель «>») видна под ним */
+	.dcs-res .dcs-field-tree {
+		max-height: 40vh;
+	}
+}
+/* Значок вычисляемого поля в «Доступных полях»: свой текст «f(x)», не рисунок конфигуратора */
+.dcs-field-badge {
+	flex: none;
+	padding: 0 4px;
+	border: 1px solid var(--vscode-panel-border);
+	border-radius: 3px;
+	font-size: 10px;
+	font-style: italic;
+	line-height: 14px;
+	color: var(--vscode-descriptionForeground);
+	white-space: nowrap;
+}
+
+/*
+ * Перетаскивание: подсветка без сдвига раскладки — тени внутрь (box-shadow inset) и
+ * цвета темы VS Code. Списки, которые примут перенос, — тонкая рамка; список под указателем — рамка цвета фокуса;
+ * место вставки — линия у верхнего или нижнего края строки; сброс в строку (поле части объединения) — её фон.
+ */
+.dcs-dnd-can {
+	box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--vscode-focusBorder) 45%, transparent);
+}
+/* Список под указателем отличается от «примет» не только цветом, но и толщиной рамки: в контрастных темах цвет один */
+.dcs-dnd-over {
+	box-shadow: inset 0 0 0 2px var(--vscode-focusBorder);
+}
+.dcs-dnd-source {
+	opacity: 0.6;
+}
+.dcs-dnd-before {
+	box-shadow: inset 0 2px 0 0 var(--vscode-focusBorder);
+}
+.dcs-dnd-after {
+	box-shadow: inset 0 -2px 0 0 var(--vscode-focusBorder);
+}
+.dcs-dnd-into,
+.dcs-tree-selected.dcs-dnd-into,
+.dcs-qd-grid-row.dcs-dnd-into {
+	background: var(--vscode-list-dropBackground, color-mix(in srgb, var(--vscode-focusBorder) 30%, transparent));
+	box-shadow: inset 0 0 0 1px var(--vscode-focusBorder);
+}
+/*
+ * Принудительные цвета (контрастный режим Windows): тени и фоны браузер снимает. Рамки зон — контуром (outline внутрь),
+ * линия места — псевдоэлементом поверх строки: ни то, ни другое раскладку не сдвигает.
+ */
+@media (forced-colors: active) {
+	.dcs-dnd-can,
+	.dcs-dnd-over,
+	.dcs-dnd-into {
+		outline: 2px solid Highlight;
+		outline-offset: -2px;
+	}
+	.dcs-dnd-can {
+		outline-style: dashed;
+		outline-width: 1px;
+		outline-offset: -1px;
+	}
+	/*
+	 * Опора псевдоэлемента. :where — без веса: закреплённая шапка (position: sticky) остаётся закреплённой и сама служит
+	 * опорой. Ячейки таблиц зон — относительные всегда, а не со сменой класса: смена position перестраивала бы раскладку
+	 * таблицы на каждом шаге линии (у строк-блоков деревьев и сеток это перестройка одной строки)
+	 */
+	:where(.dcs-dnd-before, .dcs-dnd-after):not(tr),
+	:where([data-dnd-zone] tr > td, [data-dnd-zone] tr > th) {
+		position: relative;
+	}
+	.dcs-dnd-before:not(tr)::after,
+	.dcs-dnd-after:not(tr)::after,
+	tr.dcs-dnd-before > td::after,
+	tr.dcs-dnd-after > td::after,
+	tr.dcs-dnd-after > th::after {
+		content: '';
+		position: absolute;
+		left: 0;
+		right: 0;
+		height: 2px;
+		background: Highlight;
+		forced-color-adjust: none;
+		pointer-events: none;
+	}
+	.dcs-dnd-before:not(tr)::after,
+	tr.dcs-dnd-before > td::after {
+		top: 0;
+	}
+	.dcs-dnd-after:not(tr)::after,
+	tr.dcs-dnd-after > td::after,
+	tr.dcs-dnd-after > th::after {
+		bottom: 0;
+	}
+}
+/*
+ * Строки таблиц вкладок схемы и «Настроек» (списки панелей узла, ресурсы, поля группировки): линия места и рамка «в
+ * строку» — ещё и у ячеек, тени самой строки таблицы рисуют не все движки. Те же тени внутрь, раскладка не сдвигается.
+ */
+tr.dcs-dnd-before > td {
+	box-shadow: inset 0 2px 0 0 var(--vscode-focusBorder);
+}
+tr.dcs-dnd-after > td {
+	box-shadow: inset 0 -2px 0 0 var(--vscode-focusBorder);
+}
+/* Сброс на шапку или панель над таблицей — первым: линия у нижнего края шапки (закреплённая, она видна и в прокрутке) */
+tr.dcs-dnd-after > th {
+	box-shadow: inset 0 -2px 0 0 var(--vscode-focusBorder);
+}
+tr.dcs-dnd-into > td {
+	box-shadow: inset 0 1px 0 0 var(--vscode-focusBorder), inset 0 -1px 0 0 var(--vscode-focusBorder);
+}
+/* Ручка строки сетки (номер, имя или значок «⋮»): строку с элементами управления тащат только за неё */
+.dcs-qd-grid-cell[draggable='true'],
+.dcs-qd-cell-text[draggable='true'],
+.dcs-dnd-grip,
+td[draggable='true'],
+.dcs-wizard-row .dcs-tree-label[draggable='true'] {
+	cursor: grab;
+}
+.dcs-dnd-grip {
+	flex: none;
+	padding: 0 2px;
+	color: var(--vscode-descriptionForeground);
+	user-select: none;
 }

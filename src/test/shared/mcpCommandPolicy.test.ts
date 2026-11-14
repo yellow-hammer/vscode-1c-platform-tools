@@ -267,6 +267,25 @@ suite('mcpCommandPolicy: пайплайны', () => {
 	});
 });
 
+suite('mcpCommandPolicy: схема компоновки данных', () => {
+	test('команды dcs.* доступны агенту, возвращают исход и выполняются в проекте вызова', () => {
+		for (const id of [
+			'1c-platform-tools.dcs.read',
+			'1c-platform-tools.dcs.apply',
+			'1c-platform-tools.dcs.validate',
+			'1c-platform-tools.dcs.typeDictionary',
+			'1c-platform-tools.dcs.query',
+			'1c-platform-tools.dcs.templateAdd',
+			'1c-platform-tools.dcs.templateRemove',
+		]) {
+			assert.strictEqual(isCommandExposedToMcp(id), true, id);
+			assert.strictEqual(commandSupportsWait(id), true, id);
+			assert.strictEqual(commandRunsInProject(id), true, id);
+			assert.strictEqual(commandTargetsDirectory(id), false, id);
+		}
+	});
+});
+
 suite('mcpCommandPolicy: стандартный интерфейс OData', () => {
 	test('запрос и состав интерфейса доступны агенту и возвращают исход', () => {
 		for (const id of ['1c-platform-tools.odata.query', '1c-platform-tools.odata.setup']) {

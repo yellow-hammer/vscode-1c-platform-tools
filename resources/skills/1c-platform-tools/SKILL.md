@@ -257,6 +257,20 @@ Java для 1cedtcli: путь к java.exe в настройке 1c-platform-too
 | Создать env.json | `1c-platform-tools.serviceFiles.createEnvJson` | `serviceFiles_createEnvJson` |
 | Меню служебных файлов | `1c-platform-tools.serviceFiles.create` | нет |
 
+## Схема компоновки данных
+
+Команды правят файл макета СКД без открытой панели. В `path` передают содержимое схемы (`Templates/<Имя>/Ext/Template.xml` или `Template.dcs` проекта EDT) либо описание макета рядом, в `ownerPath` описание владельца макета. Параметры и формы правок описаны в навыке `1c-platform-tools-mcp`.
+
+| Задача | Command ID | MCP |
+|---|---|---|
+| Прочитать модель схемы | `1c-platform-tools.dcs.read` | `dcs_read` |
+| Применить правку схемы | `1c-platform-tools.dcs.apply` | `dcs_apply` |
+| Проверить схему | `1c-platform-tools.dcs.validate` | `dcs_validate` |
+| Словарь типов значений схемы | `1c-platform-tools.dcs.typeDictionary` | `dcs_typeDictionary` |
+| Разобрать, собрать или записать запрос набора схемы | `1c-platform-tools.dcs.query` | `dcs_query` |
+| Добавить макет со схемой компоновки | `1c-platform-tools.dcs.templateAdd` | `dcs_templateAdd` |
+| Удалить макет со схемой компоновки | `1c-platform-tools.dcs.templateRemove` | `dcs_templateRemove` |
+
 ## Метаданные и справка
 
 Команды метаданных, ER-диаграммы и справки в MCP не публикуются. В том числе `1c-platform-tools.metadata.getProjectTree`, `1c-platform-tools.metadata.er.openCanvas`, `1c-platform-tools.metadata.er.openForObject`, `1c-platform-tools.help.copyEnvironmentSummary`. Имя инструмента для них не собирай. Состояние окружения запуска читает `env_status`.

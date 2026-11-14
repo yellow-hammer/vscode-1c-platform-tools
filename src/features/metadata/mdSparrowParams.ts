@@ -124,6 +124,52 @@ export type MdSparrowOp =
 	| 'cf-spreadsheet-set-cell'
 	| 'cf-dcs-set-query'
 	| 'cf-dcs-add-calculated-field'
+	// правки схемы компоновки: наборы, поля, связи, вычисляемые поля, ресурсы, параметры
+	| 'cf-dcs-add-data-set'
+	| 'cf-dcs-remove-data-set'
+	| 'cf-dcs-rename-data-set'
+	| 'cf-dcs-set-data-set-props'
+	| 'cf-dcs-add-field'
+	| 'cf-dcs-set-field'
+	| 'cf-dcs-remove-field'
+	| 'cf-dcs-add-link'
+	| 'cf-dcs-set-link'
+	| 'cf-dcs-remove-link'
+	| 'cf-dcs-set-calculated-field'
+	| 'cf-dcs-remove-calculated-field'
+	| 'cf-dcs-add-total-field'
+	| 'cf-dcs-set-total-field'
+	| 'cf-dcs-remove-total-field'
+	| 'cf-dcs-add-parameter'
+	| 'cf-dcs-set-parameter'
+	| 'cf-dcs-remove-parameter'
+	// варианты настроек схемы компоновки: чтение и правки
+	| 'cf-dcs-settings-info'
+	| 'cf-dcs-add-settings-variant'
+	| 'cf-dcs-remove-settings-variant'
+	| 'cf-dcs-set-settings-variant-props'
+	| 'cf-dcs-add-structure-item'
+	| 'cf-dcs-remove-structure-item'
+	| 'cf-dcs-move-structure-item'
+	| 'cf-dcs-set-group-fields'
+	| 'cf-dcs-set-selection'
+	| 'cf-dcs-set-order'
+	| 'cf-dcs-set-filter'
+	| 'cf-dcs-set-parameter-value'
+	| 'cf-dcs-add-appearance-item'
+	| 'cf-dcs-set-appearance-item'
+	| 'cf-dcs-remove-appearance-item'
+	// автозаполнение полей, строгая проверка схемы (read-json) и макеты владельца
+	| 'cf-dcs-autofill-fields'
+	| 'cf-dcs-validate'
+	| 'cf-dcs-template-add'
+	| 'cf-dcs-template-remove'
+	// словарь окна «Тип значения» (read-json)
+	| 'cf-dcs-type-dictionary'
+	// таблицы языка запросов объекта (read-json)
+	| 'cf-md-query-tables'
+	// пакет операций одним сеансом записи (apply-mutation, поле operations)
+	| 'batch'
 	| 'project-metadata-tree'
 	| 'cf-md-graph'
 	| 'cf-validate-dump';
@@ -167,6 +213,16 @@ export interface MdSparrowParams {
 	newName?: string;
 	sourceName?: string;
 	tabularSection?: string;
+	/** Набор данных схемы компоновки, которого касается правка (операции cf-dcs-*). */
+	dataSet?: string;
+	/** Путь к данным поля схемы компоновки (операции cf-dcs-*). */
+	dataPath?: string;
+	/** Вариант настроек схемы компоновки: имя среди прямых детей корня (операции cf-dcs-*). */
+	variant?: string;
+	/** Порядковый номер элемента схемы без собственного ключа в формате: связи и ресурсы. */
+	index?: number;
+	/** Источник данных нового набора (cf-dcs-add-data-set). */
+	dataSource?: string;
 	/** Версия схемы в формате `V2_20` (как флаг `-v`). */
 	schemaVersion?: string;
 	type?: string;
@@ -174,12 +230,24 @@ export interface MdSparrowParams {
 	synonym?: string;
 	synonymEmpty?: boolean;
 	autoName?: boolean;
+	/** Заполнить MainDataCompositionSchema владельца новым макетом: только у видов с этим свойством (cf-dcs-template-add). */
+	makeMain?: boolean;
+	/** Строгая проверка схемы компоновки: XSD с поправками «как пишет платформа» (cf-dcs-validate). */
+	strict?: boolean;
+	/** Язык имён видов, таблиц и стандартных реквизитов в ответе (cf-md-query-tables); по умолчанию ru. */
+	lang?: 'ru' | 'en';
 	/** Отпечаток прочитанных правил поддержки: правка поверх устаревшего снимка отклоняется. */
 	expectedGeneration?: string;
 	/** Полезная нагрузка для set-операций: JSON DTO как строка. */
 	payloadJson?: string;
 	/** Не смотреть на правила поддержки: правка идёт так, будто поставки нет. */
 	ignoreSupport?: boolean;
+	/**
+	 * Операции пакета (`op: 'batch'`): идут по порядку в одном сеансе записи с одной публикацией,
+	 * первый отказ отменяет весь пакет. `ignoreSupport` и `dryRun` задаются у пакета, а не у операций —
+	 * md-sparrow отказывает, если они есть внутри.
+	 */
+	operations?: MdSparrowParams[];
 }
 
 /**
@@ -242,9 +310,22 @@ export async function runMdSparrowParamsMutation(
 		if (move) {
 			notifyMetadataFileMoved(move);
 		}
-		notifyMetadataFilesChanged([params.objectXml, params.configurationXml, params.formXml]);
+		notifyMetadataFilesChanged(changedFilesOf(params));
 	}
 	return result;
+}
+
+/**
+ * Файлы правки: у пакета пути лежат в его операциях, а не на верхнем уровне. Операции пакета
+ * обычно правят один файл — повторы убираются, чтобы открытые панели не перечитывали его по разу
+ * на операцию.
+ */
+function changedFilesOf(params: MdSparrowParams): Array<string | undefined> {
+	const files = [params.objectXml, params.configurationXml, params.formXml];
+	for (const operation of params.operations ?? []) {
+		files.push(operation.objectXml, operation.configurationXml, operation.formXml);
+	}
+	return [...new Set(files)];
 }
 
 /** Куда ушло описание объекта после переименования или удаления. */

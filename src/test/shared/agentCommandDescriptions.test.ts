@@ -55,4 +55,26 @@ suite('agentCommandDescriptions', () => {
 			assert.ok(agentCommandDescription(id), `команда ${id} осталась бы у агента без описания`);
 		}
 	});
+
+	test('у команд схемы компоновки описание обязательно: заголовок палитры не называет параметры', () => {
+		for (const suffix of ['read', 'apply', 'validate', 'typeDictionary', 'query', 'templateAdd', 'templateRemove']) {
+			const id = `1c-platform-tools.dcs.${suffix}`;
+			const description = agentCommandDescription(id);
+			assert.ok(description, `команда ${id} осталась бы у агента без описания`);
+			assert.strictEqual(description.category, '1С: Схема компоновки данных', id);
+		}
+	});
+
+	test('dcs.read называет составы typeCompositions, dcs.query — Границы, критерий отбора и «Константы» в модели разбора', () => {
+		// Без описания агент не узнает, что ответ jar несёт эти ключи, и как читать источник
+		// с параметрами без виртуальной таблицы
+		const read = agentCommandDescription('1c-platform-tools.dcs.read')?.title ?? '';
+		for (const word of ['typeCompositions', 'source', 'typeIds', 'cfg:Characteristic']) {
+			assert.ok(read.includes(word), `описание dcs.read не называет ${word}`);
+		}
+		const query = agentCommandDescription('1c-platform-tools.dcs.query')?.title ?? '';
+		for (const word of ['virtualTable', 'Последовательность.X.Границы', 'Sequence.X.Boundaries', 'КритерийОтбора.X(&Значение)', 'Константы']) {
+			assert.ok(query.includes(word), `описание dcs.query не называет ${word}`);
+		}
+	});
 });

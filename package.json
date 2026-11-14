@@ -1112,6 +1112,53 @@
         "category": "1С: Метаданные"
       },
       {
+        "command": "1c-platform-tools.metadata.dcsTemplateAdd",
+        "title": "Создать схему компоновки данных…",
+        "icon": "$(add)",
+        "category": "1С: Метаданные"
+      },
+      {
+        "command": "1c-platform-tools.metadata.dcsTemplateRemove",
+        "title": "Удалить схему компоновки данных",
+        "icon": "$(trash)",
+        "category": "1С: Метаданные"
+      },
+      {
+        "command": "1c-platform-tools.dcs.read",
+        "title": "Прочитать модель схемы",
+        "category": "1С: Схема компоновки данных"
+      },
+      {
+        "command": "1c-platform-tools.dcs.apply",
+        "title": "Применить правку схемы",
+        "category": "1С: Схема компоновки данных"
+      },
+      {
+        "command": "1c-platform-tools.dcs.validate",
+        "title": "Проверить схему",
+        "category": "1С: Схема компоновки данных"
+      },
+      {
+        "command": "1c-platform-tools.dcs.typeDictionary",
+        "title": "Словарь типов значений схемы",
+        "category": "1С: Схема компоновки данных"
+      },
+      {
+        "command": "1c-platform-tools.dcs.query",
+        "title": "Разобрать, собрать или записать запрос набора схемы",
+        "category": "1С: Схема компоновки данных"
+      },
+      {
+        "command": "1c-platform-tools.dcs.templateAdd",
+        "title": "Добавить макет со схемой компоновки",
+        "category": "1С: Схема компоновки данных"
+      },
+      {
+        "command": "1c-platform-tools.dcs.templateRemove",
+        "title": "Удалить макет со схемой компоновки",
+        "category": "1С: Схема компоновки данных"
+      },
+      {
         "command": "1c-platform-tools.metadata.open",
         "title": "Открыть",
         "category": "1С: Метаданные"
@@ -3169,6 +3216,42 @@
           "when": "false"
         },
         {
+          "command": "1c-platform-tools.metadata.dcsTemplateAdd",
+          "when": "false"
+        },
+        {
+          "command": "1c-platform-tools.metadata.dcsTemplateRemove",
+          "when": "false"
+        },
+        {
+          "command": "1c-platform-tools.dcs.read",
+          "when": "false"
+        },
+        {
+          "command": "1c-platform-tools.dcs.apply",
+          "when": "false"
+        },
+        {
+          "command": "1c-platform-tools.dcs.validate",
+          "when": "false"
+        },
+        {
+          "command": "1c-platform-tools.dcs.typeDictionary",
+          "when": "false"
+        },
+        {
+          "command": "1c-platform-tools.dcs.query",
+          "when": "false"
+        },
+        {
+          "command": "1c-platform-tools.dcs.templateAdd",
+          "when": "false"
+        },
+        {
+          "command": "1c-platform-tools.dcs.templateRemove",
+          "when": "false"
+        },
+        {
           "command": "1c-platform-tools.metadata.openCommandInterface",
           "when": "false"
         },
@@ -4265,6 +4348,21 @@
           "command": "1c-platform-tools.metadata.openDcs",
           "when": "view == 1c-platform-tools-metadata-tree && viewItem =~ /(^| )mdDcs( |$)/",
           "group": "1_open@5"
+        },
+        {
+          "command": "1c-platform-tools.metadata.dcsTemplateAdd",
+          "when": "view == 1c-platform-tools-metadata-tree && (viewItem =~ /(^| )mdDcsTemplateAdd( |$)/ || viewItem == metadataSubgroup_common_common_commontemplate || viewItem == metadataSubgroupExt_common_common_commontemplate)",
+          "group": "inline"
+        },
+        {
+          "command": "1c-platform-tools.metadata.dcsTemplateAdd",
+          "when": "view == 1c-platform-tools-metadata-tree && (viewItem =~ /(^| )mdDcsTemplateAdd( |$)/ || viewItem == metadataSubgroup_common_common_commontemplate || viewItem == metadataSubgroupExt_common_common_commontemplate)",
+          "group": "3_create@2"
+        },
+        {
+          "command": "1c-platform-tools.metadata.dcsTemplateRemove",
+          "when": "view == 1c-platform-tools-metadata-tree && viewItem =~ /(^| )metadataChild_template( |$)/ && viewItem =~ /(^| )mdDcs( |$)/",
+          "group": "7_delete@1"
         },
         {
           "command": "1c-platform-tools.metadata.openCommandInterface",
@@ -5401,7 +5499,7 @@
     "typecheck": "tsc --noEmit",
     "lint": "eslint src --max-warnings 0",
     "test": "vscode-test && npm run test:node",
-    "test:node": "node --test out/test/shared/skillMcpNames.node.js out/test/shared/gitHead.node.js out/test/shared/launchConfigurations.node.js out/test/shared/workspaceScope.node.js out/test/shared/dotEnv.node.js out/test/shared/environments.node.js out/test/shared/codeEnvironmentVariables.node.js out/test/shared/ovmPaths.node.js out/test/shared/packagedef.node.js out/test/shared/oneScriptEngine.node.js out/test/shared/processOutput.node.js out/test/shared/processTermination.node.js out/test/shared/ibsrvDataLock.node.js out/test/shared/channelLocation.node.js out/test/shared/windowRegistry.node.js out/test/utils/shellArgvRoundtrip.node.js out/test/shared/executableLookup.node.js out/test/shared/oneScriptModules.node.js out/test/testing/mutatosRun.node.js out/test/testing/mutatosSources.node.js out/test/testing/mutatosReport.node.js out/test/spreadsheet/spreadsheetHtml.node.js out/test/features/odata.node.js out/test/metadata/erTheme.node.js out/test/metadata/jarJavaVersion.node.js out/test/testing/yaxunitReleases.node.js out/test/metadata/erExport.node.js out/test/features/dependencyModel.node.js",
+    "test:node": "node --test out/test/shared/skillMcpNames.node.js out/test/shared/gitHead.node.js out/test/shared/launchConfigurations.node.js out/test/shared/workspaceScope.node.js out/test/shared/dotEnv.node.js out/test/shared/environments.node.js out/test/shared/codeEnvironmentVariables.node.js out/test/shared/ovmPaths.node.js out/test/shared/packagedef.node.js out/test/shared/oneScriptEngine.node.js out/test/shared/processOutput.node.js out/test/shared/processTermination.node.js out/test/shared/ibsrvDataLock.node.js out/test/shared/channelLocation.node.js out/test/shared/windowRegistry.node.js out/test/utils/shellArgvRoundtrip.node.js out/test/shared/executableLookup.node.js out/test/shared/oneScriptModules.node.js out/test/testing/mutatosRun.node.js out/test/testing/mutatosSources.node.js out/test/testing/mutatosReport.node.js out/test/spreadsheet/spreadsheetHtml.node.js out/test/features/odata.node.js out/test/metadata/erTheme.node.js out/test/metadata/jarJavaVersion.node.js out/test/testing/yaxunitReleases.node.js out/test/metadata/erExport.node.js out/test/metadata/dcsFixture.node.js out/test/metadata/dcsSettingsFixture.node.js out/test/metadata/dcsTargets.node.js out/test/metadata/dcsAgentOps.node.js out/test/metadata/dcsHighlight.node.js out/test/metadata/dcsComplete.node.js out/test/metadata/dcsPanelMessages.node.js out/test/metadata/dcsDialogs.node.js out/test/metadata/dcsTypes.node.js out/test/metadata/dcsPlatformRules.node.js out/test/metadata/dcsSettingsWizard.node.js out/test/metadata/dcsBatch.node.js out/test/metadata/dcsQueryModel.node.js out/test/metadata/dcsQueryEdit.node.js out/test/metadata/dcsFieldTypes.node.js out/test/metadata/dcsFormat.node.js out/test/metadata/dcsQueryHost.node.js out/test/metadata/dcsQueryCommand.node.js out/test/metadata/dcsSchemaTabs.node.js out/test/metadata/dcsSettingsTab.node.js out/test/metadata/dcsDragDrop.node.js out/test/features/dependencyModel.node.js",
     "package": "vsce package",
     "changelog": "git-cliff --config cliff.toml --output CHANGELOG.md",
     "docs:dev": "vitepress dev docs",

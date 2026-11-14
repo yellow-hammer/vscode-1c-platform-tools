@@ -1,0 +1,1395 @@
+{
+	"РезультатыПроверкиУчета": {
+		"template": "Reports/РезультатыПроверкиУчета/Templates/ОсновнаяСхемаКомпоновкиДанных/Ext/Template.xml",
+		"info": {
+			"dataSets": [
+				{
+					"name": "ОсновнойЗапрос",
+					"type": "query",
+					"dataSource": "ИсточникДанных1",
+					"query": "ВЫБРАТЬ РАЗРЕШЕННЫЕ\n\tРезультатыПроверкиУчета.ПроблемныйОбъект КАК КоличествоПроблемСОбъектом,\n\tРезультатыПроверкиУчета.ПроблемныйОбъект КАК ПроблемныйОбъект,\n\tРезультатыПроверкиУчета.ПравилоПроверки КАК ПравилоПроверки,\n\tРезультатыПроверкиУчета.ВидПроверки КАК ВидПроверки,\n\tРезультатыПроверкиУчета.КлючУникальности КАК КлючУникальности,\n\tРезультатыПроверкиУчета.УточнениеПроблемы КАК УточнениеПроблемы,\n\tРезультатыПроверкиУчета.ВажностьПроблемы КАК ВажностьПроблемы,\n\tРезультатыПроверкиУчета.Ответственный КАК Ответственный,\n\tРезультатыПроверкиУчета.Ответственный КАК ОтветственныйГруппировка,\n\tРезультатыПроверкиУчета.Выявлено КАК Выявлено,\n\tРезультатыПроверкиУчета.ИгнорироватьПроблему КАК ИгнорироватьПроблему,\n\tРезультатыПроверкиУчета.ДополнительнаяИнформация КАК ДополнительнаяИнформация,\n\t&НадписьОшибка КАК НадписьОшибка,\n\t&НадписьВозможныеПричины КАК НадписьВозможныеПричины,\n\t&НадписьРекомендации КАК НадписьРекомендации,\n\t&НадписьРешение КАК НадписьРешение,\n\tПравилаПроверкиУчета.Идентификатор КАК ИдентификаторПроверки,\n\t&НадписьПроблемныеОбъекты КАК НадписьПроблемныеОбъекты,\n\tПравилаПроверкиУчета.Наименование КАК ПравилоПроверкиНаименование,\n\tПравилаПроверкиУчета.Причины КАК ПравилоПроверкиПричиныПроблемы,\n\tПравилаПроверкиУчета.Рекомендация КАК ПравилоПроверкиРекомендации\nИЗ\n\tРегистрСведений.РезультатыПроверкиУчета КАК РезультатыПроверкиУчета\n\t\tВНУТРЕННЕЕ СОЕДИНЕНИЕ Справочник.ПравилаПроверкиУчета КАК ПравилаПроверкиУчета\n\t\tПО РезультатыПроверкиУчета.ПравилоПроверки = ПравилаПроверкиУчета.Ссылка\n{ГДЕ\n\t(РезультатыПроверкиУчета.ПроблемныйОбъект В (&Контекст)),\n\t(РезультатыПроверкиУчета.Выявлено > &ДатаНачала),\n\t(РезультатыПроверкиУчета.Выявлено < &ДатаОкончания)}",
+					"autoFillFields": true,
+					"fields": [
+						{
+							"dataPath": "Выявлено",
+							"kind": "field",
+							"field": "Выявлено"
+						},
+						{
+							"dataPath": "ВидПроверки",
+							"kind": "field",
+							"field": "ВидПроверки",
+							"role": {
+								"dimension": true
+							}
+						},
+						{
+							"dataPath": "ПравилоПроверкиРекомендации",
+							"kind": "field",
+							"field": "ПравилоПроверкиРекомендации",
+							"title": "Правило проверки рекомендации",
+							"titleLangs": {
+								"ru": "Правило проверки рекомендации"
+							}
+						},
+						{
+							"dataPath": "НадписьРекомендации",
+							"kind": "field",
+							"field": "НадписьРекомендации",
+							"title": "[ЗаголовокСкрыт]",
+							"titleLangs": {
+								"ru": "[ЗаголовокСкрыт]"
+							}
+						},
+						{
+							"dataPath": "ПравилоПроверки",
+							"kind": "field",
+							"field": "ПравилоПроверки",
+							"title": "[ЗаголовокСкрыт]",
+							"titleLangs": {
+								"ru": "[ЗаголовокСкрыт]"
+							},
+							"role": {
+								"dimension": true
+							}
+						},
+						{
+							"dataPath": "ПравилоПроверкиПричиныПроблемы",
+							"kind": "field",
+							"field": "ПравилоПроверкиПричиныПроблемы",
+							"title": "Правило проверки причины проблемы",
+							"titleLangs": {
+								"ru": "Правило проверки причины проблемы"
+							}
+						},
+						{
+							"dataPath": "НадписьОшибка",
+							"kind": "field",
+							"field": "НадписьОшибка",
+							"title": "[ЗаголовокСкрыт]",
+							"titleLangs": {
+								"ru": "[ЗаголовокСкрыт]"
+							}
+						},
+						{
+							"dataPath": "НадписьВозможныеПричины",
+							"kind": "field",
+							"field": "НадписьВозможныеПричины",
+							"title": "[ЗаголовокСкрыт]",
+							"titleLangs": {
+								"ru": "[ЗаголовокСкрыт]"
+							}
+						},
+						{
+							"dataPath": "ИгнорироватьПроблему",
+							"kind": "field",
+							"field": "ИгнорироватьПроблему",
+							"title": "Игнорировать проблему",
+							"titleLangs": {
+								"ru": "Игнорировать проблему"
+							}
+						},
+						{
+							"dataPath": "УточнениеПроблемы",
+							"kind": "field",
+							"field": "УточнениеПроблемы"
+						},
+						{
+							"dataPath": "КлючУникальности",
+							"kind": "field",
+							"field": "КлючУникальности"
+						},
+						{
+							"dataPath": "ПроблемныйОбъект",
+							"kind": "field",
+							"field": "ПроблемныйОбъект",
+							"title": "[ЗаголовокСкрыт]",
+							"titleLangs": {
+								"ru": "[ЗаголовокСкрыт]"
+							},
+							"role": {
+								"dimension": true
+							}
+						},
+						{
+							"dataPath": "ПравилоПроверкиНаименование",
+							"kind": "field",
+							"field": "ПравилоПроверкиНаименование",
+							"title": "Правило проверки наименование",
+							"titleLangs": {
+								"ru": "Правило проверки наименование"
+							}
+						},
+						{
+							"dataPath": "ИдентификаторПроверки",
+							"kind": "field",
+							"field": "ИдентификаторПроверки",
+							"title": "Идентификатор проверки",
+							"titleLangs": {
+								"ru": "Идентификатор проверки"
+							}
+						},
+						{
+							"dataPath": "НадписьРешение",
+							"kind": "field",
+							"field": "НадписьРешение",
+							"title": "[ЗаголовокСкрыт]",
+							"titleLangs": {
+								"ru": "[ЗаголовокСкрыт]"
+							}
+						},
+						{
+							"dataPath": "ДополнительнаяИнформация",
+							"kind": "field",
+							"field": "ДополнительнаяИнформация"
+						},
+						{
+							"dataPath": "НадписьПроблемныеОбъекты",
+							"kind": "field",
+							"field": "НадписьПроблемныеОбъекты",
+							"title": "[ЗаголовокСкрыт]",
+							"titleLangs": {
+								"ru": "[ЗаголовокСкрыт]"
+							}
+						},
+						{
+							"dataPath": "КоличествоПроблемСОбъектом",
+							"kind": "field",
+							"field": "КоличествоПроблемСОбъектом",
+							"title": "Количество проблем с объектом",
+							"titleLangs": {
+								"ru": "Количество проблем с объектом"
+							},
+							"role": {
+								"dimension": true
+							}
+						},
+						{
+							"dataPath": "ОтветственныйГруппировка",
+							"kind": "field",
+							"field": "ОтветственныйГруппировка",
+							"title": "Ответственный группировка",
+							"titleLangs": {
+								"ru": "Ответственный группировка"
+							}
+						},
+						{
+							"dataPath": "Ответственный",
+							"kind": "field",
+							"field": "Ответственный"
+						},
+						{
+							"dataPath": "ВажностьПроблемы",
+							"kind": "field",
+							"field": "ВажностьПроблемы"
+						}
+					]
+				},
+				{
+					"name": "ВнешняяТаблица",
+					"type": "object",
+					"dataSource": "ИсточникДанных1",
+					"objectName": "ВнешняяТаблица",
+					"fields": [
+						{
+							"dataPath": "ОбработчикПереходаКИсправлению",
+							"kind": "field",
+							"field": "ОбработчикПереходаКИсправлению",
+							"title": "Обработчик перехода к исправлению",
+							"titleLangs": {
+								"ru": "Обработчик перехода к исправлению"
+							},
+							"attributeUseRestriction": {
+								"field": true,
+								"condition": true,
+								"group": true,
+								"order": true
+							},
+							"valueTypePresentation": "string",
+							"valueType": {
+								"types": [
+									"xs:string"
+								],
+								"typeSets": [],
+								"typeIds": [],
+								"stringQualifiers": {
+									"length": "128",
+									"allowedLength": "VARIABLE"
+								},
+								"editable": true
+							}
+						},
+						{
+							"dataPath": "Идентификатор",
+							"kind": "field",
+							"field": "Идентификатор",
+							"title": "Идентификатор",
+							"titleLangs": {
+								"ru": "Идентификатор"
+							},
+							"attributeUseRestriction": {
+								"field": true,
+								"condition": true,
+								"group": true,
+								"order": true
+							},
+							"valueTypePresentation": "string",
+							"valueType": {
+								"types": [
+									"xs:string"
+								],
+								"typeSets": [],
+								"typeIds": [],
+								"stringQualifiers": {
+									"length": "256",
+									"allowedLength": "VARIABLE"
+								},
+								"editable": true
+							}
+						}
+					]
+				}
+			],
+			"calculatedFields": [
+				{
+					"name": "ПравилоПроверкиПричиныПроблемы",
+					"value": "ПравилоПроверкиПричиныПроблемы + \" *\"",
+					"title": "Причины проблемы",
+					"valueType": {
+						"types": [
+							"xs:string"
+						],
+						"typeSets": [],
+						"typeIds": [],
+						"stringQualifiers": {
+							"length": "0",
+							"allowedLength": "VARIABLE"
+						},
+						"editable": true
+					}
+				},
+				{
+					"name": "РасшифровкаПоля",
+					"value": "КонтрольВеденияУчетаСлужебный.РасшифровкаЯчейки(ПроблемныйОбъект, ПравилоПроверки, ВидПроверки, УточнениеПроблемы, КлючУникальности)",
+					"title": "Расшифровка поля"
+				},
+				{
+					"name": "ПроблемныйОбъектПредставление",
+					"value": "КонтрольВеденияУчетаСлужебный.ПредставлениеПроблемногоОбъекта(ПроблемныйОбъект, Представление(ПроблемныйОбъект), ДополнительнаяИнформация)",
+					"title": "Проблемный объект представление [ЗаголовокСкрыт]"
+				}
+			],
+			"totalFields": [
+				{
+					"name": "КоличествоПроблемСОбъектом",
+					"value": "Количество(КоличествоПроблемСОбъектом)",
+					"groups": [
+						"ВидПроверки",
+						"Ответственный",
+						"ОтветственныйГруппировка",
+						"ПравилоПроверки",
+						"ОбщийИтог"
+					]
+				}
+			],
+			"parameters": [
+				{
+					"name": "Контекст",
+					"title": "Контекст",
+					"type": "AnyIBRef",
+					"valueType": {
+						"types": [],
+						"typeSets": [
+							"cfg:AnyIBRef"
+						],
+						"typeIds": [],
+						"editable": true
+					},
+					"useRestriction": true,
+					"availableAsField": false,
+					"denyIncompleteValues": true,
+					"valueListAllowed": true
+				},
+				{
+					"name": "ВыводитьОтветственного",
+					"title": "Выводить ответственного",
+					"type": "boolean",
+					"valueType": {
+						"types": [
+							"xs:boolean"
+						],
+						"typeSets": [],
+						"typeIds": [],
+						"editable": true
+					},
+					"value": "false",
+					"valueTyped": {
+						"type": "xs:boolean",
+						"text": "false",
+						"decoded": false
+					},
+					"useRestriction": false,
+					"use": "Always",
+					"availableAsField": false,
+					"valuePresentation": "false"
+				},
+				{
+					"name": "НадписьОшибка",
+					"title": "Надпись ошибка",
+					"type": "string",
+					"valueType": {
+						"types": [
+							"xs:string"
+						],
+						"typeSets": [],
+						"typeIds": [],
+						"stringQualifiers": {
+							"length": "64",
+							"allowedLength": "VARIABLE"
+						},
+						"editable": true
+					},
+					"valueTyped": {
+						"type": "xs:string"
+					},
+					"useRestriction": true,
+					"availableAsField": false
+				},
+				{
+					"name": "НадписьВозможныеПричины",
+					"title": "Надпись возможные причины",
+					"type": "string",
+					"valueType": {
+						"types": [
+							"xs:string"
+						],
+						"typeSets": [],
+						"typeIds": [],
+						"stringQualifiers": {
+							"length": "64",
+							"allowedLength": "VARIABLE"
+						},
+						"editable": true
+					},
+					"valueTyped": {
+						"nil": true
+					},
+					"useRestriction": true,
+					"availableAsField": false
+				},
+				{
+					"name": "НадписьРекомендации",
+					"title": "Надпись рекомендации",
+					"type": "string",
+					"valueType": {
+						"types": [
+							"xs:string"
+						],
+						"typeSets": [],
+						"typeIds": [],
+						"stringQualifiers": {
+							"length": "64",
+							"allowedLength": "VARIABLE"
+						},
+						"editable": true
+					},
+					"valueTyped": {
+						"nil": true
+					},
+					"useRestriction": true,
+					"availableAsField": false
+				},
+				{
+					"name": "НадписьРешение",
+					"title": "Надпись решение",
+					"type": "string",
+					"valueType": {
+						"types": [
+							"xs:string"
+						],
+						"typeSets": [],
+						"typeIds": [],
+						"stringQualifiers": {
+							"length": "64",
+							"allowedLength": "VARIABLE"
+						},
+						"editable": true
+					},
+					"valueTyped": {
+						"nil": true
+					},
+					"useRestriction": true,
+					"availableAsField": false
+				},
+				{
+					"name": "НадписьПроблемныеОбъекты",
+					"title": "Надпись проблемные объекты",
+					"type": "string",
+					"valueType": {
+						"types": [
+							"xs:string"
+						],
+						"typeSets": [],
+						"typeIds": [],
+						"stringQualifiers": {
+							"length": "64",
+							"allowedLength": "VARIABLE"
+						},
+						"editable": true
+					},
+					"valueTyped": {
+						"nil": true
+					},
+					"useRestriction": true,
+					"availableAsField": false
+				},
+				{
+					"name": "Период",
+					"title": "Период",
+					"type": "StandardPeriod",
+					"valueType": {
+						"types": [
+							"v8:StandardPeriod"
+						],
+						"typeSets": [],
+						"typeIds": [],
+						"editable": true
+					},
+					"valueTyped": {
+						"type": "v8:StandardPeriod",
+						"period": {
+							"variant": "Custom",
+							"startDate": "0001-01-01T00:00:00",
+							"endDate": "0001-01-01T00:00:00"
+						}
+					},
+					"useRestriction": false
+				},
+				{
+					"name": "ДатаНачала",
+					"title": "Дата начала",
+					"type": "dateTime",
+					"valueType": {
+						"types": [
+							"xs:dateTime"
+						],
+						"typeSets": [],
+						"typeIds": [],
+						"dateQualifiers": {
+							"dateFractions": "DATE_TIME"
+						},
+						"editable": true
+					},
+					"valueTyped": {
+						"type": "xs:dateTime",
+						"text": "0001-01-01T00:00:00"
+					},
+					"expression": "&Период.ДатаНачала",
+					"useRestriction": true,
+					"valuePresentation": "0001-01-01T00:00:00"
+				},
+				{
+					"name": "ДатаОкончания",
+					"title": "Дата окончания",
+					"type": "dateTime",
+					"valueType": {
+						"types": [
+							"xs:dateTime"
+						],
+						"typeSets": [],
+						"typeIds": [],
+						"dateQualifiers": {
+							"dateFractions": "DATE_TIME"
+						},
+						"editable": true
+					},
+					"valueTyped": {
+						"type": "xs:dateTime",
+						"text": "0001-01-01T00:00:00"
+					},
+					"expression": "&Период.ДатаОкончания",
+					"useRestriction": true,
+					"valuePresentation": "0001-01-01T00:00:00"
+				},
+				{
+					"name": "ИнформацияОПоследнейПроверке",
+					"title": "Проверка ведения учета:",
+					"type": "string",
+					"valueType": {
+						"types": [
+							"xs:string"
+						],
+						"typeSets": [],
+						"typeIds": [],
+						"stringQualifiers": {
+							"length": "0",
+							"allowedLength": "VARIABLE"
+						},
+						"editable": true
+					},
+					"valueTyped": {
+						"type": "xs:string"
+					},
+					"useRestriction": false
+				}
+			],
+			"dataSources": [
+				{
+					"name": "ИсточникДанных1",
+					"type": "Local"
+				}
+			],
+			"dataSetLinks": [
+				{
+					"source": "ВнешняяТаблица",
+					"destination": "ОсновнойЗапрос",
+					"sourceExpression": "Идентификатор",
+					"destinationExpression": "ИдентификаторПроверки"
+				}
+			],
+			"nestedSchemas": [],
+			"settingsVariants": [
+				{
+					"name": "Основной",
+					"value": "Контроль ведения учета"
+				}
+			]
+		}
+	},
+	"ВыгрузкаЗагрузкаEnterpriseData": {
+		"template": "DataProcessors/ВыгрузкаЗагрузкаEnterpriseData/Templates/СхемаКомпоновкиДанных/Ext/Template.xml",
+		"info": {
+			"dataSets": [
+				{
+					"name": "РегистрацияИзменений",
+					"type": "union",
+					"fields": [
+						{
+							"dataPath": "ОбъектТип",
+							"kind": "field",
+							"field": "ОбъектТип",
+							"title": "Объект тип",
+							"titleLangs": {
+								"ru": "Объект тип"
+							}
+						},
+						{
+							"dataPath": "ОбъектСсылка",
+							"kind": "field",
+							"field": "ОбъектСсылка",
+							"title": "Объект ссылка",
+							"titleLangs": {
+								"ru": "Объект ссылка"
+							}
+						}
+					],
+					"items": [
+						{
+							"name": "ОпределениеПолей",
+							"type": "query",
+							"dataSource": "ОбщийИсточникДанных",
+							"query": "ВЫБРАТЬ\n\tNULL \t\t\t\t\t\tКАК ОбъектСсылка,\n\tNULL \t\t\t\t\t\tКАК ОбъектТип\nГДЕ\n\tЛОЖЬ",
+							"autoFillFields": true,
+							"fields": [
+								{
+									"dataPath": "ОбъектТип",
+									"kind": "field",
+									"field": "ОбъектТип",
+									"title": "Объект тип",
+									"titleLangs": {
+										"ru": "Объект тип"
+									}
+								},
+								{
+									"dataPath": "ОбъектСсылка",
+									"kind": "field",
+									"field": "ОбъектСсылка",
+									"title": "Объект ссылка",
+									"titleLangs": {
+										"ru": "Объект ссылка"
+									}
+								}
+							]
+						}
+					]
+				},
+				{
+					"name": "ОбщееКоличествоЭлементов",
+					"type": "union",
+					"fields": [
+						{
+							"dataPath": "ОбщееКоличество",
+							"kind": "field",
+							"field": "ОбщееКоличество",
+							"title": "Всего объектов в базе",
+							"titleLangs": {
+								"ru": "Всего объектов в базе"
+							},
+							"useRestriction": {
+								"field": false,
+								"condition": true,
+								"group": true,
+								"order": true
+							}
+						},
+						{
+							"dataPath": "Тип",
+							"kind": "field",
+							"field": "Тип",
+							"useRestriction": {
+								"field": false,
+								"condition": true,
+								"group": true,
+								"order": true
+							}
+						}
+					],
+					"items": [
+						{
+							"name": "ОпределениеПолей",
+							"type": "query",
+							"dataSource": "ОбщийИсточникДанных",
+							"query": "ВЫБРАТЬ \n    NULL КАК Тип,\n    0    КАК ОбщееКоличество\nГДЕ \n    ЛОЖЬ    ",
+							"autoFillFields": true,
+							"fields": [
+								{
+									"dataPath": "ОбщееКоличество",
+									"kind": "field",
+									"field": "ОбщееКоличество"
+								},
+								{
+									"dataPath": "Тип",
+									"kind": "field",
+									"field": "Тип"
+								}
+							]
+						}
+					]
+				}
+			],
+			"calculatedFields": [],
+			"totalFields": [
+				{
+					"name": "ОбщееКоличество",
+					"value": "КОЛИЧЕСТВО(ОбъектСсылка)",
+					"groups": [
+						"ОбъектТип",
+						"ОбщийИтог"
+					]
+				}
+			],
+			"parameters": [
+				{
+					"name": "ДатаФормирования",
+					"title": "Дата формирования",
+					"type": "dateTime",
+					"valueType": {
+						"types": [
+							"xs:dateTime"
+						],
+						"typeSets": [],
+						"typeIds": [],
+						"dateQualifiers": {
+							"dateFractions": "DATE_TIME"
+						},
+						"editable": true
+					},
+					"valueTyped": {
+						"type": "xs:dateTime",
+						"text": "0001-01-01T00:00:00"
+					},
+					"useRestriction": true,
+					"availableAsField": false,
+					"valuePresentation": "0001-01-01T00:00:00"
+				},
+				{
+					"name": "ПредставлениеСписка",
+					"title": "Представление списка",
+					"type": "string",
+					"valueType": {
+						"types": [
+							"xs:string"
+						],
+						"typeSets": [],
+						"typeIds": [],
+						"stringQualifiers": {
+							"length": "0",
+							"allowedLength": "VARIABLE"
+						},
+						"editable": true
+					},
+					"valueTyped": {
+						"type": "xs:string"
+					},
+					"useRestriction": true,
+					"availableAsField": false
+				}
+			],
+			"dataSources": [
+				{
+					"name": "ОбщийИсточникДанных",
+					"type": "Local"
+				}
+			],
+			"dataSetLinks": [],
+			"nestedSchemas": [],
+			"settingsVariants": [
+				{
+					"name": "ПользовательскиеДанные",
+					"value": "Пользовательские данные"
+				}
+			]
+		}
+	},
+	"ДанныеПечатиОбщиеРеквизиты": {
+		"template": "CommonTemplates/ДанныеПечатиОбщиеРеквизиты/Ext/Template.xml",
+		"info": {
+			"dataSets": [
+				{
+					"name": "НаборДанных1",
+					"type": "object",
+					"dataSource": "ИсточникДанных1",
+					"objectName": "Данные",
+					"fields": [
+						{
+							"dataPath": "ОбщиеРеквизиты.ТекущаяДата",
+							"kind": "field",
+							"field": "ТекущаяДата",
+							"title": "Текущая дата",
+							"titleLangs": {
+								"ru": "Текущая дата"
+							},
+							"valueTypePresentation": "dateTime",
+							"valueType": {
+								"types": [
+									"xs:dateTime"
+								],
+								"typeSets": [],
+								"typeIds": [],
+								"dateQualifiers": {
+									"dateFractions": "DATE_TIME"
+								},
+								"editable": true
+							}
+						},
+						{
+							"dataPath": "ОбщиеРеквизиты.ТекущийПользователь",
+							"kind": "field",
+							"field": "ТекущийПользователь",
+							"title": "Текущий пользователь",
+							"titleLangs": {
+								"ru": "Текущий пользователь"
+							},
+							"valueTypePresentation": "CatalogRef.Пользователи",
+							"valueType": {
+								"types": [
+									"cfg:CatalogRef.Пользователи"
+								],
+								"typeSets": [],
+								"typeIds": [],
+								"editable": true
+							}
+						},
+						{
+							"dataPath": "ОбщиеРеквизиты.ОсновнаяОрганизация",
+							"kind": "field",
+							"field": "ОсновнаяОрганизация",
+							"title": "Основная организация",
+							"titleLangs": {
+								"ru": "Основная организация"
+							},
+							"valueTypePresentation": "CatalogRef._ДемоОрганизации",
+							"valueType": {
+								"types": [
+									"cfg:CatalogRef._ДемоОрганизации"
+								],
+								"typeSets": [],
+								"typeIds": [],
+								"editable": true
+							}
+						},
+						{
+							"dataPath": "ОбщиеРеквизиты.ОбратныйАдрес",
+							"kind": "field",
+							"field": "ОбратныйАдрес",
+							"title": "Обратный адрес",
+							"titleLangs": {
+								"ru": "Обратный адрес"
+							},
+							"valueTypePresentation": "string",
+							"valueType": {
+								"types": [
+									"xs:string"
+								],
+								"typeSets": [],
+								"typeIds": [],
+								"stringQualifiers": {
+									"length": "0",
+									"allowedLength": "VARIABLE"
+								},
+								"editable": true
+							}
+						},
+						{
+							"dataPath": "ОбщиеРеквизиты.ЗаголовокСистемы",
+							"kind": "field",
+							"field": "ЗаголовокСистемы",
+							"title": "Заголовок системы",
+							"titleLangs": {
+								"ru": "Заголовок системы"
+							},
+							"valueTypePresentation": "string",
+							"valueType": {
+								"types": [
+									"xs:string"
+								],
+								"typeSets": [],
+								"typeIds": [],
+								"stringQualifiers": {
+									"length": "0",
+									"allowedLength": "VARIABLE"
+								},
+								"editable": true
+							}
+						},
+						{
+							"dataPath": "ОбщиеРеквизиты.АдресБазыВЛокальнойСети",
+							"kind": "field",
+							"field": "АдресБазыВЛокальнойСети",
+							"title": "Адрес базы в локальной сети",
+							"titleLangs": {
+								"ru": "Адрес базы в локальной сети"
+							},
+							"valueTypePresentation": "string",
+							"valueType": {
+								"types": [
+									"xs:string"
+								],
+								"typeSets": [],
+								"typeIds": [],
+								"stringQualifiers": {
+									"length": "0",
+									"allowedLength": "VARIABLE"
+								},
+								"editable": true
+							}
+						},
+						{
+							"dataPath": "ОбщиеРеквизиты.АдресБазыВИнтернете",
+							"kind": "field",
+							"field": "АдресБазыВИнтернете",
+							"title": "Адрес базы в интернете",
+							"titleLangs": {
+								"ru": "Адрес базы в интернете"
+							},
+							"valueTypePresentation": "string",
+							"valueType": {
+								"types": [
+									"xs:string"
+								],
+								"typeSets": [],
+								"typeIds": [],
+								"stringQualifiers": {
+									"length": "0",
+									"allowedLength": "VARIABLE"
+								},
+								"editable": true
+							}
+						},
+						{
+							"dataPath": "ОбщиеРеквизиты.ШтампЭП",
+							"kind": "field",
+							"field": "ШтампЭП",
+							"title": "Штамп электронной подписи",
+							"titleLangs": {
+								"ru": "Штамп электронной подписи"
+							}
+						},
+						{
+							"dataPath": "ОбщиеРеквизиты",
+							"kind": "folder",
+							"title": "Общие реквизиты",
+							"titleLangs": {
+								"ru": "Общие реквизиты"
+							}
+						},
+						{
+							"dataPath": "Ссылка",
+							"kind": "field",
+							"field": "Ссылка",
+							"title": "Ссылка",
+							"titleLangs": {
+								"ru": "Ссылка"
+							}
+						}
+					]
+				}
+			],
+			"calculatedFields": [],
+			"totalFields": [],
+			"parameters": [],
+			"dataSources": [
+				{
+					"name": "ИсточникДанных1",
+					"type": "Local"
+				}
+			],
+			"dataSetLinks": [],
+			"nestedSchemas": [],
+			"settingsVariants": [
+				{
+					"name": "Основной",
+					"value": "Основной"
+				}
+			]
+		}
+	},
+	"ПользователиПоПодразделениям": {
+		"template": "Reports/ПользователиПоПодразделениям/Templates/Макет/Ext/Template.xml",
+		"info": {
+			"dataSets": [
+				{
+					"name": "НаборДанных",
+					"type": "query",
+					"dataSource": "ИсточникДанных1",
+					"query": "ВЫБРАТЬ\n\tПользователи.Подразделение КАК Подразделение,\n\tПользователи.Ссылка КАК Пользователь,\n\tПользователи.Недействителен = ЛОЖЬ\n\t\tИ Пользователи.ПометкаУдаления = ЛОЖЬ КАК ДействительныйУчастник\nИЗ\n\tСправочник.Пользователи КАК Пользователи\nГДЕ\n\tНЕ Пользователи.Служебный\n\tИ (НЕ &ВключитьТолькоДействительныхУчастников\n\t\t\tИЛИ Пользователи.Недействителен = ЛОЖЬ\n\t\t\t\tИ Пользователи.ПометкаУдаления = ЛОЖЬ)\n{ГДЕ\n\t(Пользователи.Ссылка В (&Пользователь)),\n\t(Пользователи.Подразделение В ИЕРАРХИИ (&ПодразделениеВИерархии)),\n\t(Пользователи.Подразделение В (&ПодразделениеВСписке))}",
+					"autoFillFields": true,
+					"fields": [
+						{
+							"dataPath": "Подразделение",
+							"kind": "field",
+							"field": "Подразделение"
+						},
+						{
+							"dataPath": "Пользователь",
+							"kind": "field",
+							"field": "Пользователь",
+							"title": "Пользователь",
+							"titleLangs": {
+								"ru": "Пользователь"
+							}
+						},
+						{
+							"dataPath": "ДействительныйУчастник",
+							"kind": "field",
+							"field": "ДействительныйУчастник",
+							"title": "Действительный участник",
+							"titleLangs": {
+								"ru": "Действительный участник"
+							}
+						}
+					]
+				}
+			],
+			"calculatedFields": [
+				{
+					"name": "Количество",
+					"value": "1",
+					"title": "Количество"
+				},
+				{
+					"name": "РодительПодразделения",
+					"value": "Неопределено",
+					"title": "Родитель подразделения"
+				}
+			],
+			"totalFields": [
+				{
+					"name": "Количество",
+					"value": "Сумма(Количество)",
+					"groups": [
+						"Подразделение",
+						"Подразделение Иерархия",
+						"ОбщийИтог"
+					]
+				}
+			],
+			"parameters": [
+				{
+					"name": "Пользователь",
+					"title": "Пользователь",
+					"type": "CatalogRef.Пользователи",
+					"valueType": {
+						"types": [
+							"cfg:CatalogRef.Пользователи"
+						],
+						"typeSets": [],
+						"typeIds": [],
+						"editable": true
+					},
+					"useRestriction": false,
+					"valueListAllowed": true
+				},
+				{
+					"name": "Подразделение",
+					"title": "Подразделение",
+					"valueType": {
+						"types": [],
+						"typeSets": [],
+						"typeIds": [
+							"92fb25e9-5b34-4411-b876-cd83fa55a6e0"
+						],
+						"definedTypes": [
+							"Подразделение"
+						],
+						"editable": true
+					},
+					"useRestriction": false,
+					"valueListAllowed": true
+				},
+				{
+					"name": "ПоказыватьНедействительныхУчастников",
+					"title": "Показывать недействительных участников",
+					"type": "boolean",
+					"valueType": {
+						"types": [
+							"xs:boolean"
+						],
+						"typeSets": [],
+						"typeIds": [],
+						"editable": true
+					},
+					"value": "true",
+					"valueTyped": {
+						"type": "xs:boolean",
+						"text": "true",
+						"decoded": true
+					},
+					"useRestriction": false,
+					"valuePresentation": "true",
+					"hasInputParameters": true
+				},
+				{
+					"name": "СкрыватьПользователейНижестоящихПодразделений",
+					"title": "Скрывать пользователей нижестоящих подразделений",
+					"type": "boolean",
+					"valueType": {
+						"types": [
+							"xs:boolean"
+						],
+						"typeSets": [],
+						"typeIds": [],
+						"editable": true
+					},
+					"value": "true",
+					"valueTyped": {
+						"type": "xs:boolean",
+						"text": "true",
+						"decoded": true
+					},
+					"useRestriction": false,
+					"valuePresentation": "true",
+					"hasInputParameters": true
+				},
+				{
+					"name": "ВключитьТолькоДействительныхУчастников",
+					"title": "Включить только действительных участников",
+					"type": "boolean",
+					"valueType": {
+						"types": [
+							"xs:boolean"
+						],
+						"typeSets": [],
+						"typeIds": [],
+						"editable": true
+					},
+					"value": "false",
+					"valueTyped": {
+						"type": "xs:boolean",
+						"text": "false",
+						"decoded": false
+					},
+					"useRestriction": true,
+					"valuePresentation": "false"
+				},
+				{
+					"name": "ПодразделениеВИерархии",
+					"title": "Подразделение в иерархии",
+					"valueType": {
+						"types": [],
+						"typeSets": [],
+						"typeIds": [
+							"92fb25e9-5b34-4411-b876-cd83fa55a6e0"
+						],
+						"definedTypes": [
+							"Подразделение"
+						],
+						"editable": true
+					},
+					"useRestriction": true,
+					"valueListAllowed": true
+				},
+				{
+					"name": "ПодразделениеВСписке",
+					"title": "Подразделение в списке",
+					"valueType": {
+						"types": [],
+						"typeSets": [],
+						"typeIds": [
+							"92fb25e9-5b34-4411-b876-cd83fa55a6e0"
+						],
+						"definedTypes": [
+							"Подразделение"
+						],
+						"editable": true
+					},
+					"useRestriction": true,
+					"valueListAllowed": true
+				}
+			],
+			"dataSources": [
+				{
+					"name": "ИсточникДанных1",
+					"type": "Local"
+				}
+			],
+			"dataSetLinks": [],
+			"nestedSchemas": [],
+			"settingsVariants": [
+				{
+					"name": "Основной",
+					"value": "Пользователи по подразделениям"
+				}
+			],
+			"typeCompositions": [
+				{
+					"source": "92fb25e9-5b34-4411-b876-cd83fa55a6e0",
+					"name": "Подразделение",
+					"types": [
+						"cfg:CatalogRef._ДемоПодразделения"
+					],
+					"typeSets": []
+				}
+			]
+		},
+		"variant": "Основной",
+		"settings": {
+			"userFields": [
+				{
+					"kind": "expression",
+					"dataPath": "ПользовательскиеПоля.Поле1",
+					"title": "Вышестоящее подразделение",
+					"detailExpression": "ВычислитьВыражение(\"ВычислитьВыражение(\"\"Подразделение\"\", , \"\"ГруппировкаНеРесурса\"\")\", , \"Иерархия\")",
+					"totalExpression": "ВычислитьВыражение(\"ВычислитьВыражение(\"\"Подразделение\"\", , \"\"ГруппировкаНеРесурса\"\")\", , \"Иерархия\")"
+				},
+				{
+					"kind": "expression",
+					"dataPath": "ПользовательскиеПоля.Поле2",
+					"title": "Количество различных подразделений в вышестоящем подразделении",
+					"detailExpression": "ВычислитьВыражение(\"Количество(Различные Подразделение)\", , \"Иерархия\")",
+					"totalExpression": "ВычислитьВыражение(\"Количество(Различные Подразделение)\", , \"Иерархия\")"
+				},
+				{
+					"kind": "expression",
+					"dataPath": "ПользовательскиеПоля.Поле3",
+					"title": "Вышестоящее подразделение есть в детальных записях",
+					"detailExpression": "ВычислитьВыражение(\"Максимум(ВычислитьВыражение(\"\"Подразделение\"\", , \"\"ГруппировкаНеРесурса\"\") = РодительПодразделения)\", , \"Иерархия\")",
+					"totalExpression": "ВычислитьВыражение(\"Максимум(ВычислитьВыражение(\"\"Подразделение\"\", , \"\"ГруппировкаНеРесурса\"\") = РодительПодразделения)\", , \"Иерархия\")"
+				}
+			],
+			"selection": {
+				"items": [
+					{
+						"kind": "field",
+						"field": "Пользователь"
+					},
+					{
+						"kind": "field",
+						"field": "Количество"
+					}
+				]
+			},
+			"dataParameters": {
+				"items": [
+					{
+						"use": false,
+						"parameter": "Пользователь",
+						"value": [
+							{
+								"nil": true
+							}
+						],
+						"userSettingID": "97fe9590-4cc6-4aff-8a53-82dd86d9cc29"
+					},
+					{
+						"use": false,
+						"parameter": "Подразделение",
+						"value": [
+							{
+								"nil": true
+							}
+						],
+						"userSettingID": "81cc45d5-e243-43cf-8a28-11c6a49dfad6"
+					},
+					{
+						"use": false,
+						"parameter": "ПоказыватьНедействительныхУчастников",
+						"value": [
+							{
+								"type": "xs:boolean",
+								"text": "true",
+								"decoded": true
+							}
+						],
+						"viewMode": "Normal",
+						"userSettingID": "84b94724-3c5d-4c34-a6ff-5ab2a0e930cc"
+					},
+					{
+						"use": false,
+						"parameter": "СкрыватьПользователейНижестоящихПодразделений",
+						"value": [
+							{
+								"type": "xs:boolean",
+								"text": "true",
+								"decoded": true
+							}
+						],
+						"viewMode": "Normal",
+						"userSettingID": "676366fe-6cd6-40e7-81f7-c7b9890fc3ef"
+					}
+				]
+			},
+			"outputParameters": {
+				"items": [
+					{
+						"parameter": "ВертикальноеРасположениеОбщихИтогов",
+						"value": [
+							{
+								"type": "dcscor:DataCompositionTotalPlacement",
+								"text": "Begin"
+							}
+						]
+					}
+				]
+			},
+			"structure": [
+				{
+					"kind": "group",
+					"groupFields": [
+						{
+							"field": "Подразделение",
+							"groupType": "Hierarchy",
+							"periodAdditionType": "None",
+							"periodAdditionBegin": {
+								"type": "xs:dateTime",
+								"text": "0001-01-01T00:00:00"
+							},
+							"periodAdditionEnd": {
+								"type": "xs:dateTime",
+								"text": "0001-01-01T00:00:00"
+							}
+						}
+					],
+					"filter": {
+						"items": [
+							{
+								"kind": "group",
+								"groupType": "OrGroup",
+								"items": [
+									{
+										"kind": "comparison",
+										"left": "ПользовательскиеПоля.Поле1",
+										"comparisonType": "NotEqual",
+										"right": [
+											{
+												"type": "dcscor:Field",
+												"text": "Подразделение"
+											}
+										],
+										"viewMode": "Inaccessible"
+									},
+									{
+										"kind": "comparison",
+										"left": "СистемныеПоля.Уровень",
+										"comparisonType": "Equal",
+										"right": [
+											{
+												"type": "xs:decimal",
+												"text": "1",
+												"decoded": 1
+											}
+										],
+										"viewMode": "Inaccessible"
+									},
+									{
+										"kind": "comparison",
+										"left": "ПользовательскиеПоля.Поле2",
+										"comparisonType": "Equal",
+										"right": [
+											{
+												"type": "xs:decimal",
+												"text": "1",
+												"decoded": 1
+											}
+										],
+										"viewMode": "Inaccessible"
+									},
+									{
+										"kind": "comparison",
+										"left": "ПользовательскиеПоля.Поле3",
+										"comparisonType": "Equal",
+										"right": [
+											{
+												"type": "xs:boolean",
+												"text": "false",
+												"decoded": false
+											}
+										]
+									}
+								],
+								"application": "Hierarchy",
+								"viewMode": "Inaccessible"
+							}
+						]
+					},
+					"order": {
+						"items": [
+							{
+								"kind": "auto"
+							}
+						]
+					},
+					"selection": {
+						"items": [
+							{
+								"kind": "auto"
+							}
+						]
+					},
+					"outputParameters": {
+						"items": [
+							{
+								"parameter": "ВыводитьОтбор",
+								"value": [
+									{
+										"type": "dcsset:DataCompositionTextOutputType",
+										"text": "DontOutput"
+									}
+								]
+							}
+						]
+					},
+					"structure": [
+						{
+							"kind": "group",
+							"order": {
+								"items": [
+									{
+										"kind": "auto"
+									}
+								]
+							},
+							"selection": {
+								"items": [
+									{
+										"kind": "auto"
+									}
+								]
+							}
+						}
+					]
+				}
+			]
+		}
+	}
+}

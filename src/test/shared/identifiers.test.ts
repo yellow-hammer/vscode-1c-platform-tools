@@ -23,6 +23,7 @@ const DOMAINS = new Set([
 	'cfe',
 	'clusters',
 	'components',
+	'dcs',
 	'debug',
 	'dependencies',
 	'editors',

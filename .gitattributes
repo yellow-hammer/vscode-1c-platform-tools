@@ -1,3 +1,12 @@
 # Генерируемый скриптом файл: сравнивается с LF-выводом gen-hooks-schema,
 # поэтому фиксируем LF, чтобы --check не падал на Windows (autocrlf)
 resources/schemas/hooks.schema.json text eol=lf
+
+# Фикстуры схемы компоновки повторяют выгрузку конфигуратора байт в байт
+# (BOM UTF-8, CRLF, табы): конверсия переводов строк сломала бы проверки формата
+src/test/fixtures/dcs/Template.xml -text
+src/test/fixtures/dcs/Template-variants.xml -text
+# Своя синтетическая схема той же формы: jar md-sparrow читает её как есть
+src/test/fixtures/dcs/Template-legacy-lists.xml -text
+# Тесты редактора СКД разбирают исходники webview как текст с LF
+resources/webview/dcs-editor* text eol=lf
