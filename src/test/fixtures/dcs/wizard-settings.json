@@ -1,0 +1,3229 @@
+{
+	"список-детальные": {
+		"template": "DocumentJournals/Взаимодействия/Templates/ИерархияВзаимодействийКонтакт/Ext/Template.xml",
+		"variant": "Основной",
+		"settings": {
+			"selection": {
+				"items": [
+					{
+						"kind": "field",
+						"field": "Ссылка"
+					},
+					{
+						"kind": "field",
+						"field": "Дата"
+					},
+					{
+						"kind": "field",
+						"field": "НомерКартинки",
+						"title": "Номер картинки",
+						"titleKind": "lws"
+					},
+					{
+						"kind": "field",
+						"field": "Тема"
+					},
+					{
+						"kind": "field",
+						"field": "Участники"
+					},
+					{
+						"kind": "field",
+						"field": "Рассмотрено",
+						"title": "Рассмотрено",
+						"titleKind": "lws"
+					},
+					{
+						"kind": "field",
+						"field": "ПометкаУдаления",
+						"title": "Пометка удаления",
+						"titleKind": "lws"
+					},
+					{
+						"kind": "field",
+						"field": "Ответственный"
+					},
+					{
+						"kind": "field",
+						"field": "Предмет"
+					},
+					{
+						"kind": "field",
+						"field": "РассмотретьПосле",
+						"title": "Рассмотреть после",
+						"titleKind": "lws"
+					},
+					{
+						"kind": "field",
+						"field": "Тип"
+					},
+					{
+						"kind": "field",
+						"field": "СтатусИсходящегоПисьма",
+						"title": "Статус исходящего письма",
+						"titleKind": "lws"
+					}
+				]
+			},
+			"order": {
+				"items": [
+					{
+						"kind": "field",
+						"field": "Дата",
+						"orderType": "Desc"
+					}
+				]
+			},
+			"structure": [
+				{
+					"kind": "group",
+					"order": {
+						"items": [
+							{
+								"kind": "auto"
+							}
+						]
+					},
+					"selection": {
+						"items": [
+							{
+								"kind": "auto"
+							}
+						]
+					}
+				}
+			]
+		}
+	},
+	"список-цепочка": {
+		"template": "Reports/_ДемоОтчетПоСчетамНаОплатуГлобальный/Templates/ОсновнаяСхемаКомпоновкиДанных/Ext/Template.xml",
+		"variant": "Основной",
+		"settings": {
+			"selection": {
+				"items": [
+					{
+						"kind": "field",
+						"field": "Организация"
+					},
+					{
+						"kind": "field",
+						"use": false,
+						"field": "Контрагент"
+					},
+					{
+						"kind": "field",
+						"use": false,
+						"field": "Договор"
+					},
+					{
+						"kind": "field",
+						"use": false,
+						"field": "БанковскийСчет"
+					},
+					{
+						"kind": "field",
+						"field": "ДатаОплаты"
+					},
+					{
+						"kind": "field",
+						"field": "Ссылка"
+					},
+					{
+						"kind": "field",
+						"use": false,
+						"field": "Дата"
+					},
+					{
+						"kind": "field",
+						"use": false,
+						"field": "ПроцентОплаты"
+					},
+					{
+						"kind": "field",
+						"field": "СуммаОплаты"
+					},
+					{
+						"kind": "field",
+						"field": "ВалютаДокумента"
+					},
+					{
+						"kind": "field",
+						"use": false,
+						"field": "СуммаВключаетНДС"
+					}
+				]
+			},
+			"filter": {
+				"items": [
+					{
+						"kind": "comparison",
+						"use": false,
+						"left": "Ссылка",
+						"comparisonType": "InList",
+						"right": [
+							{
+								"type": "v8:ValueListType",
+								"list": {
+									"items": []
+								}
+							}
+						],
+						"viewMode": "Normal",
+						"userSettingID": "a6d7c608-22ad-4571-887e-c84f91a06f97"
+					}
+				]
+			},
+			"dataParameters": {
+				"items": [
+					{
+						"use": false,
+						"parameter": "Период",
+						"value": [
+							{
+								"type": "v8:StandardPeriod",
+								"period": {
+									"variant": "Custom",
+									"startDate": "0001-01-01T00:00:00",
+									"endDate": "0001-01-01T00:00:00"
+								}
+							}
+						],
+						"userSettingID": "7ebb6de0-772c-48d6-a805-2ce9482f649b"
+					}
+				]
+			},
+			"structure": [
+				{
+					"kind": "group",
+					"groupFields": [
+						{
+							"field": "Организация",
+							"groupType": "Items",
+							"periodAdditionType": "None",
+							"periodAdditionBegin": {
+								"type": "xs:dateTime",
+								"text": "0001-01-01T00:00:00"
+							},
+							"periodAdditionEnd": {
+								"type": "xs:dateTime",
+								"text": "0001-01-01T00:00:00"
+							}
+						}
+					],
+					"order": {
+						"items": [
+							{
+								"kind": "auto"
+							}
+						]
+					},
+					"selection": {
+						"items": [
+							{
+								"kind": "auto"
+							}
+						]
+					},
+					"structure": [
+						{
+							"kind": "group",
+							"groupFields": [
+								{
+									"field": "ДатаОплаты",
+									"groupType": "Items",
+									"periodAdditionType": "None",
+									"periodAdditionBegin": {
+										"type": "xs:dateTime",
+										"text": "0001-01-01T00:00:00"
+									},
+									"periodAdditionEnd": {
+										"type": "xs:dateTime",
+										"text": "0001-01-01T00:00:00"
+									}
+								}
+							],
+							"order": {
+								"items": [
+									{
+										"kind": "auto"
+									}
+								]
+							},
+							"selection": {
+								"items": [
+									{
+										"kind": "auto"
+									}
+								]
+							},
+							"structure": [
+								{
+									"kind": "group",
+									"order": {
+										"items": [
+											{
+												"kind": "auto"
+											}
+										]
+									},
+									"selection": {
+										"items": [
+											{
+												"kind": "auto"
+											}
+										]
+									}
+								}
+							]
+						}
+					]
+				}
+			]
+		}
+	},
+	"список-иерархия": {
+		"template": "Reports/_ДемоФайлы/Templates/ОсновнаяСхемаКомпоновкиДанных/Ext/Template.xml",
+		"variant": "Основной",
+		"settings": {
+			"selection": {
+				"items": [
+					{
+						"kind": "field",
+						"field": "Ссылка"
+					},
+					{
+						"kind": "field",
+						"field": "Тип"
+					},
+					{
+						"kind": "field",
+						"field": "Комментарий"
+					},
+					{
+						"kind": "field",
+						"field": "Автор"
+					},
+					{
+						"kind": "field",
+						"field": "Редактирует"
+					},
+					{
+						"kind": "field",
+						"use": false,
+						"field": "ТекущаяВерсия"
+					},
+					{
+						"kind": "field",
+						"use": false,
+						"field": "Версия"
+					},
+					{
+						"kind": "field",
+						"use": false,
+						"field": "ДатаЗаема"
+					},
+					{
+						"kind": "field",
+						"use": false,
+						"field": "ДатаСоздания"
+					},
+					{
+						"kind": "field",
+						"use": false,
+						"field": "ДатаМодификацииУниверсальная"
+					},
+					{
+						"kind": "field",
+						"use": false,
+						"field": "Зашифрован"
+					},
+					{
+						"kind": "field",
+						"use": false,
+						"field": "ВладелецФайла"
+					},
+					{
+						"kind": "field",
+						"use": false,
+						"field": "ПодписанЭП"
+					},
+					{
+						"kind": "field",
+						"use": false,
+						"field": "Размер"
+					},
+					{
+						"kind": "field",
+						"use": false,
+						"field": "ПолеНедоступноеДляСортировки"
+					}
+				],
+				"viewMode": "Normal",
+				"userSettingID": "e336b1b1-7c49-4a66-8dfc-39d9caf115c1"
+			},
+			"filter": {
+				"items": [
+					{
+						"kind": "comparison",
+						"use": false,
+						"left": "Редактирует",
+						"comparisonType": "Filled",
+						"presentation": "Только занятые для редактирования",
+						"userSettingID": "b3d05f5e-381e-4bab-bc1d-c73027a181df"
+					},
+					{
+						"kind": "comparison",
+						"use": false,
+						"left": "Тип",
+						"comparisonType": "Contains",
+						"right": [
+							{
+								"type": "xs:string"
+							}
+						],
+						"viewMode": "Normal",
+						"userSettingID": "d1dbc10e-f997-4ea6-9cd5-aba62109e440"
+					},
+					{
+						"kind": "comparison",
+						"use": false,
+						"left": "ВладелецФайла",
+						"comparisonType": "InListByHierarchy",
+						"right": [
+							{
+								"type": "v8:ValueListType",
+								"list": {
+									"items": []
+								}
+							}
+						],
+						"viewMode": "Normal",
+						"userSettingID": "e0061d8f-541d-4ff3-88c2-35da25d4efd5"
+					},
+					{
+						"kind": "comparison",
+						"use": false,
+						"left": "Ссылка",
+						"comparisonType": "InList",
+						"right": [
+							{
+								"type": "v8:ValueListType",
+								"list": {
+									"items": []
+								}
+							}
+						],
+						"viewMode": "Normal",
+						"userSettingID": "1f80a8f9-d93e-4d20-b427-e4ebcd17ac06"
+					}
+				],
+				"viewMode": "Normal"
+			},
+			"dataParameters": {
+				"items": [
+					{
+						"parameter": "Период",
+						"value": [
+							{
+								"type": "v8:StandardPeriod",
+								"period": {
+									"variant": "Custom",
+									"startDate": "2012-01-01T00:00:00",
+									"endDate": "2012-12-31T23:59:59"
+								}
+							}
+						],
+						"userSettingID": "98fffec8-577b-4a10-a7ef-080d45ee95d6"
+					},
+					{
+						"parameter": "ПоказыватьВсеВерсии",
+						"value": [
+							{
+								"type": "xs:boolean",
+								"text": "false",
+								"decoded": false
+							}
+						]
+					}
+				]
+			},
+			"order": {
+				"items": [],
+				"viewMode": "Normal",
+				"userSettingID": "dbb20dd0-2158-4543-9150-128707a56e33"
+			},
+			"conditionalAppearance": {
+				"items": [],
+				"viewMode": "Normal"
+			},
+			"structure": [
+				{
+					"kind": "group",
+					"groupFields": [
+						{
+							"field": "ВладелецФайла",
+							"groupType": "Hierarchy",
+							"periodAdditionType": "None",
+							"periodAdditionBegin": {
+								"type": "xs:dateTime",
+								"text": "0001-01-01T00:00:00"
+							},
+							"periodAdditionEnd": {
+								"type": "xs:dateTime",
+								"text": "0001-01-01T00:00:00"
+							}
+						}
+					],
+					"order": {
+						"items": [
+							{
+								"kind": "auto"
+							}
+						]
+					},
+					"selection": {
+						"items": [
+							{
+								"kind": "auto"
+							}
+						]
+					},
+					"structure": [
+						{
+							"kind": "group",
+							"order": {
+								"items": [
+									{
+										"kind": "auto"
+									}
+								]
+							},
+							"selection": {
+								"items": [
+									{
+										"kind": "auto"
+									}
+								]
+							}
+						}
+					]
+				}
+			],
+			"itemsViewMode": "Normal"
+		}
+	},
+	"таблица": {
+		"template": "Reports/АналитическийОтчетПоАнкетированию/Templates/ОсновнаяСхемаКомпоновкиДанных/Ext/Template.xml",
+		"variant": "ПростыеВопросыКоличествоОтветовСравнениеПоОпросам",
+		"settings": {
+			"selection": {
+				"items": [
+					{
+						"kind": "field",
+						"field": "КоличествоОтветов"
+					}
+				],
+				"viewMode": "Normal",
+				"userSettingID": "fb854de9-f8cd-4a73-9210-122b95ff6cb3"
+			},
+			"filter": {
+				"items": [
+					{
+						"kind": "comparison",
+						"use": false,
+						"left": "Анкета",
+						"comparisonType": "Equal",
+						"right": [
+							{
+								"type": "dcscor:DesignTimeValue",
+								"text": "Документ.Анкета.ПустаяСсылка"
+							}
+						],
+						"viewMode": "Normal"
+					},
+					{
+						"kind": "comparison",
+						"use": false,
+						"left": "Вопрос",
+						"comparisonType": "Equal",
+						"right": [
+							{
+								"type": "dcscor:DesignTimeValue",
+								"text": "Справочник.ВопросыШаблонаАнкеты.ПустаяСсылка"
+							}
+						]
+					},
+					{
+						"kind": "comparison",
+						"use": false,
+						"left": "КоличествоОтветов",
+						"comparisonType": "Equal",
+						"viewMode": "Normal"
+					},
+					{
+						"kind": "comparison",
+						"use": false,
+						"left": "Опрос",
+						"comparisonType": "Equal",
+						"right": [
+							{
+								"type": "dcscor:DesignTimeValue",
+								"text": "Документ.НазначениеОпросов.ПустаяСсылка"
+							}
+						],
+						"userSettingID": "ed930d82-0987-4e45-af06-70c537b50182"
+					},
+					{
+						"kind": "comparison",
+						"use": false,
+						"left": "Ответ",
+						"comparisonType": "Equal",
+						"viewMode": "Normal"
+					},
+					{
+						"kind": "comparison",
+						"use": false,
+						"left": "Респондент",
+						"comparisonType": "Equal",
+						"viewMode": "Normal"
+					},
+					{
+						"kind": "comparison",
+						"left": "Вопрос.ТипВопроса",
+						"comparisonType": "NotInList",
+						"right": [
+							{
+								"type": "dcscor:DesignTimeValue",
+								"text": "Перечисление.ТипыВопросовШаблонаАнкеты.Табличный"
+							},
+							{
+								"type": "dcscor:DesignTimeValue",
+								"text": "Перечисление.ТипыВопросовШаблонаАнкеты.Комплексный"
+							}
+						],
+						"viewMode": "Inaccessible"
+					},
+					{
+						"kind": "comparison",
+						"use": false,
+						"left": "ЭлементарныйВопрос",
+						"comparisonType": "Equal",
+						"viewMode": "Normal",
+						"userSettingID": "a53bcbc0-1350-44dd-9a86-4f3d62e20c0d"
+					}
+				],
+				"viewMode": "Normal",
+				"userSettingID": "90fb2a81-084b-4b26-899c-624f3cd5656c"
+			},
+			"order": {
+				"items": [
+					{
+						"kind": "field",
+						"use": false,
+						"field": "Анкета",
+						"orderType": "Asc"
+					},
+					{
+						"kind": "field",
+						"use": false,
+						"field": "Вопрос",
+						"orderType": "Asc"
+					},
+					{
+						"kind": "field",
+						"use": false,
+						"field": "Опрос",
+						"orderType": "Asc"
+					},
+					{
+						"kind": "field",
+						"use": false,
+						"field": "Ответ",
+						"orderType": "Asc"
+					},
+					{
+						"kind": "field",
+						"use": false,
+						"field": "ОткрытыйОтвет",
+						"orderType": "Asc"
+					},
+					{
+						"kind": "field",
+						"use": false,
+						"field": "Респондент",
+						"orderType": "Asc"
+					},
+					{
+						"kind": "field",
+						"use": false,
+						"field": "ШаблонАнкеты",
+						"orderType": "Asc"
+					},
+					{
+						"kind": "field",
+						"use": false,
+						"field": "КоличествоОтветов",
+						"orderType": "Asc"
+					},
+					{
+						"kind": "field",
+						"use": false,
+						"field": "ЭлементарныйВопрос",
+						"orderType": "Asc"
+					}
+				],
+				"viewMode": "Normal",
+				"userSettingID": "c4a52ca0-5114-41c3-9d77-90770e926db7"
+			},
+			"conditionalAppearance": {
+				"items": [],
+				"viewMode": "Normal",
+				"userSettingID": "29569383-f04d-4076-8809-f163f07f3208"
+			},
+			"structure": [
+				{
+					"kind": "table",
+					"columns": [
+						{
+							"kind": "group",
+							"groupFields": [
+								{
+									"field": "Опрос.Наименование",
+									"groupType": "Items",
+									"periodAdditionType": "None",
+									"periodAdditionBegin": {
+										"type": "xs:dateTime",
+										"text": "0001-01-01T00:00:00"
+									},
+									"periodAdditionEnd": {
+										"type": "xs:dateTime",
+										"text": "0001-01-01T00:00:00"
+									}
+								}
+							],
+							"order": {
+								"items": [
+									{
+										"kind": "auto"
+									}
+								]
+							},
+							"selection": {
+								"items": [
+									{
+										"kind": "auto"
+									}
+								]
+							}
+						}
+					],
+					"rows": [
+						{
+							"kind": "group",
+							"groupFields": [
+								{
+									"field": "ЭлементарныйВопрос",
+									"groupType": "Items",
+									"periodAdditionType": "None",
+									"periodAdditionBegin": {
+										"type": "xs:dateTime",
+										"text": "0001-01-01T00:00:00"
+									},
+									"periodAdditionEnd": {
+										"type": "xs:dateTime",
+										"text": "0001-01-01T00:00:00"
+									}
+								}
+							],
+							"order": {
+								"items": [
+									{
+										"kind": "auto"
+									}
+								]
+							},
+							"selection": {
+								"items": [
+									{
+										"kind": "auto"
+									}
+								]
+							},
+							"structure": [
+								{
+									"kind": "group",
+									"groupFields": [
+										{
+											"field": "Ответ",
+											"groupType": "Items",
+											"periodAdditionType": "None",
+											"periodAdditionBegin": {
+												"type": "xs:dateTime",
+												"text": "0001-01-01T00:00:00"
+											},
+											"periodAdditionEnd": {
+												"type": "xs:dateTime",
+												"text": "0001-01-01T00:00:00"
+											}
+										}
+									],
+									"order": {
+										"items": [
+											{
+												"kind": "auto"
+											}
+										]
+									},
+									"selection": {
+										"items": [
+											{
+												"kind": "auto"
+											}
+										]
+									}
+								}
+							]
+						}
+					]
+				}
+			],
+			"itemsViewMode": "Normal",
+			"itemsUserSettingID": "ce80510f-963a-4357-bb36-c9633718741a"
+		}
+	},
+	"таблица-под-группами": {
+		"template": "Reports/АналитическийОтчетПоАнкетированию/Templates/ОсновнаяСхемаКомпоновкиДанных/Ext/Template.xml",
+		"variant": "ПросмотрТабличныхВопросовТабличныйВид",
+		"settings": {
+			"selection": {
+				"items": [
+					{
+						"kind": "auto",
+						"use": false
+					},
+					{
+						"kind": "field",
+						"field": "ОтветРесурс"
+					}
+				],
+				"viewMode": "Normal",
+				"userSettingID": "265f9cb9-dce2-49cb-b897-9d35a7e87010"
+			},
+			"filter": {
+				"items": [
+					{
+						"kind": "comparison",
+						"left": "Вопрос.ТипВопроса",
+						"comparisonType": "Equal",
+						"right": [
+							{
+								"type": "dcscor:DesignTimeValue",
+								"text": "Перечисление.ТипыВопросовШаблонаАнкеты.Табличный"
+							}
+						],
+						"viewMode": "Normal"
+					},
+					{
+						"kind": "comparison",
+						"use": false,
+						"left": "Анкета",
+						"comparisonType": "Equal",
+						"right": [
+							{
+								"type": "dcscor:DesignTimeValue",
+								"text": "Документ.Анкета.ПустаяСсылка"
+							}
+						],
+						"viewMode": "Normal"
+					},
+					{
+						"kind": "comparison",
+						"use": false,
+						"left": "Вопрос",
+						"comparisonType": "Equal",
+						"right": [
+							{
+								"type": "dcscor:DesignTimeValue",
+								"text": "Справочник.ВопросыШаблонаАнкеты.ПустаяСсылка"
+							}
+						],
+						"userSettingID": "a85d5637-fa34-428b-961f-b783fa76bba1"
+					},
+					{
+						"kind": "comparison",
+						"use": false,
+						"left": "Опрос",
+						"comparisonType": "Equal",
+						"right": [
+							{
+								"type": "dcscor:DesignTimeValue",
+								"text": "Документ.НазначениеОпросов.ПустаяСсылка"
+							}
+						],
+						"userSettingID": "bfc5aa72-e7a8-4160-a033-c90a9ae52e5d"
+					},
+					{
+						"kind": "comparison",
+						"use": false,
+						"left": "ОтветРесурс",
+						"comparisonType": "Equal",
+						"viewMode": "Normal"
+					},
+					{
+						"kind": "comparison",
+						"use": false,
+						"left": "Респондент",
+						"comparisonType": "Equal",
+						"viewMode": "Normal",
+						"userSettingID": "ec8c942e-54d8-4e8c-b148-92f04183db30"
+					},
+					{
+						"kind": "comparison",
+						"use": false,
+						"left": "ШаблонАнкеты",
+						"comparisonType": "Equal",
+						"right": [
+							{
+								"type": "dcscor:DesignTimeValue",
+								"text": "Справочник.ШаблоныАнкет.ПустаяСсылка"
+							}
+						],
+						"viewMode": "Normal"
+					},
+					{
+						"kind": "comparison",
+						"use": false,
+						"left": "Аналитика1",
+						"comparisonType": "Equal",
+						"viewMode": "Normal"
+					},
+					{
+						"kind": "comparison",
+						"use": false,
+						"left": "Аналитика2",
+						"comparisonType": "Equal",
+						"viewMode": "Normal"
+					}
+				],
+				"viewMode": "Normal",
+				"userSettingID": "9f06ab2f-b51a-40c4-ae3a-b9330d025663"
+			},
+			"order": {
+				"items": [
+					{
+						"kind": "field",
+						"field": "Аналитика1",
+						"orderType": "Asc"
+					},
+					{
+						"kind": "field",
+						"field": "Аналитика2",
+						"orderType": "Asc"
+					},
+					{
+						"kind": "field",
+						"field": "Анкета",
+						"orderType": "Asc"
+					},
+					{
+						"kind": "field",
+						"field": "Вопрос",
+						"orderType": "Asc"
+					},
+					{
+						"kind": "field",
+						"field": "Опрос",
+						"orderType": "Asc"
+					},
+					{
+						"kind": "field",
+						"field": "Респондент",
+						"orderType": "Asc"
+					},
+					{
+						"kind": "field",
+						"field": "ШаблонАнкеты",
+						"orderType": "Asc"
+					}
+				],
+				"viewMode": "Normal",
+				"userSettingID": "98b75ce3-8cee-4258-97b8-c07d4cd4c330"
+			},
+			"conditionalAppearance": {
+				"items": [],
+				"viewMode": "Normal",
+				"userSettingID": "9aa8f9b9-b32c-4658-87b7-f398a7f35fff"
+			},
+			"outputParameters": {
+				"items": [
+					{
+						"parameter": "ГоризонтальноеРасположениеОбщихИтогов",
+						"value": [
+							{
+								"type": "dcscor:DataCompositionTotalPlacement",
+								"text": "None"
+							}
+						]
+					},
+					{
+						"parameter": "ВертикальноеРасположениеОбщихИтогов",
+						"value": [
+							{
+								"type": "dcscor:DataCompositionTotalPlacement",
+								"text": "None"
+							}
+						]
+					}
+				]
+			},
+			"structure": [
+				{
+					"kind": "group",
+					"groupFields": [
+						{
+							"field": "Респондент",
+							"groupType": "Items",
+							"periodAdditionType": "None",
+							"periodAdditionBegin": {
+								"type": "xs:dateTime",
+								"text": "0001-01-01T00:00:00"
+							},
+							"periodAdditionEnd": {
+								"type": "xs:dateTime",
+								"text": "0001-01-01T00:00:00"
+							}
+						}
+					],
+					"order": {
+						"items": [
+							{
+								"kind": "auto"
+							}
+						]
+					},
+					"selection": {
+						"items": [
+							{
+								"kind": "auto"
+							}
+						]
+					},
+					"structure": [
+						{
+							"kind": "group",
+							"groupFields": [
+								{
+									"field": "Вопрос",
+									"groupType": "Items",
+									"periodAdditionType": "None",
+									"periodAdditionBegin": {
+										"type": "xs:dateTime",
+										"text": "0001-01-01T00:00:00"
+									},
+									"periodAdditionEnd": {
+										"type": "xs:dateTime",
+										"text": "0001-01-01T00:00:00"
+									}
+								}
+							],
+							"order": {
+								"items": [
+									{
+										"kind": "auto"
+									}
+								]
+							},
+							"selection": {
+								"items": [
+									{
+										"kind": "auto"
+									}
+								]
+							},
+							"structure": [
+								{
+									"kind": "table",
+									"columns": [
+										{
+											"kind": "group",
+											"groupFields": [
+												{
+													"field": "Аналитика2",
+													"groupType": "Items",
+													"periodAdditionType": "None",
+													"periodAdditionBegin": {
+														"type": "xs:dateTime",
+														"text": "0001-01-01T00:00:00"
+													},
+													"periodAdditionEnd": {
+														"type": "xs:dateTime",
+														"text": "0001-01-01T00:00:00"
+													}
+												}
+											],
+											"order": {
+												"items": [
+													{
+														"kind": "auto"
+													}
+												]
+											},
+											"selection": {
+												"items": [
+													{
+														"kind": "auto"
+													}
+												]
+											}
+										}
+									],
+									"rows": [
+										{
+											"kind": "group",
+											"groupFields": [
+												{
+													"field": "Аналитика1",
+													"groupType": "Items",
+													"periodAdditionType": "None",
+													"periodAdditionBegin": {
+														"type": "xs:dateTime",
+														"text": "0001-01-01T00:00:00"
+													},
+													"periodAdditionEnd": {
+														"type": "xs:dateTime",
+														"text": "0001-01-01T00:00:00"
+													}
+												}
+											],
+											"order": {
+												"items": [
+													{
+														"kind": "auto"
+													}
+												]
+											},
+											"selection": {
+												"items": [
+													{
+														"kind": "auto"
+													}
+												]
+											}
+										}
+									]
+								}
+							]
+						}
+					]
+				}
+			],
+			"itemsViewMode": "Normal",
+			"itemsUserSettingID": "ac64d5c5-8b3c-400b-b730-a747c9d7ee36"
+		}
+	},
+	"диаграмма-тип-в-корне": {
+		"template": "Reports/БизнесПроцессы/Templates/Макет/Ext/Template.xml",
+		"variant": "СтатистикаПоВидам",
+		"settings": {
+			"selection": {
+				"items": [
+					{
+						"kind": "field",
+						"field": "Количество"
+					}
+				]
+			},
+			"filter": {
+				"items": [
+					{
+						"kind": "comparison",
+						"use": false,
+						"left": "ВидБизнесПроцесса",
+						"comparisonType": "InList",
+						"viewMode": "Normal",
+						"userSettingID": "f555e331-a53e-4ed4-a1b3-2e39c6264cd6"
+					},
+					{
+						"kind": "comparison",
+						"use": false,
+						"left": "Автор",
+						"comparisonType": "InList",
+						"right": [
+							{
+								"type": "v8:ValueListType",
+								"list": {
+									"items": []
+								}
+							}
+						],
+						"viewMode": "Normal"
+					},
+					{
+						"kind": "comparison",
+						"use": false,
+						"left": "Стартован",
+						"comparisonType": "Equal",
+						"right": [
+							{
+								"type": "xs:boolean",
+								"text": "true",
+								"decoded": true
+							}
+						],
+						"viewMode": "Normal"
+					},
+					{
+						"kind": "comparison",
+						"use": false,
+						"left": "Завершен",
+						"comparisonType": "Equal",
+						"right": [
+							{
+								"type": "xs:boolean",
+								"text": "false",
+								"decoded": false
+							}
+						],
+						"viewMode": "Normal"
+					},
+					{
+						"kind": "comparison",
+						"use": false,
+						"left": "СостояниеБизнесПроцессов",
+						"comparisonType": "Equal",
+						"right": [
+							{
+								"type": "xs:boolean",
+								"text": "false",
+								"decoded": false
+							}
+						],
+						"viewMode": "Normal"
+					}
+				]
+			},
+			"dataParameters": {
+				"items": [
+					{
+						"parameter": "Период",
+						"value": [
+							{
+								"type": "v8:StandardPeriod",
+								"period": {
+									"variant": "ThisMonth"
+								}
+							}
+						],
+						"userSettingID": "93407f28-3a8c-4a6c-847b-cebc19df5411"
+					}
+				]
+			},
+			"order": {
+				"items": [
+					{
+						"kind": "field",
+						"field": "ВидБизнесПроцесса",
+						"orderType": "Asc"
+					}
+				]
+			},
+			"conditionalAppearance": {
+				"items": [
+					{
+						"fields": [
+							{
+								"field": "Завершен"
+							}
+						],
+						"filter": [
+							{
+								"kind": "comparison",
+								"left": "Завершен",
+								"comparisonType": "Equal",
+								"right": [
+									{
+										"type": "xs:boolean",
+										"text": "false",
+										"decoded": false
+									}
+								]
+							}
+						],
+						"appearance": [
+							{
+								"parameter": "Текст",
+								"value": [
+									{
+										"type": "xs:string",
+										"text": "Бизнес-процессы в работе"
+									}
+								]
+							}
+						]
+					},
+					{
+						"fields": [
+							{
+								"field": "Завершен"
+							}
+						],
+						"filter": [
+							{
+								"kind": "comparison",
+								"left": "Завершен",
+								"comparisonType": "Equal",
+								"right": [
+									{
+										"type": "xs:boolean",
+										"text": "true",
+										"decoded": true
+									}
+								]
+							}
+						],
+						"appearance": [
+							{
+								"parameter": "Текст",
+								"value": [
+									{
+										"type": "xs:string",
+										"text": "Завершенные бизнес-процессы"
+									}
+								]
+							}
+						]
+					}
+				]
+			},
+			"outputParameters": {
+				"items": [
+					{
+						"parameter": "ТипДиаграммы",
+						"value": [
+							{
+								"type": "v8ui:ChartType",
+								"text": "Column3D"
+							}
+						],
+						"items": [
+							{
+								"parameter": "ТипДиаграммы.ВидПодписей",
+								"value": [
+									{
+										"type": "v8ui:ChartLabelType",
+										"text": "Value",
+										"opaque": true
+									}
+								]
+							}
+						]
+					},
+					{
+						"parameter": "Заголовок",
+						"value": [
+							{
+								"type": "xs:string",
+								"text": "Статистика по видам бизнес-процессов"
+							}
+						]
+					}
+				]
+			},
+			"structure": [
+				{
+					"kind": "chart",
+					"points": [
+						{
+							"kind": "group",
+							"groupFields": [
+								{
+									"field": "ВидБизнесПроцесса",
+									"groupType": "Items",
+									"periodAdditionType": "None",
+									"periodAdditionBegin": {
+										"type": "xs:dateTime",
+										"text": "0001-01-01T00:00:00"
+									},
+									"periodAdditionEnd": {
+										"type": "xs:dateTime",
+										"text": "0001-01-01T00:00:00"
+									}
+								}
+							],
+							"order": {
+								"items": [
+									{
+										"kind": "auto"
+									}
+								]
+							},
+							"selection": {
+								"items": [
+									{
+										"kind": "auto"
+									}
+								]
+							}
+						}
+					],
+					"series": [
+						{
+							"kind": "group",
+							"groupFields": [
+								{
+									"field": "Завершен",
+									"groupType": "Items",
+									"periodAdditionType": "None",
+									"periodAdditionBegin": {
+										"type": "xs:dateTime",
+										"text": "0001-01-01T00:00:00"
+									},
+									"periodAdditionEnd": {
+										"type": "xs:dateTime",
+										"text": "0001-01-01T00:00:00"
+									}
+								}
+							],
+							"order": {
+								"items": [
+									{
+										"kind": "auto"
+									}
+								]
+							},
+							"selection": {
+								"items": [
+									{
+										"kind": "auto"
+									}
+								]
+							},
+							"userSettingID": "516adb45-eacf-4811-813b-a0adc3aea0b1",
+							"userSettingPresentation": "Вывести завершенные бизнес-процессы отдельно"
+						}
+					],
+					"selection": {
+						"items": [
+							{
+								"kind": "auto"
+							}
+						]
+					}
+				}
+			]
+		}
+	},
+	"диаграмма-тип-в-узле": {
+		"template": "Reports/_ДемоСтатусыЗаказовПокупателей/Templates/ОсновнаяСхемаКомпоновкиДанных/Ext/Template.xml",
+		"variant": "Основной",
+		"settings": {
+			"selection": {
+				"items": [
+					{
+						"kind": "field",
+						"field": "ЗаказПокупателя"
+					}
+				]
+			},
+			"filter": {
+				"items": [
+					{
+						"kind": "comparison",
+						"use": false,
+						"left": "Контрагент",
+						"comparisonType": "Equal",
+						"viewMode": "Normal",
+						"userSettingID": "d1ef81b3-967c-4ac8-b082-3c033506143e"
+					},
+					{
+						"kind": "comparison",
+						"use": false,
+						"left": "Договор",
+						"comparisonType": "Equal",
+						"viewMode": "Normal",
+						"userSettingID": "e81a4c01-010d-4c4a-8ece-d489d6cdf479"
+					},
+					{
+						"kind": "comparison",
+						"use": false,
+						"left": "ЗаказПокупателя",
+						"comparisonType": "Equal",
+						"userSettingID": "bcc9c72e-df5e-415d-b958-d1ff798c039d"
+					},
+					{
+						"kind": "comparison",
+						"use": false,
+						"left": "СчетНаОплату",
+						"comparisonType": "Equal",
+						"userSettingID": "208eb049-e84e-4f84-a222-3ea4b249ade2"
+					}
+				]
+			},
+			"outputParameters": {
+				"items": [
+					{
+						"use": false,
+						"parameter": "Заголовок",
+						"value": [
+							{
+								"type": "xs:string",
+								"text": "Статусы заказов покупателей"
+							}
+						]
+					}
+				]
+			},
+			"structure": [
+				{
+					"kind": "chart",
+					"series": [
+						{
+							"kind": "group",
+							"groupFields": [
+								{
+									"field": "СтатусЗаказа",
+									"groupType": "Items",
+									"periodAdditionType": "None",
+									"periodAdditionBegin": {
+										"type": "xs:dateTime",
+										"text": "0001-01-01T00:00:00"
+									},
+									"periodAdditionEnd": {
+										"type": "xs:dateTime",
+										"text": "0001-01-01T00:00:00"
+									}
+								}
+							],
+							"order": {
+								"items": [
+									{
+										"kind": "auto"
+									}
+								]
+							},
+							"selection": {
+								"items": [
+									{
+										"kind": "auto"
+									}
+								]
+							}
+						}
+					],
+					"selection": {
+						"items": [
+							{
+								"kind": "auto"
+							}
+						]
+					},
+					"outputParameters": {
+						"items": [
+							{
+								"parameter": "ТипДиаграммы",
+								"value": [
+									{
+										"type": "v8ui:ChartType",
+										"text": "Pie3D"
+									}
+								],
+								"items": [
+									{
+										"parameter": "ТипДиаграммы.ВидПодписей",
+										"value": [
+											{
+												"type": "v8ui:ChartLabelType",
+												"text": "SeriesValue",
+												"opaque": true
+											}
+										]
+									}
+								]
+							}
+						]
+					}
+				}
+			]
+		}
+	},
+	"пустой-вариант": {
+		"template": "Reports/_ДемоФайлыВспомогательный/Templates/ПустаяСхемаКомпоновкиДанных/Ext/Template.xml",
+		"variant": "Основной",
+		"settings": {}
+	},
+	"группа-с-диаграммами": {
+		"template": "Reports/_ДемоДинамикаИзмененийФайлов/Templates/ОсновнаяСхемаКомпоновкиДанных/Ext/Template.xml",
+		"variant": "Основной",
+		"settings": {
+			"selection": {
+				"items": [
+					{
+						"kind": "field",
+						"field": "Период"
+					},
+					{
+						"kind": "field",
+						"field": "Размер"
+					},
+					{
+						"kind": "field",
+						"field": "Количество"
+					}
+				]
+			},
+			"dataParameters": {
+				"items": [
+					{
+						"parameter": "Период",
+						"value": [
+							{
+								"type": "v8:StandardPeriod",
+								"period": {
+									"variant": "Custom",
+									"startDate": "2014-01-01T00:00:00",
+									"endDate": "2014-12-31T23:59:59"
+								}
+							}
+						],
+						"userSettingID": "1cd980f2-e3e0-43fc-9399-260ca88a85a4"
+					},
+					{
+						"use": false,
+						"parameter": "АвторВерсии",
+						"value": [
+							{
+								"nil": true
+							}
+						],
+						"viewMode": "Normal",
+						"userSettingID": "35ba3b10-e6a9-47c4-adeb-0e421232e4f3"
+					},
+					{
+						"use": false,
+						"parameter": "Организация",
+						"value": [
+							{
+								"nil": true
+							}
+						],
+						"userSettingID": "24a410fb-505d-4d2a-a582-2e04c02ca9bb"
+					},
+					{
+						"parameter": "МинимальнаяСкоростьФормирования",
+						"value": [
+							{
+								"type": "xs:decimal",
+								"text": "3",
+								"decoded": 3
+							}
+						],
+						"viewMode": "Normal",
+						"userSettingID": "53fa07cc-be79-4e2c-a29b-b0b854f36f19"
+					},
+					{
+						"use": false,
+						"parameter": "ВидАнализа",
+						"value": [
+							{
+								"type": "xs:decimal",
+								"text": "1",
+								"decoded": 1
+							}
+						],
+						"userSettingID": "df48f426-6e7c-4e8e-a565-52197f0e4c32"
+					}
+				]
+			},
+			"outputParameters": {
+				"items": [
+					{
+						"parameter": "ВертикальноеРасположениеОбщихИтогов",
+						"value": [
+							{
+								"type": "dcscor:DataCompositionTotalPlacement",
+								"text": "None"
+							}
+						]
+					},
+					{
+						"use": false,
+						"parameter": "Заголовок",
+						"value": [
+							{
+								"type": "v8:LocalStringType"
+							}
+						]
+					}
+				]
+			},
+			"structure": [
+				{
+					"kind": "group",
+					"groupFields": [
+						{
+							"field": "Период",
+							"groupType": "Items",
+							"periodAdditionType": "Month",
+							"periodAdditionBegin": {
+								"type": "xs:dateTime",
+								"text": "0001-01-01T00:00:00"
+							},
+							"periodAdditionEnd": {
+								"type": "xs:dateTime",
+								"text": "0001-01-01T00:00:00"
+							}
+						}
+					],
+					"filter": {
+						"items": [],
+						"viewMode": "Normal"
+					},
+					"order": {
+						"items": [
+							{
+								"kind": "auto"
+							}
+						],
+						"viewMode": "Normal"
+					},
+					"selection": {
+						"items": [
+							{
+								"kind": "auto"
+							}
+						],
+						"viewMode": "Normal"
+					},
+					"conditionalAppearance": {
+						"items": [],
+						"viewMode": "Normal"
+					},
+					"outputParameters": {
+						"items": [
+							{
+								"parameter": "Заголовок",
+								"value": [
+									{
+										"type": "v8:LocalStringType",
+										"decoded": "По месяцам"
+									}
+								]
+							}
+						]
+					},
+					"userSettingID": "bd57fb4b-2995-4ac0-9415-6f8bd1482b54"
+				},
+				{
+					"kind": "chart",
+					"points": [
+						{
+							"kind": "group",
+							"groupFields": [
+								{
+									"field": "Период",
+									"groupType": "Items",
+									"periodAdditionType": "Month",
+									"periodAdditionBegin": {
+										"type": "xs:dateTime",
+										"text": "0001-01-01T00:00:00"
+									},
+									"periodAdditionEnd": {
+										"type": "xs:dateTime",
+										"text": "0001-01-01T00:00:00"
+									}
+								}
+							],
+							"order": {
+								"items": [
+									{
+										"kind": "auto"
+									}
+								]
+							},
+							"selection": {
+								"items": [
+									{
+										"kind": "auto"
+									}
+								]
+							}
+						}
+					],
+					"selection": {
+						"items": [
+							{
+								"kind": "auto"
+							}
+						],
+						"viewMode": "Normal"
+					},
+					"conditionalAppearance": {
+						"items": [],
+						"viewMode": "Normal"
+					},
+					"outputParameters": {
+						"items": [
+							{
+								"parameter": "ТипДиаграммы",
+								"value": [
+									{
+										"type": "v8ui:ChartType",
+										"text": "Pie3D"
+									}
+								]
+							}
+						]
+					},
+					"viewMode": "Normal",
+					"userSettingID": "45eaa305-ab24-4caa-a9a5-db6578389aa9"
+				},
+				{
+					"kind": "chart",
+					"points": [
+						{
+							"kind": "group",
+							"groupFields": [
+								{
+									"field": "Период",
+									"groupType": "Items",
+									"periodAdditionType": "Day",
+									"periodAdditionBegin": {
+										"nil": true
+									},
+									"periodAdditionEnd": {
+										"type": "xs:dateTime",
+										"text": "0001-01-01T00:00:00"
+									}
+								}
+							],
+							"order": {
+								"items": [
+									{
+										"kind": "auto"
+									}
+								]
+							},
+							"selection": {
+								"items": [
+									{
+										"kind": "auto"
+									}
+								]
+							}
+						}
+					],
+					"selection": {
+						"items": [
+							{
+								"kind": "auto"
+							}
+						],
+						"viewMode": "Normal"
+					},
+					"conditionalAppearance": {
+						"items": [],
+						"viewMode": "Normal"
+					},
+					"outputParameters": {
+						"items": [
+							{
+								"parameter": "ТипДиаграммы",
+								"value": [
+									{
+										"type": "v8ui:ChartType",
+										"text": "Area"
+									}
+								]
+							},
+							{
+								"parameter": "Заголовок",
+								"value": [
+									{
+										"type": "v8:LocalStringType",
+										"decoded": "По дням"
+									}
+								]
+							}
+						]
+					},
+					"viewMode": "Normal",
+					"userSettingID": "e3bc8f4c-9e9a-4181-b19d-cf05469b1517"
+				}
+			]
+		}
+	},
+	"детальные-с-отбором-корня": {
+		"template": "Reports/_ДемоДинамикаИзмененийФайлов/Templates/ОсновнаяСхемаКомпоновкиДанных/Ext/Template.xml",
+		"variant": "Дополнительный1",
+		"settings": {
+			"selection": {
+				"items": [
+					{
+						"kind": "field",
+						"field": "Автор"
+					},
+					{
+						"kind": "field",
+						"field": "Период"
+					},
+					{
+						"kind": "field",
+						"field": "Размер"
+					},
+					{
+						"kind": "field",
+						"field": "Расширение"
+					},
+					{
+						"kind": "field",
+						"field": "Том"
+					}
+				]
+			},
+			"structure": [
+				{
+					"kind": "group",
+					"order": {
+						"items": [
+							{
+								"kind": "auto"
+							}
+						]
+					},
+					"selection": {
+						"items": [
+							{
+								"kind": "auto"
+							}
+						]
+					}
+				}
+			]
+		}
+	},
+	"группа-с-отбором": {
+		"template": "Reports/ПользователиПоПодразделениям/Templates/Макет/Ext/Template.xml",
+		"variant": "Основной",
+		"settings": {
+			"userFields": [
+				{
+					"kind": "expression",
+					"dataPath": "ПользовательскиеПоля.Поле1",
+					"title": "Вышестоящее подразделение",
+					"detailExpression": "ВычислитьВыражение(\"ВычислитьВыражение(\"\"Подразделение\"\", , \"\"ГруппировкаНеРесурса\"\")\", , \"Иерархия\")",
+					"totalExpression": "ВычислитьВыражение(\"ВычислитьВыражение(\"\"Подразделение\"\", , \"\"ГруппировкаНеРесурса\"\")\", , \"Иерархия\")"
+				},
+				{
+					"kind": "expression",
+					"dataPath": "ПользовательскиеПоля.Поле2",
+					"title": "Количество различных подразделений в вышестоящем подразделении",
+					"detailExpression": "ВычислитьВыражение(\"Количество(Различные Подразделение)\", , \"Иерархия\")",
+					"totalExpression": "ВычислитьВыражение(\"Количество(Различные Подразделение)\", , \"Иерархия\")"
+				},
+				{
+					"kind": "expression",
+					"dataPath": "ПользовательскиеПоля.Поле3",
+					"title": "Вышестоящее подразделение есть в детальных записях",
+					"detailExpression": "ВычислитьВыражение(\"Максимум(ВычислитьВыражение(\"\"Подразделение\"\", , \"\"ГруппировкаНеРесурса\"\") = РодительПодразделения)\", , \"Иерархия\")",
+					"totalExpression": "ВычислитьВыражение(\"Максимум(ВычислитьВыражение(\"\"Подразделение\"\", , \"\"ГруппировкаНеРесурса\"\") = РодительПодразделения)\", , \"Иерархия\")"
+				}
+			],
+			"selection": {
+				"items": [
+					{
+						"kind": "field",
+						"field": "Пользователь"
+					},
+					{
+						"kind": "field",
+						"field": "Количество"
+					}
+				]
+			},
+			"dataParameters": {
+				"items": [
+					{
+						"use": false,
+						"parameter": "Пользователь",
+						"value": [
+							{
+								"nil": true
+							}
+						],
+						"userSettingID": "97fe9590-4cc6-4aff-8a53-82dd86d9cc29"
+					},
+					{
+						"use": false,
+						"parameter": "Подразделение",
+						"value": [
+							{
+								"nil": true
+							}
+						],
+						"userSettingID": "81cc45d5-e243-43cf-8a28-11c6a49dfad6"
+					},
+					{
+						"use": false,
+						"parameter": "ПоказыватьНедействительныхУчастников",
+						"value": [
+							{
+								"type": "xs:boolean",
+								"text": "true",
+								"decoded": true
+							}
+						],
+						"viewMode": "Normal",
+						"userSettingID": "84b94724-3c5d-4c34-a6ff-5ab2a0e930cc"
+					},
+					{
+						"use": false,
+						"parameter": "СкрыватьПользователейНижестоящихПодразделений",
+						"value": [
+							{
+								"type": "xs:boolean",
+								"text": "true",
+								"decoded": true
+							}
+						],
+						"viewMode": "Normal",
+						"userSettingID": "676366fe-6cd6-40e7-81f7-c7b9890fc3ef"
+					}
+				]
+			},
+			"outputParameters": {
+				"items": [
+					{
+						"parameter": "ВертикальноеРасположениеОбщихИтогов",
+						"value": [
+							{
+								"type": "dcscor:DataCompositionTotalPlacement",
+								"text": "Begin"
+							}
+						]
+					}
+				]
+			},
+			"structure": [
+				{
+					"kind": "group",
+					"groupFields": [
+						{
+							"field": "Подразделение",
+							"groupType": "Hierarchy",
+							"periodAdditionType": "None",
+							"periodAdditionBegin": {
+								"type": "xs:dateTime",
+								"text": "0001-01-01T00:00:00"
+							},
+							"periodAdditionEnd": {
+								"type": "xs:dateTime",
+								"text": "0001-01-01T00:00:00"
+							}
+						}
+					],
+					"filter": {
+						"items": [
+							{
+								"kind": "group",
+								"groupType": "OrGroup",
+								"items": [
+									{
+										"kind": "comparison",
+										"left": "ПользовательскиеПоля.Поле1",
+										"comparisonType": "NotEqual",
+										"right": [
+											{
+												"type": "dcscor:Field",
+												"text": "Подразделение"
+											}
+										],
+										"viewMode": "Inaccessible"
+									},
+									{
+										"kind": "comparison",
+										"left": "СистемныеПоля.Уровень",
+										"comparisonType": "Equal",
+										"right": [
+											{
+												"type": "xs:decimal",
+												"text": "1",
+												"decoded": 1
+											}
+										],
+										"viewMode": "Inaccessible"
+									},
+									{
+										"kind": "comparison",
+										"left": "ПользовательскиеПоля.Поле2",
+										"comparisonType": "Equal",
+										"right": [
+											{
+												"type": "xs:decimal",
+												"text": "1",
+												"decoded": 1
+											}
+										],
+										"viewMode": "Inaccessible"
+									},
+									{
+										"kind": "comparison",
+										"left": "ПользовательскиеПоля.Поле3",
+										"comparisonType": "Equal",
+										"right": [
+											{
+												"type": "xs:boolean",
+												"text": "false",
+												"decoded": false
+											}
+										]
+									}
+								],
+								"application": "Hierarchy",
+								"viewMode": "Inaccessible"
+							}
+						]
+					},
+					"order": {
+						"items": [
+							{
+								"kind": "auto"
+							}
+						]
+					},
+					"selection": {
+						"items": [
+							{
+								"kind": "auto"
+							}
+						]
+					},
+					"outputParameters": {
+						"items": [
+							{
+								"parameter": "ВыводитьОтбор",
+								"value": [
+									{
+										"type": "dcsset:DataCompositionTextOutputType",
+										"text": "DontOutput"
+									}
+								]
+							}
+						]
+					},
+					"structure": [
+						{
+							"kind": "group",
+							"order": {
+								"items": [
+									{
+										"kind": "auto"
+									}
+								]
+							},
+							"selection": {
+								"items": [
+									{
+										"kind": "auto"
+									}
+								]
+							}
+						}
+					]
+				}
+			]
+		}
+	},
+	"таблица-итоги-у-группы-строки": {
+		"template": "Reports/РезультатыПроверкиУчета/Templates/ОсновнаяСхемаКомпоновкиДанных/Ext/Template.xml",
+		"variant": "Основной",
+		"settings": {
+			"selection": {
+				"items": [
+					{
+						"kind": "field",
+						"field": "ПроблемныйОбъект"
+					},
+					{
+						"kind": "field",
+						"field": "КоличествоПроблемСОбъектом"
+					}
+				]
+			},
+			"filter": {
+				"items": [
+					{
+						"kind": "comparison",
+						"use": false,
+						"left": "ВажностьПроблемы",
+						"comparisonType": "Equal",
+						"viewMode": "Normal",
+						"userSettingID": "86f1da64-5cca-4e08-b357-d43d46c73e85"
+					},
+					{
+						"kind": "comparison",
+						"use": false,
+						"left": "ПравилоПроверки",
+						"comparisonType": "InList",
+						"right": [
+							{
+								"type": "v8:ValueListType",
+								"list": {
+									"items": []
+								}
+							}
+						],
+						"userSettingID": "d420bf44-e825-4b04-a769-53d52e0cef7b",
+						"userSettingPresentation": "Правило проверки"
+					},
+					{
+						"kind": "comparison",
+						"left": "Ответственный",
+						"comparisonType": "InList",
+						"right": [
+							{
+								"type": "v8:ValueListType",
+								"list": {
+									"items": []
+								}
+							}
+						],
+						"viewMode": "Normal"
+					},
+					{
+						"kind": "comparison",
+						"left": "ИгнорироватьПроблему",
+						"comparisonType": "Equal",
+						"right": [
+							{
+								"type": "xs:boolean",
+								"text": "false",
+								"decoded": false
+							}
+						],
+						"viewMode": "Normal"
+					}
+				]
+			},
+			"dataParameters": {
+				"items": [
+					{
+						"use": false,
+						"parameter": "ВыводитьОтветственного",
+						"value": [
+							{
+								"type": "xs:boolean",
+								"text": "false",
+								"decoded": false
+							}
+						],
+						"viewMode": "Normal",
+						"userSettingID": "6140f08b-fb31-4f1c-b649-9dadd3dc2200"
+					},
+					{
+						"parameter": "Период",
+						"value": [
+							{
+								"type": "v8:StandardPeriod",
+								"period": {
+									"variant": "Custom",
+									"startDate": "0001-01-01T00:00:00",
+									"endDate": "0001-01-01T00:00:00"
+								}
+							}
+						],
+						"userSettingID": "eb8c1726-3dca-45be-aaab-4467fd5575f1"
+					}
+				]
+			},
+			"conditionalAppearance": {
+				"items": [
+					{
+						"fields": [
+							{
+								"field": "НадписьОшибка"
+							},
+							{
+								"field": "НадписьВозможныеПричины"
+							},
+							{
+								"field": "НадписьРекомендации"
+							},
+							{
+								"field": "НадписьРешение"
+							},
+							{
+								"field": "ПравилоПроверкиНаименование"
+							},
+							{
+								"field": "ПравилоПроверкиПричиныПроблемы"
+							},
+							{
+								"field": "ПравилоПроверкиРекомендации"
+							},
+							{
+								"field": "ПравилоПроверкиПричиныПроблемы"
+							},
+							{
+								"field": "ВидПроверки"
+							},
+							{
+								"field": "ОбработчикПереходаКИсправлениюРасчет"
+							},
+							{
+								"field": "ПравилоПроверки"
+							}
+						],
+						"filter": [],
+						"appearance": [
+							{
+								"parameter": "ЦветФона",
+								"value": [
+									{
+										"type": "v8ui:Color",
+										"text": "style:ToolTipBackColor"
+									}
+								]
+							}
+						]
+					},
+					{
+						"fields": [
+							{
+								"field": "НадписьОшибка"
+							},
+							{
+								"use": false,
+								"field": "ПравилоПроверкиНаименование"
+							}
+						],
+						"filter": [],
+						"appearance": [
+							{
+								"parameter": "Размещение",
+								"value": [
+									{
+										"type": "dcscor:DataCompositionTextPlacementType",
+										"text": "Wrap"
+									}
+								]
+							},
+							{
+								"parameter": "МаксимальнаяШирина",
+								"value": [
+									{
+										"type": "xs:decimal",
+										"text": "35",
+										"decoded": 35
+									}
+								]
+							}
+						]
+					},
+					{
+						"fields": [
+							{
+								"field": "Ответственный"
+							}
+						],
+						"filter": [],
+						"appearance": [
+							{
+								"parameter": "МаксимальнаяШирина",
+								"value": [
+									{
+										"type": "xs:decimal",
+										"text": "15",
+										"decoded": 15
+									}
+								]
+							}
+						]
+					},
+					{
+						"fields": [
+							{
+								"field": "УточнениеПроблемы"
+							}
+						],
+						"filter": [],
+						"appearance": [
+							{
+								"parameter": "МаксимальнаяШирина",
+								"value": [
+									{
+										"type": "xs:decimal",
+										"text": "80",
+										"decoded": 80
+									}
+								]
+							}
+						]
+					},
+					{
+						"fields": [
+							{
+								"field": "Ответственный"
+							},
+							{
+								"field": "ОтветственныйГруппировка"
+							}
+						],
+						"filter": [
+							{
+								"kind": "comparison",
+								"left": "Ответственный",
+								"comparisonType": "Equal",
+								"right": [
+									{
+										"type": "dcscor:DesignTimeValue",
+										"text": "Справочник.Пользователи.ПустаяСсылка"
+									}
+								]
+							}
+						],
+						"appearance": [
+							{
+								"parameter": "ЦветТекста",
+								"value": [
+									{
+										"type": "v8ui:Color",
+										"text": "style:ТекстЗапрещеннойЯчейкиЦвет"
+									}
+								]
+							},
+							{
+								"parameter": "Текст",
+								"value": [
+									{
+										"type": "v8:LocalStringType",
+										"decoded": "<нет ответственного>"
+									}
+								]
+							}
+						]
+					},
+					{
+						"fields": [
+							{
+								"field": "Ответственный"
+							},
+							{
+								"field": "ОтветственныйГруппировка"
+							}
+						],
+						"filter": [
+							{
+								"kind": "comparison",
+								"left": "ОтветственныйГруппировка",
+								"comparisonType": "Equal",
+								"right": [
+									{
+										"type": "dcscor:DesignTimeValue",
+										"text": "Справочник.Пользователи.ПустаяСсылка"
+									}
+								]
+							}
+						],
+						"appearance": [
+							{
+								"use": false,
+								"parameter": "ЦветТекста",
+								"value": [
+									{
+										"type": "v8ui:Color",
+										"text": "style:ТекстЗапрещеннойЯчейкиЦвет"
+									}
+								]
+							},
+							{
+								"use": false,
+								"parameter": "Размещение",
+								"value": [
+									{
+										"type": "dcscor:DataCompositionTextPlacementType",
+										"text": "Cut"
+									}
+								]
+							},
+							{
+								"use": false,
+								"parameter": "РастягиватьПоГоризонтали",
+								"value": [
+									{
+										"type": "xs:boolean",
+										"text": "true",
+										"decoded": true
+									}
+								]
+							},
+							{
+								"use": false,
+								"parameter": "ВесовойКоэффициентШирины",
+								"value": [
+									{
+										"type": "xs:decimal",
+										"text": "2",
+										"decoded": 2
+									}
+								]
+							},
+							{
+								"parameter": "Текст",
+								"value": [
+									{
+										"type": "v8:LocalStringType",
+										"decoded": "<нет ответственного>"
+									}
+								]
+							}
+						]
+					},
+					{
+						"fields": [
+							{
+								"field": "ОтветственныйГруппировка"
+							}
+						],
+						"filter": [],
+						"appearance": [
+							{
+								"parameter": "ЦветФона",
+								"value": [
+									{
+										"type": "v8ui:Color",
+										"text": "style:ToolTipBackColor"
+									}
+								]
+							},
+							{
+								"parameter": "ГоризонтальноеПоложение",
+								"value": [
+									{
+										"type": "v8ui:HorizontalAlign",
+										"text": "Center",
+										"opaque": true
+									}
+								]
+							},
+							{
+								"parameter": "ВертикальноеПоложение",
+								"value": [
+									{
+										"type": "v8ui:VerticalAlign",
+										"text": "Center",
+										"opaque": true
+									}
+								]
+							},
+							{
+								"parameter": "Размещение",
+								"value": [
+									{
+										"type": "dcscor:DataCompositionTextPlacementType",
+										"text": "Wrap"
+									}
+								]
+							},
+							{
+								"parameter": "ОриентацияТекста",
+								"value": [
+									{
+										"type": "xs:decimal",
+										"text": "90",
+										"decoded": 90
+									}
+								]
+							},
+							{
+								"parameter": "МаксимальнаяШирина",
+								"value": [
+									{
+										"type": "xs:decimal",
+										"text": "5",
+										"decoded": 5
+									}
+								]
+							},
+							{
+								"parameter": "МаксимальнаяВысота",
+								"value": [
+									{
+										"type": "xs:decimal",
+										"text": "80",
+										"decoded": 80
+									}
+								]
+							}
+						]
+					},
+					{
+						"fields": [
+							{
+								"field": "Выявлено"
+							}
+						],
+						"filter": [],
+						"appearance": [
+							{
+								"parameter": "МаксимальнаяШирина",
+								"value": [
+									{
+										"type": "xs:decimal",
+										"text": "12",
+										"decoded": 12
+									}
+								]
+							}
+						]
+					},
+					{
+						"fields": [
+							{
+								"field": "КоличествоПроблемСОбъектом"
+							}
+						],
+						"filter": [],
+						"appearance": [
+							{
+								"parameter": "МаксимальнаяШирина",
+								"value": [
+									{
+										"type": "xs:decimal",
+										"text": "7",
+										"decoded": 7
+									}
+								]
+							}
+						]
+					},
+					{
+						"fields": [
+							{
+								"field": "ВыявленоРасчет"
+							},
+							{
+								"field": "ПроблемныйОбъектРасчет"
+							},
+							{
+								"field": "УточнениеПроблемыРасчет"
+							},
+							{
+								"field": "ВыявленоРасчет"
+							},
+							{
+								"field": "ВыявленоРасчет"
+							}
+						],
+						"filter": [
+							{
+								"kind": "comparison",
+								"left": "ИгнорироватьПроблему",
+								"comparisonType": "Equal",
+								"right": [
+									{
+										"type": "xs:boolean",
+										"text": "true",
+										"decoded": true
+									}
+								]
+							}
+						],
+						"appearance": [
+							{
+								"parameter": "ЦветТекста",
+								"value": [
+									{
+										"type": "v8ui:Color",
+										"text": "style:ТекстЗапрещеннойЯчейкиЦвет"
+									}
+								]
+							}
+						]
+					}
+				]
+			},
+			"outputParameters": {
+				"items": [
+					{
+						"parameter": "ВыводитьЗаголовок",
+						"value": [
+							{
+								"type": "dcsset:DataCompositionTextOutputType",
+								"text": "DontOutput"
+							}
+						]
+					},
+					{
+						"use": false,
+						"parameter": "Заголовок",
+						"value": [
+							{
+								"type": "v8:LocalStringType",
+								"decoded": "Контроль ведения учета"
+							}
+						]
+					},
+					{
+						"parameter": "ВыводитьПараметрыДанных",
+						"value": [
+							{
+								"type": "dcsset:DataCompositionTextOutputType",
+								"text": "DontOutput"
+							}
+						]
+					},
+					{
+						"parameter": "ВыводитьОтбор",
+						"value": [
+							{
+								"type": "dcsset:DataCompositionTextOutputType",
+								"text": "DontOutput"
+							}
+						]
+					}
+				]
+			},
+			"structure": [
+				{
+					"kind": "group",
+					"name": "ИнформацияОПоследнейПроверке",
+					"order": {
+						"items": [
+							{
+								"kind": "auto"
+							}
+						]
+					},
+					"selection": {
+						"items": [
+							{
+								"kind": "field",
+								"field": "ПараметрыДанных.ИнформацияОПоследнейПроверке"
+							}
+						]
+					},
+					"outputParameters": {
+						"items": [
+							{
+								"parameter": "МакетОформления",
+								"value": [
+									{
+										"type": "xs:string",
+										"text": "БезОформления"
+									}
+								]
+							},
+							{
+								"parameter": "ТипЗаголовкаПолей",
+								"value": [
+									{
+										"type": "dcscor:DataCompositionFieldsTitleType",
+										"text": "Short"
+									}
+								]
+							},
+							{
+								"parameter": "ВыводитьЗаголовок",
+								"value": [
+									{
+										"type": "dcsset:DataCompositionTextOutputType",
+										"text": "DontOutput"
+									}
+								]
+							}
+						]
+					}
+				},
+				{
+					"kind": "group",
+					"name": "Примечание",
+					"order": {
+						"items": [
+							{
+								"kind": "auto"
+							}
+						]
+					},
+					"outputParameters": {
+						"items": [
+							{
+								"parameter": "МакетОформления",
+								"value": [
+									{
+										"type": "xs:string",
+										"text": "БезОформления"
+									}
+								]
+							}
+						]
+					}
+				},
+				{
+					"kind": "table",
+					"name": "ОбщаяТаблица",
+					"columns": [
+						{
+							"kind": "group",
+							"name": "Ответственный",
+							"groupFields": [
+								{
+									"field": "ОтветственныйГруппировка",
+									"groupType": "Items",
+									"periodAdditionType": "None",
+									"periodAdditionBegin": {
+										"type": "xs:dateTime",
+										"text": "0001-01-01T00:00:00"
+									},
+									"periodAdditionEnd": {
+										"type": "xs:dateTime",
+										"text": "0001-01-01T00:00:00"
+									}
+								}
+							],
+							"order": {
+								"items": [
+									{
+										"kind": "auto"
+									}
+								]
+							},
+							"selection": {
+								"items": [
+									{
+										"kind": "auto"
+									}
+								]
+							},
+							"outputParameters": {
+								"items": [
+									{
+										"use": false,
+										"parameter": "МакетОформления",
+										"value": [
+											{
+												"type": "xs:string",
+												"text": "БезОформления"
+											}
+										]
+									},
+									{
+										"use": false,
+										"parameter": "ТипЗаголовкаПолей",
+										"value": [
+											{
+												"type": "dcscor:DataCompositionFieldsTitleType",
+												"text": "Short"
+											}
+										]
+									},
+									{
+										"use": false,
+										"parameter": "ВыводитьЗаголовок",
+										"value": [
+											{
+												"type": "dcsset:DataCompositionTextOutputType",
+												"text": "DontOutput"
+											}
+										]
+									}
+								]
+							}
+						}
+					],
+					"rows": [
+						{
+							"kind": "group",
+							"name": "ВидПроверки",
+							"groupFields": [
+								{
+									"field": "ВидПроверки",
+									"groupType": "Items",
+									"periodAdditionType": "None",
+									"periodAdditionBegin": {
+										"type": "xs:dateTime",
+										"text": "0001-01-01T00:00:00"
+									},
+									"periodAdditionEnd": {
+										"type": "xs:dateTime",
+										"text": "0001-01-01T00:00:00"
+									}
+								}
+							],
+							"order": {
+								"items": [
+									{
+										"kind": "auto"
+									}
+								]
+							},
+							"selection": {
+								"items": [
+									{
+										"kind": "auto"
+									}
+								]
+							},
+							"structure": [
+								{
+									"kind": "group",
+									"name": "ПравилоПроверки",
+									"groupFields": [
+										{
+											"field": "ПравилоПроверки",
+											"groupType": "Items",
+											"periodAdditionType": "None",
+											"periodAdditionBegin": {
+												"type": "xs:dateTime",
+												"text": "0001-01-01T00:00:00"
+											},
+											"periodAdditionEnd": {
+												"type": "xs:dateTime",
+												"text": "0001-01-01T00:00:00"
+											}
+										}
+									],
+									"order": {
+										"items": [
+											{
+												"kind": "auto"
+											}
+										]
+									},
+									"selection": {
+										"items": [
+											{
+												"kind": "auto"
+											}
+										]
+									},
+									"structure": [
+										{
+											"kind": "group",
+											"name": "ОшибкаПравило",
+											"groupFields": [
+												{
+													"field": "НадписьОшибка",
+													"groupType": "Items",
+													"periodAdditionType": "None",
+													"periodAdditionBegin": {
+														"type": "xs:dateTime",
+														"text": "0001-01-01T00:00:00"
+													},
+													"periodAdditionEnd": {
+														"type": "xs:dateTime",
+														"text": "0001-01-01T00:00:00"
+													}
+												}
+											],
+											"order": {
+												"items": [
+													{
+														"kind": "auto"
+													}
+												]
+											},
+											"selection": {
+												"items": [
+													{
+														"kind": "auto"
+													}
+												]
+											}
+										},
+										{
+											"kind": "group",
+											"name": "Причины",
+											"groupFields": [
+												{
+													"field": "НадписьВозможныеПричины",
+													"groupType": "Items",
+													"periodAdditionType": "None",
+													"periodAdditionBegin": {
+														"type": "xs:dateTime",
+														"text": "0001-01-01T00:00:00"
+													},
+													"periodAdditionEnd": {
+														"type": "xs:dateTime",
+														"text": "0001-01-01T00:00:00"
+													}
+												},
+												{
+													"field": "ПравилоПроверкиПричиныПроблемы",
+													"groupType": "Items",
+													"periodAdditionType": "None",
+													"periodAdditionBegin": {
+														"type": "xs:dateTime",
+														"text": "0001-01-01T00:00:00"
+													},
+													"periodAdditionEnd": {
+														"type": "xs:dateTime",
+														"text": "0001-01-01T00:00:00"
+													}
+												}
+											],
+											"order": {
+												"items": [
+													{
+														"kind": "auto"
+													}
+												]
+											},
+											"selection": {
+												"items": [
+													{
+														"kind": "auto"
+													}
+												]
+											}
+										},
+										{
+											"kind": "group",
+											"name": "Рекомендации",
+											"groupFields": [
+												{
+													"field": "НадписьРекомендации",
+													"groupType": "Items",
+													"periodAdditionType": "None",
+													"periodAdditionBegin": {
+														"type": "xs:dateTime",
+														"text": "0001-01-01T00:00:00"
+													},
+													"periodAdditionEnd": {
+														"type": "xs:dateTime",
+														"text": "0001-01-01T00:00:00"
+													}
+												},
+												{
+													"field": "ПравилоПроверкиРекомендации",
+													"groupType": "Items",
+													"periodAdditionType": "None",
+													"periodAdditionBegin": {
+														"type": "xs:dateTime",
+														"text": "0001-01-01T00:00:00"
+													},
+													"periodAdditionEnd": {
+														"type": "xs:dateTime",
+														"text": "0001-01-01T00:00:00"
+													}
+												}
+											],
+											"order": {
+												"items": [
+													{
+														"kind": "auto"
+													}
+												]
+											},
+											"selection": {
+												"items": [
+													{
+														"kind": "auto"
+													}
+												]
+											}
+										},
+										{
+											"kind": "group",
+											"name": "Решение",
+											"groupFields": [
+												{
+													"field": "НадписьРешение",
+													"groupType": "Items",
+													"periodAdditionType": "None",
+													"periodAdditionBegin": {
+														"type": "xs:dateTime",
+														"text": "0001-01-01T00:00:00"
+													},
+													"periodAdditionEnd": {
+														"type": "xs:dateTime",
+														"text": "0001-01-01T00:00:00"
+													}
+												},
+												{
+													"field": "ОбработчикПереходаКИсправлению",
+													"groupType": "Items",
+													"periodAdditionType": "None",
+													"periodAdditionBegin": {
+														"type": "xs:dateTime",
+														"text": "0001-01-01T00:00:00"
+													},
+													"periodAdditionEnd": {
+														"type": "xs:dateTime",
+														"text": "0001-01-01T00:00:00"
+													}
+												}
+											],
+											"order": {
+												"items": [
+													{
+														"kind": "auto"
+													}
+												]
+											},
+											"selection": {
+												"items": [
+													{
+														"kind": "auto"
+													}
+												]
+											}
+										},
+										{
+											"kind": "group",
+											"name": "ПроблемныеОбъекты",
+											"groupFields": [
+												{
+													"field": "НадписьПроблемныеОбъекты",
+													"groupType": "Items",
+													"periodAdditionType": "None",
+													"periodAdditionBegin": {
+														"type": "xs:dateTime",
+														"text": "0001-01-01T00:00:00"
+													},
+													"periodAdditionEnd": {
+														"type": "xs:dateTime",
+														"text": "0001-01-01T00:00:00"
+													}
+												}
+											],
+											"order": {
+												"items": [
+													{
+														"kind": "auto"
+													}
+												]
+											},
+											"selection": {
+												"items": [
+													{
+														"kind": "auto"
+													}
+												]
+											},
+											"outputParameters": {
+												"items": [
+													{
+														"use": false,
+														"parameter": "РасположениеИтогов",
+														"value": [
+															{
+																"type": "dcscor:DataCompositionTotalPlacement",
+																"text": "None"
+															}
+														]
+													},
+													{
+														"use": false,
+														"parameter": "РасположениеОбщихИтогов",
+														"value": [
+															{
+																"type": "dcscor:DataCompositionTotalPlacement",
+																"text": "None"
+															}
+														]
+													}
+												]
+											},
+											"structure": [
+												{
+													"kind": "group",
+													"name": "Детализация",
+													"groupFields": [
+														{
+															"field": "ПроблемныйОбъектПредставление",
+															"groupType": "Items",
+															"periodAdditionType": "None",
+															"periodAdditionBegin": {
+																"type": "xs:dateTime",
+																"text": "0001-01-01T00:00:00"
+															},
+															"periodAdditionEnd": {
+																"type": "xs:dateTime",
+																"text": "0001-01-01T00:00:00"
+															}
+														},
+														{
+															"field": "РасшифровкаПоля",
+															"groupType": "Items",
+															"periodAdditionType": "None",
+															"periodAdditionBegin": {
+																"type": "xs:dateTime",
+																"text": "0001-01-01T00:00:00"
+															},
+															"periodAdditionEnd": {
+																"type": "xs:dateTime",
+																"text": "0001-01-01T00:00:00"
+															}
+														},
+														{
+															"field": "Ответственный",
+															"groupType": "Items",
+															"periodAdditionType": "None",
+															"periodAdditionBegin": {
+																"type": "xs:dateTime",
+																"text": "0001-01-01T00:00:00"
+															},
+															"periodAdditionEnd": {
+																"type": "xs:dateTime",
+																"text": "0001-01-01T00:00:00"
+															}
+														},
+														{
+															"field": "УточнениеПроблемы",
+															"groupType": "Items",
+															"periodAdditionType": "None",
+															"periodAdditionBegin": {
+																"type": "xs:dateTime",
+																"text": "0001-01-01T00:00:00"
+															},
+															"periodAdditionEnd": {
+																"type": "xs:dateTime",
+																"text": "0001-01-01T00:00:00"
+															}
+														},
+														{
+															"field": "Выявлено",
+															"groupType": "Items",
+															"periodAdditionType": "None",
+															"periodAdditionBegin": {
+																"type": "xs:dateTime",
+																"text": "0001-01-01T00:00:00"
+															},
+															"periodAdditionEnd": {
+																"type": "xs:dateTime",
+																"text": "0001-01-01T00:00:00"
+															}
+														}
+													],
+													"order": {
+														"items": [
+															{
+																"kind": "auto"
+															}
+														]
+													},
+													"selection": {
+														"items": [
+															{
+																"kind": "auto"
+															},
+															{
+																"kind": "field",
+																"use": false,
+																"field": "РасшифровкаПоля"
+															}
+														]
+													}
+												}
+											]
+										}
+									]
+								}
+							]
+						}
+					]
+				}
+			]
+		}
+	}
+}

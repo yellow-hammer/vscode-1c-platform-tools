@@ -168,6 +168,20 @@ suite('контекстное меню дерева метаданных', () =>
 		assert.ok(!menuFor(NODES.otherSection).includes('Добавить'));
 	});
 
+	test('схема компоновки: создание на разделе макетов и группе общих, удаление на самом макете', () => {
+		// Раздел макетов без общего «Добавить»: другие виды макетов md-sparrow с нуля не создаёт
+		const templatesSection = 'metadataObjectSection mdDcsTemplateAdd mdDesigner';
+		assert.ok(menuFor(templatesSection).includes('Создать схему компоновки данных…'), menuFor(templatesSection).join(' → '));
+		assert.ok(!menuFor(templatesSection).includes('Добавить'), menuFor(templatesSection).join(' → '));
+		for (const subgroup of ['metadataSubgroup_common_common_commontemplate', 'metadataSubgroupExt_common_common_commontemplate']) {
+			assert.ok(menuFor(subgroup).includes('Создать схему компоновки данных…'), `нет создания у ${subgroup}`);
+		}
+		assert.ok(menuFor('metadataChild_template mdDcs').includes('Удалить схему компоновки данных'));
+		// Табличный документ удаляется средствами платформы: пункт только у схем компоновки
+		assert.ok(!menuFor('metadataChild_template mdSpreadsheet').includes('Удалить схему компоновки данных'));
+		assert.ok(!menuFor(NODES.readonlyChild).includes('Удалить схему компоновки данных'));
+	});
+
 	test('у формы два XML: описание и содержимое', () => {
 		const form = menuFor(NODES.objectForm);
 		assert.ok(form.includes('Открыть XML'), 'нет XML описания формы');

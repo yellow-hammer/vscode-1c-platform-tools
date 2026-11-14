@@ -1,0 +1,817 @@
+{
+	"source": "yellow-hammer/ssl_3_1, fixtures/ssl31/src",
+	"commit": "92b89b2a2755ad6cd3d6e12ec8071aea1567add1",
+	"eol": "LF (значение XML: CRLF файла сведены к LF)",
+	"total": 125,
+	"distinct": 33,
+	"parameters": [
+		{
+			"file": "cf/DataProcessors/ИнтерактивноеИзменениеВыгрузки/Templates/СхемаКомпоновкиДанных/Ext/Template.xml",
+			"where": "DataCompositionSchema/settingsVariant[ПользовательскиеДанные]/settings/item/conditionalAppearance/item/appearance/item",
+			"parameter": "Формат",
+			"type": "v8:LocalStringType",
+			"lang": "ru",
+			"text": "ЧН=-"
+		},
+		{
+			"file": "cf/DataProcessors/ИнтерактивноеИзменениеВыгрузки/Templates/СхемаКомпоновкиДанных/Ext/Template.xml",
+			"where": "DataCompositionSchema/settingsVariant[РасшифровкаПоВидуОбъекта]/settings/item/conditionalAppearance/item/appearance/item",
+			"parameter": "Формат",
+			"type": "v8:LocalStringType",
+			"lang": "ru",
+			"text": "ЧН=-"
+		},
+		{
+			"file": "cf/Documents/_ДемоСчетНаОплатуПокупателю/Templates/ДанныеПечати/Ext/Template.xml",
+			"where": "DataCompositionSchema/dataSet[НаборДанных1]/field[Дата]/appearance/item",
+			"parameter": "Формат",
+			"type": "v8:LocalStringType",
+			"lang": "ru",
+			"text": "ДЛФ=DD"
+		},
+		{
+			"file": "cf/Reports/АнализВерсийОбъектов/Templates/ОсновнаяСхемаКомпоновкиДанных/Ext/Template.xml",
+			"where": "DataCompositionSchema/dataSet[НаборДанных1]/field[РазмерДанных]/appearance/item",
+			"parameter": "Формат",
+			"type": "xs:string",
+			"text": "ЧДЦ=2"
+		},
+		{
+			"file": "cf/Reports/АнализЖурналаРегистрации/Templates/ОсновнаяСхемаКомпоновкиДанных/Ext/Template.xml",
+			"where": "DataCompositionSchema/dataSet[АнализАктивностиПользователей]/field[Дата]/inputParameters/item",
+			"parameter": "ФорматРедактирования",
+			"type": "xs:string",
+			"text": "ДЛФ=D"
+		},
+		{
+			"file": "cf/Reports/АнализЖурналаРегистрации/Templates/ОсновнаяСхемаКомпоновкиДанных/Ext/Template.xml",
+			"where": "DataCompositionSchema/dataSet[ОдновременноСессий]/field[ДатаОдновременноРаботавшихПользователей]/inputParameters/item",
+			"parameter": "ФорматРедактирования",
+			"type": "xs:string",
+			"text": "ДЛФ=D"
+		},
+		{
+			"file": "cf/Reports/АнализЖурналаРегистрации/Templates/ОсновнаяСхемаКомпоновкиДанных/Ext/Template.xml",
+			"where": "DataCompositionSchema/calculatedField[Месяц]/appearance/item",
+			"parameter": "Формат",
+			"type": "xs:string",
+			"text": "ДФ='MMMM yy'"
+		},
+		{
+			"file": "cf/Reports/АнализЖурналаРегистрации/Templates/ОсновнаяСхемаКомпоновкиДанных/Ext/Template.xml",
+			"where": "DataCompositionSchema/settingsVariant[АнализАктивностиПользователей]/settings/item/row/conditionalAppearance/item/appearance/item",
+			"parameter": "Формат",
+			"type": "v8:LocalStringType",
+			"lang": "ru",
+			"text": "ЧДЦ=1"
+		},
+		{
+			"file": "cf/Reports/АнализЖурналаРегистрации/Templates/ОсновнаяСхемаКомпоновкиДанных/Ext/Template.xml",
+			"where": "DataCompositionSchema/settingsVariant[АнализАктивностиПользователей]/settings/item/row/item/conditionalAppearance/item/appearance/item",
+			"parameter": "Формат",
+			"type": "v8:LocalStringType",
+			"lang": "ru",
+			"text": "ЧДЦ=1"
+		},
+		{
+			"file": "cf/Reports/АнализЖурналаРегистрации/Templates/ОсновнаяСхемаКомпоновкиДанных/Ext/Template.xml",
+			"where": "DataCompositionSchema/settingsVariant[АнализАктивностиПользователей]/settings/item/row/item/item/conditionalAppearance/item/appearance/item",
+			"parameter": "Формат",
+			"type": "v8:LocalStringType",
+			"lang": "ru",
+			"text": "ДЛФ=D"
+		},
+		{
+			"file": "cf/Reports/АнализЖурналаРегистрации/Templates/ОсновнаяСхемаКомпоновкиДанных/Ext/Template.xml",
+			"where": "DataCompositionSchema/settingsVariant[АнализАктивностиПользователей]/settings/item/row/item/item/conditionalAppearance/item/appearance/item",
+			"parameter": "Формат",
+			"type": "v8:LocalStringType",
+			"lang": "ru",
+			"text": "ЧДЦ=1"
+		},
+		{
+			"file": "cf/Reports/АнализЖурналаРегистрации/Templates/ОсновнаяСхемаКомпоновкиДанных/Ext/Template.xml",
+			"where": "DataCompositionSchema/settingsVariant[АнализАктивностиПользователей]/settings/item/row/item/item/conditionalAppearance/item/appearance/item",
+			"parameter": "Формат",
+			"type": "v8:LocalStringType",
+			"lang": "ru",
+			"text": "ЧДЦ=2"
+		},
+		{
+			"file": "cf/Reports/АнализЖурналаРегистрации/Templates/ОсновнаяСхемаКомпоновкиДанных/Ext/Template.xml",
+			"where": "DataCompositionSchema/settingsVariant[АнализАктивностиПользователей]/settings/item/conditionalAppearance/item/appearance/item",
+			"parameter": "Формат",
+			"type": "v8:LocalStringType",
+			"lang": "ru",
+			"text": "ЧДЦ=2"
+		},
+		{
+			"file": "cf/Reports/АнализЖурналаРегистрации/Templates/ОсновнаяСхемаКомпоновкиДанных/Ext/Template.xml",
+			"where": "DataCompositionSchema/settingsVariant[АнализАктивностиПользователей]/settings/item/item/conditionalAppearance/item/appearance/item",
+			"parameter": "Формат",
+			"type": "v8:LocalStringType",
+			"lang": "ru",
+			"text": "ДЛФ=D"
+		},
+		{
+			"file": "cf/Reports/АнализЖурналаРегистрации/Templates/ОсновнаяСхемаКомпоновкиДанных/Ext/Template.xml",
+			"where": "DataCompositionSchema/settingsVariant[АнализАктивностиПодразделений]/settings/item/row/conditionalAppearance/item/appearance/item",
+			"parameter": "Формат",
+			"type": "v8:LocalStringType",
+			"lang": "ru",
+			"text": "ЧДЦ=1"
+		},
+		{
+			"file": "cf/Reports/АнализЖурналаРегистрации/Templates/ОсновнаяСхемаКомпоновкиДанных/Ext/Template.xml",
+			"where": "DataCompositionSchema/settingsVariant[АнализАктивностиПодразделений]/settings/item/row/item/conditionalAppearance/item/appearance/item",
+			"parameter": "Формат",
+			"type": "v8:LocalStringType",
+			"lang": "ru",
+			"text": "ЧДЦ=1"
+		},
+		{
+			"file": "cf/Reports/АнализЖурналаРегистрации/Templates/ОсновнаяСхемаКомпоновкиДанных/Ext/Template.xml",
+			"where": "DataCompositionSchema/settingsVariant[АнализАктивностиПодразделений]/settings/item/row/item/item/conditionalAppearance/item/appearance/item",
+			"parameter": "Формат",
+			"type": "v8:LocalStringType",
+			"lang": "ru",
+			"text": "ДЛФ=D"
+		},
+		{
+			"file": "cf/Reports/АнализЖурналаРегистрации/Templates/ОсновнаяСхемаКомпоновкиДанных/Ext/Template.xml",
+			"where": "DataCompositionSchema/settingsVariant[АнализАктивностиПодразделений]/settings/item/row/item/item/conditionalAppearance/item/appearance/item",
+			"parameter": "Формат",
+			"type": "v8:LocalStringType",
+			"lang": "ru",
+			"text": "ЧДЦ=1"
+		},
+		{
+			"file": "cf/Reports/АнализЖурналаРегистрации/Templates/ОсновнаяСхемаКомпоновкиДанных/Ext/Template.xml",
+			"where": "DataCompositionSchema/settingsVariant[АнализАктивностиПодразделений]/settings/item/row/item/item/conditionalAppearance/item/appearance/item",
+			"parameter": "Формат",
+			"type": "v8:LocalStringType",
+			"lang": "ru",
+			"text": "ЧДЦ=2"
+		},
+		{
+			"file": "cf/Reports/АнализЖурналаРегистрации/Templates/ОсновнаяСхемаКомпоновкиДанных/Ext/Template.xml",
+			"where": "DataCompositionSchema/settingsVariant[АнализАктивностиПодразделений]/settings/item/conditionalAppearance/item/appearance/item",
+			"parameter": "Формат",
+			"type": "v8:LocalStringType",
+			"lang": "ru",
+			"text": "ЧДЦ=2"
+		},
+		{
+			"file": "cf/Reports/АнализЖурналаРегистрации/Templates/ОсновнаяСхемаКомпоновкиДанных/Ext/Template.xml",
+			"where": "DataCompositionSchema/settingsVariant[АктивностьПользователя]/settings/item/conditionalAppearance/item/appearance/item",
+			"parameter": "Формат",
+			"type": "v8:LocalStringType",
+			"lang": "ru",
+			"text": "ДЛФ=D"
+		},
+		{
+			"file": "cf/Reports/АнализЖурналаРегистрации/Templates/ОсновнаяСхемаКомпоновкиДанных/Ext/Template.xml",
+			"where": "DataCompositionSchema/settingsVariant[АктивностьПользователя]/settings/item/point/conditionalAppearance/item/appearance/item",
+			"parameter": "Формат",
+			"type": "v8:LocalStringType",
+			"lang": "ru",
+			"text": "ДФ=dd.MM.yy"
+		},
+		{
+			"file": "cf/Reports/АнализЖурналаРегистрации/Templates/ОсновнаяСхемаКомпоновкиДанных/Ext/Template.xml",
+			"where": "DataCompositionSchema/settingsVariant[АктивностьПользователя]/settings/item/point/conditionalAppearance/item/appearance/item",
+			"parameter": "Формат",
+			"type": "v8:LocalStringType",
+			"lang": "ru",
+			"text": "ДФ=dd.MM.yy"
+		},
+		{
+			"file": "cf/Reports/АнализЖурналаРегистрации/Templates/ОсновнаяСхемаКомпоновкиДанных/Ext/Template.xml",
+			"where": "DataCompositionSchema/settingsVariant[АктивностьПользователя]/settings/item/point/conditionalAppearance/item/appearance/item",
+			"parameter": "Формат",
+			"type": "v8:LocalStringType",
+			"lang": "ru",
+			"text": "ДФ=dd.MM.yy"
+		},
+		{
+			"file": "cf/Reports/АнализЖурналаРегистрации/Templates/ОсновнаяСхемаКомпоновкиДанных/Ext/Template.xml",
+			"where": "DataCompositionSchema/settingsVariant[АктивностьПользователя]/settings/item/point/conditionalAppearance/item/appearance/item",
+			"parameter": "Формат",
+			"type": "v8:LocalStringType",
+			"lang": "ru",
+			"text": "ДФ=dd.MM.yy"
+		},
+		{
+			"file": "cf/Reports/АнализПравДоступа/Templates/Макет/Ext/Template.xml",
+			"where": "DataCompositionSchema/dataSet[ПраваПользователей]/field[ВсеРазрешены]/appearance/item",
+			"parameter": "Формат",
+			"type": "v8:LocalStringType",
+			"lang": "ru",
+			"text": "БЛ=Разрешенные; БИ=Запрещенные"
+		},
+		{
+			"file": "cf/Reports/АнализПравДоступа/Templates/Макет/Ext/Template.xml",
+			"where": "DataCompositionSchema/template[Макет9]/template/item/tableCell/item/appearance/item",
+			"parameter": "Формат",
+			"type": "xs:string",
+			"text": "БЛ=; БИ="
+		},
+		{
+			"file": "cf/Reports/АнализПравДоступа/Templates/Макет/Ext/Template.xml",
+			"where": "DataCompositionSchema/template[Макет9]/template/item/tableCell/item/appearance/item",
+			"parameter": "Формат",
+			"type": "xs:string",
+			"text": "БЛ=; БИ="
+		},
+		{
+			"file": "cf/Reports/АнализПравДоступа/Templates/Макет/Ext/Template.xml",
+			"where": "DataCompositionSchema/template[Макет9]/template/item/tableCell/item/appearance/item",
+			"parameter": "Формат",
+			"type": "xs:string",
+			"text": "БЛ=; БИ="
+		},
+		{
+			"file": "cf/Reports/АнализПравДоступа/Templates/Макет/Ext/Template.xml",
+			"where": "DataCompositionSchema/template[Макет10]/template/item/tableCell/item/appearance/item",
+			"parameter": "Формат",
+			"type": "xs:string",
+			"text": "ЧФ="
+		},
+		{
+			"file": "cf/Reports/АнализПравДоступа/Templates/Макет/Ext/Template.xml",
+			"where": "DataCompositionSchema/template[Макет11]/template/item/tableCell/item/appearance/item",
+			"parameter": "Формат",
+			"type": "xs:string",
+			"text": "БЛ=; БИ="
+		},
+		{
+			"file": "cf/Reports/АнализПравДоступа/Templates/Макет/Ext/Template.xml",
+			"where": "DataCompositionSchema/template[Макет12]/template/item/tableCell/item/appearance/item",
+			"parameter": "Формат",
+			"type": "xs:string",
+			"text": "БЛ=; БИ="
+		},
+		{
+			"file": "cf/Reports/АнализПравДоступа/Templates/Макет/Ext/Template.xml",
+			"where": "DataCompositionSchema/template[Макет13]/template/item/tableCell/item/appearance/item",
+			"parameter": "Формат",
+			"type": "xs:string",
+			"text": "БЛ=; БИ="
+		},
+		{
+			"file": "cf/Reports/АнализПравДоступа/Templates/Макет/Ext/Template.xml",
+			"where": "DataCompositionSchema/template[Макет16]/template/item/tableCell/item/appearance/item",
+			"parameter": "Формат",
+			"type": "xs:string",
+			"text": "БЛ=; БИ="
+		},
+		{
+			"file": "cf/Reports/АнализПравДоступа/Templates/Макет/Ext/Template.xml",
+			"where": "DataCompositionSchema/template[Макет16]/template/item/tableCell/item/appearance/item",
+			"parameter": "Формат",
+			"type": "xs:string",
+			"text": "БЛ=; БИ="
+		},
+		{
+			"file": "cf/Reports/АнализПравДоступа/Templates/Макет/Ext/Template.xml",
+			"where": "DataCompositionSchema/template[Макет16]/template/item/tableCell/item/appearance/item",
+			"parameter": "Формат",
+			"type": "xs:string",
+			"text": "БЛ=; БИ="
+		},
+		{
+			"file": "cf/Reports/АнализПравДоступа/Templates/Макет/Ext/Template.xml",
+			"where": "DataCompositionSchema/template[Макет22]/template/item/tableCell/item/appearance/item",
+			"parameter": "Формат",
+			"type": "xs:string",
+			"text": "ЧФ="
+		},
+		{
+			"file": "cf/Reports/АналитическийОтчетПоАнкетированию/Templates/ОсновнаяСхемаКомпоновкиДанных/Ext/Template.xml",
+			"where": "DataCompositionSchema/calculatedField[КоличествоОтветов]/appearance/item",
+			"parameter": "Формат",
+			"type": "xs:string",
+			"text": "ЧДЦ=0"
+		},
+		{
+			"file": "cf/Reports/АналитическийОтчетПоАнкетированию/Templates/ОсновнаяСхемаКомпоновкиДанных/Ext/Template.xml",
+			"where": "DataCompositionSchema/calculatedField[МинимальныйОтвет]/appearance/item",
+			"parameter": "Формат",
+			"type": "xs:string",
+			"text": "ЧДЦ=2"
+		},
+		{
+			"file": "cf/Reports/АналитическийОтчетПоАнкетированию/Templates/ОсновнаяСхемаКомпоновкиДанных/Ext/Template.xml",
+			"where": "DataCompositionSchema/calculatedField[СреднийОтвет]/appearance/item",
+			"parameter": "Формат",
+			"type": "xs:string",
+			"text": "ЧДЦ=2"
+		},
+		{
+			"file": "cf/Reports/АналитическийОтчетПоАнкетированию/Templates/ОсновнаяСхемаКомпоновкиДанных/Ext/Template.xml",
+			"where": "DataCompositionSchema/calculatedField[СуммаОтвет]/appearance/item",
+			"parameter": "Формат",
+			"type": "xs:string",
+			"text": "ЧДЦ=2"
+		},
+		{
+			"file": "cf/Reports/БизнесПроцессы/Templates/Макет/Ext/Template.xml",
+			"where": "DataCompositionSchema/settingsVariant[СписокБизнесПроцессов]/settings/conditionalAppearance/item/appearance/item",
+			"parameter": "Формат",
+			"type": "xs:string",
+			"text": "ДФ=dd.MM.yyyy"
+		},
+		{
+			"file": "cf/Reports/ДатыЗапретаЗагрузки/Templates/ОсновнаяСхемаКомпоновкиДанных/Ext/Template.xml",
+			"where": "DataCompositionSchema/dataSet[НаборДанных]/field[ДатаЗапрета]/appearance/item",
+			"parameter": "Формат",
+			"type": "v8:LocalStringType",
+			"lang": "ru",
+			"text": "ДЛФ=D; ДП='Без запрета'"
+		},
+		{
+			"file": "cf/Reports/ДатыЗапретаЗагрузки/Templates/ОсновнаяСхемаКомпоновкиДанных/Ext/Template.xml",
+			"where": "DataCompositionSchema/dataSet[НаборДанных]/field[ДатаЗапретаНастройки]/appearance/item",
+			"parameter": "Формат",
+			"type": "v8:LocalStringType",
+			"lang": "ru",
+			"text": "ДЛФ=D; ДП='Без запрета'"
+		},
+		{
+			"file": "cf/Reports/ДатыЗапретаИзменения/Templates/ОсновнаяСхемаКомпоновкиДанных/Ext/Template.xml",
+			"where": "DataCompositionSchema/dataSet[НаборДанных]/field[ДатаЗапрета]/appearance/item",
+			"parameter": "Формат",
+			"type": "v8:LocalStringType",
+			"lang": "ru",
+			"text": "ДЛФ=D; ДП='Без запрета'"
+		},
+		{
+			"file": "cf/Reports/ДатыЗапретаИзменения/Templates/ОсновнаяСхемаКомпоновкиДанных/Ext/Template.xml",
+			"where": "DataCompositionSchema/dataSet[НаборДанных]/field[ДатаЗапретаНастройки]/appearance/item",
+			"parameter": "Формат",
+			"type": "v8:LocalStringType",
+			"lang": "ru",
+			"text": "ДЛФ=D; ДП='Без запрета'"
+		},
+		{
+			"file": "cf/Reports/ЗависшиеЗадачи/Templates/ОсновнаяСхемаКомпоновкиДанных/Ext/Template.xml",
+			"where": "DataCompositionSchema/settingsVariant[ПросроченныеЗадачи]/settings/conditionalAppearance/item/appearance/item",
+			"parameter": "Формат",
+			"type": "v8:LocalStringType",
+			"lang": "ru",
+			"text": "ДЛФ=D"
+		},
+		{
+			"file": "cf/Reports/Задания/Templates/Макет/Ext/Template.xml",
+			"where": "DataCompositionSchema/template[Макет1]/template/item/tableCell/item/appearance/item",
+			"parameter": "Формат",
+			"type": "xs:string",
+			"text": "ЧДЦ=2; ЧН=-"
+		},
+		{
+			"file": "cf/Reports/Задания/Templates/Макет/Ext/Template.xml",
+			"where": "DataCompositionSchema/settingsVariant[СписокЗаданий]/settings/conditionalAppearance/item/appearance/item",
+			"parameter": "Формат",
+			"type": "xs:string",
+			"text": "ДФ=dd.MM.yyyy"
+		},
+		{
+			"file": "cf/Reports/Задания/Templates/Макет/Ext/Template.xml",
+			"where": "DataCompositionSchema/settingsVariant[СтатистикаЦикловВыполненияПроверки]/settings/item/conditionalAppearance/item/appearance/item",
+			"parameter": "Формат",
+			"type": "xs:string",
+			"text": "ЧЦ=5; ЧДЦ=1"
+		},
+		{
+			"file": "cf/Reports/ИсторияРазмераПриложения/Templates/ОсновнаяСхемаКомпоновкиДанных/Ext/Template.xml",
+			"where": "DataCompositionSchema/dataSet[РазмерПриложений]/field[Размер]/appearance/item",
+			"parameter": "Формат",
+			"type": "v8:LocalStringType",
+			"lang": "ru",
+			"text": "ЧДЦ=3"
+		},
+		{
+			"file": "cf/Reports/МестаИспользованияСсылок/Templates/ОсновнаяСхемаКомпоновкиДанных/Ext/Template.xml",
+			"where": "DataCompositionSchema/settingsVariant[Основной]/settings/item/conditionalAppearance/item/appearance/item",
+			"parameter": "Формат",
+			"type": "v8:LocalStringType",
+			"lang": "ru",
+			"text": "ЧН='Не используется'"
+		},
+		{
+			"file": "cf/Reports/ОценкаПроизводительности/Templates/ОсновнаяСхемаКомпоновкиДанных/Ext/Template.xml",
+			"where": "DataCompositionSchema/dataSet[НаборДанныхЗамеры]/field[МаксимальноеЗначение]/appearance/item",
+			"parameter": "Формат",
+			"type": "xs:string",
+			"text": "ЧДЦ=3; ЧН=0,000"
+		},
+		{
+			"file": "cf/Reports/ОценкаПроизводительности/Templates/ОсновнаяСхемаКомпоновкиДанных/Ext/Template.xml",
+			"where": "DataCompositionSchema/dataSet[НаборДанныхЗамеры]/field[МинимальноеЗначение]/appearance/item",
+			"parameter": "Формат",
+			"type": "xs:string",
+			"text": "ЧДЦ=3; ЧН=0,000"
+		},
+		{
+			"file": "cf/Reports/ОценкаПроизводительности/Templates/ОсновнаяСхемаКомпоновкиДанных/Ext/Template.xml",
+			"where": "DataCompositionSchema/calculatedField[APDEX]/appearance/item",
+			"parameter": "Формат",
+			"type": "xs:string",
+			"text": "ЧДЦ=3; ЧН=0,000"
+		},
+		{
+			"file": "cf/Reports/ОценкаПроизводительности/Templates/ОсновнаяСхемаКомпоновкиДанных/Ext/Template.xml",
+			"where": "DataCompositionSchema/calculatedField[СреднееЗначениеЗамера]/appearance/item",
+			"parameter": "Формат",
+			"type": "xs:string",
+			"text": "ЧДЦ=3; ЧН=0,000"
+		},
+		{
+			"file": "cf/Reports/ОценкаПроизводительности/Templates/ОсновнаяСхемаКомпоновкиДанных/Ext/Template.xml",
+			"where": "DataCompositionSchema/calculatedField[СтандартноеОтклонение]/appearance/item",
+			"parameter": "Формат",
+			"type": "xs:string",
+			"text": "ЧДЦ=3; ЧН=0,000"
+		},
+		{
+			"file": "cf/Reports/ОценкаПроизводительности/Templates/ОсновнаяСхемаКомпоновкиДанных/Ext/Template.xml",
+			"where": "DataCompositionSchema/calculatedField[APDEXПредыдущее]/appearance/item",
+			"parameter": "Формат",
+			"type": "xs:string",
+			"text": "ЧДЦ=3; ЧН=0,000"
+		},
+		{
+			"file": "cf/Reports/ОценкаПроизводительности/Templates/ОсновнаяСхемаКомпоновкиДанных/Ext/Template.xml",
+			"where": "DataCompositionSchema/calculatedField[APDEXДельта]/appearance/item",
+			"parameter": "Формат",
+			"type": "xs:string",
+			"text": "ЧДЦ=3; ЧН=0,000"
+		},
+		{
+			"file": "cf/Reports/ОценкаПроизводительности/Templates/ОсновнаяСхемаКомпоновкиДанных/Ext/Template.xml",
+			"where": "DataCompositionSchema/calculatedField[СреднееЗначениеЗамераПредыдущее]/appearance/item",
+			"parameter": "Формат",
+			"type": "xs:string",
+			"text": "ЧДЦ=3; ЧН=0,000"
+		},
+		{
+			"file": "cf/Reports/ОценкаПроизводительности/Templates/ОсновнаяСхемаКомпоновкиДанных/Ext/Template.xml",
+			"where": "DataCompositionSchema/calculatedField[СреднееЗначениеЗамераДельта]/appearance/item",
+			"parameter": "Формат",
+			"type": "xs:string",
+			"text": "ЧДЦ=3; ЧН=0,000"
+		},
+		{
+			"file": "cf/Reports/ОценкаПроизводительности/Templates/ОсновнаяСхемаКомпоновкиДанных/Ext/Template.xml",
+			"where": "DataCompositionSchema/settingsVariant[ОценкаПроизводительностиПоКлючевымОперациям]/settings/conditionalAppearance/item/appearance/item",
+			"parameter": "Формат",
+			"type": "v8:LocalStringType",
+			"lang": "ru",
+			"text": "ДФ='дд.ММ.гг ЧЧ:мм'"
+		},
+		{
+			"file": "cf/Reports/ОценкаПроизводительности/Templates/ОсновнаяСхемаКомпоновкиДанных/Ext/Template.xml",
+			"where": "DataCompositionSchema/settingsVariant[СравнениеОценкиПроизводительности]/settings/conditionalAppearance/item/appearance/item",
+			"parameter": "Формат",
+			"type": "v8:LocalStringType",
+			"lang": "ru",
+			"text": "ДФ='дд.ММ.гг ЧЧ:мм'"
+		},
+		{
+			"file": "cf/Reports/ОценкаПроизводительности/Templates/ОсновнаяСхемаКомпоновкиДанных/Ext/Template.xml",
+			"where": "DataCompositionSchema/settingsVariant[ОценкаПроизводительностиПериодВКолонках]/settings/conditionalAppearance/item/appearance/item",
+			"parameter": "Формат",
+			"type": "v8:LocalStringType",
+			"lang": "ru",
+			"text": "ДФ='дд.ММ.гг ЧЧ:мм'"
+		},
+		{
+			"file": "cf/Reports/ПраваРолей/Templates/Макет/Ext/Template.xml",
+			"where": "DataCompositionSchema/template[Макет4]/template/item/tableCell/item/appearance/item",
+			"parameter": "Формат",
+			"type": "xs:string",
+			"text": "ЧФ="
+		},
+		{
+			"file": "cf/Reports/ПраваРолей/Templates/Макет/Ext/Template.xml",
+			"where": "DataCompositionSchema/template[Макет9]/template/item/tableCell/item/appearance/item",
+			"parameter": "Формат",
+			"type": "xs:string",
+			"text": "БЛ=; БИ=✔"
+		},
+		{
+			"file": "cf/Reports/ПраваРолей/Templates/Макет/Ext/Template.xml",
+			"where": "DataCompositionSchema/template[Макет15]/template/item/tableCell/item/appearance/item",
+			"parameter": "Формат",
+			"type": "xs:string",
+			"text": "ЧФ="
+		},
+		{
+			"file": "cf/Reports/ПрогрессОтложенногоОбновления/Templates/ОсновнаяСхемаКомпоновкиДанных/Ext/Template.xml",
+			"where": "DataCompositionSchema/dataSet[НаборДанных1]/field[КоличествоОбъектов]/appearance/item",
+			"parameter": "Формат",
+			"type": "v8:LocalStringType",
+			"lang": "ru",
+			"text": "ЧН=0"
+		},
+		{
+			"file": "cf/Reports/ПрогрессОтложенногоОбновления/Templates/ОсновнаяСхемаКомпоновкиДанных/Ext/Template.xml",
+			"where": "DataCompositionSchema/dataSet[НаборДанных1]/field[ОбработаноЗаИнтервал]/appearance/item",
+			"parameter": "Формат",
+			"type": "v8:LocalStringType",
+			"lang": "ru",
+			"text": "ЧН=0"
+		},
+		{
+			"file": "cf/Reports/ПрогрессОтложенногоОбновления/Templates/ОсновнаяСхемаКомпоновкиДанных/Ext/Template.xml",
+			"where": "DataCompositionSchema/calculatedField[Прогресс]/appearance/item",
+			"parameter": "Формат",
+			"type": "v8:LocalStringType",
+			"lang": "ru",
+			"text": "ЧДЦ=2; ЧН=0"
+		},
+		{
+			"file": "cf/Reports/ПрогрессОтложенногоОбновления/Templates/ОсновнаяСхемаКомпоновкиДанных/Ext/Template.xml",
+			"where": "DataCompositionSchema/parameter[КешироватьРезультат]/inputParameters/item",
+			"parameter": "ФорматРедактирования",
+			"type": "v8:LocalStringType",
+			"lang": "ru",
+			"text": "БЛ='Собрать данные и сформировать'; БИ='Сформировать по собранным данным'"
+		},
+		{
+			"file": "cf/Reports/СведенияОПользователях/Templates/ОсновнаяСхемаКомпоновкиДанных/Ext/Template.xml",
+			"where": "DataCompositionSchema/dataSet[ПользователиИБ]/field[ВходВПрограммуРазрешен]/appearance/item",
+			"parameter": "Формат",
+			"type": "xs:string",
+			"text": "БЛ=; БИ=Да"
+		},
+		{
+			"file": "cf/Reports/СведенияОПользователях/Templates/ОсновнаяСхемаКомпоновкиДанных/Ext/Template.xml",
+			"where": "DataCompositionSchema/dataSet[ПользователиИБ]/field[ПоказыватьВСпискеВыбора]/appearance/item",
+			"parameter": "Формат",
+			"type": "xs:string",
+			"text": "БЛ=; БИ=Да"
+		},
+		{
+			"file": "cf/Reports/СведенияОПользователях/Templates/ОсновнаяСхемаКомпоновкиДанных/Ext/Template.xml",
+			"where": "DataCompositionSchema/dataSet[ПользователиИБ]/field[ЗапрещеноИзменятьПароль]/appearance/item",
+			"parameter": "Формат",
+			"type": "xs:string",
+			"text": "БЛ=; БИ=Да"
+		},
+		{
+			"file": "cf/Reports/СведенияОПользователях/Templates/ОсновнаяСхемаКомпоновкиДанных/Ext/Template.xml",
+			"where": "DataCompositionSchema/dataSet[ПользователиИБ]/field[АутентификацияСтандартная]/appearance/item",
+			"parameter": "Формат",
+			"type": "xs:string",
+			"text": "БЛ=; БИ=Да"
+		},
+		{
+			"file": "cf/Reports/СведенияОПользователях/Templates/ОсновнаяСхемаКомпоновкиДанных/Ext/Template.xml",
+			"where": "DataCompositionSchema/dataSet[ПользователиИБ]/field[АутентификацияОС]/appearance/item",
+			"parameter": "Формат",
+			"type": "xs:string",
+			"text": "БЛ=; БИ=Да"
+		},
+		{
+			"file": "cf/Reports/СведенияОПользователях/Templates/ОсновнаяСхемаКомпоновкиДанных/Ext/Template.xml",
+			"where": "DataCompositionSchema/dataSet[ПользователиИБ]/field[АутентификацияOpenID]/appearance/item",
+			"parameter": "Формат",
+			"type": "xs:string",
+			"text": "БЛ=; БИ=Да"
+		},
+		{
+			"file": "cf/Reports/СведенияОПользователях/Templates/ОсновнаяСхемаКомпоновкиДанных/Ext/Template.xml",
+			"where": "DataCompositionSchema/dataSet[ПользователиИБ]/field[АутентификацияOpenIDConnect]/appearance/item",
+			"parameter": "Формат",
+			"type": "xs:string",
+			"text": "БЛ=; БИ=Да"
+		},
+		{
+			"file": "cf/Reports/СведенияОПользователях/Templates/ОсновнаяСхемаКомпоновкиДанных/Ext/Template.xml",
+			"where": "DataCompositionSchema/dataSet[ПользователиИБ]/field[АутентификацияТокеномДоступа]/appearance/item",
+			"parameter": "Формат",
+			"type": "xs:string",
+			"text": "БЛ=; БИ=Да"
+		},
+		{
+			"file": "cf/Reports/СведенияОПользователях/Templates/ОсновнаяСхемаКомпоновкиДанных/Ext/Template.xml",
+			"where": "DataCompositionSchema/dataSet[Пользователи]/field[ПометкаУдаления]/appearance/item",
+			"parameter": "Формат",
+			"type": "xs:string",
+			"text": "БЛ=; БИ=Да"
+		},
+		{
+			"file": "cf/Reports/СведенияОПользователях/Templates/ОсновнаяСхемаКомпоновкиДанных/Ext/Template.xml",
+			"where": "DataCompositionSchema/dataSet[Пользователи]/field[Предопределенный]/appearance/item",
+			"parameter": "Формат",
+			"type": "xs:string",
+			"text": "БЛ=; БИ=Да"
+		},
+		{
+			"file": "cf/Reports/СведенияОПользователях/Templates/ОсновнаяСхемаКомпоновкиДанных/Ext/Template.xml",
+			"where": "DataCompositionSchema/dataSet[Пользователи]/field[Недействителен]/appearance/item",
+			"parameter": "Формат",
+			"type": "xs:string",
+			"text": "БЛ=; БИ=Да"
+		},
+		{
+			"file": "cf/Reports/СведенияОПользователях/Templates/ОсновнаяСхемаКомпоновкиДанных/Ext/Template.xml",
+			"where": "DataCompositionSchema/dataSet[Пользователи]/field[ЭтоВнешнийПользователь]/appearance/item",
+			"parameter": "Формат",
+			"type": "xs:string",
+			"text": "БЛ=; БИ=Да"
+		},
+		{
+			"file": "cf/Reports/СведенияОПользователях/Templates/ОсновнаяСхемаКомпоновкиДанных/Ext/Template.xml",
+			"where": "DataCompositionSchema/dataSet[Пользователи]/field[БезПользователяИнформационнойБазы]/appearance/item",
+			"parameter": "Формат",
+			"type": "xs:string",
+			"text": "БЛ=; БИ=Да"
+		},
+		{
+			"file": "cf/Reports/СведенияОПользователях/Templates/ОсновнаяСхемаКомпоновкиДанных/Ext/Template.xml",
+			"where": "DataCompositionSchema/dataSet[Пользователи]/field[ПотребоватьСменуПароляПриВходе]/appearance/item",
+			"parameter": "Формат",
+			"type": "xs:string",
+			"text": "БЛ=; БИ=Да"
+		},
+		{
+			"file": "cf/Reports/СертификатыЭлектроннойПодписи/Templates/Макет/Ext/Template.xml",
+			"where": "DataCompositionSchema/dataSet[Сертификаты]/field[Квалифицированный]/appearance/item",
+			"parameter": "Формат",
+			"type": "v8:LocalStringType",
+			"lang": "ru",
+			"text": "БЛ=; БИ=Да"
+		},
+		{
+			"file": "cf/Reports/СертификатыЭлектроннойПодписи/Templates/Макет/Ext/Template.xml",
+			"where": "DataCompositionSchema/dataSet[Сертификаты]/field[ТребуетсяМЧД]/appearance/item",
+			"parameter": "Формат",
+			"type": "v8:LocalStringType",
+			"lang": "ru",
+			"text": "БЛ=; БИ=Да"
+		},
+		{
+			"file": "cf/Reports/СертификатыЭлектроннойПодписи/Templates/Макет/Ext/Template.xml",
+			"where": "DataCompositionSchema/dataSet[Сертификаты]/field[СрокДействияИстекает]/appearance/item",
+			"parameter": "Формат",
+			"type": "v8:LocalStringType",
+			"lang": "ru",
+			"text": "БЛ=; БИ=Да"
+		},
+		{
+			"file": "cf/Reports/СертификатыЭлектроннойПодписи/Templates/Макет/Ext/Template.xml",
+			"where": "DataCompositionSchema/dataSet[Сертификаты]/field[ТребуетсяВыпуститьСертификатФизическогоЛица]/appearance/item",
+			"parameter": "Формат",
+			"type": "v8:LocalStringType",
+			"lang": "ru",
+			"text": "БЛ=; БИ=Да"
+		},
+		{
+			"file": "cf/Reports/СертификатыЭлектроннойПодписи/Templates/Макет/Ext/Template.xml",
+			"where": "DataCompositionSchema/dataSet[Сертификаты]/field[Используется]/appearance/item",
+			"parameter": "Формат",
+			"type": "v8:LocalStringType",
+			"lang": "ru",
+			"text": "БЛ=; БИ=Да"
+		},
+		{
+			"file": "cf/Reports/СертификатыЭлектроннойПодписи/Templates/Макет/Ext/Template.xml",
+			"where": "DataCompositionSchema/dataSet[Сертификаты]/field[Отозван]/appearance/item",
+			"parameter": "Формат",
+			"type": "v8:LocalStringType",
+			"lang": "ru",
+			"text": "БЛ=; БИ=Да"
+		},
+		{
+			"file": "cf/Reports/СертификатыЭлектроннойПодписи/Templates/Макет/Ext/Template.xml",
+			"where": "DataCompositionSchema/dataSet[Сертификаты]/field[СертификатФизическогоЛица]/appearance/item",
+			"parameter": "Формат",
+			"type": "v8:LocalStringType",
+			"lang": "ru",
+			"text": "БЛ=; БИ=Да"
+		},
+		{
+			"file": "cf/Reports/СертификатыЭлектроннойПодписи/Templates/Макет/Ext/Template.xml",
+			"where": "DataCompositionSchema/dataSet[Сертификаты]/field[Тестовый]/appearance/item",
+			"parameter": "Формат",
+			"type": "v8:LocalStringType",
+			"lang": "ru",
+			"text": "БЛ=; БИ=Да"
+		},
+		{
+			"file": "cf/Reports/СертификатыЭлектроннойПодписи/Templates/Макет/Ext/Template.xml",
+			"where": "DataCompositionSchema/dataSet[Сертификаты]/field[ДействителенДо]/appearance/item",
+			"parameter": "Формат",
+			"type": "v8:LocalStringType",
+			"lang": "ru",
+			"text": "ДЛФ=D"
+		},
+		{
+			"file": "cf/Reports/СостояниеУчетнойЗаписиDSS/Templates/СостояниеУчетнойЗаписиDSS/Ext/Template.xml",
+			"where": "DataCompositionSchema/dataSet[Сертификаты]/field[Сертификаты_ДатаНачала]/appearance/item",
+			"parameter": "Формат",
+			"type": "v8:LocalStringType",
+			"lang": "ru",
+			"text": "ДФ='dd.MM.yyyy hh:mm:ss'"
+		},
+		{
+			"file": "cf/Reports/СостояниеУчетнойЗаписиDSS/Templates/СостояниеУчетнойЗаписиDSS/Ext/Template.xml",
+			"where": "DataCompositionSchema/dataSet[Сертификаты]/field[Сертификаты_ДатаОкончания]/appearance/item",
+			"parameter": "Формат",
+			"type": "v8:LocalStringType",
+			"lang": "ru",
+			"text": "ДФ='dd.MM.yyyy hh:mm:ss'"
+		},
+		{
+			"file": "cf/Reports/СтатистикаВыполненияОбработчиковОбновления/Templates/ОсновнаяСхемаКомпоновкиДанных/Ext/Template.xml",
+			"where": "DataCompositionSchema/dataSet[НаборДанных1]/field[Длительность]/appearance/item",
+			"parameter": "Формат",
+			"type": "xs:string",
+			"text": "ЧН=0,000"
+		},
+		{
+			"file": "cf/Reports/СтатистикаВыполненияОбработчиковОбновления/Templates/ОсновнаяСхемаКомпоновкиДанных/Ext/Template.xml",
+			"where": "DataCompositionSchema/calculatedField[СредняяДлительность]/appearance/item",
+			"parameter": "Формат",
+			"type": "xs:string",
+			"text": "ЧДЦ=3; ЧН=0,000"
+		},
+		{
+			"file": "cf/Reports/СтатистикаВыполненияОбработчиковОбновления/Templates/ОсновнаяСхемаКомпоновкиДанных/Ext/Template.xml",
+			"where": "DataCompositionSchema/calculatedField[МинимальнаяДлительность]/appearance/item",
+			"parameter": "Формат",
+			"type": "xs:string",
+			"text": "ЧДЦ=3; ЧН=0,000"
+		},
+		{
+			"file": "cf/Reports/СтатистикаВыполненияОбработчиковОбновления/Templates/ОсновнаяСхемаКомпоновкиДанных/Ext/Template.xml",
+			"where": "DataCompositionSchema/calculatedField[МаксимальнаяДлительность]/appearance/item",
+			"parameter": "Формат",
+			"type": "xs:string",
+			"text": "ЧДЦ=3; ЧН=0,000"
+		},
+		{
+			"file": "cf/Reports/СтатистикаВыполненияОбработчиковОбновления/Templates/ОсновнаяСхемаКомпоновкиДанных/Ext/Template.xml",
+			"where": "DataCompositionSchema/calculatedField[КоличествоВыполнений]/appearance/item",
+			"parameter": "Формат",
+			"type": "xs:string",
+			"text": "ЧЦ=15"
+		}
+	],
+	"calls": [
+		{
+			"file": "cf/Reports/ОценкаПроизводительности/Templates/ОсновнаяСхемаКомпоновкиДанных/Ext/Template.xml",
+			"where": "DataCompositionSchema/template[Макет1]/parameter[ПериодЗамера]/expression",
+			"expression": "ВЫБОР\n    КОГДА &ПериодичностьЗамеров=1 ТОГДА ФОРМАТ(ПериодЗамера, \"ДФ='дд.ММ.гггг''г. '' ЧЧ:мм'\")+ \"-\" + ФОРМАТ(ДОБАВИТЬКДАТЕ(ПериодЗамера,\"Минута\",59), \"ДФ='ЧЧ:мм'\")\n    КОГДА &ПериодичностьЗамеров=2 ТОГДА ФОРМАТ(ПериодЗамера, \"ДФ='дд.ММ.гггг'\") + \"г.\"\n    КОГДА &ПериодичностьЗамеров=3 ТОГДА\n        ВЫБОР\n            КОГДА НАЧАЛОПЕРИОДА(ПериодЗамера, \"НЕДЕЛЯ\") < &НачалоПериода ТОГДА ФОРМАТ(&НачалоПериода, \"ДФ='дд.ММ.гггг''г.'''\") + \" - \" + ФОРМАТ(КОНЕЦПЕРИОДА(ПериодЗамера,\"НЕДЕЛЯ\"), \"ДФ='дд.ММ.гггг''г. '''\")\n            КОГДА КОНЕЦПЕРИОДА(ПериодЗамера, \"НЕДЕЛЯ\") > &КонецПериода ТОГДА ФОРМАТ(НАЧАЛОПЕРИОДА(ПериодЗамера, \"НЕДЕЛЯ\"), \"ДФ='дд.ММ.гггг''г.'''\")+ \" - \" + ФОРМАТ(&КонецПериода, \"ДФ='дд.ММ.гггг''г. '''\")\n            ИНАЧЕ ФОРМАТ(НАЧАЛОПЕРИОДА(ПериодЗамера, \"НЕДЕЛЯ\"), \"ДФ='дд.ММ.гггг''г.'''\")+ \" - \" + ФОРМАТ(КОНЕЦПЕРИОДА(ПериодЗамера,\"НЕДЕЛЯ\"), \"ДФ='дд.ММ.гггг''г. '''\")\n        КОНЕЦ\n    КОГДА &ПериодичностьЗамеров=4 ТОГДА ФОРМАТ(&НачалоПериода, \"ДФ='дд.ММ.гггг'\") + \" - \" + ФОРМАТ(&КонецПериода, \"ДФ='дд.ММ.гггг'\")\nКОНЕЦ",
+			"formats": [
+				"ДФ='дд.ММ.гггг''г. '' ЧЧ:мм'",
+				"ДФ='ЧЧ:мм'",
+				"ДФ='дд.ММ.гггг'",
+				"ДФ='дд.ММ.гггг''г.'''",
+				"ДФ='дд.ММ.гггг''г. '''",
+				"ДФ='дд.ММ.гггг''г.'''",
+				"ДФ='дд.ММ.гггг''г. '''",
+				"ДФ='дд.ММ.гггг''г.'''",
+				"ДФ='дд.ММ.гггг''г. '''",
+				"ДФ='дд.ММ.гггг'",
+				"ДФ='дд.ММ.гггг'"
+			]
+		},
+		{
+			"file": "cf/Reports/ОценкаПроизводительности/Templates/ОсновнаяСхемаКомпоновкиДанных/Ext/Template.xml",
+			"where": "DataCompositionSchema/template[Макет2]/parameter[APDEX]/expression",
+			"expression": "ВЫБОР\n    КОГДА\n        APDEXПредыдущее IS NULL\n    ТОГДА\n        ФОРМАТ(APDEX, \"ЧДЦ=3; ЧН=0,000\")\n    ИНАЧЕ\n        ВЫБОР\n            КОГДА\n                APDEX - APDEXПредыдущее > 0\n            ТОГДА\n                ФОРМАТ(APDEX, \"ЧДЦ=3; ЧН=0,000\") + \"(+\" + ФОРМАТ(APDEX - APDEXПредыдущее,\"ЧДЦ=3; ЧН=0,000\") + \")\"\n            КОГДА\n                APDEX - APDEXПредыдущее < 0\n            ТОГДА\n                ФОРМАТ(APDEX, \"ЧДЦ=3; ЧН=0,000\") + \"(-\" + ФОРМАТ(APDEXПредыдущее - APDEX,\"ЧДЦ=3; ЧН=0,000\") + \")\"\n            ИНАЧЕ\n                ФОРМАТ(APDEX, \"ЧДЦ=3; ЧН=0,000\")\n        КОНЕЦ\nКОНЕЦ",
+			"formats": [
+				"ЧДЦ=3; ЧН=0,000",
+				"ЧДЦ=3; ЧН=0,000",
+				"ЧДЦ=3; ЧН=0,000",
+				"ЧДЦ=3; ЧН=0,000",
+				"ЧДЦ=3; ЧН=0,000",
+				"ЧДЦ=3; ЧН=0,000"
+			]
+		},
+		{
+			"file": "cf/Reports/ОценкаПроизводительности/Templates/ОсновнаяСхемаКомпоновкиДанных/Ext/Template.xml",
+			"where": "DataCompositionSchema/template[Макет3]/parameter[СреднееЗначениеЗамера]/expression",
+			"expression": "ВЫБОР\n    КОГДА\n        СреднееЗначениеЗамера IS NULL\n    ТОГДА\n        ФОРМАТ(СреднееЗначениеЗамера, \"ЧДЦ=3; ЧН=0,000\")\n    ИНАЧЕ\n        ВЫБОР\n            КОГДА\n                СреднееЗначениеЗамера - СреднееЗначениеЗамераПредыдущее > 0\n            ТОГДА\n                ФОРМАТ(СреднееЗначениеЗамера, \"ЧДЦ=3; ЧН=0,000\") + \"(+\" + ФОРМАТ(СреднееЗначениеЗамера - СреднееЗначениеЗамераПредыдущее,\"ЧДЦ=3; ЧН=0,000\") + \")\"\n            КОГДА\n                СреднееЗначениеЗамера - СреднееЗначениеЗамераПредыдущее < 0\n            ТОГДА\n                ФОРМАТ(СреднееЗначениеЗамера, \"ЧДЦ=3; ЧН=0,000\") + \"(-\" + ФОРМАТ(СреднееЗначениеЗамераПредыдущее - СреднееЗначениеЗамера, \"ЧДЦ=3; ЧН=0,000\") + \")\"\n            ИНАЧЕ\n                ФОРМАТ(СреднееЗначениеЗамера, \"ЧДЦ=3; ЧН=0,000\")\n        КОНЕЦ\nКОНЕЦ",
+			"formats": [
+				"ЧДЦ=3; ЧН=0,000",
+				"ЧДЦ=3; ЧН=0,000",
+				"ЧДЦ=3; ЧН=0,000",
+				"ЧДЦ=3; ЧН=0,000",
+				"ЧДЦ=3; ЧН=0,000",
+				"ЧДЦ=3; ЧН=0,000"
+			]
+		},
+		{
+			"file": "cf/Reports/СостояниеУчетнойЗаписиDSS/Templates/СостояниеУчетнойЗаписиDSS/Ext/Template.xml",
+			"where": "DataCompositionSchema/template[Макет4]/parameter[ОтчетСформирован]/expression",
+			"expression": "\"Отчет сформирован \"  + Формат(ТекущаяДатаСеанса(), \"ДЛФ=DDT\")",
+			"formats": [
+				"ДЛФ=DDT"
+			]
+		}
+	]
+}

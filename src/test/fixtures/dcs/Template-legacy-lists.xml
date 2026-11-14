@@ -1,0 +1,226 @@
+﻿<?xml version="1.0" encoding="UTF-8"?>
+<DataCompositionSchema xmlns="http://v8.1c.ru/8.1/data-composition-system/schema" xmlns:dcscom="http://v8.1c.ru/8.1/data-composition-system/common" xmlns:dcscor="http://v8.1c.ru/8.1/data-composition-system/core" xmlns:dcsset="http://v8.1c.ru/8.1/data-composition-system/settings" xmlns:v8="http://v8.1c.ru/8.1/data/core" xmlns:v8ui="http://v8.1c.ru/8.1/data/ui" xmlns:xs="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+	<parameter>
+		<name>СПредставлением</name>
+		<valueType>
+			<v8:Type>xs:string</v8:Type>
+			<v8:StringQualifiers>
+				<v8:Length>3</v8:Length>
+				<v8:AllowedLength>Variable</v8:AllowedLength>
+			</v8:StringQualifiers>
+		</valueType>
+		<value xsi:type="v8:ValueListType">
+			<v8:valueType/>
+			<v8:lastId xsi:type="xs:decimal">1</v8:lastId>
+			<v8:item>
+				<v8:value xsi:type="xs:string">USD</v8:value>
+				<v8:presentation>Доллар</v8:presentation>
+			</v8:item>
+			<v8:item>
+				<v8:value xsi:type="xs:string">EUR</v8:value>
+			</v8:item>
+		</value>
+		<useRestriction>false</useRestriction>
+		<valueListAllowed>true</valueListAllowed>
+	</parameter>
+	<parameter>
+		<name>Одиночный</name>
+		<valueType>
+			<v8:Type>xs:decimal</v8:Type>
+			<v8:NumberQualifiers>
+				<v8:Digits>10</v8:Digits>
+				<v8:FractionDigits>0</v8:FractionDigits>
+				<v8:AllowedSign>Any</v8:AllowedSign>
+			</v8:NumberQualifiers>
+		</valueType>
+		<value xsi:type="v8:ValueListType">
+			<v8:valueType/>
+			<v8:lastId xsi:type="xs:decimal">0</v8:lastId>
+			<v8:item>
+				<v8:value xsi:type="xs:decimal">5</v8:value>
+				<v8:presentation>пять</v8:presentation>
+			</v8:item>
+		</value>
+		<useRestriction>false</useRestriction>
+		<valueListAllowed>true</valueListAllowed>
+	</parameter>
+	<parameter>
+		<name>Пять</name>
+		<valueType>
+			<v8:Type>xs:decimal</v8:Type>
+			<v8:NumberQualifiers>
+				<v8:Digits>10</v8:Digits>
+				<v8:FractionDigits>0</v8:FractionDigits>
+				<v8:AllowedSign>Any</v8:AllowedSign>
+			</v8:NumberQualifiers>
+		</valueType>
+		<value xsi:type="v8:ValueListType">
+			<v8:valueType/>
+			<v8:lastId xsi:type="xs:decimal">4</v8:lastId>
+			<v8:item>
+				<v8:value xsi:type="xs:decimal">1</v8:value>
+			</v8:item>
+			<v8:item>
+				<v8:value xsi:type="xs:decimal">2</v8:value>
+				<v8:presentation>два</v8:presentation>
+			</v8:item>
+			<v8:item>
+				<v8:value xsi:type="xs:decimal">3</v8:value>
+			</v8:item>
+			<v8:item>
+				<v8:value xsi:type="xs:decimal">4</v8:value>
+				<v8:presentation>четыре</v8:presentation>
+			</v8:item>
+			<v8:item>
+				<v8:value xsi:type="xs:decimal">5</v8:value>
+			</v8:item>
+		</value>
+		<useRestriction>false</useRestriction>
+		<valueListAllowed>true</valueListAllowed>
+	</parameter>
+	<parameter>
+		<name>НеопределеноИПредставление</name>
+		<valueType>
+			<v8:Type>xs:decimal</v8:Type>
+			<v8:NumberQualifiers>
+				<v8:Digits>10</v8:Digits>
+				<v8:FractionDigits>0</v8:FractionDigits>
+				<v8:AllowedSign>Any</v8:AllowedSign>
+			</v8:NumberQualifiers>
+		</valueType>
+		<value xsi:type="v8:ValueListType">
+			<v8:valueType/>
+			<v8:lastId xsi:type="xs:decimal">1</v8:lastId>
+			<v8:item>
+				<v8:value xsi:nil="true"/>
+				<v8:presentation>нет</v8:presentation>
+			</v8:item>
+			<v8:item>
+				<v8:value xsi:type="xs:decimal">1</v8:value>
+				<v8:presentation>один</v8:presentation>
+			</v8:item>
+		</value>
+		<useRestriction>false</useRestriction>
+		<valueListAllowed>true</valueListAllowed>
+	</parameter>
+	<parameter>
+		<name>БезПредставлений</name>
+		<valueType>
+			<v8:Type>xs:decimal</v8:Type>
+			<v8:NumberQualifiers>
+				<v8:Digits>10</v8:Digits>
+				<v8:FractionDigits>0</v8:FractionDigits>
+				<v8:AllowedSign>Any</v8:AllowedSign>
+			</v8:NumberQualifiers>
+		</valueType>
+		<value xsi:type="v8:ValueListType">
+			<v8:valueType/>
+			<v8:lastId xsi:type="xs:decimal">1</v8:lastId>
+			<v8:item>
+				<v8:value xsi:type="xs:decimal">10</v8:value>
+			</v8:item>
+			<v8:item>
+				<v8:value xsi:type="xs:decimal">20</v8:value>
+			</v8:item>
+		</value>
+		<useRestriction>false</useRestriction>
+		<valueListAllowed>true</valueListAllowed>
+	</parameter>
+	<parameter>
+		<name>ПустоеПредставление</name>
+		<valueType>
+			<v8:Type>xs:decimal</v8:Type>
+			<v8:NumberQualifiers>
+				<v8:Digits>10</v8:Digits>
+				<v8:FractionDigits>0</v8:FractionDigits>
+				<v8:AllowedSign>Any</v8:AllowedSign>
+			</v8:NumberQualifiers>
+		</valueType>
+		<value xsi:type="v8:ValueListType">
+			<v8:valueType/>
+			<v8:lastId xsi:type="xs:decimal">1</v8:lastId>
+			<v8:item>
+				<v8:value xsi:type="xs:decimal">10</v8:value>
+				<v8:presentation/>
+			</v8:item>
+			<v8:item>
+				<v8:value xsi:type="xs:decimal">20</v8:value>
+			</v8:item>
+		</value>
+		<useRestriction>false</useRestriction>
+		<valueListAllowed>true</valueListAllowed>
+	</parameter>
+	<parameter>
+		<name>БезПризнака</name>
+		<valueType>
+			<v8:Type>xs:decimal</v8:Type>
+			<v8:NumberQualifiers>
+				<v8:Digits>10</v8:Digits>
+				<v8:FractionDigits>0</v8:FractionDigits>
+				<v8:AllowedSign>Any</v8:AllowedSign>
+			</v8:NumberQualifiers>
+		</valueType>
+		<value xsi:type="v8:ValueListType">
+			<v8:valueType/>
+			<v8:lastId xsi:type="xs:decimal">1</v8:lastId>
+			<v8:item>
+				<v8:value xsi:type="xs:decimal">10</v8:value>
+				<v8:presentation>десять</v8:presentation>
+			</v8:item>
+			<v8:item>
+				<v8:value xsi:type="xs:decimal">20</v8:value>
+			</v8:item>
+		</value>
+		<useRestriction>false</useRestriction>
+	</parameter>
+	<parameter>
+		<name>ПризнакЛожь</name>
+		<valueType>
+			<v8:Type>xs:decimal</v8:Type>
+			<v8:NumberQualifiers>
+				<v8:Digits>10</v8:Digits>
+				<v8:FractionDigits>0</v8:FractionDigits>
+				<v8:AllowedSign>Any</v8:AllowedSign>
+			</v8:NumberQualifiers>
+		</valueType>
+		<value xsi:type="v8:ValueListType">
+			<v8:valueType/>
+			<v8:lastId xsi:type="xs:decimal">0</v8:lastId>
+			<v8:item>
+				<v8:value xsi:type="xs:decimal">10</v8:value>
+				<v8:presentation>десять</v8:presentation>
+			</v8:item>
+		</value>
+		<useRestriction>false</useRestriction>
+		<valueListAllowed>false</valueListAllowed>
+	</parameter>
+	<parameter>
+		<name>ФормаПлатформы</name>
+		<valueType>
+			<v8:Type>xs:decimal</v8:Type>
+			<v8:NumberQualifiers>
+				<v8:Digits>10</v8:Digits>
+				<v8:FractionDigits>0</v8:FractionDigits>
+				<v8:AllowedSign>Any</v8:AllowedSign>
+			</v8:NumberQualifiers>
+		</valueType>
+		<value xsi:type="xs:decimal">1</value>
+		<value xsi:type="xs:decimal">2</value>
+		<useRestriction>false</useRestriction>
+		<valueListAllowed>true</valueListAllowed>
+	</parameter>
+	<parameter>
+		<name>ОдноЗначениеСписка</name>
+		<valueType>
+			<v8:Type>xs:decimal</v8:Type>
+			<v8:NumberQualifiers>
+				<v8:Digits>10</v8:Digits>
+				<v8:FractionDigits>0</v8:FractionDigits>
+				<v8:AllowedSign>Any</v8:AllowedSign>
+			</v8:NumberQualifiers>
+		</valueType>
+		<value xsi:type="xs:decimal">7</value>
+		<useRestriction>false</useRestriction>
+		<valueListAllowed>true</valueListAllowed>
+	</parameter>
+</DataCompositionSchema>
