@@ -1,0 +1,289 @@
+{
+	"about": "Ответы md-sparrow на Template-legacy-lists.xml: cf-dcs-info (name, valueListAllowed, valueTyped параметров) и cf-dcs-validate strict. Правило редактора (schemaListPresentedItems) обязано помечать ровно параметры предупреждений valueListPresentationsLost: тест dcsPlatformRules.node.ts сверяет это всегда, а с MD_SPARROW_JAR сверяет с живым jar и сам снимок. Пересобирается скриптом legacy-value-lists.mjs.",
+	"template": "Template-legacy-lists.xml",
+	"templateSha256": "4e25f378f89ac044684c39d158f1d0fd93e114bcaa58bf54b7c19c206021594b",
+	"jarSha256": "214ba9629cadab8c4478e669eecb226f30b9d0cb92b47ea124e382a64e575a8f",
+	"info": {
+		"parameters": [
+			{
+				"name": "СПредставлением",
+				"valueListAllowed": true,
+				"valueTyped": {
+					"type": "v8:ValueListType",
+					"list": {
+						"items": [
+							{
+								"value": {
+									"type": "xs:string",
+									"text": "USD"
+								},
+								"presentation": "Доллар"
+							},
+							{
+								"value": {
+									"type": "xs:string",
+									"text": "EUR"
+								}
+							}
+						]
+					}
+				}
+			},
+			{
+				"name": "Одиночный",
+				"valueListAllowed": true,
+				"valueTyped": {
+					"type": "v8:ValueListType",
+					"list": {
+						"items": [
+							{
+								"value": {
+									"type": "xs:decimal",
+									"text": "5",
+									"decoded": 5
+								},
+								"presentation": "пять"
+							}
+						]
+					}
+				}
+			},
+			{
+				"name": "Пять",
+				"valueListAllowed": true,
+				"valueTyped": {
+					"type": "v8:ValueListType",
+					"list": {
+						"items": [
+							{
+								"value": {
+									"type": "xs:decimal",
+									"text": "1",
+									"decoded": 1
+								}
+							},
+							{
+								"value": {
+									"type": "xs:decimal",
+									"text": "2",
+									"decoded": 2
+								},
+								"presentation": "два"
+							},
+							{
+								"value": {
+									"type": "xs:decimal",
+									"text": "3",
+									"decoded": 3
+								}
+							},
+							{
+								"value": {
+									"type": "xs:decimal",
+									"text": "4",
+									"decoded": 4
+								},
+								"presentation": "четыре"
+							},
+							{
+								"value": {
+									"type": "xs:decimal",
+									"text": "5",
+									"decoded": 5
+								}
+							}
+						]
+					}
+				}
+			},
+			{
+				"name": "НеопределеноИПредставление",
+				"valueListAllowed": true,
+				"valueTyped": {
+					"type": "v8:ValueListType",
+					"list": {
+						"items": [
+							{
+								"value": {
+									"nil": true
+								},
+								"presentation": "нет"
+							},
+							{
+								"value": {
+									"type": "xs:decimal",
+									"text": "1",
+									"decoded": 1
+								},
+								"presentation": "один"
+							}
+						]
+					}
+				}
+			},
+			{
+				"name": "БезПредставлений",
+				"valueListAllowed": true,
+				"valueTyped": {
+					"type": "v8:ValueListType",
+					"list": {
+						"items": [
+							{
+								"value": {
+									"type": "xs:decimal",
+									"text": "10",
+									"decoded": 10
+								}
+							},
+							{
+								"value": {
+									"type": "xs:decimal",
+									"text": "20",
+									"decoded": 20
+								}
+							}
+						]
+					}
+				}
+			},
+			{
+				"name": "ПустоеПредставление",
+				"valueListAllowed": true,
+				"valueTyped": {
+					"type": "v8:ValueListType",
+					"list": {
+						"items": [
+							{
+								"value": {
+									"type": "xs:decimal",
+									"text": "10",
+									"decoded": 10
+								}
+							},
+							{
+								"value": {
+									"type": "xs:decimal",
+									"text": "20",
+									"decoded": 20
+								}
+							}
+						]
+					}
+				}
+			},
+			{
+				"name": "БезПризнака",
+				"valueTyped": {
+					"type": "v8:ValueListType",
+					"list": {
+						"items": [
+							{
+								"value": {
+									"type": "xs:decimal",
+									"text": "10",
+									"decoded": 10
+								},
+								"presentation": "десять"
+							},
+							{
+								"value": {
+									"type": "xs:decimal",
+									"text": "20",
+									"decoded": 20
+								}
+							}
+						]
+					}
+				}
+			},
+			{
+				"name": "ПризнакЛожь",
+				"valueListAllowed": false,
+				"valueTyped": {
+					"type": "v8:ValueListType",
+					"list": {
+						"items": [
+							{
+								"value": {
+									"type": "xs:decimal",
+									"text": "10",
+									"decoded": 10
+								},
+								"presentation": "десять"
+							}
+						]
+					}
+				}
+			},
+			{
+				"name": "ФормаПлатформы",
+				"valueListAllowed": true,
+				"valueTyped": {
+					"type": "v8:ValueListType",
+					"list": {
+						"items": [
+							{
+								"value": {
+									"type": "xs:decimal",
+									"text": "1",
+									"decoded": 1
+								}
+							},
+							{
+								"value": {
+									"type": "xs:decimal",
+									"text": "2",
+									"decoded": 2
+								}
+							}
+						]
+					}
+				}
+			},
+			{
+				"name": "ОдноЗначениеСписка",
+				"valueListAllowed": true,
+				"valueTyped": {
+					"type": "v8:ValueListType",
+					"list": {
+						"items": [
+							{
+								"value": {
+									"type": "xs:decimal",
+									"text": "7",
+									"decoded": 7
+								}
+							}
+						]
+					}
+				}
+			}
+		]
+	},
+	"validate": {
+		"ok": true,
+		"errors": [],
+		"warnings": [
+			{
+				"message": "параметр схемы СПредставлением: список значений записан старой формой v8:ValueListType с представлениями элементов (USD: «Доллар»); при загрузке платформа развернёт его в отдельные значения, а представления потеряет; уберите представления или оставьте список как есть, если их потеря не важна",
+				"parameter": "СПредставлением",
+				"kind": "valueListPresentationsLost"
+			},
+			{
+				"message": "параметр схемы Одиночный: список значений записан старой формой v8:ValueListType с представлениями элементов (5: «пять»); при загрузке платформа развернёт его в отдельные значения, а представления потеряет; уберите представления или оставьте список как есть, если их потеря не важна",
+				"parameter": "Одиночный",
+				"kind": "valueListPresentationsLost"
+			},
+			{
+				"message": "параметр схемы Пять: список значений записан старой формой v8:ValueListType с представлениями элементов (2: «два», 4: «четыре»); при загрузке платформа развернёт его в отдельные значения, а представления потеряет; уберите представления или оставьте список как есть, если их потеря не важна",
+				"parameter": "Пять",
+				"kind": "valueListPresentationsLost"
+			},
+			{
+				"message": "параметр схемы НеопределеноИПредставление: список значений записан старой формой v8:ValueListType с представлениями элементов (не задано: «нет», 1: «один»); при загрузке платформа развернёт его в отдельные значения, а представления потеряет; уберите представления или оставьте список как есть, если их потеря не важна",
+				"parameter": "НеопределеноИПредставление",
+				"kind": "valueListPresentationsLost"
+			}
+		]
+	}
+}

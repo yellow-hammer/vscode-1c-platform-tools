@@ -122,6 +122,12 @@ export function isMetadataCommonForm(objectType: string): boolean {
 	return normalizeMetadataObjectType(objectType) === 'CommonForm';
 }
 
+/** Свойство «Основная схема компоновки данных» есть только у отчётов и внешних отчётов. */
+export function metadataObjectTypeHasMainDcs(objectType: string): boolean {
+	const normalized = normalizeMetadataObjectType(objectType);
+	return normalized === 'Report' || normalized === 'ExternalReport';
+}
+
 /** Вид модуля объекта метаданных, доступного для открытия из дерева. */
 export type ObjectModuleKind =
 	| 'object'
@@ -798,13 +804,26 @@ export class MetadataObjectSectionTreeItem extends vscode.TreeItem {
 		// Токен вместо перечисления видов в условиях меню: новый вид раздела
 		// получает пункт «Добавить» сам, как только md-sparrow научится его создавать
 		this.contextValue = withFormatToken(
-			childKindOfSection(sectionKind) || sectionKind === 'forms'
-				? 'metadataObjectSection mdSectionAdd'
-				: 'metadataObjectSection',
+			sectionContextValue(sectionKind),
 			owner.configurationXmlAbs ?? owner.resourceUri?.fsPath
 		);
 		this.iconPath = ownerAwareIcon(metadataSectionIcon(sectionKind, extensionUri), owner);
 	}
+}
+
+/**
+ * contextValue раздела состава: токены возможностей для условий меню.
+ * У раздела макетов свой пункт вместо «Добавить»: другие виды макетов
+ * md-sparrow с нуля не создаёт.
+ */
+function sectionContextValue(sectionKind: MetadataSectionKind): string {
+	if (childKindOfSection(sectionKind) || sectionKind === 'forms') {
+		return 'metadataObjectSection mdSectionAdd';
+	}
+	if (sectionKind === 'templates') {
+		return 'metadataObjectSection mdDcsTemplateAdd';
+	}
+	return 'metadataObjectSection';
 }
 
 /** Замочек владельца распространяется на его разделы и узлы состава. */
