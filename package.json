@@ -43,6 +43,10 @@
         "1c-platform-tools.docker.image",
         "1c-platform-tools.docker.runArgs"
       ]
+    },
+    "virtualWorkspaces": {
+      "supported": "limited",
+      "description": "Проекты 1С ищутся только в папках на диске: откройте клон репозитория."
     }
   },
   "repository": {
@@ -2578,7 +2582,12 @@
       {
         "view": "1c-platform-tools-projects-workspace",
         "contents": "В папке нет packagedef.\n[Инициализировать проект](command:1c-platform-tools.project.initialize)\n[Открыть проект из списка](command:1c-platform-tools.projects.listOpen)",
-        "when": "workspaceFolderCount != 0 && 1c-platform-tools.project.detecting == false && !1c-platform-tools.is1CProject && !1c-platform-tools.project.hasCandidates"
+        "when": "workspaceFolderCount != 0 && 1c-platform-tools.project.detecting == false && !1c-platform-tools.is1CProject && !1c-platform-tools.project.hasCandidates && !virtualWorkspace"
+      },
+      {
+        "view": "1c-platform-tools-projects-workspace",
+        "contents": "Проекты 1С ищутся только в папках на диске. Откройте такую папку или проект из списка.\n[Открыть проект из списка](command:1c-platform-tools.projects.listOpen)",
+        "when": "virtualWorkspace && workspaceFolderCount != 0"
       },
       {
         "view": "1c-platform-tools-projects-workspace",
