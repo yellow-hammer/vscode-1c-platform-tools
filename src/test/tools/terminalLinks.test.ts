@@ -1,4 +1,6 @@
 import * as assert from 'node:assert';
+import * as fs from 'node:fs/promises';
+import * as os from 'node:os';
 import * as path from 'node:path';
 import * as vscode from 'vscode';
 import { rememberTaskProject } from '../../features/tasks/terminalProjects';
@@ -101,6 +103,153 @@ suite('terminalLinks', () => {
 		});
 	});
 
+	for (const { name, line, file, clickable, lineNumber } of [
+		{
+			name: 'путь в круглых скобках не включает внешнюю скобку',
+			line: 'Отчёт (docs/test.md)',
+			file: 'docs/test.md',
+			clickable: 'docs/test.md',
+			lineNumber: undefined,
+		},
+		{
+			name: 'Markdown-ссылка не включает подпись и скобки',
+			line: '[Отчёт](docs/test.md)',
+			file: 'docs/test.md',
+			clickable: 'docs/test.md',
+			lineNumber: undefined,
+		},
+		{
+			name: 'скобки внутри имени файла сохраняются',
+			line: 'Отчёт docs/test(итог).md',
+			file: 'docs/test(итог).md',
+			clickable: 'docs/test(итог).md',
+			lineNumber: undefined,
+		},
+		{
+			name: 'внешние скобки не поглощают скобки внутри имени файла',
+			line: 'Отчёт (docs/test(итог).md)',
+			file: 'docs/test(итог).md',
+			clickable: 'docs/test(итог).md',
+			lineNumber: undefined,
+		},
+		{
+			name: 'имя файла в подписи Markdown не становится отдельной ссылкой',
+			line: '[guide.md](docs/test.md)',
+			file: 'docs/test.md',
+			clickable: 'docs/test.md',
+			lineNumber: undefined,
+		},
+		{
+			name: 'вложенные скобки внутри пути сохраняются',
+			line: '[Отчёт](docs/test(итог(2)).md)',
+			file: 'docs/test(итог(2)).md',
+			clickable: 'docs/test(итог(2)).md',
+			lineNumber: undefined,
+		},
+		{
+			name: 'квадратные скобки внутри пути сохраняются',
+			line: '[Отчёт](docs/test[итог].md)',
+			file: 'docs/test[итог].md',
+			clickable: 'docs/test[итог].md',
+			lineNumber: undefined,
+		},
+		{
+			name: 'точка после круглых скобок не входит в путь',
+			line: 'Отчёт (docs/test.md).',
+			file: 'docs/test.md',
+			clickable: 'docs/test.md',
+			lineNumber: undefined,
+		},
+		{
+			name: 'точка после Markdown-ссылки не входит в путь',
+			line: '[Отчёт](docs/test.md).',
+			file: 'docs/test.md',
+			clickable: 'docs/test.md',
+			lineNumber: undefined,
+		},
+		{
+			name: 'многоточие после круглых скобок не входит в путь',
+			line: 'Отчёт (docs/test.md)...',
+			file: 'docs/test.md',
+			clickable: 'docs/test.md',
+			lineNumber: undefined,
+		},
+		{
+			name: 'многоточие после Markdown-ссылки не входит в путь',
+			line: '[Отчёт](docs/test.md)...',
+			file: 'docs/test.md',
+			clickable: 'docs/test.md',
+			lineNumber: undefined,
+		},
+		{
+			name: 'скобки в начале имени файла сохраняются',
+			line: '(name).md',
+			file: '(name).md',
+			clickable: '(name).md',
+			lineNumber: undefined,
+		},
+		{
+			name: 'скобки в начале каталога сохраняются',
+			line: '(dir)/file.md',
+			file: '(dir)/file.md',
+			clickable: '(dir)/file.md',
+			lineNumber: undefined,
+		},
+		{
+			name: 'квадратные скобки в начале Windows-каталога сохраняются',
+			line: '[dir]\\file.bsl',
+			file: '[dir]\\file.bsl',
+			clickable: '[dir]\\file.bsl',
+			lineNumber: undefined,
+		},
+		{
+			name: 'номер строки внутри внешних скобок сохраняется',
+			line: 'Ошибка (src/Module.bsl(12))',
+			file: 'src/Module.bsl',
+			clickable: 'src/Module.bsl(12)',
+			lineNumber: 12,
+		},
+		{
+			name: 'номер строки в Markdown-ссылке сохраняется',
+			line: '[Модуль](src/Module.bsl(12))',
+			file: 'src/Module.bsl',
+			clickable: 'src/Module.bsl(12)',
+			lineNumber: 12,
+		},
+	]) {
+		test(name, () => {
+			const matches = findTerminalLinkMatches(line);
+
+			assert.strictEqual(matches.length, 1);
+			assert.deepStrictEqual(matches[0].target, { kind: 'file', file, line: lineNumber });
+			assert.strictEqual(matches[0].startIndex, line.indexOf(clickable));
+			assert.strictEqual(matches[0].length, clickable.length);
+			assert.strictEqual(line.slice(matches[0].startIndex, matches[0].startIndex + matches[0].length), clickable);
+		});
+	}
+
+	test('две оформленные ссылки в строке не объединяются и не удваиваются', () => {
+		const line = 'Сравнить (docs/before.md) и [После](docs/after.md).';
+		const matches = findTerminalLinkMatches(line);
+
+		assert.deepStrictEqual(matches, ['docs/before.md', 'docs/after.md'].map((file) => ({
+			startIndex: line.indexOf(file),
+			length: file.length,
+			target: { kind: 'file', file, line: undefined },
+		})));
+	});
+
+	test('соседние Markdown-ссылки без пробела остаются отдельными', () => {
+		const line = '[До](docs/before.md)[После](docs/after.md)';
+		const matches = findTerminalLinkMatches(line);
+
+		assert.deepStrictEqual(matches, ['docs/before.md', 'docs/after.md'].map((file) => ({
+			startIndex: line.indexOf(file),
+			length: file.length,
+			target: { kind: 'file', file, line: undefined },
+		})));
+	});
+
 	test('путь внутри записи OneScript не удваивается', () => {
 		const line = String.raw`{Модуль C:\lib\cmdline.os / Ошибка в строке: 441 / Неизвестный параметр}`;
 
@@ -181,5 +330,42 @@ suite('terminalLinks: проект команды', () => {
 
 		assert.strictEqual(links.length, 1);
 		assert.ok(links[0].root !== undefined && sameProjectRoot(links[0].root, root));
+	});
+});
+
+
+suite('terminalLinks: открытие файла в редакторе', () => {
+	test('Markdown-ссылка открывает существующий модуль и выделяет указанную строку', async () => {
+		const directory = await fs.mkdtemp(path.join(os.tmpdir(), 'terminal-link-test-'));
+		const file = path.join(directory, 'Модуль(итог).bsl');
+		const uri = vscode.Uri.file(file);
+
+		try {
+			await fs.writeFile(file, Array.from({ length: 15 }, (_, index) => `// Строка ${index + 1}`).join('\n'));
+			const provider = new SourceTerminalLinkProvider(VRunnerManager.getInstance());
+			const links = provider.provideTerminalLinks({
+				line: `[Модуль](${file}(12))`,
+				terminal: { name: 'проверка открытия ссылки' } as vscode.Terminal,
+			});
+
+			assert.strictEqual(links.length, 1);
+			await provider.handleTerminalLink(links[0]);
+
+			const editor = vscode.window.activeTextEditor;
+			assert.ok(editor, 'обработчик должен открыть текстовый редактор');
+			assert.strictEqual(editor.document.uri.toString(), uri.toString());
+			assert.strictEqual(editor.selection.active.line, 11, 'строка 12 имеет индекс 11');
+			assert.strictEqual(editor.selection.active.character, 0);
+		} finally {
+			// Закрываем только вкладки собственного временного файла в тестовом хосте.
+			for (const group of vscode.window.tabGroups.all) {
+				for (const tab of group.tabs) {
+					if (tab.input instanceof vscode.TabInputText && tab.input.uri.toString() === uri.toString()) {
+						await vscode.window.tabGroups.close(tab);
+					}
+				}
+			}
+			await fs.rm(directory, { recursive: true, force: true });
+		}
 	});
 });

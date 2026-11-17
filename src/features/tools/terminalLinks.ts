@@ -91,6 +91,67 @@ function overlaps(found: TerminalLinkMatch[], start: number, length: number): bo
 }
 
 /**
+ * Выделяет токены путей без внешних скобок и подписей Markdown-ссылок.
+ * Внутренние скобки сохраняются, в том числе вложенные; пары собираются
+ * заранее, чтобы длинная строка с незакрытыми скобками разбиралась линейно.
+ */
+function* fileTokens(line: string): Generator<{ text: string; startIndex: number }> {
+	const pairs = new Map<number, number>();
+	const stack: number[] = [];
+	for (let i = 0; i < line.length; i++) {
+		const char = line[i];
+		if (char === '(' || char === '[') {
+			stack.push(i);
+		} else if (char === ')' || char === ']') {
+			const start = stack.pop();
+			if (start !== undefined && line[start] === (char === ')' ? '(' : '[')) {
+				pairs.set(start, i);
+			} else {
+				stack.length = 0;
+			}
+		}
+	}
+
+	let index = 0;
+	while (index < line.length) {
+		const char = line[index];
+		const close = pairs.get(index);
+		if (char === '[' && close !== undefined && line[close + 1] === '(') {
+			// Подпись сама может содержать путь или расширение файла.
+			index = close + 2;
+			continue;
+		}
+		// (каталог)/file.md и (имя).md — пути, а не внешние обёртки.
+		// Одиночная точка или многоточие после скобки — пунктуация.
+		const continuesPath = close !== undefined
+			&& (/[\\/]/.test(line[close + 1] ?? '')
+				|| /^\.[\p{L}\p{N}_-]/u.test(line.slice(close + 1, close + 3)));
+		if (/\s|["'<>|)\]]/.test(char)
+			|| ((char === '(' || char === '[')
+				&& !continuesPath)) {
+			index++;
+			continue;
+		}
+
+		const startIndex = index;
+		const brackets: string[] = [];
+		while (index < line.length && !/[\s"'<>|]/.test(line[index])) {
+			const current = line[index];
+			if (current === '(' || current === '[') {
+				brackets.push(current);
+			} else if (current === ')' || current === ']') {
+				if (brackets.at(-1) !== (current === ')' ? '(' : '[')) {
+					break;
+				}
+				brackets.pop();
+			}
+			index++;
+		}
+		yield { text: line.slice(startIndex, index), startIndex };
+	}
+}
+
+/**
  * Находит в строке вывода фрагменты, из которых делается ссылка.
  *
  * Записи разбираются по очереди: сначала OneScript (там путь и строка идут
@@ -116,20 +177,26 @@ export function findTerminalLinkMatches(line: string): TerminalLinkMatch[] {
 		});
 	}
 
-	for (const match of line.matchAll(FILE_RE)) {
-		const file = match.groups?.file;
-		if (!file || match.index === undefined || overlaps(found, match.index, match[0].length)) {
-			continue;
+	for (const token of fileTokens(line)) {
+		for (const match of token.text.matchAll(FILE_RE)) {
+			const file = match.groups?.file;
+			if (!file || match.index === undefined) {
+				continue;
+			}
+			const startIndex = token.startIndex + match.index;
+			if (overlaps(found, startIndex, match[0].length)) {
+				continue;
+			}
+			found.push({
+				startIndex,
+				length: match[0].length,
+				target: {
+					kind: 'file',
+					file,
+					line: toLine(match.groups?.paren ?? match.groups?.colon),
+				},
+			});
 		}
-		found.push({
-			startIndex: match.index,
-			length: match[0].length,
-			target: {
-				kind: 'file',
-				file,
-				line: toLine(match.groups?.paren ?? match.groups?.colon),
-			},
-		});
 	}
 
 	for (const match of line.matchAll(METADATA_RE)) {
