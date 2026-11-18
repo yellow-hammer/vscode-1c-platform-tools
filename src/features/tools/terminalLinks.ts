@@ -1,17 +1,7 @@
 /**
- * Ссылки в терминале на исходники по выводу команд.
- *
- * Разбираются три записи, встречающиеся в выводе:
- *   - OneScript: `{Модуль <путь>.os / Ошибка в строке: 188 / …}`;
- *   - путь к файлу с необязательным номером строки: `…/Module.bsl:12`, `…(12)`;
- *   - путь по метаданным 1С: `HTTPСервис.Биллинг.Модуль`, в конце может стоять `(12)`.
- *
- * Путь по метаданным раскладывается в файл по формату исходников: выгрузка
- * конфигуратора и проект EDT различаются каталогом `Ext`. Формат и корни
- * берутся из раскладки проекта, поэтому ссылка работает и в конфигурации,
- * и в расширениях.
- *
- * Разбор строки — чистая функция, тестируется без vscode.
+ * Ссылки в терминале, которые сам VS Code не откроет: сообщение OneScript
+ * с номером строки в тексте и путь по метаданным. Обычный путь к файлу
+ * не размечается: ссылка расширения заменяет штатную и не отдаёт клик обратно.
  * @module terminalLinks
  */
 
@@ -27,55 +17,26 @@ import { terminalProjectRoot } from '../tasks/terminalProjects';
 
 const log = logger.scope('tools');
 
-/** Расширения файлов, на которые ставится ссылка. */
-const LINKED_EXTENSIONS = ['bsl', 'os', 'feature', 'xml', 'mdo', 'json', 'md', 'txt'];
+const MAX_LINE_LENGTH = 2000;
 
-/** Цель ссылки: файл на диске либо путь по метаданным. */
 export type TerminalLinkTarget =
 	| { kind: 'file'; file: string; line?: number }
 	| { kind: 'metadata'; metadataPath: string; line?: number };
 
-/** Найденный в строке фрагмент со ссылкой. */
 export interface TerminalLinkMatch {
-	/** Смещение фрагмента в строке. */
 	startIndex: number;
-	/** Длина фрагмента. */
 	length: number;
 	target: TerminalLinkTarget;
 }
 
-const EXTENSIONS_GROUP = LINKED_EXTENSIONS.join('|');
+const ONESCRIPT_PATTERN =
+	String.raw`Модуль\s+(?<file>[^\r\n]+?\.os)\s*/\s*Ошибка в строке:\s*(?<line>\d+)`;
 
-/** OneScript: путь модуля и номер строки в одном сообщении. */
-const ONESCRIPT_RE = new RegExp(
-	String.raw`Модуль\s+(?<file>[^\r\n]+?\.os)\s*/\s*Ошибка в строке:\s*(?<line>\d+)`,
-	'g'
-);
-
-/**
- * Путь к файлу с необязательным номером строки.
- *
- * Токен берётся целиком: перед ним должен идти пробел, кавычка или скобка,
- * иначе из `src/cf/…/Module.bsl` вырезался бы кусок от внутреннего слэша.
- */
-const FILE_RE = new RegExp(
-	String.raw`(?<![^\s"'(\[<>|])(?<file>[^\s"'<>|]+\.(?:${EXTENSIONS_GROUP}))` +
-	String.raw`(?:\((?<paren>\d+)\)|:(?<colon>\d+))?`,
-	'g'
-);
-
-/**
- * Путь по метаданным: известный тип, имя объекта и хвост.
- *
- * Границу слова `\b` использовать нельзя: она считает словом только латиницу,
- * поэтому перед `ОбщийМодуль` не срабатывала. Проверяется предыдущий символ.
- */
-const METADATA_RE = new RegExp(
+// `\b` считает словом только латиницу и перед `ОбщийМодуль` не срабатывает.
+const METADATA_PATTERN =
 	String.raw`(?<![A-Za-zА-Яа-яЁё0-9_.])` +
 	String.raw`(?<path>(?:${METADATA_TYPE_NAMES.join('|')})(?:\.[A-Za-zА-Яа-яЁё0-9_]+){2,4})` +
-	String.raw`(?:\((?<line>\d+)\))?`,
-	'g'
-);
+	String.raw`(?:\((?<line>\d+)\))?`;
 
 function toLine(value: string | undefined): number | undefined {
 	if (!value) {
@@ -85,25 +46,15 @@ function toLine(value: string | undefined): number | undefined {
 	return Number.isFinite(parsed) && parsed > 0 ? parsed : undefined;
 }
 
-/** Пересекается ли фрагмент с уже найденными. */
-function overlaps(found: TerminalLinkMatch[], start: number, length: number): boolean {
-	return found.some((m) => start < m.startIndex + m.length && m.startIndex < start + length);
+function overlaps(found: readonly { startIndex: number; length: number }[], start: number, length: number): boolean {
+	return found.some((item) => start < item.startIndex + item.length && item.startIndex < start + length);
 }
 
-/**
- * Находит в строке вывода фрагменты, из которых делается ссылка.
- *
- * Записи разбираются по очереди: сначала OneScript (там путь и строка идут
- * вместе), затем обычные пути, затем пути по метаданным. Пересекающиеся
- * фрагменты отбрасываются, поэтому путь внутри записи OneScript не удваивается.
- *
- * @param line - Одна строка вывода терминала
- * @returns Фрагменты со ссылками в порядке появления
- */
 export function findTerminalLinkMatches(line: string): TerminalLinkMatch[] {
+	const source = line.length > MAX_LINE_LENGTH ? line.slice(0, MAX_LINE_LENGTH) : line;
 	const found: TerminalLinkMatch[] = [];
 
-	for (const match of line.matchAll(ONESCRIPT_RE)) {
+	for (const match of source.matchAll(new RegExp(ONESCRIPT_PATTERN, 'g'))) {
 		const file = match.groups?.file;
 		if (!file || match.index === undefined) {
 			continue;
@@ -116,23 +67,7 @@ export function findTerminalLinkMatches(line: string): TerminalLinkMatch[] {
 		});
 	}
 
-	for (const match of line.matchAll(FILE_RE)) {
-		const file = match.groups?.file;
-		if (!file || match.index === undefined || overlaps(found, match.index, match[0].length)) {
-			continue;
-		}
-		found.push({
-			startIndex: match.index,
-			length: match[0].length,
-			target: {
-				kind: 'file',
-				file,
-				line: toLine(match.groups?.paren ?? match.groups?.colon),
-			},
-		});
-	}
-
-	for (const match of line.matchAll(METADATA_RE)) {
+	for (const match of source.matchAll(new RegExp(METADATA_PATTERN, 'g'))) {
 		const metadataPath = match.groups?.path;
 		if (!metadataPath || match.index === undefined || overlaps(found, match.index, match[0].length)) {
 			continue;
@@ -144,61 +79,63 @@ export function findTerminalLinkMatches(line: string): TerminalLinkMatch[] {
 		});
 	}
 
-	return found.sort((a, b) => a.startIndex - b.startIndex);
+	return found;
 }
 
-/** Ссылка терминала с разобранной целью. */
 interface ResolvedTerminalLink extends vscode.TerminalLink {
 	target: TerminalLinkTarget;
-	/** Корень проекта команды, напечатавшей строку. */
 	root: string | undefined;
+	resolvedFile: string;
 }
 
-/**
- * Провайдер ссылок терминала: открывает исходник по клику в выводе команд.
- * Пути разрешаются в проекте команды, которая писала в терминал; в терминале
- * без команд расширения в текущем проекте.
- */
 export class SourceTerminalLinkProvider implements vscode.TerminalLinkProvider<ResolvedTerminalLink> {
 	constructor(private readonly vrunner: VRunnerManager) {}
 
-	provideTerminalLinks(context: vscode.TerminalLinkContext): ResolvedTerminalLink[] {
+	async provideTerminalLinks(
+		context: vscode.TerminalLinkContext,
+		token: vscode.CancellationToken
+	): Promise<ResolvedTerminalLink[]> {
+		if (token.isCancellationRequested) {
+			return [];
+		}
 		const root = terminalProjectRoot(context.terminal) ?? this.vrunner.getWorkspaceRoot();
-		return findTerminalLinkMatches(context.line).map((match) => ({
-			startIndex: match.startIndex,
-			length: match.length,
-			target: match.target,
-			root,
-			tooltip: match.target.kind === 'metadata' ? 'Открыть модуль' : 'Открыть файл',
-		}));
+		const links: ResolvedTerminalLink[] = [];
+		for (const match of findTerminalLinkMatches(context.line)) {
+			if (token.isCancellationRequested) {
+				return links;
+			}
+			const resolvedFile = await resolveTerminalLinkTarget(match.target, root);
+			if (!resolvedFile) {
+				continue;
+			}
+			links.push({
+				startIndex: match.startIndex,
+				length: match.length,
+				target: match.target,
+				root,
+				resolvedFile,
+				tooltip: match.target.kind === 'metadata' ? 'Открыть модуль' : 'Открыть файл',
+			});
+		}
+		return links;
 	}
 
 	async handleTerminalLink(link: ResolvedTerminalLink): Promise<void> {
-		const file = await resolveTerminalLinkTarget(link.target, link.root);
-		if (!file) {
-			const place = link.target.kind === 'file' ? link.target.file : link.target.metadataPath;
-			log.debug(`исходник не найден: ${place}`);
-			return;
-		}
-		const document = await vscode.workspace.openTextDocument(vscode.Uri.file(file));
-		const editor = await vscode.window.showTextDocument(document);
-		const lineNumber = link.target.line;
-		if (lineNumber !== undefined) {
-			const position = new vscode.Position(Math.max(0, lineNumber - 1), 0);
-			editor.selection = new vscode.Selection(position, position);
-			editor.revealRange(new vscode.Range(position, position), vscode.TextEditorRevealType.InCenter);
+		try {
+			const document = await vscode.workspace.openTextDocument(vscode.Uri.file(link.resolvedFile));
+			const editor = await vscode.window.showTextDocument(document);
+			const lineNumber = link.target.line;
+			if (lineNumber !== undefined) {
+				const position = new vscode.Position(Math.max(0, lineNumber - 1), 0);
+				editor.selection = new vscode.Selection(position, position);
+				editor.revealRange(new vscode.Range(position, position), vscode.TextEditorRevealType.InCenter);
+			}
+		} catch (error) {
+			log.debug(`не открыли исходник: ${String(error)}`);
 		}
 	}
-
 }
 
-/**
- * Файл цели ссылки: относительный путь и путь по метаданным разрешаются в проекте.
- *
- * @param target - Цель ссылки
- * @param root - Корень проекта
- * @returns Абсолютный путь к существующему файлу либо undefined
- */
 export async function resolveTerminalLinkTarget(target: TerminalLinkTarget, root: string | undefined): Promise<string | undefined> {
 	if (target.kind === 'file') {
 		const candidate = path.isAbsolute(target.file)
@@ -211,12 +148,6 @@ export async function resolveTerminalLinkTarget(target: TerminalLinkTarget, root
 	return root ? resolveMetadataInProject(target.metadataPath, root) : undefined;
 }
 
-/**
- * Ищет модуль по пути метаданных во всех корнях исходников проекта.
- *
- * Порядок: конфигурация, расширения, прочие корни. Формат берётся у самого
- * корня, поэтому в одном проекте могут лежать и выгрузка конфигуратора, и проект EDT.
- */
 async function resolveMetadataInProject(metadataPath: string, root: string): Promise<string | undefined> {
 	let roots: SourceRoot[];
 	try {
@@ -231,21 +162,9 @@ async function resolveMetadataInProject(metadataPath: string, root: string): Pro
 		log.info(`раскладка проекта не прочиталась: ${String(error)}`);
 		return undefined;
 	}
-
 	return resolveMetadataInRoots(metadataPath, roots);
 }
 
-/**
- * Ищет файл модуля по пути метаданных в заданных корнях.
- *
- * Формат берётся у каждого корня отдельно, поэтому в одной рабочей области
- * могут лежать и выгрузка конфигуратора, и проект EDT. Возвращается первый
- * существующий файл, поэтому порядок корней задаёт приоритет.
- *
- * @param metadataPath - Путь по метаданным, например `ОбщийМодуль.Имя.Модуль`
- * @param roots - Корни конфигурации и расширений в порядке поиска
- * @returns Абсолютный путь к найденному модулю либо undefined
- */
 export async function resolveMetadataInRoots(
 	metadataPath: string,
 	roots: readonly Pick<SourceRoot, 'dir' | 'format'>[]
