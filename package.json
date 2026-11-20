@@ -268,7 +268,8 @@
       "1c-platform-tools-service-files": [
         {
           "id": "1c-platform-tools-service-files-tree",
-          "name": "Служебные файлы",
+          "name": "Состав",
+          "contextualTitle": "Состав служебных файлов",
           "when": "1c-platform-tools.is1CProject == true"
         },
         {
