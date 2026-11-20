@@ -108,7 +108,7 @@ export default defineConfig({
 		siteTitle: 'Platform Tools',
 		nav: [
 			{ text: 'Начало работы', link: '/getting-started', activeMatch: '^/getting-started' },
-			{ text: 'Руководства', link: '/projects', activeMatch: '^/(?!$|getting-started)' },
+			{ text: 'Руководства', link: '/projects', activeMatch: '^/(?!$|getting-started|support)' },
 			{
 				// Списком, а не одной ссылкой: у Cursor и VSCodium свой маркетплейс,
 				// а на закрытой машине ставят файлом из релизов
@@ -128,6 +128,7 @@ export default defineConfig({
 					},
 				],
 			},
+			{ text: 'Поддержать', link: '/support', activeMatch: '^/support' },
 		],
 		sidebar: [
 			{ text: 'Начало работы', items: [{ text: 'С чего начать', link: '/getting-started' }] },

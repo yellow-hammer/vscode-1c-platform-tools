@@ -30,7 +30,7 @@ export function registerHelpAndSettingsCommands(context: vscode.ExtensionContext
 		() => {
 			void vscode.env.openExternal(
 				vscode.Uri.parse(
-					'https://github.com/yellow-hammer/vscode-1c-platform-tools/blob/main/docs/README.md'
+					'https://yellow-hammer.github.io/vscode-1c-platform-tools/'
 				)
 			);
 		}
@@ -52,7 +52,7 @@ export function registerHelpAndSettingsCommands(context: vscode.ExtensionContext
 		() => {
 			void vscode.env.openExternal(
 				vscode.Uri.parse(
-					'https://github.com/yellow-hammer/vscode-1c-platform-tools?tab=readme-ov-file#%D0%B0%D0%B2%D1%82%D0%BE%D1%80'
+					'https://yellow-hammer.github.io/vscode-1c-platform-tools/support'
 				)
 			);
 		}
