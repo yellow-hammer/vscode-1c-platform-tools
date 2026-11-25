@@ -1,4 +1,25 @@
 /**
+ * Copyright (c) 2025 Ivan Karlo
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ */
+/**
  * Модель запроса конструктора СКД: разбор текста запроса в структуру и сборка обратно, чистые функции.
  *
  * Файл подключается в webview отдельным <script> (window.DcsQueryModel) и исполняется в node
@@ -2054,24 +2075,76 @@
 	// Помощники UI
 	// ---------------------------------------------------------------------------------------------
 
-	const PATH_RE = /^[\p{L}_][\p{L}\p{N}_]*(?:\.[\p{L}_][\p{L}\p{N}_]*)*$/u;
+	const PATH_RE = /^[\p{L}_][\p{L}\p{N}_]*(?:\s*\.\s*[\p{L}_][\p{L}\p{N}_]*)*$/u;
+	const STAR_RE = /^(?:[\p{L}_][\p{L}\p{N}_]*\s*\.\s*)*\*$/u;
+
+	/** Последняя выборка пакета, которая возвращает строки и не пишет во временную таблицу. */
+	function lastSelectIndex(statements) {
+		for (let i = statements.length - 1; i >= 0; i--) {
+			const statement = statements[i];
+			if (statement && statement.type === 'select' && statement.parts.length > 0 && !statement.parts.some((part) => part && part.into)) {
+				return i;
+			}
+		}
+		return -1;
+	}
+
+	function resultFields(statement) {
+		const first = statement && statement.type === 'select' ? arr(statement.parts)[0] : null;
+		return arr(first && first.fields);
+	}
+
+	function outputFieldName(field) {
+		if (field && present(field.alias)) {
+			return field.alias;
+		}
+		const expr = field && typeof field.expr === 'string' ? field.expr.trim() : '';
+		if (!PATH_RE.test(expr) || LITERALS.has(expr.toUpperCase())) {
+			return null;
+		}
+		const segments = expr.split(/\s*\.\s*/);
+		return segments.length === 1 ? segments[0] : segments.slice(1).join('');
+	}
 
 	/**
-	 * Имена колонок результата по первой части объединения: псевдоним, иначе последний сегмент пути,
-	 * как при автозаполнении полей в md-sparrow. Выражение без псевдонима даёт null.
+	 * Имена колонок по первой части объединения: псевдоним или сегменты пути после алиаса таблицы,
+	 * как их именует платформа. Выражение без имени даёт null.
 	 */
 	function outputFields(statement) {
-		if (!statement || statement.type === 'drop') {
-			return [];
+		return resultFields(statement).map(outputFieldName);
+	}
+
+	/** Результирующие поля для автозаполнения набора md-sparrow. */
+	function autofillSelection(text) {
+		const parsed = parse(text);
+		const statements = parsed.model.statements;
+		const index = lastSelectIndex(statements);
+		if (index < 0) {
+			return { error: statements.some((statement) => statement.type === 'select' && statement.parts.length > 0)
+				? 'В пакете нет запроса выборки, возвращающего строки. Запросы помещают данные во временные таблицы или уничтожают их.'
+				: 'Текст запроса не начинается с ВЫБРАТЬ (SELECT): список выборки не разобрать.' };
 		}
-		const first = arr(statement.parts)[0];
-		return arr(first && first.fields).map((field) => {
-			if (field && present(field.alias)) {
-				return field.alias;
+		const fields = [];
+		const skipped = [];
+		for (const field of resultFields(statements[index])) {
+			const expression = field.expr.trim().replace(/\s+/g, ' ');
+			if (STAR_RE.test(expression)) {
+				return { error: 'В списке выборки звёздочка (' + expression + '): её разворачивает платформа, перечислите поля по именам.' };
 			}
-			const expr = field && typeof field.expr === 'string' ? field.expr.trim() : '';
-			return PATH_RE.test(expr) && !LITERALS.has(expr.toUpperCase()) ? expr.slice(expr.lastIndexOf('.') + 1) : null;
-		});
+			const name = outputFieldName(field);
+			if (name !== null) {
+				fields.push({ name: name, expression: expression });
+			} else {
+				let reason = 'у выражения нет псевдонима (КАК), а само оно не путь к полю';
+				if (!expression) {
+					reason = 'пустое выражение в списке выборки';
+				} else if (/(?:^|\s)(?:КАК|AS)(?:\s+\S+)?$/iu.test(expression)) {
+					reason = 'псевдоним после КАК (AS) не разобран';
+				}
+				skipped.push({ expression: expression, reason: reason });
+			}
+		}
+		return { fields: fields, skipped: skipped };
 	}
 
 	/** Временные таблицы, созданные запросами пакета до beforeIndex, без уничтоженных. */
@@ -2327,6 +2400,8 @@
 		selfCheck: selfCheck,
 		sameModel: sameModel,
 		outputFields: outputFields,
+		lastSelectIndex: lastSelectIndex,
+		autofillSelection: autofillSelection,
 		tempTables: tempTables,
 		parametersOf: parametersOf,
 		defaultFieldAlias: defaultFieldAlias,

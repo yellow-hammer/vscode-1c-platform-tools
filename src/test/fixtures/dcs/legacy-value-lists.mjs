@@ -68,7 +68,7 @@ try {
 	const objectXml = path.join(work, 'Template.xml');
 	fs.copyFileSync(source, objectXml);
 	const info = readJson({ op: 'cf-dcs-info', objectXml, schemaVersion: 'V2_20' });
-	const validate = readJson({ op: 'cf-dcs-validate', objectXml, strict: true });
+	const validate = readJson({ op: 'cf-dcs-validate', objectXml, schemaVersion: 'V2_20', strict: true });
 	const parameters = info.parameters.map((parameter) => {
 		const row = { name: parameter.name };
 		if (parameter.valueListAllowed !== undefined) {

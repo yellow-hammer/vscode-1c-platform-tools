@@ -1057,16 +1057,6 @@
 		return out;
 	}
 
-	function lastSelectIndex(statements) {
-		for (let i = statements.length - 1; i >= 0; i -= 1) {
-			const statement = statements[i];
-			if (statement && statement.type === 'select' && !list(statement.parts).some((part) => part && part.into)) {
-				return i;
-			}
-		}
-		return -1;
-	}
-
 	function columnIndex(queryModel, statement, column) {
 		const want = upper(column);
 		return list(queryModel.outputFields(statement)).findIndex((name) => name !== null && upper(name) === want);
@@ -1301,7 +1291,7 @@
 			return blind;
 		}
 		const statements = list(parsed.model.statements);
-		const index = lastSelectIndex(statements);
+		const index = queryModel.lastSelectIndex(statements);
 		if (index < 0) {
 			return blind;
 		}

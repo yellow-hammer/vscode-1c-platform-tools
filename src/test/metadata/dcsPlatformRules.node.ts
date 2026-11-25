@@ -17,6 +17,8 @@ import { createHash } from 'node:crypto';
 import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
+import yauzl from 'yauzl';
+import { loadDcsQueryModel } from '../../features/metadata/dcsQueryOps';
 import { readEditorScript } from '../fixtures/helpers/dcsEditorScript';
 
 // esbuild кладёт тест в out/test/metadata: до корня проекта три уровня вверх
@@ -105,6 +107,65 @@ function javaForJar(): string {
 	}
 	return 'java';
 }
+
+test('модель запроса в редакторе и JAR совпадает, CLI записывает её поля', async (t) => {
+	const jar = process.env.MD_SPARROW_JAR;
+	if (!jar || !fs.existsSync(jar)) {
+		t.skip('jar md-sparrow не задан');
+		return;
+	}
+	const modelFileName = 'dcs-editor-query-model.js';
+	const resource = `io/github/yellowhammer/designerxml/cf/${modelFileName}`;
+	const archive = await yauzl.openPromise(jar, { lazyEntries: true, autoClose: false });
+	let modelBytes: Buffer | undefined;
+	try {
+		for await (const entry of archive.eachEntry()) {
+			if (entry.fileName === resource) {
+				const stream = await archive.openReadStreamPromise(entry);
+				const chunks: Buffer[] = [];
+				for await (const chunk of stream) {
+					chunks.push(Buffer.from(chunk));
+				}
+				modelBytes = Buffer.concat(chunks);
+				break;
+			}
+		}
+	} finally {
+		archive.close();
+	}
+	assert.deepEqual(modelBytes, fs.readFileSync(path.join(WEBVIEW, modelFileName)), 'модель запроса из JAR отличается от редактора');
+
+	const query = [
+		'SELECT 1 AS Tmp INTO TT;',
+		'SELECT T.Owner.Description, &NewParameter AS CustomField FROM TT AS T',
+		'UNION ALL SELECT 1 AS AnotherName, 2 AS AnotherField;',
+		'DROP TT',
+	].join('\n');
+	const model = loadDcsQueryModel(ROOT) as ReturnType<typeof loadDcsQueryModel> & {
+		autofillSelection(text: string): { fields: Array<{ name: string }> } | { error: string };
+	};
+	const selection = model.autofillSelection(query);
+	assert.ok('fields' in selection);
+	const work = fs.mkdtempSync(path.join(os.tmpdir(), 'dcs-query-model-'));
+	try {
+			const objectXml = path.join(work, 'Template.xml');
+			fs.copyFileSync(path.join(FIXTURES, 'Template.xml'), objectXml);
+			const schemaVersion = 'V2_20';
+			const dataSet = 'ОсновнойЗапрос';
+			runJar(jar, work, 'apply-mutation', { op: 'cf-dcs-set-query', objectXml, schemaVersion, tag: dataSet, payloadJson: query });
+			const result = JSON.parse(runJar(jar, work, 'apply-mutation', { op: 'cf-dcs-autofill-fields', objectXml, schemaVersion, dataSet })) as { added: string[] };
+			assert.deepEqual(result.added, selection.fields.map((field) => field.name));
+			const validation = JSON.parse(runJar(jar, work, 'read-json', { op: 'cf-dcs-validate', objectXml, schemaVersion, strict: true })) as {
+				ok: boolean;
+				warnings: Array<{ kind: string; dataSet?: string; parameter?: string }>;
+			};
+			assert.equal(validation.ok, true);
+			assert.deepEqual(validation.warnings.filter((warning) => warning.kind === 'undeclaredQueryParameter' && warning.dataSet === dataSet)
+				.map((warning) => warning.parameter), model.parametersOf(query));
+	} finally {
+		fs.rmSync(work, { recursive: true, force: true });
+	}
+});
 
 interface LinkRules {
 	LINK_REQUIRED_REASON: string;

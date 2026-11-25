@@ -149,6 +149,8 @@ interface QueryModelApi {
 	selfCheck(text: string): { ok: boolean; firstDiff?: Position; message?: string };
 	sameModel(a: Model, b: Model): boolean;
 	outputFields(statement: Statement): Array<string | null>;
+	lastSelectIndex(statements: Statement[]): number;
+	autofillSelection(text: string): { fields: Array<{ name: string }>; skipped: unknown[] } | { error: string };
 	tempTables(model: Model, beforeIndex: number): Array<{ name: string; fields: string[]; statement: number }>;
 	parametersOf(text: string): string[];
 	defaultFieldAlias(expr: string, taken?: string[]): string;
@@ -1201,9 +1203,25 @@ describe('Модель запроса СКД: комментарии', () => {
 });
 
 describe('Модель запроса СКД: помощники UI', () => {
-	test('outputFields: псевдоним, последний сегмент пути, null у выражения без псевдонима', () => {
+	test('конструктор и автозаполнение берут имена колонок одной выборки пакета', () => {
+		const text = [
+			'SELECT 1 AS Tmp INTO TT;',
+			'SELECT T.Owner . Description, T.Code AS Alias FROM TT AS T',
+			'UNION ALL SELECT T.Other, T.Code AS DifferentAlias FROM TT AS T;',
+			'DROP TT',
+		].join('\n');
+		const model = parsed(text);
+		const index = api.lastSelectIndex(model.statements);
+		const selection = api.autofillSelection(text);
+		assert.ok('fields' in selection);
+		assert.equal(index, 1);
+		assert.deepEqual(selection.fields.map((field) => field.name), api.outputFields(model.statements[index]));
+		assert.deepEqual(api.outputFields(model.statements[index]), ['OwnerDescription', 'Alias']);
+	});
+
+	test('outputFields: псевдоним, сегменты пути после алиаса таблицы, null у выражения без псевдонима', () => {
 		const model = parsed('ВЫБРАТЬ\n\tТ.А,\n\tТ.Б.В,\n\tТ.Г КАК Д,\n\t1,\n\tТ.*\nИЗ\n\tСправочник.Т КАК Т');
-		assert.deepEqual(api.outputFields(model.statements[0]), ['А', 'В', 'Д', null, null]);
+		assert.deepEqual(api.outputFields(model.statements[0]), ['А', 'БВ', 'Д', null, null]);
 	});
 
 	test('tempTables: созданные раньше и не уничтоженные, поля — по первой части', () => {
