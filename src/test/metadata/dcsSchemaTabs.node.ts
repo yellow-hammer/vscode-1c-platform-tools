@@ -777,6 +777,32 @@ describe('Таблица полей набора: путь к данным и ф
 });
 
 describe('Текст запроса набора: запись по концу правки', () => {
+	test('у вложенного набора подсказка соответствует доступности конструктора', () => {
+		interface DataSet {
+			name: string;
+			query?: string;
+		}
+		const render = new Function(
+			'el', 'nameEl', 'renderFieldsTable', 'renderQueryEditor',
+			topFunction('renderDataSetBody(host, dataSet, nested) {') + '\nreturn renderDataSetBody;'
+		) as (
+			create: typeof el,
+			name: typeof el,
+			fields: (host: Node, dataSet: DataSet, readOnly: boolean) => void,
+			query: (host: Node, dataSet: DataSet, readOnly: boolean) => void
+		) => (host: Node, dataSet: DataSet, nested: boolean) => void;
+		const queryModes: boolean[] = [];
+		const renderBody = render(el, el, (_host, _dataSet, readOnly) => assert.equal(readOnly, true),
+			(_host, _dataSet, readOnly) => queryModes.push(readOnly));
+		const queryHost = el('div');
+		const objectHost = el('div');
+		renderBody(queryHost, { name: 'Выборка', query: 'ВЫБРАТЬ 1 КАК Поле' }, true);
+		renderBody(objectHost, { name: 'Объект' }, true);
+		assert.match(queryHost.textContent, /Запрос вложенного набора меняется в конструкторе/);
+		assert.match(objectHost.textContent, /только для просмотра/);
+		assert.deepEqual(queryModes, [true]);
+	});
+
 	interface Draft {
 		text: string;
 		base: string;

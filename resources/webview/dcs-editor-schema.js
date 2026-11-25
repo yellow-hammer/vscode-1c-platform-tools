@@ -1305,8 +1305,9 @@ window.DcsEditorSchema = function (core) {
 		);
 	}
 
-	/** Содержимое набора; набор внутри объединения только для чтения. */
+	/** Свойства и поля вложенного набора доступны для просмотра, запрос меняется в конструкторе. */
 	function renderDataSetBody(host, dataSet, nested) {
+		const hasQuery = typeof dataSet.query === 'string';
 		const head = el('div', 'dcs-set-head');
 		head.appendChild(nameEl('span', 'dcs-set-title', dataSet.name || ''));
 		if (dataSet.type) {
@@ -1314,14 +1315,13 @@ window.DcsEditorSchema = function (core) {
 		}
 		host.appendChild(head);
 		if (nested) {
-			// Мутации md-sparrow адресуют только наборы верхнего уровня
 			host.appendChild(
 				el(
 					'div',
 					'dcs-plate',
-					'Набор внутри объединения «' +
-						dataSetPath[0] +
-						'» доступен только для просмотра: правятся наборы верхнего уровня.'
+					hasQuery
+						? 'Запрос вложенного набора меняется в конструкторе. Ручная правка полей и свойств недоступна.'
+						: 'Поля и свойства вложенного набора доступны только для просмотра.'
 				)
 			);
 		} else {
@@ -1336,7 +1336,7 @@ window.DcsEditorSchema = function (core) {
 		}
 		host.appendChild(el('div', 'dcs-sets-caption', 'Поля'));
 		renderFieldsTable(host, dataSet, nested);
-		if (typeof dataSet.query === 'string') {
+		if (hasQuery) {
 			renderQueryEditor(host, dataSet, nested);
 		}
 	}
