@@ -385,6 +385,7 @@ const OBJECT_TYPE_ALIASES: Record<string, string> = {
 	WebServices: 'WebService',
 	HTTPServices: 'HTTPService',
 	IntegrationServices: 'IntegrationService',
+	Queues: 'Queue',
 };
 
 type PanelSectionKey = MetadataObjectSectionSource | MetadataPropertySpecialSection;
@@ -453,6 +454,9 @@ const PROPERTY_LABEL_BY_KEY: Record<string, string> = {
 	auxiliaryFolderChoiceForm: 'Вспомогательная форма выбора папки',
 	objectModule: 'Модуль объекта',
 	managerModule: 'Модуль менеджера',
+	transactioned: 'Транзакционная',
+	processingPortionSize: 'Размер порции обработки',
+	autoProcessing: 'Автоматическая обработка',
 	includeHelpInContents: 'Включать справку в содержание',
 	help: 'Справка',
 	dataLockControlMode: 'Режим управления блокировкой данных',
@@ -588,6 +592,7 @@ const OBJECT_TYPE_BY_KIND: Readonly<Record<string, string>> = {
 	commonPicture: 'CommonPicture',
 	eventSubscription: 'EventSubscription',
 	scheduledJob: 'ScheduledJob',
+	queue: 'Queue',
 	commonCommand: 'CommonCommand',
 	commandGroup: 'CommandGroup',
 	commonForm: 'CommonForm',
@@ -644,6 +649,7 @@ const KIND_LABELS: Readonly<Record<string, string>> = {
 	commonPicture: 'Общая картинка',
 	eventSubscription: 'Подписка на событие',
 	scheduledJob: 'Регламентное задание',
+	queue: 'Очередь',
 	commonCommand: 'Общая команда',
 	commandGroup: 'Группа команд',
 	commonForm: 'Общая форма',
@@ -1641,6 +1647,10 @@ function buildSimpleEditableTabs(
 				...input,
 				report: true,
 				templateNames: rawNameList(structure?.templates),
+				analyticsTemplateNames: typeof kindProps.mainAnalyticsSystemSchema === 'string'
+					? rawNameList(structure?.templates?.filter(item =>
+						isRecord(item) && item.templateType === 'ANALYTICS_SYSTEM_SCHEMA'))
+					: undefined,
 				settingsStorageNames: candidates.settingsStorageNames,
 			});
 		case 'dataProcessor':

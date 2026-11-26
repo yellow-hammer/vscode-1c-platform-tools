@@ -48,6 +48,7 @@ export interface MetadataSubgroupDto {
 	readonly label: string;
 	readonly iconHint: string;
 	readonly items: MetadataItemDto[];
+	readonly canAdd?: boolean;
 }
 
 export interface MetadataGroupDto {

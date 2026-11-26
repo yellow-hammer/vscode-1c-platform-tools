@@ -111,6 +111,7 @@ const METADATA_OBJECT_TYPE_ALIASES: Record<string, string> = {
 	WebServices: 'WebService',
 	HTTPServices: 'HTTPService',
 	IntegrationServices: 'IntegrationService',
+	Queues: 'Queue',
 };
 
 function normalizeMetadataObjectType(objectType: string): string {
@@ -166,6 +167,7 @@ const OBJECT_MODULE_KINDS_BY_TYPE: Record<string, ObjectModuleKind[]> = {
 	AccumulationRegister: ['recordset', 'manager'],
 	AccountingRegister: ['recordset', 'manager'],
 	CalculationRegister: ['recordset', 'manager'],
+	Queue: ['manager'],
 	DocumentJournal: ['manager'],
 	Enum: ['manager'],
 	FilterCriterion: ['manager'],
@@ -380,13 +382,14 @@ export class MetadataMdSubgroupTreeItem extends vscode.TreeItem {
 		iconHint: string,
 		hasItems: boolean,
 		public readonly configurationXmlAbs: string | undefined,
-		public readonly metadataRootAbs: string | undefined
+		public readonly metadataRootAbs: string | undefined,
+		canAdd?: boolean
 	) {
 		super(
 			label,
 			hasItems ? vscode.TreeItemCollapsibleState.Collapsed : vscode.TreeItemCollapsibleState.None
 		);
-		this.contextValue = contextValueForMetadataSubgroup(sourceId, groupId, subgroupId);
+		this.contextValue = canAdd === false ? 'metadataSubgroup' : contextValueForMetadataSubgroup(sourceId, groupId, subgroupId);
 		this.iconPath = themeIconFromGroupHint(iconHint);
 	}
 }
@@ -591,6 +594,7 @@ const METADATA_OBJECT_XML_SUBDIR_BY_TYPE: Record<string, string> = {
 	FilterCriterion: 'FilterCriteria',
 	EventSubscription: 'EventSubscriptions',
 	ScheduledJob: 'ScheduledJobs',
+	Queue: 'Queues',
 	FunctionalOption: 'FunctionalOptions',
 	FunctionalOptionsParameter: 'FunctionalOptionsParameters',
 	DefinedType: 'DefinedTypes',
@@ -1157,6 +1161,7 @@ const METADATA_OBJECT_TYPE_ICON_BY_TYPE: Record<string, string> = {
 	ExchangePlan: 'exchangePlan.svg',
 	EventSubscription: 'eventSubscription.svg',
 	ScheduledJob: 'scheduledJob.svg',
+	Queue: 'queue.svg',
 	FunctionalOption: 'functionalOption.svg',
 	FunctionalOptionsParameter: 'functionalOptionsParameter.svg',
 	DefinedType: 'enum.svg',
@@ -1220,6 +1225,7 @@ const METADATA_CONTAINER_OBJECT_TYPE_BY_ID: Record<string, string> = {
 	common_eventsubscription: 'EventSubscription',
 	scheduledJobs: 'ScheduledJob',
 	common_scheduledjob: 'ScheduledJob',
+	common_queue: 'Queue',
 	commonForms: 'CommonForm',
 	common_commonform: 'CommonForm',
 	commonTemplates: 'CommonTemplate',
@@ -2096,7 +2102,8 @@ export class MetadataTreeDataProvider implements vscode.TreeDataProvider<vscode.
 							sg.iconHint,
 							sg.items.length > 0,
 							cfgAbs,
-							metaAbs
+							metaAbs,
+							sg.canAdd
 						);
 						sgItem.iconPath = metadataGroupIcon(
 							sg.id,

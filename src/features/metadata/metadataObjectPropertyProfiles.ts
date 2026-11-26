@@ -77,6 +77,7 @@ export const METADATA_OBJECT_PROPERTY_PROFILE_BY_TYPE: Readonly<Record<string, M
 	WebService: { ...STANDARD_PROFILE, structureSections: ['operations'] },
 	HTTPService: { ...STANDARD_PROFILE, structureSections: ['urlTemplates'] },
 	IntegrationService: { ...STANDARD_PROFILE, structureSections: ['channels'] },
+	Queue: { ...STANDARD_PROFILE, structureSections: ['dimensions', 'attributes'] },
 	Enum: { ...STANDARD_PROFILE, structureSections: ['values'] },
 	DocumentJournal: { ...STANDARD_PROFILE, structureSections: ['columns', 'forms', 'commands', 'templates'] },
 	ChartOfAccounts: {

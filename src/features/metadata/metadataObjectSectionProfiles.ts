@@ -81,6 +81,7 @@ export const METADATA_OBJECT_SECTION_SOURCES_BY_TYPE: Readonly<Record<string, re
 		WebService: ['operations'],
 		HTTPService: ['urlTemplates'],
 		IntegrationService: ['channels'],
+		Queue: ['dimensions', 'attributes'],
 		Enum: ['values', 'forms', 'commands', 'templates'],
 		DocumentJournal: ['columns', 'forms', 'commands', 'templates'],
 		ChartOfAccounts: [
