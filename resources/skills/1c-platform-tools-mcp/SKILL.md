@@ -273,6 +273,29 @@ description: Инструменты MCP сервера mcp-1c-platform-tools. И
 
 `tasks_edit` открывает `tasks.json`. `tasks_view` обновляет дерево задач. Запуск задачи по имени в MCP нет: `1c-platform-tools.tasks.run` и `1c-platform-tools.tasks.runOscript` выполняет человек из палитры. `properties_show` только показывает панель свойств.
 
+## Схема компоновки данных
+
+Передай в path файл содержимого макета или его описание. В ownerPath передай описание объекта, а для общего макета описание конфигурации. Относительные пути считай от корня проекта.
+
+| Задача | Инструмент MCP | Параметры |
+|---|---|---|
+| Прочитать схему или настройки варианта | `dcs_read` | path, variant |
+| Применить одну операцию | `dcs_apply` | path, op, params |
+| Проверить схему | `dcs_validate` | path |
+| Получить допустимые типы значений | `dcs_typeDictionary` | path |
+| Разобрать, собрать или записать запрос | `dcs_query` | action, path, dataSet, text, model, lang, eol, autofill |
+| Создать макет СКД | `dcs_templateAdd` | ownerPath, name, makeMain |
+| Удалить макет СКД | `dcs_templateRemove` | ownerPath, name |
+
+- Прочитай схему через `dcs_read`. Перед изменением типа проверь допустимые значения через `dcs_typeDictionary`. Передай в `dcs_apply` точное имя операции и её параметры по [контракту md-sparrow](https://github.com/yellow-hammer/md-sparrow/blob/main/docs/cf-dcs.md). После правки вызови `dcs_validate` и прочитай ошибки и предупреждения.
+- Перед правкой запроса вызови `dcs_query` с action = parse. При успешном разборе поправь модель. При ошибке правь текст запроса. Запиши результат с action = apply, указав имя набора или путь вида «Объединение/Дочерний».
+
+### Примеры вызовов
+
+- `dcs_read` с path = Reports/Продажи/Templates/Схема/Ext/Template.xml и variant = Основной.
+- `dcs_query` с action = parse, path = Reports/Продажи/Templates/Схема/Ext/Template.xml и dataSet = Объединение/Дочерний.
+- `dcs_templateAdd` с ownerPath = Reports/Продажи.xml, name = Схема и makeMain = true.
+
 ## Данные базы через OData
 
 | Задача | Инструмент MCP |

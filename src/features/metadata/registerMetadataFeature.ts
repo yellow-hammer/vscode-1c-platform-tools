@@ -23,6 +23,7 @@ import * as vscode from 'vscode';
 import { BSP_REGISTRATION_MARKER, buildBspRegistration } from './bspRegistration';
 import {
 	ensureMdSparrowRuntime,
+	type MdSparrowRuntime,
 } from './mdSparrowBootstrap';
 import { parseMdBoilerplateKindFromCommandArgs } from './metadataBoilerplateNames';
 import {
@@ -80,9 +81,12 @@ import {
 	type MdSparrowParams,
 	supportEnabled,
 } from './mdSparrowParams';
+import { registerDcsAgentCommands } from './dcsAgentCommands';
 import { openDcsEditorPanel } from './dcsEditorPanel';
+import { dcsEditorUnsupportedReason, dcsTemplateMutationParams, resolveDcsOwnerTarget, type DcsTemplateOp } from './dcsTargets';
 import { openSpreadsheetPanel } from '../spreadsheet/openSpreadsheetPanel';
-import { classifyTemplateContent, findTemplateContent } from '../spreadsheet/templateContent';
+import { findTemplateContent } from '../spreadsheet/templateContent';
+import { mdSparrowFileReader } from './mdSparrowFileInfo';
 import { loadProjectMetadataTree } from './metadataTreeService';
 import { openErCanvasPanel } from './er/erCanvasPanel';
 import type { ErScope } from './er/erTypes';
@@ -92,12 +96,14 @@ import {
 	MetadataErrorTreeItem,
 	MetadataNoticeTreeItem,
 	MetadataLeafTreeItem,
+	MetadataMdSubgroupTreeItem,
 	MetadataObjectNodeTreeItem,
 	MetadataObjectSectionTreeItem,
 	MetadataSourceTreeItem,
 	childNodeSupport,
 	metadataCommandConfiguration,
 	metadataCommandRoot,
+	metadataObjectTypeHasMainDcs,
 	objectModuleFilePath,
 	objectModuleKindsForType,
 	type MetadataTreeDataProvider,
@@ -484,6 +490,277 @@ export function registerMetadataFeature(
 			return;
 		}
 		notifyQuiet(`Форма «${name.trim()}» создана`);
+		void vscode.commands.executeCommand('1c-platform-tools.metadata.refresh');
+	}
+
+	/** Владелец нового макета СКД: объект с разделом «Макеты» или конфигурация. */
+	interface DcsTemplateOwner {
+		/** XML объекта или Configuration.xml (.mdo у 1C:EDT), куда пишется состав макетов. */
+		ownerXml: string;
+		/** Имя владельца; у общего макета пусто, заголовок берётся из имени макета. */
+		ownerName: string;
+		/** Описание нового макета, по нему ищется файл содержимого. */
+		templateDescriptorOf(name: string): string;
+		/** Имя макета для поиска содержимого; у общего макета не нужно, описание само о макете. */
+		templateNameFor(name: string): string | undefined;
+		/** Об основной схеме спрашивают только владельцев со свойством MainDataCompositionSchema. */
+		askMakeMain: boolean;
+		support?: string;
+		configurationXmlAbs?: string;
+		metadataRootAbs?: string;
+	}
+
+	/** Владелец макета по узлу дерева; undefined, если узел не про макеты. */
+	function dcsTemplateOwnerOf(selected: vscode.TreeItem | undefined): DcsTemplateOwner | undefined {
+		if (
+			selected instanceof MetadataObjectSectionTreeItem
+			&& selected.sectionKind === 'templates'
+			&& selected.owner.resourceUri
+		) {
+			const ownerXml = selected.owner.resourceUri.fsPath;
+			return {
+				ownerXml,
+				ownerName: selected.owner.name,
+				templateDescriptorOf: () => ownerXml,
+				templateNameFor: (name) => name,
+				askMakeMain: metadataObjectTypeHasMainDcs(selected.owner.objectType),
+				support: selected.owner.support,
+				configurationXmlAbs: selected.owner.configurationXmlAbs,
+				metadataRootAbs: selected.owner.metadataRootAbs,
+			};
+		}
+		if (
+			selected instanceof MetadataMdSubgroupTreeItem
+			&& selected.subgroupId === 'common_commontemplate'
+			&& selected.configurationXmlAbs
+		) {
+			const configurationXml = selected.configurationXmlAbs;
+			const descriptorOf = (name: string): string =>
+				formatOfFile(configurationXml) === 'edt'
+					? // Configuration.mdo лежит в src/Configuration, общие макеты в src/CommonTemplates
+						path.join(path.dirname(path.dirname(configurationXml)), 'CommonTemplates', name, `${name}.mdo`)
+					: path.join(path.dirname(configurationXml), 'CommonTemplates', `${name}.xml`);
+			return {
+				ownerXml: configurationXml,
+				ownerName: '',
+				templateDescriptorOf: descriptorOf,
+				templateNameFor: () => undefined,
+				askMakeMain: false,
+				configurationXmlAbs: configurationXml,
+				metadataRootAbs: selected.metadataRootAbs,
+			};
+		}
+		return undefined;
+	}
+
+	/**
+	 * Создаёт или удаляет макет СКД в общей очереди правок: вкладка схемы может в это время
+	 * писать тот же макет.
+	 *
+	 * @returns Промис, который разрешается текстом отказа; undefined, если правка выполнена
+	 */
+	async function mutateDcsTemplate(
+		ownerXml: string,
+		op: DcsTemplateOp,
+		name: string,
+		makeMain?: boolean
+	): Promise<string | undefined> {
+		let runtime: MdSparrowRuntime;
+		try {
+			runtime = await ensureMdSparrowRuntime(context);
+		} catch (error) {
+			return `Компонент md-sparrow недоступен. ${error instanceof Error ? error.message : String(error)}`;
+		}
+		const resolved = await resolveDcsOwnerTarget(ownerXml, undefined, mdSparrowFileReader(runtime).metadata);
+		if ('error' in resolved) {
+			return resolved.error;
+		}
+		const owner = resolved.target;
+		const res = await runMdSparrowMutation(() =>
+			runMdSparrowParamsMutation(runtime, dcsTemplateMutationParams(op, owner, name, makeMain), { cwd: owner.cwd })
+		);
+		if (res.exitCode === 0) {
+			return undefined;
+		}
+		return res.stderr.trim() || res.stdout.trim() || `код ${res.exitCode}`;
+	}
+
+	/** Формат макета берётся из описания владельца или его конфигурации. */
+	async function templateSchemaFlag(versionFile: string): Promise<string | undefined> {
+		const runtime = await ensureMdSparrowRuntime(context);
+		const resolved = await resolveDcsOwnerTarget(versionFile, undefined, mdSparrowFileReader(runtime).metadata);
+		if ('error' in resolved) {
+			void vscode.window.showErrorMessage(resolved.error);
+			return undefined;
+		}
+		return resolved.target.schemaVersion;
+	}
+
+	/** Открывает содержимое макета в редакторе его вида. */
+	async function openTemplate(requireDcs: boolean, item?: vscode.TreeItem): Promise<void> {
+		const selected = item ?? metadataTreeView.selection[0];
+		let objectFile: string | undefined;
+		let templateName: string | undefined;
+		let title = '';
+		let cwd: string | undefined;
+		let configurationXmlAbs: string | undefined;
+		if (selected instanceof MetadataObjectNodeTreeItem && selected.nodeKind === 'template' && selected.owner.resourceUri) {
+			objectFile = selected.owner.resourceUri.fsPath;
+			templateName = selected.name;
+			title = `${selected.owner.name}.${selected.name}`;
+			cwd = selected.owner.metadataRootAbs ?? path.dirname(objectFile);
+			configurationXmlAbs = selected.owner.configurationXmlAbs;
+		} else if (
+			selected instanceof MetadataLeafTreeItem
+			&& selected.objectType === 'CommonTemplate'
+			&& selected.resourceUri
+		) {
+			objectFile = selected.resourceUri.fsPath;
+			title = selected.name;
+			cwd = selected.metadataRootAbs ?? path.dirname(objectFile);
+			configurationXmlAbs = selected.configurationXmlAbs;
+		}
+		if (!objectFile || !cwd) {
+			void vscode.window.showInformationMessage('Выберите макет в дереве.');
+			return;
+		}
+		const content = await findTemplateContent(objectFile, templateName);
+		if (!content) {
+			void vscode.window.showInformationMessage('Файл макета не найден.');
+			return;
+		}
+		const runtime = await ensureMdSparrowRuntime(context);
+		const kind = await mdSparrowFileReader(runtime).templateKind(content);
+		if (kind === 'dcs') {
+			const schema = await templateSchemaFlag(configurationXmlAbs ?? objectFile);
+			if (schema !== undefined) {
+				await openDcsEditorPanel(context, {
+					templateXmlFsPath: content,
+					title,
+					cwd,
+					schemaFlag: schema,
+					enqueueMutation: runMdSparrowMutation,
+				});
+			}
+			return;
+		}
+		if (requireDcs) {
+			void vscode.window.showInformationMessage('Макет не является схемой компоновки данных.');
+			return;
+		}
+		if (kind === 'binary') {
+			return;
+		}
+		if (kind === 'text') {
+			await openTextFile(content);
+			return;
+		}
+		const schema = await templateSchemaFlag(configurationXmlAbs ?? objectFile);
+		if (schema === undefined) {
+			return;
+		}
+		await openSpreadsheetPanel(context, {
+			templateXmlFsPath: content,
+			title,
+			cwd,
+			schemaFlag: schema,
+		});
+	}
+
+	/** Создаёт макет со схемой компоновки и открывает его редактор. */
+	async function addDcsTemplateFromTree(item?: vscode.TreeItem): Promise<void> {
+		const owner = dcsTemplateOwnerOf(item ?? metadataTreeView.selection[0]);
+		if (!owner) {
+			void vscode.window.showInformationMessage('Выберите раздел «Макеты» объекта или группу общих макетов.');
+			return;
+		}
+		if (refuseLockedBySupport(owner.support)) {
+			return;
+		}
+		const rawName = await vscode.window.showInputBox({
+			title: 'Новая схема компоновки данных',
+			placeHolder: 'Имя макета',
+			validateInput: (value) => (!value.trim() ? 'Введите имя.' : null),
+		});
+		if (!rawName) {
+			return;
+		}
+		const name = rawName.trim();
+		let makeMain: boolean | undefined;
+		if (owner.askMakeMain) {
+			const pick = await vscode.window.showQuickPick(
+				[
+					{ label: 'Да', description: 'Заполнить свойство «Основная схема компоновки данных»', main: true },
+					{ label: 'Нет', main: false },
+				],
+				{ placeHolder: 'Назначить макет основной схемой компоновки данных отчёта?' }
+			);
+			if (!pick) {
+				return;
+			}
+			makeMain = pick.main;
+		}
+		const refusal = await mutateDcsTemplate(owner.ownerXml, 'cf-dcs-template-add', name, makeMain);
+		if (refusal !== undefined) {
+			void vscode.window.showErrorMessage(`Не удалось создать макет. ${refusal}`.trim().slice(0, 400));
+			return;
+		}
+		notifyQuiet(`Макет «${name}» создан`);
+		void vscode.commands.executeCommand('1c-platform-tools.metadata.refresh');
+		// За созданием обычно следует наполнение: редактор открывается сразу
+		const content = await findTemplateContent(owner.templateDescriptorOf(name), owner.templateNameFor(name));
+		if (!content) {
+			void vscode.window.showInformationMessage(`Файл содержимого макета «${name}» не найден.`);
+			return;
+		}
+		const schema = await templateSchemaFlag(owner.configurationXmlAbs ?? owner.ownerXml);
+		if (schema === undefined) {
+			return;
+		}
+		// Редактор проверит формат и сам, но отказ здесь должен сказать, что макет создан
+		const unsupported = dcsEditorUnsupportedReason(schema);
+		if (unsupported) {
+			void vscode.window.showInformationMessage(`Макет «${name}» создан. ${unsupported}`);
+			return;
+		}
+		await openDcsEditorPanel(context, {
+			templateXmlFsPath: content,
+			title: owner.ownerName ? `${owner.ownerName}.${name}` : name,
+			cwd: owner.metadataRootAbs ?? path.dirname(owner.ownerXml),
+			schemaFlag: schema,
+			enqueueMutation: runMdSparrowMutation,
+		});
+	}
+
+	/** Удаляет макет СКД объекта вместе с файлами после подтверждения. */
+	async function removeDcsTemplateFromTree(item?: vscode.TreeItem): Promise<void> {
+		const selected = item ?? metadataTreeView.selection[0];
+		if (
+			!(selected instanceof MetadataObjectNodeTreeItem)
+			|| selected.nodeKind !== 'template'
+			|| !selected.owner.resourceUri
+		) {
+			void vscode.window.showInformationMessage('Выберите макет со схемой компоновки в дереве.');
+			return;
+		}
+		// У макета своё правило поддержки: разрешение на объект его не открывает
+		if (refuseLockedBySupport(childNodeSupport(selected.owner.support, selected.support, true), 'Макет')) {
+			return;
+		}
+		const answer = await vscode.window.showWarningMessage(
+			`Удалить макет «${selected.name}» вместе с файлами?`,
+			{ modal: true },
+			'Удалить'
+		);
+		if (answer !== 'Удалить') {
+			return;
+		}
+		const refusal = await mutateDcsTemplate(selected.owner.resourceUri.fsPath, 'cf-dcs-template-remove', selected.name);
+		if (refusal !== undefined) {
+			void vscode.window.showErrorMessage(`Не удалось удалить макет. ${refusal}`.trim().slice(0, 400));
+			return;
+		}
+		notifyQuiet(`Макет «${selected.name}» удалён`);
 		void vscode.commands.executeCommand('1c-platform-tools.metadata.refresh');
 	}
 
@@ -2562,135 +2839,14 @@ export function registerMetadataFeature(
 				await openObjectPropertiesTab(node, 'commandInterface');
 			}
 		),
-		registerMetadataCommand(
-			'1c-platform-tools.metadata.openTemplate',
-			async (item?: vscode.TreeItem) => {
-				const selected = item ?? metadataTreeView.selection[0];
-				let objectFile: string | undefined;
-				let templateName: string | undefined;
-				let title = '';
-				let cwd: string | undefined;
-				let configurationXmlAbs: string | undefined;
-				if (selected instanceof MetadataObjectNodeTreeItem && selected.nodeKind === 'template' && selected.owner.resourceUri) {
-					objectFile = selected.owner.resourceUri.fsPath;
-					templateName = selected.name;
-					title = `${selected.owner.name}.${selected.name}`;
-					cwd = selected.owner.metadataRootAbs ?? path.dirname(objectFile);
-					configurationXmlAbs = selected.owner.configurationXmlAbs;
-				} else if (
-					selected instanceof MetadataLeafTreeItem
-					&& selected.objectType === 'CommonTemplate'
-					&& selected.resourceUri
-				) {
-					objectFile = selected.resourceUri.fsPath;
-					title = selected.name;
-					cwd = selected.metadataRootAbs ?? path.dirname(objectFile);
-					configurationXmlAbs = selected.configurationXmlAbs;
-				}
-				if (!objectFile || !cwd) {
-					void vscode.window.showInformationMessage('Выберите макет в дереве.');
-					return;
-				}
-				const content = await findTemplateContent(objectFile, templateName);
-				if (!content) {
-					void vscode.window.showInformationMessage('Файл макета не найден.');
-					return;
-				}
-				const kind = await classifyTemplateContent(content);
-				if (kind === 'dcs') {
-					await vscode.commands.executeCommand('1c-platform-tools.metadata.openDcs', selected);
-					return;
-				}
-				if (kind === 'binary') {
-					return;
-				}
-				if (kind === 'text') {
-					await openTextFile(content);
-					return;
-				}
-				const schema = configurationXmlAbs
-					? await mdSparrowSchemaFlagFromConfigurationXml(configurationXmlAbs)
-					: await mainSchemaFlag();
-				if (schema === undefined) {
-					return;
-				}
-				await openSpreadsheetPanel(context, {
-					templateXmlFsPath: content,
-					title,
-					cwd,
-					schemaFlag: schema,
-				});
-			}
-		),
-		registerMetadataCommand(
-			'1c-platform-tools.metadata.openDcs',
-			async (item?: vscode.TreeItem) => {
-				let templateXml: string | undefined;
-				let descriptorXml: string | undefined;
-				let title = '';
-				let cwd: string | undefined;
-				let configurationXmlAbs: string | undefined;
-				// Вид макета объекта уже спрошен у библиотеки, описание перечитывать незачем
-				let kindKnown = false;
-				if (item instanceof MetadataObjectNodeTreeItem && item.nodeKind === 'template' && item.owner.resourceUri) {
-					const objectFile = item.owner.resourceUri.fsPath;
-					cwd = item.owner.metadataRootAbs ?? path.dirname(item.owner.resourceUri.fsPath);
-					// Вид макета и файл его содержимого знает md-sparrow: у каждого вида свой файл
-					const structure = await readObjectStructure(objectFile, cwd, item.owner.configurationXmlAbs);
-					const template = structure?.templates?.find((entry) => entry.name === item.name);
-					if (!template) {
-						void vscode.window.showInformationMessage('Состав макетов объекта не прочитан.');
-						return;
-					}
-					if (template.templateType !== 'DATA_COMPOSITION_SCHEMA') {
-						void vscode.window.showInformationMessage('Макет не является схемой компоновки данных.');
-						return;
-					}
-					if (!template.contentFile) {
-						void vscode.window.showInformationMessage(`Рядом с макетом «${item.name}» нет файла содержимого.`);
-						return;
-					}
-					templateXml = path.join(objectDirectoryOf(objectFile), template.contentFile);
-					descriptorXml = templateXml;
-					kindKnown = true;
-					title = `${item.owner.name}.${item.name}`;
-					configurationXmlAbs = item.owner.configurationXmlAbs;
-				} else if (item instanceof MetadataLeafTreeItem && item.resourceUri) {
-					const file = item.resourceUri.fsPath;
-					descriptorXml = file;
-					templateXml = templateContentFileOf(file);
-					title = item.name;
-					cwd = item.metadataRootAbs ?? path.dirname(item.resourceUri.fsPath);
-					configurationXmlAbs = item.configurationXmlAbs;
-				}
-				if (!templateXml || !descriptorXml || !cwd) {
-					void vscode.window.showInformationMessage('Выберите макет в дереве.');
-					return;
-				}
-				try {
-					const descriptor = kindKnown ? '' : await fs.promises.readFile(descriptorXml, 'utf8');
-					if (!kindKnown && !descriptor.includes('DataCompositionSchema')) {
-						void vscode.window.showInformationMessage('Макет не является схемой компоновки данных.');
-						return;
-					}
-				} catch {
-					void vscode.window.showInformationMessage('Описание макета не прочитано.');
-					return;
-				}
-				const schema = configurationXmlAbs
-					? await mdSparrowSchemaFlagFromConfigurationXml(configurationXmlAbs)
-					: await mainSchemaFlag();
-				if (schema === undefined) {
-					return;
-				}
-				await openDcsEditorPanel(context, {
-					templateXmlFsPath: templateXml,
-					title,
-					cwd,
-					schemaFlag: schema,
-				});
-			}
-		),
+		registerMetadataCommand('1c-platform-tools.metadata.openTemplate', (item?: vscode.TreeItem) => openTemplate(false, item)),
+		registerMetadataCommand('1c-platform-tools.metadata.openDcs', (item?: vscode.TreeItem) => openTemplate(true, item)),
+		registerMetadataCommand('1c-platform-tools.metadata.dcsTemplateAdd', async (item?: vscode.TreeItem) => {
+			await addDcsTemplateFromTree(item);
+		}),
+		registerMetadataCommand('1c-platform-tools.metadata.dcsTemplateRemove', async (item?: vscode.TreeItem) => {
+			await removeDcsTemplateFromTree(item);
+		}),
 		registerMetadataCommand(
 			'1c-platform-tools.metadata.supportRemove',
 			async (item?: MetadataSourceTreeItem) => {
@@ -3220,6 +3376,8 @@ export function registerMetadataFeature(
 		onDidChangeProjects(() => void metadataTreeProvider.syncWithProjectLayout()),
 	];
 
+	// Команды агента пишут в той же очереди правок, что дерево и вкладки СКД
+	metadataDisposables.push(...registerDcsAgentCommands(context, runMdSparrowMutation));
 	return [...metadataDisposables, ...paletteSource];
 }
 

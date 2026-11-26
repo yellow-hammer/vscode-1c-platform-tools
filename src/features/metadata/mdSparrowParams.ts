@@ -124,6 +124,54 @@ export type MdSparrowOp =
 	| 'cf-spreadsheet-set-cell'
 	| 'cf-dcs-set-query'
 	| 'cf-dcs-add-calculated-field'
+	// правки схемы компоновки
+	| 'cf-dcs-add-data-set'
+	| 'cf-dcs-remove-data-set'
+	| 'cf-dcs-rename-data-set'
+	| 'cf-dcs-set-data-set-props'
+	| 'cf-dcs-add-field'
+	| 'cf-dcs-set-field'
+	| 'cf-dcs-remove-field'
+	| 'cf-dcs-add-link'
+	| 'cf-dcs-set-link'
+	| 'cf-dcs-remove-link'
+	| 'cf-dcs-set-calculated-field'
+	| 'cf-dcs-remove-calculated-field'
+	| 'cf-dcs-add-total-field'
+	| 'cf-dcs-set-total-field'
+	| 'cf-dcs-remove-total-field'
+	| 'cf-dcs-add-parameter'
+	| 'cf-dcs-set-parameter'
+	| 'cf-dcs-remove-parameter'
+	// варианты настроек схемы компоновки
+	| 'cf-dcs-settings-info'
+	| 'cf-dcs-add-settings-variant'
+	| 'cf-dcs-remove-settings-variant'
+	| 'cf-dcs-set-settings-variant-props'
+	| 'cf-dcs-add-structure-item'
+	| 'cf-dcs-remove-structure-item'
+	| 'cf-dcs-move-structure-item'
+	| 'cf-dcs-set-group-fields'
+	| 'cf-dcs-set-selection'
+	| 'cf-dcs-set-order'
+	| 'cf-dcs-set-filter'
+	| 'cf-dcs-set-parameter-value'
+	| 'cf-dcs-add-appearance-item'
+	| 'cf-dcs-set-appearance-item'
+	| 'cf-dcs-remove-appearance-item'
+	// автозаполнение полей, строгая проверка схемы (read-json) и макеты владельца
+	| 'cf-dcs-autofill-fields'
+	| 'cf-dcs-validate'
+	| 'cf-dcs-template-add'
+	| 'cf-dcs-template-remove'
+	// словарь окна «Тип значения» (read-json)
+	| 'cf-dcs-type-dictionary'
+	| 'cf-metadata-file-info'
+	| 'cf-template-content-kind'
+	// таблицы языка запросов объекта (read-json)
+	| 'cf-md-query-tables'
+	// пакет операций (apply-mutation, поле operations)
+	| 'batch'
 	| 'project-metadata-tree'
 	| 'cf-md-graph'
 	| 'cf-validate-dump';
@@ -167,6 +215,16 @@ export interface MdSparrowParams {
 	newName?: string;
 	sourceName?: string;
 	tabularSection?: string;
+	/** Набор данных схемы компоновки (cf-dcs-*). */
+	dataSet?: string;
+	/** Путь к данным поля схемы компоновки (cf-dcs-*). */
+	dataPath?: string;
+	/** Вариант настроек схемы компоновки: имя среди прямых детей корня (cf-dcs-*). */
+	variant?: string;
+	/** Номер элемента схемы, у которого в формате нет ключа: связи и ресурсы. */
+	index?: number;
+	/** Источник данных нового набора (cf-dcs-add-data-set). */
+	dataSource?: string;
 	/** Версия схемы в формате `V2_20` (как флаг `-v`). */
 	schemaVersion?: string;
 	type?: string;
@@ -174,12 +232,23 @@ export interface MdSparrowParams {
 	synonym?: string;
 	synonymEmpty?: boolean;
 	autoName?: boolean;
+	/** Заполнить MainDataCompositionSchema владельца новым макетом: только у видов с этим свойством (cf-dcs-template-add). */
+	makeMain?: boolean;
+	/** Строгая проверка схемы компоновки: XSD с поправками «как пишет платформа» (cf-dcs-validate). */
+	strict?: boolean;
+	/** Язык имён видов, таблиц и стандартных реквизитов в ответе (cf-md-query-tables); по умолчанию ru. */
+	lang?: 'ru' | 'en';
 	/** Отпечаток прочитанных правил поддержки: правка поверх устаревшего снимка отклоняется. */
 	expectedGeneration?: string;
 	/** Полезная нагрузка для set-операций: JSON DTO как строка. */
 	payloadJson?: string;
 	/** Не смотреть на правила поддержки: правка идёт так, будто поставки нет. */
 	ignoreSupport?: boolean;
+	/**
+	 * Операции пакета (`op: 'batch'`): идут по порядку в одном сеансе записи, первый отказ отменяет
+	 * весь пакет. `ignoreSupport` и `dryRun` задаются только у пакета, внутри операций это отказ.
+	 */
+	operations?: MdSparrowParams[];
 }
 
 /**
@@ -242,9 +311,21 @@ export async function runMdSparrowParamsMutation(
 		if (move) {
 			notifyMetadataFileMoved(move);
 		}
-		notifyMetadataFilesChanged([params.objectXml, params.configurationXml, params.formXml]);
+		notifyMetadataFilesChanged(changedFilesOf(params));
 	}
 	return result;
+}
+
+/**
+ * Файлы правки вместе с файлами операций пакета, без повторов: иначе открытая панель перечитывала
+ * бы один файл на каждую операцию.
+ */
+function changedFilesOf(params: MdSparrowParams): Array<string | undefined> {
+	const files = [params.objectXml, params.configurationXml, params.formXml];
+	for (const operation of params.operations ?? []) {
+		files.push(operation.objectXml, operation.configurationXml, operation.formXml);
+	}
+	return [...new Set(files)];
 }
 
 /** Куда ушло описание объекта после переименования или удаления. */
@@ -296,6 +377,7 @@ export async function runMdSparrowParamsRead(
  * Панель свойств зовёт их на каждый объект, а каждый запуск это ещё и старт JVM.
  */
 const CACHED_READS: ReadonlySet<string> = new Set([
+	'cf-metadata-file-info',
 	'cf-md-object-get',
 	'cf-md-object-structure-get',
 	'cf-configuration-properties-get',

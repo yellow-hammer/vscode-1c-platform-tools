@@ -18,7 +18,8 @@ import {
 } from './metadataTreeService';
 import { ensureMdSparrowRuntime } from './mdSparrowBootstrap';
 import { runMdSparrowParamsRead, supportEnabled } from './mdSparrowParams';
-import { mdSparrowSchemaFlagFromConfigurationXml } from './mdSparrowSchemaVersion';
+import { EDT_SCHEMA_FLAG, designerXmlVersionToMdSparrowFlag, mdSparrowSchemaFlagFromConfigurationXml } from './mdSparrowSchemaVersion';
+import { mdSparrowFileReader } from './mdSparrowFileInfo';
 import { offerGithubTokenOnRateLimit } from '../../shared/githubToken';
 import { configurationScope, type ConfigurationScope } from '../../shared/activeConfiguration';
 import { detectProjectKind } from '../../shared/projectKind';
@@ -49,7 +50,6 @@ import {
 	METADATA_OBJECT_SECTION_SOURCES_BY_TYPE,
 	type MetadataObjectSectionSource,
 } from './metadataObjectSectionProfiles';
-import { templateMenuToken } from '../spreadsheet/templateContent';
 import {
 	formatOfFile,
 	formModuleFileOf,
@@ -73,7 +73,7 @@ interface MdObjectStructureDto {
 	}>;
 	readonly forms: string[];
 	readonly commands: string[];
-	readonly templates: string[];
+	readonly templates: Array<string | { name: string; templateContentKind?: string }>;
 	readonly values?: unknown[];
 	readonly columns?: unknown[];
 	readonly accountingFlags?: unknown[];
@@ -123,6 +123,12 @@ function normalizeMetadataObjectType(objectType: string): string {
 /** Общая форма — сама объект, не узел «Формы» у справочника. */
 export function isMetadataCommonForm(objectType: string): boolean {
 	return normalizeMetadataObjectType(objectType) === 'CommonForm';
+}
+
+/** Свойство «Основная схема компоновки данных» есть только у отчётов и внешних отчётов. */
+export function metadataObjectTypeHasMainDcs(objectType: string): boolean {
+	const normalized = normalizeMetadataObjectType(objectType);
+	return normalized === 'Report' || normalized === 'ExternalReport';
 }
 
 /** Вид модуля объекта метаданных, доступного для открытия из дерева. */
@@ -445,6 +451,13 @@ export function objectChildFromFilePath(
 	return name.length > 0 ? { sectionKind, name } : undefined;
 }
 
+function templateMenuToken(kind: string | undefined): 'mdDcs' | 'mdSpreadsheet' | undefined {
+	if (kind === 'dcs') {
+		return 'mdDcs';
+	}
+	return kind === 'spreadsheet' ? 'mdSpreadsheet' : undefined;
+}
+
 export class MetadataLeafTreeItem extends vscode.TreeItem {
 	constructor(
 		public readonly sourceId: string,
@@ -468,7 +481,8 @@ export class MetadataLeafTreeItem extends vscode.TreeItem {
 		/** Отпечаток правил поддержки: правка сверяется с ним. */
 		public readonly supportGeneration?: string,
 		/** Синоним объекта: по нему ищут в дереве, в подписи он не показывается. */
-		public readonly synonym?: string
+		public readonly synonym?: string,
+		templateContentKind?: string
 	) {
 		const absFromRelativePath =
 			relativePath && relativePath.length > 0
@@ -517,7 +531,7 @@ export class MetadataLeafTreeItem extends vscode.TreeItem {
 				tokens.push('mdSupportRule');
 			}
 			if (normalizedObjectType === 'CommonTemplate') {
-				const token = templateMenuToken(abs);
+				const token = templateMenuToken(templateContentKind);
 				if (token) {
 					tokens.push(token);
 				}
@@ -804,13 +818,26 @@ export class MetadataObjectSectionTreeItem extends vscode.TreeItem {
 		// Токен вместо перечисления видов в условиях меню: новый вид раздела
 		// получает пункт «Добавить» сам, как только md-sparrow научится его создавать
 		this.contextValue = withFormatToken(
-			childKindOfSection(sectionKind) || sectionKind === 'forms'
-				? 'metadataObjectSection mdSectionAdd'
-				: 'metadataObjectSection',
+			sectionContextValue(sectionKind),
 			owner.configurationXmlAbs ?? owner.resourceUri?.fsPath
 		);
 		this.iconPath = ownerAwareIcon(metadataSectionIcon(sectionKind, extensionUri), owner);
 	}
+}
+
+/**
+ * contextValue раздела состава: токены возможностей для условий меню.
+ * У раздела макетов свой пункт вместо «Добавить»: другие виды макетов
+ * md-sparrow с нуля не создаёт.
+ */
+function sectionContextValue(sectionKind: MetadataSectionKind): string {
+	if (childKindOfSection(sectionKind) || sectionKind === 'forms') {
+		return 'metadataObjectSection mdSectionAdd';
+	}
+	if (sectionKind === 'templates') {
+		return 'metadataObjectSection mdDcsTemplateAdd';
+	}
+	return 'metadataObjectSection';
 }
 
 /** Замочек владельца распространяется на его разделы и узлы состава. */
@@ -887,7 +914,8 @@ export class MetadataObjectNodeTreeItem extends vscode.TreeItem {
 		public readonly owner: MetadataLeafTreeItem,
 		public readonly tabularSectionName?: string,
 		/** Своё правило поддержки: у формы и макета оно отдельное от объекта. */
-		public readonly support?: string
+		public readonly support?: string,
+		templateContentKind?: string
 	) {
 		super(label, hasChildren ? vscode.TreeItemCollapsibleState.Collapsed : vscode.TreeItemCollapsibleState.None);
 		this.contextValue = withFormatToken(
@@ -916,7 +944,7 @@ export class MetadataObjectNodeTreeItem extends vscode.TreeItem {
 			};
 		}
 		if (nodeKind === 'template') {
-			const token = owner.resourceUri ? templateMenuToken(owner.resourceUri.fsPath, name) : undefined;
+			const token = templateMenuToken(templateContentKind);
 			if (token) {
 				this.contextValue = `${this.contextValue} ${token}`;
 			}
@@ -2765,6 +2793,14 @@ export class MetadataTreeDataProvider implements vscode.TreeDataProvider<vscode.
 			}
 
 			const items = objectStructureItemsForSection(dto, spec.source);
+			const templateKinds = new Map<string, string>();
+			if (spec.nodeKind === 'template') {
+				for (const template of dto.templates ?? []) {
+					if (typeof template !== 'string' && template.templateContentKind) {
+						templateKinds.set(template.name, template.templateContentKind);
+					}
+				}
+			}
 			const section = new MetadataObjectSectionTreeItem(
 				`${leafKey}|${spec.kind}`,
 				spec.kind,
@@ -2787,7 +2823,8 @@ export class MetadataTreeDataProvider implements vscode.TreeDataProvider<vscode.
 							this._context.extensionUri,
 							leaf,
 							undefined,
-							childSupport(spec.nodeKind, itemName)
+							childSupport(spec.nodeKind, itemName),
+							templateKinds.get(itemName)
 						)
 				)
 			);
@@ -2833,19 +2870,15 @@ export class MetadataTreeDataProvider implements vscode.TreeDataProvider<vscode.
 		if (!leaf.resourceUri) {
 			throw new Error('Нет данных для загрузки структуры объекта.');
 		}
-		let schema: string | undefined;
-		if (leaf.configurationXmlAbs) {
-			schema = await mdSparrowSchemaFlagFromConfigurationXml(leaf.configurationXmlAbs);
-		} else {
-			const schemaFromTree = this._dto?.mainSchemaVersionFlag;
-			if (typeof schemaFromTree === 'string' && schemaFromTree.length > 0) {
-				schema = schemaFromTree;
-			}
-		}
-		if (schema === undefined) {
-			throw new Error('Не удалось определить схему XSD для структуры объекта.');
-		}
 		const runtime = await ensureMdSparrowRuntime(this._context, this._workspaceRoot);
+		const versionFile = leaf.configurationXmlAbs ?? leaf.resourceUri.fsPath;
+		const version = this._dto?.sources.find((source) => source.id === leaf.sourceId)?.schemaVersion;
+		let schema = EDT_SCHEMA_FLAG;
+		if (formatOfFile(versionFile) === 'designer') {
+			schema = version
+				? designerXmlVersionToMdSparrowFlag(version)
+				: (await mdSparrowFileReader(runtime).metadata(versionFile)).schemaVersion;
+		}
 		const res = await runMdSparrowParamsRead(
 			runtime,
 			{ op: 'cf-md-object-structure-get', objectXml: leaf.resourceUri.fsPath, schemaVersion: schema },
@@ -3003,7 +3036,8 @@ function createMetadataLeaf(
 		item.support,
 		supportRulesOpen,
 		supportGeneration,
-		item.synonym
+		item.synonym,
+		item.templateContentKind
 	);
 }
 
