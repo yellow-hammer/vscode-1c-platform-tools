@@ -9,14 +9,9 @@
 
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
-import {
-	EDT_SCHEMA_FLAG,
-	designerXmlVersionToMdSparrowFlag,
-	mdSparrowSchemaFlagFromConfigurationXml,
-	readConfigurationXmlMetaDataVersion,
-} from './mdSparrowSchemaVersion';
+import { EDT_SCHEMA_FLAG } from './mdSparrowSchemaVersion';
+import type { MdSparrowFileReader } from './mdSparrowFileInfo';
 import type { MdSparrowParams } from './mdSparrowParams';
-import { describeMarker } from '../../shared/projectLayout';
 
 /** Файл и окружение запуска md-sparrow, найденные по пути файла. */
 export interface DcsResolvedTarget {
@@ -133,32 +128,6 @@ export async function dcsCommonAttributeNames(root: string): Promise<string[]> {
 	}
 }
 
-/** Сколько байт начала Configuration.xml читать ради признака расширения: свойства конфигурации идут в начале. */
-const CONFIGURATION_HEAD_BYTES = 8192;
-
-/**
- * Выгрузка расширения конфигурации: в Configuration.xml записана принадлежность объекта (ObjectBelonging).
- * Описания заимствованных объектов несут только заимствованные реквизиты и части, поэтому проверку имён
- * запроса по такой выгрузке панель выключает. Файл не читается: false.
- *
- * @param configurationXml - Configuration.xml выгрузки, в которой лежит макет
- * @returns Промис, который разрешается true у выгрузки расширения
- */
-export async function isConfigurationExtensionXml(configurationXml: string): Promise<boolean> {
-	try {
-		const handle = await fs.open(configurationXml, 'r');
-		try {
-			const buffer = Buffer.alloc(CONFIGURATION_HEAD_BYTES);
-			const { bytesRead } = await handle.read(buffer, 0, buffer.length, 0);
-			return describeMarker(buffer.subarray(0, bytesRead).toString('utf8'), 'designer').isExtension;
-		} finally {
-			await handle.close();
-		}
-	} catch {
-		return false;
-	}
-}
-
 /**
  * Файл объекта для описания либо причина, по которой его нет: `outside`, макет вне выгрузки;
  * `missing`, объекта в выгрузке нет (например, объект основной конфигурации у макета расширения).
@@ -182,7 +151,8 @@ export type DcsDescribeTargetResolution =
 export async function resolveDcsDescribeTarget(
 	templateFile: string,
 	folder: string,
-	name: string
+	name: string,
+	readMetadata: MdSparrowFileReader['metadata']
 ): Promise<DcsDescribeTargetResolution> {
 	const configurationXml = await findUp(path.dirname(templateFile), 'Configuration.xml');
 	if (configurationXml !== undefined) {
@@ -191,11 +161,7 @@ export async function resolveDcsDescribeTarget(
 		if (!(await fileExists(objectXml))) {
 			return { missing: `Объекта ${folder}/${name} нет в выгрузке ${root}.` };
 		}
-		try {
-			return { target: { objectXml, cwd: root, schemaVersion: await mdSparrowSchemaFlagFromConfigurationXml(configurationXml) } };
-		} catch (error) {
-			return { error: `Версия формата не прочитана из ${configurationXml}. ${error instanceof Error ? error.message : String(error)}` };
-		}
+		return designerTargetFromDescriptor(objectXml, root, configurationXml, readMetadata);
 	}
 	const edtRoot = await edtRootOf(templateFile);
 	if (edtRoot !== undefined) {
@@ -219,7 +185,11 @@ export async function resolveDcsDescribeTarget(
  * @param relativePath - Файл объекта от корня выгрузки или проекта
  * @returns Промис, который разрешается файлом объекта либо причиной, по которой его нет
  */
-export async function resolveDcsQueryTablesTarget(templateFile: string, relativePath: string): Promise<DcsDescribeTargetResolution> {
+export async function resolveDcsQueryTablesTarget(
+	templateFile: string,
+	relativePath: string,
+	readMetadata: MdSparrowFileReader['metadata']
+): Promise<DcsDescribeTargetResolution> {
 	const configurationXml = await findUp(path.dirname(templateFile), 'Configuration.xml');
 	const edtRoot = configurationXml === undefined ? await edtRootOf(templateFile) : undefined;
 	if (configurationXml === undefined && edtRoot === undefined) {
@@ -246,57 +216,37 @@ export async function resolveDcsQueryTablesTarget(templateFile: string, relative
 	if (configurationXml === undefined) {
 		return { target: { objectXml, cwd: root, schemaVersion: EDT_SCHEMA_FLAG } };
 	}
+	return designerTargetFromDescriptor(objectXml, root, configurationXml, readMetadata);
+}
+
+async function designerTargetFromDescriptor(
+	objectXml: string,
+	cwd: string,
+	descriptor: string,
+	readMetadata: MdSparrowFileReader['metadata']
+): Promise<DcsTargetResolution> {
 	try {
-		return { target: { objectXml, cwd: root, schemaVersion: await mdSparrowSchemaFlagFromConfigurationXml(configurationXml) } };
+		const { schemaVersion } = await readMetadata(descriptor);
+		return { target: { objectXml, cwd, schemaVersion } };
 	} catch (error) {
-		return { error: `Версия формата не прочитана из ${configurationXml}. ${error instanceof Error ? error.message : String(error)}` };
+		return { error: `Версия формата не прочитана из ${descriptor}. ${error instanceof Error ? error.message : String(error)}` };
 	}
 }
 
-/** Версия формата по файлу MetaDataObject; undefined, если атрибут не прочитан. */
-async function schemaFlagOfMetaDataObject(file: string): Promise<string | undefined> {
-	try {
-		return designerXmlVersionToMdSparrowFlag(await readConfigurationXmlMetaDataVersion(file));
-	} catch {
-		return undefined;
-	}
-}
-
-/**
- * Цель в выгрузке конфигуратора: версия формата из Configuration.xml выше по каталогам либо из
- * запасного описания, когда выгрузки над файлом нет.
- *
- * @param objectXml - Файл операции md-sparrow
- * @param versionFallback - Описание с атрибутом version для файлов вне выгрузки
- * @returns Промис, который разрешается целью либо текстом отказа
- */
-export async function designerTarget(objectXml: string, versionFallback: string | undefined): Promise<DcsTargetResolution> {
-	const configurationXml = await findUp(path.dirname(objectXml), 'Configuration.xml');
+/** Цель в выгрузке 1C:Конфигуратор или во внешнем отчёте или обработке. */
+export async function designerTarget(
+	objectXml: string,
+	versionFallback: string | undefined,
+	readMetadata: MdSparrowFileReader['metadata']
+): Promise<DcsTargetResolution> {
+	const configurationXml = await findConfigurationXmlAbove(objectXml);
 	if (configurationXml !== undefined) {
-		try {
-			return {
-				target: {
-					objectXml,
-					cwd: path.dirname(configurationXml),
-					schemaVersion: await mdSparrowSchemaFlagFromConfigurationXml(configurationXml),
-				},
-			};
-		} catch (error) {
-			return { error: `Версия формата не прочитана из ${configurationXml}. ${error instanceof Error ? error.message : String(error)}` };
-		}
+		return designerTargetFromDescriptor(objectXml, path.dirname(configurationXml), configurationXml, readMetadata);
 	}
-	// Вне выгрузки (внешние отчёты и обработки) версию несёт описание самого объекта
 	if (versionFallback !== undefined) {
-		const flag = await schemaFlagOfMetaDataObject(versionFallback);
-		if (flag !== undefined) {
-			return { target: { objectXml, cwd: path.dirname(objectXml), schemaVersion: flag } };
-		}
+		return designerTargetFromDescriptor(objectXml, path.dirname(objectXml), versionFallback, readMetadata);
 	}
-	return {
-		error:
-			`Версия формата выгрузки не определена: выше ${objectXml} нет Configuration.xml, ` +
-			'а описание с атрибутом version рядом не прочитано.',
-	};
+	return { error: `Версия формата выгрузки не определена: выше ${objectXml} нет Configuration.xml или описания макета рядом.` };
 }
 
 /**
@@ -307,7 +257,11 @@ export async function designerTarget(objectXml: string, versionFallback: string 
  * @param baseDir - Корень проекта для относительных путей
  * @returns Промис, который разрешается целью либо текстом отказа
  */
-export async function resolveDcsOwnerTarget(raw: unknown, baseDir: string | undefined): Promise<DcsTargetResolution> {
+export async function resolveDcsOwnerTarget(
+	raw: unknown,
+	baseDir: string | undefined,
+	readMetadata: MdSparrowFileReader['metadata']
+): Promise<DcsTargetResolution> {
 	const resolved = absolutePathOf(
 		raw,
 		baseDir,
@@ -326,17 +280,7 @@ export async function resolveDcsOwnerTarget(raw: unknown, baseDir: string | unde
 			target: { objectXml: abs, cwd: (await edtRootOf(abs)) ?? path.dirname(abs), schemaVersion: EDT_SCHEMA_FLAG },
 		};
 	}
-	if (path.basename(abs).toLowerCase() === 'configuration.xml') {
-		try {
-			return {
-				target: { objectXml: abs, cwd: path.dirname(abs), schemaVersion: await mdSparrowSchemaFlagFromConfigurationXml(abs) },
-			};
-		} catch (error) {
-			return { error: `Версия формата не прочитана из ${abs}. ${error instanceof Error ? error.message : String(error)}` };
-		}
-	}
-	// Версию формата несёт и само описание владельца: у внешних отчётов Configuration.xml нет
-	return designerTarget(abs, abs);
+	return designerTarget(abs, abs, readMetadata);
 }
 
 /** Правка состава макетов владельца: создание или удаление макета со схемой компоновки. */

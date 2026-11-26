@@ -11,7 +11,7 @@
  */
 
 import * as path from 'node:path';
-import { classifyTemplateContent, findTemplateContent } from '../spreadsheet/templateContent';
+import { findTemplateContent } from '../spreadsheet/templateContent';
 import {
 	DCS_MESSAGE_PREFIX,
 	DCS_MESSAGE_SPECS,
@@ -19,6 +19,7 @@ import {
 	type DcsMessageSpec,
 	type DcsMutation,
 } from './dcsPanelMessages';
+import type { MdSparrowFileReader } from './mdSparrowFileInfo';
 import { absolutePathOf, designerTarget, edtRootOf, fileExists, type DcsTargetResolution } from './dcsTargets';
 import { EDT_SCHEMA_FLAG } from './mdSparrowSchemaVersion';
 import type { MdSparrowOp, MdSparrowParams } from './mdSparrowParams';
@@ -195,7 +196,11 @@ async function templateDescriptorNextTo(contentFile: string): Promise<string | u
  * @param baseDir - Корень проекта для относительных путей
  * @returns Промис, который разрешается файлом содержимого с рабочим каталогом и версией формата либо текстом отказа
  */
-export async function resolveDcsSchemaTarget(raw: unknown, baseDir: string | undefined): Promise<DcsTargetResolution> {
+export async function resolveDcsSchemaTarget(
+	raw: unknown,
+	baseDir: string | undefined,
+	files: MdSparrowFileReader
+): Promise<DcsTargetResolution> {
 	const resolved = absolutePathOf(
 		raw,
 		baseDir,
@@ -210,21 +215,17 @@ export async function resolveDcsSchemaTarget(raw: unknown, baseDir: string | und
 		return { error: `Файл не найден: ${abs}` };
 	}
 	const base = path.basename(abs).toLowerCase();
-	let contentFile: string;
-	if (base.endsWith('.dcs')) {
-		contentFile = abs;
-	} else if (base === 'template.xml') {
-		if ((await classifyTemplateContent(abs)) !== 'dcs') {
-			return { error: `Файл не является схемой компоновки данных: ${abs}` };
+	const isContentFile = base.endsWith('.dcs') || base === 'template.xml';
+	const contentFile = isContentFile ? abs : await findTemplateContent(abs);
+	if (contentFile === undefined) {
+		return { error: `Рядом с описанием макета нет содержимого схемы компоновки: ${abs}` };
+	}
+	try {
+		if ((await files.templateKind(contentFile)) !== 'dcs') {
+			return { error: `Файл не является схемой компоновки данных: ${contentFile}` };
 		}
-		contentFile = abs;
-	} else {
-		// Описание макета: содержимое лежит в одноимённом каталоге
-		const found = await findTemplateContent(abs);
-		if (found === undefined || (await classifyTemplateContent(found)) !== 'dcs') {
-			return { error: `Рядом с описанием макета нет содержимого схемы компоновки: ${abs}` };
-		}
-		contentFile = found;
+	} catch (error) {
+		return { error: `Не удалось прочитать файл макета ${contentFile}. ${error instanceof Error ? error.message : String(error)}` };
 	}
 	if (contentFile.toLowerCase().endsWith('.dcs')) {
 		return {
@@ -235,5 +236,9 @@ export async function resolveDcsSchemaTarget(raw: unknown, baseDir: string | und
 			},
 		};
 	}
-	return designerTarget(contentFile, await templateDescriptorNextTo(contentFile));
+	return designerTarget(
+		contentFile,
+		isContentFile ? await templateDescriptorNextTo(contentFile) : abs,
+		files.metadata
+	);
 }

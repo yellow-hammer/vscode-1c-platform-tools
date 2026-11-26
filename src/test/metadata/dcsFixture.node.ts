@@ -6,7 +6,6 @@ import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-import { classifyTemplateContent } from '../../features/spreadsheet/templateContent';
 
 const FIXTURE = path.resolve(__dirname, '../../../src/test/fixtures/dcs/Template.xml');
 
@@ -40,9 +39,5 @@ describe('Фикстура схемы компоновки данных', () => 
 		assert.equal(count(text, '<totalField>'), 1, 'ресурсы');
 		assert.equal(count(text, '<parameter>'), 11, 'параметры');
 		assert.equal(count(text, '<settingsVariant>'), 1, 'вариант настроек');
-	});
-
-	test('содержимое макета классифицируется как схема компоновки', async () => {
-		assert.equal(await classifyTemplateContent(FIXTURE), 'dcs');
 	});
 });

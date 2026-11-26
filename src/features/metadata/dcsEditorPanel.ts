@@ -35,11 +35,11 @@ import {
 	dcsCommonAttributeNames,
 	dcsEditorUnsupportedReason,
 	findConfigurationXmlAbove,
-	isConfigurationExtensionXml,
 	resolveDcsDescribeTarget,
 	resolveDcsQueryTablesTarget,
 } from './dcsTargets';
 import { createDcsMetadataTreeCache } from './dcsMetadataTreeCache';
+import { mdSparrowFileReader } from './mdSparrowFileInfo';
 import { ensureMdSparrowRuntime } from './mdSparrowBootstrap';
 import {
 	runMdSparrowParamsMutation,
@@ -464,6 +464,7 @@ export async function openDcsEditorPanel(
 		return;
 	}
 	const runtime = await ensureMdSparrowRuntime(context);
+	const fileReader = mdSparrowFileReader(runtime);
 
 	async function readInfo(): Promise<DcsInfoDto | string> {
 		const res = await runMdSparrowParamsRead(
@@ -509,7 +510,8 @@ export async function openDcsEditorPanel(
 	// Конструктор запроса строит дерево по выгрузке, в которой лежит макет: вне её кнопки нет
 	const constructorConfigurationXml = await findConfigurationXmlAbove(input.templateXmlFsPath);
 	// Выгрузка расширения: проверка имён запроса по ней дала бы ложные предупреждения
-	const constructorExtension = constructorConfigurationXml !== undefined && (await isConfigurationExtensionXml(constructorConfigurationXml));
+	const constructorExtension = constructorConfigurationXml !== undefined
+		&& (await fileReader.metadata(constructorConfigurationXml).catch(() => undefined))?.configurationExtension !== false;
 	// Общие реквизиты — поля таблиц, которых нет в описаниях md-sparrow: о них проверка имён молчит
 	const constructorCommonAttributes =
 		constructorConfigurationXml === undefined ? [] : await dcsCommonAttributeNames(path.dirname(constructorConfigurationXml));
@@ -916,7 +918,7 @@ export async function openDcsEditorPanel(
 		}
 		const echo = { relativePath: request.relativePath, lang: request.lang };
 		try {
-			const resolved = await resolveDcsQueryTablesTarget(input.templateXmlFsPath, request.relativePath);
+			const resolved = await resolveDcsQueryTablesTarget(input.templateXmlFsPath, request.relativePath, fileReader.metadata);
 			if ('outside' in resolved) {
 				post({ type: 'queryTables', ...echo, outside: true, note: 'Макет вне выгрузки конфигурации: таблиц объектов нет.' });
 				return;
@@ -1015,7 +1017,7 @@ export async function openDcsEditorPanel(
 		}
 		const answerEcho = { ...request.echo, lang };
 		try {
-			const resolved = await resolveDcsDescribeTarget(input.templateXmlFsPath, request.folder, request.name);
+			const resolved = await resolveDcsDescribeTarget(input.templateXmlFsPath, request.folder, request.name, fileReader.metadata);
 			if ('outside' in resolved) {
 				post({ type: 'describeType', ...answerEcho, outside: true });
 				return;

@@ -78,6 +78,8 @@ export interface MetadataItemDto {
 	readonly support?: string;
 	/** Синоним объекта: участвует в поиске по дереву. */
 	readonly synonym?: string;
+	/** Вид содержимого общего макета, определённый md-sparrow. */
+	readonly templateContentKind?: string;
 	/** Необязательная цель открытия из md-sparrow; клик в IDE работает и без неё. */
 	readonly open?: MetadataItemOpenDto;
 }

@@ -166,6 +166,8 @@ export type MdSparrowOp =
 	| 'cf-dcs-template-remove'
 	// словарь окна «Тип значения» (read-json)
 	| 'cf-dcs-type-dictionary'
+	| 'cf-metadata-file-info'
+	| 'cf-template-content-kind'
 	// таблицы языка запросов объекта (read-json)
 	| 'cf-md-query-tables'
 	// пакет операций (apply-mutation, поле operations)
@@ -375,6 +377,7 @@ export async function runMdSparrowParamsRead(
  * Панель свойств зовёт их на каждый объект, а каждый запуск это ещё и старт JVM.
  */
 const CACHED_READS: ReadonlySet<string> = new Set([
+	'cf-metadata-file-info',
 	'cf-md-object-get',
 	'cf-md-object-structure-get',
 	'cf-configuration-properties-get',

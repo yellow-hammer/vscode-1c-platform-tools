@@ -33,6 +33,7 @@ import {
 	type DcsResolvedTarget,
 	type DcsTemplateOp,
 } from './dcsTargets';
+import { mdSparrowFileReader } from './mdSparrowFileInfo';
 import { ensureMdSparrowRuntime, type MdSparrowRuntime } from './mdSparrowBootstrap';
 import { runMdSparrowParamsMutation, runMdSparrowParamsRead, type MdSparrowParams } from './mdSparrowParams';
 
@@ -118,13 +119,13 @@ async function readCommand(context: vscode.ExtensionContext, arg: unknown): Prom
 	if (variant !== undefined && (typeof variant !== 'string' || variant === '')) {
 		return failure('Параметр variant: непустое имя варианта настроек.');
 	}
-	const resolved = await resolveDcsSchemaTarget(opts.path, baseDirOf(opts));
-	if ('error' in resolved) {
-		return failure(resolved.error);
-	}
 	const prepared = await runtimeOf(context);
 	if ('failure' in prepared) {
 		return prepared.failure;
+	}
+	const resolved = await resolveDcsSchemaTarget(opts.path, baseDirOf(opts), mdSparrowFileReader(prepared.runtime));
+	if ('error' in resolved) {
+		return failure(resolved.error);
 	}
 	const address = addressOf(resolved.target);
 	const info = await readJson(prepared.runtime, { op: 'cf-dcs-info', ...address }, resolved.target.cwd);
@@ -165,15 +166,15 @@ async function applyCommand(
 	}
 	const op = mapped.mutation.op;
 	// Операции макетов адресуют описание владельца, остальные адресуют схему
-	const resolved = DCS_OWNER_OPS.has(op)
-		? await resolveDcsOwnerTarget(opts.path, baseDirOf(opts))
-		: await resolveDcsSchemaTarget(opts.path, baseDirOf(opts));
-	if ('error' in resolved) {
-		return failure(resolved.error);
-	}
 	const prepared = await runtimeOf(context);
 	if ('failure' in prepared) {
 		return prepared.failure;
+	}
+	const resolved = DCS_OWNER_OPS.has(op)
+		? await resolveDcsOwnerTarget(opts.path, baseDirOf(opts), mdSparrowFileReader(prepared.runtime).metadata)
+		: await resolveDcsSchemaTarget(opts.path, baseDirOf(opts), mdSparrowFileReader(prepared.runtime));
+	if ('error' in resolved) {
+		return failure(resolved.error);
 	}
 	return runMutation(async () => {
 		const result = await runMdSparrowParamsMutation(
@@ -208,13 +209,13 @@ async function applyCommand(
 /** dcs.validate {path}: строгая проверка схемы; вердикт jar возвращается как есть. */
 async function validateCommand(context: vscode.ExtensionContext, arg: unknown): Promise<StructuredCommandResult> {
 	const opts = optionsOf(arg);
-	const resolved = await resolveDcsSchemaTarget(opts.path, baseDirOf(opts));
-	if ('error' in resolved) {
-		return failure(resolved.error);
-	}
 	const prepared = await runtimeOf(context);
 	if ('failure' in prepared) {
 		return prepared.failure;
+	}
+	const resolved = await resolveDcsSchemaTarget(opts.path, baseDirOf(opts), mdSparrowFileReader(prepared.runtime));
+	if ('error' in resolved) {
+		return failure(resolved.error);
 	}
 	const verdict = await readJson(
 		prepared.runtime,
@@ -233,13 +234,13 @@ async function validateCommand(context: vscode.ExtensionContext, arg: unknown): 
  */
 async function typeDictionaryCommand(context: vscode.ExtensionContext, arg: unknown): Promise<StructuredCommandResult> {
 	const opts = optionsOf(arg);
-	const resolved = await resolveDcsSchemaTarget(opts.path, baseDirOf(opts));
-	if ('error' in resolved) {
-		return failure(resolved.error);
-	}
 	const prepared = await runtimeOf(context);
 	if ('failure' in prepared) {
 		return prepared.failure;
+	}
+	const resolved = await resolveDcsSchemaTarget(opts.path, baseDirOf(opts), mdSparrowFileReader(prepared.runtime));
+	if ('error' in resolved) {
+		return failure(resolved.error);
 	}
 	const dictionary = await readJson(
 		prepared.runtime,
@@ -297,13 +298,13 @@ async function queryCommand(
 		// Потеря комментариев в тексте: успех с предупреждением
 		return built.warning === undefined ? success(built) : { success: true, exitCode: 0, stdout: '', stderr: built.warning, data: built };
 	}
-	const resolved = await resolveDcsSchemaTarget(opts.path, baseDirOf(opts));
-	if ('error' in resolved) {
-		return failure(resolved.error);
-	}
 	const prepared = await runtimeOf(context);
 	if ('failure' in prepared) {
 		return prepared.failure;
+	}
+	const resolved = await resolveDcsSchemaTarget(opts.path, baseDirOf(opts), mdSparrowFileReader(prepared.runtime));
+	if ('error' in resolved) {
+		return failure(resolved.error);
 	}
 	const { runtime } = prepared;
 	const target = resolved.target;
@@ -353,13 +354,13 @@ async function templateCommand(
 	if (op === 'cf-dcs-template-add' && makeMain !== undefined && typeof makeMain !== 'boolean') {
 		return failure('Параметр makeMain: булево значение.');
 	}
-	const resolved = await resolveDcsOwnerTarget(opts.ownerPath, baseDirOf(opts));
-	if ('error' in resolved) {
-		return failure(resolved.error);
-	}
 	const prepared = await runtimeOf(context);
 	if ('failure' in prepared) {
 		return prepared.failure;
+	}
+	const resolved = await resolveDcsOwnerTarget(opts.ownerPath, baseDirOf(opts), mdSparrowFileReader(prepared.runtime).metadata);
+	if ('error' in resolved) {
+		return failure(resolved.error);
 	}
 	// Те же параметры, что у меню дерева метаданных
 	const params = dcsTemplateMutationParams(op, resolved.target, name, typeof makeMain === 'boolean' ? makeMain : undefined);

@@ -259,6 +259,11 @@ function lastSelect(text: string): unknown {
 	return null;
 }
 
+async function readMetadata(file: string) {
+	assert.equal(path.basename(file), 'Configuration.xml');
+	return { schemaVersion: 'V2_20', configurationExtension: false };
+}
+
 describe('Через точку: фикстура описаний объектов', () => {
 	test('19 объектов тринадцати видов (с критерием отбора и последовательностью), у каждого основная таблица', () => {
 		const kinds = new Set(Object.values(tables.objects).map((entry) => entry.description.kind));
@@ -1676,23 +1681,23 @@ describe('Через точку: сообщение dcs/describe-type панел
 		write('erf/Отчет/Templates/Схема/Ext/Template.xml', '<DataCompositionSchema/>');
 
 		test('выгрузка конфигуратора: Каталог/Имя.xml, версия из Configuration.xml, cwd — корень', async () => {
-			const resolved = await resolveDcsDescribeTarget(path.join(root, 'cf/Reports/Отчет/Templates/Схема/Ext/Template.xml'), 'Catalogs', 'Валюты');
+			const resolved = await resolveDcsDescribeTarget(path.join(root, 'cf/Reports/Отчет/Templates/Схема/Ext/Template.xml'), 'Catalogs', 'Валюты', readMetadata);
 			assert.deepEqual(resolved, {
 				target: { objectXml: path.join(root, 'cf', 'Catalogs', 'Валюты.xml'), cwd: path.join(root, 'cf'), schemaVersion: 'V2_20' },
 			});
 		});
 
 		test('проект EDT: Каталог/Имя/Имя.mdo, версия не передаётся', async () => {
-			const resolved = await resolveDcsDescribeTarget(path.join(root, 'edt/src/Reports/Отчет/Templates/Схема/Template.dcs'), 'Catalogs', 'Валюты');
+			const resolved = await resolveDcsDescribeTarget(path.join(root, 'edt/src/Reports/Отчет/Templates/Схема/Template.dcs'), 'Catalogs', 'Валюты', readMetadata);
 			assert.deepEqual(resolved, {
 				target: { objectXml: path.join(root, 'edt', 'src', 'Catalogs', 'Валюты', 'Валюты.mdo'), cwd: path.join(root, 'edt', 'src'), schemaVersion: '' },
 			});
 		});
 
 		test('объекта нет в выгрузке — missing; макет вне выгрузки — outside', async () => {
-			const missing = await resolveDcsDescribeTarget(path.join(root, 'cf/Reports/Отчет/Templates/Схема/Ext/Template.xml'), 'Documents', 'Счет');
+			const missing = await resolveDcsDescribeTarget(path.join(root, 'cf/Reports/Отчет/Templates/Схема/Ext/Template.xml'), 'Documents', 'Счет', readMetadata);
 			assert.ok('missing' in missing, JSON.stringify(missing));
-			const outside = await resolveDcsDescribeTarget(path.join(root, 'erf/Отчет/Templates/Схема/Ext/Template.xml'), 'Catalogs', 'Валюты');
+			const outside = await resolveDcsDescribeTarget(path.join(root, 'erf/Отчет/Templates/Схема/Ext/Template.xml'), 'Catalogs', 'Валюты', readMetadata);
 			assert.deepEqual(outside, { outside: true });
 		});
 	});

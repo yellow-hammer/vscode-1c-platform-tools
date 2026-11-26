@@ -35,26 +35,32 @@ describe('Описание владельца макета', () => {
 		'Reports/Отчет1.xml': metaDataObjectXml('2.20', '<Report/>'),
 	});
 
+	const readMetadata = async (file: string) => {
+		const inDump = file === path.join(cf, 'Configuration.xml');
+		assert.ok(inDump || file === path.join(external, 'ВнешнийОтчет.xml'), file);
+		return { schemaVersion: inDump ? 'V2_20' : 'V2_19', configurationExtension: false };
+	};
+
 	test('владелец в выгрузке: версия из Configuration.xml', async () => {
 		const owner = path.join(cf, 'Reports', 'Отчет1.xml');
-		const resolved = await resolveDcsOwnerTarget(owner, undefined);
+		const resolved = await resolveDcsOwnerTarget(owner, undefined, readMetadata);
 		assert.ok('target' in resolved, 'error' in resolved ? resolved.error : '');
 		assert.deepEqual(resolved.target, { objectXml: owner, cwd: cf, schemaVersion: 'V2_20' });
 	});
 
 	test('владелец общего макета — сам Configuration.xml', async () => {
 		const configuration = path.join(cf, 'Configuration.xml');
-		const resolved = await resolveDcsOwnerTarget('Configuration.xml', cf);
+		const resolved = await resolveDcsOwnerTarget('Configuration.xml', cf, readMetadata);
 		assert.ok('target' in resolved, 'error' in resolved ? resolved.error : '');
 		assert.deepEqual(resolved.target, { objectXml: configuration, cwd: cf, schemaVersion: 'V2_20' });
 	});
 
 	test('пустой путь и отсутствующий файл владельца дают понятные отказы', async () => {
-		const empty = await resolveDcsOwnerTarget('', cf);
+		const empty = await resolveDcsOwnerTarget('', cf, readMetadata);
 		assert.ok('error' in empty);
 		assert.match(empty.error, /описанию владельца макета/);
 
-		const missing = await resolveDcsOwnerTarget(path.join(cf, 'Reports', 'НетТакого.xml'), undefined);
+		const missing = await resolveDcsOwnerTarget(path.join(cf, 'Reports', 'НетТакого.xml'), undefined, readMetadata);
 		assert.ok('error' in missing);
 		assert.match(missing.error, /Файл не найден/);
 	});
@@ -66,7 +72,7 @@ describe('Описание владельца макета', () => {
 
 	test('вне выгрузки версию владельца несёт его собственное описание', async () => {
 		const owner = path.join(external, 'ВнешнийОтчет.xml');
-		const resolved = await resolveDcsOwnerTarget(owner, undefined);
+		const resolved = await resolveDcsOwnerTarget(owner, undefined, readMetadata);
 		assert.ok('target' in resolved, 'error' in resolved ? resolved.error : '');
 		assert.deepEqual(resolved.target, { objectXml: owner, cwd: external, schemaVersion: 'V2_19' });
 	});
@@ -80,7 +86,7 @@ describe('Описание владельца макета', () => {
 
 	test('владелец .mdo проекта EDT: пустой флаг версии', async () => {
 		const owner = path.join(edt, 'src', 'Reports', 'Отчет1', 'Отчет1.mdo');
-		const resolved = await resolveDcsOwnerTarget(owner, undefined);
+		const resolved = await resolveDcsOwnerTarget(owner, undefined, readMetadata);
 		assert.ok('target' in resolved, 'error' in resolved ? resolved.error : '');
 		assert.deepEqual(resolved.target, { objectXml: owner, cwd: path.join(edt, 'src'), schemaVersion: '' });
 	});

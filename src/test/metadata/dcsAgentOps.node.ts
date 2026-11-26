@@ -7,6 +7,7 @@ import assert from 'node:assert/strict';
 import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
+import type { MdSparrowFileReader } from '../../features/metadata/mdSparrowFileInfo';
 import {
 	DCS_APPLY_OPS,
 	DCS_OWNER_OPS,
@@ -249,46 +250,56 @@ describe('Поиск файла схемы по path команд dcs.*', () => 
 	});
 	const content = path.join(cf, 'Reports', 'Отчет1', 'Templates', 'Макет', 'Ext', 'Template.xml');
 
+	const files: MdSparrowFileReader = {
+		metadata: async (file) => {
+			const inDump = file === path.join(cf, 'Configuration.xml');
+			assert.ok(inDump || file === path.join(external, 'ВнешнийОтчет', 'Templates', 'Макет.xml'), file);
+			return { schemaVersion: inDump ? 'V2_20' : 'V2_19', configurationExtension: false };
+		},
+		templateKind: async (file) => file.split(path.sep).includes('Табличный') ? 'spreadsheet' : 'dcs',
+	};
+
 	test('файл содержимого в выгрузке: версия из Configuration.xml, cwd — корень выгрузки', async () => {
-		const resolved = await resolveDcsSchemaTarget(content, undefined);
+		const resolved = await resolveDcsSchemaTarget(content, undefined, files);
 		assert.ok('target' in resolved, 'error' in resolved ? resolved.error : '');
 		assert.deepEqual(resolved.target, { objectXml: content, cwd: cf, schemaVersion: 'V2_20' });
 	});
 
 	test('описание макета ведёт к его содержимому', async () => {
 		const descriptor = path.join(cf, 'Reports', 'Отчет1', 'Templates', 'Макет.xml');
-		const resolved = await resolveDcsSchemaTarget(descriptor, undefined);
+		const resolved = await resolveDcsSchemaTarget(descriptor, undefined, files);
 		assert.ok('target' in resolved, 'error' in resolved ? resolved.error : '');
 		assert.equal(resolved.target.objectXml, content);
 	});
 
 	test('относительный путь считается от корня проекта', async () => {
-		const resolved = await resolveDcsSchemaTarget('Reports/Отчет1/Templates/Макет/Ext/Template.xml', cf);
+		const resolved = await resolveDcsSchemaTarget('Reports/Отчет1/Templates/Макет/Ext/Template.xml', cf, files);
 		assert.ok('target' in resolved, 'error' in resolved ? resolved.error : '');
 		assert.equal(resolved.target.objectXml, content);
 	});
 
 	test('относительный путь без корня проекта отклоняется', async () => {
-		const resolved = await resolveDcsSchemaTarget('Reports/Отчет1/Templates/Макет/Ext/Template.xml', undefined);
+		const resolved = await resolveDcsSchemaTarget('Reports/Отчет1/Templates/Макет/Ext/Template.xml', undefined, files);
 		assert.ok('error' in resolved);
 		assert.match(resolved.error, /Корень проекта не определён/);
 	});
 
-	test('не схема компоновки отклоняется до запуска jar', async () => {
+	test('табличный макет не используется как схема компоновки', async () => {
 		const resolved = await resolveDcsSchemaTarget(
 			path.join(cf, 'Reports', 'Отчет1', 'Templates', 'Табличный', 'Ext', 'Template.xml'),
-			undefined
+			undefined,
+			files
 		);
 		assert.ok('error' in resolved);
 		assert.match(resolved.error, /не является схемой компоновки/);
 	});
 
 	test('пустой path и отсутствующий файл дают понятные отказы', async () => {
-		const empty = await resolveDcsSchemaTarget(undefined, cf);
+		const empty = await resolveDcsSchemaTarget(undefined, cf, files);
 		assert.ok('error' in empty);
 		assert.match(empty.error, /path/);
 
-		const missing = await resolveDcsSchemaTarget(path.join(cf, 'нет-такого.xml'), undefined);
+		const missing = await resolveDcsSchemaTarget(path.join(cf, 'нет-такого.xml'), undefined, files);
 		assert.ok('error' in missing);
 		assert.match(missing.error, /Файл не найден/);
 	});
@@ -303,7 +314,7 @@ describe('Поиск файла схемы по path команд dcs.*', () => 
 
 	test('вне выгрузки версия формата берётся из описания макета рядом', async () => {
 		const externalContent = path.join(external, 'ВнешнийОтчет', 'Templates', 'Макет', 'Ext', 'Template.xml');
-		const resolved = await resolveDcsSchemaTarget(externalContent, undefined);
+		const resolved = await resolveDcsSchemaTarget(externalContent, undefined, files);
 		assert.ok('target' in resolved, 'error' in resolved ? resolved.error : '');
 		assert.deepEqual(resolved.target, {
 			objectXml: externalContent,
@@ -322,7 +333,7 @@ describe('Поиск файла схемы по path команд dcs.*', () => 
 
 	test('Template.dcs проекта EDT: пустой флаг версии, cwd — корень исходников', async () => {
 		const dcs = path.join(edt, 'src', 'Reports', 'Отчет1', 'Templates', 'Макет', 'Template.dcs');
-		const resolved = await resolveDcsSchemaTarget(dcs, undefined);
+		const resolved = await resolveDcsSchemaTarget(dcs, undefined, files);
 		assert.ok('target' in resolved, 'error' in resolved ? resolved.error : '');
 		assert.deepEqual(resolved.target, { objectXml: dcs, cwd: path.join(edt, 'src'), schemaVersion: '' });
 	});

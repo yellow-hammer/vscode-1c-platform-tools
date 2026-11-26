@@ -8,7 +8,7 @@ import assert from 'node:assert/strict';
 import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
-import { dcsCommonAttributeNames, isConfigurationExtensionXml, resolveDcsDescribeTarget, resolveDcsQueryTablesTarget } from '../../features/metadata/dcsTargets';
+import { dcsCommonAttributeNames, resolveDcsDescribeTarget, resolveDcsQueryTablesTarget } from '../../features/metadata/dcsTargets';
 import { createDcsMetadataTreeCache } from '../../features/metadata/dcsMetadataTreeCache';
 import {
 	DCS_APPLY_QUERY_MESSAGE,
@@ -76,6 +76,11 @@ const INFO = {
 
 function request(fields: Partial<DcsApplyQueryRequest> = {}): DcsApplyQueryRequest {
 	return { dataSet: 'Основной', text: 'ВЫБРАТЬ &Новый', addParameters: [], autofill: false, ...fields };
+}
+
+async function readMetadata(file: string) {
+	assert.equal(path.basename(file), 'Configuration.xml');
+	return { schemaVersion: 'V2_20', configurationExtension: false };
 }
 
 describe('Канал пакета query: белый каталог и один набор', () => {
@@ -512,14 +517,14 @@ describe('dcs/query-tables и язык описаний', () => {
 		write(cf, 'Configuration.xml', configurationXml('2.20'));
 		const objectXml = write(cf, 'Catalogs/Валюты.xml', '<MetaDataObject/>');
 		const template = write(cf, 'Reports/Отчёт/Templates/Схема/Ext/Template.xml', '<DataCompositionSchema/>');
-		const resolved = await resolveDcsQueryTablesTarget(template, 'Catalogs/Валюты.xml');
+		const resolved = await resolveDcsQueryTablesTarget(template, 'Catalogs/Валюты.xml', readMetadata);
 		assert.deepEqual(resolved, { target: { objectXml: path.normalize(objectXml), cwd: cf, schemaVersion: 'V2_20' } });
-		const backslash = await resolveDcsQueryTablesTarget(template, 'Catalogs\\Валюты.xml');
+		const backslash = await resolveDcsQueryTablesTarget(template, 'Catalogs\\Валюты.xml', readMetadata);
 		assert.ok('target' in backslash);
-		const missing = await resolveDcsQueryTablesTarget(template, 'Catalogs/Нет.xml');
+		const missing = await resolveDcsQueryTablesTarget(template, 'Catalogs/Нет.xml', readMetadata);
 		assert.ok('missing' in missing);
 		for (const bad of ['../Configuration.xml', 'Catalogs/../../x.xml', path.join(cf, 'Catalogs', 'Валюты.xml'), 'Catalogs//Валюты.xml', 'Catalogs/Валюты.mdo', './Catalogs/Валюты.xml']) {
-			const refused = await resolveDcsQueryTablesTarget(template, bad);
+			const refused = await resolveDcsQueryTablesTarget(template, bad, readMetadata);
 			assert.ok('error' in refused, bad);
 		}
 	});
@@ -530,15 +535,15 @@ describe('dcs/query-tables и язык описаний', () => {
 		write(src, 'Configuration/Configuration.mdo', '<mdclass:Configuration/>');
 		const objectMdo = write(src, 'Catalogs/Валюты/Валюты.mdo', '<mdclass:Catalog/>');
 		const template = write(src, 'Reports/Отчёт/Templates/Схема/Template.dcs', '<DataCompositionSchema/>');
-		const resolved = await resolveDcsQueryTablesTarget(template, 'Catalogs/Валюты/Валюты.mdo');
+		const resolved = await resolveDcsQueryTablesTarget(template, 'Catalogs/Валюты/Валюты.mdo', readMetadata);
 		assert.deepEqual(resolved, { target: { objectXml: path.normalize(objectMdo), cwd: src, schemaVersion: '' } });
-		assert.ok('error' in (await resolveDcsQueryTablesTarget(template, 'Catalogs/Валюты.xml')));
+		assert.ok('error' in (await resolveDcsQueryTablesTarget(template, 'Catalogs/Валюты.xml', readMetadata)));
 	});
 
 	test('вне выгрузки — outside без ошибки', async () => {
 		const root = tempDir('dcs-query-tables-');
 		const template = write(root, 'ВнешнийОтчёт/Templates/Схема/Ext/Template.xml', '<DataCompositionSchema/>');
-		assert.deepEqual(await resolveDcsQueryTablesTarget(template, 'Catalogs/Валюты.xml'), { outside: true });
+		assert.deepEqual(await resolveDcsQueryTablesTarget(template, 'Catalogs/Валюты.xml', readMetadata), { outside: true });
 	});
 });
 
@@ -575,32 +580,20 @@ describe('Критерии отбора и последовательности:
 		write(cf, 'Configuration.xml', configurationXml());
 		const criterion = write(cf, 'FilterCriteria/СвязанныеДокументы.xml', configurationXml());
 		const template = write(cf, 'Reports/Отчёт/Templates/Схема/Ext/Template.xml', '<DataCompositionSchema/>');
-		assert.deepEqual(await resolveDcsDescribeTarget(template, 'FilterCriteria', 'СвязанныеДокументы'), {
+		assert.deepEqual(await resolveDcsDescribeTarget(template, 'FilterCriteria', 'СвязанныеДокументы', readMetadata), {
 			target: { objectXml: criterion, cwd: cf, schemaVersion: 'V2_20' },
 		});
 		const edt = path.join(tempDir('dcs-describe-'), 'src');
 		write(edt, 'Configuration/Configuration.mdo', '<mdclass:Configuration/>');
 		const sequence = write(edt, 'Sequences/_ДемоДвижениеТоваров/_ДемоДвижениеТоваров.mdo', '<mdclass:Sequence/>');
 		const edtTemplate = write(edt, 'Reports/Отчёт/Templates/Схема/Template.dcs', '<DataCompositionSchema/>');
-		assert.deepEqual(await resolveDcsDescribeTarget(edtTemplate, 'Sequences', '_ДемоДвижениеТоваров'), {
+		assert.deepEqual(await resolveDcsDescribeTarget(edtTemplate, 'Sequences', '_ДемоДвижениеТоваров', readMetadata), {
 			target: { objectXml: sequence, cwd: edt, schemaVersion: '' },
 		});
 	});
 });
 
 describe('Выгрузка расширения и общие реквизиты: признаки для проверки имён запроса', () => {
-	test('Configuration.xml с принадлежностью объекта — расширение; конфигурация, EDT-разметка и нечитаемый файл — нет', async () => {
-		const root = tempDir('dcs-extension-');
-		const extension = write(
-			root,
-			'cfe/Расширение/Configuration.xml',
-			'<?xml version="1.0" encoding="UTF-8"?>\r\n<MetaDataObject xmlns="http://v8.1c.ru/8.3/MDClasses" version="2.20">\r\n\t<Configuration>\r\n\t\t<Properties>\r\n\t\t\t<ObjectBelonging>Adopted</ObjectBelonging>\r\n\t\t\t<Name>Расширение</Name>\r\n\t\t\t<ConfigurationExtensionPurpose>Customization</ConfigurationExtensionPurpose>\r\n\t\t</Properties>\r\n\t</Configuration>\r\n</MetaDataObject>'
-		);
-		assert.equal(await isConfigurationExtensionXml(extension), true);
-		assert.equal(await isConfigurationExtensionXml(write(root, 'cf/Configuration.xml', configurationXml())), false);
-		assert.equal(await isConfigurationExtensionXml(path.join(root, 'нет/Configuration.xml')), false);
-	});
-
 	test('общие реквизиты: CommonAttributes/<Имя>.xml выгрузки и CommonAttributes/<Имя>/ проекта EDT; каталога нет — пусто', async () => {
 		const cf = tempDir('dcs-common-');
 		write(cf, 'Configuration.xml', configurationXml());
