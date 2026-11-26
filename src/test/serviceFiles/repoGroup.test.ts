@@ -9,6 +9,8 @@ import { PIPELINE_TEMPLATE_ID_PREFIX } from '../../shared/pipelines/pipelineTemp
 import { projectStructureDirectories } from '../../shared/projectStructure';
 import { VRunnerManager } from '../../shared/vrunnerManager';
 import { runWithProject } from '../../shared/workspaceProjects';
+import { ServiceFilesCommands } from '../../commands/serviceFilesCommands';
+import { OBJLIST_REL_PATH } from '../../shared/pathDefaults';
 
 function emptyRoot(name: string): string {
 	const root = path.join(os.tmpdir(), 'service-files-repo', name);
@@ -33,17 +35,38 @@ function iconOf(item: vscode.TreeItem): string | undefined {
 }
 
 suite('служебные файлы: группа «Репозиторий»', () => {
-	test('packagedef и структура проекта идут после файлов Git', async function () {
+	test('objlist.txt идёт перед packagedef без подписи пути', async function () {
 		this.timeout(60_000);
 		const root = emptyRoot('порядок');
 		const provider = new ServiceFilesTreeProvider(VRunnerManager.getInstance());
 		try {
 			const rows = await runWithProject(root, () => repoRows(provider));
-			assert.deepStrictEqual(rows.map((row) => String(row.label)), ['.gitignore', '.gitattributes', 'packagedef', 'Структура проекта']);
-			const structure = rows[3];
+			assert.deepStrictEqual(rows.map((row) => String(row.label)), ['.gitignore', '.gitattributes', 'objlist.txt', 'packagedef', 'Структура проекта']);
+			assert.strictEqual(rows[2].description, '');
+			const structure = rows[4];
 			assert.strictEqual(structure.command?.command, '1c-platform-tools.dependencies.initializeProjectStructure');
 		} finally {
 			provider.dispose();
+		}
+	});
+
+	test('создание objlist.txt добавляет правило к существующему .gitignore', async () => {
+		const root = emptyRoot('objlist');
+		const ignore = path.join(root, '.gitignore');
+		const oldList = path.join(root, 'objlist.txt');
+		const file = path.join(root, OBJLIST_REL_PATH);
+		const commands = new ServiceFilesCommands();
+		fs.writeFileSync(ignore, '# Правила проекта\r\n/build/');
+		fs.writeFileSync(oldList, 'src/cf/Documents/Прежний.xml\n');
+		try {
+			await runWithProject(root, () => commands.createBuildFile(OBJLIST_REL_PATH, true));
+			assert.strictEqual(fs.readFileSync(file, 'utf8'), '');
+			assert.strictEqual(fs.readFileSync(ignore, 'utf8'), `# Правила проекта\r\n/build/\r\n/${OBJLIST_REL_PATH}\r\n`);
+			fs.writeFileSync(file, 'src/cf/Documents/Новый.xml\n');
+			await runWithProject(root, () => commands.createBuildFile(OBJLIST_REL_PATH, true));
+			assert.strictEqual(fs.readFileSync(file, 'utf8'), 'src/cf/Documents/Новый.xml\n');
+		} finally {
+			fs.rmSync(root, { recursive: true, force: true });
 		}
 	});
 

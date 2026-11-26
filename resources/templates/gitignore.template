@@ -16,6 +16,9 @@ oscript_modules/
 env.local.json
 autumn-properties.local.json
 
+# Список объектов для частичной загрузки
+/.1cpt/objlist.txt
+
 # Служебные файлы выгрузки конфигурации
 ConfigDumpInfo.xml
 src/cf/ConfigDumpInfo.xml

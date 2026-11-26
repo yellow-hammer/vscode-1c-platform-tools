@@ -489,14 +489,8 @@ export class ConfigurationCommands extends BaseCommand {
 			return;
 		}
 
-		const objlistPath = path.join(workspaceRoot, 'objlist.txt');
-		try {
-			await fs.access(objlistPath);
-		} catch {
-			log.warn(`Файл objlist.txt не найден: ${objlistPath}`);
-			vscode.window.showErrorMessage(
-				'Файл objlist.txt не найден в корне проекта. Создайте файл со списком путей к объектам для загрузки.'
-			);
+		const lines = await this.readObjlist(workspaceRoot);
+		if (!lines) {
 			return;
 		}
 
@@ -509,8 +503,6 @@ export class ConfigurationCommands extends BaseCommand {
 			return edt;
 		}
 		const configFullPath = path.resolve(workspaceRoot, srcPath);
-		const content = await fs.readFile(objlistPath, 'utf-8');
-		const lines = this.parseObjlistLines(content);
 		const configRelativePaths: string[] = [];
 		for (const line of lines) {
 			const fullPath = this.resolveObjlistLine(workspaceRoot, line);
