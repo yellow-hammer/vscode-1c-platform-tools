@@ -10,6 +10,11 @@ import * as path from 'node:path';
 /** UTF-8 BOM: конфигуратор пишет модули с ним. */
 const UTF8_BOM = Buffer.from([0xef, 0xbb, 0xbf]);
 
+/** Исходный текст модуля, пустой у отсутствующего или двоичного модуля. */
+export async function readBslModule(file: string): Promise<string> {
+	return fs.readFile(file, 'utf8').catch(() => '');
+}
+
 /** Что стало с файлом модуля. */
 export type ModuleFileState =
 	/** Файл был на месте. */

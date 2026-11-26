@@ -13,9 +13,11 @@
 import * as path from 'node:path';
 import { EDT_EXTERNAL_DIRECTORIES, type ExternalKind, type SourceFormat, type SourceRoot } from './projectLayout';
 
+export const COMMON_MODULES_DIRECTORY = 'CommonModules';
+
 /** Русский тип метаданных - английский каталог в исходниках. */
 const TYPE_DIRECTORIES: Record<string, string> = {
-	ОбщийМодуль: 'CommonModules',
+	ОбщийМодуль: COMMON_MODULES_DIRECTORY,
 	HTTPСервис: 'HTTPServices',
 	WebСервис: 'WebServices',
 	ОбщаяФорма: 'CommonForms',

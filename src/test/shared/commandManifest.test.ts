@@ -153,6 +153,19 @@ suite('манифест команд', () => {
 		assert.deepStrictEqual(missing, [], `меню ссылаются на несуществующие команды: ${missing.join(', ')}`);
 	});
 
+	test('кнопка обновления библиотек находится в заголовке своей панели', () => {
+		const pkg = JSON.parse(fs.readFileSync(path.join(EXTENSION_ROOT, 'package.json'), 'utf8')) as {
+			contributes: { menus: { 'view/title': Array<{ command?: string; when?: string; group?: string }> } };
+		};
+		const command = '1c-platform-tools.metadata.refreshLibraries';
+		assert.deepStrictEqual(pkg.contributes.menus['view/title'].filter((entry) => entry.command === command), [{
+			command,
+			when: 'view == 1c-platform-tools-metadata-libraries',
+			group: 'navigation@30',
+		}]);
+		assert.ok(paletteAndNodeCommands().hidden.has(command));
+	});
+
 	test('команда узла дерева скрыта из палитры', () => {
 		const { hidden, nodeCommands } = paletteAndNodeCommands();
 		const visible = [...nodeCommands].filter((id) => !hidden.has(id) && !NODE_COMMANDS_IN_PALETTE.has(id));

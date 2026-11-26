@@ -1,4 +1,5 @@
 import * as assert from 'node:assert';
+import * as os from 'node:os';
 import * as vscode from 'vscode';
 import * as path from 'node:path';
 import * as fs from 'node:fs';
@@ -30,6 +31,7 @@ import { createMockExtensionContext } from '../fixtures/mocks/vscodeMocks';
 import { configurationScope } from '../../shared/activeConfiguration';
 import { resolveProjectLayout } from '../../shared/projectLayout';
 import { invalidateProjectLayout } from '../../shared/projectLayout';
+import { moduleFileOf } from '../../shared/objectPaths';
 
 suite('metadataTreeView subsystem filter', () => {
 	function createProviderWithTree(): {
@@ -850,6 +852,46 @@ suite('metadataTreeView: раскладка проекта', () => {
 			designer.sources.flatMap((source) => source.groups.flatMap((group) => group.items.map((item) => item.name))),
 			['ОстаткиТоваров', 'ОтчётПоОстаткам', 'ПечатьСчёта', 'Тесты_Арифметика']
 		);
+	});
+
+	test('читает версию объекта из модуля и обновляет подпись строки', async () => {
+		const workspace = fs.mkdtempSync(path.join(os.tmpdir(), 'external-version-tree-'));
+		try {
+			fs.cpSync(path.join(LAYOUTS, 'mixed-externals'), workspace, { recursive: true });
+			const tree = externalSourcesFromLayout(workspace, await resolveProjectLayout(workspace));
+			const provider = providerAt(workspace);
+			const internals = provider as unknown as {
+				rebuildItemCache(root: string, dto: ProjectMetadataTreeDto): void;
+			};
+			internals.rebuildItemCache(workspace, tree);
+			const [source] = await provider.getChildren();
+			const leaves = await provider.getChildren(source);
+			assert.deepStrictEqual(leaves.map((leaf) => leaf.description), [undefined, undefined]);
+
+			const fixtures = path.join(LAYOUTS, '..', 'bspVersions');
+			const files = leaves.map((leaf) => {
+				assert.ok(leaf.resourceUri);
+				const file = moduleFileOf(leaf.resourceUri.fsPath, 'object');
+				fs.mkdirSync(path.dirname(file), { recursive: true });
+				return file;
+			});
+			fs.copyFileSync(path.join(fixtures, 'external-insert.bsl'), files[0]);
+			fs.copyFileSync(path.join(fixtures, 'external-structure.bsl'), files[1]);
+			const changed: unknown[] = [];
+			const subscription = provider.onDidChangeTreeData((event) => changed.push(event));
+			try {
+				provider.refreshExternalModule(files[0]);
+				assert.deepStrictEqual(changed, [source]);
+				assert.deepStrictEqual(
+					(await provider.getChildren(source)).map((leaf) => provider.getTreeItem(leaf).description),
+					['2.3.4', '3.0']
+				);
+			} finally {
+				subscription.dispose();
+			}
+		} finally {
+			fs.rmSync(workspace, { recursive: true, force: true });
+		}
 	});
 
 	test('раскладка с новым расширением дерево перерисовывает', async () => {

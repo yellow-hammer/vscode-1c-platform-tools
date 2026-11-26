@@ -2483,6 +2483,7 @@ export function registerMetadataFeature(
 					: existing + (existing.endsWith('\n') ? '' : '\r\n') + '\r\n' + block;
 				await vscode.workspace.fs.createDirectory(vscode.Uri.file(path.dirname(modulePath)));
 				await vscode.workspace.fs.writeFile(vscode.Uri.file(modulePath), new TextEncoder().encode(next));
+				metadataTreeProvider.refreshExternalModule(modulePath);
 				const doc = await vscode.workspace.openTextDocument(vscode.Uri.file(modulePath));
 				await vscode.window.showTextDocument(doc, { preview: false });
 				notifyQuiet('Регистрация БСП добавлена');
