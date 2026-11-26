@@ -22,7 +22,9 @@ import { mdSparrowSchemaFlagFromConfigurationXml } from './mdSparrowSchemaVersio
 import { offerGithubTokenOnRateLimit } from '../../shared/githubToken';
 import { configurationScope, type ConfigurationScope } from '../../shared/activeConfiguration';
 import { detectProjectKind } from '../../shared/projectKind';
-import { externalEntry, PROJECT_FILE, resolveProjectLayout, type ExternalRoot, type ProjectLayout } from '../../shared/projectLayout';
+import { directoryKey, externalEntry, PROJECT_FILE, resolveProjectLayout, type ExternalRoot, type ProjectLayout } from '../../shared/projectLayout';
+import { bspExternalVersion } from './bspVersions';
+import { readBslModule } from './bslModuleFile';
 import {
 	OneScriptGroupTreeItem,
 	OneScriptMemberTreeItem,
@@ -2183,16 +2185,17 @@ export class MetadataTreeDataProvider implements vscode.TreeDataProvider<vscode.
 		return element;
 	}
 
-	resolveTreeItem(
-		item: vscode.TreeItem,
-		element: vscode.TreeItem,
-		_token: vscode.CancellationToken
-	): vscode.ProviderResult<vscode.TreeItem> {
-		if (element instanceof MetadataLeafTreeItem) {
-			item.description = '';
-			return item;
+	/** Сохранение объектного модуля меняет подпись внешнего объекта. */
+	refreshExternalModule(file: string): void {
+		const key = directoryKey(file);
+		for (const source of this._sourceItems) {
+			const leaf = this._flatLeavesBySource.get(source.sourceId)?.find((item) =>
+				item.resourceUri && directoryKey(moduleFileOf(item.resourceUri.fsPath, 'object')) === key);
+			if (leaf) {
+				this._onDidChange.fire(source);
+				return;
+			}
 		}
-		return undefined;
 	}
 
 	private _osGroups: OneScriptGroupTreeItem[] = [];
@@ -2354,7 +2357,14 @@ export class MetadataTreeDataProvider implements vscode.TreeDataProvider<vscode.
 			}
 			const flat = this._flatLeavesBySource.get(element.sourceId);
 			if (flat) {
-				return this.filterLeaves(flat);
+				const leaves = this.filterLeaves(flat);
+				await Promise.all(leaves.map(async (leaf) => {
+					if (leaf.resourceUri) {
+						const modulePath = moduleFileOf(leaf.resourceUri.fsPath, 'object');
+						leaf.description = bspExternalVersion(await readBslModule(modulePath));
+					}
+				}));
+				return leaves;
 			}
 			const groups = this._groupsBySource.get(element.sourceId) ?? [];
 			return this.filterGroups(groups);

@@ -306,6 +306,13 @@
           "initialSize": 30
         },
         {
+          "id": "1c-platform-tools-metadata-libraries",
+          "name": "Библиотеки",
+          "contextualTitle": "Библиотеки конфигурации",
+          "when": "1c-platform-tools.is1CProject == true && 1c-platform-tools.project.kind != onescript",
+          "visibility": "collapsed"
+        },
+        {
           "id": "1c-platform-tools-metadata-help",
           "name": "Помощь и поддержка",
           "contextualTitle": "Помощь и поддержка",
@@ -936,6 +943,12 @@
       },
       {
         "command": "1c-platform-tools.metadata.refresh",
+        "title": "Обновить",
+        "icon": "$(refresh)",
+        "category": "1С: Метаданные"
+      },
+      {
+        "command": "1c-platform-tools.metadata.refreshLibraries",
         "title": "Обновить",
         "icon": "$(refresh)",
         "category": "1С: Метаданные"
@@ -2571,6 +2584,10 @@
     ],
     "viewsWelcome": [
       {
+        "view": "1c-platform-tools-metadata-libraries",
+        "contents": "В текущей конфигурации библиотеки не найдены."
+      },
+      {
         "view": "explorer",
         "contents": "Вы также можете [открыть папку с проектом 1С или OneScript](command:vscode.openFolder) или создать его кнопкой ниже.\n[Создать проект](command:1c-platform-tools.projects.create)",
         "when": "workspaceFolderCount == 0"
@@ -2732,6 +2749,10 @@
         },
         {
           "command": "1c-platform-tools.metadata.refresh",
+          "when": "false"
+        },
+        {
+          "command": "1c-platform-tools.metadata.refreshLibraries",
           "when": "false"
         },
         {
@@ -3487,6 +3508,11 @@
         {
           "command": "1c-platform-tools.metadata.refresh",
           "when": "view == 1c-platform-tools-metadata-tree",
+          "group": "navigation@30"
+        },
+        {
+          "command": "1c-platform-tools.metadata.refreshLibraries",
+          "when": "view == 1c-platform-tools-metadata-libraries",
           "group": "navigation@30"
         },
         {
