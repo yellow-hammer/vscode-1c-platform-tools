@@ -713,7 +713,7 @@ export class ExtensionsCommands extends BaseCommand {
 			}
 			// Конфигуратору и обновлению БД нужно имя расширения из метаданных,
 			// а не имя каталога исходников
-			const additionalParam = `/LoadConfigFromFiles ${this.pathForCmd(extension.dir)} -Extension ${extension.name} -listFile ${listFilePrefix}${listFileName} -Format Hierarchical -partial`;
+			const additionalParam = `/LoadConfigFromFiles ${this.pathForCmd(extension.dir)} -Extension ${extension.name} -listFile ${listFilePrefix}${listFileName} -partial`;
 			intents.push({ kind: 'run.designer', additional: additionalParam, common: ibConnectionParam });
 			loadedExtensionNames.push(extension.name);
 		}

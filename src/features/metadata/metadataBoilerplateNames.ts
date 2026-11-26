@@ -33,6 +33,7 @@ export type MdBoilerplateCliKind =
 	| 'COMMON_PICTURE'
 	| 'DOCUMENT_NUMERATOR'
 	| 'EXTERNAL_DATA_SOURCE'
+	| 'QUEUE'
 	| 'ROLE';
 
 /** Тег в `Configuration.xml` / `cf-list-child-objects --tag`. */
@@ -55,6 +56,7 @@ export const MD_BOILERPLATE_KIND_TO_XML_TAG: Record<MdBoilerplateCliKind, string
 	COMMON_PICTURE: 'CommonPicture',
 	DOCUMENT_NUMERATOR: 'DocumentNumerator',
 	EXTERNAL_DATA_SOURCE: 'ExternalDataSource',
+	QUEUE: 'Queue',
 	ROLE: 'Role',
 };
 
@@ -78,6 +80,7 @@ export const MD_BOILERPLATE_PREFIX: Record<MdBoilerplateCliKind, string> = {
 	COMMON_PICTURE: 'ОбщаяКартинка',
 	DOCUMENT_NUMERATOR: 'НумераторДокументов',
 	EXTERNAL_DATA_SOURCE: 'ВнешнийИсточникДанных',
+	QUEUE: 'Очередь',
 	ROLE: 'Роль',
 };
 
@@ -104,6 +107,7 @@ export const MD_BOILERPLATE_KIND_TO_CF_SUBDIR: Record<MdBoilerplateCliKind, stri
 	COMMON_PICTURE: 'CommonPictures',
 	DOCUMENT_NUMERATOR: 'DocumentNumerators',
 	EXTERNAL_DATA_SOURCE: 'ExternalDataSources',
+	QUEUE: 'Queues',
 	ROLE: 'Roles',
 };
 
@@ -170,6 +174,7 @@ const METADATA_SUBGROUP_REST_TO_KIND: Record<string, MdBoilerplateCliKind> = {
 	common_common_commonattribute: 'COMMON_ATTRIBUTE',
 	common_common_exchangeplan: 'EXCHANGE_PLAN',
 	common_common_commonpicture: 'COMMON_PICTURE',
+	common_common_queue: 'QUEUE',
 	documents_documentNumerators: 'DOCUMENT_NUMERATOR',
 };
 
