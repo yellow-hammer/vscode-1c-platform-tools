@@ -31,6 +31,7 @@ import { projectEnvironmentVariables } from '../features/launch/projectEnvironme
 import { writeBuildFile } from '../features/serviceFiles/buildFile';
 import { variantPath, type ServiceFileKind } from '../features/serviceFiles/catalog';
 import { isVrunnerFile, writeVrunnerLink } from '../features/serviceFiles/vrunnerLink';
+import { OBJLIST_REL_PATH } from '../shared/pathDefaults';
 
 const log = logger.scope('serviceFiles');
 
@@ -165,10 +166,52 @@ export class ServiceFilesCommands extends BaseCommand {
 			await this.ensureFromDefaults(spec, PIPELINES_DEFAULTS, createOnly);
 			return;
 		}
+		if (spec.id === 'objlist') {
+			await this.ensureObjlist(createOnly);
+			return;
+		}
 		if (await this.createFromSpec(spec, !createOnly)) {
 			this.refreshTree();
 			notifyQuiet(`Создан ${spec.relPath}`);
 		}
+	}
+
+	private async ensureObjlist(createOnly: boolean): Promise<void> {
+		const root = this.ensureWorkspace();
+		if (!root) {
+			return;
+		}
+		const fullPath = path.join(root, OBJLIST_REL_PATH);
+		try {
+			if (!fsSync.existsSync(fullPath)) {
+				const gitignore = getServiceFileSpec('gitignore');
+				if (gitignore) {
+					await this.createFromSpec(gitignore, false);
+				}
+				await this.ignoreObjlist(root);
+				await fs.mkdir(path.dirname(fullPath), { recursive: true });
+				await fs.writeFile(fullPath, '', { encoding: 'utf8', flag: 'wx' });
+				this.refreshTree();
+				notifyQuiet(`Создан ${OBJLIST_REL_PATH}`);
+			}
+			await this.openText(fullPath, createOnly);
+		} catch (error) {
+			const message = `Не удалось подготовить ${OBJLIST_REL_PATH}: ${(error as Error).message}`;
+			log.error(message);
+			void vscode.window.showErrorMessage(message);
+		}
+	}
+
+	private async ignoreObjlist(root: string): Promise<void> {
+		const file = path.join(root, '.gitignore');
+		const content = await fs.readFile(file, 'utf8');
+		const rule = `/${OBJLIST_REL_PATH}`;
+		if (content.split(/\r?\n/).some((line) => line === rule || line === OBJLIST_REL_PATH)) {
+			return;
+		}
+		const newline = content.includes('\r\n') ? '\r\n' : '\n';
+		const separator = content && !content.endsWith('\n') ? newline : '';
+		await fs.appendFile(file, `${separator}${rule}${newline}`, 'utf8');
 	}
 
 	/**
@@ -585,6 +628,8 @@ function knownBuildSpec(relPath: string): string | undefined {
 			return 'gitignore';
 		case '.gitattributes':
 			return 'gitattributes';
+		case OBJLIST_REL_PATH:
+			return 'objlist';
 		case '.1cpt/hooks.json':
 			return 'hooks';
 		case '.1cpt/pipelines.json':

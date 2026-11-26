@@ -580,17 +580,11 @@ export class ExtensionsCommands extends BaseCommand {
 	}
 
 	/** Группирует пути из objlist по каталогам расширений. Пути полные или относительно workspace. */
-	private async getPathsByExtensionFromObjlist(
+	private pathsByExtensionFromObjlist(
 		workspaceRoot: string,
-		extensions: readonly ExtensionEntry[]
-	): Promise<Map<string, string[]>> {
-		let content: string;
-		try {
-			content = await fs.readFile(path.join(workspaceRoot, 'objlist.txt'), 'utf-8');
-		} catch {
-			return new Map();
-		}
-		const lines = this.parseObjlistLines(content);
+		extensions: readonly ExtensionEntry[],
+		lines: readonly string[]
+	): Map<string, string[]> {
 		const byExtension = new Map<string, string[]>();
 		for (const line of lines) {
 			const fullPath = this.resolveObjlistLine(workspaceRoot, line);
@@ -649,14 +643,8 @@ export class ExtensionsCommands extends BaseCommand {
 		const buildFullPath = path.join(workspaceRoot, buildPath);
 		await this.cleanupExtensionPartialLoadLists(buildFullPath);
 
-		const objlistPath = path.join(workspaceRoot, 'objlist.txt');
-		try {
-			await fs.access(objlistPath);
-		} catch {
-			log.warn(`Файл objlist.txt не найден: ${objlistPath}`);
-			vscode.window.showErrorMessage(
-				'Файл objlist.txt не найден в корне проекта. Создайте файл со списком путей к объектам для загрузки.'
-			);
+		const lines = await this.readObjlist(workspaceRoot);
+		if (!lines) {
 			return;
 		}
 
@@ -684,7 +672,7 @@ export class ExtensionsCommands extends BaseCommand {
 			);
 		}
 
-		const pathsByExtension = await this.getPathsByExtensionFromObjlist(workspaceRoot, selected);
+		const pathsByExtension = this.pathsByExtensionFromObjlist(workspaceRoot, selected, lines);
 		if (pathsByExtension.size === 0) {
 			log.info('В objlist.txt нет путей в каталогах расширений');
 			vscode.window.showInformationMessage('В objlist.txt нет путей из каталогов расширений.');

@@ -52,6 +52,7 @@ function sourceOf(relPath: string): Source | undefined {
 	const name = path.posix.basename(relPath.replace(/\\/g, '/'));
 	switch (kind) {
 		case undefined:
+		case 'objlist':
 			return undefined;
 		case 'packagedef':
 			return { kind: 'packagedef' };

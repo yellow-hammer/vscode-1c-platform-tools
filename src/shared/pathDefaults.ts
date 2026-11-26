@@ -22,6 +22,9 @@ export const DEFAULT_PATHS = {
 	out: 'build/out'
 } as const;
 
+/** Список объектов для частичной загрузки из исходного кода. */
+export const OBJLIST_REL_PATH = '.1cpt/objlist.txt';
+
 /**
  * Подкаталоги внутри каталога тестов.
  *
