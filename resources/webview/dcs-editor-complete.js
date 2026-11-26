@@ -215,7 +215,7 @@
 
 	// ---------- источник: модель cf-dcs-info ----------
 
-	/** Разбор scope: «вид:аргумент», у связей двух наборов — «a|b». */
+	/** Разбор scope: «вид:аргумент», у связей двух наборов - «a|b». */
 	function parseScope(scope) {
 		const raw = text(scope);
 		const colon = raw.indexOf(':');
@@ -323,8 +323,8 @@
 	}
 
 	/**
-	 * Параметры схемы: в выражениях — «&Имя» (отдельное пространство имён), в поле «Параметр»
-	 * связи — голое имя (bare).
+	 * Параметры схемы: в выражениях - «&Имя» (отдельное пространство имён), в поле «Параметр»
+	 * связи - голое имя (bare).
 	 */
 	function parameterNodes(model, out, options) {
 		const opts = options || {};
@@ -448,7 +448,7 @@
 				allFields();
 				calculatedNodes(schema, nodes);
 				parameterNodes(schema, nodes);
-				// Выражение ресурса почти всегда агрегат: агрегатные функции — в начало списка
+				// Выражение ресурса почти всегда агрегат: агрегатные функции - в начало списка
 				nodes.push(...functionNodes('dcs').map((node) => Object.assign(node, { priority: node.group === 'aggregate' ? 1 : 0 })));
 				options.paramsAtRoot = true;
 				break;
@@ -536,7 +536,7 @@
 		};
 	}
 
-	/** Сливает описание узла в существующий: вид — по рангу, пустые свойства добираются у проигравшего. */
+	/** Сливает описание узла в существующий: вид - по рангу, пустые свойства добираются у проигравшего. */
 	function mergeInto(target, source, virtual) {
 		const sourceWins = virtual || (MERGE_RANK[source.kind] || 0) > (MERGE_RANK[target.kind] || 0);
 		const first = sourceWins ? source : target;
@@ -645,7 +645,7 @@
 				} else if (last) {
 					mergeInto(node, spec, node.kind === 'path' && !node.restricted);
 				}
-				// Путь детей — от написания узла, а не от регистра этого вхождения
+				// Путь детей - от написания узла, а не от регистра этого вхождения
 				prefixPath = node.path;
 				level = node.children;
 			}
@@ -675,7 +675,7 @@
 		const typeText = options && typeof options.typeText === 'function' ? options.typeText : null;
 		if (typeText) {
 			for (const node of source.nodes) {
-				// У функций в колонке типа — группа функций, а не тип значения
+				// У функций в колонке типа - группа функций, а не тип значения
 				if (node && node.kind !== 'function') {
 					node.typeText = node.valueType ? text(typeText(node.valueType)) : '';
 				}
@@ -819,7 +819,7 @@
 	 * @param {string} source Текст поля ввода.
 	 * @param {number} caret Позиция каретки (selectionStart).
 	 * @returns {{mode: 'path'|'param'|'none', parentPath: string, prefix: string,
-	 *   replaceStart: number, replaceEnd: number}} replaceStart..replaceEnd — что заменит выбор:
+	 *   replaceStart: number, replaceEnd: number}} replaceStart..replaceEnd - что заменит выбор:
 	 *   набранное начало слова и хвост идентификатора справа, чтобы посреди слова не остался обрывок.
 	 */
 	function contextAt(source, caret) {
@@ -837,7 +837,7 @@
 		const tail = value.slice(start, at);
 		const segments = tail.split('.');
 		const prefix = segments.pop();
-		// «.Поле» после скобки и «А..Б» к каталогу не привязать; сегмент с цифры — число, а не путь
+		// «.Поле» после скобки и «А..Б» к каталогу не привязать; сегмент с цифры - число, а не путь
 		if (segments.some((segment) => segment === '') || tail.split('.').some((segment) => DIGIT_RE.test(segment.charAt(0)))) {
 			return none;
 		}
@@ -873,7 +873,7 @@
 	 * алфавит.
 	 *
 	 * @returns {{item: object, group: number, match: {on: 'name'|'title', start: number, end: number}|null}[]}
-	 *   match — границы совпадения для подсветки в имени или заголовке; при пустом префиксе null.
+	 *   match - границы совпадения для подсветки в имени или заголовке; при пустом префиксе null.
 	 */
 	function rank(items, prefix) {
 		const needle = fold(prefix);
@@ -909,8 +909,8 @@
 	/**
 	 * Вставка выбранной строки вместо набранного слова.
 	 *
-	 * Имена вставляются как есть, без квадратных скобок: пути полей — идентификаторы через точку.
-	 * Функция получает «Имя(» (вторую скобку не дублирует), параметр в выражении — «&Имя».
+	 * Имена вставляются как есть, без квадратных скобок: пути полей - идентификаторы через точку.
+	 * Функция получает «Имя(» (вторую скобку не дублирует), параметр в выражении - «&Имя».
 	 *
 	 * @returns {{text: string, caret: number}}
 	 */
@@ -963,7 +963,7 @@
 	const POPUP_MARGIN = 4;
 
 	/**
-	 * Положение списка у якоря (метка каретки или нижний край поля): снизу, у нижнего края —
+	 * Положение списка у якоря (метка каретки или нижний край поля): снизу, у нижнего края -
 	 * вверх, по горизонтали прижатие к окну. Если не помещается ни снизу, ни сверху, список встаёт
 	 * туда, где места больше, и maxHeight говорит, до какой высоты его ужать.
 	 *
@@ -1016,17 +1016,17 @@
 	/**
 	 * Что делать со списком после ввода в поле.
 	 *
-	 * Буква открывает список, «.» — уровень пути, «&» — параметры. При открытом списке буквы,
+	 * Буква открывает список, «.» - уровень пути, «&» - параметры. При открытом списке буквы,
 	 * цифры и удаление перефильтровывают, а пробел, знак операции и выход каретки из слова
 	 * закрывают. Цифра закрытый список не открывает: с неё начинаются числа. Пустой список
 	 * обвязка не открывает.
 	 *
 	 * @param {boolean} open Список сейчас открыт.
-	 * @param {string} typed Введённый символ; '' — удаление, вставка из буфера, сдвиг каретки.
+	 * @param {string} typed Введённый символ; '' - удаление, вставка из буфера, сдвиг каретки.
 	 * @param {object} ctx contextAt после ввода.
-	 * @param {{letters?: boolean}} [options] letters:false — буква открывает список только после
+	 * @param {{letters?: boolean}} [options] letters:false - буква открывает список только после
 	 *   «&» (текст запроса: там подсказываются только параметры).
-	 * @returns {'open'|'refilter'|'close'|'keep'} keep — закрытый список не трогать.
+	 * @returns {'open'|'refilter'|'close'|'keep'} keep - закрытый список не трогать.
 	 */
 	function inputAction(open, typed, ctx, options) {
 		const idle = open ? 'close' : 'keep';
@@ -1058,16 +1058,16 @@
 		if (!open) {
 			return 'keep';
 		}
-		// Каретка осталась в слове (или сразу за «&», «Путь.») — список следует за ней, иначе закрывается
+		// Каретка осталась в слове (или сразу за «&», «Путь.») - список следует за ней, иначе закрывается
 		return context.mode === 'param' || prefix !== '' || parentPath !== '' ? 'refilter' : 'close';
 	}
 
 	/**
-	 * Активная строка после клавиши: стрелки ходят по кругу, PageUp/PageDown — на PAGE_STEP с
-	 * упором в край, Home/End — к краям. Индексы — по всему ранжированному списку, а не по
+	 * Активная строка после клавиши: стрелки ходят по кругу, PageUp/PageDown - на PAGE_STEP с
+	 * упором в край, Home/End - к краям. Индексы - по всему ранжированному списку, а не по
 	 * нарисованному окну.
 	 *
-	 * @returns {number} -1 — строк нет.
+	 * @returns {number} -1 - строк нет.
 	 */
 	function nextActive(index, count, key) {
 		const total = Math.max(0, Math.floor(count || 0));
@@ -1146,7 +1146,7 @@
 
 	/**
 	 * Метка вида строки: буква вида и стрелка у узла с детьми (за ним продолжается путь через
-	 * точку); expandable — дети есть по типу, хотя в каталоге их ещё нет.
+	 * точку); expandable - дети есть по типу, хотя в каталоге их ещё нет.
 	 */
 	function kindLetter(item) {
 		const kind = (item && KIND_LABELS[item.kind]) || KIND_LABELS.field;
@@ -1156,7 +1156,7 @@
 
 	/**
 	 * Части строки списка: метка вида, имя и заголовок кусками с совпадением, тип. Параметр в
-	 * выражении показывается «&Имя» — так он и вставится; границы совпадения сдвигаются на «&».
+	 * выражении показывается «&Имя» - так он и вставится; границы совпадения сдвигаются на «&».
 	 */
 	function rowParts(entry) {
 		const item = entry && entry.item ? entry.item : {};

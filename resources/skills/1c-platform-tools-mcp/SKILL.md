@@ -275,24 +275,26 @@ description: Инструменты MCP сервера mcp-1c-platform-tools. И
 
 ## Схема компоновки данных
 
-Команды правят файл макета СКД напрямую, панель редактора не нужна. `path`: файл содержимого схемы (`Templates/<Имя>/Ext/Template.xml` выгрузки конфигуратора, `Template.dcs` проекта EDT) или описание макета рядом с ним. `ownerPath`: описание владельца макета (XML объекта с макетами, `Configuration.xml` для общего макета, `.mdo` в EDT). Относительные пути считаются от корня проекта.
+Передай в path файл содержимого макета или его описание. В ownerPath передай описание объекта, а для общего макета описание конфигурации. Относительные пути считай от корня проекта.
 
-| Инструмент | Command ID | wait: true | Параметры |
-|---|---|---|---|
-| `dcs_read` | `1c-platform-tools.dcs.read` | результат | `path`, `variant` |
-| `dcs_apply` | `1c-platform-tools.dcs.apply` | результат | `path`, `op`, `params` |
-| `dcs_validate` | `1c-platform-tools.dcs.validate` | результат | `path` |
-| `dcs_typeDictionary` | `1c-platform-tools.dcs.typeDictionary` | результат | `path` |
-| `dcs_query` | `1c-platform-tools.dcs.query` | результат | `action`, `path`, `dataSet`, `text`, `model`, `lang`, `eol`, `autofill` |
-| `dcs_templateAdd` | `1c-platform-tools.dcs.templateAdd` | результат | `ownerPath`, `name`, `makeMain` |
-| `dcs_templateRemove` | `1c-platform-tools.dcs.templateRemove` | результат | `ownerPath`, `name` |
+| Задача | Инструмент MCP | Параметры |
+|---|---|---|
+| Прочитать схему или настройки варианта | `dcs_read` | path, variant |
+| Применить одну операцию | `dcs_apply` | path, op, params |
+| Проверить схему | `dcs_validate` | path |
+| Получить допустимые типы значений | `dcs_typeDictionary` | path |
+| Разобрать, собрать или записать запрос | `dcs_query` | action, path, dataSet, text, model, lang, eol, autofill |
+| Создать макет СКД | `dcs_templateAdd` | ownerPath, name, makeMain |
+| Удалить макет СКД | `dcs_templateRemove` | ownerPath, name |
 
-- `dcs_read` возвращает в `data` модель схемы. Без `variant` в ответе ещё список вариантов настроек, с ним настройки названного варианта.
-- `dcs_apply` применяет одну правку из каталога мутаций `cf-dcs-*` и возвращает свежую модель. `params` это поля операции, `op` вне каталога отклоняется со списком доступных.
-- `dcs_validate` возвращает вердикт строгой проверки схемы: `ok`, `errors` с позициями и `warnings` (`{message, parameter, dataSet?, kind}`), которые на `ok` не влияют. `kind: "undeclaredQueryParameter"`: `&`-параметр запроса не объявлен в схеме. `"valueListPresentationsLost"`: у списка значений параметра старой записи есть представления, которые загрузка в платформу потеряет; файл хранит их как есть. Убрать представления: `dcs_apply` `cf-dcs-set-parameter` с `params: {name, payload: {value}}`, где `payload.value` это список без `presentation`. Снятие `payload.valueListAllowed` только уводит предупреждение. `"linkListFlagWithoutParameter"`: у связи наборов `parameterListAllowed` записан без `parameter`, загрузка его отбросит; в предупреждении вместо `parameter` поле `link`, номер связи с нуля. Убрать флажок: `dcs_apply` `cf-dcs-set-link` с `params: {index, payload: {parameterListAllowed: null}}`; сохранить: задать `parameter`. Флажок `true` без `parameter` не записывается.
-- `dcs_typeDictionary` возвращает словарь окна «Тип значения»: что можно записать новым типом в `payload.valueType` правок `dcs_apply` (поля наборов, вычисляемые поля, параметры). В словаре примитивы, «любая ссылка» формата файла, виды ссылок с объектами, характеристики и определяемые типы с UUID. Тип записывается той же формой, что `valueType` в модели `dcs_read`.
-- `dcs_query` работает с текстом запроса набора той же моделью, что конструктор запроса редактора. `action: "parse"` разбирает `text` или запрос набора (`path` и `dataSet`: имя или путь «Объединение/Дочерний») и отдаёт `model`, `diagnostics` и `selfCheck`; при `ok: false` текст правят только текстом. `"build"` собирает текст по `model`, неизменённые запросы пакета выходят исходным текстом. `"apply"` записывает `text` или `model` одним пакетом, как ОК конструктора: текст, объявление недостающих `&`-параметров (только имя) и автозаполнение полей набора.
-- `dcs_templateAdd` создаёт у владельца макет со схемой компоновки, как конфигуратор; `makeMain: true` назначает его основной схемой отчёта. `dcs_templateRemove` удаляет макет вместе со строкой состава.
+- Прочитай схему через `dcs_read`. Перед изменением типа проверь допустимые значения через `dcs_typeDictionary`. Передай в `dcs_apply` точное имя операции и её параметры по [контракту md-sparrow](https://github.com/yellow-hammer/md-sparrow/blob/main/docs/cf-dcs.md). После правки вызови `dcs_validate` и прочитай ошибки и предупреждения.
+- Перед правкой запроса вызови `dcs_query` с action = parse. При успешном разборе поправь модель. При ошибке правь текст запроса. Запиши результат с action = apply, указав имя набора или путь вида «Объединение/Дочерний».
+
+### Примеры вызовов
+
+- `dcs_read` с path = Reports/Продажи/Templates/Схема/Ext/Template.xml и variant = Основной.
+- `dcs_query` с action = parse, path = Reports/Продажи/Templates/Схема/Ext/Template.xml и dataSet = Объединение/Дочерний.
+- `dcs_templateAdd` с ownerPath = Reports/Продажи.xml, name = Схема и makeMain = true.
 
 ## Данные базы через OData
 
