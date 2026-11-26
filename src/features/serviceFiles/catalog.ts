@@ -18,6 +18,7 @@ import {
 	type SettingsSchema,
 } from '../../shared/envProfiles';
 import { PROJECT_FILE } from '../../shared/projectLayout';
+import { OBJLIST_REL_PATH } from '../../shared/pathDefaults';
 
 /** Каталоги, которые обход не заходит. */
 export const SKIP_DIRS = new Set(['src', 'oscript_modules', 'build', '.git']);
@@ -32,6 +33,7 @@ export type ServiceFileKind =
 	| 'gitignore'
 	| 'gitattributes'
 	| 'packagedef'
+	| 'objlist'
 	| 'hooks'
 	| 'pipelines'
 	| 'vrunner'
@@ -65,6 +67,7 @@ const SINGLE_FILES: { kind: ServiceFileKind; relPath: string }[] = [
 	{ kind: 'gitignore', relPath: '.gitignore' },
 	{ kind: 'gitattributes', relPath: '.gitattributes' },
 	{ kind: 'packagedef', relPath: PROJECT_FILE },
+	{ kind: 'objlist', relPath: OBJLIST_REL_PATH },
 	{ kind: 'hooks', relPath: '.1cpt/hooks.json' },
 	{ kind: 'pipelines', relPath: '.1cpt/pipelines.json' },
 	{ kind: 'syntax', relPath: 'tools/syntax-check-excludes.txt' },
@@ -95,6 +98,9 @@ export function classifyServiceFile(relPath: string): ServiceFileKind | undefine
 	}
 	if (atRoot && name === PROJECT_FILE) {
 		return 'packagedef';
+	}
+	if (normalized === OBJLIST_REL_PATH) {
+		return 'objlist';
 	}
 	if (normalized === '.1cpt/hooks.json') {
 		return 'hooks';
@@ -277,7 +283,7 @@ export function pathIsNotable(kind: ServiceFileKind, relPath: string): boolean {
 	if (kind === 'profile' || kind === 'environment' || kind === 'gitignore' || kind === 'gitattributes' || kind === 'packagedef') {
 		return relPath.includes('/');
 	}
-	if (kind === 'hooks' || kind === 'pipelines') {
+	if (kind === 'hooks' || kind === 'pipelines' || kind === 'objlist') {
 		return !relPath.startsWith('.1cpt/');
 	}
 	return !relPath.startsWith('tools/');
@@ -298,6 +304,7 @@ function defaultPaths(kind: ServiceFileKind): readonly string[] {
 		case 'gitignore':
 		case 'gitattributes':
 		case 'packagedef':
+		case 'objlist':
 		case 'hooks':
 		case 'pipelines':
 			return SINGLE_FILES.filter((file) => file.kind === kind).map((file) => file.relPath);

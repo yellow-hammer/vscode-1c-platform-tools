@@ -24,6 +24,9 @@ hero:
     - theme: alt
       text: GitHub
       link: https://github.com/yellow-hammer/vscode-1c-platform-tools
+    - theme: alt
+      text: MCP-сервер
+      link: /mcp/
 
 features:
   - title: '1С: Проекты'

@@ -1425,6 +1425,8 @@ export interface ReportEditSpecInput extends SimpleObjectEditSpecInput {
 	report: boolean;
 	/** Имена макетов объекта - кандидаты в основную схему компоновки данных. */
 	templateNames?: readonly string[];
+	/** Имена макетов схемы аналитики. Отсутствует в выгрузках до 2.22. */
+	analyticsTemplateNames?: readonly string[];
 	/** Имена хранилищ настроек конфигурации - кандидаты в хранилища вариантов и настроек. */
 	settingsStorageNames?: readonly string[];
 }
@@ -1469,6 +1471,13 @@ export function buildReportEditTabs(input: ReportEditSpecInput): MetadataEditTab
 					options: reportTemplateOptions(input.internalName, input.templateNames ?? []),
 					clearable: true,
 				},
+				...(input.analyticsTemplateNames ? [{
+					path: 'report.mainAnalyticsSystemSchema',
+					label: 'Основная схема системы аналитики',
+					control: 'select' as const,
+					options: reportTemplateOptions(input.internalName, input.analyticsTemplateNames),
+					clearable: true,
+				}] : []),
 				{
 					path: 'report.variantsStorage',
 					label: 'Хранилище вариантов',

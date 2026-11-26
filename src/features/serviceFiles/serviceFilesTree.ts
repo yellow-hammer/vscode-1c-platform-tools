@@ -212,6 +212,7 @@ export class ServiceFilesTreeProvider implements vscode.TreeDataProvider<Service
 			return [
 				...this.fileNodes('gitignore', 'repo'),
 				...this.fileNodes('gitattributes', 'repo'),
+				...(isOneScriptProject(root) ? [] : this.fileNodes('objlist', 'repo')),
 				...this.fileNodes('packagedef', 'repo'),
 				structure,
 			];
@@ -381,7 +382,7 @@ function parentGroupOf(relPath: string): ServiceFileKind | 'repo' | 'automation'
 	if (!kind) {
 		return undefined;
 	}
-	if (kind === 'gitignore' || kind === 'gitattributes' || kind === 'packagedef') {
+	if (kind === 'gitignore' || kind === 'gitattributes' || kind === 'packagedef' || kind === 'objlist') {
 		return 'repo';
 	}
 	if (kind === 'hooks' || kind === 'pipelines') {
@@ -425,6 +426,7 @@ function addCommand(kind: ServiceFileKind): vscode.Command {
 		case 'gitignore':
 		case 'gitattributes':
 		case 'packagedef':
+		case 'objlist':
 		case 'hooks':
 		case 'pipelines':
 		case 'syntax':
@@ -457,6 +459,7 @@ function fileLabel(row: ServiceFileRow, schema: SettingsSchema): string {
 		case 'gitignore':
 		case 'gitattributes':
 		case 'packagedef':
+		case 'objlist':
 		case 'hooks':
 		case 'pipelines':
 		case 'vrunner':

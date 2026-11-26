@@ -304,6 +304,7 @@ export function registerMetadataFeature(
 		DocumentNumerator: 'DocumentNumerator',
 		ExternalDataSource: 'ExternalDataSource',
 		Role: 'Role',
+		Queue: 'Queue',
 	};
 
 	function resolveSelectedMetadataLeaf(item?: MetadataLeafTreeItem): MetadataLeafTreeItem | undefined {

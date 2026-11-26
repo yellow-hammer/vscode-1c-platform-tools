@@ -29,11 +29,14 @@ export interface EdtPlatformChoice {
  * Список форматов выгрузки из md-sparrow, от нового к старому.
  *
  * @param context - Контекст расширения: нужен для запуска md-sparrow
+ * @param format - Формат создаваемого проекта, для которого нужны эталоны
  * @returns Форматы либо undefined, если список не получен
  */
-async function dumpFormatsNewestFirst(context: vscode.ExtensionContext): Promise<DumpFormat[] | undefined> {
+async function dumpFormatsNewestFirst(
+	context: vscode.ExtensionContext, format: 'designer' | 'edt'
+): Promise<DumpFormat[] | undefined> {
 	try {
-		const res = await runMdSparrowParamsRead(await ensureMdSparrowRuntime(context), { op: 'cf-format-versions' });
+		const res = await runMdSparrowParamsRead(await ensureMdSparrowRuntime(context), { op: 'cf-format-versions', format });
 		if (res.exitCode !== 0) {
 			throw new Error(res.stderr.trim() || res.stdout.trim() || `код ${res.exitCode}`);
 		}
@@ -55,7 +58,7 @@ async function dumpFormatsNewestFirst(context: vscode.ExtensionContext): Promise
  * @returns Флаг md-sparrow, например `V2_21`; undefined, если выбор отменён или список не получен
  */
 export async function pickDumpFormat(context: vscode.ExtensionContext, title: string): Promise<string | undefined> {
-	const formats = await dumpFormatsNewestFirst(context);
+	const formats = await dumpFormatsNewestFirst(context, 'designer');
 	if (!formats) {
 		return undefined;
 	}
@@ -76,7 +79,7 @@ export async function pickDumpFormat(context: vscode.ExtensionContext, title: st
  * @returns Платформа и флаг формата либо undefined, если выбор отменён или список не получен
  */
 export async function pickEdtPlatform(context: vscode.ExtensionContext): Promise<EdtPlatformChoice | undefined> {
-	const formats = await dumpFormatsNewestFirst(context);
+	const formats = await dumpFormatsNewestFirst(context, 'edt');
 	if (!formats) {
 		return undefined;
 	}

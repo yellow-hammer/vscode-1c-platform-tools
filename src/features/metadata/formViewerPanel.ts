@@ -664,6 +664,7 @@ const ITEM_KIND_LABELS: Record<string, string> = {
 	CheckBoxField: 'Поле флажка',
 	RadioButtonField: 'Поле переключателя',
 	PictureField: 'Поле картинки',
+	RepresentableDocumentField: 'Поле отображаемого документа',
 	Table: 'Таблица',
 	Button: 'Кнопка',
 	ButtonGroup: 'Группа кнопок',

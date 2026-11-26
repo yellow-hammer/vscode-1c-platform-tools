@@ -5,6 +5,7 @@ import * as vscode from 'vscode';
 import { BaseCommand } from '../../commands/baseCommand';
 import { createTestContext } from '../fixtures/helpers/testContext';
 import type { CommandExecutionOptions } from '../../shared/commandExecutionTypes';
+import { OBJLIST_REL_PATH } from '../../shared/pathDefaults';
 
 /**
  * Тестовый класс для проверки методов BaseCommand
@@ -59,6 +60,10 @@ class TestCommand extends BaseCommand {
 	public async testEnsureOscriptAvailable(): Promise<boolean> {
 		return this.ensureOscriptAvailable();
 	}
+
+	public override readObjlist(root: string): Promise<string[] | undefined> {
+		return super.readObjlist(root);
+	}
 }
 
 suite('BaseCommand', () => {
@@ -72,6 +77,23 @@ suite('BaseCommand', () => {
 
 	suiteTeardown(async () => {
 		await testContext.cleanup();
+	});
+
+	test('обе команды загрузки читают список только из .1cpt', async () => {
+		const root = await fs.mkdtemp(path.join(testContext.workspacePath, 'objlist-'));
+		const file = path.join(root, OBJLIST_REL_PATH);
+		try {
+			await fs.writeFile(path.join(root, 'objlist.txt'), 'src/cf/Documents/Прежний.xml\n');
+			assert.strictEqual(await testCommand.readObjlist(root), undefined);
+			await fs.mkdir(path.dirname(file));
+			await fs.writeFile(file, '  src/cf/Documents/Документ.xml\r\n \r\nsrc/cfe/Проверка/Queues/Очередь.xml\n');
+			assert.deepStrictEqual(await testCommand.readObjlist(root), [
+				'src/cf/Documents/Документ.xml',
+				'src/cfe/Проверка/Queues/Очередь.xml',
+			]);
+		} finally {
+			await fs.rm(root, { recursive: true, force: true });
+		}
 	});
 
 	test('ensureWorkspace возвращает путь к workspace', async () => {

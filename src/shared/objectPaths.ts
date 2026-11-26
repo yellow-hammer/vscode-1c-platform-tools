@@ -47,6 +47,7 @@ const TYPE_DIRECTORIES: Record<string, string> = {
 	WSСсылка: 'WSReferences',
 	ПодпискаНаСобытие: 'EventSubscriptions',
 	РегламентноеЗадание: 'ScheduledJobs',
+	Очередь: 'Queues',
 	ОбщийРеквизит: 'CommonAttributes',
 	ФункциональнаяОпция: 'FunctionalOptions',
 	ПараметрФункциональнойОпции: 'FunctionalOptionsParameters',

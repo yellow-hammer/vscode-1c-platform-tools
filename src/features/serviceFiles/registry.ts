@@ -10,6 +10,7 @@ import {
 	baseSettingsFileName,
 	BASE_AUTUMN_FILE,
 } from '../../shared/envProfiles';
+import { OBJLIST_REL_PATH } from '../../shared/pathDefaults';
 
 /** Описание служебного файла */
 export interface ServiceFileSpec {
@@ -44,6 +45,13 @@ export const SERVICE_FILES: ServiceFileSpec[] = [
 		label: '.gitattributes',
 		description: 'текст/бинарь для файлов 1С',
 		recommended: true,
+	},
+	{
+		id: 'objlist',
+		relPath: OBJLIST_REL_PATH,
+		label: 'objlist.txt',
+		description: 'список путей для частичной загрузки конфигурации и расширений',
+		recommended: false,
 	},
 	{
 		id: 'launchProfile',

@@ -30,6 +30,7 @@ suite('флаг схемы для md-sparrow', () => {
 
 	test('атрибут version переводится во флаг схемы', () => {
 		assert.strictEqual(designerXmlVersionToMdSparrowFlag('2.21'), 'V2_21');
+		assert.strictEqual(designerXmlVersionToMdSparrowFlag('2.22'), 'V2_22');
 		assert.throws(() => designerXmlVersionToMdSparrowFlag('abc'));
 	});
 });

@@ -41,6 +41,7 @@ import {
 	type EdtRunResult,
 } from '../features/edt/edtRunner';
 import { notifyQuiet } from '../shared/notify';
+import { OBJLIST_REL_PATH } from '../shared/pathDefaults';
 import type { CommandExecutionOptions, StructuredCommandResult } from '../shared/commandExecutionTypes';
 import {
 	buildOutputVariables,
@@ -362,9 +363,20 @@ export abstract class BaseCommand {
 		return full === base || full.startsWith(base + path.sep);
 	}
 
-	/** Строки objlist (без пустых). */
-	protected parseObjlistLines(content: string): string[] {
-		return content.split(/\r?\n/).map(line => line.trim()).filter(line => line.length > 0);
+	/** Читает список загрузки и сообщает, где его создать, если файла нет. */
+	protected async readObjlist(root: string): Promise<string[] | undefined> {
+		try {
+			const content = await fs.readFile(path.join(root, OBJLIST_REL_PATH), 'utf8');
+			return content.split(/\r?\n/).map((line) => line.trim()).filter((line) => line.length > 0);
+		} catch (error) {
+			const err = error as NodeJS.ErrnoException;
+			const message = err.code === 'ENOENT'
+				? `Создайте ${OBJLIST_REL_PATH} в группе «Репозиторий» панели «1С: Служебные файлы».`
+				: `Не удалось прочитать ${OBJLIST_REL_PATH}: ${err.message}`;
+			log.warn(message);
+			void vscode.window.showErrorMessage(message);
+			return undefined;
+		}
 	}
 
 	/** Полный путь: line — абсолютный или относительно workspaceRoot. */
