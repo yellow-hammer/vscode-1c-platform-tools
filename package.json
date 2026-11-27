@@ -15,7 +15,7 @@
     "oscript",
     "cursor"
   ],
-  "version": "0.9.30",
+  "version": "0.9.31",
   "publisher": "yellow-hammer",
   "extensionKind": [
     "workspace"
