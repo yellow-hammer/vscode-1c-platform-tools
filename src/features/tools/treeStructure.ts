@@ -82,6 +82,8 @@ import {
 	getDecompileTestEpfCommandName,
 	getSetVersionConfigurationCommandName,
 	getSetVersionExtensionCommandName,
+	getSetVersionReportCommandName,
+	getSetVersionProcessorCommandName,
 	getUpdateCfgSupportCommandName,
 	getDisableCfgSupportCommandName,
 	getCreateTemplateListFileCommandName,
@@ -345,8 +347,10 @@ export const TREE_GROUPS: TreeGroup[] = [
 		defaultCollapsibleState: 'collapsed',
 		projects: ONEC,
 		commands: [
-			{ command: '1c-platform-tools.cf.setVersion', title: getSetVersionConfigurationCommandName().title, treeLabel: '🏷️ Конфигурации' },
-			{ command: '1c-platform-tools.cfe.setVersion', title: getSetVersionExtensionCommandName().title, treeLabel: '🏷️ Расширения' },
+			{ command: '1c-platform-tools.cf.setVersion', title: getSetVersionConfigurationCommandName().title, treeLabel: '🏷️ Конфигурация' },
+			{ command: '1c-platform-tools.cfe.setVersion', title: getSetVersionExtensionCommandName().title, treeLabel: '🏷️ Расширения…' },
+			{ command: '1c-platform-tools.epf.setVersionReport', title: getSetVersionReportCommandName().title, treeLabel: '🏷️ Внешние отчёты…' },
+			{ command: '1c-platform-tools.epf.setVersionProcessor', title: getSetVersionProcessorCommandName().title, treeLabel: '🏷️ Внешние обработки…' },
 		],
 	},
 	{

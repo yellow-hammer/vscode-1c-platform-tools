@@ -21,6 +21,8 @@
  */
 
 
+import type { ExternalKind } from '../projectLayout';
+
 /** Сквозные опции команды (аргументы, валидные в обоих CLI): пары «опция, значение». */
 export type CommonArgs = readonly string[];
 
@@ -126,9 +128,9 @@ export type VRunnerIntent =
 
 	// ---- Внешние обработки и отчёты (epf/erf) ----
 	/** Собрать обработки/отчёты из исходников (каталог — рекурсивно). */
-	| { kind: 'epf.build'; src: string; out: string; common?: CommonArgs }
+	| { kind: 'epf.build'; src: string; out: string; externalObject?: string; common?: CommonArgs }
 	/** Разобрать .epf/.erf (или каталог) в исходники. */
-	| { kind: 'epf.decompile'; input: string; out: string; common?: CommonArgs }
+	| { kind: 'epf.decompile'; input: string; out: string; externalTarget?: { directory: string; name: string; kind: ExternalKind }; common?: CommonArgs }
 
 	// ---- Запуск 1С ----
 	/** Запустить 1С:Предприятие. */

@@ -35,7 +35,7 @@ export function registerMainTreeFlow(
 		workspaceTasksCommands,
 	} = params;
 
-	const { treeDataProvider } = registerMainTreeView(context, setVersionCommands);
+	const { treeDataProvider } = registerMainTreeView(context);
 	const mainTreeCommandDisposables = registerMainTreeCommands({
 		context,
 		treeDataProvider,

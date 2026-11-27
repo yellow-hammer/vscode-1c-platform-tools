@@ -3,11 +3,11 @@ import { COMMON_MODULES_DIRECTORY, sourceDirectory } from '../../shared/objectPa
 import { directoryKey, resolveProjectLayout } from '../../shared/projectLayout';
 import { onDidChangeProjectLayout } from '../../shared/projectLayoutWatch';
 import { currentRoot, onDidChangeCurrentProject, onDidChangeProjects, outsideProject } from '../../shared/workspaceProjects';
-import { loadBspLibraries } from './bspLibraries';
+import { loadBspLibraries, setSourceVersions } from './sourceVersions';
 
 const LIBRARIES_VIEW_ID = '1c-platform-tools-metadata-libraries';
 
-export function registerMetadataLibrariesView(): vscode.Disposable {
+export function registerMetadataLibrariesView(context: vscode.ExtensionContext): vscode.Disposable {
 	const changed = new vscode.EventEmitter<void>();
 	const refresh = () => changed.fire();
 	const selectedRoot = () => outsideProject(() => currentRoot());
@@ -40,10 +40,10 @@ export function registerMetadataLibrariesView(): vscode.Disposable {
 				if (view.visible) {
 					watch(configuration && sourceDirectory(configuration));
 				}
-				if (!configuration) {
+				if (!root || !configuration) {
 					return [];
 				}
-				const libraries = await loadBspLibraries(configuration);
+				const libraries = await loadBspLibraries(context, root, configuration);
 				if (root !== selectedRoot()) {
 					return [];
 				}
@@ -53,6 +53,8 @@ export function registerMetadataLibrariesView(): vscode.Disposable {
 					item.id = directoryKey(file);
 					item.description = version;
 					item.iconPath = new vscode.ThemeIcon('library');
+					item.resourceUri = uri;
+					item.contextValue = 'metadataLibrary';
 					item.command = { command: 'vscode.open', title: 'Открыть общий модуль', arguments: [uri] };
 					return item;
 				});
@@ -63,6 +65,15 @@ export function registerMetadataLibrariesView(): vscode.Disposable {
 		view,
 		changed,
 		vscode.commands.registerCommand('1c-platform-tools.metadata.refreshLibraries', refresh),
+		vscode.commands.registerCommand('1c-platform-tools.metadata.setLibraryVersion', async (item?: vscode.TreeItem) => {
+			const root = selectedRoot();
+			const file = item?.contextValue === 'metadataLibrary' ? item.resourceUri?.fsPath : undefined;
+			if (!root || !file) {
+				return;
+			}
+			await setSourceVersions(context, root, [{ op: 'bsp-library-version-set', moduleFile: file }],
+				'Версия библиотеки', typeof item?.description === 'string' ? item.description : undefined);
+		}),
 		onDidChangeCurrentProject(() => {
 			watch(undefined);
 			refresh();

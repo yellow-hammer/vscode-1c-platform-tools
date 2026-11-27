@@ -1,26 +1,17 @@
-/**
- * Цель единичной сборки из узла дерева метаданных.
- * @module metadataCompileTarget
- */
-
 import * as path from 'node:path';
 import * as vscode from 'vscode';
-import { formatOfFile } from '../../shared/objectPaths';
+import { formatOfFile, moduleFileOf } from '../../shared/objectPaths';
 import { MetadataLeafTreeItem, MetadataSourceTreeItem } from './metadataTreeView';
+import type { SourceVersionTarget } from './sourceVersions';
 
-/** Что собираем из выбранного узла. */
 export type MetadataCompileKind = 'configuration' | 'extension' | 'processor' | 'report';
 
-/** Каталог исходников выбранного узла. */
 export interface MetadataCompileTarget {
 	readonly kind: MetadataCompileKind;
 	readonly sourceUri: vscode.Uri;
+	readonly descriptor?: string;
 }
 
-/**
- * Узел, из которого можно собрать файл: конфигурация, одно расширение, одна обработка или один отчёт.
- * Корни «Внешние обработки» / «Внешние отчёты» не цель — там нет одного файла.
- */
 export function metadataCompileTarget(item: unknown): MetadataCompileTarget | undefined {
 	if (item instanceof MetadataSourceTreeItem) {
 		const sourceDir = sourceDirectoryOf(item);
@@ -38,21 +29,28 @@ export function metadataCompileTarget(item: unknown): MetadataCompileTarget | un
 	if (item instanceof MetadataLeafTreeItem && item.resourceUri) {
 		const sourceUri = vscode.Uri.file(path.dirname(item.resourceUri.fsPath));
 		if (item.objectType === 'ExternalDataProcessor') {
-			return { kind: 'processor', sourceUri };
+			return { kind: 'processor', sourceUri, descriptor: item.resourceUri.fsPath };
 		}
 		if (item.objectType === 'ExternalReport') {
-			return { kind: 'report', sourceUri };
+			return { kind: 'report', sourceUri, descriptor: item.resourceUri.fsPath };
 		}
 	}
 	return undefined;
 }
 
-/**
- * Каталог исходников корня для инструментов.
- *
- * Дерево называет корнем каталог метаданных, а у проекта EDT это его `src`:
- * раннеру и самой EDT нужен каталог проекта, в котором лежит описание.
- */
+/** Файл версии выбранной конфигурации, расширения или внешнего объекта. */
+export function metadataVersionTarget(item: unknown): SourceVersionTarget | undefined {
+	if (item instanceof MetadataSourceTreeItem) {
+		if ((item.sourceKind === 'main' || item.sourceKind === 'extension') && item.configurationXmlAbs) {
+			return { op: 'configuration-version-set', configurationXml: item.configurationXmlAbs };
+		}
+		return undefined;
+	}
+	const descriptor = metadataCompileTarget(item)?.descriptor;
+	return descriptor ? { op: 'bsp-external-version-set', moduleFile: moduleFileOf(descriptor, 'object') } : undefined;
+}
+
+/** Для EDT команды получают каталог проекта, содержащий `src`. */
 export function sourceDirectoryOf(item: MetadataSourceTreeItem): string | undefined {
 	const descriptor = item.configurationXmlAbs;
 	if (descriptor && formatOfFile(descriptor) === 'edt') {

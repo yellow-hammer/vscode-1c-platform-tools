@@ -3,8 +3,6 @@ import { WorkspaceTasksCommands } from '../../commands/workspaceTasksCommands';
 import { OscriptTasksCommands } from '../../commands/oscriptTasksCommands';
 import { VRunnerManager } from '../../shared/vrunnerManager';
 import {
-	getSetVersionReportCommandName,
-	getSetVersionProcessorCommandName,
 	getOpenPipelineEditorCommandName,
 	getOpenHooksEditorCommandName
 } from './commandNames';
@@ -12,7 +10,6 @@ import { readPipelines } from '../../shared/pipelines/pipelineFile';
 import { stepsWord } from '../../shared/pipelines/pipelineTypes';
 import { readHooks, describeHookEntry, HOOKS_WILDCARD } from '../../shared/hooks/hooksModel';
 import { commandTitle } from '../../shared/commandCatalog';
-import type { SetVersionCommands } from '../../commands/setVersionCommands';
 import { getFavorites, type FavoriteEntry } from './favorites';
 import { getHiddenToolGroups } from './toolsGroupVisibility';
 import {
@@ -55,8 +52,6 @@ export enum TreeItemType {
 	Extension = 'extension',
 	ExternalFile = 'externalFile',
 	SetVersion = 'setVersion',
-	SetVersionReportsFolder = 'setVersionReportsFolder',
-	SetVersionProcessorsFolder = 'setVersionProcessorsFolder',
 	Favorites = 'favorites',
 	FavoritesConfigure = 'favoritesConfigure',
 	Lightbulb = 'lightbulb',
@@ -145,8 +140,6 @@ export class PlatformTreeItem extends vscode.TreeItem {
 			case TreeItemType.ExternalFile:
 				return new vscode.ThemeIcon('file-code');
 			case TreeItemType.SetVersion:
-			case TreeItemType.SetVersionReportsFolder:
-			case TreeItemType.SetVersionProcessorsFolder:
 				return new vscode.ThemeIcon('tag');
 			case TreeItemType.Favorites:
 				return new vscode.ThemeIcon('star-full');
@@ -188,7 +181,6 @@ export class PlatformTreeDataProvider implements vscode.TreeDataProvider<Platfor
 
 	private readonly workspaceTasksCommands: WorkspaceTasksCommands;
 	private readonly oscriptTasksCommands: OscriptTasksCommands;
-	private readonly setVersionCommands?: SetVersionCommands;
 	private readonly extensionUri: vscode.Uri | undefined;
 	private readonly extensionContext: vscode.ExtensionContext | undefined;
 	/** Формат конфигурации проекта: от него зависят подписи и состав команд. */
@@ -201,12 +193,10 @@ export class PlatformTreeDataProvider implements vscode.TreeDataProvider<Platfor
 
 	constructor(
 		extensionUri?: vscode.Uri,
-		setVersionCommands?: SetVersionCommands,
 		extensionContext?: vscode.ExtensionContext
 	) {
 		this.workspaceTasksCommands = new WorkspaceTasksCommands();
 		this.oscriptTasksCommands = new OscriptTasksCommands();
-		this.setVersionCommands = setVersionCommands;
 		this.extensionUri = extensionUri;
 		this.extensionContext = extensionContext;
 		this.formatSubscription = onDidChangeCurrentProject(() => {
@@ -359,14 +349,6 @@ export class PlatformTreeDataProvider implements vscode.TreeDataProvider<Platfor
 			return this.getPipelines();
 		}
 
-		if (element.type === TreeItemType.SetVersionReportsFolder) {
-			return this.getSetVersionReportItems();
-		}
-
-		if (element.type === TreeItemType.SetVersionProcessorsFolder) {
-			return this.getSetVersionProcessorItems();
-		}
-
 		return Promise.resolve(element.children || []);
 	}
 
@@ -484,25 +466,6 @@ export class PlatformTreeDataProvider implements vscode.TreeDataProvider<Platfor
 					cmd.icon
 				)
 			);
-
-			if (group.sectionType === 'setVersion') {
-				children.push(
-					this.createTreeItem(
-						'🏷️ Внешнего отчёта',
-						TreeItemType.SetVersionReportsFolder,
-						vscode.TreeItemCollapsibleState.Collapsed,
-						undefined,
-						[]
-					),
-					this.createTreeItem(
-						'🏷️ Внешней обработки',
-						TreeItemType.SetVersionProcessorsFolder,
-						vscode.TreeItemCollapsibleState.Collapsed,
-						undefined,
-						[]
-					)
-				);
-			}
 
 			allSections.push(
 				this.createTreeItem(
@@ -774,91 +737,5 @@ export class PlatformTreeDataProvider implements vscode.TreeDataProvider<Platfor
 		}
 
 		return items;
-	}
-
-	/**
-	 * Получает элементы дерева «Внешнего отчёта»
-	 * @returns Промис, который разрешается массивом элементов дерева
-	 */
-	private async getSetVersionReportItems(): Promise<PlatformTreeItem[]> {
-		if (!this.setVersionCommands) {
-			return [];
-		}
-		try {
-			const names = await this.setVersionCommands.getReportFoldersForTree();
-			if (names.length === 0) {
-				return [
-					this.createTreeItem(
-						'Внешних отчётов нет',
-						TreeItemType.Info,
-						vscode.TreeItemCollapsibleState.None
-					)
-				];
-			}
-			return names.map((name) =>
-				this.createTreeItem(
-					name,
-					TreeItemType.Task,
-					vscode.TreeItemCollapsibleState.None,
-					{
-						command: '1c-platform-tools.epf.setVersionReport',
-						title: getSetVersionReportCommandName(name).title,
-						arguments: [name],
-					}
-				)
-			);
-		} catch (error) {
-			const errorMessage = error instanceof Error ? error.message : String(error);
-			return [
-				this.createTreeItem(
-					`Ошибка загрузки отчётов: ${errorMessage}`,
-					TreeItemType.Info,
-					vscode.TreeItemCollapsibleState.None
-				)
-			];
-		}
-	}
-
-	/**
-	 * Получает элементы дерева «Внешней обработки»
-	 * @returns Промис, который разрешается массивом элементов дерева
-	 */
-	private async getSetVersionProcessorItems(): Promise<PlatformTreeItem[]> {
-		if (!this.setVersionCommands) {
-			return [];
-		}
-		try {
-			const names = await this.setVersionCommands.getProcessorFoldersForTree();
-			if (names.length === 0) {
-				return [
-					this.createTreeItem(
-						'Внешних обработок нет',
-						TreeItemType.Info,
-						vscode.TreeItemCollapsibleState.None
-					)
-				];
-			}
-			return names.map((name) =>
-				this.createTreeItem(
-					name,
-					TreeItemType.Task,
-					vscode.TreeItemCollapsibleState.None,
-					{
-						command: '1c-platform-tools.epf.setVersionProcessor',
-						title: getSetVersionProcessorCommandName(name).title,
-						arguments: [name],
-					}
-				)
-			);
-		} catch (error) {
-			const errorMessage = error instanceof Error ? error.message : String(error);
-			return [
-				this.createTreeItem(
-					`Ошибка загрузки обработок: ${errorMessage}`,
-					TreeItemType.Info,
-					vscode.TreeItemCollapsibleState.None
-				)
-			];
-		}
 	}
 }

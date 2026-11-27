@@ -127,6 +127,35 @@ suite('мост между проектом EDT и раннером', () => {
 		]);
 	});
 
+	test('сборка из дерева экспортирует единственный внешний объект выбранного проекта', () => {
+		const plan = planEdtBridge(
+			{ kind: 'epf.build', src: 'src/Ext/src/ExternalReports/Отчёт', out: 'build/erf', externalObject: 'Отчёт' },
+			{ format: 'edt', dir: 'src/Ext' },
+			{ ...layout, externalProjects: [
+				{ name: 'Отчёт', projectDir: 'src/Ext' },
+				{ name: 'ДругойОтчёт', projectDir: 'src/Ext' },
+			] }
+		);
+		assert.deepStrictEqual(plan?.exports, [
+			{ clear: 'build/edt-export/Ext' },
+			{ projectDir: 'src/Ext', target: 'build/edt-export/Ext/Отчёт', externalName: 'Отчёт' },
+		]);
+	});
+
+	test('разборка из дерева возвращает внешний объект в выбранный проект EDT', () => {
+		const output = 'build/.metadata-decompile-123/out';
+		const intent = {
+			kind: 'epf.decompile' as const, input: 'build/.metadata-decompile-123/Отчёт.erf', out: output,
+			externalTarget: { directory: 'src/Ext/src/ExternalReports/Отчёт', name: 'Отчёт', kind: 'report' as const },
+		};
+		assert.deepStrictEqual(planEdtBridge(intent, { format: 'edt', dir: 'src/Ext' }, layout), {
+			intent,
+			exports: [{ clear: output }],
+			imports: [{ source: output, projectDir: 'src/Ext', externalObject: { name: 'Отчёт', kind: 'report' }, needsBase: false, external: true }],
+		});
+		assert.strictEqual(planEdtBridge(intent, { format: 'designer', dir: 'src/epf/Отчёт' }, layout), undefined);
+	});
+
 	test('разборка обработок раскладывается по проектам', () => {
 		const plan = planEdtBridge(
 			{ kind: 'epf.decompile', input: 'build/epf', out: 'src/epf' },

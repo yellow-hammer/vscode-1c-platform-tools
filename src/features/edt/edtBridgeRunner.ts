@@ -11,10 +11,10 @@
 import type { Dirent } from 'node:fs';
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
-import * as vscode from 'vscode';
-import { logger } from '../../shared/logger';
 import { notifyQuietFailure } from '../../shared/notify';
 import { resolveProjectLayout, type ProjectLayout } from '../../shared/projectLayout';
+import { copyExternalDump, readExternalDump, readExternalDumps, type ExternalDump } from '../artifacts/externalDump';
+import { objectDirectoryOf } from '../../shared/objectPaths';
 import type { TaskOutputChain } from '../tasks/vrunnerTask';
 import {
 	detachProject,
@@ -35,8 +35,6 @@ import {
 	type EdtExportStep,
 	type EdtImportStep,
 } from './edtSourceBridge';
-
-const log = logger.scope('edt');
 
 /** Каталоги внешних объектов в выгрузке EDT. */
 const EXTERNAL_DIRECTORIES = ['ExternalDataProcessors', 'ExternalReports'];
@@ -86,6 +84,9 @@ export async function runEdtExports(steps: readonly EdtExportStep[], context: Ed
 		}
 		if (step.externalName) {
 			await flattenExternalExport(target, step.externalName);
+			if (!await exists(path.join(target, `${step.externalName}.xml`))) {
+				return { exitCode: 1, error: `В выгрузке EDT нет объекта «${step.externalName}».` };
+			}
 		}
 	}
 	return { exitCode: 0 };
@@ -106,11 +107,15 @@ export async function runEdtImports(steps: readonly EdtImportStep[], context: Ed
 		const source = path.resolve(context.workspaceRoot, step.source);
 		const projectDir = path.resolve(context.workspaceRoot, step.projectDir);
 		const base = step.baseProjectDir === undefined ? undefined : path.resolve(context.workspaceRoot, step.baseProjectDir);
-		if ((await registerProjects([base], workspaceDir, context)).exitCode !== 0) {
+		const registered = await registerProjects([base], workspaceDir, context);
+		if (registered.exitCode !== 0) {
+			if (step.external) {
+				throw new Error(edtFailureMessage(`Не удалось подключить базовый проект для ${step.projectDir}.`, registered));
+			}
 			continue;
 		}
 		if (step.external) {
-			await importExternals(source, projectDir, base, workspaceDir, context);
+			await importExternals(source, projectDir, base, workspaceDir, context, step.externalObject);
 			continue;
 		}
 		if (!(await exists(path.join(source, 'Configuration.xml')))) {
@@ -122,71 +127,91 @@ export async function runEdtImports(steps: readonly EdtImportStep[], context: Ed
 	}
 }
 
+/** Выбирает проекты по имени и виду объекта из XML выгрузки. */
+export async function planEdtExternalImports(
+	source: string,
+	container: string,
+	layout: ProjectLayout,
+	externalObject?: EdtImportStep['externalObject']
+): Promise<{ owned: Map<string, ExternalDump[]>; orphans: ExternalDump[] }> {
+	const owned = new Map<string, ExternalDump[]>();
+	const orphans: ExternalDump[] = [];
+	if (externalObject) {
+		const dump = await readExternalDump(source, externalObject.name);
+		if (dump.kind !== externalObject.kind) {
+			throw new Error(`Объект «${dump.name}» имеет другой вид. Выберите файл объекта EDT «${externalObject.name}».`);
+		}
+		if (dump.name.toLowerCase() !== externalObject.name.toLowerCase()) {
+			throw new Error(`Файл содержит объект «${dump.name}». Выберите файл объекта EDT «${externalObject.name}».`);
+		}
+		owned.set(container, [{ ...dump, name: externalObject.name }]);
+		return { owned, orphans };
+	}
+
+	for (const dump of await readExternalDumps(source)) {
+		const owner = edtProjectOfExternal(layout, dump.name, dump.kind);
+		if (owner) {
+			owned.set(owner.dir, [...(owned.get(owner.dir) ?? []), { ...dump, name: owner.name }]);
+		} else {
+			orphans.push(dump);
+		}
+	}
+	return { owned, orphans };
+}
+
 /**
  * Возвращает выгрузки внешних объектов в проекты EDT.
- *
- * Объект, у которого проект уже есть, возвращается в него: проект выгружается
- * целиком, в выгрузке подменяется этот объект, и она импортируется на место
- * проекта. Импорт одной выгрузки заменил бы собой проект с несколькими объектами.
+ * Проект выгружается целиком, выбранные объекты заменяются перед импортом.
  * Объект без проекта получает новый проект в каталоге проектов.
- *
- * @param source - Каталог с выгрузками, по каталогу `<Имя>/<Имя>.xml` на объект
- * @param container - Каталог, где заводятся новые проекты
- * @param base - Каталог базового проекта, когда у проекта объекта своего нет
  */
 async function importExternals(
 	source: string,
 	container: string,
 	base: string | undefined,
 	workspaceDir: string,
-	context: EdtBridgeContext
+	context: EdtBridgeContext,
+	externalObject?: EdtImportStep['externalObject']
 ): Promise<void> {
-	const dumps = await externalDumps(source);
-	if (dumps.length === 0) {
-		log.warn(`Выгрузок внешних объектов в ${source} нет, проекты не изменены`);
-		return;
-	}
 	const layout = await resolveProjectLayout(context.workspaceRoot);
-	const owned = new Map<string, string[]>();
-	const orphans: string[] = [];
-	for (const name of dumps) {
-		const owner = edtProjectOfExternal(layout, name);
-		if (owner) {
-			owned.set(owner.dir, [...(owned.get(owner.dir) ?? []), name]);
-		} else {
-			orphans.push(name);
-		}
+	const { owned, orphans } = await planEdtExternalImports(source, container, layout, externalObject);
+	if (owned.size === 0 && orphans.length === 0) {
+		throw new Error(`В каталоге ${source} не найдено выгрузок внешних объектов.`);
 	}
 	const configurations = [...(layout.configuration ? [layout.configuration] : []), ...layout.others]
 		.filter((root) => root.format === 'edt')
 		.map((root) => root.dir);
 
-	for (const [projectDir, names] of owned) {
+	for (const [projectDir, dumps] of owned) {
 		const baseProjectDir = edtBaseProjectOf(projectDir, { configurations, projectName: edtProjectName, active: base });
 		const merged = path.resolve(context.workspaceRoot, context.buildDir, EDT_IMPORT_DIR, path.basename(projectDir));
 		const exported = await exportProject({ projectDir, baseProjectDir }, merged, workspaceDir, context);
 		if (exported.exitCode !== 0) {
-			void vscode.window.showWarningMessage(
-				edtFailureMessage(
-					`Выгрузка проекта ${edtProjectName(projectDir)} не удалась, объекты ${names.join(', ')} в него не вернулись.`,
-					exported
-				)
-			);
-			continue;
+			throw new Error(edtFailureMessage(`Не удалось выгрузить проект ${edtProjectName(projectDir)}.`, exported));
 		}
 		await flattenExternalExport(merged);
-		for (const name of names) {
-			await replaceExternalObject(merged, path.join(source, name), name);
+		for (const dump of dumps) {
+			if (!await exists(path.join(merged, `${dump.name}.xml`))) {
+				throw new Error(`В выгрузке проекта ${edtProjectName(projectDir)} нет объекта «${dump.name}».`);
+			}
+			await replaceExternalObject(merged, dump.descriptor, dump.name);
 		}
 		const imported = await importProject(merged, projectDir, [], workspaceDir, context);
-		if (imported.exitCode === 0 && baseProjectDir !== undefined) {
+		if (imported.exitCode !== 0) {
+			throw new Error(edtFailureMessage(`Не удалось импортировать проект ${edtProjectName(projectDir)}.`, imported));
+		}
+		if (baseProjectDir !== undefined) {
 			await writeBaseProject(projectDir, edtProjectName(baseProjectDir));
 		}
 	}
-	for (const name of orphans) {
-		const target = path.join(container, name);
-		const imported = await importProject(path.join(source, name), target, [], workspaceDir, context);
-		if (imported.exitCode === 0 && base !== undefined) {
+	for (const dump of orphans) {
+		const dumpDirectory = path.dirname(dump.descriptor);
+		const projectName = dumpDirectory === source ? dump.name : path.basename(dumpDirectory);
+		const target = path.join(container, projectName);
+		const imported = await importProject(dumpDirectory, target, [], workspaceDir, context);
+		if (imported.exitCode !== 0) {
+			throw new Error(edtFailureMessage(`Не удалось импортировать объект «${dump.name}».`, imported));
+		}
+		if (base !== undefined) {
 			await writeBaseProject(target, edtProjectName(base));
 		}
 	}
@@ -354,35 +379,13 @@ export async function flattenExternalExport(target: string, only?: string): Prom
  * и каталог `<Имя>` рядом с ним.
  *
  * @param exportDir - Выгрузка проекта в раскладке раннера
- * @param dumpDir - Каталог с новой выгрузкой объекта
- * @param name - Имя объекта
+ * @param sourceDescriptor - Файл описания из новой выгрузки объекта
+ * @param name - Имя объекта в проекте
  */
-export async function replaceExternalObject(exportDir: string, dumpDir: string, name: string): Promise<void> {
-	for (const entry of [`${name}.xml`, name]) {
-		const destination = path.join(exportDir, entry);
-		await fs.rm(destination, { recursive: true, force: true });
-		const source = path.join(dumpDir, entry);
-		if (await exists(source)) {
-			await fs.cp(source, destination, { recursive: true });
-		}
-	}
-}
-
-/** Каталоги выгрузок внешних объектов: у каждого своё описание по имени каталога. */
-async function externalDumps(source: string): Promise<string[]> {
-	let entries: Dirent[];
-	try {
-		entries = await fs.readdir(source, { withFileTypes: true });
-	} catch {
-		return [];
-	}
-	const names: string[] = [];
-	for (const entry of entries) {
-		if (entry.isDirectory() && (await exists(path.join(source, entry.name, `${entry.name}.xml`)))) {
-			names.push(entry.name);
-		}
-	}
-	return names;
+export async function replaceExternalObject(exportDir: string, sourceDescriptor: string, name: string): Promise<void> {
+	const descriptor = path.join(exportDir, `${name}.xml`);
+	await fs.rm(objectDirectoryOf(descriptor), { recursive: true, force: true });
+	await copyExternalDump(sourceDescriptor, descriptor);
 }
 
 async function exists(target: string): Promise<boolean> {

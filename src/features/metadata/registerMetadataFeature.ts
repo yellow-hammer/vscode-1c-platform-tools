@@ -20,7 +20,7 @@ import { createOneScriptPackageMember } from './oneScriptPackageCreate';
 import { edtProjectName } from '../edt/edtRunner';
 import * as path from 'node:path';
 import * as vscode from 'vscode';
-import { BSP_REGISTRATION_MARKER, buildBspRegistration } from './bspRegistration';
+import { addBspRegistration } from './bspRegistration';
 import {
 	ensureMdSparrowRuntime,
 	type MdSparrowRuntime,
@@ -37,7 +37,7 @@ import {
 	type ChildMutationMode,
 	type MutatableChildKind,
 } from './metadataChildMutations';
-import { createMdSparrowMutationRunner } from './mdSparrowMutationQueue';
+import { runMdSparrowMutation } from './mdSparrowMutationQueue';
 import { stopMdSparrowResidents } from './mdSparrowRunner';
 import type { MetadataFilterViewProvider } from './metadataFilterView';
 import { MetadataSearchViewProvider } from './metadataSearchView';
@@ -114,7 +114,8 @@ import { showComponentError } from '../../shared/githubToken';
 import { uiOnlyHandler } from '../../shared/agentGate';
 import { describeComponentState, readComponentStates } from '../../shared/componentsRegistry';
 import { CfDumpFinding, DumpValidationDiagnostics } from './dumpValidationDiagnostics';
-import { edtProjectDirOf, metadataCompileTarget, sourceDirectoryOf, type MetadataCompileKind } from './metadataCompileTarget';
+import { edtProjectDirOf, metadataCompileTarget, metadataVersionTarget, sourceDirectoryOf, type MetadataCompileKind } from './metadataCompileTarget';
+import { setSourceVersions } from './sourceVersions';
 import { ArtifactCommands } from '../../commands/artifactCommands';
 import { pickProjectDirectory } from '../../commands/baseCommand';
 import { projectRelativePath } from '../../commands/projectScope';
@@ -215,6 +216,29 @@ export function registerMetadataFeature(
 	const MD_SPARROW_CLI_ERR_PREVIEW = 500;
 	const artifactCommands = new ArtifactCommands();
 
+	const metadataSourceAction = (action: 'load' | 'dump' | 'decompile') => async (item?: vscode.TreeItem) => {
+		const target = metadataCompileTarget(item);
+		if (!target || (action !== 'decompile' && target.kind !== 'configuration' && target.kind !== 'extension')) {
+			void vscode.window.showInformationMessage(action === 'decompile'
+				? 'Выберите конфигурацию, расширение, обработку или отчёт.'
+				: 'Выберите конфигурацию или расширение.');
+			return;
+		}
+		const refresh = () => {
+			invalidateProjectLayout(currentRoot());
+			return metadataTreeProvider.refresh();
+		};
+		try {
+			if (action === 'decompile') {
+				await artifactCommands.decompileMetadata(target, refresh);
+			} else {
+				await artifactCommands.exchangeMetadata(target, action, refresh);
+			}
+		} catch (error) {
+			void vscode.window.showErrorMessage(error instanceof Error ? error.message : String(error));
+		}
+	};
+
 	// Палитра показывает свойства выделенного в дереве: объект, конфигурацию, внешний отчёт.
 	const paletteSource = registerMetadataPaletteSource({
 		context,
@@ -266,7 +290,6 @@ export function registerMetadataFeature(
 		await metadataTreeView.reveal(leaf, { select: true, focus: true, expand: false });
 	}
 
-	const runMdSparrowMutation = createMdSparrowMutationRunner();
 
 	/** Находки проверки выгрузки живут в своей коллекции: их снимает и ставит только проверка. */
 	const dumpValidation = new DumpValidationDiagnostics();
@@ -1750,9 +1773,7 @@ export function registerMetadataFeature(
 				void vscode.window.showErrorMessage(message.slice(0, MD_SPARROW_CLI_ERR_PREVIEW));
 			}
 		}),
-		registerMetadataCommand('1c-platform-tools.metadata.refresh', () => {
-			void metadataTreeProvider.refresh();
-		}),
+		registerMetadataCommand('1c-platform-tools.metadata.refresh', () => metadataTreeProvider.refresh()),
 		registerMetadataCommand('1c-platform-tools.metadata.createOneScriptClass', () =>
 			createOneScriptMember('class')
 		),
@@ -2727,43 +2748,10 @@ export function registerMetadataFeature(
 					void vscode.window.showInformationMessage('Выберите внешний отчёт или обработку.');
 					return;
 				}
-				const report = node.objectType === 'ExternalReport';
 				const modulePath = moduleFileOf(node.resourceUri.fsPath, 'object');
-				let existing = '';
-				try {
-					existing = new TextDecoder('utf-8').decode(
-						await vscode.workspace.fs.readFile(vscode.Uri.file(modulePath))
-					);
-				} catch {
-					existing = '';
+				if (await addBspRegistration(vscode.Uri.file(modulePath), node.objectType === 'ExternalReport', node.name)) {
+					metadataTreeProvider.refreshExternalModule(modulePath);
 				}
-				if (existing.includes(BSP_REGISTRATION_MARKER)) {
-					void vscode.window.showInformationMessage('Регистрация БСП уже есть в объектном модуле.');
-					return;
-				}
-				const presentation = await vscode.window.showInputBox({
-					title: 'Представление команды',
-					value: node.name,
-					validateInput: (value) => (!value.trim() ? 'Введите представление.' : null),
-				});
-				if (!presentation) {
-					return;
-				}
-				const block = buildBspRegistration({
-					report,
-					presentation: presentation.trim().replaceAll("'", '"'),
-					commandId: report ? 'ОткрытьФорму' : 'ВыполнитьОбработку',
-				});
-				const bom = '\uFEFF';
-				const next = existing.length === 0
-					? bom + block
-					: existing + (existing.endsWith('\n') ? '' : '\r\n') + '\r\n' + block;
-				await vscode.workspace.fs.createDirectory(vscode.Uri.file(path.dirname(modulePath)));
-				await vscode.workspace.fs.writeFile(vscode.Uri.file(modulePath), new TextEncoder().encode(next));
-				metadataTreeProvider.refreshExternalModule(modulePath);
-				const doc = await vscode.workspace.openTextDocument(vscode.Uri.file(modulePath));
-				await vscode.window.showTextDocument(doc, { preview: false });
-				notifyQuiet('Регистрация БСП добавлена');
 			}
 		),
 		registerMetadataCommand(
@@ -3102,10 +3090,32 @@ export function registerMetadataFeature(
 				}
 			});
 		}),
+		registerMetadataCommand('1c-platform-tools.metadata.createInfobase', async (item?: vscode.TreeItem) => {
+			if (!(item instanceof MetadataSourceTreeItem) || item.sourceKind !== 'main') {
+				void vscode.window.showInformationMessage('Выберите основную конфигурацию.');
+				return;
+			}
+			await vscode.commands.executeCommand('1c-platform-tools.infobase.create');
+		}),
+		registerMetadataCommand('1c-platform-tools.metadata.setVersion', async (item?: vscode.TreeItem) => {
+			const target = metadataVersionTarget(item);
+			if (!target) {
+				void vscode.window.showInformationMessage('Выберите конфигурацию, расширение, обработку или отчёт.');
+				return;
+			}
+			const root = currentRoot();
+			if (root) {
+				await setSourceVersions(context, root, [target], 'Версия',
+					typeof item?.description === 'string' ? item.description : undefined);
+			}
+		}),
+		registerMetadataCommand('1c-platform-tools.metadata.load', metadataSourceAction('load')),
+		registerMetadataCommand('1c-platform-tools.metadata.dump', metadataSourceAction('dump')),
+		registerMetadataCommand('1c-platform-tools.metadata.decompile', metadataSourceAction('decompile')),
 		registerMetadataCommand(
 			'1c-platform-tools.metadata.compile',
 			async (item?: vscode.TreeItem) => {
-				const node = item ?? metadataTreeView.selection[0];
+				const node = item;
 				// Группа внешних файлов собирает всё содержимое разом
 				if (
 					node instanceof MetadataSourceTreeItem &&
@@ -3130,7 +3140,8 @@ export function registerMetadataFeature(
 						await compileMetadataTarget(
 							artifactCommands,
 							kind,
-							vscode.Uri.file(path.dirname(path.join(root, entry.relativePath)))
+							vscode.Uri.file(path.dirname(path.join(root, entry.relativePath))),
+							path.join(root, entry.relativePath)
 						);
 					}
 					return;
@@ -3142,7 +3153,7 @@ export function registerMetadataFeature(
 					);
 					return;
 				}
-				await compileMetadataTarget(artifactCommands, target.kind, target.sourceUri);
+				await compileMetadataTarget(artifactCommands, target.kind, target.sourceUri, target.descriptor);
 			}
 		),
 		registerMetadataCommand(
@@ -3385,7 +3396,8 @@ export function registerMetadataFeature(
 async function compileMetadataTarget(
 	artifactCommands: ArtifactCommands,
 	kind: MetadataCompileKind,
-	sourceUri: vscode.Uri
+	sourceUri: vscode.Uri,
+	descriptor?: string
 ): Promise<void> {
 	switch (kind) {
 		case 'configuration':
@@ -3395,10 +3407,10 @@ async function compileMetadataTarget(
 			await artifactCommands.buildExtension(sourceUri);
 			return;
 		case 'processor':
-			await artifactCommands.buildProcessor(sourceUri);
+			await artifactCommands.buildProcessor(sourceUri, descriptor);
 			return;
 		case 'report':
-			await artifactCommands.buildReport(sourceUri);
+			await artifactCommands.buildReport(sourceUri, descriptor);
 			return;
 		default: {
 			const _exhaustive: never = kind;

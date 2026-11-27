@@ -9,6 +9,9 @@
 
 import { resolveProjectLayout, type SourceFormat, type SourceRoot } from './projectLayout';
 
+export const NO_CONFIGURATION_SOURCES =
+	'Исходный код конфигурации в рабочей области не найден: нужен Configuration.xml выгрузки конфигуратора или проект EDT.';
+
 /** Подписи форматов исходного кода. */
 export const SOURCE_FORMAT_LABELS: Record<SourceFormat, string> = {
 	designer: 'Конфигуратор',

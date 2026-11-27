@@ -43,11 +43,11 @@ function evaluateWhen(expression: string, viewItem: string): boolean {
 }
 
 /** Пункты контекстного меню узла, в порядке групп. */
-function menuFor(viewItem: string): string[] {
+function menuFor(viewItem: string, inline = false): string[] {
 	const { commands, menus } = contributes();
 	const titles = new Map(commands.map((command) => [command.command, command.title]));
 	return (menus['view/item/context'] ?? [])
-		.filter((entry) => (entry.when ?? '').includes(VIEW) && entry.group !== 'inline')
+		.filter((entry) => (entry.when ?? '').includes(VIEW) && (entry.group?.split('@')[0] === 'inline') === inline)
 		.filter((entry) => evaluateWhen(entry.when as string, viewItem))
 		.sort((a, b) => (a.group ?? '').localeCompare(b.group ?? ''))
 		.map((entry) => titles.get(entry.command as string) ?? (entry.command as string));
@@ -55,7 +55,7 @@ function menuFor(viewItem: string): string[] {
 
 /** contextValue узлов дерева: собирается в metadataTreeView по виду объекта. */
 const NODES = {
-	source: 'metadataSourceConfigLike mdDesigner',
+	source: 'metadataSourceConfigLike metadataMainRoot mdDesigner',
 	externalRoot: 'metadataSourceExternalArtifact mdDesigner',
 	group: 'metadataGroup_catalogs',
 	groupWithoutCreate: 'metadataGroup_informationRegisters',
@@ -76,7 +76,7 @@ const NODES = {
 	dimension: 'metadataChild_dimension mdChildEdit mdChildTyped mdChildDuplicate',
 	command: 'metadataChild_command mdChildEdit',
 	enumValue: 'metadataChild_value mdChildEdit mdChildDuplicate',
-	edtSource: 'metadataSourceConfigLike mdEdt',
+	edtSource: 'metadataSourceConfigLike metadataMainRoot mdEdt',
 	edtCatalog: 'metadataObjectProperties mdObjModule mdMgrModule mdEdt',
 	edtAttribute: 'metadataChild_attribute mdChildEdit mdChildTyped mdChildDuplicate mdEdt',
 };
@@ -212,13 +212,29 @@ suite('контекстное меню дерева метаданных', () =>
 		assert.ok(unsupported.includes('Собрать'), unsupported.join(' → '));
 	});
 
-	test('«Собрать» у корня выгрузки, внешнего файла и группы внешних файлов', () => {
-		// Группа внешних файлов собирает всё содержимое разом
-		for (const viewItem of [NODES.source, NODES.externalArtifact, NODES.externalRoot]) {
-			assert.ok(menuFor(viewItem).includes('Собрать'), `нет «Собрать» у ${viewItem}`);
-		}
-		for (const viewItem of [NODES.catalog, NODES.role, NODES.group, NODES.attribute]) {
-			assert.ok(!menuFor(viewItem).includes('Собрать'), `лишнее «Собрать» у ${viewItem}`);
+	test('действия базы, файлов и версии доступны на нужных узлах в заданном порядке', () => {
+		const create = 'Создать пустую ИБ';
+		const version = 'Установить версию…';
+		const fileActions = ['Собрать', 'Разобрать', version];
+		const configurationActions = ['Загрузить', 'Выгрузить', ...fileActions];
+		const actions = [create, ...configurationActions];
+		const cases = [
+			[NODES.source, actions],
+			[NODES.edtSource, actions],
+			['metadataSourceUnsupported metadataMainRoot mdDesigner', actions],
+			['metadataSourceConfigLike metadataExtensionRoot mdDesigner', configurationActions],
+			['metadataSourceUnsupported metadataExtensionRoot mdDesigner', configurationActions],
+			[NODES.externalArtifact, fileActions],
+			[NODES.externalRoot, ['Собрать'], []],
+			[NODES.catalog, []],
+			[NODES.group, []],
+			[NODES.objectForm, []],
+			['oneScriptPackageGroupClass', []],
+		] as const;
+		const selected = (titles: string[]) => titles.filter((title) => actions.includes(title));
+		for (const [node, menu, inline = menu] of cases) {
+			assert.deepStrictEqual(selected(menuFor(node)), menu, node);
+			assert.deepStrictEqual(selected(menuFor(node, true)), inline, node);
 		}
 	});
 
@@ -241,7 +257,12 @@ suite('контекстное меню дерева метаданных', () =>
 			'Открыть модуль приложения',
 			'Открыть модуль сеанса',
 			'Открыть XML',
+			'Создать пустую ИБ',
+			'Загрузить',
+			'Выгрузить',
 			'Собрать',
+			'Разобрать',
+			'Установить версию…',
 			'Проверить выгрузку',
 			'Свойства',
 		]);

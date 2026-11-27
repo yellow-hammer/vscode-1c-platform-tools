@@ -809,27 +809,19 @@ export function getSetVersionExtensionCommandName(): CommandNameAndTitle {
 	};
 }
 
-/**
- * Получить название и заголовок для команды установки версии внешнему отчёту
- * @param reportName - Имя отчёта для отображения
- */
-export function getSetVersionReportCommandName(reportName: string): CommandNameAndTitle {
+export function getSetVersionReportCommandName(): CommandNameAndTitle {
 	return {
 		id: '1c-platform-tools.epf.setVersionReport',
-		name: reportName,
-		title: reportName
+		name: 'Внешние отчёты',
+		title: 'Установить версию отчётов'
 	};
 }
 
-/**
- * Получить название и заголовок для команды установки версии внешней обработке
- * @param processorName - Имя обработки для отображения
- */
-export function getSetVersionProcessorCommandName(processorName: string): CommandNameAndTitle {
+export function getSetVersionProcessorCommandName(): CommandNameAndTitle {
 	return {
 		id: '1c-platform-tools.epf.setVersionProcessor',
-		name: processorName,
-		title: processorName
+		name: 'Внешние обработки',
+		title: 'Установить версию обработок'
 	};
 }
 

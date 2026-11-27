@@ -77,6 +77,11 @@ export type MdSparrowOp =
 	| 'cf-md-command-reorder'
 	| 'cf-md-object-set'
 	| 'cf-configuration-properties-set'
+	| 'configuration-version-set'
+	| 'bsp-external-version-set'
+	| 'bsp-library-version-set'
+	| 'bsp-external-versions-get'
+	| 'bsp-libraries-get'
 	| 'cf-form-item-properties-set'
 	| 'init-empty-cf'
 	| 'init-empty-cfe'
@@ -181,6 +186,8 @@ export interface MdSparrowParams {
 	op: MdSparrowOp;
 	configurationXml?: string;
 	objectXml?: string;
+	moduleFile?: string;
+	moduleFiles?: string[];
 	/** Файл содержимого формы: `Ext/Form.xml` в выгрузке конфигуратора, `Form.form` в проекте EDT. */
 	formXml?: string;
 	artifactsRoot?: string;
@@ -321,9 +328,9 @@ export async function runMdSparrowParamsMutation(
  * бы один файл на каждую операцию.
  */
 function changedFilesOf(params: MdSparrowParams): Array<string | undefined> {
-	const files = [params.objectXml, params.configurationXml, params.formXml];
+	const files = [params.objectXml, params.configurationXml, params.formXml, params.moduleFile];
 	for (const operation of params.operations ?? []) {
-		files.push(operation.objectXml, operation.configurationXml, operation.formXml);
+		files.push(operation.objectXml, operation.configurationXml, operation.formXml, operation.moduleFile);
 	}
 	return [...new Set(files)];
 }
