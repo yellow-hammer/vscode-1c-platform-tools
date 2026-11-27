@@ -15,6 +15,7 @@ import * as path from 'node:path';
 import {
 	isTestPath,
 	sameOrUnder,
+	type ExternalKind,
 	type ExternalRoot,
 	type ProjectLayout,
 	type SourceFormat,
@@ -102,13 +103,15 @@ export interface EdtImportStep {
 	/** Расширение импортируется с именем базового проекта. */
 	needsBase: boolean;
 	/**
-	 * Каталог с выгрузками внешних объектов, по каталогу `<Имя>/<Имя>.xml` на объект.
+	 * Каталог с выгрузками внешних объектов, по каталогу на объект.
 	 * Объект возвращается в свой проект, а объект без проекта получает новый.
 	 * Импорт идёт без базового проекта: с ним EDT требует базовый проект,
 	 * импортированный в ту же рабочую область из выгрузки, а без него кладёт те же
 	 * файлы. Базовый проект вписывается в манифест после импорта.
 	 */
 	external: boolean;
+	/** Имя внешнего объекта, который обновляется в выбранном проекте. */
+	externalObject?: { name: string; kind: ExternalKind };
 	/** Каталог базового проекта относительно рабочей области. */
 	baseProjectDir?: string;
 }
@@ -211,6 +214,9 @@ export interface EdtBridgeLayout {
  * @returns Путь или пустая строка, если команда работает не с исходниками
  */
 export function intentSourcePath(intent: VRunnerIntent): string {
+	if (intent.kind === 'epf.decompile' && intent.externalTarget) {
+		return intent.externalTarget.directory;
+	}
 	if ('src' in intent && typeof intent.src === 'string') {
 		return intent.src;
 	}
@@ -294,9 +300,9 @@ export function edtStagingTarget(buildDir: string, sourceDir: string): string {
  * @param layout - Раскладка рабочей области
  * @param name - Имя объекта
  */
-export function edtProjectOfExternal(layout: ProjectLayout, name: string): ExternalRoot | undefined {
+export function edtProjectOfExternal(layout: ProjectLayout, name: string, kind?: ExternalKind): ExternalRoot | undefined {
 	return [...layout.processors, ...layout.reports, ...layout.testProcessors].find(
-		(root) => root.format === 'edt' && root.name === name
+		(root) => root.format === 'edt' && root.name.toLowerCase() === name.toLowerCase() && (kind === undefined || root.kind === kind)
 	);
 }
 
@@ -426,7 +432,9 @@ export function planEdtBridge(
 		};
 	}
 	if (intent.kind === 'epf.build') {
-		const projects = layout.externalProjects ?? [];
+		const projects = (layout.externalProjects ?? []).filter((project) =>
+			intent.externalObject === undefined || project.name === intent.externalObject
+		);
 		if (projects.length === 0) {
 			return undefined;
 		}
@@ -434,7 +442,7 @@ export function planEdtBridge(
 		return {
 			intent: { ...intent, src: target },
 			exports: [
-				{ designerSource: runnerPath(sourceDir), target },
+				...(intent.externalObject ? [{ clear: target }] : [{ designerSource: runnerPath(sourceDir), target }]),
 				...projects.map((project) => ({
 					projectDir: project.projectDir,
 					target: runnerPath(target, project.name),
@@ -445,10 +453,16 @@ export function planEdtBridge(
 		};
 	}
 	if (intent.kind === 'epf.decompile') {
+		const output = intent.externalTarget ? intent.out : target;
 		return {
-			intent: { ...intent, out: target },
-			exports: [{ clear: target }],
-			imports: [{ source: target, projectDir: runnerPath(sourceDir), needsBase: false, external: true }],
+			intent: { ...intent, out: output },
+			exports: [{ clear: output }],
+			imports: [{
+				source: output, projectDir: runnerPath(sourceDir), needsBase: false, external: true,
+				...(intent.externalTarget ? {
+					externalObject: { name: intent.externalTarget.name, kind: intent.externalTarget.kind },
+				} : {}),
+			}],
 		};
 	}
 	return undefined;

@@ -17,3 +17,5 @@ export function createMdSparrowMutationRunner(): <T>(fn: () => Promise<T>) => Pr
 		return next as Promise<T>;
 	};
 }
+
+export const runMdSparrowMutation = createMdSparrowMutationRunner();

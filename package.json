@@ -954,6 +954,12 @@
         "category": "1С: Метаданные"
       },
       {
+        "command": "1c-platform-tools.metadata.setLibraryVersion",
+        "title": "Установить версию…",
+        "category": "1С: Метаданные",
+        "icon": "$(edit)"
+      },
+      {
         "command": "1c-platform-tools.metadata.createOneScriptClass",
         "title": "Добавить класс",
         "shortTitle": "Класс",
@@ -1014,9 +1020,39 @@
         "category": "1С: Метаданные"
       },
       {
+        "command": "1c-platform-tools.metadata.createInfobase",
+        "title": "Создать пустую ИБ",
+        "icon": "$(database)",
+        "category": "1С: Метаданные"
+      },
+      {
+        "command": "1c-platform-tools.metadata.load",
+        "title": "Загрузить",
+        "icon": "$(cloud-upload)",
+        "category": "1С: Метаданные"
+      },
+      {
+        "command": "1c-platform-tools.metadata.dump",
+        "title": "Выгрузить",
+        "icon": "$(cloud-download)",
+        "category": "1С: Метаданные"
+      },
+      {
         "command": "1c-platform-tools.metadata.compile",
         "title": "Собрать",
-        "icon": "$(play)",
+        "icon": "$(package)",
+        "category": "1С: Метаданные"
+      },
+      {
+        "command": "1c-platform-tools.metadata.decompile",
+        "title": "Разобрать",
+        "icon": "$(unfold)",
+        "category": "1С: Метаданные"
+      },
+      {
+        "command": "1c-platform-tools.metadata.setVersion",
+        "title": "Установить версию…",
+        "icon": "$(edit)",
         "category": "1С: Метаданные"
       },
       {
@@ -2320,12 +2356,12 @@
       },
       {
         "command": "1c-platform-tools.epf.setVersionReport",
-        "title": "Установить версию отчёта",
+        "title": "Установить версию отчётов",
         "category": "1С: Внешние файлы"
       },
       {
         "command": "1c-platform-tools.epf.setVersionProcessor",
-        "title": "Установить версию обработки",
+        "title": "Установить версию обработок",
         "category": "1С: Внешние файлы"
       },
       {
@@ -2891,7 +2927,27 @@
           "when": "false"
         },
         {
+          "command": "1c-platform-tools.metadata.createInfobase",
+          "when": "false"
+        },
+        {
+          "command": "1c-platform-tools.metadata.load",
+          "when": "false"
+        },
+        {
+          "command": "1c-platform-tools.metadata.dump",
+          "when": "false"
+        },
+        {
           "command": "1c-platform-tools.metadata.compile",
+          "when": "false"
+        },
+        {
+          "command": "1c-platform-tools.metadata.decompile",
+          "when": "false"
+        },
+        {
+          "command": "1c-platform-tools.metadata.setVersion",
           "when": "false"
         },
         {
@@ -3316,6 +3372,10 @@
         },
         {
           "command": "1c-platform-tools.project.copyPath",
+          "when": "false"
+        },
+        {
+          "command": "1c-platform-tools.metadata.setLibraryVersion",
           "when": "false"
         }
       ],
@@ -4231,9 +4291,69 @@
           "group": "2_reveal@2"
         },
         {
-          "command": "1c-platform-tools.metadata.compile",
-          "when": "view == 1c-platform-tools-metadata-tree && (viewItem =~ /(^| )metadataSourceConfigLike( |$)/ || viewItem =~ /(^| )metadataSourceUnsupported( |$)/ || viewItem =~ /(^| )metadataSourceExternalArtifact( |$)/ || viewItem =~ /(^| )metadataLeafFile( |$)/)",
+          "command": "1c-platform-tools.metadata.createInfobase",
+          "when": "view == 1c-platform-tools-metadata-tree && viewItem =~ /(^| )metadataMainRoot( |$)/",
+          "group": "4_build@0"
+        },
+        {
+          "command": "1c-platform-tools.metadata.createInfobase",
+          "when": "view == 1c-platform-tools-metadata-tree && viewItem =~ /(^| )metadataMainRoot( |$)/",
+          "group": "inline@0"
+        },
+        {
+          "command": "1c-platform-tools.metadata.load",
+          "when": "view == 1c-platform-tools-metadata-tree && viewItem =~ /(^| )(metadataSourceConfigLike|metadataSourceUnsupported)( |$)/",
           "group": "4_build@1"
+        },
+        {
+          "command": "1c-platform-tools.metadata.load",
+          "when": "view == 1c-platform-tools-metadata-tree && viewItem =~ /(^| )(metadataSourceConfigLike|metadataSourceUnsupported)( |$)/",
+          "group": "inline@1"
+        },
+        {
+          "command": "1c-platform-tools.metadata.dump",
+          "when": "view == 1c-platform-tools-metadata-tree && viewItem =~ /(^| )(metadataSourceConfigLike|metadataSourceUnsupported)( |$)/",
+          "group": "4_build@2"
+        },
+        {
+          "command": "1c-platform-tools.metadata.dump",
+          "when": "view == 1c-platform-tools-metadata-tree && viewItem =~ /(^| )(metadataSourceConfigLike|metadataSourceUnsupported)( |$)/",
+          "group": "inline@2"
+        },
+        {
+          "command": "1c-platform-tools.metadata.compile",
+          "when": "view == 1c-platform-tools-metadata-tree && viewItem =~ /(^| )(metadataSourceConfigLike|metadataSourceUnsupported|metadataLeafFile)( |$)/",
+          "group": "4_build@3"
+        },
+        {
+          "command": "1c-platform-tools.metadata.compile",
+          "when": "view == 1c-platform-tools-metadata-tree && viewItem =~ /(^| )(metadataSourceConfigLike|metadataSourceUnsupported|metadataLeafFile)( |$)/",
+          "group": "inline@3"
+        },
+        {
+          "command": "1c-platform-tools.metadata.decompile",
+          "when": "view == 1c-platform-tools-metadata-tree && viewItem =~ /(^| )(metadataSourceConfigLike|metadataSourceUnsupported|metadataLeafFile)( |$)/",
+          "group": "4_build@4"
+        },
+        {
+          "command": "1c-platform-tools.metadata.decompile",
+          "when": "view == 1c-platform-tools-metadata-tree && viewItem =~ /(^| )(metadataSourceConfigLike|metadataSourceUnsupported|metadataLeafFile)( |$)/",
+          "group": "inline@4"
+        },
+        {
+          "command": "1c-platform-tools.metadata.setVersion",
+          "when": "view == 1c-platform-tools-metadata-tree && viewItem =~ /(^| )(metadataSourceConfigLike|metadataSourceUnsupported|metadataLeafFile)( |$)/",
+          "group": "4_build@5"
+        },
+        {
+          "command": "1c-platform-tools.metadata.setVersion",
+          "when": "view == 1c-platform-tools-metadata-tree && viewItem =~ /(^| )(metadataSourceConfigLike|metadataSourceUnsupported|metadataLeafFile)( |$)/",
+          "group": "inline@5"
+        },
+        {
+          "command": "1c-platform-tools.metadata.compile",
+          "when": "view == 1c-platform-tools-metadata-tree && viewItem =~ /(^| )(metadataSourceExternalArtifact)( |$)/",
+          "group": "4_build@3"
         },
         {
           "command": "1c-platform-tools.metadata.addObject",
@@ -4409,6 +4529,11 @@
           "command": "1c-platform-tools.metadata.supportRemove",
           "when": "view == 1c-platform-tools-metadata-tree && viewItem =~ /(^| )mdSupportRules( |$)/",
           "group": "5_support@2"
+        },
+        {
+          "command": "1c-platform-tools.metadata.setLibraryVersion",
+          "when": "view == 1c-platform-tools-metadata-libraries && viewItem == metadataLibrary",
+          "group": "inline"
         }
       ],
       "editor/title": [

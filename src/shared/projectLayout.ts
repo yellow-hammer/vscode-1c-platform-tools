@@ -409,12 +409,17 @@ async function readRoot(directory: string): Promise<SourceRoot | undefined> {
  * Описание лежит в корне каталога объекта и обычно зовётся как каталог, но
  * выгрузка этого не требует, поэтому годится любое описание внешнего объекта.
  */
-async function designerExternal(
+export async function readDesignerExternal(
 	directory: string,
-	name: string,
-	entries: readonly fssync.Dirent[]
+	entries?: readonly fssync.Dirent[]
 ): Promise<ExternalRoot | undefined> {
-	const files = entries
+	const name = path.basename(directory);
+	const files = (entries ?? await fs.readdir(directory, { withFileTypes: true }).catch((error: NodeJS.ErrnoException) => {
+		if (error.code === 'ENOENT') {
+			return [];
+		}
+		throw error;
+	}))
 		.filter((entry) => entry.isFile() && entry.name.toLowerCase().endsWith('.xml'))
 		.map((entry) => entry.name)
 		.sort((left, right) => (left < right ? -1 : left > right ? 1 : 0));
@@ -441,8 +446,7 @@ async function designerExternal(
  * каждый в своём каталоге с `<Имя>.mdo`.
  */
 async function readExternals(directory: string, entries: readonly fssync.Dirent[]): Promise<ExternalRoot[]> {
-	const name = path.basename(directory);
-	const designer = await designerExternal(directory, name, entries);
+	const designer = await readDesignerExternal(directory, entries);
 	if (designer) {
 		return [designer];
 	}

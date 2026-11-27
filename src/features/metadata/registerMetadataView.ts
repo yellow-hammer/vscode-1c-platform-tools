@@ -78,7 +78,7 @@ export function registerMetadataView(
 		metadataTreeView,
 		bindProjectDescription(metadataTreeView),
 		bindSubsystemFilterMessage(metadataTreeProvider, metadataTreeView),
-		registerMetadataLibrariesView(),
+		registerMetadataLibrariesView(context),
 		vscode.workspace.onDidSaveTextDocument(({ uri }) => {
 			if (uri.scheme === 'file' && uri.fsPath.endsWith('ObjectModule.bsl')) {
 				metadataTreeProvider.refreshExternalModule(uri.fsPath);

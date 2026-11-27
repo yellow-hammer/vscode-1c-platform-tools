@@ -16,7 +16,7 @@ import {
 import { DEFAULT_IB_CONNECTION, resolveFileIbAbsolutePath } from '../shared/ibConnectionPath';
 import { currentRoot, runWithProject } from '../shared/workspaceProjects';
 import { projectLabel, projectRelativePath } from './projectScope';
-import { configurationScope } from '../shared/activeConfiguration';
+import { configurationScope, NO_CONFIGURATION_SOURCES } from '../shared/activeConfiguration';
 import { CONVENTIONAL_PATHS, projectPaths, type ProjectPaths } from '../shared/projectPaths';
 import {
 	edtBaseProjectOf,
@@ -49,10 +49,6 @@ import {
 	type BuildOutputTarget,
 	type BuildOutputVariable,
 } from '../shared/buildOutput';
-
-/** Ответ команд, которым нужен исходный код конфигурации, а его в рабочей области нет. */
-export const NO_CONFIGURATION_SOURCES =
-	'Исходный код конфигурации в рабочей области не найден: нужен Configuration.xml выгрузки конфигуратора или проект EDT.';
 
 const log = logger.scope('commands');
 
@@ -626,12 +622,25 @@ export abstract class BaseCommand {
 		if (window === 'blocked') {
 			return opts?.wait === true ? this.executionError(INFOBASE_BUSY) : undefined;
 		}
-		const onComplete = composeCompletion(window.restore, bridged.after);
+		const importExternals = intent.kind === 'epf.decompile' ? bridged.after : undefined;
+		const onComplete = composeCompletion(window.restore, importExternals ? undefined : bridged.after);
+		const finish: FinishStep | undefined = importExternals
+			? async (succeeded) => {
+				if (succeeded) {
+					try {
+						await importExternals();
+					} catch (error) {
+						return { error: error instanceof Error ? error.message : String(error) };
+					}
+				}
+				return (await extras?.finish?.(succeeded)) ?? {};
+			}
+			: extras?.finish;
 		const steps = await this.vrunner.planIntent(effective, opts?.settingsFile, opts?.ibConnection);
 		const notices = this.vrunner.consumePlanNotices();
 		const result = steps.length === 1
-			? await this.runVRunner(steps[0], opts, terminalName, artifact, commandId, true, onComplete, bridged.output, extras?.finish, extras?.preface)
-			: await this.runVRunnerSequential(steps, opts, terminalName, commandId, true, onComplete, bridged.output, extras?.finish, extras?.preface);
+			? await this.runVRunner(steps[0], opts, terminalName, artifact, commandId, true, onComplete, bridged.output, finish, extras?.preface)
+			: await this.runVRunnerSequential(steps, opts, terminalName, commandId, true, onComplete, bridged.output, finish, extras?.preface);
 		return this.appendNotices(withArtifacts(result, extras?.artifacts), notices);
 	}
 
@@ -752,7 +761,7 @@ export abstract class BaseCommand {
 							buildDir,
 							externalProjects:
 								intent.kind === 'epf.build' && source?.dir
-									? edtExternalProjectsOf(workspaceRoot, source.dir)
+									? edtExternalProjectsOf(workspaceRoot, intent.externalObject ? intent.src : source.dir)
 									: undefined,
 						});
 			if (!plan) {
@@ -867,9 +876,22 @@ export abstract class BaseCommand {
 		const relative = (dir: string) => path.relative(workspaceRoot, dir).split(path.sep).join('/');
 		const wanted = intentSourcePath(intent);
 		if (wanted) {
+			const absolute = path.resolve(workspaceRoot, wanted);
+			// Внешний файл может лежать внутри корня конфигурации другой раскладки.
+			const isTargetedExternal = (intent.kind === 'epf.build' && intent.externalObject !== undefined)
+				|| (intent.kind === 'epf.decompile' && intent.externalTarget !== undefined);
+			if (isTargetedExternal) {
+				const format = sourceFormatOfDirectory(absolute);
+				if (format === 'designer') {
+					return { format, dir: wanted };
+				}
+				const project = enclosingEdtProject(workspaceRoot, absolute);
+				if (format === 'edt' && project) {
+					return { format, dir: relative(project) || '.' };
+				}
+			}
 			// Путь внутри корня раскладки ведёт к самому корню: у проекта EDT команда
 			// работает с каталогом проекта, а не с его src
-			const absolute = path.resolve(workspaceRoot, wanted);
 			const root = rootOfDirectory(await resolveProjectLayout(workspaceRoot), absolute);
 			if (root) {
 				return { format: root.format, dir: relative(root.dir) || undefined };
@@ -1027,13 +1049,14 @@ export abstract class BaseCommand {
 			appendOverrides?: boolean;
 			settingsFile?: string;
 			ibConnection?: string;
+			waitForCompletion?: boolean;
 		}
-	): Promise<void> {
+	): Promise<boolean | undefined> {
 		const bridged = await this.bridgeEdt(intents);
 		if (bridged === 'blocked' || !('intents' in bridged)) {
 			return;
 		}
-		const { ibConnection, settingsFile, ...execution } = options;
+		const { ibConnection, settingsFile, waitForCompletion, ...execution } = options;
 		if (!(await this.vrunner.ensureProfileSettingsFile(true, settingsFile))) {
 			return;
 		}
@@ -1043,13 +1066,25 @@ export abstract class BaseCommand {
 		}
 		const window = await this.openInfobaseWindow(
 			bridged.intents,
-			ibConnection || settingsFile ? { ibConnection, settingsFile } : undefined
+			ibConnection || settingsFile || waitForCompletion ? { ibConnection, settingsFile, wait: waitForCompletion } : undefined
 		);
 		if (window === 'blocked') {
 			return;
 		}
-		const onComplete = composeCompletion(window.restore, bridged.after);
 		const runOptions = { ...execution, output: bridged.output };
+		if (waitForCompletion) {
+			let exitCode: number;
+			try {
+				exitCode = await this.vrunner.executeVRunnerTaskSequenceAndWait(argsList, runOptions);
+			} finally {
+				await window.restore?.();
+			}
+			if (exitCode === 0) {
+				await bridged.after?.();
+			}
+			return exitCode === 0;
+		}
+		const onComplete = composeCompletion(window.restore, bridged.after);
 		if (!onComplete) {
 			await this.vrunner.executeVRunnerCommandsInSequence(argsList, runOptions);
 			return;

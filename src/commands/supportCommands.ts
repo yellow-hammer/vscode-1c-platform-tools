@@ -2,7 +2,7 @@ import * as crypto from 'node:crypto';
 import * as path from 'node:path';
 import * as fs from 'node:fs/promises';
 import * as vscode from 'vscode';
-import { BaseCommand, NO_CONFIGURATION_SOURCES } from './baseCommand';
+import { BaseCommand } from './baseCommand';
 import type { VRunnerIntent } from '../shared/vrunnerCli';
 import {
 	getUpdateCfgSupportCommandName,
@@ -15,7 +15,7 @@ import {
 import { readConfigurationVersion, readConfigurationDeliveryProperties } from '../utils/configVersionUtils';
 import { logger } from '../shared/logger';
 import { notifyQuiet } from '../shared/notify';
-import { configurationScope } from '../shared/activeConfiguration';
+import { configurationScope, NO_CONFIGURATION_SOURCES } from '../shared/activeConfiguration';
 import { configurationDescriptorFile } from '../shared/objectPaths';
 
 const log = logger.scope('commands');

@@ -51,6 +51,17 @@ suite('дерево команд под формат исходников', () =
 		assert.ok(!commands('run', 'designer').includes('1c-platform-tools.run.edt'));
 	});
 
+	test('в группе установки версии четыре команды для обоих форматов', () => {
+		const expected = [
+			'1c-platform-tools.cf.setVersion',
+			'1c-platform-tools.cfe.setVersion',
+			'1c-platform-tools.epf.setVersionReport',
+			'1c-platform-tools.epf.setVersionProcessor',
+		];
+		assert.deepStrictEqual(commands('setVersion', 'designer'), expected);
+		assert.deepStrictEqual(commands('setVersion', 'edt'), expected);
+	});
+
 	test('в дереве проверка проекта EDT — edt.validate, а не test.validateEdt', () => {
 		const allTreeCommands = TREE_GROUPS.flatMap((item) => item.commands.map((entry) => entry.command));
 		assert.ok(allTreeCommands.includes('1c-platform-tools.edt.validate'));

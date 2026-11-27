@@ -58,7 +58,7 @@ async function pushSetVersionDynamicItems(
 	setVersionCommands: SetVersionCommands
 ): Promise<void> {
 	items.push({ label: '🏷️ Внешнего отчёта', kind: vscode.QuickPickItemKind.Separator });
-	const reports = await setVersionCommands.getReportFoldersForTree();
+	const reports = await setVersionCommands.getReportNames();
 	for (const name of reports) {
 		const command = '1c-platform-tools.epf.setVersionReport';
 		const args = [name];
@@ -74,7 +74,7 @@ async function pushSetVersionDynamicItems(
 		} as FavoritesSelectableItem);
 	}
 	items.push({ label: '🏷️ Внешней обработки', kind: vscode.QuickPickItemKind.Separator });
-	const processors = await setVersionCommands.getProcessorFoldersForTree();
+	const processors = await setVersionCommands.getProcessorNames();
 	for (const name of processors) {
 		const command = '1c-platform-tools.epf.setVersionProcessor';
 		const args = [name];

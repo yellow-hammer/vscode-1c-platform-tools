@@ -116,8 +116,7 @@ function registerVRunnerCommand(
 }
 
 /**
- * Команда проекта, которая запускает платформу или vrunner мимо
- * {@link registerVRunnerCommand}: мастера установки версии.
+ * Команда проекта, которая запускает процессы или меняет файлы и требует доверия к рабочей области.
  */
 function registerRunningCommand<A extends unknown[]>(
 	id: string,
@@ -572,18 +571,10 @@ export function registerCommands(
 	// агентный вызов отклоняется гейтом
 	const setVersionUiHint = 'Версия запрашивается в окне VS Code; выполняется пользователем.';
 	const setVersionCommands = [
-		registerRunningCommand('1c-platform-tools.cf.setVersion', uiOnlyHandler(setVersionUiHint, () => {
-			commands.setVersion.setVersionConfiguration();
-		})),
-		registerRunningCommand('1c-platform-tools.cfe.setVersion', uiOnlyHandler(setVersionUiHint, () => {
-			commands.setVersion.setVersionExtension();
-		})),
-		registerRunningCommand('1c-platform-tools.epf.setVersionReport', uiOnlyHandler(setVersionUiHint, (reportName?: unknown) => {
-			commands.setVersion.setVersionReport(typeof reportName === 'string' ? reportName : undefined);
-		})),
-		registerRunningCommand('1c-platform-tools.epf.setVersionProcessor', uiOnlyHandler(setVersionUiHint, (processorName?: unknown) => {
-			commands.setVersion.setVersionProcessor(typeof processorName === 'string' ? processorName : undefined);
-		}))
+		registerRunningCommand('1c-platform-tools.cf.setVersion', uiOnlyHandler(setVersionUiHint, () => commands.setVersion.setVersionConfiguration())),
+		registerRunningCommand('1c-platform-tools.cfe.setVersion', uiOnlyHandler(setVersionUiHint, () => commands.setVersion.setVersionExtension())),
+		registerRunningCommand('1c-platform-tools.epf.setVersionReport', uiOnlyHandler(setVersionUiHint, (reportName?: unknown) => commands.setVersion.setVersionReport(typeof reportName === 'string' ? reportName : undefined))),
+		registerRunningCommand('1c-platform-tools.epf.setVersionProcessor', uiOnlyHandler(setVersionUiHint, (processorName?: unknown) => commands.setVersion.setVersionProcessor(typeof processorName === 'string' ? processorName : undefined)))
 	];
 
 

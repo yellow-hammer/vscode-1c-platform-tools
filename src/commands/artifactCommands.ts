@@ -4,6 +4,7 @@
  */
 
 import { CONVENTIONAL_PATHS } from '../shared/projectPaths';
+import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 import * as vscode from 'vscode';
 import { BaseCommand } from './baseCommand';
@@ -20,6 +21,10 @@ import { isTestPath } from '../shared/projectLayout';
 import type { VRunnerIntent } from '../shared/vrunnerCli';
 import { currentRoot } from '../shared/workspaceProjects';
 import { projectRelativePath } from './projectScope';
+import { copyExternalDump, readExternalDump } from '../features/artifacts/externalDump';
+import { decideUpdateDb } from '../features/configuration/updateDbDecision';
+import { formatOfFile } from '../shared/objectPaths';
+import type { MetadataCompileTarget } from '../features/metadata/metadataCompileTarget';
 
 /** Путь артефакта относительно проекта, в котором выполняется команда. */
 function getRelativePath(uri: vscode.Uri): string {
@@ -149,10 +154,7 @@ export class ArtifactCommands extends BaseCommand {
 		if (!(await this.vrunner.ensureProfileSettingsFile(true))) {
 			return;
 		}
-		const defaultPath = path.join(
-			this.vrunner.getOutPath(),
-			this.isTestsScopeArtifact(artifactUri) ? BUILD_SUBDIRS.testsCfe : BUILD_SUBDIRS.cfe
-		);
+		const defaultPath = this.extensionBuildDirectory(artifactUri);
 		const outPath = await this.pickOutputPath(defaultPath, 'Каталог для сборки расширения');
 		if (!outPath) {
 			return;
@@ -230,7 +232,7 @@ export class ArtifactCommands extends BaseCommand {
 	}
 
 	/** Собрать внешнюю обработку из исходников. */
-	async buildProcessor(artifactUri: vscode.Uri): Promise<void> {
+	async buildProcessor(artifactUri: vscode.Uri, descriptor?: string): Promise<void> {
 		const workspaceRoot = this.ensureWorkspace();
 		if (!workspaceRoot || !(await this.ensureOscriptAvailable())) {
 			return;
@@ -245,11 +247,15 @@ export class ArtifactCommands extends BaseCommand {
 		}
 		const srcRel = getRelativePath(artifactUri);
 		const ibConnectionParam = await this.vrunner.getIbConnectionParam();
-		const intent: VRunnerIntent = { kind: 'epf.build', src: srcRel, out: outDir, common: ibConnectionParam };
+		const intent: VRunnerIntent = {
+			kind: 'epf.build', src: srcRel, out: outDir, common: ibConnectionParam,
+			externalObject: descriptor ? path.parse(descriptor).name : undefined,
+		};
 		await this.runPlanned([intent], {
 			cwd: workspaceRoot,
 			name: `Собрать обработку: ${path.basename(artifactUri.fsPath)}`,
 			appendOverrides: false,
+			waitForCompletion: descriptor !== undefined,
 		});
 	}
 
@@ -274,11 +280,12 @@ export class ArtifactCommands extends BaseCommand {
 			cwd: workspaceRoot,
 			name: `Разобрать обработку: ${path.basename(artifactUri.fsPath)}`,
 			appendOverrides: false,
+			waitForCompletion: true,
 		});
 	}
 
 	/** Собрать внешний отчёт из исходников. */
-	async buildReport(artifactUri: vscode.Uri): Promise<void> {
+	async buildReport(artifactUri: vscode.Uri, descriptor?: string): Promise<void> {
 		const workspaceRoot = this.ensureWorkspace();
 		if (!workspaceRoot || !(await this.ensureOscriptAvailable())) {
 			return;
@@ -293,11 +300,15 @@ export class ArtifactCommands extends BaseCommand {
 		}
 		const srcRel = getRelativePath(artifactUri);
 		const ibConnectionParam = await this.vrunner.getIbConnectionParam();
-		const intent: VRunnerIntent = { kind: 'epf.build', src: srcRel, out: outDir, common: ibConnectionParam };
+		const intent: VRunnerIntent = {
+			kind: 'epf.build', src: srcRel, out: outDir, common: ibConnectionParam,
+			externalObject: descriptor ? path.parse(descriptor).name : undefined,
+		};
 		await this.runPlanned([intent], {
 			cwd: workspaceRoot,
 			name: `Собрать отчёт: ${path.basename(artifactUri.fsPath)}`,
 			appendOverrides: false,
+			waitForCompletion: descriptor !== undefined,
 		});
 	}
 
@@ -322,7 +333,155 @@ export class ArtifactCommands extends BaseCommand {
 			cwd: workspaceRoot,
 			name: `Разобрать отчёт: ${path.basename(artifactUri.fsPath)}`,
 			appendOverrides: false,
+			waitForCompletion: true,
 		});
+	}
+
+	private extensionBuildDirectory(sourceUri: vscode.Uri): string {
+		return path.join(this.vrunner.getOutPath(),
+			this.isTestsScopeArtifact(sourceUri) ? BUILD_SUBDIRS.testsCfe : BUILD_SUBDIRS.cfe);
+	}
+
+	/** Загрузка или выгрузка одного корня, выбранного в дереве метаданных. */
+	async exchangeMetadata(
+		target: MetadataCompileTarget,
+		action: 'load' | 'dump',
+		refresh: () => Promise<void>
+	): Promise<void> {
+		const workspaceRoot = this.ensureWorkspace();
+		if (!workspaceRoot || (target.kind !== 'configuration' && target.kind !== 'extension')) {
+			return;
+		}
+		const directory = getRelativePath(target.sourceUri);
+		let updateDb: boolean | undefined;
+		if (action === 'load') {
+			updateDb = await decideUpdateDb();
+			if (updateDb === undefined) {
+				return;
+			}
+		} else if (await vscode.window.showWarningMessage(
+			`В каталог «${path.relative(workspaceRoot, target.sourceUri.fsPath) || '.'}» будет выгружена конфигурация из базы. Продолжить?`,
+			{ modal: true }, 'Выгрузить'
+		) !== 'Выгрузить') {
+			return;
+		}
+		if (!(await this.ensureOscriptAvailable()) || !(await this.vrunner.ensureProfileSettingsFile(true))) {
+			return;
+		}
+		const common = await this.vrunner.getIbConnectionParam();
+		const extensionName = target.kind === 'extension'
+			? await resolveExtensionNameFromSrc(target.sourceUri.fsPath)
+			: undefined;
+		let intent: VRunnerIntent;
+		if (updateDb !== undefined) {
+			intent = extensionName
+				? { kind: 'cfe.loadFromSrc', src: directory, extensionName, updateDb, common }
+				: { kind: 'cf.loadFromSrc', src: directory, updateDb, common };
+		} else {
+			intent = extensionName
+				? { kind: 'cfe.dumpIbToSrc', out: directory, extensionName, common }
+				: { kind: 'cf.dumpIbToSrc', out: directory, common };
+		}
+		const completed = await this.runPlanned([intent], {
+			cwd: workspaceRoot, name: `${action === 'load' ? 'Загрузить' : 'Выгрузить'}: ${directory}`,
+			appendOverrides: false, waitForCompletion: action === 'dump',
+		});
+		if (completed) {
+			await refresh();
+		}
+	}
+
+	private async pickMetadataInput(target: MetadataCompileTarget, workspaceRoot: string): Promise<vscode.Uri | undefined> {
+		const out = this.vrunner.getOutPath();
+		const sourceName = path.basename(target.sourceUri.fsPath);
+		const extensionEntry = target.kind === 'extension'
+			? extensionContaining(extensionEntries(await this.paths(), 'all'), workspaceRoot, target.sourceUri.fsPath)
+			: undefined;
+		const externalName = target.descriptor ? path.parse(target.descriptor).name : sourceName;
+		const options = {
+			configuration: ['cf', out, '1Cv8'],
+			extension: ['cfe', this.extensionBuildDirectory(target.sourceUri), extensionEntry?.folder ?? sourceName],
+			processor: ['epf', path.join(out, BUILD_SUBDIRS.epf), externalName],
+			report: ['erf', path.join(out, BUILD_SUBDIRS.erf), externalName],
+		};
+		const [extension, directory, stem] = options[target.kind];
+		const defaultFile = vscode.Uri.file(path.resolve(workspaceRoot, directory, `${stem}.${extension}`));
+		const choices: { label: string; description?: string; uri?: vscode.Uri }[] = [];
+		if (await fs.stat(defaultFile.fsPath).then((stat) => stat.isFile(), () => false)) {
+			choices.push({ label: 'По умолчанию', description: getRelativePath(defaultFile), uri: defaultFile });
+		}
+		choices.push({ label: 'Выбрать файл...' });
+		const destination = path.relative(workspaceRoot, target.sourceUri.fsPath) || '.';
+		const title = `Разобрать в «${destination}»`;
+		const picked = await vscode.window.showQuickPick(choices, { title });
+		if (!picked || picked.uri) {
+			return picked?.uri;
+		}
+		const files = await vscode.window.showOpenDialog({
+			defaultUri: vscode.Uri.file(workspaceRoot), title,
+			canSelectMany: false, filters: { [`Файлы 1С (*.${extension})`]: [extension] },
+		});
+		return files?.[0];
+	}
+
+	/** Разборка файла в каталог выбранного узла. */
+	async decompileMetadata(target: MetadataCompileTarget, refresh: () => Promise<void>): Promise<void> {
+		const workspaceRoot = this.ensureWorkspace();
+		if (!workspaceRoot) {
+			return;
+		}
+		const file = await this.pickMetadataInput(target, workspaceRoot);
+		if (!file) {
+			return;
+		}
+		const folder = target.sourceUri.fsPath;
+		if (!(await this.ensureOscriptAvailable()) || !(await this.vrunner.ensureProfileSettingsFile(true))) {
+			return;
+		}
+		const input = getRelativePath(file);
+		const out = getRelativePath(target.sourceUri);
+		const common = await this.vrunner.getIbConnectionParam();
+		const run = (intent: VRunnerIntent) => this.runPlanned([intent], {
+			cwd: workspaceRoot, name: `Разобрать: ${path.basename(file.fsPath)}`,
+			appendOverrides: false, waitForCompletion: true,
+		});
+		let completed: boolean | undefined;
+		if (target.descriptor) {
+			// Раннер создаёт подкаталог по имени файла. Временный путь сохраняет
+			// имя выбранного объекта даже при разборке переименованного файла.
+			const descriptor = target.descriptor;
+			const name = path.parse(descriptor).name;
+			const kind = target.kind === 'report' ? 'report' : 'processor';
+			const buildDir = path.resolve(workspaceRoot, this.vrunner.getOutPath());
+			await fs.mkdir(buildDir, { recursive: true });
+			const temp = await fs.mkdtemp(path.join(buildDir, '.metadata-decompile-'));
+			try {
+				const binary = path.join(temp, `${name}${kind === 'report' ? '.erf' : '.epf'}`);
+				await fs.copyFile(file.fsPath, binary);
+				const output = path.join(temp, 'out');
+				completed = await run({
+					kind: 'epf.decompile', input: projectRelativePath(workspaceRoot, binary),
+					out: projectRelativePath(workspaceRoot, output), externalTarget: { directory: out, name, kind }, common,
+				});
+				if (completed && formatOfFile(descriptor) !== 'edt') {
+					const dump = await readExternalDump(output, name);
+					if (dump.kind !== kind) {
+						throw new Error(`Файл «${path.basename(file.fsPath)}» содержит объект другого вида.`);
+					}
+					await copyExternalDump(dump.descriptor, descriptor);
+				}
+			} finally {
+				await fs.rm(temp, { recursive: true, force: true });
+			}
+		} else if (target.kind === 'extension') {
+			const extensionName = await resolveExtensionNameFromSrc(folder);
+			completed = await run({ kind: 'cfe.decompileCfeFile', file: input, extensionName, out, common });
+		} else {
+			completed = await run({ kind: 'cf.decompileFile', file: input, out, common });
+		}
+		if (completed) {
+			await refresh();
+		}
 	}
 
 	/**

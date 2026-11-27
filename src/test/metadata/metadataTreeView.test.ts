@@ -799,8 +799,11 @@ suite('metadataTreeView: ошибка чтения дерева', () => {
 suite('metadataTreeView: раскладка проекта', () => {
 	const LAYOUTS = path.resolve(__dirname, '..', '..', '..', 'src', 'test', 'fixtures', 'projectLayout');
 
-	function providerAt(workspaceRoot: string): MetadataTreeDataProvider {
-		const provider = new MetadataTreeDataProvider(createMockExtensionContext());
+	function providerAt(
+		workspaceRoot: string,
+		readVersions?: ConstructorParameters<typeof MetadataTreeDataProvider>[1]
+	): MetadataTreeDataProvider {
+		const provider = new MetadataTreeDataProvider(createMockExtensionContext(), readVersions);
 		(provider as unknown as { _workspaceRoot: string })._workspaceRoot = workspaceRoot;
 		return provider;
 	}
@@ -859,7 +862,12 @@ suite('metadataTreeView: раскладка проекта', () => {
 		try {
 			fs.cpSync(path.join(LAYOUTS, 'mixed-externals'), workspace, { recursive: true });
 			const tree = externalSourcesFromLayout(workspace, await resolveProjectLayout(workspace));
-			const provider = providerAt(workspace);
+			let versions: Record<string, string> = {};
+			const provider = providerAt(workspace, async (_context, root, modules) => {
+				assert.strictEqual(root, workspace);
+				assert.strictEqual(modules.length, 2);
+				return versions;
+			});
 			const internals = provider as unknown as {
 				rebuildItemCache(root: string, dto: ProjectMetadataTreeDto): void;
 			};
@@ -868,15 +876,13 @@ suite('metadataTreeView: раскладка проекта', () => {
 			const leaves = await provider.getChildren(source);
 			assert.deepStrictEqual(leaves.map((leaf) => leaf.description), [undefined, undefined]);
 
-			const fixtures = path.join(LAYOUTS, '..', 'bspVersions');
 			const files = leaves.map((leaf) => {
 				assert.ok(leaf.resourceUri);
 				const file = moduleFileOf(leaf.resourceUri.fsPath, 'object');
 				fs.mkdirSync(path.dirname(file), { recursive: true });
 				return file;
 			});
-			fs.copyFileSync(path.join(fixtures, 'external-insert.bsl'), files[0]);
-			fs.copyFileSync(path.join(fixtures, 'external-structure.bsl'), files[1]);
+			versions = { [files[0]]: '2.3.4', [files[1]]: '3.0' };
 			const changed: unknown[] = [];
 			const subscription = provider.onDidChangeTreeData((event) => changed.push(event));
 			try {

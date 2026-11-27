@@ -1,5 +1,4 @@
 import * as vscode from 'vscode';
-import type { SetVersionCommands } from '../../commands/setVersionCommands';
 import {
 	PlatformTreeDataProvider,
 	PlatformTreeItem,
@@ -29,16 +28,9 @@ export interface MainTreeViewRegistration {
 /**
  * Регистрирует tree view панели «1С: Инструменты» и сохранение состояния раскрытия групп.
  */
-export function registerMainTreeView(
-	context: vscode.ExtensionContext,
-	setVersionCommands: SetVersionCommands
-): MainTreeViewRegistration {
+export function registerMainTreeView(context: vscode.ExtensionContext): MainTreeViewRegistration {
 	// Дерево создаём всегда: при отсутствии проекта панель скрыта (when), после создания packagedef — показывается
-	const treeDataProvider = new PlatformTreeDataProvider(
-		context.extensionUri,
-		setVersionCommands,
-		context
-	);
+	const treeDataProvider = new PlatformTreeDataProvider(context.extensionUri, context);
 	const treeView = vscode.window.createTreeView('1c-platform-tools-tools-commands', {
 		treeDataProvider,
 		showCollapseAll: true,

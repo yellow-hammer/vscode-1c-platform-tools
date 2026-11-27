@@ -24,8 +24,7 @@ import { offerGithubTokenOnRateLimit } from '../../shared/githubToken';
 import { configurationScope, type ConfigurationScope } from '../../shared/activeConfiguration';
 import { detectProjectKind } from '../../shared/projectKind';
 import { directoryKey, externalEntry, PROJECT_FILE, resolveProjectLayout, type ExternalRoot, type ProjectLayout } from '../../shared/projectLayout';
-import { bspExternalVersion } from './bspVersions';
-import { readBslModule } from './bslModuleFile';
+import { readExternalVersions } from './sourceVersions';
 import {
 	OneScriptGroupTreeItem,
 	OneScriptMemberTreeItem,
@@ -283,14 +282,16 @@ export class MetadataSourceTreeItem extends vscode.TreeItem {
 			this.description = shown;
 		}
 		if (unsupportedSchemaVersion !== undefined) {
-			// Состав не прочитан: из действий остаются файл выгрузки и сборка
+			// Состав не прочитан: доступны файл выгрузки и обмен с исходниками
 			this.contextValue = 'metadataSourceUnsupported';
 		} else if (sourceKind === 'main' || sourceKind === 'extension') {
 			this.contextValue = 'metadataSourceConfigLike';
 		} else if (sourceKind === 'externalErf' || sourceKind === 'externalEpf') {
 			this.contextValue = 'metadataSourceExternalArtifact';
 		}
-		if (sourceKind === 'extension') {
+		if (sourceKind === 'main') {
+			this.contextValue = `${this.contextValue} metadataMainRoot`;
+		} else if (sourceKind === 'extension') {
 			this.contextValue = `${this.contextValue} metadataExtensionRoot`;
 		}
 		const onSupport = support === 'locked' || support === 'editable' || supportEditingEnabled === true;
@@ -1643,7 +1644,10 @@ export class MetadataTreeDataProvider implements vscode.TreeDataProvider<vscode.
 	private _contentOneScript = false;
 	/** Внешние отчёты и обработки, уже показанные в дереве. */
 	private _contentExternalKey = '';
-	constructor(private readonly _context: vscode.ExtensionContext) {
+	constructor(
+		private readonly _context: vscode.ExtensionContext,
+		private readonly readVersions = readExternalVersions
+	) {
 		initAdoptedIcons(path.join(_context.globalStorageUri.fsPath, 'metadata-tree-icons'));
 	}
 
@@ -2386,12 +2390,14 @@ export class MetadataTreeDataProvider implements vscode.TreeDataProvider<vscode.
 			const flat = this._flatLeavesBySource.get(element.sourceId);
 			if (flat) {
 				const leaves = this.filterLeaves(flat);
-				await Promise.all(leaves.map(async (leaf) => {
-					if (leaf.resourceUri) {
-						const modulePath = moduleFileOf(leaf.resourceUri.fsPath, 'object');
-						leaf.description = bspExternalVersion(await readBslModule(modulePath));
-					}
-				}));
+				const modules = leaves.map((leaf) => leaf.resourceUri && moduleFileOf(leaf.resourceUri.fsPath, 'object'));
+				const versions = this._workspaceRoot
+					? await this.readVersions(this._context, this._workspaceRoot, modules.filter((file) => file !== undefined))
+					: {};
+				leaves.forEach((leaf, index) => {
+					const file = modules[index];
+					leaf.description = file ? versions[file] : undefined;
+				});
 				return leaves;
 			}
 			const groups = this._groupsBySource.get(element.sourceId) ?? [];
